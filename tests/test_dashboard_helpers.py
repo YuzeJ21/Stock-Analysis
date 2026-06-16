@@ -12010,7 +12010,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
     queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
-    decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", lane_selector_index)
+    current_mode_index = source.index("render_data_health_current_mode_strip(", lane_selector_index)
+    queue_summary_index = source.index('render_section_header(\n        "Queue Outcome Summary"', current_mode_index)
+    decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", queue_summary_index)
     decision_queue_expand_state_index = source.index("decision_queue_drawer_expanded =", decision_queue_status_index)
     decision_queue_drawer_index = source.index('st.expander("Decision proof queue drawer", expanded=decision_queue_drawer_expanded)', decision_queue_status_index)
     decision_queue_completion_index = source.index("decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)", decision_queue_drawer_index)
@@ -12053,7 +12055,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -12065,6 +12067,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source
     assert "data_health_operator_snapshot_cards(" in source
     assert "render_data_health_operator_hero(operator_snapshot_cards)" in source
+    assert "data_health_current_mode_strip_html(" in source
+    assert "data_health_selected_detail_mode(" in source
+    assert "data_health_current_mode_next_action(" in source
+    assert "render_data_health_current_mode_strip(" in source
     assert "data_health_batch_lane_for_operator(selected_lane_key)" in source
     assert 'if selected_lane_key not in {"metrics", "proof"} and batch_details_requested' in source
     assert "build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)" in source
@@ -12102,6 +12108,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "decision_proof_queue_drawer_summary_frame(decision_queue_frame, decision_queue_freshness)" in source
     assert "data_health_reviewed_batch_execution_frame(batch_preflight)" in source
     assert "Full packet, dry-run, validate, preview, apply, proof, rollback, and artifact-hygiene steps." in source
+    assert "Load readiness queue details" not in source
+    assert "Load batch execution details" not in source
+    assert "Load proof history details" not in source
+    assert "Load SPY / QQQ metric details" not in source
     assert "def render_operator_queue_preview(cards: list[dict[str, object]], *, limit: int = 4)" in source
     assert "render_data_health_price_operator_console(" in source
     assert "Price Queue Snapshot" in source
@@ -20922,6 +20932,115 @@ def test_data_health_detail_selector_requested_accepts_query_session_or_segment(
     assert dashboard.data_health_detail_selector_requested(None, selector_value="Review details") is True
     assert dashboard.data_health_detail_selector_requested(None, selector_value="Fast view") is False
     assert dashboard.data_health_detail_selector_requested("0", selector_value="Fast view") is False
+
+
+def _reviewed_batch_preflight_fixture(
+    *,
+    lane: str = "prices",
+    status: str = "ready_for_dry_run",
+    packet_command: str = "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
+) -> dashboard.ReviewedBatchPreflight:
+    return dashboard.ReviewedBatchPreflight(
+        lane=lane,
+        lane_scope="Price Coverage",
+        batch_id="RB-TEST",
+        review_date="2026-06-16",
+        status=status,
+        current_report_exists=True,
+        prior_snapshot_exists=True,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command=packet_command,
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo",
+        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30",
+        comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-16 TOP_N=10",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
+        do_not_proceed_if=("dry-run scope is not reviewed",),
+        expected_artifacts=("data/prices.csv", "data/reports/price_coverage_report.csv"),
+    )
+
+
+def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_next_action():
+    html = dashboard.data_health_current_mode_strip_html(
+        selected_lane_key="prices",
+        queue_details_requested=False,
+        batch_details_requested=False,
+        metric_details_requested=False,
+        proof_details_requested=False,
+        readiness_freshness=dashboard.FreshnessStatus(
+            "current",
+            "Readiness artifacts are current relative to watched source files.",
+            "make readiness",
+        ),
+        batch_preflight=_reviewed_batch_preflight_fixture(),
+        metric_detail_status={"next_action": "Switch Metric detail level to Review details."},
+    )
+    rendered = html.lower()
+
+    assert "ops-mode-strip" in rendered
+    assert "lane" in rendered
+    assert "prices" in rendered
+    assert "lane detail" in rendered
+    assert "fast view" in rendered
+    assert "queue detail" in rendered
+    assert "freshness" in rendered
+    assert "current" in rendered
+    assert "next safe action" in rendered
+    assert "switch batch execution detail level to review details" in rendered
+    assert "copy-only" in rendered
+    assert "research readiness" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order routing" not in rendered
+
+
+def test_data_health_current_mode_strip_uses_metric_proof_and_stale_modes():
+    current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
+    stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
+    preflight = _reviewed_batch_preflight_fixture()
+
+    metric_html = dashboard.data_health_current_mode_strip_html(
+        selected_lane_key="metrics",
+        queue_details_requested=True,
+        batch_details_requested=False,
+        metric_details_requested=True,
+        proof_details_requested=False,
+        readiness_freshness=current,
+        batch_preflight=preflight,
+        metric_detail_status={"next_action": "Open the Metrics evidence drawer."},
+    ).lower()
+    proof_html = dashboard.data_health_current_mode_strip_html(
+        selected_lane_key="proof",
+        queue_details_requested=False,
+        batch_details_requested=False,
+        metric_details_requested=False,
+        proof_details_requested=False,
+        readiness_freshness=current,
+        batch_preflight=preflight,
+        metric_detail_status={"next_action": "Open the Metrics evidence drawer."},
+    ).lower()
+    stale_html = dashboard.data_health_current_mode_strip_html(
+        selected_lane_key="metrics",
+        queue_details_requested=False,
+        batch_details_requested=False,
+        metric_details_requested=True,
+        proof_details_requested=False,
+        readiness_freshness=stale,
+        batch_preflight=preflight,
+        metric_detail_status={"next_action": "Open the Metrics evidence drawer."},
+    ).lower()
+
+    assert "metrics" in metric_html
+    assert "review details" in metric_html
+    assert "open the metrics evidence drawer" in metric_html
+    assert "proof history" in proof_html
+    assert "switch proof detail level to review details" in proof_html
+    assert "stale" in stale_html
+    assert "make readiness" in stale_html
+    assert "buy" not in metric_html + proof_html + stale_html
+    assert "sell" not in metric_html + proof_html + stale_html
 
 
 def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated():

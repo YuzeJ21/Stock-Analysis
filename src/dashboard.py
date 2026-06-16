@@ -2968,6 +2968,50 @@ def apply_dashboard_theme() -> None:
           color: #ecfdf5 !important;
           border-color: #0b3b36 !important;
         }
+        .ops-mode-strip {
+          display: grid;
+          grid-template-columns: minmax(8rem, 0.8fr) minmax(7rem, 0.75fr) minmax(7rem, 0.75fr) minmax(7rem, 0.75fr) minmax(16rem, 1.8fr);
+          gap: 0.42rem;
+          align-items: stretch;
+          margin: -0.42rem 0 0.76rem 0;
+          padding: 0.42rem;
+          border: 1px solid rgba(15, 118, 110, 0.16);
+          border-radius: var(--research-radius);
+          background: #ffffff;
+          box-shadow: var(--research-shadow-soft);
+        }
+        .ops-mode-item {
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: var(--research-radius-sm);
+          background: #f8faf7;
+          padding: 0.48rem 0.56rem;
+          min-width: 0;
+        }
+        .ops-mode-label {
+          color: #64748b;
+          font-size: 0.64rem;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .ops-mode-value {
+          color: #10201d;
+          font-size: 0.88rem;
+          font-weight: 950;
+          line-height: 1.18;
+          margin-top: 0.16rem;
+          overflow-wrap: anywhere;
+        }
+        .ops-mode-note {
+          color: #526071;
+          font-size: 0.72rem;
+          line-height: 1.28;
+          margin-top: 0.16rem;
+        }
+        .ops-mode-item.action {
+          background: #ecfdf5;
+          border-color: rgba(15, 118, 110, 0.18);
+        }
         .metric-console {
           display: grid;
           grid-template-columns: minmax(0, 1fr);
@@ -3143,6 +3187,10 @@ def apply_dashboard_theme() -> None:
             min-height: 1.9rem;
             font-size: 0.76rem;
             padding-inline: 0.35rem;
+          }
+          .ops-mode-strip {
+            grid-template-columns: 1fr;
+            margin-top: -0.3rem;
           }
           .metric-console {
             grid-template-columns: 1fr;
@@ -3637,6 +3685,122 @@ def render_data_health_operator_lane_nav(selected_lane_key: str) -> None:
             f"<a class='ops-lane-link{active_class}' href='{html.escape(href)}'>{html.escape(label)}</a>"
         )
     st.markdown("<div class='ops-lane-nav'>" + "".join(links) + "</div>", unsafe_allow_html=True)
+
+
+def data_health_detail_mode_label(enabled: bool) -> str:
+    return "Review details" if enabled else "Fast view"
+
+
+def data_health_selected_detail_mode(
+    selected_lane_key: str,
+    *,
+    batch_details_requested: bool,
+    metric_details_requested: bool,
+    proof_details_requested: bool,
+) -> str:
+    if selected_lane_key == "metrics":
+        return data_health_detail_mode_label(metric_details_requested)
+    if selected_lane_key == "proof":
+        return data_health_detail_mode_label(proof_details_requested)
+    if selected_lane_key in DATA_HEALTH_BATCH_LANES:
+        return data_health_detail_mode_label(batch_details_requested)
+    return "Fast view"
+
+
+def data_health_current_mode_next_action(
+    selected_lane_key: str,
+    *,
+    batch_details_requested: bool,
+    metric_detail_status: dict[str, str],
+    proof_details_requested: bool,
+    readiness_freshness: FreshnessStatus,
+    batch_preflight: ReviewedBatchPreflight,
+) -> str:
+    if readiness_freshness.status in {"missing", "stale"}:
+        return readiness_freshness.refresh_command or "make readiness"
+    if selected_lane_key == "metrics":
+        return metric_detail_status.get("next_action") or "Switch Metric detail level to Review details."
+    if selected_lane_key == "proof":
+        return "Review proof ledgers and snapshot comparison." if proof_details_requested else "Switch Proof detail level to Review details."
+    if selected_lane_key in DATA_HEALTH_BATCH_LANES:
+        if not batch_details_requested:
+            return "Switch Batch execution detail level to Review details."
+        return batch_preflight.packet_command
+    return "Choose a readiness lane."
+
+
+def data_health_current_mode_strip_html(
+    *,
+    selected_lane_key: str,
+    queue_details_requested: bool,
+    batch_details_requested: bool,
+    metric_details_requested: bool,
+    proof_details_requested: bool,
+    readiness_freshness: FreshnessStatus,
+    batch_preflight: ReviewedBatchPreflight,
+    metric_detail_status: dict[str, str],
+) -> str:
+    lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, "Prices")
+    selected_detail = data_health_selected_detail_mode(
+        selected_lane_key,
+        batch_details_requested=batch_details_requested,
+        metric_details_requested=metric_details_requested,
+        proof_details_requested=proof_details_requested,
+    )
+    queue_detail = data_health_detail_mode_label(queue_details_requested)
+    freshness_value = str(readiness_freshness.status or "unknown").replace("_", " ").title()
+    next_action = data_health_current_mode_next_action(
+        selected_lane_key,
+        batch_details_requested=batch_details_requested,
+        metric_detail_status=metric_detail_status,
+        proof_details_requested=proof_details_requested,
+        readiness_freshness=readiness_freshness,
+        batch_preflight=batch_preflight,
+    )
+    items = [
+        ("Lane", lane_label, "Active readiness workflow."),
+        ("Lane detail", selected_detail, "Fast view keeps proof tables collapsed."),
+        ("Queue detail", queue_detail, "Controls broad lane rows and drilldowns."),
+        ("Freshness", freshness_value, compact_card_fragment(readiness_freshness.message, max_chars=88)),
+        ("Next safe action", next_action, "Copy-only; research readiness, not a recommendation."),
+    ]
+    blocks = []
+    for label, value, note in items:
+        action_class = " action" if label == "Next safe action" else ""
+        blocks.append(
+            f"<div class='ops-mode-item{action_class}'>"
+            f"<div class='ops-mode-label'>{html.escape(label)}</div>"
+            f"<div class='ops-mode-value'>{html.escape(format_missing(value))}</div>"
+            f"<div class='ops-mode-note'>{html.escape(format_missing(note))}</div>"
+            "</div>"
+        )
+    return "<div class='ops-mode-strip'>" + "".join(blocks) + "</div>"
+
+
+def render_data_health_current_mode_strip(
+    *,
+    selected_lane_key: str,
+    queue_details_requested: bool,
+    batch_details_requested: bool,
+    metric_details_requested: bool,
+    proof_details_requested: bool,
+    readiness_freshness: FreshnessStatus,
+    batch_preflight: ReviewedBatchPreflight,
+    metric_detail_status: dict[str, str],
+) -> None:
+    st.markdown(
+        data_health_current_mode_strip_html(
+            selected_lane_key=selected_lane_key,
+            queue_details_requested=queue_details_requested,
+            batch_details_requested=batch_details_requested,
+            metric_details_requested=metric_details_requested,
+            proof_details_requested=proof_details_requested,
+            readiness_freshness=readiness_freshness,
+            batch_preflight=batch_preflight,
+            metric_detail_status=metric_detail_status,
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 def metric_card_html(label: str, value: object, note: str = "") -> str:
@@ -26132,6 +26296,9 @@ def render_data_health(
                 "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
             )
         return
+    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
+    batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
+    batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
     operator_snapshot_cards = data_health_operator_snapshot_cards(
         readiness_summary,
         ops_center,
@@ -26193,6 +26360,16 @@ def render_data_health(
     render_data_health_operator_hero(operator_snapshot_cards)
     render_data_health_operator_queue_header()
     render_data_health_operator_lane_nav(selected_lane_key)
+    render_data_health_current_mode_strip(
+        selected_lane_key=selected_lane_key,
+        queue_details_requested=queue_details_requested,
+        batch_details_requested=batch_details_requested,
+        metric_details_requested=metric_details_requested,
+        proof_details_requested=proof_details_requested,
+        readiness_freshness=readiness_freshness,
+        batch_preflight=batch_preflight,
+        metric_detail_status=metric_detail_status,
+    )
     render_section_header(
         "Queue Outcome Summary",
         "Latest reviewed-batch outcomes and the primary lane switcher before opening drawers.",
@@ -26244,9 +26421,6 @@ def render_data_health(
                 )
                 st.table(clean_display_frame(pd.DataFrame([drilldown_row.to_dict()])))
 
-    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
-    batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
-    batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
     coverage_loop = (
         build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)
         if selected_lane_key not in {"metrics", "proof"} and batch_details_requested
