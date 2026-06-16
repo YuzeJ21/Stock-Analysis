@@ -2,6 +2,7 @@ from pathlib import Path
 
 from src.readiness_ops import (
     build_fundamentals_peer_metrics_queue,
+    build_fundamentals_peer_metrics_queue_from_lanes,
     build_data_coverage_expansion_plan,
     build_peer_readiness_summary,
     build_coverage_frontier,
@@ -145,6 +146,19 @@ def test_fundamentals_peer_metrics_queue_summarizes_next_layer_without_fake_unlo
     assert "do not infer fundamentals" in rendered
     assert "buy" not in rendered.lower()
     assert "sell" not in rendered.lower()
+
+
+def test_fundamentals_peer_metrics_queue_can_reuse_existing_lanes(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    lanes = build_readiness_ops_lanes(root)
+    direct_rows = build_fundamentals_peer_metrics_queue(root, top_n=2)
+    reused_rows = build_fundamentals_peer_metrics_queue_from_lanes(lanes, root=root, top_n=2)
+
+    assert [row.lane for row in reused_rows] == [row.lane for row in direct_rows]
+    assert [row.readiness_state for row in reused_rows] == [row.readiness_state for row in direct_rows]
+    assert [row.top_missing_input_families for row in reused_rows] == [
+        row.top_missing_input_families for row in direct_rows
+    ]
 
 
 def test_peer_readiness_summary_separates_mapping_trend_and_valuation_inputs(tmp_path: Path):

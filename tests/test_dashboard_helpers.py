@@ -1704,6 +1704,31 @@ def test_load_output_missing_message_uses_verify(tmp_path):
     assert "report_generator" not in message
 
 
+def test_load_output_cache_returns_copy_and_invalidates_on_file_change(tmp_path):
+    path = tmp_path / "status.csv"
+    path.write_text("SetupStatus,Value\nAvoid,1\n", encoding="utf-8")
+
+    first, first_message = dashboard.load_output(path)
+    assert first_message is None
+    assert first is not None
+    assert first["SetupStatus"].tolist() == ["No Setup"]
+
+    first.loc[0, "SetupStatus"] = "mutated"
+    second, second_message = dashboard.load_output(path)
+
+    assert second_message is None
+    assert second is not None
+    assert second["SetupStatus"].tolist() == ["No Setup"]
+
+    path.write_text("SetupStatus,Value\nExtended / No Chase,2\n", encoding="utf-8")
+    changed, changed_message = dashboard.load_output(path)
+
+    assert changed_message is None
+    assert changed is not None
+    assert changed["SetupStatus"].tolist() == ["Extended"]
+    assert changed["Value"].tolist() == [2]
+
+
 def test_context_note_html_is_readable_and_escaped():
     html = dashboard.context_note_html("<Filters>", "Use <trusted> local CSV inputs.", tone="warning")
 
@@ -12029,14 +12054,16 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     details_index = source.index("if show_details:", all_details_index)
 
     assert public_return_index < hero_index < queue_index < lane_selector_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
-    assert "ops_center = data_health_readiness_ops_center_frame()" in source
-    assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
+    assert "defer_broad_queue = public_mode or selected_lane_key == \"metrics\"" in source
+    assert "ops_center = pd.DataFrame() if defer_broad_queue else data_health_readiness_ops_center_frame()" in source
+    assert "coverage_frontier = pd.DataFrame() if defer_broad_queue else data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source
     assert "data_health_operator_snapshot_cards(" in source
     assert "render_data_health_operator_hero(operator_snapshot_cards)" in source
     assert "data_health_batch_lane_for_operator(selected_lane_key)" in source
-    assert "coverage_loop = build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)" in source
+    assert 'if selected_lane_key not in {"metrics", "proof"}' in source
+    assert "build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)" in source
     assert "data_health_reviewed_batch_operator_flow_cards(" in source
     assert "Batch Execution Detail" in source
     assert "data_health_coverage_expansion_loop_cards(coverage_loop)" in source
@@ -20874,6 +20901,68 @@ def test_metric_readiness_queue_frame_covers_spy_and_qqq():
     }.issubset(frame.columns)
 
 
+def test_metric_details_requested_accepts_query_or_session_state():
+    assert dashboard.data_health_metric_details_requested("1") is True
+    assert dashboard.data_health_metric_details_requested("details") is True
+    assert dashboard.data_health_metric_details_requested(["load"]) is True
+    assert dashboard.data_health_metric_details_requested("", session_loaded=True) is True
+    assert dashboard.data_health_metric_details_requested("0") is False
+    assert dashboard.data_health_metric_details_requested(None) is False
+
+
+def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated():
+    current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
+    stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
+
+    not_selected = dashboard.data_health_metric_detail_load_status("prices", current, requested=True)
+    needs_request = dashboard.data_health_metric_detail_load_status("metrics", current, requested=False)
+    blocked = dashboard.data_health_metric_detail_load_status("metrics", stale, requested=True)
+    loaded = dashboard.data_health_metric_detail_load_status("metrics", current, requested=True)
+
+    assert not_selected["status"] == "not_selected"
+    assert needs_request["status"] == "needs_request"
+    assert "lightweight" in needs_request["body"].lower()
+    assert blocked["status"] == "blocked_by_snapshot_gate"
+    assert blocked["next_action"] == "make readiness"
+    assert loaded["status"] == "ready_to_load"
+
+
+def test_metric_detail_load_cards_keep_research_only_and_stale_counts_hidden():
+    stale = {
+        "status": "blocked_by_snapshot_gate",
+        "title": "Refresh readiness first",
+        "body": "Generated readiness artifacts are stale.",
+        "next_action": "make readiness",
+    }
+    unloaded = {
+        "status": "needs_request",
+        "title": "Metric details are not loaded yet",
+        "body": "The first metrics view is intentionally lightweight.",
+        "next_action": "Use the load control on this lane.",
+    }
+    loaded = {
+        "status": "ready_to_load",
+        "title": "Metric details loaded",
+        "body": "SPY/QQQ metric-readiness rows are loaded.",
+        "next_action": "Open the Metrics evidence drawer.",
+    }
+
+    rendered = " ".join(
+        str(value)
+        for status in [stale, unloaded, loaded]
+        for card in dashboard.data_health_metric_detail_load_cards(status)
+        for value in card.values()
+    ).lower()
+
+    assert "no stale counts" in rendered
+    assert "progressive loading" in rendered
+    assert "review metrics only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order routing" not in rendered
+
+
 def test_metric_operator_console_summarizes_first_view_without_command_noise():
     frame = pd.DataFrame(
         [
@@ -20971,9 +21060,15 @@ def test_metric_operator_console_uses_page_freshness_when_status_artifacts_are_s
 def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    selected_lane_index = source.index('selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))')
+    metric_load_status_index = source.index("metric_detail_status = data_health_metric_detail_load_status", selected_lane_index)
+    metric_queue_build_index = source.index("data_health_metric_readiness_queue_frame(top_n=10)", metric_load_status_index)
+    metric_queue_gate_index = source.index('if metric_detail_status["status"] == "ready_to_load"', metric_load_status_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
     risk_cards_index = source.index("data_health_risk_context_cards(liquidity_frame, correlation_frame)", lane_selector_index)
     metric_console_index = source.index("render_data_health_metric_operator_console(metric_queue_frame, readiness_freshness)", lane_selector_index)
+    metric_load_cards_index = source.index("data_health_metric_detail_load_cards(metric_detail_status)", metric_console_index)
+    metric_load_button_index = source.index('st.button("Load SPY / QQQ metric details"', metric_console_index)
     metric_queue_index = source.index("data_health_metric_readiness_queue_cards(metric_queue_frame)", metric_console_index)
     metric_summary_index = source.index("data_health_metric_readiness_family_summary_cards(metric_queue_frame)", metric_console_index)
     metric_cards_index = source.index("data_health_review_metric_readiness_cards()", lane_selector_index)
@@ -20982,6 +21077,9 @@ def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     liquidity_expander_index = source.index('st.expander("Liquidity Context", expanded=False)')
     correlation_expander_index = source.index('st.expander("Correlation Concentration Context", expanded=False)')
 
+    assert selected_lane_index < metric_load_status_index < metric_queue_gate_index < metric_queue_build_index < metric_console_index
+    assert metric_load_cards_index < metric_queue_expander_index
+    assert metric_load_button_index < metric_queue_expander_index
     assert metric_console_index < metric_queue_expander_index < metric_summary_index < metric_queue_index < metric_cards_index
     assert risk_cards_index < liquidity_expander_index < correlation_expander_index
     assert metric_summary_table_index < metric_summary_index

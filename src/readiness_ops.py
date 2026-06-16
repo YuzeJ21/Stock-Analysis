@@ -734,9 +734,23 @@ def build_fundamentals_peer_metrics_queue(
     top_n: int = 10,
 ) -> list[ReadinessQueueRow]:
     root = Path(root)
-    lanes = {lane.lane: lane for lane in build_readiness_ops_lanes(root)}
+    return build_fundamentals_peer_metrics_queue_from_lanes(
+        build_readiness_ops_lanes(root),
+        root=root,
+        top_n=top_n,
+    )
+
+
+def build_fundamentals_peer_metrics_queue_from_lanes(
+    lanes: list[ReadinessLane] | tuple[ReadinessLane, ...],
+    *,
+    root: Path | str = ".",
+    top_n: int = 10,
+) -> list[ReadinessQueueRow]:
+    root = Path(root)
+    lanes_by_key = {lane.lane: lane for lane in lanes}
     rows: list[ReadinessQueueRow] = []
-    fundamentals = lanes.get("fundamentals_dcf")
+    fundamentals = lanes_by_key.get("fundamentals_dcf")
     if fundamentals is not None:
         rows.append(
             _queue_row_from_lane(
@@ -746,7 +760,7 @@ def build_fundamentals_peer_metrics_queue(
                 proof_gate="Validate -> preview -> rejected-row review -> apply only reviewed trusted rows -> rebuild readiness.",
             )
         )
-    peer_mapping = lanes.get("peer_mapping")
+    peer_mapping = lanes_by_key.get("peer_mapping")
     if peer_mapping is not None:
         rows.append(
             _queue_row_from_lane(
@@ -756,7 +770,7 @@ def build_fundamentals_peer_metrics_queue(
                 proof_gate="Peer relationships need source proof; sector similarity remains fallback context only.",
             )
         )
-    peer_inputs = lanes.get("peer_valuation_inputs")
+    peer_inputs = lanes_by_key.get("peer_valuation_inputs")
     if peer_inputs is not None:
         rows.append(
             _queue_row_from_lane(
@@ -771,7 +785,7 @@ def build_fundamentals_peer_metrics_queue(
         ("earnings_locked", "trusted local earnings rows"),
         ("analyst_estimates_locked", "trusted local analyst-estimate rows"),
     ):
-        lane = lanes.get(lane_name)
+        lane = lanes_by_key.get(lane_name)
         if lane is not None:
             rows.append(
                 _queue_row_from_lane(

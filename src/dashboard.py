@@ -32,7 +32,11 @@ from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
-from src.readiness_ops import build_coverage_frontier, build_fundamentals_peer_metrics_queue, build_readiness_ops_lanes
+from src.readiness_ops import (
+    build_coverage_frontier,
+    build_fundamentals_peer_metrics_queue_from_lanes,
+    build_readiness_ops_lanes,
+)
 from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
@@ -764,9 +768,9 @@ COLUMN_LABELS = {
 }
 
 
-def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
-    if not path.exists():
-        return None, f"`{path.name}` is not ready yet. Build saved research views and validation proof first."
+@lru_cache(maxsize=96)
+def cached_output_frame(path_text: str, mtime_ns: int, size: int) -> tuple[pd.DataFrame | None, str | None]:
+    path = Path(path_text)
     try:
         frame = pd.read_csv(path)
     except Exception as exc:  # pragma: no cover - defensive UI path
@@ -774,6 +778,14 @@ def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
     if frame.empty:
         return frame, f"`{path.name}` is present but currently empty."
     return normalize_public_labels(frame), None
+
+
+def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
+    if not path.exists():
+        return None, f"`{path.name}` is not ready yet. Build saved research views and validation proof first."
+    stat = path.stat()
+    frame, message = cached_output_frame(str(path), stat.st_mtime_ns, stat.st_size)
+    return (None if frame is None else frame.copy(), message)
 
 
 def normalize_public_labels(frame: pd.DataFrame) -> pd.DataFrame:
@@ -7904,7 +7916,43 @@ def cached_readiness_ops_lanes(root_text: str):
 
 @lru_cache(maxsize=8)
 def cached_fundamentals_peer_metrics_queue(root_text: str, top_n: int):
-    return tuple(build_fundamentals_peer_metrics_queue(Path(root_text), top_n=top_n))
+    lanes = cached_readiness_ops_lanes(root_text)
+    return tuple(build_fundamentals_peer_metrics_queue_from_lanes(lanes, root=Path(root_text), top_n=top_n))
+
+
+@lru_cache(maxsize=8)
+def cached_metric_readiness_queue_rows(root_text: str, top_n: int):
+    root = Path(root_text)
+    provider = build_provider("local", base_dir=root)
+    risk_free_rate = configured_risk_free_rate(root)
+    rows: list[dict[str, object]] = []
+    for benchmark in ("SPY", "QQQ"):
+        summary_rows, freshness = build_metric_readiness_summary(
+            root,
+            provider,  # type: ignore[arg-type]
+            benchmark=benchmark,
+            annual_risk_free_rate=risk_free_rate,
+            top_n=top_n,
+        )
+        for row in summary_rows:
+            rows.append(
+                {
+                    "Ticker": row.ticker,
+                    "Benchmark": row.benchmark,
+                    "Overall State": row.overall_state,
+                    "Ready Metrics": row.ready_metrics,
+                    "Partial Metrics": row.partial_metrics,
+                    "Blocked Metrics": row.blocked_metrics,
+                    "Excluded Metrics": row.excluded_metrics,
+                    "Top Blocker": row.top_blocker,
+                    "Blocker Family": metric_readiness_blocker_family(row.top_blocker),
+                    "Next Check": row.next_action,
+                    "Freshness": freshness.get("status", "unknown"),
+                    "Freshness Message": freshness.get("message", ""),
+                    "Refresh Command": freshness.get("refresh_command", "make readiness"),
+                }
+            )
+    return tuple(rows)
 
 
 def data_health_readiness_ops_center_frame(root: Path | None = None) -> pd.DataFrame:
@@ -17874,36 +17922,96 @@ def data_health_metric_readiness_queue_frame(top_n: int = 10, root: Path | None 
     """Build a compact SPY/QQQ metric-readiness queue without writing generated artifacts."""
 
     root = root or BASE_DIR
-    provider = build_provider("local", base_dir=root)
-    risk_free_rate = configured_risk_free_rate(root)
-    rows: list[dict[str, object]] = []
-    for benchmark in ("SPY", "QQQ"):
-        summary_rows, freshness = build_metric_readiness_summary(
-            root,
-            provider,  # type: ignore[arg-type]
-            benchmark=benchmark,
-            annual_risk_free_rate=risk_free_rate,
-            top_n=top_n,
-        )
-        for row in summary_rows:
-            rows.append(
-                {
-                    "Ticker": row.ticker,
-                    "Benchmark": row.benchmark,
-                    "Overall State": row.overall_state,
-                    "Ready Metrics": row.ready_metrics,
-                    "Partial Metrics": row.partial_metrics,
-                    "Blocked Metrics": row.blocked_metrics,
-                    "Excluded Metrics": row.excluded_metrics,
-                    "Top Blocker": row.top_blocker,
-                    "Blocker Family": metric_readiness_blocker_family(row.top_blocker),
-                    "Next Check": row.next_action,
-                    "Freshness": freshness.get("status", "unknown"),
-                    "Freshness Message": freshness.get("message", ""),
-                    "Refresh Command": freshness.get("refresh_command", "make readiness"),
-                }
-            )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(list(cached_metric_readiness_queue_rows(str(root), top_n)))
+
+
+def data_health_metric_details_requested(query_value: object, session_loaded: object = False) -> bool:
+    if bool(session_loaded):
+        return True
+    if isinstance(query_value, (list, tuple)):
+        query_value = query_value[0] if query_value else ""
+    raw = str(query_value or "").strip().lower()
+    return raw in {"1", "true", "yes", "load", "loaded", "details"}
+
+
+def data_health_metric_detail_load_status(
+    selected_lane_key: str,
+    freshness_status: FreshnessStatus | None,
+    requested: bool,
+) -> dict[str, str]:
+    if selected_lane_key != "metrics":
+        return {
+            "status": "not_selected",
+            "title": "Metrics lane not selected",
+            "body": "Metric-readiness details stay unloaded until the operator opens the Metrics lane.",
+            "next_action": "Open the Metrics lane.",
+        }
+    freshness_status = freshness_status or FreshnessStatus("unknown", "Readiness freshness has not been checked.", "make readiness")
+    if freshness_status.status in {"missing", "stale"}:
+        return {
+            "status": "blocked_by_snapshot_gate",
+            "title": "Refresh readiness before metric details",
+            "body": freshness_status.message or "Readiness artifacts are not current enough for row-level metric counts.",
+            "next_action": freshness_status.refresh_command or "make readiness",
+        }
+    if not requested:
+        return {
+            "status": "needs_request",
+            "title": "Metric details are not loaded yet",
+            "body": (
+                "The first metrics view is intentionally lightweight. Load SPY/QQQ row-level details only when "
+                "you need blocker-family proof."
+            ),
+            "next_action": "Use the load control on this lane.",
+        }
+    return {
+        "status": "ready_to_load",
+        "title": "Metric details loaded",
+        "body": "SPY/QQQ metric-readiness rows are loaded from cached local readiness inputs for this session.",
+        "next_action": "Open the Metrics evidence drawer.",
+    }
+
+
+def data_health_metric_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, object]]:
+    status = load_status.get("status", "needs_request")
+    if status == "blocked_by_snapshot_gate":
+        return [
+            {
+                "kicker": "METRIC DETAIL GATE",
+                "title": load_status.get("title", "Refresh readiness first"),
+                "body": (
+                    f"{load_status.get('body', 'Readiness artifacts need refresh.')} "
+                    "Metric details stay blocked so stale row counts do not look current."
+                ),
+                "badges": ["snapshot gate", "no stale counts"],
+                "command": load_status.get("next_action", "make readiness"),
+            }
+        ]
+    if status == "ready_to_load":
+        return [
+            {
+                "kicker": "METRIC DETAIL STATUS",
+                "title": "SPY / QQQ queue loaded",
+                "body": (
+                    "Row-level blocker families are available in the evidence drawer. Keep Sharpe, Sortino, beta, "
+                    "drawdown, valuation, trend, and peer dispersion as review metrics only."
+                ),
+                "badges": ["cached", "review-only"],
+                "command": "make metric-readiness-board TOP_N=10",
+            }
+        ]
+    return [
+        {
+            "kicker": "METRIC DETAIL STATUS",
+            "title": load_status.get("title", "Metric details are not loaded yet"),
+            "body": (
+                f"{load_status.get('body', 'Load details only when needed.')} "
+                "This keeps the Data Health first viewport fast and avoids opening raw metric rows by default."
+            ),
+            "badges": ["progressive loading", "collapsed detail"],
+            "command": "make metric-readiness-board TOP_N=10",
+        }
+    ]
 
 
 def data_health_metric_readiness_queue_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
@@ -25900,10 +26008,12 @@ def render_data_health(
         analyst_readiness_frame,
         ticker_readiness_frame,
     )
+    selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
 
-    ops_center = data_health_readiness_ops_center_frame()
-    coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
-    readiness_queue = data_health_fundamentals_peer_metrics_queue_frame(top_n=10)
+    defer_broad_queue = public_mode or selected_lane_key == "metrics"
+    ops_center = pd.DataFrame() if defer_broad_queue else data_health_readiness_ops_center_frame()
+    coverage_frontier = pd.DataFrame() if defer_broad_queue else data_health_coverage_frontier_frame(top_n=10)
+    readiness_queue = pd.DataFrame() if defer_broad_queue else data_health_fundamentals_peer_metrics_queue_frame(top_n=10)
     readiness_freshness = data_health_freshness_status(BASE_DIR)
     if public_mode:
         render_section_header(
@@ -25961,7 +26071,6 @@ def render_data_health(
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
     batch_packet_frame = data_health_latest_reviewed_batch_packet_frame()
     readiness_comparison = compare_readiness_snapshots(BASE_DIR, top_n=10)
-    selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
     peer_v2_frame = data_health_peer_readiness_v2_frame(ops_center)
     lane_board = data_health_trusted_pilot_lane_board_frame(
         fundamentals_peer_worklist_frame,
@@ -25970,7 +26079,18 @@ def render_data_health(
         limit=10,
     )
     proof_timeline = data_health_reviewed_proof_timeline_frame()
-    metric_queue_frame = data_health_metric_readiness_queue_frame(top_n=10) if selected_lane_key == "metrics" else pd.DataFrame()
+    metric_details_requested = data_health_metric_details_requested(
+        st.query_params.get("metric_details"),
+        st.session_state.get("data_health_metric_details_loaded", False),
+    )
+    metric_detail_status = data_health_metric_detail_load_status(
+        selected_lane_key,
+        readiness_freshness,
+        metric_details_requested,
+    )
+    metric_queue_frame = pd.DataFrame()
+    if metric_detail_status["status"] == "ready_to_load":
+        metric_queue_frame = data_health_metric_readiness_queue_frame(top_n=10)
     pilot_preview = data_health_trusted_pilot_preview_frame(
         fundamentals_peer_worklist_frame,
         peer_unlock_worklist_frame,
@@ -26025,7 +26145,11 @@ def render_data_health(
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
     batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
     batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
-    coverage_loop = build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)
+    coverage_loop = (
+        build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)
+        if selected_lane_key not in {"metrics", "proof"}
+        else None
+    )
     decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)
     decision_queue_frame = (
         decision_proof_queue_frame(decisions_frame, ticker_readiness_frame, limit=8)
@@ -26063,7 +26187,7 @@ def render_data_health(
         if decision_queue_freshness.status == "current" and not decision_queue_frame.empty:
             with st.expander("Decision proof queue rows", expanded=False):
                 st.dataframe(clean_display_frame(decision_queue_frame), width="stretch", hide_index=True)
-    if selected_lane_key != "proof":
+    if selected_lane_key not in {"proof", "metrics"}:
         render_section_header("Readiness Batch Execution", "Choose the lane, confirm source/freshness gates, then generate a reviewed proof packet before row-level evidence.")
         render_signal_cards(
             data_health_reviewed_batch_operator_flow_cards(
@@ -26175,7 +26299,18 @@ def render_data_health(
             st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
     elif selected_lane == "Metrics":
         render_data_health_metric_operator_console(metric_queue_frame, readiness_freshness)
+        render_signal_cards(data_health_metric_detail_load_cards(metric_detail_status), show_commands=False)
+        render_context_note(
+            "Metrics are read-only.",
+            "This lane summarizes benchmark, risk, fundamentals trend, valuation, and peer-dispersion readiness only. Source fixes route back to prices, fundamentals, market cap, or peers before any metric value is shown.",
+        )
+        if metric_detail_status["status"] == "needs_request":
+            if st.button("Load SPY / QQQ metric details", key="data-health-load-metric-details"):
+                st.session_state["data_health_metric_details_loaded"] = True
+                st.rerun()
         with st.expander("Metrics evidence drawer", expanded=False):
+            render_section_header("Metric Detail Load State", "Row-level metric readiness is progressive so the first viewport stays fast.")
+            render_signal_cards(data_health_metric_detail_load_cards(metric_detail_status), show_commands=True)
             render_section_header("Metric Blocker Family Summary", "Compact SPY / QQQ blocker-family triage before row-level proof.")
             st.dataframe(
                 clean_display_frame(data_health_metric_readiness_family_summary_frame(metric_queue_frame)),
