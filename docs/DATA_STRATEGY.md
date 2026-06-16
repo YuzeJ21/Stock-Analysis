@@ -242,6 +242,8 @@ The Reviewed Batch Outcome Recorder shows the proof-row fields that are still mi
 
 The Proof Record Command Builder converts the reviewed packet, outcome recorder, and snapshot comparison into one copy-ready `make reviewed-batch-proof-record ...` command. Reviewed values are filled when available; unresolved reviewer, review date, final outcome, notes, validation, preview, apply, source, or artifact-review fields remain visible as placeholders so the operator does not hand-edit the proof row silently.
 
+Data Health now summarizes reviewed batch outcomes before the lane drawers. The Queue Outcome Summary reads the durable reviewed batch proof ledger and shows which readiness lanes are `supported`, `still_blocked`, `skipped`, `excluded`, or not yet recorded. This is an operator proof status, not a security ranking, recommendation, or claim that missing source rows exist. Detailed blocker examples, packet commands, and proof-record scaffolds stay available inside the lane drawer only when needed.
+
 The proof recorder and command-builder rules now live in `src/reviewed_batch_command_builder.py`, with the dashboard kept as the rendering layer. This keeps the reviewed-batch UX easier to test without changing the append-only proof ledger behavior.
 
 The Proof Record Validation layer checks the copy-ready command before it is treated as record-ready. Required proof fields must be real reviewed values, `FINAL_OUTCOME` must be exactly `supported`, `still_blocked`, `skipped`, or `excluded`, and snapshot-dependent fields stay blocked until the before/after comparison is available. Reviewer and notes remain visible manual fields, but they do not hide required proof placeholders.

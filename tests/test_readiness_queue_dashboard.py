@@ -7,6 +7,7 @@ import pandas as pd
 from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
+    build_readiness_queue_outcome_summary_frame,
     queue_proof_packet_command,
     readiness_queue_lane_key,
 )
@@ -135,5 +136,69 @@ def test_readiness_queue_lane_action_routes_mutating_and_read_only_lanes():
     assert "do not run import/apply commands" in metric_gate["Operator Decision"].lower()
     assert peer_gate["Status"] == "validate_preview_apply"
     assert "make reviewed-batch-compare LANE=peers" in " ".join(str(value) for value in peer.to_numpy().ravel())
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_readiness_queue_outcome_summary_reads_latest_batch_outcomes():
+    queue = pd.DataFrame(
+        [
+            {
+                "Lane": "Fundamentals / DCF Proof",
+                "State": "partial",
+                "Next Safe Command": "make sec-stage-queue TOP_N=25",
+            },
+            {
+                "Lane": "Peer Mapping Proof",
+                "State": "partial",
+                "Next Safe Command": "make peer-mapping-queue TOP_N=25",
+            },
+            {
+                "Lane": "Metrics Readiness",
+                "State": "partial",
+                "Next Safe Command": "make metric-readiness-board TOP_N=10",
+            },
+        ]
+    )
+    proofs = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-OLD",
+                "Review Date": "2026-06-14",
+                "Lane": "fundamentals",
+                "Final Outcome": "still_blocked",
+                "Changed Tickers": "none",
+                "Changed Readiness Counts": "none",
+            },
+            {
+                "Batch ID": "RB-FUND",
+                "Review Date": "2026-06-15",
+                "Lane": "fundamentals",
+                "Final Outcome": "supported",
+                "Changed Tickers": "AAA",
+                "Changed Readiness Counts": "dcf_ready 26->27",
+            },
+            {
+                "Batch ID": "RB-PEER",
+                "Review Date": "2026-06-15",
+                "Lane": "peers",
+                "Final Outcome": "still_blocked",
+                "Changed Tickers": "none",
+                "Changed Readiness Counts": "none",
+            },
+        ]
+    )
+
+    frame = build_readiness_queue_outcome_summary_frame(queue, proofs)
+    by_lane = {row["Lane"]: row for _, row in frame.iterrows()}
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert by_lane["Fundamentals / DCF Proof"]["Latest Outcome"] == "supported"
+    assert by_lane["Fundamentals / DCF Proof"]["Batch ID"] == "RB-FUND"
+    assert by_lane["Fundamentals / DCF Proof"]["Changed Tickers"] == "AAA"
+    assert by_lane["Peer Mapping Proof"]["Latest Outcome"] == "still_blocked"
+    assert by_lane["Metrics Readiness"]["Latest Outcome"] == "not_recorded"
+    assert by_lane["Metrics Readiness"]["Proof Ledger Command"] == "make reviewed-batch-proof"
+    assert "security" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

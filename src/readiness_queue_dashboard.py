@@ -135,14 +135,7 @@ def queue_proof_packet_command(lane_key: str) -> str:
 def _queue_latest_proof_status(batch_proof_frame: pd.DataFrame | None, lane_key: str) -> str:
     if batch_proof_frame is None or batch_proof_frame.empty:
         return "No reviewed batch proof row recorded yet."
-    lane_aliases = {
-        "fundamentals": {"fundamentals", "fundamentals_dcf", "share_count"},
-        "peer_mapping": {"peers", "peer_mapping", "peer_valuation_inputs"},
-        "peer_valuation_inputs": {"peers", "peer_mapping", "peer_valuation_inputs"},
-        "metrics": {"metrics"},
-        "earnings": {"optional_context", "earnings"},
-        "analyst_estimates": {"optional_context", "analyst_estimates"},
-    }.get(lane_key, {lane_key})
+    lane_aliases = _queue_lane_aliases(lane_key)
     lane_col = _frame_column(batch_proof_frame, "Lane")
     if lane_col is None:
         return "Proof ledger rows exist, but lane status is unavailable."
@@ -150,20 +143,142 @@ def _queue_latest_proof_status(batch_proof_frame: pd.DataFrame | None, lane_key:
     matches = batch_proof_frame.loc[lanes.isin(lane_aliases)]
     if matches.empty:
         return "No reviewed batch proof row recorded for this lane yet."
-    latest = matches.iloc[0]
+    latest = _latest_proof_row(matches)
     outcome = _format_missing(
-        latest.get(_frame_column(batch_proof_frame, "Final Outcome") or "Final Outcome"),
+        _row_value(latest, batch_proof_frame, "Final Outcome", "final_outcome"),
         "outcome not recorded",
     )
     review_date = _format_missing(
-        latest.get(_frame_column(batch_proof_frame, "Review Date") or "Review Date"),
+        _row_value(latest, batch_proof_frame, "Review Date", "review_date"),
         "date not recorded",
     )
     batch_id = _format_missing(
-        latest.get(_frame_column(batch_proof_frame, "Batch ID") or "Batch ID"),
+        _row_value(latest, batch_proof_frame, "Batch ID", "batch_id"),
         "batch id not recorded",
     )
     return f"{outcome} on {review_date}; batch {batch_id}."
+
+
+def _queue_lane_aliases(lane_key: str) -> set[str]:
+    return {
+        "fundamentals": {"fundamentals", "fundamentals_dcf", "share_count"},
+        "peer_mapping": {"peers", "peer_mapping", "peer_valuation_inputs"},
+        "peer_valuation_inputs": {"peers", "peer_mapping", "peer_valuation_inputs"},
+        "metrics": {"metrics"},
+        "earnings": {"optional_context", "earnings"},
+        "analyst_estimates": {"optional_context", "analyst_estimates"},
+    }.get(lane_key, {lane_key})
+
+
+def _row_value(row: pd.Series, frame: pd.DataFrame, *candidates: str) -> object:
+    column = _frame_column(frame, *candidates)
+    return row.get(column) if column is not None else None
+
+
+def _latest_proof_row(frame: pd.DataFrame) -> pd.Series:
+    if frame.empty:
+        return pd.Series(dtype=object)
+    review_col = _frame_column(frame, "Review Date", "review_date")
+    batch_col = _frame_column(frame, "Batch ID", "batch_id")
+    sort_columns = [column for column in (review_col, batch_col) if column is not None]
+    if not sort_columns:
+        return frame.iloc[0]
+    return frame.sort_values(sort_columns, ascending=[False] * len(sort_columns)).iloc[0]
+
+
+def _outcome_operator_cue(outcome: str) -> str:
+    if outcome == "supported":
+        return "Latest reviewed batch outcome is supported; keep source proof and generated-artifact review visible."
+    if outcome == "still_blocked":
+        return "Latest reviewed batch outcome is still blocked; use the lane drawer for the missing proof step."
+    if outcome == "skipped":
+        return "Latest reviewed batch outcome was skipped; reopen only when source proof or scope changes."
+    if outcome == "excluded":
+        return "Latest reviewed batch outcome was excluded; preserve the not-applicable boundary."
+    return "No reviewed batch outcome recorded yet; open the lane drawer before recording a final outcome."
+
+
+def build_readiness_queue_outcome_summary_frame(
+    queue_frame: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Summarize the latest reviewed batch outcome for each readiness queue lane."""
+
+    if queue_frame is None or queue_frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Lane": "Readiness queue",
+                    "Queue State": "blocked",
+                    "Latest Outcome": "not_recorded",
+                    "Review Date": "not recorded",
+                    "Batch ID": "not recorded",
+                    "Changed Tickers": "not recorded",
+                    "Changed Readiness Counts": "not recorded",
+                    "Operator Cue": "Run make readiness-queue TOP_N=10 before reviewing lane outcomes.",
+                    "Next Safe Action": "make readiness-queue TOP_N=10",
+                    "Proof Ledger Command": "make reviewed-batch-proof",
+                }
+            ]
+        )
+    rows: list[dict[str, object]] = []
+    for _, queue_row in queue_frame.iterrows():
+        lane = _format_missing(queue_row.get("Lane"), "Readiness lane")
+        lane_key = readiness_queue_lane_key(lane)
+        latest = pd.Series(dtype=object)
+        if batch_proof_frame is not None and not batch_proof_frame.empty:
+            lane_col = _frame_column(batch_proof_frame, "Lane", "lane")
+            if lane_col is not None:
+                lanes = batch_proof_frame[lane_col].fillna("").astype(str).str.lower().str.strip()
+                matches = batch_proof_frame.loc[lanes.isin(_queue_lane_aliases(lane_key))]
+                if not matches.empty:
+                    latest = _latest_proof_row(matches)
+        outcome = _format_missing(
+            _row_value(latest, batch_proof_frame, "Final Outcome", "final_outcome")
+            if batch_proof_frame is not None and not latest.empty
+            else None,
+            "not_recorded",
+        ).lower()
+        rows.append(
+            {
+                "Lane": lane,
+                "Queue State": _label(queue_row.get("State")),
+                "Latest Outcome": outcome,
+                "Review Date": _format_missing(
+                    _row_value(latest, batch_proof_frame, "Review Date", "review_date")
+                    if batch_proof_frame is not None and not latest.empty
+                    else None,
+                    "not recorded",
+                ),
+                "Batch ID": _format_missing(
+                    _row_value(latest, batch_proof_frame, "Batch ID", "batch_id")
+                    if batch_proof_frame is not None and not latest.empty
+                    else None,
+                    "not recorded",
+                ),
+                "Changed Tickers": _compact_fragment(
+                    _row_value(latest, batch_proof_frame, "Changed Tickers", "changed_tickers")
+                    if batch_proof_frame is not None and not latest.empty
+                    else None,
+                    fallback="not recorded",
+                    max_chars=120,
+                ),
+                "Changed Readiness Counts": _compact_fragment(
+                    _row_value(latest, batch_proof_frame, "Changed Readiness Counts", "changed_readiness_counts")
+                    if batch_proof_frame is not None and not latest.empty
+                    else None,
+                    fallback="not recorded",
+                    max_chars=150,
+                ),
+                "Operator Cue": _outcome_operator_cue(outcome),
+                "Next Safe Action": _format_missing(
+                    queue_row.get("Next Safe Command"),
+                    queue_proof_packet_command(lane_key),
+                ),
+                "Proof Ledger Command": "make reviewed-batch-proof",
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def _queue_lane_examples(

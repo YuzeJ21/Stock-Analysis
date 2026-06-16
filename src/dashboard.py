@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import os
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
@@ -35,6 +36,7 @@ from src.readiness_ops import build_coverage_frontier, build_fundamentals_peer_m
 from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
+    build_readiness_queue_outcome_summary_frame,
 )
 from src.readiness_comparison import ReadinessComparison, compare_readiness_snapshots
 from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_batch_preflight
@@ -246,6 +248,15 @@ def sidebar_path_index(initial_page: str, path_options: list[str]) -> int:
     if initial_page in ADVANCED_PAGE_TITLES and DETAILED_PAGE_PATH_TITLE in path_options:
         return path_options.index(DETAILED_PAGE_PATH_TITLE)
     return path_options.index("Home") if "Home" in path_options else 0
+
+
+def page_title_from_public_path(value: object) -> str:
+    """Map a sidebar path value or display label back to the canonical page title."""
+    text = str(value or "").strip()
+    if text in PUBLIC_PATH_LABELS:
+        return text
+    label_to_page = {label: page for page, label in PUBLIC_PATH_LABELS.items()}
+    return label_to_page.get(text, text)
 
 
 def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
@@ -1741,9 +1752,7 @@ def apply_dashboard_theme() -> None:
           --research-shadow-panel: 0 18px 44px rgba(15, 23, 42, 0.075);
         }
         .stApp {
-          background:
-            radial-gradient(circle at top left, rgba(15, 118, 110, 0.10) 0, rgba(247, 248, 245, 0) 30rem),
-            linear-gradient(135deg, #fbfbf8 0%, #f6f8f5 44%, #eef6f4 100%);
+          background: #f5f7f4;
           color: var(--research-text) !important;
           font-family: "Avenir Next", "SF Pro Display", "Segoe UI", sans-serif;
         }
@@ -1884,27 +1893,25 @@ def apply_dashboard_theme() -> None:
         .app-hero {
           position: relative;
           overflow: hidden;
-          border-radius: 12px;
-          padding: 1.35rem 1.45rem;
-          margin: 0.1rem 0 0.9rem 0;
-          background:
-            linear-gradient(135deg, rgba(12, 49, 45, 0.98), rgba(15, 118, 110, 0.88)),
-            radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.22), rgba(236, 253, 245, 0) 18rem);
-          border: 1px solid rgba(255, 255, 255, 0.30);
-          box-shadow: 0 18px 42px rgba(15, 59, 54, 0.14);
+          border-radius: 8px;
+          padding: 1.1rem 1.2rem;
+          margin: 0 0 0.72rem 0;
+          background: #0b3b36;
+          border: 1px solid rgba(11, 59, 54, 0.30);
+          box-shadow: none;
         }
         .app-hero.compact {
-          padding: 0.58rem 0.72rem;
-          margin: 0 0 0.46rem 0;
+          padding: 0.42rem 0.58rem;
+          margin: 0 0 0.36rem 0;
           border-radius: 8px;
-          box-shadow: 0 8px 22px rgba(15, 59, 54, 0.10);
+          box-shadow: none;
         }
         .app-hero.compact .hero-kicker {
-          font-size: 0.66rem;
+          font-size: 0.58rem;
         }
         .app-hero.compact .hero-title {
-          font-size: 1.12rem;
-          margin: 0.12rem 0 0.16rem 0;
+          font-size: 0.98rem;
+          margin: 0.06rem 0 0.1rem 0;
         }
         .app-hero.compact .hero-subtitle {
           font-size: 0.78rem;
@@ -1912,12 +1919,12 @@ def apply_dashboard_theme() -> None:
           max-width: 64rem;
         }
         .app-hero.compact .hero-pills {
-          margin-top: 0.36rem;
-          gap: 0.28rem;
+          margin-top: 0.22rem;
+          gap: 0.22rem;
         }
         .app-hero.compact .hero-pill {
-          font-size: 0.66rem;
-          padding: 0.16rem 0.36rem;
+          font-size: 0.58rem;
+          padding: 0.12rem 0.28rem;
         }
         .hero-kicker {
           color: #b8f5e8;
@@ -1955,11 +1962,11 @@ def apply_dashboard_theme() -> None:
           font-weight: 750;
         }
         .section-shell {
-          margin: 0.95rem 0 0.56rem 0;
-          padding: 0.58rem 0.78rem 0.62rem 0.78rem;
+          margin: 0.62rem 0 0.38rem 0;
+          padding: 0.48rem 0.64rem;
           border-radius: 8px;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(255, 255, 255, 0.82);
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background: rgba(255, 255, 255, 0.74);
           box-shadow: none;
           position: relative;
         }
@@ -1969,7 +1976,7 @@ def apply_dashboard_theme() -> None:
           inset: 0 auto 0 0;
           width: 3px;
           border-radius: 8px 0 0 8px;
-          background: #0f766e;
+          background: rgba(15, 118, 110, 0.72);
         }
         .section-kicker {
           color: #0f766e;
@@ -1980,8 +1987,8 @@ def apply_dashboard_theme() -> None:
           margin-left: 0.05rem;
         }
         .section-title {
-          margin: 0.16rem 0 0.18rem 0;
-          font-size: 1.04rem;
+          margin: 0.1rem 0 0.12rem 0;
+          font-size: 0.98rem;
           font-weight: 900;
           letter-spacing: 0;
           color: var(--research-ink);
@@ -1990,8 +1997,8 @@ def apply_dashboard_theme() -> None:
           margin-top: 0;
           margin-bottom: 0;
           color: #526071;
-          font-size: 0.86rem;
-          line-height: 1.38;
+          font-size: 0.8rem;
+          line-height: 1.32;
           max-width: 70rem;
         }
         .metric-card-grid {
@@ -2098,9 +2105,9 @@ def apply_dashboard_theme() -> None:
         }
         .signal-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 0.72rem;
-          margin: 0.7rem 0 0.86rem 0;
+          grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+          gap: 0.54rem;
+          margin: 0.5rem 0 0.68rem 0;
         }
         .signal-grid.queue-grid {
           grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -2109,10 +2116,10 @@ def apply_dashboard_theme() -> None:
         }
         .signal-card {
           background: rgba(255,255,255,0.96);
-          border: 1px solid var(--research-border);
-          border-radius: 12px;
-          padding: 0.88rem 0.92rem;
-          box-shadow: 0 9px 24px rgba(17, 24, 39, 0.055);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 8px;
+          padding: 0.68rem 0.72rem;
+          box-shadow: none;
         }
         .signal-grid.queue-grid .signal-card {
           background: rgba(255, 255, 255, 0.92);
@@ -2130,7 +2137,7 @@ def apply_dashboard_theme() -> None:
         }
         .signal-title {
           color: #111827;
-          font-size: 0.98rem;
+          font-size: 0.92rem;
           font-weight: 900;
           margin-top: 0.24rem;
         }
@@ -2140,9 +2147,9 @@ def apply_dashboard_theme() -> None:
         }
         .signal-body {
           color: #475467;
-          font-size: 0.86rem;
-          line-height: 1.38;
-          margin-top: 0.38rem;
+          font-size: 0.8rem;
+          line-height: 1.33;
+          margin-top: 0.28rem;
           white-space: pre-line;
         }
         .signal-grid.queue-grid .signal-body {
@@ -2155,7 +2162,7 @@ def apply_dashboard_theme() -> None:
           margin-top: 0.26rem;
         }
         .signal-footer {
-          margin-top: 0.58rem;
+          margin-top: 0.42rem;
           display: flex;
           flex-wrap: wrap;
           gap: 0.36rem;
@@ -2166,18 +2173,17 @@ def apply_dashboard_theme() -> None:
           gap: 0.26rem;
         }
         .ops-hero {
-          margin: 0.35rem 0 0.9rem 0;
-          padding: 1rem;
-          border: 1px solid rgba(15, 118, 110, 0.18);
+          margin: 0.24rem 0 0.5rem 0;
+          padding: 0.78rem;
+          border: 1px solid rgba(15, 118, 110, 0.16);
           border-radius: 8px;
-          background:
-            linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,250,248,0.96));
-          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
+          background: rgba(255,255,255,0.94);
+          box-shadow: none;
         }
         .ops-hero-grid {
           display: grid;
           grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
-          gap: 0.9rem;
+          gap: 0.68rem;
           align-items: stretch;
         }
         .ops-eyebrow {
@@ -2188,31 +2194,31 @@ def apply_dashboard_theme() -> None:
           text-transform: uppercase;
         }
         .ops-title {
-          margin-top: 0.18rem;
+          margin-top: 0.12rem;
           color: #111827;
-          font-size: 1.45rem;
+          font-size: 1.26rem;
           line-height: 1.12;
           font-weight: 950;
           letter-spacing: 0;
         }
         .ops-copy {
-          margin-top: 0.42rem;
+          margin-top: 0.3rem;
           color: #475467;
-          font-size: 0.92rem;
-          line-height: 1.46;
+          font-size: 0.82rem;
+          line-height: 1.36;
           max-width: 60rem;
         }
         .ops-stat-strip {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.45rem;
-          margin-top: 0.72rem;
+          gap: 0.34rem;
+          margin-top: 0.5rem;
         }
         .ops-stat {
           border: 1px solid rgba(148, 163, 184, 0.25);
           border-radius: 8px;
           background: #ffffff;
-          padding: 0.46rem 0.58rem;
+          padding: 0.36rem 0.46rem;
           min-width: 8.5rem;
         }
         .ops-stat-label {
@@ -2231,7 +2237,7 @@ def apply_dashboard_theme() -> None:
         .ops-next {
           border-radius: 8px;
           background: #0b3b36;
-          padding: 0.82rem 0.9rem;
+          padding: 0.66rem 0.72rem;
           min-height: 100%;
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
         }
@@ -2242,21 +2248,21 @@ def apply_dashboard_theme() -> None:
         .ops-next-title {
           margin-top: 0.18rem;
           color: #ffffff;
-          font-size: 1.02rem;
+          font-size: 0.95rem;
           font-weight: 950;
           letter-spacing: 0;
         }
         .ops-next-body {
           margin-top: 0.38rem;
           color: rgba(236, 253, 245, 0.84);
-          font-size: 0.84rem;
-          line-height: 1.44;
+          font-size: 0.78rem;
+          line-height: 1.34;
         }
         .ops-next-badges {
           display: flex;
           flex-wrap: wrap;
           gap: 0.35rem;
-          margin-top: 0.62rem;
+          margin-top: 0.44rem;
         }
         .ops-next-badge {
           color: #ecfdf5;
@@ -2268,9 +2274,9 @@ def apply_dashboard_theme() -> None:
           font-weight: 800;
         }
         .ops-queue-header {
-          margin: 0.92rem 0 0.44rem 0;
-          padding: 0.08rem 0 0.08rem 0.68rem;
-          border-left: 4px solid #0f766e;
+          margin: 0.48rem 0 0.28rem 0;
+          padding: 0.02rem 0 0.02rem 0.5rem;
+          border-left: 3px solid #0f766e;
         }
         .ops-queue-title {
           color: #111827;
@@ -7891,10 +7897,20 @@ def data_health_trusted_pilot_lane_cards(lane_frame: pd.DataFrame | None, *, lim
     return cards
 
 
+@lru_cache(maxsize=4)
+def cached_readiness_ops_lanes(root_text: str):
+    return tuple(build_readiness_ops_lanes(Path(root_text)))
+
+
+@lru_cache(maxsize=8)
+def cached_fundamentals_peer_metrics_queue(root_text: str, top_n: int):
+    return tuple(build_fundamentals_peer_metrics_queue(Path(root_text), top_n=top_n))
+
+
 def data_health_readiness_ops_center_frame(root: Path | None = None) -> pd.DataFrame:
     """Return broad lane-level readiness operations for Data Health."""
 
-    lanes = build_readiness_ops_lanes(root or BASE_DIR)
+    lanes = cached_readiness_ops_lanes(str(root or BASE_DIR))
     rows = [
         {
             "Lane": lane.label,
@@ -7920,7 +7936,7 @@ def data_health_readiness_ops_center_frame(root: Path | None = None) -> pd.DataF
 
 
 def data_health_coverage_frontier_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
-    lanes = build_readiness_ops_lanes(root or BASE_DIR)
+    lanes = cached_readiness_ops_lanes(str(root or BASE_DIR))
     frontier = build_coverage_frontier(lanes, top_n=top_n)
     rows = [
         {
@@ -7943,7 +7959,7 @@ def data_health_coverage_frontier_frame(root: Path | None = None, *, top_n: int 
 def data_health_fundamentals_peer_metrics_queue_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
     """Return the next readiness queue after broad price coverage."""
 
-    rows = build_fundamentals_peer_metrics_queue(root or BASE_DIR, top_n=top_n)
+    rows = cached_fundamentals_peer_metrics_queue(str(root or BASE_DIR), top_n)
     return pd.DataFrame(
         [
             {
@@ -8138,6 +8154,64 @@ def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, obj
             ),
             "badges": ["review required", "research-only"],
             "command": str(proof_row.get("Copy-Only Command", "DRY_RUN=1 make reviewed-batch-proof-record")),
+        },
+    ]
+
+
+def data_health_readiness_queue_outcome_summary_frame(
+    queue_frame: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    return build_readiness_queue_outcome_summary_frame(queue_frame, batch_proof_frame)
+
+
+def data_health_readiness_queue_outcome_summary_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "OUTCOME SUMMARY",
+                "title": "No queue outcomes available",
+                "body": (
+                    "Run the readiness queue, then use reviewed batch proof rows to see supported, still blocked, "
+                    "skipped, and excluded lane outcomes."
+                ),
+                "badges": ["ledger first", "research-only"],
+                "command": "make readiness-queue TOP_N=10",
+            }
+        ]
+    outcome_counts = frame["Latest Outcome"].fillna("not_recorded").astype(str).str.lower().value_counts().to_dict()
+    supported = int(outcome_counts.get("supported", 0))
+    still_blocked = int(outcome_counts.get("still_blocked", 0))
+    skipped = int(outcome_counts.get("skipped", 0))
+    excluded = int(outcome_counts.get("excluded", 0))
+    not_recorded = int(outcome_counts.get("not_recorded", 0))
+    rows_with_outcomes = frame.loc[~frame["Latest Outcome"].fillna("").astype(str).str.lower().eq("not_recorded")]
+    latest_row = rows_with_outcomes.iloc[0] if not rows_with_outcomes.empty else frame.iloc[0]
+    latest_lane = format_missing(latest_row.get("Lane"), "Readiness lane")
+    latest_outcome = format_missing(latest_row.get("Latest Outcome"), "not_recorded").replace("_", " ")
+    latest_date = format_missing(latest_row.get("Review Date"), "not recorded")
+    latest_cue = compact_card_fragment(latest_row.get("Operator Cue"), max_chars=190)
+    return [
+        {
+            "kicker": "QUEUE OUTCOMES",
+            "title": f"{supported} supported / {still_blocked} still blocked",
+            "body": (
+                f"{skipped} skipped, {excluded} excluded, and {not_recorded} lane(s) without a reviewed batch outcome. "
+                "This is proof-ledger status, not a security ranking or recommendation."
+            ),
+            "badges": ["durable ledger", "batch outcomes"],
+            "command": "make reviewed-batch-proof",
+        },
+        {
+            "kicker": "LATEST LANE OUTCOME",
+            "title": f"{latest_lane}: {latest_outcome}",
+            "body": (
+                f"{card_sentence('Review date', latest_date)} "
+                f"{card_sentence('Operator cue', latest_cue)} "
+                "Open the lane drawer only when you need blocker examples, packet commands, or proof-record detail."
+            ),
+            "badges": ["supported/still-blocked/skipped/excluded", "no drawer required"],
+            "command": format_missing(latest_row.get("Proof Ledger Command"), "make reviewed-batch-proof"),
         },
     ]
 
@@ -25887,6 +25961,7 @@ def render_data_health(
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
     batch_packet_frame = data_health_latest_reviewed_batch_packet_frame()
     readiness_comparison = compare_readiness_snapshots(BASE_DIR, top_n=10)
+    selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
     peer_v2_frame = data_health_peer_readiness_v2_frame(ops_center)
     lane_board = data_health_trusted_pilot_lane_board_frame(
         fundamentals_peer_worklist_frame,
@@ -25895,7 +25970,7 @@ def render_data_health(
         limit=10,
     )
     proof_timeline = data_health_reviewed_proof_timeline_frame()
-    metric_queue_frame = data_health_metric_readiness_queue_frame(top_n=10)
+    metric_queue_frame = data_health_metric_readiness_queue_frame(top_n=10) if selected_lane_key == "metrics" else pd.DataFrame()
     pilot_preview = data_health_trusted_pilot_preview_frame(
         fundamentals_peer_worklist_frame,
         peer_unlock_worklist_frame,
@@ -25910,12 +25985,22 @@ def render_data_health(
         batch_proof_frame=batch_proof_frame,
         freshness_status=readiness_freshness,
     )
+    queue_outcome_summary = data_health_readiness_queue_outcome_summary_frame(readiness_queue, batch_proof_frame)
     render_data_health_operator_hero(operator_snapshot_cards)
+    render_data_health_operator_queue_header()
+    render_data_health_operator_lane_nav(selected_lane_key)
     render_section_header(
-        "Fundamentals, Peer, And Metrics Queue",
-        "The post-price-coverage bottlenecks before opening single-stock reports or raw proof tables.",
+        "Queue Outcome Summary",
+        "Latest reviewed-batch outcomes and the primary lane switcher before opening drawers.",
     )
-    render_signal_cards(data_health_fundamentals_peer_metrics_queue_cards(readiness_queue), show_commands=False)
+    render_signal_cards(data_health_readiness_queue_outcome_summary_cards(queue_outcome_summary), show_commands=False, variant="queue")
+    render_section_header(
+        "Readiness Lane Snapshot",
+        "Post-price bottlenecks before single-stock reports or raw proof tables.",
+    )
+    render_signal_cards(data_health_fundamentals_peer_metrics_queue_cards(readiness_queue), show_commands=False, variant="queue")
+    with st.expander("Queue outcome ledger summary", expanded=False):
+        st.dataframe(clean_display_frame(queue_outcome_summary), width="stretch", hide_index=True)
     with st.expander("Readiness queue evidence", expanded=False):
         render_section_header(
             "Queue Detail",
@@ -25937,9 +26022,6 @@ def render_data_health(
             )
             st.table(clean_display_frame(pd.DataFrame([drilldown_row.to_dict()])))
 
-    render_data_health_operator_queue_header()
-    selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
-    render_data_health_operator_lane_nav(selected_lane_key)
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
     batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
     batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
@@ -27303,12 +27385,15 @@ def main() -> None:
             format_func=public_path_label,
             help="Most visitors only need these paths: review one stock, improve data coverage, or inspect proof.",
         )
+        path_selection = page_title_from_public_path(path_selection)
         if path_selection == DETAILED_PAGE_PATH_TITLE:
             selected_page = initial_page
         elif path_selection == PROOF_HISTORY_PATH_TITLE:
             selected_page = "Data Health"
         else:
             selected_page = path_selection
+        if not public_demo_mode and initial_page == "Data Health":
+            selected_page = "Data Health"
         show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"
         if public_demo_mode or selected_page != "Data Health":
             render_sidebar_product_intro()
