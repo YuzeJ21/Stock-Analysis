@@ -31,7 +31,7 @@ from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
-from src.readiness_ops import build_coverage_frontier, build_readiness_ops_lanes
+from src.readiness_ops import build_coverage_frontier, build_fundamentals_peer_metrics_queue, build_readiness_ops_lanes
 from src.readiness_comparison import ReadinessComparison, compare_readiness_snapshots
 from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_batch_preflight
 from src.reviewed_batch import FreshnessStatus, readiness_freshness_status
@@ -7934,6 +7934,509 @@ def data_health_coverage_frontier_frame(root: Path | None = None, *, top_n: int 
         for row in frontier
     ]
     return pd.DataFrame(rows)
+
+
+def data_health_fundamentals_peer_metrics_queue_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
+    """Return the next readiness queue after broad price coverage."""
+
+    rows = build_fundamentals_peer_metrics_queue(root or BASE_DIR, top_n=top_n)
+    return pd.DataFrame(
+        [
+            {
+                "Lane": row.label,
+                "State": row.readiness_state,
+                "Ready": row.ready_count,
+                "Partial": row.partial_count,
+                "Blocked": row.blocked_count,
+                "Excluded": row.excluded_count,
+                "Total": row.total_count,
+                "Missing Input Families": row.top_missing_input_families,
+                "Source Mode": row.source_mode,
+                "Source Lane": row.source_lane,
+                "Next Safe Command": row.next_safe_command,
+                "Proof Gate": row.proof_gate,
+                "Guardrail": row.guardrail,
+            }
+            for row in rows
+        ]
+    )
+
+
+def data_health_fundamentals_peer_metrics_queue_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "READINESS QUEUE",
+                "title": "Run readiness before queue review",
+                "body": (
+                    "The next layer needs saved readiness artifacts before it can summarize fundamentals, peer, optional, "
+                    "and metric blockers."
+                ),
+                "badges": ["read-only", "blocked visible"],
+                "command": "make readiness-queue TOP_N=10",
+            }
+        ]
+    work = frame.copy()
+    work["_blocked_partial"] = (
+        pd.to_numeric(work.get("Blocked", 0), errors="coerce").fillna(0)
+        + pd.to_numeric(work.get("Partial", 0), errors="coerce").fillna(0)
+    )
+    work = work.sort_values(["_blocked_partial", "Lane"], ascending=[False, True])
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "NEXT READINESS LAYER",
+            "title": "Fundamentals, peers, and metrics",
+            "body": (
+                "Price coverage is broad, so the next bottlenecks are trusted fundamentals, source-backed peers, "
+                "mapped-peer inputs, optional context, and readiness-gated SPY/QQQ review metrics."
+            ),
+            "badges": ["after price coverage", "readiness first"],
+            "command": "make readiness-queue TOP_N=10",
+        }
+    ]
+    for _, row in work.head(max(limit, 0)).iterrows():
+        lane = format_missing(row.get("Lane"), "Readiness lane")
+        state = public_status_label(row.get("State"))
+        blocked_partial = int(row.get("_blocked_partial", 0) or 0)
+        missing = compact_card_fragment(row.get("Missing Input Families"), max_chars=150)
+        proof_gate = compact_card_fragment(row.get("Proof Gate"), max_chars=170)
+        source_mode = format_missing(row.get("Source Mode"), "local readiness")
+        command = format_missing(row.get("Next Safe Command"), "make readiness-queue TOP_N=10")
+        cards.append(
+            {
+                "kicker": "QUEUE LANE",
+                "title": lane,
+                "body": (
+                    f"{blocked_partial:,} partial or blocked row(s). "
+                    f"{card_sentence('Missing inputs', missing)} "
+                    f"{card_sentence('Proof gate', proof_gate)} "
+                    "Open the evidence drawer for copy-only commands and row detail."
+                ),
+                "badges": [state, source_mode],
+                "command": command,
+            }
+        )
+    return cards
+
+
+def _readiness_queue_lane_key(value: object) -> str:
+    text = format_missing(value, "").strip().lower()
+    if "fundamental" in text or "dcf" in text:
+        return "fundamentals"
+    if "peer mapping" in text:
+        return "peer_mapping"
+    if "peer valuation" in text:
+        return "peer_valuation_inputs"
+    if "metric" in text:
+        return "metrics"
+    if "earnings" in text:
+        return "earnings"
+    if "analyst" in text or "estimate" in text:
+        return "analyst_estimates"
+    return re.sub(r"[^a-z0-9]+", "_", text).strip("_") or "readiness"
+
+
+def _dashboard_bool(value: object) -> bool:
+    return str(value or "").strip().lower() in {"true", "1", "yes", "y"}
+
+
+def _frame_column(frame: pd.DataFrame | None, *candidates: str) -> str | None:
+    if frame is None or frame.empty:
+        return None
+    lower_to_original = {str(column).strip().lower(): str(column) for column in frame.columns}
+    for candidate in candidates:
+        column = lower_to_original.get(candidate.strip().lower())
+        if column is not None:
+            return column
+    return None
+
+
+def _top_readiness_examples(
+    frame: pd.DataFrame | None,
+    *,
+    mask_builder,
+    reason_columns: tuple[str, ...],
+    limit: int = 3,
+) -> str:
+    if frame is None or frame.empty:
+        return "No saved example rows available."
+    ticker_col = _frame_column(frame, "ticker", "Ticker", "proposed_ticker", "Proposed Ticker")
+    if ticker_col is None:
+        return "No ticker examples available in saved rows."
+    try:
+        mask = mask_builder(frame)
+    except Exception:
+        mask = pd.Series([False] * len(frame), index=frame.index)
+    work = frame.loc[mask].head(max(limit, 0))
+    examples: list[str] = []
+    for _, row in work.iterrows():
+        ticker = format_missing(row.get(ticker_col), "TICKER").upper()
+        reason = ""
+        for reason_col in reason_columns:
+            actual = _frame_column(frame, reason_col)
+            if actual is None:
+                continue
+            reason = compact_card_fragment(row.get(actual), fallback="", max_chars=110)
+            if reason:
+                break
+        examples.append(f"{ticker}: {reason or 'blocked input visible'}")
+    return "; ".join(examples) if examples else "No current blocker examples in the saved capped rows."
+
+
+def _queue_metric_examples(metric_queue_frame: pd.DataFrame | None, *, limit: int = 3) -> str:
+    if metric_queue_frame is None or metric_queue_frame.empty:
+        return "No metric-readiness rows available."
+    blocker_col = _frame_column(metric_queue_frame, "Top Blocker")
+    state_col = _frame_column(metric_queue_frame, "Overall State")
+    if blocker_col is None:
+        return "No metric blocker examples available."
+    blockers = metric_queue_frame[blocker_col].fillna("").astype(str).str.lower()
+    mask = blockers.ne("none") & blockers.ne("")
+    if state_col is not None:
+        states = metric_queue_frame[state_col].fillna("").astype(str).str.lower()
+        mask = mask | states.isin({"partial", "blocked"})
+    work = metric_queue_frame.loc[mask].head(max(limit, 0))
+    examples: list[str] = []
+    for _, row in work.iterrows():
+        ticker = format_missing(row.get(_frame_column(metric_queue_frame, "Ticker") or "Ticker"), "TICKER").upper()
+        benchmark = format_missing(row.get(_frame_column(metric_queue_frame, "Benchmark") or "Benchmark"), "benchmark")
+        family = format_missing(row.get(_frame_column(metric_queue_frame, "Blocker Family") or "Blocker Family"), "metric blocker")
+        blocker = compact_card_fragment(row.get(blocker_col), fallback="blocked metric", max_chars=80)
+        examples.append(f"{ticker} vs {benchmark}: {family} - {blocker}")
+    return "; ".join(examples) if examples else "No metric blockers in the capped rows."
+
+
+def _queue_proof_packet_command(lane_key: str) -> str:
+    command_by_lane = {
+        "fundamentals": "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10",
+        "peer_mapping": "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
+        "peer_valuation_inputs": "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
+        "metrics": "DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10",
+        "earnings": "DRY_RUN=1 make reviewed-batch LANE=optional_context TOP_N=10",
+        "analyst_estimates": "DRY_RUN=1 make reviewed-batch LANE=optional_context TOP_N=10",
+    }
+    return command_by_lane.get(lane_key, "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10")
+
+
+def _queue_latest_proof_status(batch_proof_frame: pd.DataFrame | None, lane_key: str) -> str:
+    if batch_proof_frame is None or batch_proof_frame.empty:
+        return "No reviewed batch proof row recorded yet."
+    lane_aliases = {
+        "fundamentals": {"fundamentals", "fundamentals_dcf", "share_count"},
+        "peer_mapping": {"peers", "peer_mapping", "peer_valuation_inputs"},
+        "peer_valuation_inputs": {"peers", "peer_mapping", "peer_valuation_inputs"},
+        "metrics": {"metrics"},
+        "earnings": {"optional_context", "earnings"},
+        "analyst_estimates": {"optional_context", "analyst_estimates"},
+    }.get(lane_key, {lane_key})
+    lane_col = _frame_column(batch_proof_frame, "Lane")
+    if lane_col is None:
+        return "Proof ledger rows exist, but lane status is unavailable."
+    lanes = batch_proof_frame[lane_col].fillna("").astype(str).str.lower().str.strip()
+    matches = batch_proof_frame.loc[lanes.isin(lane_aliases)]
+    if matches.empty:
+        return "No reviewed batch proof row recorded for this lane yet."
+    latest = matches.iloc[0]
+    outcome = format_missing(latest.get(_frame_column(batch_proof_frame, "Final Outcome") or "Final Outcome"), "outcome not recorded")
+    review_date = format_missing(latest.get(_frame_column(batch_proof_frame, "Review Date") or "Review Date"), "date not recorded")
+    batch_id = format_missing(latest.get(_frame_column(batch_proof_frame, "Batch ID") or "Batch ID"), "batch id not recorded")
+    return f"{outcome} on {review_date}; batch {batch_id}."
+
+
+def _queue_lane_examples(
+    lane_key: str,
+    *,
+    ticker_readiness_frame: pd.DataFrame | None,
+    peer_readiness_frame: pd.DataFrame | None,
+    metric_queue_frame: pd.DataFrame | None,
+) -> str:
+    if lane_key == "fundamentals":
+        return _top_readiness_examples(
+            ticker_readiness_frame,
+            mask_builder=lambda frame: ~frame.get("dcf_ready", pd.Series(False, index=frame.index)).map(_dashboard_bool)
+            | ~frame.get("fundamentals_ready", pd.Series(False, index=frame.index)).map(_dashboard_bool),
+            reason_columns=("missing_data", "blocked_features", "next_action"),
+        )
+    if lane_key == "peer_mapping":
+        return _top_readiness_examples(
+            peer_readiness_frame,
+            mask_builder=lambda frame: frame.get("peer_blocker_type", pd.Series("", index=frame.index)).astype(str).str.lower().eq("missing_peer_mapping"),
+            reason_columns=("missing_peer_reason", "peer_blocker_type", "mapping_status"),
+        )
+    if lane_key == "peer_valuation_inputs":
+        return _top_readiness_examples(
+            peer_readiness_frame,
+            mask_builder=lambda frame: ~frame.get(
+                "peer_valuation_comparison_ready",
+                pd.Series(False, index=frame.index),
+            ).map(_dashboard_bool)
+            & ~frame.get("peer_blocker_type", pd.Series("", index=frame.index)).astype(str).str.lower().eq("missing_peer_mapping"),
+            reason_columns=("missing_peer_reason", "peer_blocker_type", "peer_valuation_status"),
+        )
+    if lane_key == "metrics":
+        return _queue_metric_examples(metric_queue_frame)
+    if lane_key == "earnings":
+        return _top_readiness_examples(
+            ticker_readiness_frame,
+            mask_builder=lambda frame: ~frame.get("earnings_ready", pd.Series(False, index=frame.index)).map(_dashboard_bool),
+            reason_columns=("missing_data", "blocked_features", "next_action"),
+        )
+    if lane_key == "analyst_estimates":
+        return _top_readiness_examples(
+            ticker_readiness_frame,
+            mask_builder=lambda frame: ~frame.get("analyst_estimates_ready", pd.Series(False, index=frame.index)).map(_dashboard_bool),
+            reason_columns=("missing_data", "blocked_features", "next_action"),
+        )
+    return "Open the lane evidence drawer for current examples."
+
+
+def data_health_readiness_queue_drilldown_frame(
+    queue_frame: pd.DataFrame | None,
+    *,
+    ticker_readiness_frame: pd.DataFrame | None = None,
+    peer_readiness_frame: pd.DataFrame | None = None,
+    metric_queue_frame: pd.DataFrame | None = None,
+    batch_proof_frame: pd.DataFrame | None = None,
+    freshness_status: FreshnessStatus | None = None,
+) -> pd.DataFrame:
+    """Build compact per-lane drawer rows for the post-price readiness queue."""
+
+    if queue_frame is None or queue_frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Lane": "Readiness queue",
+                    "State": "blocked",
+                    "Top Blocker Examples": "Run make readiness-queue TOP_N=10 after readiness artifacts exist.",
+                    "Proof Packet Command": "make readiness-queue TOP_N=10",
+                    "Stale / Source Warning": "Queue rows are unavailable.",
+                    "Proof Record Status": "No reviewed batch proof row recorded yet.",
+                    "Next Safe Action": "make readiness-queue TOP_N=10",
+                }
+            ]
+        )
+    rows: list[dict[str, object]] = []
+    freshness_warning = ""
+    if freshness_status is not None and freshness_status.status in {"missing", "stale"}:
+        freshness_warning = f"{public_status_label(freshness_status.status)}: {freshness_status.message}"
+    for _, row in queue_frame.iterrows():
+        lane = format_missing(row.get("Lane"), "Readiness lane")
+        lane_key = _readiness_queue_lane_key(lane)
+        proof_gate = compact_card_fragment(row.get("Proof Gate"), fallback="Open evidence drawer.", max_chars=160)
+        source_mode = format_missing(row.get("Source Mode"), "local readiness")
+        source_warning = freshness_warning or f"Source mode: {source_mode}. {proof_gate}"
+        rows.append(
+            {
+                "Lane": lane,
+                "State": public_status_label(row.get("State")),
+                "Top Blocker Examples": _queue_lane_examples(
+                    lane_key,
+                    ticker_readiness_frame=ticker_readiness_frame,
+                    peer_readiness_frame=peer_readiness_frame,
+                    metric_queue_frame=metric_queue_frame,
+                ),
+                "Proof Packet Command": _queue_proof_packet_command(lane_key),
+                "Stale / Source Warning": source_warning,
+                "Proof Record Status": _queue_latest_proof_status(batch_proof_frame, lane_key),
+                "Next Safe Action": format_missing(row.get("Next Safe Command"), _queue_proof_packet_command(lane_key)),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def data_health_readiness_queue_drilldown_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
+    lane = format_missing(row.get("Lane") if isinstance(row, dict) else row.get("Lane"), "Readiness lane")
+    state = format_missing(row.get("State") if isinstance(row, dict) else row.get("State"), "Not available")
+    examples = compact_card_fragment(
+        row.get("Top Blocker Examples") if isinstance(row, dict) else row.get("Top Blocker Examples"),
+        max_chars=210,
+    )
+    packet_command = format_missing(
+        row.get("Proof Packet Command") if isinstance(row, dict) else row.get("Proof Packet Command"),
+        "make readiness-queue TOP_N=10",
+    )
+    source_warning = compact_card_fragment(
+        row.get("Stale / Source Warning") if isinstance(row, dict) else row.get("Stale / Source Warning"),
+        max_chars=210,
+    )
+    proof_status = compact_card_fragment(
+        row.get("Proof Record Status") if isinstance(row, dict) else row.get("Proof Record Status"),
+        max_chars=180,
+    )
+    next_action = format_missing(
+        row.get("Next Safe Action") if isinstance(row, dict) else row.get("Next Safe Action"),
+        packet_command,
+    )
+    return [
+        {
+            "kicker": "LANE DRILLDOWN",
+            "title": f"{lane}: {state}",
+            "body": (
+                f"{card_sentence('Examples', examples)} "
+                f"{card_sentence('Source warning', source_warning)}"
+            ),
+            "badges": ["examples", "source gate"],
+            "command": next_action,
+        },
+        {
+            "kicker": "PROOF PACKET",
+            "title": "Copy-only reviewed packet",
+            "body": (
+                f"Packet command: {packet_command}. "
+                "Use this to preview scope and proof fields before any validate / preview / apply path."
+            ),
+            "badges": ["dry-run first", "copy-only"],
+            "command": packet_command,
+        },
+        {
+            "kicker": "PROOF RECORD",
+            "title": proof_status,
+            "body": (
+                "Record supported, still_blocked, skipped, or excluded only after reviewed evidence, comparison, "
+                "and generated-artifact classification are complete."
+            ),
+            "badges": ["ledger boundary", "research-only"],
+            "command": "make reviewed-batch-proof",
+        },
+    ]
+
+
+def _queue_lane_batch_lane(lane: object) -> str:
+    lane_key = _readiness_queue_lane_key(lane)
+    return {
+        "fundamentals": "fundamentals",
+        "peer_mapping": "peers",
+        "peer_valuation_inputs": "peers",
+        "metrics": "metrics",
+        "earnings": "optional_context",
+        "analyst_estimates": "optional_context",
+    }.get(lane_key, "prices")
+
+
+def _queue_lane_gate_action(lane: object) -> tuple[str, str, str]:
+    lane_key = _readiness_queue_lane_key(lane)
+    if lane_key == "metrics":
+        return (
+            "read_only_metric_review",
+            "Metrics stay read-only; review readiness rows and do not run import/apply commands.",
+            "make metric-readiness-board TOP_N=10",
+        )
+    if lane_key in {"earnings", "analyst_estimates"}:
+        return (
+            "optional_trusted_local_only",
+            "Optional context stays locked unless trusted local rows exist and pass validate / preview checks.",
+            "make imports-validate && make imports-preview",
+        )
+    if lane_key in {"peer_mapping", "peer_valuation_inputs"}:
+        return (
+            "validate_preview_apply",
+            "Peer rows need source-backed relationships or mapped-peer inputs before any reviewed apply.",
+            "make imports-validate && make imports-preview",
+        )
+    return (
+        "validate_preview_apply",
+        "Fundamentals rows need trusted SEC/manual source proof before any reviewed apply.",
+        "make imports-validate && make imports-preview",
+    )
+
+
+def data_health_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) -> pd.DataFrame:
+    """Return the compact lane-local packet -> proof-record checklist."""
+
+    get_value = row.get if isinstance(row, dict) else row.get
+    lane = format_missing(get_value("Lane"), "Readiness lane")
+    batch_lane = _queue_lane_batch_lane(lane)
+    packet_command = format_missing(get_value("Proof Packet Command"), _queue_proof_packet_command(_readiness_queue_lane_key(lane)))
+    next_action = format_missing(get_value("Next Safe Action"), packet_command)
+    source_warning = format_missing(get_value("Stale / Source Warning"), "Review source readiness before proceeding.")
+    proof_status = format_missing(get_value("Proof Record Status"), "No reviewed batch proof row recorded yet.")
+    gate_status, gate_decision, gate_command = _queue_lane_gate_action(lane)
+    compare_command = f"make reviewed-batch-compare LANE={batch_lane} BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    proof_command = (
+        "DRY_RUN=1 make reviewed-batch-proof-record "
+        "BATCH_ID=<batch_id> "
+        f"LANE={batch_lane} "
+        "REVIEW_DATE=<yyyy-mm-dd> "
+        "FINAL_OUTCOME=<supported|still_blocked|skipped|excluded>"
+    )
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Packet",
+                "Status": "copy-only",
+                "Operator Decision": f"Preview the capped {lane} scope before any row-level review.",
+                "Copy-Only Command": packet_command,
+                "Stop If": source_warning,
+            },
+            {
+                "Step": "2. Validate / preview gate",
+                "Status": gate_status,
+                "Operator Decision": gate_decision,
+                "Copy-Only Command": gate_command,
+                "Stop If": "validation fails, preview shows unexpected rows, source proof is missing, or the lane is read-only",
+            },
+            {
+                "Step": "3. Compare readiness",
+                "Status": "after reviewed packet/run",
+                "Operator Decision": "Use changed readiness counts and changed tickers as proof; no inferred unlocks.",
+                "Copy-Only Command": compare_command,
+                "Stop If": "baseline snapshot or current readiness report is missing",
+            },
+            {
+                "Step": "4. Proof-record command",
+                "Status": proof_status,
+                "Operator Decision": "Record only supported, still_blocked, skipped, or excluded after final review.",
+                "Copy-Only Command": proof_command,
+                "Stop If": "required fields still contain placeholders",
+            },
+            {
+                "Step": "5. Artifact hygiene",
+                "Status": "required before staging",
+                "Operator Decision": "Classify generated CSV/JSON churn before any commit recommendation.",
+                "Copy-Only Command": "make diff-hygiene",
+                "Stop If": "generated artifacts are dirty and not intentionally reviewed evidence",
+            },
+        ]
+    )
+
+
+def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
+    frame = data_health_readiness_queue_lane_action_frame(row)
+    first = frame.iloc[0] if not frame.empty else pd.Series(dtype=object)
+    proof_row = frame.iloc[3] if len(frame) > 3 else first
+    lane = format_missing(row.get("Lane") if isinstance(row, dict) else row.get("Lane"), "Readiness lane")
+    return [
+        {
+            "kicker": "FINISH THIS LANE",
+            "title": lane,
+            "body": (
+                "Packet, gate review, comparison, proof-record command, and artifact hygiene are grouped here so "
+                "you do not need to open Proof History first."
+            ),
+            "badges": ["lane-local", "proof loop"],
+            "command": str(first.get("Copy-Only Command", "make readiness-queue TOP_N=10")),
+        },
+        {
+            "kicker": "NEXT PROOF STEP",
+            "title": str(first.get("Step", "Packet")),
+            "body": (
+                f"{card_sentence('Decision', compact_card_fragment(first.get('Operator Decision'), max_chars=160))} "
+                f"{card_sentence('Stop if', compact_card_fragment(first.get('Stop If'), max_chars=160))}"
+            ),
+            "badges": [str(first.get("Status", "copy-only")), "dry-run first"],
+            "command": str(first.get("Copy-Only Command", "make readiness-queue TOP_N=10")),
+        },
+        {
+            "kicker": "LEDGER BOUNDARY",
+            "title": str(proof_row.get("Status", "proof status unavailable")),
+            "body": (
+                "The proof-record command remains a dry-run scaffold until validation, comparison, source files, "
+                "and generated artifacts are reviewed."
+            ),
+            "badges": ["review required", "research-only"],
+            "command": str(proof_row.get("Copy-Only Command", "DRY_RUN=1 make reviewed-batch-proof-record")),
+        },
+    ]
 
 
 def data_health_readiness_ops_center_cards(ops_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -25623,6 +26126,7 @@ def render_data_health(
 
     ops_center = data_health_readiness_ops_center_frame()
     coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
+    readiness_queue = data_health_fundamentals_peer_metrics_queue_frame(top_n=10)
     readiness_freshness = data_health_freshness_status(BASE_DIR)
     if public_mode:
         render_section_header(
@@ -25677,7 +26181,6 @@ def render_data_health(
         coverage_frontier,
         readiness_freshness,
     )
-    render_data_health_operator_hero(operator_snapshot_cards)
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
     batch_packet_frame = data_health_latest_reviewed_batch_packet_frame()
     readiness_comparison = compare_readiness_snapshots(BASE_DIR, top_n=10)
@@ -25696,6 +26199,40 @@ def render_data_health(
         ticker_readiness_frame,
         limit=5,
     )
+    queue_drilldown = data_health_readiness_queue_drilldown_frame(
+        readiness_queue,
+        ticker_readiness_frame=ticker_readiness_frame,
+        peer_readiness_frame=peer_readiness_frame,
+        metric_queue_frame=metric_queue_frame,
+        batch_proof_frame=batch_proof_frame,
+        freshness_status=readiness_freshness,
+    )
+    render_data_health_operator_hero(operator_snapshot_cards)
+    render_section_header(
+        "Fundamentals, Peer, And Metrics Queue",
+        "The post-price-coverage bottlenecks before opening single-stock reports or raw proof tables.",
+    )
+    render_signal_cards(data_health_fundamentals_peer_metrics_queue_cards(readiness_queue), show_commands=False)
+    with st.expander("Readiness queue evidence", expanded=False):
+        render_section_header(
+            "Queue Detail",
+            "Lane counts, missing input families, source mode, proof gate, and copy-only next command.",
+        )
+        st.dataframe(clean_display_frame(readiness_queue), width="stretch", hide_index=True)
+    render_section_header(
+        "Lane Drilldowns",
+        "Each lane keeps examples, proof packet command, stale/source warning, and proof-record status together.",
+    )
+    for _, drilldown_row in queue_drilldown.iterrows():
+        with st.expander(str(drilldown_row.get("Lane", "Readiness lane")), expanded=False):
+            render_signal_cards(data_health_readiness_queue_drilldown_cards(drilldown_row), show_commands=True)
+            render_signal_cards(data_health_readiness_queue_lane_action_cards(drilldown_row), show_commands=True)
+            st.dataframe(
+                clean_display_frame(data_health_readiness_queue_lane_action_frame(drilldown_row)),
+                width="stretch",
+                hide_index=True,
+            )
+            st.table(clean_display_frame(pd.DataFrame([drilldown_row.to_dict()])))
 
     render_data_health_operator_queue_header()
     selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))

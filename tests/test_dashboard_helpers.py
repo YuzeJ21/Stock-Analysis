@@ -227,6 +227,193 @@ def test_plain_home_readiness_cards_include_copyable_next_commands():
     assert "sell" not in rendered
 
 
+def test_data_health_next_layer_queue_cards_keep_commands_out_of_first_read():
+    frame = pd.DataFrame(
+        [
+            {
+                "Lane": "Fundamentals / DCF Proof",
+                "State": "partial",
+                "Ready": 27,
+                "Partial": 0,
+                "Blocked": 3511,
+                "Excluded": 0,
+                "Total": 3538,
+                "Missing Input Families": "trusted fundamentals, dated revenue, free cash flow, FCF margin",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Source Lane": "fundamentals",
+                "Next Safe Command": "make sec-stage-queue TOP_N=25",
+                "Proof Gate": "Validate -> preview -> rejected-row review -> apply only reviewed trusted rows -> rebuild readiness.",
+                "Guardrail": "Readiness queue only; no investment advice, rankings, trade instructions, or fabricated unlocks.",
+            },
+            {
+                "Lane": "Metrics Readiness",
+                "State": "partial",
+                "Ready": 8,
+                "Partial": 10,
+                "Blocked": 2,
+                "Excluded": 0,
+                "Total": 20,
+                "Missing Input Families": "benchmark / risk: 2",
+                "Source Mode": "local_readiness",
+                "Source Lane": "review_metrics",
+                "Next Safe Command": "make metric-readiness-board TOP_N=10",
+                "Proof Gate": "SPY/QQQ review metrics stay gated by trusted local inputs.",
+                "Guardrail": "Sharpe and Sortino are review metrics only.",
+            },
+        ]
+    )
+    cards = dashboard.data_health_fundamentals_peer_metrics_queue_cards(frame, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Fundamentals, peers, and metrics"
+    assert "price coverage is broad" in rendered
+    assert "trusted fundamentals" in rendered
+    assert "spy/qqq review metrics" in rendered
+    assert "open the evidence drawer" in rendered
+    assert "readiness first" in rendered
+    assert "make sec-stage-queue" in rendered
+    assert "investment advice" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_readiness_queue_drilldown_combines_examples_packet_and_proof_status():
+    queue = pd.DataFrame(
+        [
+            {
+                "Lane": "Fundamentals / DCF Proof",
+                "State": "partial",
+                "Next Safe Command": "make sec-stage-queue TOP_N=25",
+                "Proof Gate": "Validate -> preview -> rejected-row review -> apply only reviewed trusted rows.",
+                "Source Mode": "SEC-stageable or trusted-local",
+            },
+            {
+                "Lane": "Metrics Readiness",
+                "State": "partial",
+                "Next Safe Command": "make metric-readiness-board TOP_N=10",
+                "Proof Gate": "SPY/QQQ metrics stay gated.",
+                "Source Mode": "local_readiness",
+            },
+        ]
+    )
+    ticker_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "fundamentals_ready": "false",
+                "dcf_ready": "false",
+                "missing_data": "dcf: revenue and free cash flow",
+            },
+            {
+                "ticker": "BBB",
+                "fundamentals_ready": "true",
+                "dcf_ready": "true",
+                "missing_data": "",
+            },
+        ]
+    )
+    metric_queue = pd.DataFrame(
+        [
+            {
+                "Ticker": "AAA",
+                "Benchmark": "SPY",
+                "Overall State": "partial",
+                "Top Blocker": "benchmark_relative_return",
+                "Blocker Family": "benchmark / risk",
+            }
+        ]
+    )
+    batch_proofs = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-FUND-1",
+                "Review Date": "2026-06-15",
+                "Lane": "fundamentals",
+                "Final Outcome": "still_blocked",
+                "Generated Artifacts Reviewed": "broad churn excluded",
+            }
+        ]
+    )
+    frame = dashboard.data_health_readiness_queue_drilldown_frame(
+        queue,
+        ticker_readiness_frame=ticker_readiness,
+        metric_queue_frame=metric_queue,
+        batch_proof_frame=batch_proofs,
+        freshness_status=dashboard.FreshnessStatus("current", "Current readiness snapshot.", "make readiness"),
+    )
+    cards = dashboard.data_health_readiness_queue_drilldown_cards(frame.iloc[0])
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert list(frame["Lane"]) == ["Fundamentals / DCF Proof", "Metrics Readiness"]
+    assert "aaa: dcf: revenue and free cash flow" in frame.iloc[0]["Top Blocker Examples"].lower()
+    assert frame.iloc[0]["Proof Packet Command"] == "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10"
+    assert "still_blocked on 2026-06-15" in frame.iloc[0]["Proof Record Status"]
+    assert "aaa vs spy: benchmark / risk - benchmark_relative_return" in frame.iloc[1]["Top Blocker Examples"].lower()
+    assert "source mode: sec-stageable or trusted-local" in frame.iloc[0]["Stale / Source Warning"].lower()
+    assert "copy-only reviewed packet" in rendered
+    assert "ledger boundary" in rendered
+    assert "investment advice" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
+    row = pd.Series(
+        {
+            "Lane": "Peer Mapping Proof",
+            "State": "partial",
+            "Top Blocker Examples": "AAA: needs source-backed peer mappings",
+            "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
+            "Stale / Source Warning": "Source mode: manual/source-reviewed. Peer relationships need source proof.",
+            "Proof Record Status": "No reviewed batch proof row recorded for this lane yet.",
+            "Next Safe Action": "make peer-mapping-queue TOP_N=25",
+        }
+    )
+    frame = dashboard.data_health_readiness_queue_lane_action_frame(row)
+    cards = dashboard.data_health_readiness_queue_lane_action_cards(row)
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+    rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert list(frame["Step"]) == [
+        "1. Packet",
+        "2. Validate / preview gate",
+        "3. Compare readiness",
+        "4. Proof-record command",
+        "5. Artifact hygiene",
+    ]
+    assert "dry_run=1 make reviewed-batch lane=peers top_n=10" in rendered
+    assert "make reviewed-batch-compare lane=peers" in rendered
+    assert "dry_run=1 make reviewed-batch-proof-record" in rendered
+    assert "make diff-hygiene" in rendered
+    assert "you do not need to open proof history first" in rendered_cards
+    assert "research-only" in rendered_cards
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_readiness_queue_lane_action_keeps_metrics_read_only():
+    row = pd.Series(
+        {
+            "Lane": "Metrics Readiness",
+            "State": "partial",
+            "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10",
+            "Stale / Source Warning": "Source mode: local_readiness. Metrics stay gated.",
+            "Proof Record Status": "No reviewed batch proof row recorded for this lane yet.",
+            "Next Safe Action": "make metric-readiness-board TOP_N=10",
+        }
+    )
+    frame = dashboard.data_health_readiness_queue_lane_action_frame(row)
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    gate_row = frame.loc[frame["Step"].eq("2. Validate / preview gate")].iloc[0]
+    assert gate_row["Status"] == "read_only_metric_review"
+    assert "do not run import/apply commands" in gate_row["Operator Decision"].lower()
+    assert "make metric-readiness-board top_n=10" in rendered
+    assert "lane=metrics" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_monthly_ideas_hero_label_explains_locked_zero_state():
     assert dashboard.monthly_ideas_hero_label(0) == "Monthly ideas waiting on data"
     assert dashboard.monthly_ideas_hero_label(-1) == "Monthly ideas waiting on data"

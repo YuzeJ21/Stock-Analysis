@@ -112,6 +112,24 @@ class PeerReadinessSummary:
         )
 
 
+@dataclass(frozen=True)
+class ReadinessQueueRow:
+    lane: str
+    label: str
+    readiness_state: str
+    ready_count: int
+    partial_count: int
+    blocked_count: int
+    excluded_count: int
+    total_count: int
+    top_missing_input_families: str
+    source_mode: str
+    source_lane: str
+    next_safe_command: str
+    proof_gate: str
+    guardrail: str
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -604,6 +622,168 @@ def build_data_coverage_expansion_plan(
     return steps
 
 
+def _configured_risk_free_rate(root: Path) -> float:
+    from src.config import AppConfig
+
+    try:
+        config = AppConfig.load(root / "config.yaml")
+    except FileNotFoundError:
+        return 0.0
+    return config.get_pct("risk_rules", "annual_risk_free_rate_pct", 0.0)
+
+
+def _queue_state(*, ready: int, partial: int = 0, blocked: int = 0, excluded: int = 0) -> str:
+    return _lane_state(ready=ready, partial=partial, blocked=blocked, excluded=excluded)
+
+
+def _metric_queue_rollup(root: Path, *, top_n: int) -> ReadinessQueueRow:
+    from src.providers.local_market_data import LocalCSVMarketDataProvider
+    from src.review_metrics import build_metric_readiness_board
+
+    provider = LocalCSVMarketDataProvider(base_dir=root, data_dir=root / "data")
+    rows = build_metric_readiness_board(
+        root,
+        provider,
+        benchmarks=["SPY", "QQQ"],
+        annual_risk_free_rate=_configured_risk_free_rate(root),
+        top_n=top_n,
+    )
+    if not rows:
+        return ReadinessQueueRow(
+            lane="metrics_readiness",
+            label="Metrics Readiness",
+            readiness_state="blocked",
+            ready_count=0,
+            partial_count=0,
+            blocked_count=0,
+            excluded_count=0,
+            total_count=0,
+            top_missing_input_families="metric-readiness rows unavailable",
+            source_mode="local_readiness",
+            source_lane="review_metrics",
+            next_safe_command="make metric-readiness-board TOP_N=10",
+            proof_gate="Run metric-readiness after local price and readiness artifacts exist.",
+            guardrail="Review metrics are historical readiness outputs, not rankings or recommendations.",
+        )
+    ready = sum(1 for row in rows if row.overall_state == "ready")
+    partial = sum(1 for row in rows if row.overall_state == "partial")
+    blocked = sum(1 for row in rows if row.overall_state == "blocked")
+    excluded = sum(1 for row in rows if row.overall_state == "excluded")
+    family_counts: dict[str, int] = {}
+    for row in rows:
+        family = row.blocker_family or "none"
+        if family == "none":
+            continue
+        family_counts[family] = family_counts.get(family, 0) + 1
+    top_families = ", ".join(
+        f"{family}: {count}"
+        for family, count in sorted(family_counts.items(), key=lambda item: (-item[1], item[0]))[:4]
+    )
+    if not top_families:
+        top_families = "none"
+    first_action = next((row.next_action for row in rows if row.top_blocker and row.top_blocker != "none"), "")
+    return ReadinessQueueRow(
+        lane="metrics_readiness",
+        label="Metrics Readiness",
+        readiness_state=_queue_state(ready=ready, partial=partial, blocked=blocked, excluded=excluded),
+        ready_count=ready,
+        partial_count=partial,
+        blocked_count=blocked,
+        excluded_count=excluded,
+        total_count=len(rows),
+        top_missing_input_families=top_families,
+        source_mode="local_readiness",
+        source_lane="review_metrics",
+        next_safe_command=first_action or "make metric-readiness-board TOP_N=10",
+        proof_gate=(
+            "SPY/QQQ benchmark, risk, fundamentals trend, valuation multiples, and peer dispersion metrics "
+            "stay ready, partial, blocked, or excluded from trusted local inputs."
+        ),
+        guardrail="Sharpe, Sortino, beta, drawdown, trend, multiples, and peer dispersion are review metrics only.",
+    )
+
+
+def _queue_row_from_lane(
+    lane: ReadinessLane,
+    *,
+    top_missing_input_families: str,
+    source_mode: str,
+    proof_gate: str,
+) -> ReadinessQueueRow:
+    return ReadinessQueueRow(
+        lane=lane.lane,
+        label=lane.label,
+        readiness_state=lane.readiness_state,
+        ready_count=lane.ready_count,
+        partial_count=lane.partial_count,
+        blocked_count=lane.blocked_count,
+        excluded_count=lane.excluded_count,
+        total_count=lane.total_count,
+        top_missing_input_families=top_missing_input_families,
+        source_mode=source_mode,
+        source_lane=lane.source_lane,
+        next_safe_command=lane.next_safe_command,
+        proof_gate=proof_gate,
+        guardrail="Readiness queue only; no investment advice, rankings, trade instructions, or fabricated unlocks.",
+    )
+
+
+def build_fundamentals_peer_metrics_queue(
+    root: Path | str = ".",
+    *,
+    top_n: int = 10,
+) -> list[ReadinessQueueRow]:
+    root = Path(root)
+    lanes = {lane.lane: lane for lane in build_readiness_ops_lanes(root)}
+    rows: list[ReadinessQueueRow] = []
+    fundamentals = lanes.get("fundamentals_dcf")
+    if fundamentals is not None:
+        rows.append(
+            _queue_row_from_lane(
+                fundamentals,
+                top_missing_input_families="trusted fundamentals, dated revenue, free cash flow, FCF margin, shares outstanding",
+                source_mode="SEC-stageable or trusted-local",
+                proof_gate="Validate -> preview -> rejected-row review -> apply only reviewed trusted rows -> rebuild readiness.",
+            )
+        )
+    peer_mapping = lanes.get("peer_mapping")
+    if peer_mapping is not None:
+        rows.append(
+            _queue_row_from_lane(
+                peer_mapping,
+                top_missing_input_families="source-backed peer mappings",
+                source_mode="manual/source-reviewed",
+                proof_gate="Peer relationships need source proof; sector similarity remains fallback context only.",
+            )
+        )
+    peer_inputs = lanes.get("peer_valuation_inputs")
+    if peer_inputs is not None:
+        rows.append(
+            _queue_row_from_lane(
+                peer_inputs,
+                top_missing_input_families="mapped peer prices, market cap, fundamentals, valuation inputs",
+                source_mode="trusted mapped-peer inputs",
+                proof_gate="Mapped peers need trusted input rows before peer valuation dispersion can appear.",
+            )
+        )
+    rows.append(_metric_queue_rollup(root, top_n=top_n))
+    for lane_name, missing_inputs in (
+        ("earnings_locked", "trusted local earnings rows"),
+        ("analyst_estimates_locked", "trusted local analyst-estimate rows"),
+    ):
+        lane = lanes.get(lane_name)
+        if lane is not None:
+            rows.append(
+                _queue_row_from_lane(
+                    lane,
+                    top_missing_input_families=missing_inputs,
+                    source_mode="optional trusted-local only",
+                    proof_gate="Optional context stays locked unless reviewed local rows exist and pass validate/preview gates.",
+                )
+            )
+    return rows
+
+
 def render_data_coverage_expansion_plan(steps: list[DataCoverageExpansionStep]) -> str:
     lines = [
         "Data Coverage Expansion Planner",
@@ -627,6 +807,49 @@ def render_data_coverage_expansion_plan(steps: list[DataCoverageExpansionStep]) 
                 f"   outcome_boundary: {step.outcome_boundary}",
             ]
         )
+    return "\n".join(lines)
+
+
+def render_fundamentals_peer_metrics_queue(rows: list[ReadinessQueueRow]) -> str:
+    lines = [
+        "Fundamentals, Peer, and Metrics Readiness Queue",
+        "Read-only: queue-level blocker summary across DCF, peer, optional context, and SPY/QQQ review metrics.",
+        "Research-only: this is data-readiness triage, not a ranking, recommendation, or trade instruction.",
+        "",
+    ]
+    if not rows:
+        lines.append("No queue rows are available. Run make readiness before relying on exact counts.")
+        return "\n".join(lines)
+    lines.append(
+        "Lane | State | Ready | Partial | Blocked | Excluded | Missing input families | Source mode | Next proof"
+    )
+    lines.append("--- | --- | ---: | ---: | ---: | ---: | --- | --- | ---")
+    for row in rows:
+        lines.append(
+            " | ".join(
+                [
+                    row.label,
+                    row.readiness_state,
+                    str(row.ready_count),
+                    str(row.partial_count),
+                    str(row.blocked_count),
+                    str(row.excluded_count),
+                    row.top_missing_input_families,
+                    row.source_mode,
+                    row.next_safe_command,
+                ]
+            )
+        )
+    lines.append("")
+    lines.append("Proof gates:")
+    for row in rows:
+        lines.append(f"- {row.label}: {row.proof_gate}")
+    lines.append("")
+    lines.append("Lane guardrails:")
+    for row in rows:
+        lines.append(f"- {row.label}: {row.guardrail}")
+    lines.append("")
+    lines.append("Guardrail: missing inputs stay blocked or locked; do not infer fundamentals, market cap, peers, or metric values.")
     return "\n".join(lines)
 
 
@@ -702,6 +925,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--root", default=".", help="Project root.")
     parser.add_argument("--coverage-frontier", action="store_true", help="Print coverage frontier planner.")
     parser.add_argument("--expansion-plan", action="store_true", help="Print repeatable data coverage expansion plan.")
+    parser.add_argument("--readiness-queue", action="store_true", help="Print fundamentals, peer, and metrics readiness queue.")
     parser.add_argument("--evidence", action="store_true", help="Print readiness ops evidence checklist.")
     parser.add_argument("--top-n", type=int, default=10)
     return parser.parse_args(argv)
@@ -714,6 +938,8 @@ def main(argv: list[str] | None = None) -> int:
     frontier = build_coverage_frontier(lanes, top_n=args.top_n)
     if args.evidence:
         print(render_readiness_ops_evidence(lanes, frontier))
+    elif args.readiness_queue:
+        print(render_fundamentals_peer_metrics_queue(build_fundamentals_peer_metrics_queue(root, top_n=args.top_n)))
     elif args.expansion_plan:
         print(render_data_coverage_expansion_plan(build_data_coverage_expansion_plan(lanes, top_n=args.top_n)))
     elif args.coverage_frontier:

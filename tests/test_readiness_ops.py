@@ -1,10 +1,12 @@
 from pathlib import Path
 
 from src.readiness_ops import (
+    build_fundamentals_peer_metrics_queue,
     build_data_coverage_expansion_plan,
     build_peer_readiness_summary,
     build_coverage_frontier,
     build_readiness_ops_lanes,
+    render_fundamentals_peer_metrics_queue,
     render_data_coverage_expansion_plan,
     render_coverage_frontier,
     render_readiness_ops_center,
@@ -115,6 +117,34 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert by_lane["analyst_estimates_locked"].workflow_mode == "locked_manual"
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"
     assert "trusted local rows" in by_lane["earnings_locked"].notes
+
+
+def test_fundamentals_peer_metrics_queue_summarizes_next_layer_without_fake_unlocks(tmp_path: Path):
+    rows = build_fundamentals_peer_metrics_queue(_sample_root(tmp_path), top_n=2)
+    rendered = render_fundamentals_peer_metrics_queue(rows)
+    by_lane = {row.lane: row for row in rows}
+
+    assert set(by_lane) >= {
+        "fundamentals_dcf",
+        "peer_mapping",
+        "peer_valuation_inputs",
+        "metrics_readiness",
+        "earnings_locked",
+        "analyst_estimates_locked",
+    }
+    assert by_lane["fundamentals_dcf"].source_mode == "SEC-stageable or trusted-local"
+    assert "trusted fundamentals" in by_lane["fundamentals_dcf"].top_missing_input_families
+    assert "source-backed peer mappings" in by_lane["peer_mapping"].top_missing_input_families
+    assert "mapped peer prices" in by_lane["peer_valuation_inputs"].top_missing_input_families
+    assert by_lane["metrics_readiness"].source_lane == "review_metrics"
+    assert "SPY/QQQ" in by_lane["metrics_readiness"].proof_gate
+    assert by_lane["earnings_locked"].source_mode == "optional trusted-local only"
+    assert "not a ranking, recommendation, or trade instruction" in rendered
+    assert "Validate -> preview" in rendered
+    assert "Sharpe" in rendered
+    assert "do not infer fundamentals" in rendered
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
 
 
 def test_peer_readiness_summary_separates_mapping_trend_and_valuation_inputs(tmp_path: Path):
