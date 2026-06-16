@@ -12015,9 +12015,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     decision_queue_drawer_index = source.index('st.expander("Decision proof queue drawer", expanded=decision_queue_drawer_expanded)', decision_queue_status_index)
     decision_queue_completion_index = source.index("decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)", decision_queue_drawer_index)
     decision_queue_flow_index = source.index("decision_proof_queue_operator_flow_cards(decision_queue_frame, decision_queue_freshness)", decision_queue_completion_index)
-    decision_queue_detail_index = source.index('render_section_header(\n            "Decision Proof Detail"', decision_queue_flow_index)
+    decision_queue_detail_index = source.index('"Decision Proof Detail"', decision_queue_flow_index)
     decision_queue_cards_index = source.index("decision_proof_queue_drawer_cards(decision_queue_frame, decision_queue_freshness)", decision_queue_detail_index)
-    decision_queue_checklist_index = source.index('render_section_header(\n            "Decision Proof Checklist"', decision_queue_cards_index)
+    decision_queue_checklist_index = source.index('"Decision Proof Checklist"', decision_queue_cards_index)
     decision_queue_summary_index = source.index("decision_proof_queue_drawer_summary_frame(decision_queue_frame, decision_queue_freshness)", decision_queue_checklist_index)
     decision_queue_rows_index = source.index('st.expander("Decision proof queue rows", expanded=False)', decision_queue_summary_index)
     batch_header_index = source.index('render_section_header("Readiness Batch Execution"', decision_queue_rows_index)
@@ -12054,7 +12054,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     details_index = source.index("if show_details:", all_details_index)
 
     assert public_return_index < hero_index < queue_index < lane_selector_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
-    assert "defer_broad_queue = public_mode or selected_lane_key == \"metrics\"" in source
+    assert "queue_details_requested = data_health_progressive_details_requested(" in source
+    assert "batch_details_requested = data_health_progressive_details_requested(" in source
+    assert "proof_details_requested = data_health_progressive_details_requested(" in source
+    assert "defer_broad_queue = public_mode or not queue_details_requested" in source
     assert "ops_center = pd.DataFrame() if defer_broad_queue else data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = pd.DataFrame() if defer_broad_queue else data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
@@ -12062,7 +12065,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_operator_snapshot_cards(" in source
     assert "render_data_health_operator_hero(operator_snapshot_cards)" in source
     assert "data_health_batch_lane_for_operator(selected_lane_key)" in source
-    assert 'if selected_lane_key not in {"metrics", "proof"}' in source
+    assert 'if selected_lane_key not in {"metrics", "proof"} and batch_details_requested' in source
     assert "build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)" in source
     assert "data_health_reviewed_batch_operator_flow_cards(" in source
     assert "Batch Execution Detail" in source
@@ -12088,7 +12091,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "Detailed proof command fields" in source
     assert "decision_proof_queue_artifact_status(BASE_DIR)" in source
     assert "Decision proof queue drawer" in source
-    assert "decision_queue_drawer_expanded = selected_lane_key == \"proof\" or decision_queue_freshness.status in {\"missing\", \"stale\"}" in source
+    assert "decision_queue_drawer_expanded = selected_lane_key == \"proof\" and proof_details_requested" in source
+    assert "data_health_deferred_detail_cards(" in source
     assert "decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)" in source
     assert "decision_proof_queue_operator_flow_cards(decision_queue_frame, decision_queue_freshness)" in source
     assert "Decision Proof Detail" in source
@@ -12117,7 +12121,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))" in source
     assert "render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))" in source
     assert "fundamentals_preview_cards = data_health_trusted_pilot_cards(readiness_summary) + data_health_analysis_unlock_cards(readiness_summary)" in source
-    assert "lane_board = data_health_trusted_pilot_lane_board_frame" in source
+    assert 'if selected_lane_key in {"fundamentals", "peers"}' in source
+    assert "data_health_trusted_pilot_lane_board_frame(" in source
     assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))" in source
     assert 'st.expander("Peer evidence drawer", expanded=False)' in source
     assert "render_signal_cards(data_health_reviewed_proof_cards())" in source
