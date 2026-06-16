@@ -7192,13 +7192,13 @@ def data_health_public_visitor_path_cards(readiness_summary: dict[str, object]) 
         ),
         (
             "Improve data coverage",
-            "You are here. Read Quick Read first; the public page shows what is ready, what is blocked, and which lane needs proof next.",
+            "You are here. Read Quick Read first; the public page shows what is ready, what is blocked, and which trusted-data lane needs attention next.",
             "Data Health",
             "warning",
         ),
         (
             "Inspect proof",
-            "Use the latest reviewed evidence below before treating a changed readiness state as supported. Operator evidence stays behind deeper drawers by default.",
+            "Use the latest reviewed evidence before treating a changed readiness state as supported. Operator detail stays behind deeper drawers by default.",
             "Proof History",
             "neutral",
         ),
@@ -19118,9 +19118,9 @@ def sidebar_quick_help_lines() -> list[str]:
     return [
         "Start with Home for the coverage snapshot.",
         "Review one stock when you want a ticker-level report.",
-        "Improve data coverage when you want proof commands.",
+        "Improve data coverage when you want to see the missing trusted input.",
         "Inspect proof before treating a changed readiness state as supported.",
-        "Commands are copy-only; the dashboard never runs refreshes or imports.",
+        "Operator commands stay copy-only and hidden from the public path.",
     ]
 
 
@@ -23828,11 +23828,11 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
         improve_tone = "warning"
         gap_note = f"{data_gap_count:,} ticker(s) still need price coverage. " if data_gap_count else ""
         improve_body = (
-            f"Best next for coverage: {gap_note}Open Data Health for the trusted-data pilot path; fundamentals, source-backed peers, earnings, and estimates remain gated until local rows exist."
+            f"Best next for coverage: {gap_note}Open Data Health for the trusted-data pilot path; fundamentals, source-backed peers, earnings, and estimates remain gated until trusted local rows exist."
         )
 
     proof_body = (
-        "Open the proof drawers to inspect the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields before trusting a result."
+        "Check the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields before trusting a changed state."
     )
     if price_ready <= 0:
         proof_body = "Open proof history first; candidate pages should stay empty when local data cannot support them."
@@ -24302,8 +24302,8 @@ def render_home_page(
         )
 
     render_section_header(
-        "Demo Walkthrough",
-        "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot.",
+        "Visitor Walkthrough",
+        "Minimum path for GitHub or LinkedIn visitors: NVDA ready-data example, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot.",
     )
     render_signal_cards(_plain_home_first_run_path_cards(), show_commands=not public_mode)
 
@@ -25632,12 +25632,12 @@ def render_data_health(
         render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
         render_context_note(
             "Public Data Health summary.",
-            "Start with the three visitor paths. Open the proof drawer only when you want readiness evidence; switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
+            "Start with the three visitor paths. Open the evidence drawer only when you want readiness proof; switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
             tone="success",
         )
         render_section_header("Visitor Paths", "Choose the clean public path before opening proof or operator details.")
         render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
-        with st.expander("Public proof drawer", expanded=False):
+        with st.expander("Public evidence drawer", expanded=False):
             render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
             render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
             render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")

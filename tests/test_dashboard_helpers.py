@@ -670,11 +670,11 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Copy only." in source
     assert "Start with Home for the coverage snapshot." in source
     assert "Review one stock when you want a ticker-level report." in source
-    assert "Improve data coverage when you want proof commands." in source
+    assert "Improve data coverage when you want to see the missing trusted input." in source
     assert "Inspect proof before treating a changed readiness state as supported." in source
     assert "Open Single-Stock Report to review one ticker." not in source
     assert "Open Data Health only when you want proof commands." not in source
-    assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source
+    assert "Operator commands stay copy-only and hidden from the public path." in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard"' in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard-smoke"' not in source
     assert "sidebar_quick_help_lines()" in source
@@ -1103,7 +1103,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     details_gate_index = source.index("if show_details:")
-    demo_walkthrough_index = source.index('"Demo Walkthrough"')
+    demo_walkthrough_index = source.index('"Visitor Walkthrough"')
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
     coverage_index = source.index('render_section_header("Current Data Coverage"')
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
@@ -1112,7 +1112,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
 
     assert demo_walkthrough_index < next_step_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
-    assert "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot." in source
+    assert "Minimum path for GitHub or LinkedIn visitors: NVDA ready-data example, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=not public_mode)" in source
     assert '"Readiness snapshot may be stale"' in source
@@ -9544,7 +9544,7 @@ def test_data_health_public_visitor_path_cards_are_plain_language_without_comman
     assert "27 dcf-ready" in rendered
     assert "26 peer-ready" in rendered
     assert "you are here" in rendered
-    assert "operator evidence stays behind deeper drawers by default" in rendered
+    assert "operator detail stays behind deeper drawers by default" in rendered
     assert "make " not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -12055,8 +12055,8 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     assert refresh_note_index < quick_read_index
     assert 'st.expander("Refresh status note", expanded=False)' in source
-    assert 'st.expander("Public proof drawer", expanded=False)' in source
-    assert "Start with the three visitor paths. Open the proof drawer only when you want readiness evidence" in source
+    assert 'st.expander("Public evidence drawer", expanded=False)' in source
+    assert "Start with the three visitor paths. Open the evidence drawer only when you want readiness proof" in source
     assert "Data Health Quick Read" in source
     assert "Which proof path should you inspect first, before opening detailed sections." in source
     assert "The shortest safe local path before deeper proof lists." in source
@@ -21304,7 +21304,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
-    drawer_index = source.index('st.expander("Public proof drawer", expanded=False)', public_index)
+    drawer_index = source.index('st.expander("Public evidence drawer", expanded=False)', public_index)
     freshness_index = source.index('render_section_header("Readiness Freshness"', drawer_index)
     batch_index = source.index('render_section_header("Latest Reviewed Batch Evidence"', freshness_index)
     proof_index = source.index('render_section_header("Latest Reviewed Data Proof"', batch_index)
