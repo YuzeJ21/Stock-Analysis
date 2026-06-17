@@ -12503,7 +12503,11 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     current_mode_index = source.index("render_data_health_current_mode_strip(", lane_selector_index)
     queue_summary_index = source.index('render_section_header(\n        "Queue Outcome Summary"', current_mode_index)
-    decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", queue_summary_index)
+    coverage_delta_index = source.index('render_section_header(\n        "Readiness Coverage Delta"', queue_summary_index)
+    coverage_delta_cards_index = source.index("data_health_readiness_delta_board_cards(", coverage_delta_index)
+    coverage_delta_frame_index = source.index("data_health_readiness_delta_board_frame(", coverage_delta_cards_index)
+    lane_snapshot_index = source.index('render_section_header(\n        "Readiness Lane Snapshot"', coverage_delta_frame_index)
+    decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", lane_snapshot_index)
     decision_queue_expand_state_index = source.index("decision_queue_drawer_expanded =", decision_queue_status_index)
     decision_queue_drawer_index = source.index('st.expander("Decision proof queue drawer", expanded=decision_queue_drawer_expanded)', decision_queue_status_index)
     decision_queue_completion_index = source.index("decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)", decision_queue_drawer_index)
@@ -12546,7 +12550,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -12562,6 +12566,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_selected_detail_mode(" in console_source
     assert "data_health_current_mode_next_action(" in console_source
     assert "render_data_health_current_mode_strip(" in source
+    assert "Readiness Coverage Delta" in source
+    assert "data_health_readiness_delta_board_cards(" in source
+    assert "data_health_readiness_delta_board_frame(" in source
     assert "data_health_batch_lane_for_operator(selected_lane_key)" in source
     assert 'if selected_lane_key not in {"metrics", "proof"} and batch_details_requested' in source
     assert "build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)" in source
@@ -17513,6 +17520,89 @@ def test_readiness_recent_progress_cards_compare_prior_snapshot_and_newly_ready_
     assert "snapshot -> targeted update -> compare" in rendered
     assert "prior generated" not in rendered
     assert "latest generated" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_readiness_delta_board_handles_missing_prior_snapshot_without_fake_delta():
+    current = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB"],
+            "price_ready": [True, False],
+            "dcf_ready": [False, False],
+            "peer_ready": [False, False],
+            "blocked_features": ["dcf, peer", "price, dcf, peer"],
+        }
+    )
+
+    frame = dashboard.data_health_readiness_delta_board_frame(current, pd.DataFrame(), pd.DataFrame())
+    cards = dashboard.data_health_readiness_delta_board_cards(current, pd.DataFrame(), pd.DataFrame())
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert frame.loc[frame["Lane"].eq("Price"), "Current Ready"].iloc[0] == 1
+    assert frame.loc[frame["Lane"].eq("Price"), "Previous Ready"].iloc[0] == "not available"
+    assert frame.loc[frame["Lane"].eq("Price"), "Delta Ready"].iloc[0] == "not available"
+    assert cards[0]["title"] == "Current-only baseline"
+    assert cards[0]["command"] == "make readiness-snapshot"
+    assert "will not invent before/after changes" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_readiness_delta_board_summarizes_lane_changes_and_artifact_review():
+    current = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC"],
+            "price_ready": [True, True, False],
+            "fundamentals_ready": [False, True, False],
+            "dcf_ready": [False, True, False],
+            "peer_ready": [False, False, False],
+            "blocked_features": ["dcf, peer", "peer", "price, dcf, peer"],
+        }
+    )
+    previous = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC"],
+            "price_ready": [True, False, False],
+            "fundamentals_ready": [False, False, False],
+            "dcf_ready": [False, False, False],
+            "peer_ready": [False, False, False],
+        }
+    )
+    proof = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-DCF",
+                "Review Date": "2026-06-17",
+                "Lane": "share_count",
+                "Final Outcome": "supported",
+                "Generated Artifacts Reviewed": "excluded broad generated churn",
+            }
+        ]
+    )
+
+    frame = dashboard.data_health_readiness_delta_board_frame(current, previous, proof)
+    cards = dashboard.data_health_readiness_delta_board_cards(current, previous, proof)
+    rendered = " ".join(
+        frame.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    price = frame.loc[frame["Lane"].eq("Price")].iloc[0]
+    dcf = frame.loc[frame["Lane"].eq("DCF")].iloc[0]
+    peer = frame.loc[frame["Lane"].eq("Peers")].iloc[0]
+
+    assert price["Delta Ready"] == "+1"
+    assert price["Newly Ready Tickers"] == "BBB"
+    assert dcf["Delta Ready"] == "+1"
+    assert dcf["Latest Batch Outcome"] == "supported"
+    assert dcf["Generated Artifacts Reviewed"] == "excluded broad generated churn"
+    assert int(peer["Still Blocked"]) == 3
+    assert cards[0]["command"] == "make reviewed-batch-compare LANE=<lane>"
+    assert "price +1" in rendered
+    assert "dcf +1" in rendered
+    assert "generated-artifact review recorded" in rendered
+    assert "not recommendations" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

@@ -114,6 +114,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add Reviewed Batch Proof Record Validation V1 so proof commands show ready, needs-field-fills, snapshot-blocked, or invalid-outcome status before recording.
 - [x] Add Reviewed Batch Ledger Record Safety V1 so `reviewed-batch-proof-record` can dry-run the exact ledger row and validation status before appending.
 - [x] Add Reviewed Batch Loop Map V1 so Data Health shows snapshot -> reviewed packet/dry run -> validate/preview/apply gate -> proof record -> before/after comparison before the detailed drawer.
+- [x] Add Readiness Coverage Delta Board V1 so Data Health summarizes prior/current lane deltas, still-blocked lanes, latest proof outcomes, and generated-artifact review status before raw CSV reports.
 - [x] Add Decision Proof Queue UI V2 so Data Health shows a completion checklist, freshness, top proof row, reviewable inputs, locked context, copy-only command, and post-unlock proof before raw decision rows.
 - [x] Add Reviewed Batch Execution Checklist V2 so the reviewed-batch drawer shows lane choice, source/freshness warnings, packet, capped preview, validate/preview/apply gate, before/after comparison, proof outcome, and artifact hygiene before detailed tables.
 - [x] Add first-class `share_count` reviewed-batch packets and preflight commands so shares-outstanding DCF blockers no longer fall back to generic fundamentals wording.
