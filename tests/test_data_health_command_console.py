@@ -169,3 +169,143 @@ def test_overview_bundle_runbook_cards_surface_compact_lane_steps():
     assert "make price-normalize input=data/raw/prices/meta.csv ticker=meta source=yahoo_manual" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_bundle_handoff_cards_keep_staged_follow_through_visible():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "",
+                "why_it_matters": "",
+                "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+                "follow_up_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+            }
+        ]
+    )
+
+    cards = command_console.overview_bundle_handoff_cards(bundles, None, None)
+    rendered = _render(cards)
+
+    assert cards[0]["command"] == "make sec-stage TICKERS=META,NVDA,TSLA"
+    assert cards[1]["command"] == "make imports-validate"
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+
+
+def test_overview_bundle_handoff_cards_use_runbook_follow_through_and_refresh():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
+                "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+                "follow_up_command": "",
+            }
+        ]
+    )
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+            },
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Review follow-up output",
+                "command": "make imports-validate",
+            },
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 3,
+                "step_label": "Refresh status outputs",
+                "command": "make status",
+            },
+        ]
+    )
+
+    cards = command_console.overview_bundle_handoff_cards(bundles, None, runbook)
+
+    assert cards[1]["command"] == "make imports-validate"
+    assert cards[2]["title"] == "Refresh status outputs"
+    assert cards[2]["command"] == "make status-check TOP_N=5"
+
+
+def test_overview_bundle_handoff_cards_route_monthly_price_refresh():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 57 verified rows still needed across this bundle",
+                "primary_command": "make bundle-prices",
+                "follow_up_command": "make price-status",
+                "target_file": "data/imports/prices.csv",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
+            }
+        ]
+    )
+    details = pd.DataFrame([{"bundle_name": "Price Coverage Bundle", "ticker": "META"}])
+
+    cards = command_console.overview_bundle_handoff_cards(bundles, details, None)
+    rendered = _render(cards)
+
+    assert cards[2]["title"] == "Refresh monthly context"
+    assert cards[2]["command"] == "make monthly"
+    assert "make price-validate" in rendered
+    assert "make price-preview" in rendered
+    assert "make price-apply" in rendered
+
+
+def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+                "primary_command": "make templates",
+                "follow_up_command": "data/imports/peers.csv",
+                "target_file": "data/imports/peers.csv",
+                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make imports-validate, make imports-preview, and make imports-apply before make status refreshes readiness and action outputs.",
+            }
+        ]
+    )
+    details = pd.DataFrame([{"bundle_name": "Peer Mapping Bundle", "ticker": "META"}])
+
+    cards = command_console.overview_bundle_handoff_cards(bundles, details, None)
+    rendered = _render(cards)
+
+    assert cards[0]["kicker"] == "PEERS HANDOFF"
+    assert cards[1]["command"] == "data/imports/peers.csv"
+    assert "make templates" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered

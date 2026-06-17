@@ -324,6 +324,152 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
     return cards
 
 
+def overview_bundle_handoff_cards(
+    bundle_frame: pd.DataFrame | None,
+    bundle_detail_frame: pd.DataFrame | None,
+    bundle_runbook_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    if bundle_frame is None or bundle_frame.empty:
+        return [
+            {
+                "kicker": "BUNDLE HANDOFF",
+                "title": "No bundle guidance yet",
+                "body": "Build onboarding coverage first, then use Data Health to inspect the current guided data batch workflow.",
+                "badges": ["read-only", "data moat"],
+                "command": "make onboarding",
+            }
+        ]
+
+    top_bundle = bundle_frame.iloc[0]
+    bundle_name = _format_missing(top_bundle.get("bundle_name"), "Local bundle")
+    primary_command = preferred_bundle_command(top_bundle, "")
+    follow_up_command = normalize_operator_command(_format_missing(top_bundle.get("follow_up_command"), ""))
+    goal_summary = _compact_reason(top_bundle.get("goal_summary"), max_sentences=1, max_chars=120)
+    lane = _format_missing(top_bundle.get("lane"), "bundle").replace("_", " ")
+    ticker_text = _format_missing(top_bundle.get("tickers"), "No tickers")
+    target_file = _format_missing(top_bundle.get("target_file"), "")
+    staged_summary = _staged_summary(top_bundle)
+    bundle_summary = (
+        goal_summary
+        if goal_summary not in {"", "Not available"}
+        else _compact_reason(
+            top_bundle.get("why_it_matters")
+            or staged_summary
+            or _command_family_fallback(primary_command, _review_path_fallback(top_bundle.get("lane"))),
+            max_sentences=1,
+            max_chars=150,
+        )
+    )
+    refresh_command = "make onboarding"
+    refresh_step_label = "Refresh onboarding outputs"
+
+    first_ticker = "Not available"
+    if bundle_detail_frame is not None and not bundle_detail_frame.empty:
+        details = bundle_detail_frame.copy()
+        details["bundle_name"] = details.get("bundle_name", pd.Series(dtype=str)).astype(str)
+        matches = details.loc[details["bundle_name"].eq(str(top_bundle.get("bundle_name", "")))]
+        if not matches.empty and "ticker" in matches.columns:
+            first_ticker = _format_missing(matches.iloc[0].get("ticker"), "Not available")
+
+    if bundle_runbook_frame is not None and not bundle_runbook_frame.empty:
+        runbook = bundle_runbook_frame.copy()
+        runbook["bundle_name"] = runbook.get("bundle_name", pd.Series(dtype=str)).astype(str)
+        matches = runbook.loc[runbook["bundle_name"].eq(str(top_bundle.get("bundle_name", "")))]
+        if not matches.empty:
+            if "step_order" in matches.columns:
+                matches["step_order"] = pd.to_numeric(matches["step_order"], errors="coerce")
+                matches = matches.sort_values("step_order")
+            if not follow_up_command:
+                runbook_commands = [
+                    normalize_operator_command(_format_missing(row.get("command"), ""))
+                    for _, row in matches.iterrows()
+                    if _format_missing(row.get("command"), "")
+                ]
+                if runbook_commands:
+                    follow_up_command = next(
+                        (command for command in runbook_commands if command != primary_command),
+                        runbook_commands[0],
+                    )
+            refresh_labels = {"refresh status outputs", "refresh onboarding outputs"}
+            refresh_matches = matches.loc[
+                matches.get("step_label", pd.Series(dtype=str)).astype(str).str.lower().isin(refresh_labels)
+            ]
+            target_row = refresh_matches.iloc[0] if not refresh_matches.empty else matches.iloc[-1]
+            refresh_command = normalize_operator_command(_format_missing(target_row.get("command"), refresh_command))
+            refresh_step_label = _format_missing(target_row.get("step_label"), refresh_step_label)
+
+    if not follow_up_command:
+        follow_up_command = _fallback_first_command(target_file)
+
+    monthly_refresh_context = " ".join(
+        part
+        for part in [
+            goal_summary,
+            _compact_reason(top_bundle.get("why_it_matters"), max_sentences=1, max_chars=150),
+            staged_summary,
+        ]
+        if part and part != "Not available"
+    ).lower()
+    follow_through_summary = _compact_reason(top_bundle.get("safe_next_step"), max_sentences=2, max_chars=220)
+    if staged_summary not in {"", "Not available"} and (
+        follow_through_summary in {"", "Not available"}
+        or (
+            target_file == "data/imports/prices.csv"
+            and (
+                "make price-validate" not in follow_through_summary
+                or "make price-preview" not in follow_through_summary
+                or "make price-apply" not in follow_through_summary
+            )
+        )
+    ):
+        follow_through_summary = staged_summary
+    if (
+        str(top_bundle.get("lane", "")).strip().lower() == "prices"
+        and "monthly picks" in monthly_refresh_context
+        and refresh_command in {"make status", "make status-check TOP_N=5", "make onboarding"}
+    ):
+        refresh_command = "make monthly"
+        refresh_step_label = "Refresh monthly context"
+
+    return [
+        {
+            "kicker": f"{lane.upper()} HANDOFF",
+            "title": bundle_name,
+            "body": (
+                f"{bundle_summary}{_bundle_hint(top_bundle)}. " if bundle_summary not in {"", "Not available"} else ""
+            )
+            + f"Start with {primary_command} for {ticker_text}. This is the highest-leverage guided data batch right now.",
+            "badges": ["guided batch", "research only"],
+            "command": primary_command,
+        },
+        {
+            "kicker": "FOLLOW-THROUGH",
+            "title": follow_up_command or "Data Health",
+            "body": (
+                (
+                    f"After the primary command, use {follow_up_command} and check {first_ticker} first. "
+                    f"{follow_through_summary}"
+                )
+                if follow_up_command and follow_through_summary not in {"", "Not available"}
+                else f"After the primary command, use {follow_up_command or 'Data Health'} and check {first_ticker} first "
+                "to confirm the bundle moved the expected local blocker."
+            ),
+            "badges": ["next step", "read-only"],
+            "command": follow_up_command,
+        },
+        {
+            "kicker": "REFRESH",
+            "title": refresh_step_label,
+            "body": (
+                f"After the follow-through step, run {refresh_command} and reopen Data Health or Overview to confirm "
+                f"that {first_ticker} moved as expected."
+            ),
+            "badges": ["confirm", "read-only"],
+            "command": refresh_command,
+        },
+    ]
+
+
 def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
     if runbook_frame is None or runbook_frame.empty:
         return [
