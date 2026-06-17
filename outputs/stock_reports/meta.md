@@ -63,8 +63,9 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 META overall readiness: partial; review local inputs that are present and treat locked sections as missing-data proof work. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## What We Can Analyze Now
-- Local inputs present: price, momentum, market direction, liquidity, correlation, portfolio.
+- Local inputs present: price, momentum, market direction, liquidity, correlation, peer, portfolio.
 - Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
+- Held-back context: peer rows may be locally present, but peer valuation stays withheld until fundamentals and the company DCF gate pass.
 - Still locked or excluded: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
 ## Next Layer To Prove
@@ -146,6 +147,16 @@ Research-only purpose brief. It separates what local data supports from what rem
 - 1Y performance: -4.0%
 - ATR / volatility: Not available; missing values stay visible instead of guessed.
 
+## Benchmark And Risk Review Metrics
+- Guardrail: these are historical review metrics only; they are not forecasts, rankings, allocation guidance, or account-action instructions.
+- Risk-free-rate assumption: 0.0%; explicit assumption, not fetched or inferred.
+- SPY benchmark/risk review: benchmark relative return=partial (Not available; missing: at least 60 aligned ticker/spy price rows); max drawdown=ready (-33.5%; missing: none); rolling volatility=ready (33.7%; missing: none); beta vs benchmark=partial (Not available; missing: at least 60 aligned ticker/spy price rows); sharpe ratio=ready (0.06; missing: none); sortino ratio=ready (0.08; missing: none).
+- QQQ benchmark/risk review: benchmark relative return=partial (Not available; missing: at least 60 aligned ticker/qqq price rows); max drawdown=ready (-33.5%; missing: none); rolling volatility=ready (33.7%; missing: none); beta vs benchmark=partial (Not available; missing: at least 60 aligned ticker/qqq price rows); sharpe ratio=ready (0.06; missing: none); sortino ratio=ready (0.08; missing: none).
+- Fundamentals trend: partial; value=Not available; missing: at least two dated trusted fundamentals rows for trend. Source context: trusted fundamentals rows=1; source=local:fundamentals.csv; freshness=dataset row as of 2025-12-31. Notes: Current trusted row can be reviewed when present; trend stays partial until multiple trusted periods exist.
+- Valuation multiples: partial; value=Not available; missing: market cap or trusted price plus shares outstanding. Source context: fundamentals source=local:fundamentals.csv. Notes: trailing_pe=25.98
+- Peer valuation dispersion: partial; value=Not available; missing: standalone valuation multiple, at least two peers with trusted valuation multiples. Source context: mapped peer rows=2. Notes: Peer rows exist, but valuation dispersion stays locked until comparable peer multiples exist.
+- Blocked, partial, and excluded metric states are preserved; missing benchmark, fundamentals, market-cap, or peer inputs are not fabricated.
+
 ## Risk Notes
 - Risk watchpoint: compounder purpose is under thesis review because final state is `Thesis Review Needed`. Review the readiness sections below before drawing conclusions.
 - Invalidation condition: Already flagged for trend/purpose review in the current local setup state.
@@ -163,7 +174,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Correlation ready: ready
 - Fundamentals ready: not ready
 - DCF ready: not ready
-- Peer ready: not ready
+- Peer ready: ready
 - Earnings ready: not ready
 - Analyst estimates ready: not ready
 - Blocked features: DCF, earnings, analyst estimates
@@ -216,7 +227,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Peer blocker type: blocked until fundamentals / DCF
 - Mapping status: waiting for price, fundamentals, and DCF
 - Peer count: 2
-- Trend comparison ready: not ready
+- Trend comparison ready: ready
 - Valuation comparison ready: not ready
 - DCF peer comparison ready: not ready
 - Sample peers: AAPL, GOOG
@@ -245,7 +256,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Source Readiness
 - local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-22; Saved local research data.
-- local:fundamentals.csv: research-grade / local; source readiness: dataset row as of 2017-12-31; Local fundamentals data.; Dataset row source: sec_companyfacts
+- local:fundamentals.csv: research-grade / local; source readiness: dataset row as of 2025-12-31; Local fundamentals data.; Dataset row source: sec_companyfacts
 - local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields stay locked until trusted rows are imported.
 - local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
@@ -253,7 +264,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Data Health lane: Fundamentals / DCF Proof. Suggested local check: `make focus-fundamentals TICKER=META`. Confirm with `make dcf-readiness && make readiness` before treating the lane as available.
 - Price proof path: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF proof path: Fundamentals / DCF are blocked: missing shares outstanding. Inspect `make focus-fundamentals TICKER=META`, then use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured or prepare trusted manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make dcf-readiness`.
-- Peer proof path: Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
+- Peer proof path: Peer context is usable now; review mapped peers and source readiness before interpreting peer-relative context.
 - Optional context proof path: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 
@@ -266,10 +277,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - SEC/manual import checklist: `make sec-stage-queue TICKERS=META TOP_N=10`.
 - Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.
 - DCF rebuild proof: `make dcf-readiness && make readiness` before reading standalone DCF output.
-- Peer mapping: `make focus-peers TICKER=META`.
-- Peer mapping checklist: `make peer-mapping-queue TICKERS=META TOP_N=10`.
-- Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.
-- Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS=META TOP_N=10` before reading peer-relative valuation.
+- Peer review: `make focus-peers TICKER=META`.
 - Optional context checklist: `make optional-context-worklist TICKERS=META TOP_N=10`.
 - Optional templates: `make templates`.
 - Earnings import: `make import-earnings`.
