@@ -7812,6 +7812,53 @@ def data_health_dcf_input_proof_queue_cards(frame: pd.DataFrame | None, *, limit
     return cards
 
 
+def data_health_dcf_input_proof_queue_dashboard_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    """Return the compact lane-level DCF proof queue summary before raw rows."""
+
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "DCF INPUT QUEUE",
+                "title": "Refresh the DCF proof queue",
+                "body": (
+                    "No DCF input proof rows are loaded for this lane. Run the queue after readiness artifacts are current; "
+                    "do not treat missing DCF fields as resolved without source proof."
+                ),
+                "badges": ["blocked visible", "readiness first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    work = frame.copy()
+    family_summary = "no family counts loaded"
+    if "Missing Input Family" in work.columns:
+        families = work["Missing Input Family"].fillna("").astype(str).str.strip()
+        family_counts = families.loc[families.ne("")].value_counts()
+        if not family_counts.empty:
+            family_summary = "; ".join(f"{family}: {count}" for family, count in family_counts.head(4).items())
+    top = work.iloc[0]
+    ticker = format_missing(top.get("Ticker"), "TICKER")
+    family = format_missing(top.get("Missing Input Family"), "DCF input")
+    next_command = format_missing(top.get("Next Proof Command"), "make dcf-input-proof-queue TOP_N=10")
+    packet_command = format_missing(top.get("Proof Packet Command"), "DRY_RUN=1 make fundamentals-batch-proof TOP_N=10")
+    stop_rule = compact_card_fragment(top.get("Stop Rule"), max_chars=190)
+    source_mode = compact_card_fragment(top.get("Source Mode"), fallback="source proof required", max_chars=120)
+    return [
+        {
+            "kicker": "DCF INPUT QUEUE",
+            "title": f"{family}: {len(work):,} queued row(s)",
+            "body": (
+                f"{card_sentence('Top input families', family_summary)} "
+                f"{card_sentence('First proof target', f'{ticker} / {family}')} "
+                f"{card_sentence('Source path', source_mode)} "
+                f"{card_sentence('Proof packet', packet_command)} "
+                f"{card_sentence('Stop rule', stop_rule)}"
+            ),
+            "badges": ["source proof first", "copy-only"],
+            "command": next_command,
+        }
+    ]
+
+
 def data_health_dcf_input_family_options(frame: pd.DataFrame | None) -> list[str]:
     if frame is None or frame.empty or "Missing Input Family" not in frame.columns:
         return ["All families"]
@@ -9291,7 +9338,7 @@ def data_health_proof_planner_outcome_summary_cards(
     state_pairs = "; ".join(
         f"{row['Planner Lane']}: {str(row['Planner State']).replace('_', ' ')}" for _, row in frame.iterrows()
     )
-    return [
+    cards = [
         {
             "kicker": "PROOF PLANNER OUTCOMES",
             "title": f"{len(blocking)} planner lane(s) need review",
@@ -9325,6 +9372,24 @@ def data_health_proof_planner_outcome_summary_cards(
             "command": str(first.get("Lane URL", "Open Data Health lane")),
         },
     ]
+    stale_blockers = frame.loc[frame["Planner State"].fillna("").astype(str).str.lower().eq("blocked_by_freshness")]
+    if not stale_blockers.empty:
+        refresh_command = format_missing(getattr(readiness_freshness, "refresh_command", ""), "make readiness")
+        freshness_message = compact_card_fragment(getattr(readiness_freshness, "message", ""), max_chars=180)
+        cards.insert(
+            0,
+            {
+                "kicker": "FRESHNESS GATE",
+                "title": "Refresh readiness before proof planning",
+                "body": (
+                    f"{card_sentence('Freshness', freshness_message)} "
+                    "Run the refresh before DCF or peer proof planning; stale readiness rows are not proof."
+                ),
+                "badges": ["blocked by freshness", "refresh first"],
+                "command": refresh_command,
+            },
+        )
+    return cards
 
 
 def data_health_readiness_ops_center_cards(ops_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -19335,8 +19400,28 @@ def render_data_health_peer_operator_console(
     )
 
 
-def data_health_lane_auto_context_cards(selected_lane_key: str) -> list[dict[str, object]]:
+def data_health_lane_auto_context_cards(
+    selected_lane_key: str,
+    readiness_freshness: FreshnessStatus | None = None,
+) -> list[dict[str, object]]:
     lane = data_health_operator_lane_from_query(selected_lane_key)
+    freshness_status = format_missing(getattr(readiness_freshness, "status", ""), "").lower()
+    if lane in {"fundamentals", "peers"} and freshness_status in {"missing", "stale"}:
+        lane_label = "DCF" if lane == "fundamentals" else "peer"
+        refresh_command = format_missing(getattr(readiness_freshness, "refresh_command", ""), "make readiness")
+        freshness_message = compact_card_fragment(getattr(readiness_freshness, "message", ""), max_chars=170)
+        return [
+            {
+                "kicker": "FRESHNESS GATE",
+                "title": f"Refresh readiness before {lane_label} proof planning",
+                "body": (
+                    f"{card_sentence('Freshness', freshness_message)} "
+                    f"Do not use stale readiness artifacts as {lane_label} proof. Refresh first, then reopen this lane for planner context."
+                ),
+                "badges": ["refresh first", "blocked visible"],
+                "command": refresh_command,
+            }
+        ]
     if lane == "fundamentals":
         return [
             {
@@ -26647,7 +26732,16 @@ def render_data_health(
         else:
             fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)
         render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board, dcf_input_queue)
-        render_signal_cards(data_health_lane_auto_context_cards(selected_lane_key), show_commands=False, variant="queue")
+        render_signal_cards(
+            data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness),
+            show_commands=False,
+            variant="queue",
+        )
+        render_signal_cards(
+            data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue),
+            show_commands=True,
+            variant="queue",
+        )
         with st.expander("Fundamentals / DCF evidence drawer", expanded=False):
             render_section_header(
                 "DCF Input Proof Queue",
@@ -26768,7 +26862,11 @@ def render_data_health(
                 st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
     elif selected_lane == "Peers":
         render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)
-        render_signal_cards(data_health_lane_auto_context_cards(selected_lane_key), show_commands=False, variant="queue")
+        render_signal_cards(
+            data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness),
+            show_commands=False,
+            variant="queue",
+        )
         peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)
         with st.expander("Peer evidence drawer", expanded=False):
             render_section_header("Peer Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")

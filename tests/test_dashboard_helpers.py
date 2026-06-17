@@ -588,6 +588,24 @@ def test_data_health_proof_planner_outcome_summary_uses_loaded_planner_and_fresh
     assert "sell" not in rendered
 
 
+def test_data_health_proof_planner_outcome_summary_shows_refresh_cta_when_stale():
+    readiness = {"price_ready": 100, "dcf_ready": 20, "peer_ready": 5}
+    freshness = dashboard.FreshnessStatus("stale", "Readiness artifacts are stale.", refresh_command="make readiness")
+
+    cards = dashboard.data_health_proof_planner_outcome_summary_cards(readiness, pd.DataFrame(), freshness)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Refresh readiness before proof planning"
+    assert cards[0]["command"] == "make readiness"
+    assert "freshness: readiness artifacts are stale" in rendered
+    assert "stale readiness rows are not proof" in rendered
+    assert "blocked by freshness" in rendered
+    assert cards[1]["title"] == "2 planner lane(s) need review"
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_data_health_operator_lane_url_uses_existing_lane_aliases():
     assert dashboard.data_health_operator_lane_url("dcf") == "?mode=operator&page=data-health&lane=fundamentals"
     assert dashboard.data_health_operator_lane_url("peer") == "?mode=operator&page=data-health&lane=peers"
@@ -11965,6 +11983,26 @@ def test_data_health_lane_auto_context_cards_explain_dcf_and_peer_landings():
     assert "order routing" not in rendered
 
 
+def test_data_health_lane_auto_context_cards_show_refresh_before_planning_when_stale():
+    freshness = dashboard.FreshnessStatus("stale", "Readiness artifacts are stale.", refresh_command="make readiness")
+
+    dcf_cards = dashboard.data_health_lane_auto_context_cards("dcf", freshness)
+    peer_cards = dashboard.data_health_lane_auto_context_cards("peer", freshness)
+    rendered = " ".join(str(value) for card in dcf_cards + peer_cards for value in card.values()).lower()
+
+    assert dcf_cards[0]["title"] == "Refresh readiness before DCF proof planning"
+    assert dcf_cards[0]["command"] == "make readiness"
+    assert peer_cards[0]["title"] == "Refresh readiness before peer proof planning"
+    assert peer_cards[0]["command"] == "make readiness"
+    assert "do not use stale readiness artifacts as dcf proof" in rendered
+    assert "do not use stale readiness artifacts as peer proof" in rendered
+    assert "dcf proof batch planner" not in rendered
+    assert "peer proof batch planner" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_data_health_dcf_input_proof_queue_cards_keep_commands_in_drawer_boundary():
     frame = pd.DataFrame(
         [
@@ -12011,6 +12049,47 @@ def test_data_health_dcf_input_proof_queue_cards_keep_commands_in_drawer_boundar
     assert "broker" not in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered
+
+
+def test_data_health_dcf_input_proof_queue_dashboard_cards_show_top_family_packet_and_stop_rule():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+            },
+            {
+                "Ticker": "ACHV",
+                "Scope": "master universe",
+                "Missing Input Family": "fcf_margin",
+                "Missing DCF Fields": "fcf_margin",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make focus-fundamentals TICKER=ACHV",
+                "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
+                "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_dcf_input_proof_queue_dashboard_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "shares_outstanding: 2 queued row(s)"
+    assert cards[0]["command"] == "make share-count-proof-queue TICKERS=META"
+    assert "top input families: shares_outstanding: 1; fcf_margin: 1" in rendered
+    assert "first proof target: meta / shares_outstanding" in rendered
+    assert "proof packet: dry_run=1 make reviewed-batch lane=share_count tickers=meta" in rendered
+    assert "stop if shares_outstanding is unavailable" in rendered
+    assert "source proof first" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+    assert "broker" not in rendered
 
 
 def test_dcf_input_family_filter_scopes_cards_and_rows_without_hiding_blockers():
@@ -12823,10 +12902,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     price_console_index = source.index("render_data_health_price_operator_console(", batch_sequence_index)
     price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', price_console_index)
     fundamentals_console_index = source.index("render_data_health_fundamentals_operator_console(", price_drawer_index)
-    fundamentals_context_index = source.index("data_health_lane_auto_context_cards(selected_lane_key)", fundamentals_console_index)
+    fundamentals_context_index = source.index("data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness)", fundamentals_console_index)
     fundamentals_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)', fundamentals_context_index)
     peer_console_index = source.index("render_data_health_peer_operator_console(", fundamentals_drawer_index)
-    peer_context_index = source.index("data_health_lane_auto_context_cards(selected_lane_key)", peer_console_index)
+    peer_context_index = source.index("data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness)", peer_console_index)
     peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)', peer_console_index)
     metrics_drawer_index = source.index('st.expander("Metrics evidence drawer", expanded=False)', peer_drawer_index)
     optional_console_index = source.index("render_data_health_optional_operator_console(", metrics_drawer_index)
@@ -12913,7 +12992,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "render_data_health_price_operator_console(" in source
     assert "Price Queue Snapshot" in source
     assert "render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board, dcf_input_queue)" in source
-    assert "data_health_lane_auto_context_cards(selected_lane_key)" in source
+    assert "data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness)" in source
+    assert "data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue)" in source
     assert "dcf_input_queue = (" in source
     assert "data_health_dcf_input_proof_queue_frame(top_n=10)" in source
     assert "DCF Input Proof Queue" in source
@@ -12940,6 +13020,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)" in source
     assert "Fundamentals / DCF Queue Snapshot" in source
     dcf_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)')
+    dcf_dashboard_cards_index = source.index("data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue)", fundamentals_console_index)
     dcf_filter_index = source.index("data_health_dcf_input_family_filter_cards(", dcf_drawer_index)
     dcf_queue_cards_index = source.index("data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)", dcf_filter_index)
     dcf_checklist_index = source.index('render_section_header("Finish This DCF Proof"', dcf_queue_cards_index)
@@ -12947,6 +13028,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_checklist_frame_index = source.index("data_health_dcf_proof_source_review_checklist_frame(", dcf_checklist_cards_index)
     dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_checklist_frame_index)
     dcf_raw_rows_index = source.index("st.dataframe(clean_display_frame(dcf_input_queue_filtered)", dcf_source_packet_index)
+    assert fundamentals_console_index < dcf_dashboard_cards_index < dcf_drawer_index
     assert dcf_filter_index < dcf_queue_cards_index < dcf_checklist_index < dcf_checklist_cards_index < dcf_checklist_frame_index < dcf_source_packet_index < dcf_raw_rows_index
     assert "Finish This DCF Proof" in source
     assert "data_health_dcf_proof_source_review_checklist_cards(" in source
