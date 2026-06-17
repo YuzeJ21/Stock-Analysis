@@ -8879,9 +8879,11 @@ def data_health_dcf_proof_source_review_checklist_cards(
             "body": (
                 f"{card_sentence('Next item', first.get('Checklist Item'))} "
                 f"{card_sentence('Needed', compact_card_fragment(first.get('Need Before Proceeding'), max_chars=190))} "
+                f"{card_sentence('Next safest action', compact_card_fragment(first.get('Next Safest Action'), max_chars=170))} "
+                f"{card_sentence('Stop rule', compact_card_fragment(first.get('Stop Rule'), max_chars=170))} "
                 "Use this checklist before reading source-review, import-preview, or proof-record tables."
             ),
-            "badges": badges,
+            "badges": badges + ["exact missing fields"],
             "command": format_missing(first.get("Next Safest Action"), "make dcf-input-proof-queue TOP_N=10"),
         }
     ]

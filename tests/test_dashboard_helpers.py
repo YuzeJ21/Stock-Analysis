@@ -12574,8 +12574,12 @@ def test_dcf_proof_source_review_checklist_summarizes_missing_steps_before_table
     assert checklist.iloc[6]["Status"] == "still_blocked"
     assert cards[0]["title"] == "Finish DCF proof: 5 step(s) need review"
     assert cards[0]["command"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert "next safest action" in rendered
+    assert "make dcf-input-source-review family=shares_outstanding top_n=10" in rendered
+    assert "stop rule" in rendered
     assert "use this checklist before reading source-review" in rendered
     assert "copy proof-record command only after source files" in rendered
+    assert "exact missing fields" in rendered
     assert "no inferred inputs" in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered
