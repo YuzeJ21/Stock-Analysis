@@ -8062,6 +8062,109 @@ def data_health_dcf_input_source_review_cards(frame: pd.DataFrame | None, select
     ]
 
 
+def _data_health_dcf_source_route(row: pd.Series) -> str:
+    family = format_missing(row.get("Missing Input Family"), "")
+    mode = format_missing(row.get("Source Mode"), "").lower()
+    if family == "price" or "price" in mode:
+        return "Price dry-run path"
+    if "sec-stageable" in mode:
+        return "SEC-stageable"
+    return "Trusted-local/manual"
+
+
+def data_health_dcf_source_packet_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
+    columns = [
+        "Source Route",
+        "Input Family",
+        "Rows",
+        "Tickers",
+        "Blocking Inputs",
+        "Source Target",
+        "Stage Or Review Command",
+        "Trusted Local Path",
+        "Validation Gate",
+        "Proof Packet Command",
+        "Stop Rule",
+    ]
+    if frame is None or frame.empty:
+        return pd.DataFrame(columns=columns)
+    work = data_health_filter_dcf_input_queue_by_family(frame, selection)
+    if work.empty:
+        return pd.DataFrame(columns=columns)
+    groups: dict[tuple[str, str], list[pd.Series]] = {}
+    for _, row in work.iterrows():
+        family = format_missing(row.get("Missing Input Family"), "DCF input")
+        route = _data_health_dcf_source_route(row)
+        groups.setdefault((route, family), []).append(row)
+    rows: list[dict[str, object]] = []
+    for (route, family), items in groups.items():
+        tickers = [format_missing(item.get("Ticker"), "").upper() for item in items if format_missing(item.get("Ticker"), "")]
+        ticker_arg = ",".join(tickers[:10]) if tickers else "<reviewed_tickers>"
+        first = items[0]
+        if route == "Price dry-run path":
+            stage_command = f"DRY_RUN=1 make reviewed-batch LANE=prices TICKERS={ticker_arg}"
+            trusted_path = "data/imports/prices.csv after price validate/preview"
+            source_target = "verified OHLCV rows or reviewed provider refresh"
+        elif route == "SEC-stageable":
+            stage_command = f"make sec-stage TICKERS={ticker_arg}"
+            trusted_path = "data/imports/fundamentals.csv fallback after reviewed source rows"
+            source_target = "SEC Companyfacts staging or reviewed company filing"
+        else:
+            stage_command = f"make dcf-input-source-review FAMILY={family} TOP_N=10"
+            trusted_path = "data/imports/fundamentals.csv with reviewed local source rows"
+            source_target = "trusted filing/report source supplied by reviewer"
+        blocking_inputs = "; ".join(
+            dict.fromkeys(compact_card_fragment(item.get("Missing DCF Fields"), max_chars=80) for item in items)
+        )
+        rows.append(
+            {
+                "Source Route": route,
+                "Input Family": family,
+                "Rows": len(items),
+                "Tickers": ticker_arg,
+                "Blocking Inputs": blocking_inputs,
+                "Source Target": source_target,
+                "Stage Or Review Command": stage_command,
+                "Trusted Local Path": trusted_path,
+                "Validation Gate": format_missing(first.get("Validation Sequence"), "make imports-validate -> make imports-preview"),
+                "Proof Packet Command": format_missing(first.get("Proof Packet Command"), "DRY_RUN=1 make fundamentals-batch-proof"),
+                "Stop Rule": format_missing(first.get("Stop Rule"), "Stop if source proof does not support the required DCF input."),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def data_health_dcf_source_packet_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
+    packet = data_health_dcf_source_packet_frame(frame, selection)
+    family = data_health_dcf_input_family_key(selection) or "selected DCF inputs"
+    if packet.empty:
+        return [
+            {
+                "kicker": "DCF SOURCE PACKET",
+                "title": "No source route selected",
+                "body": "Open the DCF input proof queue before choosing SEC staging or trusted-local source review.",
+                "badges": ["source route", "blocked visible"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    routes = ", ".join(f"{row['Source Route']}: {row['Rows']}" for _, row in packet.iterrows())
+    first = packet.iloc[0]
+    return [
+        {
+            "kicker": "DCF SOURCE PACKET",
+            "title": f"{family}: {routes}",
+            "body": (
+                f"{card_sentence('First route', first.get('Source Route'))} "
+                f"{card_sentence('Tickers', first.get('Tickers'))} "
+                f"{card_sentence('Source target', first.get('Source Target'))} "
+                "Choose SEC staging only when configured and source-backed; otherwise use trusted-local review with validate, preview, rejected-row review, and proof after update."
+            ),
+            "badges": ["source first", "validate before apply"],
+            "command": format_missing(first.get("Stage Or Review Command"), "make dcf-input-source-review TOP_N=10"),
+        }
+    ]
+
+
 def data_health_dcf_import_preview_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
     source_frame = data_health_dcf_input_source_review_frame(frame, selection)
     if source_frame.empty:
@@ -25133,6 +25236,13 @@ def render_data_health(
                     dcf_family_selection,
                 ),
                 show_commands=True,
+            )
+            render_section_header("Trusted Fundamentals Source Packet", "Choose SEC-stageable or trusted-local source review before filling detailed import scaffolds.")
+            render_signal_cards(data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
+            st.dataframe(
+                clean_display_frame(data_health_dcf_source_packet_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
             )
             render_signal_cards(data_health_dcf_input_source_review_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
             st.dataframe(

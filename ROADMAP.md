@@ -118,6 +118,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add Reviewed Batch Execution Checklist V2 so the reviewed-batch drawer shows lane choice, source/freshness warnings, packet, capped preview, validate/preview/apply gate, before/after comparison, proof outcome, and artifact hygiene before detailed tables.
 - [x] Add first-class `share_count` reviewed-batch packets and preflight commands so shares-outstanding DCF blockers no longer fall back to generic fundamentals wording.
 - [x] Add DCF Input Proof Queue UX in Data Health so top input families, source-review fields, import preview, proof packet handoff, stop rules, and latest proof outcome stay in one collapsed drawer before raw DCF tables.
+- [x] Add Trusted Fundamentals Source Packet UX so the DCF drawer separates SEC-stageable, trusted-local/manual, and price dry-run source routes before detailed import scaffolds.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
 ### Trusted Coverage Growth V2
