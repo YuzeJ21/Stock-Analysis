@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import src.dashboard as dashboard
+import src.data_health_generated_churn as generated_churn
 import pandas as pd
 
 
@@ -18006,13 +18007,13 @@ def test_readiness_delta_board_summarizes_lane_changes_and_artifact_review():
 
 def test_generated_churn_review_drawer_classifies_generated_artifacts(monkeypatch):
     entries = [
-        dashboard.StatusEntry("M", "src/dashboard.py"),
-        dashboard.StatusEntry("M", "data/reports/ticker_readiness_report.csv"),
-        dashboard.StatusEntry("??", "outputs/research_action_queue.csv"),
-        dashboard.StatusEntry("M", "outputs/stock_reports/nvda.md"),
-        dashboard.StatusEntry("M", "scratch/local.txt"),
+        generated_churn.StatusEntry("M", "src/dashboard.py"),
+        generated_churn.StatusEntry("M", "data/reports/ticker_readiness_report.csv"),
+        generated_churn.StatusEntry("??", "outputs/research_action_queue.csv"),
+        generated_churn.StatusEntry("M", "outputs/stock_reports/nvda.md"),
+        generated_churn.StatusEntry("M", "scratch/local.txt"),
     ]
-    monkeypatch.setattr(dashboard, "diff_hygiene_load_status", lambda _root: entries)
+    monkeypatch.setattr(generated_churn, "diff_hygiene_load_status", lambda _root: entries)
 
     frame = dashboard.data_health_generated_churn_review_frame(Path("."))
     detail = dashboard.data_health_generated_churn_detail_frame(Path("."))
