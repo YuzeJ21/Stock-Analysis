@@ -542,12 +542,18 @@ def test_data_health_proof_planner_outcome_summary_stays_summary_first():
     assert frame["Planner Lane"].tolist() == ["DCF proof planner", "Peer proof planner"]
     assert frame.iloc[0]["Planner State"] == "still_blocked"
     assert frame.iloc[0]["Detail Level"] == "summary_only"
+    assert frame.iloc[0]["Lane URL"] == "?mode=operator&page=data-health&lane=fundamentals"
+    assert "open the dcf planner drawer" in frame.iloc[0]["Copy Cue"].lower()
     assert frame.iloc[1]["Planner State"] == "needs_source_fields"
     assert frame.iloc[1]["Coverage Gap"] == "95 price-ready row(s) still need source-backed peer proof"
+    assert frame.iloc[1]["Lane URL"] == "?mode=operator&page=data-health&lane=peers"
     assert cards[0]["title"] == "2 planner lane(s) need review"
     assert cards[1]["title"] == "still blocked"
-    assert cards[1]["command"] == "Open Fundamentals / DCF lane drawer"
-    assert "detailed planner tables stay in lane drawers" in rendered
+    assert cards[1]["command"] == "?mode=operator&page=data-health&lane=fundamentals"
+    assert cards[2]["title"] == "Open Fundamentals / DCF lane"
+    assert cards[2]["command"] == "?mode=operator&page=data-health&lane=fundamentals"
+    assert "lane links open the detailed planners only when needed" in rendered
+    assert "commands and proof tables remain collapsed" in rendered
     assert "summary first" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -575,10 +581,17 @@ def test_data_health_proof_planner_outcome_summary_uses_loaded_planner_and_fresh
     assert frame.iloc[0]["Planner State"] == "ready_for_proof_record_review"
     assert frame.iloc[0]["Detail Level"] == "planner_loaded"
     assert frame.iloc[1]["Planner State"] == "blocked_by_freshness"
-    assert "open peers lane drawer" in rendered
+    assert "open peers lane" in rendered
+    assert "?mode=operator&page=data-health&lane=peers" in rendered
     assert "artifact review" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_data_health_operator_lane_url_uses_existing_lane_aliases():
+    assert dashboard.data_health_operator_lane_url("dcf") == "?mode=operator&page=data-health&lane=fundamentals"
+    assert dashboard.data_health_operator_lane_url("peer") == "?mode=operator&page=data-health&lane=peers"
+    assert dashboard.data_health_operator_lane_url("proof-history") == "?mode=operator&page=data-health&lane=proof"
 
 
 def test_monthly_ideas_hero_label_explains_locked_zero_state():

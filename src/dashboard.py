@@ -9179,6 +9179,11 @@ def _data_health_proof_planner_state_from_frame(frame: pd.DataFrame | None) -> s
     return ""
 
 
+def data_health_operator_lane_url(lane_key: str) -> str:
+    lane = data_health_operator_lane_from_query(lane_key)
+    return f"?mode=operator&page=data-health&lane={lane}"
+
+
 def data_health_proof_planner_outcome_summary_frame(
     readiness_summary: dict[str, object],
     queue_outcome_summary: pd.DataFrame | None = None,
@@ -9193,6 +9198,8 @@ def data_health_proof_planner_outcome_summary_frame(
         "Latest Outcome",
         "Detail Level",
         "Next Safest Action",
+        "Lane URL",
+        "Copy Cue",
         "Stop Rule",
     ]
     price_ready = int(readiness_summary.get("price_ready") or 0)
@@ -9233,7 +9240,9 @@ def data_health_proof_planner_outcome_summary_frame(
                 "Coverage Gap": f"{dcf_gap:,} price-ready row(s) still need trusted DCF inputs",
                 "Latest Outcome": _latest(dcf_outcome_row),
                 "Detail Level": "planner_loaded" if dcf_planner_frame is not None and not dcf_planner_frame.empty else "summary_only",
-                "Next Safest Action": "Open Fundamentals / DCF lane drawer",
+                "Next Safest Action": "Open Fundamentals / DCF lane",
+                "Lane URL": data_health_operator_lane_url("fundamentals"),
+                "Copy Cue": "Use this link to open the DCF planner drawer, then review the capped batch plan before source rows.",
                 "Stop Rule": "Stop if source fields, validation, preview, changed counts, source files, or artifact review are missing.",
             },
             {
@@ -9242,7 +9251,9 @@ def data_health_proof_planner_outcome_summary_frame(
                 "Coverage Gap": f"{peer_gap:,} price-ready row(s) still need source-backed peer proof",
                 "Latest Outcome": _latest(peer_outcome_row),
                 "Detail Level": "planner_loaded" if peer_planner_frame is not None and not peer_planner_frame.empty else "summary_only",
-                "Next Safest Action": "Open Peers lane drawer",
+                "Next Safest Action": "Open Peers lane",
+                "Lane URL": data_health_operator_lane_url("peers"),
+                "Copy Cue": "Use this link to open the peer planner drawer, then review source fields and write-back guard before proof record.",
                 "Stop Rule": "Stop if peer source fields, write-back guard, duplicate checks, changed counts, source files, or artifact review are missing.",
             },
         ],
@@ -9286,7 +9297,7 @@ def data_health_proof_planner_outcome_summary_cards(
             "title": f"{len(blocking)} planner lane(s) need review",
             "body": (
                 f"{compact_card_fragment(state_pairs, max_chars=220)}. "
-                "Summary uses readiness counts and proof-ledger outcomes first; detailed planner tables stay in lane drawers."
+                "Summary uses readiness counts and proof-ledger outcomes first; lane links open the detailed planners only when needed."
             ),
             "badges": ["summary first", "drawers lazy"],
             "command": "make readiness-queue TOP_N=10",
@@ -9297,10 +9308,21 @@ def data_health_proof_planner_outcome_summary_cards(
             "body": (
                 f"{card_sentence('Gap', first.get('Coverage Gap'))} "
                 f"{card_sentence('Latest outcome', first.get('Latest Outcome'))} "
+                f"{card_sentence('Open', first.get('Lane URL'))} "
                 f"{card_sentence('Stop rule', compact_card_fragment(first.get('Stop Rule'), max_chars=180))}"
             ),
             "badges": ["finish planner", "source-backed only"],
-            "command": str(first.get("Next Safest Action", "Open Data Health lane drawer")),
+            "command": str(first.get("Lane URL", "Open Data Health lane")),
+        },
+        {
+            "kicker": "LANE JUMP CUE",
+            "title": str(first.get("Next Safest Action", "Open Data Health lane")),
+            "body": (
+                f"{card_sentence('Copy cue', compact_card_fragment(first.get('Copy Cue'), max_chars=190))} "
+                "Commands and proof tables remain collapsed inside the selected lane."
+            ),
+            "badges": ["jump to lane", "details collapsed"],
+            "command": str(first.get("Lane URL", "Open Data Health lane")),
         },
     ]
 

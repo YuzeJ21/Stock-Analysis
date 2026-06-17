@@ -50,6 +50,7 @@ def data_health_operator_lane_from_query(value: object) -> str:
     raw = str(value or "prices").strip().lower().replace("_", "-")
     aliases = {
         "price": "prices",
+        "peer": "peers",
         "fundamentals-dcf": "fundamentals",
         "dcf": "fundamentals",
         "fundamentals / dcf": "fundamentals",
