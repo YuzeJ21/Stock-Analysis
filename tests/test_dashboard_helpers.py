@@ -18630,15 +18630,87 @@ def test_data_health_peer_source_review_blocks_stale_readiness(tmp_path: Path):
     assert "do not use stale peer rows as proof" in rendered
 
 
+def test_peer_proof_loop_outcome_summarizes_source_guard_and_ledger(tmp_path: Path):
+    packet = dashboard.build_peer_mapping_source_review_packet(_peer_source_review_root(tmp_path), top_n=1)
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-PEERS",
+                "Review Date": "2026-06-17",
+                "Lane": "peer_mapping",
+                "Final Outcome": "still_blocked",
+                "Changed Readiness Counts": "none; source rows still need review",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_peer_proof_loop_outcome_cards(packet, ledger)
+    outcome = dashboard.data_health_peer_proof_loop_outcome_frame(packet, ledger)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert outcome["Proof Loop Step"].tolist() == [
+        "Source-review intake",
+        "Write-back guard",
+        "Validate / preview / rebuild",
+        "Proof-record scaffold",
+        "Latest peer ledger outcome",
+    ]
+    assert outcome.iloc[0]["Status"] == "needs_field_fills"
+    assert outcome.iloc[1]["Status"] == "needs_field_fills"
+    assert outcome.iloc[2]["Status"] == "copy_only_gate"
+    assert outcome.iloc[3]["Status"] == "blocked_by_guard"
+    assert outcome.iloc[4]["Status"] == "still_blocked"
+    assert "RB-PEERS" in outcome.iloc[4]["Detail"]
+    assert "make peer-mapping-writeback-guard" in outcome.iloc[1]["Next Safe Action"]
+    assert "DRY_RUN=1 make reviewed-batch-proof-record" in outcome.iloc[3]["Next Safe Action"]
+    assert "guard_blocking_reasons" in outcome.iloc[3]["Detail"]
+    assert cards[0]["title"] == "Latest ledger outcome: still_blocked"
+    assert cards[0]["command"] == "make reviewed-batch-proof"
+    assert "source-review intake: needs_field_fills" in rendered
+    assert "no inferred peers" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
+def test_peer_proof_loop_outcome_blocks_stale_readiness(tmp_path: Path):
+    root = _peer_source_review_root(tmp_path)
+    source = root / "data" / "peers.csv"
+    os.utime(source, (source.stat().st_atime + 1000, source.stat().st_mtime + 1000))
+    packet = dashboard.build_peer_mapping_source_review_packet(root, top_n=1)
+
+    outcome = dashboard.data_health_peer_proof_loop_outcome_frame(packet, pd.DataFrame())
+    cards = dashboard.data_health_peer_proof_loop_outcome_cards(packet, pd.DataFrame())
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert outcome.iloc[0]["Status"] == "blocked_by_freshness"
+    assert outcome.iloc[1]["Status"] == "blocked_by_freshness"
+    assert outcome.iloc[1]["Next Safe Action"] == "make readiness"
+    assert outcome.iloc[3]["Status"] == "blocked_by_freshness"
+    assert outcome.iloc[3]["Next Safe Action"] == "make readiness"
+    assert cards[0]["title"] == "Latest ledger outcome: not_recorded"
+    assert "no inferred peers" in rendered
+
+
 def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     source_review_index = source.index('render_section_header("Peer Source-Review Intake"')
     source_review_cards_index = source.index("data_health_peer_source_review_cards(peer_source_review_packet)")
+    proof_loop_index = source.index('render_section_header("Peer Proof-Loop Outcome"')
+    proof_loop_cards_index = source.index("data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_frame)")
+    proof_loop_frame_index = source.index("data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_frame)")
     source_review_frame_index = source.index("data_health_peer_source_review_frame(peer_source_review_packet)")
     matrix_index = source.index('render_section_header("Peer Readiness Sub-State Matrix"')
 
-    assert source_review_index < source_review_cards_index < source_review_frame_index < matrix_index
+    assert (
+        source_review_index
+        < source_review_cards_index
+        < proof_loop_index
+        < proof_loop_cards_index
+        < proof_loop_frame_index
+        < source_review_frame_index
+        < matrix_index
+    )
     assert "peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)" in source
 
 

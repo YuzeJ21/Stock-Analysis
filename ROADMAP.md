@@ -117,6 +117,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add Decision Proof Queue UI V2 so Data Health shows a completion checklist, freshness, top proof row, reviewable inputs, locked context, copy-only command, and post-unlock proof before raw decision rows.
 - [x] Add Reviewed Batch Execution Checklist V2 so the reviewed-batch drawer shows lane choice, source/freshness warnings, packet, capped preview, validate/preview/apply gate, before/after comparison, proof outcome, and artifact hygiene before detailed tables.
 - [x] Add first-class `share_count` reviewed-batch packets and preflight commands so shares-outstanding DCF blockers no longer fall back to generic fundamentals wording.
+- [x] Add DCF Input Proof Queue UX in Data Health so top input families, source-review fields, import preview, proof packet handoff, stop rules, and latest proof outcome stay in one collapsed drawer before raw DCF tables.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
 ### Trusted Coverage Growth V2
@@ -131,6 +132,7 @@ Goal: make coverage growth proof-backed at the lane level before any ticker-leve
 - [x] Add Peer Source-Review Import Preview UX so completion-ready rows show the exact import CSV header/row, validate-preview command, apply boundary, and post-apply proof.
 - [x] Add Peer Source-Review Write-Back Guard V1 so reviewed peer rows are checked for placeholders, stale readiness, self-peers, and duplicate pairs before any copy/paste into the peer import file.
 - [x] Add Peer Source-Review Ledger Handoff V1 so the write-back guard prints a dry-run reviewed-batch proof-record scaffold and the still-missing review fields before any supported outcome can be recorded.
+- [x] Add Peer Proof-Loop Outcome UX in Data Health so source-review, write-back guard, validate/preview/rebuild, proof-record scaffold, and latest peer proof ledger outcome appear before raw peer tables.
 - Keep proof-ledger rows local and reviewable; do not claim a supported lane until source proof, validation, preview, rejected-row review, post-run readiness, and artifact hygiene are complete.
 
 ### Readiness-Gated Review Metrics V1

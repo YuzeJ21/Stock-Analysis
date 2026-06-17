@@ -72,6 +72,8 @@ from src.peer_mapping_source_review import (
     PeerMappingSourceReviewPacket,
     build_peer_mapping_source_review_packet,
     peer_mapping_import_preview,
+    peer_mapping_proof_record_command,
+    peer_mapping_proof_record_missing_fields,
     peer_mapping_source_review_completion,
 )
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
@@ -12253,6 +12255,168 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
             "badges": ["validate", "preview", "proof after apply"],
             "command": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
         },
+    ]
+
+
+def data_health_peer_latest_proof_row(batch_proof_frame: pd.DataFrame | None) -> pd.Series:
+    if batch_proof_frame is None or batch_proof_frame.empty:
+        return pd.Series(dtype=object)
+    lane_col = _data_health_case_column(batch_proof_frame, "lane", "Lane")
+    if lane_col is None:
+        return pd.Series(dtype=object)
+    lanes = batch_proof_frame[lane_col].fillna("").astype(str).str.lower().str.strip()
+    peer_lanes = {"peers", "peer_mapping", "peer_valuation_inputs"}
+    matches = batch_proof_frame.loc[lanes.isin(peer_lanes)]
+    if matches.empty:
+        return pd.Series(dtype=object)
+    review_col = _data_health_case_column(matches, "review_date", "Review Date")
+    batch_col = _data_health_case_column(matches, "batch_id", "Batch ID")
+    sort_cols = [col for col in (review_col, batch_col) if col is not None]
+    return matches.sort_values(sort_cols, ascending=[False] * len(sort_cols)).iloc[0] if sort_cols else matches.iloc[0]
+
+
+def data_health_peer_proof_loop_outcome_frame(
+    packet: PeerMappingSourceReviewPacket | None,
+    batch_proof_frame: pd.DataFrame | None,
+) -> pd.DataFrame:
+    source_status = "not_loaded"
+    source_detail = "Run make peer-mapping-source-review TOP_N=10."
+    guard_status = "not_loaded"
+    guard_detail = "Open peer source review before preparing a write-back guard."
+    guard_command = "make peer-mapping-writeback-guard ..."
+    proof_record_status = "not_loaded"
+    proof_record_detail = "Open the write-back guard before preparing a proof-record scaffold."
+    proof_record_command = "DRY_RUN=1 make reviewed-batch-proof-record ..."
+
+    if packet is None:
+        source_status = "missing_packet"
+        source_detail = "Rebuild readiness and the peer source-review packet before recording peer proof."
+    elif packet.freshness.status in {"missing", "stale"}:
+        source_status = "blocked_by_freshness"
+        source_detail = f"{packet.freshness.status}: {packet.freshness.message}"
+        guard_status = "blocked_by_freshness"
+        guard_detail = "Refresh readiness before peer write-back or proof-record review."
+        guard_command = packet.freshness.refresh_command
+        proof_record_status = "blocked_by_freshness"
+        proof_record_detail = "Do not record peer proof from stale readiness artifacts."
+        proof_record_command = packet.freshness.refresh_command
+    elif not packet.rows:
+        source_status = "no_source_rows"
+        source_detail = "No missing peer-mapping rows are visible in the current peer readiness report."
+        guard_status = "not_applicable"
+        guard_detail = "No peer import row is available for guard review."
+        proof_record_status = "not_applicable"
+        proof_record_detail = "No peer proof-record row is available without a reviewed peer source row."
+    else:
+        completion_counts: dict[str, int] = {}
+        preview_counts: dict[str, int] = {}
+        for row in packet.rows:
+            completion = peer_mapping_source_review_completion(row, packet.freshness)
+            preview = peer_mapping_import_preview(row, packet.freshness)
+            completion_counts[completion.status] = completion_counts.get(completion.status, 0) + 1
+            preview_counts[preview.status] = preview_counts.get(preview.status, 0) + 1
+        source_status = "ready_for_validate_preview" if set(completion_counts) == {"ready_for_validate_preview"} else "needs_field_fills"
+        source_detail = ", ".join(f"{status}: {count}" for status, count in completion_counts.items())
+        first = packet.rows[0]
+        first_completion = peer_mapping_source_review_completion(first, packet.freshness)
+        first_preview = peer_mapping_import_preview(first, packet.freshness)
+        guard_ready = first_preview.status == "ready_for_validate_preview"
+        guard_status = "ready_for_guard" if guard_ready else first_preview.status
+        guard_detail = (
+            f"First slot {first.ticker} / {first.mapping_slot}; "
+            f"missing fields: {', '.join(first_completion.missing_fields) if first_completion.missing_fields else 'none'}; "
+            f"preview statuses: {', '.join(f'{status}: {count}' for status, count in preview_counts.items())}"
+        )
+        guard_result_status = "ready_for_validate_preview" if guard_ready else "blocked"
+        proof_record_status = "ready_for_review_fields" if guard_ready else "blocked_by_guard"
+        proof_record_missing = peer_mapping_proof_record_missing_fields(guard_result_status)
+        proof_record_detail = (
+            "Missing proof-record fields: "
+            f"{', '.join(proof_record_missing) if proof_record_missing else 'none'}; "
+            "copy only after source review, guard, validate, preview, apply decision, readiness rebuild, and artifact hygiene."
+        )
+        proof_record_command = peer_mapping_proof_record_command(first, guard_result_status)
+
+    latest = data_health_peer_latest_proof_row(batch_proof_frame)
+    latest_status = "not_recorded"
+    latest_detail = "No peer reviewed batch proof row recorded yet."
+    latest_command = "make reviewed-batch-proof"
+    if not latest.empty:
+        outcome_col = _data_health_case_column(batch_proof_frame, "final_outcome", "Final Outcome")
+        batch_col = _data_health_case_column(batch_proof_frame, "batch_id", "Batch ID")
+        date_col = _data_health_case_column(batch_proof_frame, "review_date", "Review Date")
+        changed_col = _data_health_case_column(batch_proof_frame, "changed_readiness_counts", "Changed Readiness Counts")
+        latest_status = format_missing(latest.get(outcome_col), "not_recorded").lower() if outcome_col else "not_recorded"
+        latest_detail = (
+            f"Batch {format_missing(latest.get(batch_col), 'not recorded')} on "
+            f"{format_missing(latest.get(date_col), 'not recorded')}; "
+            f"{compact_card_fragment(latest.get(changed_col), fallback='changed counts not recorded', max_chars=130)}"
+        )
+
+    return pd.DataFrame(
+        [
+            {
+                "Proof Loop Step": "Source-review intake",
+                "Status": source_status,
+                "Detail": source_detail,
+                "Next Safe Action": "DRY_RUN=1 make peer-mapping-source-review TOP_N=10",
+            },
+            {
+                "Proof Loop Step": "Write-back guard",
+                "Status": guard_status,
+                "Detail": guard_detail,
+                "Next Safe Action": guard_command,
+            },
+            {
+                "Proof Loop Step": "Validate / preview / rebuild",
+                "Status": "copy_only_gate",
+                "Detail": "Validate and preview reviewed peer rows, apply only after review, then rebuild readiness and peer queue before peer-relative context changes.",
+                "Next Safe Action": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+            },
+            {
+                "Proof Loop Step": "Proof-record scaffold",
+                "Status": proof_record_status,
+                "Detail": proof_record_detail,
+                "Next Safe Action": proof_record_command,
+            },
+            {
+                "Proof Loop Step": "Latest peer ledger outcome",
+                "Status": latest_status,
+                "Detail": latest_detail,
+                "Next Safe Action": latest_command,
+            },
+        ]
+    )
+
+
+def data_health_peer_proof_loop_outcome_cards(
+    packet: PeerMappingSourceReviewPacket | None,
+    batch_proof_frame: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    outcome = data_health_peer_proof_loop_outcome_frame(packet, batch_proof_frame)
+    if outcome.empty:
+        return [
+            {
+                "kicker": "PEER PROOF OUTCOME",
+                "title": "No proof-loop status loaded",
+                "body": "Open peer source review before recording peer mapping or peer valuation outcomes.",
+                "badges": ["readiness first", "blocked visible"],
+                "command": "make peer-mapping-source-review TOP_N=10",
+            }
+        ]
+    statuses = ", ".join(f"{row['Proof Loop Step']}: {row['Status']}" for _, row in outcome.iterrows())
+    latest = outcome.iloc[-1]
+    return [
+        {
+            "kicker": "PEER PROOF OUTCOME",
+            "title": f"Latest ledger outcome: {format_missing(latest.get('Status'), 'not_recorded')}",
+            "body": (
+                f"{compact_card_fragment(statuses, max_chars=220)}. "
+                "Use this summary to decide whether peer mapping is supported, still blocked, skipped, or only scaffolded."
+            ),
+            "badges": ["proof loop", "no inferred peers"],
+            "command": format_missing(latest.get("Next Safe Action"), "make reviewed-batch-proof"),
+        }
     ]
 
 
@@ -25030,6 +25194,13 @@ def render_data_health(
             )
             render_section_header("Peer Source-Review Intake", "Fill source proof before editing peer import rows; peer valuation stays locked until rebuilt readiness proves inputs.")
             render_signal_cards(data_health_peer_source_review_cards(peer_source_review_packet))
+            render_section_header("Peer Proof-Loop Outcome", "Source-review, write-back guard, validation gates, and latest proof ledger outcome before raw peer rows.")
+            render_signal_cards(data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_frame))
+            st.dataframe(
+                clean_display_frame(data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_frame)),
+                width="stretch",
+                hide_index=True,
+            )
             st.dataframe(clean_display_frame(data_health_peer_source_review_frame(peer_source_review_packet)), width="stretch", hide_index=True)
             render_section_header("Peer Readiness Sub-State Matrix", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
             st.dataframe(clean_display_frame(peer_v2_frame), width="stretch", hide_index=True)
