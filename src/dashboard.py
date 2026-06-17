@@ -26,6 +26,7 @@ from src.data_health_console import (
 )
 from src import data_health_proof_console as proof_console
 from src import data_health_batch_console as batch_console
+from src import data_health_coverage_console as coverage_console
 from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.decision_proof_queue import (
@@ -45,7 +46,6 @@ from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.readiness_ops import (
-    build_coverage_frontier,
     build_fundamentals_peer_metrics_queue_from_lanes,
     build_readiness_ops_lanes,
 )
@@ -8013,23 +8013,7 @@ def data_health_readiness_ops_center_frame(root: Path | None = None) -> pd.DataF
 
 def data_health_coverage_frontier_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
     lanes = cached_readiness_ops_lanes(str(root or BASE_DIR))
-    frontier = build_coverage_frontier(lanes, top_n=top_n)
-    rows = [
-        {
-            "Rank": row.rank,
-            "Lane": row.label,
-            "Unlock Impact": row.unlock_impact,
-            "Possible State Move": row.possible_state_move,
-            "Source Lane": row.source_lane,
-            "Workflow Mode": row.workflow_mode,
-            "Next Safe Command": row.next_safe_command,
-            "Proof Command": row.proof_command,
-            "Generated Churn Policy": row.generated_churn_policy,
-            "Guardrail": row.guardrail,
-        }
-        for row in frontier
-    ]
-    return pd.DataFrame(rows)
+    return coverage_console.coverage_frontier_frame_from_lanes(lanes, top_n=top_n)
 
 
 def data_health_fundamentals_peer_metrics_queue_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
@@ -8438,37 +8422,7 @@ def data_health_peer_readiness_v2_frame(ops_frame: pd.DataFrame | None) -> pd.Da
 
 
 def data_health_coverage_frontier_cards(frontier_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
-    if frontier_frame is None or frontier_frame.empty:
-        return [
-            {
-                "kicker": "COVERAGE FRONTIER",
-                "title": "No batch frontier rows yet",
-                "body": "Run make coverage-frontier TOP_N=10 after readiness outputs exist. The frontier ranks data operations, not securities.",
-                "badges": ["read-only", "not a ranking"],
-                "command": "make coverage-frontier TOP_N=10",
-            }
-        ]
-    cards: list[dict[str, object]] = []
-    for _, row in frontier_frame.head(max(limit, 0)).iterrows():
-        lane = format_missing(row.get("Lane"), "Coverage lane")
-        impact = format_missing(row.get("Unlock Impact"), "0")
-        move = compact_card_fragment(row.get("Possible State Move"), max_chars=180).replace("->", "to")
-        guardrail = compact_card_fragment(row.get("Guardrail"), max_chars=170)
-        command = format_missing(row.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
-        cards.append(
-            {
-                "kicker": f"FRONTIER #{format_missing(row.get('Rank'), '-')}",
-                "title": lane,
-                "body": (
-                    f"Impact: {impact} coverage rows. "
-                    f"{card_sentence('Path', move)} "
-                    f"{card_sentence('Guardrail', guardrail)}"
-                ),
-                "badges": [format_missing(row.get("Workflow Mode"), "review"), "batch lane"],
-                "command": command,
-            }
-        )
-    return cards
+    return coverage_console.coverage_frontier_cards(frontier_frame, limit=limit)
 
 
 def data_health_reviewed_batch_ladder_cards(
@@ -8961,81 +8915,12 @@ def data_health_coverage_expansion_loop_cards(
     loop: CoverageExpansionLoop | None = None,
 ) -> list[dict[str, object]]:
     loop = loop or build_coverage_expansion_loop(BASE_DIR, lane="auto", top_n=10)
-    if loop.status == "blocked_missing_lane":
-        return [
-            {
-                "kicker": "EXPANSION LOOP",
-                "title": "Pick a planner lane first",
-                "body": (
-                    "The coverage planner did not return a matching lane. Rebuild readiness, open the planner, "
-                    "then choose a listed lane before packet or dry-run work."
-                ),
-                "badges": ["planner first", "blocked"],
-                "command": "make data-coverage-planner TOP_N=10",
-            }
-        ]
-    if loop.status == "ready_for_reviewed_dry_run":
-        title = "Coverage loop ready"
-        badges = ["ready", "dry-run first"]
-        command = loop.preflight.packet_command if loop.preflight is not None else "make coverage-expansion-loop TOP_N=10"
-    else:
-        title = "Coverage loop blocked by preflight"
-        badges = ["preflight", "fix first"]
-        command = (
-            loop.preflight.snapshot_command
-            if loop.preflight is not None and not loop.preflight.prior_snapshot_exists
-            else "make coverage-expansion-loop TOP_N=10"
-        )
-    return [
-        {
-            "kicker": "EXPANSION LOOP",
-            "title": title,
-            "body": (
-                f"{loop.selected_label}: {compact_card_fragment(loop.next_safe_action, max_chars=210)} "
-                "This is the compact planner -> preflight -> packet -> proof path; full copy-only steps stay in the review drawer."
-            ),
-            "badges": badges + [loop.reviewed_batch_lane],
-            "command": command,
-        }
-    ]
+    return coverage_console.coverage_expansion_loop_cards(loop)
 
 
 def data_health_coverage_expansion_loop_frame(loop: CoverageExpansionLoop | None = None) -> pd.DataFrame:
     loop = loop or build_coverage_expansion_loop(BASE_DIR, lane="auto", top_n=10)
-    planner_step = loop.planner_step
-    preflight = loop.preflight
-    return pd.DataFrame(
-        [
-            {
-                "Step": "Status",
-                "Value": loop.status,
-                "Command": loop.copy_only_sequence[0] if loop.copy_only_sequence else "make coverage-expansion-loop TOP_N=10",
-                "Stop If": "; ".join(loop.do_not_proceed_if[:3]),
-            },
-            {
-                "Step": "Planner gate",
-                "Value": planner_step.review_gate if planner_step is not None else "No matching planner lane",
-                "Command": planner_step.next_safe_command if planner_step is not None else "make data-coverage-planner TOP_N=10",
-                "Stop If": planner_step.stop_condition if planner_step is not None else "planner lane is missing",
-            },
-            {
-                "Step": "Preflight gate",
-                "Value": preflight.status if preflight is not None else "missing",
-                "Command": preflight.packet_command if preflight is not None else "make reviewed-batch-preflight",
-                "Stop If": preflight.do_not_proceed_if[0] if preflight is not None and preflight.do_not_proceed_if else "preflight unavailable",
-            },
-            {
-                "Step": "Proof boundary",
-                "Value": "Record supported only after source proof, validation, preview/apply decision, rebuilt readiness, comparison, and artifact review.",
-                "Command": (
-                    f"DRY_RUN=1 {preflight.proof_record_command}"
-                    if preflight is not None
-                    else "DRY_RUN=1 make reviewed-batch-proof-record"
-                ),
-                "Stop If": "generated CSV/JSON churn is not classified or source proof is missing",
-            },
-        ]
-    )
+    return coverage_console.coverage_expansion_loop_frame(loop)
 
 
 def data_health_reviewed_batch_execution_cards(
