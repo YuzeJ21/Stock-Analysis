@@ -38,11 +38,23 @@ def test_dcf_input_proof_queue_dashboard_cards_show_packet_and_stop_rule():
     cards = data_health_dcf_input_proof_queue_dashboard_cards(frame)
     rendered = _render_cards(cards)
 
-    assert cards[0]["title"] == "shares_outstanding: 2 queued row(s)"
-    assert cards[0]["command"] == "make share-count-proof-queue TICKERS=META"
+    assert [card["kicker"] for card in cards] == [
+        "DCF INPUT QUEUE",
+        "NEXT PROOF COMMAND",
+        "PROOF PACKET",
+        "STOP RULE",
+    ]
+    assert cards[0]["title"] == "2 queued DCF input row(s)"
+    assert cards[1]["command"] == "make share-count-proof-queue TICKERS=META"
+    assert cards[2]["command"] == "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META"
     assert "top input families: shares_outstanding: 1; fcf_margin: 1" in rendered
-    assert "proof packet: dry_run=1 make reviewed-batch lane=share_count tickers=meta" in rendered
+    assert "meta / shares_outstanding" in rendered
+    assert "missing fields: shares_outstanding" in rendered
+    assert "dry_run=1 make reviewed-batch lane=share_count tickers=meta" in rendered
+    assert "use the copyable packet command on this card" in rendered
+    assert "gate: validate, preview, rejected-row review" in rendered
     assert "stop if shares_outstanding is unavailable" in rendered
+    assert "never infer" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered

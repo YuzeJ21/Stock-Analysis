@@ -79,20 +79,49 @@ def data_health_dcf_input_proof_queue_dashboard_cards(frame: pd.DataFrame | None
     packet_command = format_missing(top.get("Proof Packet Command"), "DRY_RUN=1 make fundamentals-batch-proof TOP_N=10")
     stop_rule = compact_card_fragment(top.get("Stop Rule"), max_chars=190)
     source_mode = compact_card_fragment(top.get("Source Mode"), fallback="source proof required", max_chars=120)
+    missing_fields = compact_card_fragment(top.get("Missing DCF Fields"), fallback=family, max_chars=120)
     return [
         {
             "kicker": "DCF INPUT QUEUE",
-            "title": f"{family}: {len(work):,} queued row(s)",
+            "title": f"{len(work):,} queued DCF input row(s)",
             "body": (
                 f"{card_sentence('Top input families', family_summary)} "
-                f"{card_sentence('First proof target', f'{ticker} / {family}')} "
-                f"{card_sentence('Source path', source_mode)} "
-                f"{card_sentence('Proof packet', packet_command)} "
-                f"{card_sentence('Stop rule', stop_rule)}"
+                "Start with one input family; keep DCF valuation blocked until source proof exists."
             ),
-            "badges": ["source proof first", "copy-only"],
+            "badges": ["source proof first", "blocked visible"],
+            "command": "make dcf-input-proof-queue TOP_N=10",
+        },
+        {
+            "kicker": "NEXT PROOF COMMAND",
+            "title": f"{ticker} / {family}",
+            "body": (
+                f"{card_sentence('Missing fields', missing_fields)} "
+                f"{card_sentence('Source path', source_mode)} "
+                "Use this command to inspect proof; do not edit trusted rows from the summary card."
+            ),
+            "badges": ["next safe action", "read-only"],
             "command": next_command,
-        }
+        },
+        {
+            "kicker": "PROOF PACKET",
+            "title": "Preview a capped reviewed run",
+            "body": (
+                "Use the copyable packet command on this card. "
+                "Gate: validate, preview, rejected-row review, then reviewed apply decision before any local row changes."
+            ),
+            "badges": ["dry-run first", "preview before apply"],
+            "command": packet_command,
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "Do not proceed without source proof",
+            "body": (
+                f"{card_sentence('Stop if', stop_rule)} "
+                "Missing prices, fundamentals, market cap, peers, or valuation inputs stay blocked; never infer them."
+            ),
+            "badges": ["no fabrication", "research-only"],
+            "command": "Open the Fundamentals / DCF evidence drawer for reviewed source fields.",
+        },
     ]
 
 

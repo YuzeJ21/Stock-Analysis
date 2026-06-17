@@ -12081,13 +12081,24 @@ def test_data_health_dcf_input_proof_queue_dashboard_cards_show_top_family_packe
     cards = dashboard.data_health_dcf_input_proof_queue_dashboard_cards(frame)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[0]["title"] == "shares_outstanding: 2 queued row(s)"
-    assert cards[0]["command"] == "make share-count-proof-queue TICKERS=META"
+    assert [card["kicker"] for card in cards] == [
+        "DCF INPUT QUEUE",
+        "NEXT PROOF COMMAND",
+        "PROOF PACKET",
+        "STOP RULE",
+    ]
+    assert cards[0]["title"] == "2 queued DCF input row(s)"
+    assert cards[1]["command"] == "make share-count-proof-queue TICKERS=META"
+    assert cards[2]["command"] == "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META"
     assert "top input families: shares_outstanding: 1; fcf_margin: 1" in rendered
-    assert "first proof target: meta / shares_outstanding" in rendered
-    assert "proof packet: dry_run=1 make reviewed-batch lane=share_count tickers=meta" in rendered
+    assert "meta / shares_outstanding" in rendered
+    assert "missing fields: shares_outstanding" in rendered
+    assert "dry_run=1 make reviewed-batch lane=share_count tickers=meta" in rendered
+    assert "use the copyable packet command on this card" in rendered
+    assert "gate: validate, preview, rejected-row review" in rendered
     assert "stop if shares_outstanding is unavailable" in rendered
     assert "source proof first" in rendered
+    assert "never infer" in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered
     assert "broker" not in rendered
@@ -12868,6 +12879,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         "data_health_proof_planner_outcome_summary_cards(",
         proof_planner_summary_index,
     )
+    prior_snapshot_load_index = source.index("load_prior_ticker_readiness_report()", public_return_index)
     coverage_delta_index = source.index('render_section_header(\n        "Readiness Coverage Delta"', proof_planner_cards_index)
     coverage_delta_cards_index = source.index("data_health_readiness_delta_board_cards(", coverage_delta_index)
     coverage_delta_frame_index = source.index("data_health_readiness_delta_board_frame(", coverage_delta_cards_index)
@@ -12922,6 +12934,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
+    assert public_return_index < prior_snapshot_load_index < coverage_delta_index
     assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source

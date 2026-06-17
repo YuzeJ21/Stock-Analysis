@@ -40,6 +40,7 @@ from src.data_health_feature_readiness import feature_readiness_cards
 from src.data_health_peer_readiness import peer_readiness_product_cards
 from src.data_health_peer_mapping_studio import peer_mapping_studio_summary_cards
 from src.data_health_peer_analysis import peer_analysis_boundary_cards, peer_function_quality_frame
+from src.data_health_peer_unlock import peer_unlock_operator_cards
 from src.data_health_proof_ctas import (
     data_health_dcf_input_proof_queue_dashboard_cards,
     data_health_lane_auto_context_cards,
@@ -10776,150 +10777,6 @@ MARKET_READINESS_FILTERS = [
 ]
 MARKET_ASSET_FILTERS = ["All assets", "Companies only", "ETFs / index proxies"]
 DEFAULT_MARKET_ROW_LIMIT = 50
-
-
-def peer_unlock_operator_cards(
-    peer_unlock_worklist_frame: pd.DataFrame | None,
-    ticker_readiness_frame: pd.DataFrame | None = None,
-) -> list[dict[str, object]]:
-    if peer_unlock_worklist_frame is None or peer_unlock_worklist_frame.empty:
-        return [
-            {
-                "kicker": "PEER UNLOCK QUEUE",
-                "title": "Peer unlock queue not ready yet",
-                "body": "Build the peer unlock queue before editing trusted peer rows.",
-                "badges": ["blocked"],
-                "command": "make readiness",
-            }
-        ]
-
-    frame = peer_unlock_worklist_frame.copy()
-    if "ticker" in frame.columns:
-        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
-    if (
-        ticker_readiness_frame is not None
-        and not ticker_readiness_frame.empty
-        and "ticker" in frame.columns
-        and "ticker" in ticker_readiness_frame.columns
-    ):
-        readiness_columns = [
-            column
-            for column in ["ticker", "asset_type", "in_active_universe", "dcf_ready", "peer_ready"]
-            if column in ticker_readiness_frame.columns
-        ]
-        readiness = ticker_readiness_frame[readiness_columns].copy()
-        readiness["ticker"] = readiness["ticker"].astype(str).str.upper().str.strip()
-        frame = frame.merge(readiness, on="ticker", how="left", suffixes=("", "_readiness"))
-    if "priority" in frame.columns:
-        frame["priority"] = pd.to_numeric(frame["priority"], errors="coerce").fillna(999).astype(int)
-    else:
-        frame["priority"] = 999
-    if "workflow_group" not in frame.columns:
-        frame["workflow_group"] = "peer_workflow"
-    if "workflow_scope" not in frame.columns:
-        frame["workflow_scope"] = "unknown_scope"
-    asset_type = frame.get("asset_type", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
-    monitor_proxy = asset_type.isin({"etf", "index_proxy", "fund"}) | asset_type.str.contains("etf|index|fund", na=False)
-    if monitor_proxy.any():
-        frame.loc[monitor_proxy, "workflow_group"] = "monitor_proxy_context"
-        frame.loc[monitor_proxy, "workflow_scope"] = "active_universe"
-        frame.loc[monitor_proxy, "next_action_summary"] = (
-            "ETF/index/fund rows use stock-report monitoring context; do not treat fallback sector or peer context as trusted peer data."
-        )
-        frame.loc[monitor_proxy, "next_input_file"] = frame.loc[monitor_proxy, "ticker"].apply(
-            lambda ticker: f"outputs/stock_reports/{str(ticker).strip().lower()}.md"
-        )
-        frame.loc[monitor_proxy, "validation_sequence"] = frame.loc[monitor_proxy, "ticker"].apply(
-            lambda ticker: f"{stock_report_md_command(ticker)} -> review source readiness and DCF exclusion"
-        )
-        frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(stock_report_md_command)
-        frame.loc[monitor_proxy, "copy_only_note"] = "Copy command only; review monitor context without peer valuation conclusions."
-    workflow_counts = frame.get("workflow_group", pd.Series("peer_workflow", index=frame.index)).fillna("peer_workflow").astype(str).value_counts()
-    scope_counts = frame.get("workflow_scope", pd.Series("unknown_scope", index=frame.index)).fillna("unknown_scope").astype(str).value_counts()
-    priority_counts = frame["priority"].value_counts().sort_index()
-    scope_text = frame.get("workflow_scope", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
-    workflow_text = frame.get("workflow_group", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
-    active_flag = bool_series(frame, "in_active_universe") if "in_active_universe" in frame.columns else pd.Series(False, index=frame.index)
-    dcf_flag = bool_series(frame, "dcf_ready") if "dcf_ready" in frame.columns else pd.Series(False, index=frame.index)
-    peer_ready_flag = bool_series(frame, "peer_ready") if "peer_ready" in frame.columns else pd.Series(False, index=frame.index)
-    active_rank_flag = active_flag | scope_text.str.contains("active", na=False)
-    dcf_rank_flag = dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False)
-    active_queue_count = int(active_rank_flag.sum())
-    dcf_ready_peer_blocked_count = int((dcf_rank_flag & ~peer_ready_flag).sum())
-    ordered = frame.loc[~monitor_proxy].copy()
-    if ordered.empty:
-        ordered = frame.copy()
-    ordered_scope_text = ordered.get("workflow_scope", pd.Series("", index=ordered.index)).fillna("").astype(str).str.lower()
-    ordered_workflow_text = ordered.get("workflow_group", pd.Series("", index=ordered.index)).fillna("").astype(str).str.lower()
-    ordered_active_flag = bool_series(ordered, "in_active_universe") if "in_active_universe" in ordered.columns else pd.Series(False, index=ordered.index)
-    ordered_dcf_flag = bool_series(ordered, "dcf_ready") if "dcf_ready" in ordered.columns else pd.Series(False, index=ordered.index)
-    ordered = ordered.assign(
-        _scope_rank=(~(ordered_active_flag | ordered_scope_text.str.contains("active", na=False))).astype(int),
-        _dcf_rank=(~(ordered_dcf_flag | ordered_workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))).astype(int),
-    )
-    ordered = ordered.sort_values(
-        [
-            "_scope_rank",
-            "_dcf_rank",
-            "priority",
-            "workflow_scope",
-            "workflow_group",
-            "ticker",
-        ],
-        ascending=[True, True, True, True, True, True],
-        kind="stable",
-    )
-    top_row = ordered.iloc[0]
-    top_ticker = format_missing(top_row.get("ticker"), "Ticker")
-    top_summary = compact_reason(top_row.get("next_action_summary") or top_row.get("next_peer_action"), max_sentences=1, max_chars=180)
-    input_file = format_missing(top_row.get("next_input_file"), "data/imports/peers.csv")
-    validation = format_missing(top_row.get("validation_sequence"), "make templates -> make imports-validate -> make imports-preview -> make imports-apply")
-    peer_schema = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
-    priority_text = ", ".join(f"P{int(key)}: {int(value)}" for key, value in priority_counts.head(4).items())
-    workflow_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in workflow_counts.head(3).items())
-    scope_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in scope_counts.head(3).items())
-    cards = [
-        {
-            "kicker": "PEER UNLOCK QUEUE",
-            "title": priority_text or f"{len(frame)} queued",
-            "body": (
-                f"{len(frame)} peer unlock row(s). Active-universe queue: {active_queue_count}. "
-                f"DCF-ready but peer-blocked: {dcf_ready_peer_blocked_count}. Scope mix: {scope_text or 'not available'}."
-            ),
-            "badges": ["priority grouped", "row-limited"],
-            "command": "make peer-mapping-queue TOP_N=25",
-        },
-        {
-            "kicker": "NEXT PEER ROW",
-            "title": top_ticker,
-            "body": f"{top_summary} Input file: {input_file}. Schema fields: {peer_schema}. Validate with: {validation}.",
-            "badges": ["source-backed", "preview before apply"],
-            "command": str(top_row.get("focus_command") or f"make focus-peers TICKER={top_ticker}"),
-        },
-        {
-            "kicker": "WORKFLOW GROUPS",
-            "title": "What kind of peer data?",
-            "body": (
-                f"{workflow_text or 'No workflow grouping is available yet.'} "
-                "Peer trend can use mapped peer price history; peer valuation waits for source-backed peer mappings and peer valuation inputs."
-            ),
-            "badges": ["mapping vs metrics", "no fallback peers"],
-            "command": "make templates",
-        },
-    ]
-    if monitor_proxy.any():
-        monitor_row = frame.loc[monitor_proxy].sort_values(["priority", "ticker"], kind="stable").iloc[0]
-        monitor_ticker = format_missing(monitor_row.get("ticker"), "Ticker")
-        cards.append(
-            {
-                "kicker": "MONITOR PROXIES",
-                "title": f"{int(monitor_proxy.sum())} ETF/index/fund row(s)",
-                "body": "These rows stay in stock-report monitoring context; peer valuation remains excluded unless trusted company-peer inputs exist.",
-                "badges": ["monitor context", "dcf excluded"],
-                "command": f"make stock-report-md TICKER={monitor_ticker}",
-            }
-        )
-    return cards
 
 
 def peer_input_ladder_frame(
@@ -24850,6 +24707,7 @@ def render_data_health(
     batch_proof_summary_frame = batch_proof_frame if not batch_proof_frame.empty else data_health_reviewed_batch_proof_frame()
     batch_packet_frame = data_health_latest_reviewed_batch_packet_frame() if should_load_proof_details else pd.DataFrame()
     readiness_comparison = compare_readiness_snapshots(BASE_DIR, top_n=10) if should_load_proof_details else None
+    prior_ticker_readiness_frame, _prior_ticker_readiness_message = load_prior_ticker_readiness_report()
     peer_v2_frame = data_health_peer_readiness_v2_frame(ops_center)
     lane_board = (
         data_health_trusted_pilot_lane_board_frame(

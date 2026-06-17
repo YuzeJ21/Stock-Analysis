@@ -1,11 +1,25 @@
 from __future__ import annotations
 
 from pathlib import Path
+import importlib.util
+import sys
 
 import pandas as pd
 
-from scripts.diff_hygiene import StatusEntry
-from scripts.diff_hygiene import group_entries as diff_hygiene_group_entries, load_status as diff_hygiene_load_status
+try:
+    from scripts.diff_hygiene import StatusEntry
+    from scripts.diff_hygiene import group_entries as diff_hygiene_group_entries, load_status as diff_hygiene_load_status
+except ModuleNotFoundError:
+    _DIFF_HYGIENE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "diff_hygiene.py"
+    _DIFF_HYGIENE_SPEC = importlib.util.spec_from_file_location("stock_analysis_diff_hygiene", _DIFF_HYGIENE_PATH)
+    if _DIFF_HYGIENE_SPEC is None or _DIFF_HYGIENE_SPEC.loader is None:
+        raise
+    _DIFF_HYGIENE_MODULE = importlib.util.module_from_spec(_DIFF_HYGIENE_SPEC)
+    sys.modules[_DIFF_HYGIENE_SPEC.name] = _DIFF_HYGIENE_MODULE
+    _DIFF_HYGIENE_SPEC.loader.exec_module(_DIFF_HYGIENE_MODULE)
+    StatusEntry = _DIFF_HYGIENE_MODULE.StatusEntry
+    diff_hygiene_group_entries = _DIFF_HYGIENE_MODULE.group_entries
+    diff_hygiene_load_status = _DIFF_HYGIENE_MODULE.load_status
 
 
 def generated_churn_review_frame(repo_root: Path | str) -> pd.DataFrame:
