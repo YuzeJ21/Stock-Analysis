@@ -8158,6 +8158,141 @@ def data_health_dcf_import_preview_cards(frame: pd.DataFrame | None, selection: 
     ]
 
 
+def _data_health_case_column(frame: pd.DataFrame | None, *candidates: str) -> str | None:
+    if frame is None or frame.empty:
+        return None
+    by_lower = {str(column).strip().lower(): str(column) for column in frame.columns}
+    for candidate in candidates:
+        column = by_lower.get(candidate.strip().lower())
+        if column is not None:
+            return column
+    return None
+
+
+def data_health_dcf_latest_proof_row(batch_proof_frame: pd.DataFrame | None) -> pd.Series:
+    if batch_proof_frame is None or batch_proof_frame.empty:
+        return pd.Series(dtype=object)
+    lane_col = _data_health_case_column(batch_proof_frame, "lane", "Lane")
+    if lane_col is None:
+        return pd.Series(dtype=object)
+    lanes = batch_proof_frame[lane_col].fillna("").astype(str).str.lower().str.strip()
+    dcf_lanes = {"fundamentals", "fundamentals_dcf", "share_count"}
+    matches = batch_proof_frame.loc[lanes.isin(dcf_lanes)]
+    if matches.empty:
+        return pd.Series(dtype=object)
+    review_col = _data_health_case_column(matches, "review_date", "Review Date")
+    batch_col = _data_health_case_column(matches, "batch_id", "Batch ID")
+    sort_cols = [col for col in (review_col, batch_col) if col is not None]
+    return matches.sort_values(sort_cols, ascending=[False] * len(sort_cols)).iloc[0] if sort_cols else matches.iloc[0]
+
+
+def data_health_dcf_proof_loop_outcome_frame(
+    frame: pd.DataFrame | None,
+    selection: object,
+    batch_proof_frame: pd.DataFrame | None,
+) -> pd.DataFrame:
+    source_frame = data_health_dcf_input_source_review_frame(frame, selection)
+    preview_frame = data_health_dcf_import_preview_frame(frame, selection)
+    handoff_frame = data_health_dcf_input_proof_handoff_frame(frame, selection)
+    latest = data_health_dcf_latest_proof_row(batch_proof_frame)
+    source_status = "no_source_rows"
+    source_detail = "Run make dcf-input-source-review TOP_N=10."
+    if not source_frame.empty:
+        status_counts = source_frame["Completion Status"].fillna("").astype(str).value_counts()
+        source_status = "ready" if set(status_counts.index) == {"ready_for_validate_preview"} else "needs_field_fills"
+        source_detail = ", ".join(f"{status}: {count}" for status, count in status_counts.items())
+    guard_status = "not_loaded"
+    guard_detail = "Open the DCF import preview."
+    row_status = "not_loaded"
+    if not preview_frame.empty:
+        guard_status = format_missing(preview_frame.iloc[0].get("Status"), "blocked")
+        guard_detail = compact_card_fragment(preview_frame.iloc[0].get("Review Boundary"), max_chars=180)
+        row_status = format_missing(preview_frame.iloc[2].get("Status"), "blocked") if len(preview_frame) > 2 else "blocked"
+    proof_status = "not_loaded"
+    proof_detail = "Open the DCF proof handoff."
+    proof_command = "make dcf-input-proof-handoff TOP_N=10"
+    if not handoff_frame.empty:
+        proof_row = handoff_frame.loc[handoff_frame["Step"].astype(str).str.contains("Proof record", case=False, na=False)]
+        if not proof_row.empty:
+            proof_command = format_missing(proof_row.iloc[0].get("Command"), proof_command)
+            proof_detail = compact_card_fragment(proof_row.iloc[0].get("Review Boundary"), max_chars=180)
+            proof_status = "needs_field_fills" if "<" in proof_command and ">" in proof_command else "ready_after_final_review"
+    latest_status = "not_recorded"
+    latest_detail = "No DCF reviewed batch proof row recorded yet."
+    latest_command = "make reviewed-batch-proof"
+    if not latest.empty:
+        outcome_col = _data_health_case_column(batch_proof_frame, "final_outcome", "Final Outcome")
+        batch_col = _data_health_case_column(batch_proof_frame, "batch_id", "Batch ID")
+        date_col = _data_health_case_column(batch_proof_frame, "review_date", "Review Date")
+        changed_col = _data_health_case_column(batch_proof_frame, "changed_readiness_counts", "Changed Readiness Counts")
+        latest_status = format_missing(latest.get(outcome_col), "not_recorded").lower() if outcome_col else "not_recorded"
+        latest_detail = (
+            f"Batch {format_missing(latest.get(batch_col), 'not recorded')} on "
+            f"{format_missing(latest.get(date_col), 'not recorded')}; "
+            f"{compact_card_fragment(latest.get(changed_col), fallback='changed counts not recorded', max_chars=130)}"
+        )
+    return pd.DataFrame(
+        [
+            {
+                "Proof Loop Step": "Source review intake",
+                "Status": source_status,
+                "Detail": source_detail,
+                "Next Safe Action": "make dcf-input-source-review TOP_N=10",
+            },
+            {
+                "Proof Loop Step": "Import preview guard",
+                "Status": guard_status,
+                "Detail": f"Row preview: {row_status}; {guard_detail}",
+                "Next Safe Action": "make dcf-input-source-guard ...",
+            },
+            {
+                "Proof Loop Step": "Proof-record readiness",
+                "Status": proof_status,
+                "Detail": proof_detail,
+                "Next Safe Action": proof_command,
+            },
+            {
+                "Proof Loop Step": "Latest DCF ledger outcome",
+                "Status": latest_status,
+                "Detail": latest_detail,
+                "Next Safe Action": latest_command,
+            },
+        ]
+    )
+
+
+def data_health_dcf_proof_loop_outcome_cards(
+    frame: pd.DataFrame | None,
+    selection: object,
+    batch_proof_frame: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    outcome = data_health_dcf_proof_loop_outcome_frame(frame, selection, batch_proof_frame)
+    if outcome.empty:
+        return [
+            {
+                "kicker": "DCF PROOF OUTCOME",
+                "title": "No proof-loop status loaded",
+                "body": "Open the DCF source-review drawer before recording an outcome.",
+                "badges": ["readiness first", "blocked visible"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    statuses = ", ".join(f"{row['Proof Loop Step']}: {row['Status']}" for _, row in outcome.iterrows())
+    latest = outcome.iloc[-1]
+    return [
+        {
+            "kicker": "DCF PROOF OUTCOME",
+            "title": f"Latest ledger outcome: {format_missing(latest.get('Status'), 'not_recorded')}",
+            "body": (
+                f"{compact_card_fragment(statuses, max_chars=210)}. "
+                "Use this summary to decide whether the DCF proof loop is ready, still blocked, skipped, or only scaffolded."
+            ),
+            "badges": ["proof loop", "no inferred inputs"],
+            "command": format_missing(latest.get("Next Safe Action"), "make reviewed-batch-proof"),
+        }
+    ]
+
+
 def data_health_readiness_queue_drilldown_frame(
     queue_frame: pd.DataFrame | None,
     *,
@@ -24850,6 +24985,17 @@ def render_data_health(
             render_signal_cards(data_health_dcf_input_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
             st.dataframe(
                 clean_display_frame(data_health_dcf_input_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_signal_cards(
+                data_health_dcf_proof_loop_outcome_cards(dcf_input_queue_filtered, dcf_family_selection, batch_proof_frame),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(
+                    data_health_dcf_proof_loop_outcome_frame(dcf_input_queue_filtered, dcf_family_selection, batch_proof_frame)
+                ),
                 width="stretch",
                 hide_index=True,
             )

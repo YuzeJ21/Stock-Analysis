@@ -12053,6 +12053,62 @@ def test_dcf_import_preview_keeps_guard_between_source_review_and_handoff():
     assert "sell now" not in rendered
 
 
+def test_dcf_proof_loop_outcome_summarizes_source_guard_handoff_and_ledger():
+    frame = pd.DataFrame(
+        [
+            {
+                "Priority": 1,
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Ready DCF Inputs": "free_cash_flow, revenue, fcf_margin, price",
+                "DCF Input Status": "single-input blocker: shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+                "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
+            }
+        ]
+    )
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-SHARECOUNT",
+                "Review Date": "2026-06-17",
+                "Lane": "share_count",
+                "Final Outcome": "still_blocked",
+                "Changed Readiness Counts": "none; no readiness count changes",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_dcf_proof_loop_outcome_cards(frame, "shares_outstanding (1)", ledger)
+    outcome = dashboard.data_health_dcf_proof_loop_outcome_frame(frame, "shares_outstanding (1)", ledger)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert outcome["Proof Loop Step"].tolist() == [
+        "Source review intake",
+        "Import preview guard",
+        "Proof-record readiness",
+        "Latest DCF ledger outcome",
+    ]
+    assert outcome.iloc[0]["Status"] == "needs_field_fills"
+    assert outcome.iloc[1]["Status"] == "blocked"
+    assert outcome.iloc[2]["Status"] == "needs_field_fills"
+    assert outcome.iloc[3]["Status"] == "still_blocked"
+    assert "RB-SHARECOUNT" in outcome.iloc[3]["Detail"]
+    assert cards[0]["title"] == "Latest ledger outcome: still_blocked"
+    assert cards[0]["command"] == "make reviewed-batch-proof"
+    assert "source review intake: needs_field_fills" in rendered
+    assert "no inferred inputs" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
 def test_dcf_input_proof_handoff_all_families_uses_top_family_scope():
     frame = pd.DataFrame(
         [
@@ -12457,6 +12513,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_dcf_import_preview_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_input_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_input_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_proof_loop_outcome_cards(dcf_input_queue_filtered, dcf_family_selection, batch_proof_frame)" in source
+    assert "data_health_dcf_proof_loop_outcome_frame(dcf_input_queue_filtered, dcf_family_selection, batch_proof_frame)" in source
     assert "data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)" in source
     assert "Fundamentals / DCF Queue Snapshot" in source
     assert "render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)" in source
