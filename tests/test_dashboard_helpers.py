@@ -19056,6 +19056,58 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert "sell" not in rendered
 
 
+def test_peer_proof_batch_planner_summarizes_packet_guard_and_stop_rule(tmp_path: Path):
+    packet = dashboard.build_peer_mapping_source_review_packet(_peer_source_review_root(tmp_path), top_n=1)
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-PEERS",
+                "Review Date": "2026-06-17",
+                "Lane": "peer_mapping",
+                "Final Outcome": "still_blocked",
+                "Changed Readiness Counts": "none; source rows still need review",
+            }
+        ]
+    )
+
+    planner = dashboard.data_health_peer_proof_batch_planner_frame(packet, ledger)
+    cards = dashboard.data_health_peer_proof_batch_planner_cards(packet, ledger)
+    rendered = " ".join(
+        planner.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert planner["Step"].tolist() == [
+        "1. Confirm peer proof scope",
+        "2. Fill source-review fields",
+        "3. Preview reviewed batch packet",
+        "4. Run write-back guard",
+        "5. Validate, preview, and rebuild",
+        "6. Record proof outcome",
+        "7. Stop rule",
+    ]
+    assert planner.iloc[0]["Status"] == "current"
+    assert planner.iloc[0]["Copy-Ready Action"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
+    assert planner.iloc[1]["Status"] == "needs_field_fills"
+    assert "proposed_peer_ticker" in planner.iloc[1]["Review Boundary"]
+    assert planner.iloc[2]["Copy-Ready Action"] == "DRY_RUN=1 make reviewed-batch LANE=peers TICKERS=META"
+    assert "peer valuation remains locked" in planner.iloc[2]["Review Boundary"]
+    assert planner.iloc[3]["Copy-Ready Action"].startswith("make peer-mapping-writeback-guard")
+    assert "placeholders, stale readiness, self-peers" in rendered
+    assert "make imports-validate && make imports-preview" in rendered
+    assert planner.iloc[5]["Status"] == "blocked_by_guard"
+    assert "latest ledger outcome: still_blocked" in rendered
+    assert "source does not name the peer relationship" in rendered
+    assert cards[0]["title"] == "2 source-review slot(s); tickers: META"
+    assert cards[0]["command"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
+    assert "packet: dry_run=1 make reviewed-batch lane=peers tickers=meta" in rendered
+    assert "does not infer comparable companies" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order routing" not in rendered
+
+
 def test_data_health_peer_source_review_blocks_stale_readiness(tmp_path: Path):
     root = _peer_source_review_root(tmp_path)
     source = root / "data" / "peers.csv"
@@ -19064,6 +19116,7 @@ def test_data_health_peer_source_review_blocks_stale_readiness(tmp_path: Path):
     packet = dashboard.build_peer_mapping_source_review_packet(root, top_n=1)
     cards = dashboard.data_health_peer_source_review_cards(packet)
     frame = dashboard.data_health_peer_source_review_frame(packet)
+    planner = dashboard.data_health_peer_proof_batch_planner_frame(packet, pd.DataFrame())
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert packet.freshness.status == "stale"
@@ -19072,6 +19125,9 @@ def test_data_health_peer_source_review_blocks_stale_readiness(tmp_path: Path):
     assert frame.iloc[0]["Review Gate"] == "blocked by freshness"
     assert frame.iloc[0]["Completion Status"] == "blocked by freshness"
     assert frame.iloc[0]["Import Preview Status"] == "blocked by freshness"
+    assert planner.iloc[0]["Status"] == "blocked_by_stale"
+    assert planner.iloc[0]["Copy-Ready Action"] == "make readiness"
+    assert "do not use stale or missing peer readiness artifacts as proof" in planner.iloc[0]["Review Boundary"].lower()
     assert "do not use stale peer rows as proof" in rendered
 
 
@@ -19185,7 +19241,10 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
 
     source_review_index = source.index('render_section_header("Peer Source-Review Intake"')
     source_review_cards_index = source.index("data_health_peer_source_review_cards(peer_source_review_packet)")
-    completion_index = source.index('render_section_header("Finish This Peer Proof"', source_review_cards_index)
+    planner_index = source.index('render_section_header("Peer Proof Batch Planner"', source_review_cards_index)
+    planner_cards_index = source.index("data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_frame)", planner_index)
+    planner_frame_index = source.index("data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_frame)", planner_cards_index)
+    completion_index = source.index('render_section_header("Finish This Peer Proof"', planner_frame_index)
     completion_cards_index = source.index("data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_frame)", completion_index)
     completion_frame_index = source.index("data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_frame)", completion_cards_index)
     proof_loop_index = source.index('render_section_header("Peer Proof-Loop Outcome"', completion_frame_index)
@@ -19197,6 +19256,9 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
     assert (
         source_review_index
         < source_review_cards_index
+        < planner_index
+        < planner_cards_index
+        < planner_frame_index
         < completion_index
         < completion_cards_index
         < completion_frame_index
@@ -19207,6 +19269,9 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
         < matrix_index
     )
     assert "peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)" in source
+    assert "Peer Proof Batch Planner" in source
+    assert "data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_frame)" in source
+    assert "data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_frame)" in source
     assert "Finish This Peer Proof" in source
     assert "data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_frame)" in source
     assert "data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_frame)" in source

@@ -13214,6 +13214,167 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
     ]
 
 
+def data_health_peer_proof_batch_planner_frame(
+    packet: PeerMappingSourceReviewPacket | None,
+    batch_proof_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = ["Step", "Status", "Scope", "Copy-Ready Action", "Review Boundary"]
+    if packet is None:
+        return pd.DataFrame(
+            [
+                {
+                    "Step": "1. Confirm peer proof scope",
+                    "Status": "missing_packet",
+                    "Scope": "no peer source-review packet",
+                    "Copy-Ready Action": "make readiness && make peer-mapping-source-review TOP_N=10",
+                    "Review Boundary": "Rebuild readiness and peer source-review rows before planning peer proof.",
+                }
+            ],
+            columns=columns,
+        )
+    if packet.freshness.status in {"missing", "stale"}:
+        return pd.DataFrame(
+            [
+                {
+                    "Step": "1. Confirm peer proof scope",
+                    "Status": f"blocked_by_{packet.freshness.status}",
+                    "Scope": packet.freshness.message,
+                    "Copy-Ready Action": packet.freshness.refresh_command,
+                    "Review Boundary": "Do not use stale or missing peer readiness artifacts as proof.",
+                }
+            ],
+            columns=columns,
+        )
+    if not packet.rows:
+        return pd.DataFrame(
+            [
+                {
+                    "Step": "1. Confirm peer proof scope",
+                    "Status": "no_source_rows",
+                    "Scope": "current peer queue has no source-review rows",
+                    "Copy-Ready Action": "make peer-mapping-queue TOP_N=25",
+                    "Review Boundary": "No peer import or proof-record row is available without source-backed peer rows.",
+                }
+            ],
+            columns=columns,
+        )
+
+    first = packet.rows[0]
+    completion = peer_mapping_source_review_completion(first, packet.freshness)
+    preview = peer_mapping_import_preview(first, packet.freshness)
+    guard_status = "ready_for_validate_preview" if preview.status == "ready_for_validate_preview" else "blocked"
+    proof_record_command = peer_mapping_proof_record_command(first, guard_status)
+    tickers = ",".join(packet.tickers[: max(packet.top_n, 1)]) or first.ticker
+    source_packet_command = f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}"
+    reviewed_batch_packet = f"DRY_RUN=1 make reviewed-batch LANE=peers TICKERS={tickers}"
+    latest = data_health_peer_latest_proof_row(batch_proof_frame)
+    latest_status = "not_recorded"
+    if not latest.empty:
+        outcome_col = _data_health_case_column(batch_proof_frame, "final_outcome", "Final Outcome")
+        latest_status = format_missing(latest.get(outcome_col), "not_recorded").lower() if outcome_col else "not_recorded"
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Confirm peer proof scope",
+                "Status": packet.freshness.status,
+                "Scope": f"{len(packet.rows):,} source-review slot(s); tickers: {tickers}",
+                "Copy-Ready Action": source_packet_command,
+                "Review Boundary": "Plan a capped peer proof batch; source review does not infer comparable companies.",
+            },
+            {
+                "Step": "2. Fill source-review fields",
+                "Status": completion.status,
+                "Scope": f"{first.ticker} / {first.mapping_slot}",
+                "Copy-Ready Action": first.focus_command,
+                "Review Boundary": (
+                    "Missing fields: "
+                    f"{', '.join(completion.missing_fields) if completion.missing_fields else 'none'}. "
+                    "The source must name the peer relationship or comparable business context."
+                ),
+            },
+            {
+                "Step": "3. Preview reviewed batch packet",
+                "Status": "dry_run_first",
+                "Scope": tickers,
+                "Copy-Ready Action": reviewed_batch_packet,
+                "Review Boundary": "Packet preview is copy-only; peer valuation remains locked until reviewed rows pass readiness.",
+            },
+            {
+                "Step": "4. Run write-back guard",
+                "Status": preview.status,
+                "Scope": f"{first.ticker} / {first.proposed_peer_ticker or '<peer_ticker>'}",
+                "Copy-Ready Action": (
+                    "make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> "
+                    'PEER_GROUP="<group>" SOURCE="<url>" AS_OF_DATE=<yyyy-mm-dd> '
+                    'REVIEWER="<name>" REVIEW_DATE=<yyyy-mm-dd> SOURCE_PROOF_STATUS=reviewed IMPORT_ROW_READY=yes'
+                ),
+                "Review Boundary": "Guard blocks placeholders, stale readiness, self-peers, and duplicate peer pairs before CSV edits.",
+            },
+            {
+                "Step": "5. Validate, preview, and rebuild",
+                "Status": "copy_only_gate",
+                "Scope": first.target_file,
+                "Copy-Ready Action": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+                "Review Boundary": "Apply only reviewed rows after validate, preview, rejected-row review, and an explicit apply decision.",
+            },
+            {
+                "Step": "6. Record proof outcome",
+                "Status": "ready_for_review_fields" if guard_status == "ready_for_validate_preview" else "blocked_by_guard",
+                "Scope": f"latest ledger outcome: {latest_status}",
+                "Copy-Ready Action": proof_record_command,
+                "Review Boundary": "Fill validation result, preview result, apply result, changed counts, changed tickers, source files, and artifact review before recording.",
+            },
+            {
+                "Step": "7. Stop rule",
+                "Status": "stop_if_missing_source_proof",
+                "Scope": first.ticker,
+                "Copy-Ready Action": "do not proceed",
+                "Review Boundary": first.do_not_proceed_if,
+            },
+        ],
+        columns=columns,
+    )
+
+
+def data_health_peer_proof_batch_planner_cards(
+    packet: PeerMappingSourceReviewPacket | None,
+    batch_proof_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    planner = data_health_peer_proof_batch_planner_frame(packet, batch_proof_frame)
+    if planner.empty:
+        return [
+            {
+                "kicker": "PEER BATCH PLANNER",
+                "title": "No peer batch plan available",
+                "body": "Rebuild peer readiness before planning source-backed peer proof.",
+                "badges": ["blocked visible", "no inferred peers"],
+                "command": "make peer-mapping-queue TOP_N=25",
+            }
+        ]
+    first = planner.iloc[0]
+    packet_row = planner.loc[planner["Step"].eq("3. Preview reviewed batch packet")]
+    packet_action = packet_row.iloc[0]["Copy-Ready Action"] if not packet_row.empty else first.get("Copy-Ready Action")
+    stop = planner.iloc[-1]
+    blocking = planner.loc[
+        ~planner["Status"].astype(str).str.lower().isin(
+            {"current", "fresh", "dry_run_first", "copy_only_gate", "ready_for_validate_preview", "ready_for_review_fields"}
+        )
+    ]
+    return [
+        {
+            "kicker": "PEER BATCH PLANNER",
+            "title": format_missing(first.get("Scope"), "peer proof scope pending"),
+            "body": (
+                f"{card_sentence('Blocking steps', len(blocking))} "
+                f"{card_sentence('Packet', packet_action)} "
+                f"{card_sentence('Stop rule', compact_card_fragment(stop.get('Review Boundary'), max_chars=180))}"
+            ),
+            "badges": ["capped proof", "source-backed only"],
+            "command": format_missing(first.get("Copy-Ready Action"), "DRY_RUN=1 make peer-mapping-source-review TOP_N=10"),
+        }
+    ]
+
+
 def data_health_peer_latest_proof_row(batch_proof_frame: pd.DataFrame | None) -> pd.Series:
     if batch_proof_frame is None or batch_proof_frame.empty:
         return pd.Series(dtype=object)
@@ -26404,6 +26565,13 @@ def render_data_health(
             )
             render_section_header("Peer Source-Review Intake", "Fill source proof before editing peer import rows; peer valuation stays locked until rebuilt readiness proves inputs.")
             render_signal_cards(data_health_peer_source_review_cards(peer_source_review_packet))
+            render_section_header("Peer Proof Batch Planner", "One capped peer proof plan before source-review rows, write-back guard details, or proof-record tables.")
+            render_signal_cards(data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_frame))
+            st.dataframe(
+                clean_display_frame(data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_frame)),
+                width="stretch",
+                hide_index=True,
+            )
             render_section_header("Finish This Peer Proof", "One compact checklist before source-review rows, write-back guard, or peer proof tables.")
             render_signal_cards(data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_frame))
             st.table(
