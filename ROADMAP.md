@@ -123,6 +123,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add DCF Proof Source Review Compact Checklist V1 so the DCF drawer shows missing source fields, import guard status, proof-record placeholders, and latest ledger outcome before detailed tables.
 - [x] Add Trusted Fundamentals Source Packet UX so the DCF drawer separates SEC-stageable, trusted-local/manual, and price dry-run source routes before detailed import scaffolds.
 - [x] Add Trusted Fundamentals Batch Review Queue UX so source packets become capped SEC-stageable, trusted-local/manual, or price dry-run review batches with validation, rejected-row, proof-record, and stop-rule gates.
+- [x] Add Data Health Proof Checklist Summary V1 so DCF and peer proof-checklist status appears near the top of the operator page before detailed source/proof drawers.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
 ### Trusted Coverage Growth V2

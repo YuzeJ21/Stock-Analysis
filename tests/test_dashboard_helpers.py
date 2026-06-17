@@ -469,6 +469,50 @@ def test_data_health_readiness_queue_outcome_summary_cards_keep_drawers_optional
     assert "sell" not in rendered
 
 
+def test_data_health_proof_checklist_summary_surfaces_dcf_and_peer_before_drawers():
+    readiness = {"price_ready": 100, "dcf_ready": 20, "peer_ready": 5}
+    outcomes = pd.DataFrame(
+        [
+            {
+                "Lane": "Fundamentals / DCF Proof",
+                "Latest Outcome": "still_blocked",
+                "Review Date": "2026-06-17",
+                "Operator Cue": "DCF source fields are still missing.",
+            },
+            {
+                "Lane": "Peer Mapping Proof",
+                "Latest Outcome": "not_recorded",
+                "Review Date": "not recorded",
+                "Operator Cue": "No peer proof recorded yet.",
+            },
+        ]
+    )
+
+    frame = dashboard.data_health_proof_checklist_summary_frame(readiness, outcomes)
+    cards = dashboard.data_health_proof_checklist_summary_cards(readiness, outcomes)
+    rendered = " ".join(
+        frame.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert frame["Proof Lane"].tolist() == ["DCF proof checklist", "Peer proof checklist"]
+    assert frame.iloc[0]["Checklist Status"] == "still_blocked"
+    assert frame.iloc[0]["Coverage Gap"] == "80 price-ready row(s) still need trusted DCF inputs"
+    assert frame.iloc[1]["Checklist Status"] == "needs_peer_source_proof"
+    assert frame.iloc[1]["Coverage Gap"] == "95 price-ready row(s) still need source-backed peer proof"
+    assert cards[0]["title"] == "2 lane(s) need proof work"
+    assert cards[1]["title"] == "still blocked"
+    assert cards[1]["command"] == "Open Fundamentals / DCF lane drawer"
+    assert "before opening detailed drawers" in rendered
+    assert "finish source fields" in rendered
+    assert "finish peer source fields" in rendered
+    assert "data-readiness evidence, not analysis or recommendation output" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+
+
 def test_monthly_ideas_hero_label_explains_locked_zero_state():
     assert dashboard.monthly_ideas_hero_label(0) == "Monthly ideas waiting on data"
     assert dashboard.monthly_ideas_hero_label(-1) == "Monthly ideas waiting on data"
@@ -12566,7 +12610,12 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     current_mode_index = source.index("render_data_health_current_mode_strip(", lane_selector_index)
     queue_summary_index = source.index('render_section_header(\n        "Queue Outcome Summary"', current_mode_index)
-    coverage_delta_index = source.index('render_section_header(\n        "Readiness Coverage Delta"', queue_summary_index)
+    proof_checklist_summary_index = source.index('render_section_header(\n        "Proof Checklist Summary"', queue_summary_index)
+    proof_checklist_cards_index = source.index(
+        "data_health_proof_checklist_summary_cards(readiness_summary, queue_outcome_summary)",
+        proof_checklist_summary_index,
+    )
+    coverage_delta_index = source.index('render_section_header(\n        "Readiness Coverage Delta"', proof_checklist_cards_index)
     coverage_delta_cards_index = source.index("data_health_readiness_delta_board_cards(", coverage_delta_index)
     coverage_delta_frame_index = source.index("data_health_readiness_delta_board_frame(", coverage_delta_cards_index)
     generated_artifact_index = source.index('render_section_header(\n        "Generated Artifact Review"', coverage_delta_frame_index)
@@ -12618,7 +12667,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -12631,6 +12680,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_operator_snapshot_cards(" in source
     assert "render_data_health_operator_hero(operator_snapshot_cards)" in source
     assert "data_health_current_mode_strip_html(" in source
+    assert "Proof Checklist Summary" in source
+    assert "data_health_proof_checklist_summary_cards(readiness_summary, queue_outcome_summary)" in source
     assert "data_health_selected_detail_mode(" in console_source
     assert "data_health_current_mode_next_action(" in console_source
     assert "render_data_health_current_mode_strip(" in source
