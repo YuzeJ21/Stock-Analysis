@@ -140,6 +140,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Extract readiness summary counting logic from the Streamlit dashboard into a focused tested module.
 - [x] Extract market-wide readiness summary wrapper from the Streamlit dashboard into a focused tested module.
 - [x] Extract feature readiness card logic from the Streamlit dashboard into a focused tested module.
+- [x] Extract peer readiness product card logic from the Streamlit dashboard into a focused tested module.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
 ### Trusted Coverage Growth V2

@@ -37,6 +37,7 @@ from src.data_health_coverage_delta import (
 from src.data_health_recent_progress import readiness_recent_progress_cards
 from src.data_health_summary import dashboard_readiness_summary, market_wide_readiness_summary
 from src.data_health_feature_readiness import feature_readiness_cards
+from src.data_health_peer_readiness import peer_readiness_product_cards
 from src.data_health_proof_ctas import (
     data_health_dcf_input_proof_queue_dashboard_cards,
     data_health_lane_auto_context_cards,
@@ -10773,107 +10774,6 @@ MARKET_READINESS_FILTERS = [
 ]
 MARKET_ASSET_FILTERS = ["All assets", "Companies only", "ETFs / index proxies"]
 DEFAULT_MARKET_ROW_LIMIT = 50
-
-
-def peer_readiness_product_cards(
-    peer_readiness_frame: pd.DataFrame | None,
-    peer_mapping_queue_frame: pd.DataFrame | None = None,
-    peer_unlock_worklist_frame: pd.DataFrame | None = None,
-) -> list[dict[str, object]]:
-    if peer_readiness_frame is None or peer_readiness_frame.empty:
-        return [
-            {
-                "kicker": "PEER READINESS",
-                "title": "Peer readiness not ready yet",
-                "body": "Run readiness to rebuild the peer proof before reviewing peer trend, peer valuation, or source-backed peer blockers.",
-                "badges": ["blocked"],
-                "command": "make readiness",
-            }
-        ]
-
-    frame = peer_readiness_frame.copy()
-    for column in [
-        "peer_count",
-        "ready_peer_count",
-        "peer_price_ready_count",
-        "peer_momentum_ready_count",
-        "peer_fundamentals_ready_count",
-        "peer_valuation_ready_count",
-    ]:
-        if column in frame.columns:
-            frame[column] = pd.to_numeric(frame[column], errors="coerce").fillna(0).astype(int)
-    peer_ready = bool_series(frame, "peer_ready")
-    trend_ready = bool_series(frame, "peer_trend_comparison_ready")
-    valuation_ready = bool_series(frame, "peer_valuation_comparison_ready")
-    dcf_ready = bool_series(frame, "peer_dcf_comparison_ready")
-    blocker_counts = {}
-    if "peer_blocker_type" in frame.columns:
-        blocker_counts = {
-            str(key): int(value)
-            for key, value in frame.loc[~peer_ready, "peer_blocker_type"].fillna("peer_blocked").astype(str).value_counts().items()
-            if str(key).strip()
-        }
-    top_blocker = next(iter(blocker_counts), "peer_blocked")
-    queue_rows = 0 if peer_mapping_queue_frame is None else int(len(peer_mapping_queue_frame))
-    next_ticker = "Not available"
-    next_reason = "Build the prioritized peer worklist before choosing the next peer target."
-    if peer_unlock_worklist_frame is not None and not peer_unlock_worklist_frame.empty and "ticker" in peer_unlock_worklist_frame.columns:
-        worklist = peer_unlock_worklist_frame.copy()
-        worklist["ticker"] = worklist["ticker"].astype(str).str.upper().str.strip()
-        if "priority" in worklist.columns:
-            worklist["priority"] = pd.to_numeric(worklist["priority"], errors="coerce").fillna(999).astype(int)
-        scope_text = worklist.get("workflow_scope", pd.Series("", index=worklist.index)).fillna("").astype(str).str.lower()
-        workflow_text = worklist.get("workflow_group", pd.Series("", index=worklist.index)).fillna("").astype(str).str.lower()
-        active_flag = bool_series(worklist, "in_active_universe") if "in_active_universe" in worklist.columns else pd.Series(False, index=worklist.index)
-        dcf_flag = bool_series(worklist, "dcf_ready") if "dcf_ready" in worklist.columns else pd.Series(False, index=worklist.index)
-        worklist["_scope_rank"] = (~(active_flag | scope_text.str.contains("active", na=False))).astype(int)
-        worklist["_dcf_rank"] = (~(dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))).astype(int)
-        sort_columns = [column for column in ["_scope_rank", "_dcf_rank", "priority", "ticker"] if column in worklist.columns]
-        worklist = worklist.sort_values(sort_columns, kind="stable") if sort_columns else worklist
-        next_row = worklist.iloc[0]
-        next_ticker = format_missing(next_row.get("ticker"), "Ticker")
-        next_reason = compact_reason(
-            next_row.get("next_action_summary") or next_row.get("next_peer_action") or next_row.get("missing_peer_reason"),
-            max_sentences=1,
-            max_chars=180,
-        )
-    elif "peer_ready" in frame.columns:
-        candidates = frame.loc[~peer_ready].copy()
-        if "peer_blocker_type" in candidates.columns:
-            candidates = candidates.sort_values(["peer_blocker_type", "ticker"], kind="stable")
-        if not candidates.empty:
-            next_ticker = format_missing(candidates.iloc[0].get("ticker"), "Ticker")
-            next_reason = compact_reason(candidates.iloc[0].get("next_peer_action") or candidates.iloc[0].get("missing_peer_reason"), max_sentences=1, max_chars=140)
-    return [
-        {
-            "kicker": "PEER READY",
-            "title": f"{int(peer_ready.sum())}/{len(frame)} ready",
-            "body": f"Trend-ready peers: {int(trend_ready.sum())}. Valuation comparison ready: {int(valuation_ready.sum())}. DCF peer comparison ready: {int(dcf_ready.sum())}.",
-            "badges": ["peer workflow", "data-honest"],
-            "command": "make readiness",
-        },
-        {
-            "kicker": "TOP PEER BLOCKER",
-            "title": top_blocker.replace("_", " "),
-            "body": ", ".join(f"{key.replace('_', ' ')}: {value}" for key, value in list(blocker_counts.items())[:3]) or "No peer blockers reported.",
-            "badges": ["specific blockers"],
-            "command": "make peer-mapping-queue TOP_N=25",
-        },
-        {
-            "kicker": "NEXT PEER TARGET",
-            "title": next_ticker,
-            "body": next_reason,
-            "badges": ["manual research", "source-backed peers"],
-            "command": f"make focus-peers TICKER={next_ticker}" if next_ticker != "Not available" else "make peer-mapping-queue TOP_N=25",
-        },
-        {
-            "kicker": "PEER QUEUE",
-            "title": f"{queue_rows} queued",
-            "body": "Use capped peer worklists and import-file validation before relying on peer-relative context.",
-            "badges": ["TOP_N safe", "preview first"],
-            "command": "make peer-mapping-queue TOP_N=25",
-        },
-    ]
 
 
 def peer_mapping_studio_summary_cards(
