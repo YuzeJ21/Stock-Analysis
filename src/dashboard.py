@@ -29,6 +29,11 @@ from src.data_health_generated_churn import (
     generated_churn_review_cards as data_health_generated_churn_review_cards,
     generated_churn_review_frame as data_health_generated_churn_review_frame,
 )
+from src.data_health_coverage_delta import (
+    build_readiness_change_frame,
+    readiness_delta_board_cards as data_health_readiness_delta_board_cards,
+    readiness_delta_board_frame as data_health_readiness_delta_board_frame,
+)
 from src.data_health_proof_ctas import (
     data_health_dcf_input_proof_queue_dashboard_cards,
     data_health_lane_auto_context_cards,
@@ -10562,31 +10567,12 @@ def ticker_set_from_bool(frame: pd.DataFrame | None, column: str) -> set[str]:
     return set(frame.loc[mask, "ticker"].dropna().astype(str).str.upper().str.strip())
 
 
-READINESS_PROGRESS_FEATURES = [
-    ("price_ready", "Price"),
-    ("momentum_ready", "Momentum"),
-    ("market_direction_ready", "Market direction"),
-    ("liquidity_ready", "Liquidity"),
-    ("correlation_ready", "Correlation"),
-    ("fundamentals_ready", "Fundamentals"),
-    ("dcf_ready", "DCF"),
-    ("peer_ready", "Peers"),
-    ("earnings_ready", "Earnings"),
-    ("analyst_estimates_ready", "Analyst estimates"),
-]
 PRIOR_READINESS_FILENAMES = [
     "ticker_readiness_report.previous.csv",
     "previous_ticker_readiness_report.csv",
     "ticker_readiness_report_prior.csv",
     "ticker_readiness_baseline.csv",
 ]
-
-
-def _frame_bool_series(frame: pd.DataFrame, column: str) -> pd.Series:
-    values = bool_series(frame, column)
-    if values.empty:
-        return pd.Series(False, index=frame.index)
-    return values.reindex(frame.index, fill_value=False)
 
 
 def _latest_frame_timestamp(frame: pd.DataFrame | None) -> str:
@@ -10612,67 +10598,6 @@ def load_prior_ticker_readiness_report(data_dir: Path = DATA_DIR) -> tuple[pd.Da
     return None, "No prior ticker readiness snapshot found in data/reports."
 
 
-def build_readiness_change_frame(
-    current_frame: pd.DataFrame | None,
-    previous_frame: pd.DataFrame | None = None,
-) -> pd.DataFrame:
-    columns = [
-        "feature",
-        "current_ready",
-        "previous_ready",
-        "delta_ready",
-        "current_blocked",
-        "newly_ready_tickers",
-    ]
-    if current_frame is None or current_frame.empty:
-        return pd.DataFrame(columns=columns)
-
-    current = current_frame.copy()
-    previous = previous_frame.copy() if previous_frame is not None else pd.DataFrame()
-    if "ticker" in current.columns:
-        current["ticker"] = current["ticker"].astype(str).str.upper().str.strip()
-    if not previous.empty and "ticker" in previous.columns:
-        previous["ticker"] = previous["ticker"].astype(str).str.upper().str.strip()
-
-    rows: list[dict[str, object]] = []
-    for column, label in READINESS_PROGRESS_FEATURES:
-        current_ready = _frame_bool_series(current, column)
-        current_ready_count = int(current_ready.sum())
-        previous_ready_count: int | None = None
-        delta_ready: int | None = None
-        newly_ready = ""
-        if not previous.empty and column in previous.columns:
-            previous_ready = _frame_bool_series(previous, column)
-            previous_ready_count = int(previous_ready.sum())
-            delta_ready = current_ready_count - previous_ready_count
-            if "ticker" in current.columns and "ticker" in previous.columns:
-                previous_ready_tickers = set(previous.loc[previous_ready, "ticker"].dropna().astype(str).str.upper().str.strip())
-                current_ready_tickers = current.loc[current_ready, "ticker"].dropna().astype(str).str.upper().str.strip()
-                newly_ready = ", ".join([ticker for ticker in current_ready_tickers if ticker not in previous_ready_tickers][:8])
-
-        blocked_count = 0
-        blocker_name = column.removesuffix("_ready")
-        if "blocked_features" in current.columns:
-            blocked_count = int(
-                current["blocked_features"]
-                .fillna("")
-                .astype(str)
-                .str.contains(rf"(?:^|,\s*){re.escape(blocker_name)}(?:$|,)", case=False, regex=True)
-                .sum()
-            )
-        rows.append(
-            {
-                "feature": label,
-                "current_ready": current_ready_count,
-                "previous_ready": previous_ready_count,
-                "delta_ready": delta_ready,
-                "current_blocked": blocked_count,
-                "newly_ready_tickers": newly_ready,
-            }
-        )
-    return pd.DataFrame(rows, columns=columns)
-
-
 def readiness_recent_progress_cards(
     current_frame: pd.DataFrame | None,
     previous_frame: pd.DataFrame | None = None,
@@ -10692,7 +10617,7 @@ def readiness_recent_progress_cards(
 
     current = current_frame.copy()
     total = int(len(current))
-    active = int(_frame_bool_series(current, "in_active_universe").sum()) if "in_active_universe" in current.columns else 0
+    active = int(bool_series(current, "in_active_universe").reindex(current.index, fill_value=False).sum()) if "in_active_universe" in current.columns else 0
     state_counts = (
         current.get("overall_readiness_state", pd.Series(dtype=object))
         .fillna("unknown")
@@ -10817,154 +10742,6 @@ def readiness_recent_progress_cards(
         }
     )
     return cards
-
-
-def _data_health_latest_batch_proof_by_lane(batch_proof_frame: pd.DataFrame | None) -> dict[str, pd.Series]:
-    if batch_proof_frame is None or batch_proof_frame.empty:
-        return {}
-    lane_col = _data_health_case_column(batch_proof_frame, "lane", "Lane")
-    if lane_col is None:
-        return {}
-    review_col = _data_health_case_column(batch_proof_frame, "review_date", "Review Date")
-    batch_col = _data_health_case_column(batch_proof_frame, "batch_id", "Batch ID")
-    work = batch_proof_frame.copy()
-    sort_cols = [col for col in (review_col, batch_col) if col is not None]
-    if sort_cols:
-        work = work.sort_values(sort_cols, ascending=[False] * len(sort_cols), kind="stable")
-    latest: dict[str, pd.Series] = {}
-    for _, row in work.iterrows():
-        lane = format_missing(row.get(lane_col), "").lower().strip()
-        if lane and lane not in latest:
-            latest[lane] = row
-    return latest
-
-
-def _data_health_delta_lane_aliases(feature: str) -> tuple[str, ...]:
-    key = feature.lower()
-    if key == "price":
-        return ("prices", "price")
-    if key in {"fundamentals", "dcf"}:
-        return ("fundamentals", "fundamentals_dcf", "share_count")
-    if key == "peers":
-        return ("peers", "peer_mapping", "peer_valuation_inputs")
-    if key == "earnings":
-        return ("earnings", "optional_context")
-    if key == "analyst estimates":
-        return ("analyst_estimates", "optional_context")
-    if key == "momentum":
-        return ("prices", "price")
-    return (key.replace(" ", "_"),)
-
-
-def data_health_readiness_delta_board_frame(
-    current_frame: pd.DataFrame | None,
-    previous_frame: pd.DataFrame | None = None,
-    batch_proof_frame: pd.DataFrame | None = None,
-) -> pd.DataFrame:
-    columns = [
-        "Lane",
-        "Current Ready",
-        "Previous Ready",
-        "Delta Ready",
-        "Still Blocked",
-        "Newly Ready Tickers",
-        "Latest Batch Outcome",
-        "Generated Artifacts Reviewed",
-        "Next Safe Action",
-    ]
-    if current_frame is None or current_frame.empty:
-        return pd.DataFrame(columns=columns)
-    change_frame = build_readiness_change_frame(current_frame, previous_frame)
-    latest_by_lane = _data_health_latest_batch_proof_by_lane(batch_proof_frame)
-    rows: list[dict[str, object]] = []
-    for row in change_frame.itertuples(index=False):
-        feature = str(row.feature)
-        latest = pd.Series(dtype=object)
-        for lane in _data_health_delta_lane_aliases(feature):
-            if lane in latest_by_lane:
-                latest = latest_by_lane[lane]
-                break
-        outcome_col = _data_health_case_column(pd.DataFrame([latest.to_dict()]) if not latest.empty else None, "final_outcome", "Final Outcome")
-        artifacts_col = _data_health_case_column(
-            pd.DataFrame([latest.to_dict()]) if not latest.empty else None,
-            "generated_artifacts_reviewed",
-            "Generated Artifacts Reviewed",
-        )
-        delta = row.delta_ready
-        if pd.isna(delta):
-            delta_label = "not available"
-            action = "make readiness-snapshot"
-        else:
-            delta_value = int(delta)
-            delta_label = f"{'+' if delta_value >= 0 else ''}{delta_value}"
-            action = "make reviewed-batch-compare LANE=<lane>" if delta_value else "keep lane blocked until source proof changes"
-        rows.append(
-            {
-                "Lane": feature,
-                "Current Ready": int(row.current_ready),
-                "Previous Ready": "not available" if pd.isna(row.previous_ready) else int(row.previous_ready),
-                "Delta Ready": delta_label,
-                "Still Blocked": int(row.current_blocked),
-                "Newly Ready Tickers": format_missing(row.newly_ready_tickers, "none"),
-                "Latest Batch Outcome": format_missing(latest.get(outcome_col), "not recorded") if outcome_col else "not recorded",
-                "Generated Artifacts Reviewed": format_missing(latest.get(artifacts_col), "not recorded") if artifacts_col else "not recorded",
-                "Next Safe Action": action,
-            }
-        )
-    return pd.DataFrame(rows, columns=columns)
-
-
-def data_health_readiness_delta_board_cards(
-    current_frame: pd.DataFrame | None,
-    previous_frame: pd.DataFrame | None = None,
-    batch_proof_frame: pd.DataFrame | None = None,
-) -> list[dict[str, object]]:
-    if current_frame is None or current_frame.empty:
-        return [
-            {
-                "kicker": "COVERAGE DELTA",
-                "title": "Current readiness report missing",
-                "body": "Run make readiness before comparing prior and current coverage.",
-                "badges": ["blocked", "read-only"],
-                "command": "make readiness",
-            }
-        ]
-    board = data_health_readiness_delta_board_frame(current_frame, previous_frame, batch_proof_frame)
-    has_previous = previous_frame is not None and not previous_frame.empty
-    if not has_previous:
-        return [
-            {
-                "kicker": "COVERAGE DELTA",
-                "title": "Current-only baseline",
-                "body": (
-                    "No prior readiness snapshot is available, so the board will not invent before/after changes. "
-                    "Run a snapshot before the next reviewed batch, then rebuild readiness to compare real deltas."
-                ),
-                "badges": ["no prior snapshot", "no fabricated deltas"],
-                "command": "make readiness-snapshot",
-            }
-        ]
-    deltas = []
-    for _, row in board.iterrows():
-        delta_text = str(row.get("Delta Ready", ""))
-        lane = str(row.get("Lane", ""))
-        if delta_text not in {"", "not available", "+0", "0"}:
-            deltas.append(f"{lane} {delta_text}")
-    artifacts = board["Generated Artifacts Reviewed"].fillna("").astype(str)
-    artifact_ready_mask = artifacts.str.strip().ne("") & (~artifacts.str.lower().isin({"not recorded", "nan", "none"}))
-    artifact_ready = int(artifact_ready_mask.sum())
-    return [
-        {
-            "kicker": "COVERAGE DELTA",
-            "title": ", ".join(deltas[:3]) if deltas else "No ready-count change",
-            "body": (
-                f"{artifact_ready} lane(s) have generated-artifact review recorded. "
-                "Use this board as data-readiness proof only; changed counts are not recommendations."
-            ),
-            "badges": ["previous vs current", "proof ledger aware"],
-            "command": "make reviewed-batch-compare LANE=<lane>",
-        }
-    ]
 
 
 def dashboard_readiness_summary(
