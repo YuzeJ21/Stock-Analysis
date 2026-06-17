@@ -11944,6 +11944,27 @@ def test_fundamentals_operator_console_surfaces_dcf_input_queue_without_commands
     assert "trading" not in html
 
 
+def test_data_health_lane_auto_context_cards_explain_dcf_and_peer_landings():
+    dcf_cards = dashboard.data_health_lane_auto_context_cards("dcf")
+    peer_cards = dashboard.data_health_lane_auto_context_cards("peer")
+    price_cards = dashboard.data_health_lane_auto_context_cards("prices")
+    rendered = " ".join(str(value) for card in dcf_cards + peer_cards for value in card.values()).lower()
+
+    assert dcf_cards[0]["title"] == "DCF proof planning"
+    assert dcf_cards[0]["command"] == "?mode=operator&page=data-health&lane=fundamentals"
+    assert "dcf proof batch planner" in rendered
+    assert "source route, packet preview, validation gate" in rendered
+    assert peer_cards[0]["title"] == "Peer proof planning"
+    assert peer_cards[0]["command"] == "?mode=operator&page=data-health&lane=peers"
+    assert "peer proof batch planner" in rendered
+    assert "write-back guard, duplicate checks" in rendered
+    assert price_cards == []
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order routing" not in rendered
+
+
 def test_data_health_dcf_input_proof_queue_cards_keep_commands_in_drawer_boundary():
     frame = pd.DataFrame(
         [
@@ -12801,9 +12822,11 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     batch_sequence_index = source.index('render_section_header("Copy-Only Batch Sequence"', batch_apply_gate_index)
     price_console_index = source.index("render_data_health_price_operator_console(", batch_sequence_index)
     price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', price_console_index)
-    fundamentals_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)', price_drawer_index)
     fundamentals_console_index = source.index("render_data_health_fundamentals_operator_console(", price_drawer_index)
+    fundamentals_context_index = source.index("data_health_lane_auto_context_cards(selected_lane_key)", fundamentals_console_index)
+    fundamentals_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)', fundamentals_context_index)
     peer_console_index = source.index("render_data_health_peer_operator_console(", fundamentals_drawer_index)
+    peer_context_index = source.index("data_health_lane_auto_context_cards(selected_lane_key)", peer_console_index)
     peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)', peer_console_index)
     metrics_drawer_index = source.index('st.expander("Metrics evidence drawer", expanded=False)', peer_drawer_index)
     optional_console_index = source.index("render_data_health_optional_operator_console(", metrics_drawer_index)
@@ -12819,7 +12842,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -12890,6 +12913,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "render_data_health_price_operator_console(" in source
     assert "Price Queue Snapshot" in source
     assert "render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board, dcf_input_queue)" in source
+    assert "data_health_lane_auto_context_cards(selected_lane_key)" in source
     assert "dcf_input_queue = (" in source
     assert "data_health_dcf_input_proof_queue_frame(top_n=10)" in source
     assert "DCF Input Proof Queue" in source

@@ -127,6 +127,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add DCF Proof Batch Planner V1 so the DCF drawer turns the top blocker family into one capped source-proof plan with packet, validation, proof-record, and stop-rule gates before detailed rows.
 - [x] Add Proof Planner Outcome Summary V1 so Data Health compares DCF and peer planner states before opening lane-specific proof drawers.
 - [x] Add Planner Summary Interaction V1 so proof planner summary cards include lane jump URLs and copy cues before detailed drawers are opened.
+- [x] Add Proof Planner Drawer Auto-Context V1 so DCF and peer lanes show a "you came here for" proof-planning cue before their evidence drawers.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
 ### Trusted Coverage Growth V2

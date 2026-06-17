@@ -19335,6 +19335,37 @@ def render_data_health_peer_operator_console(
     )
 
 
+def data_health_lane_auto_context_cards(selected_lane_key: str) -> list[dict[str, object]]:
+    lane = data_health_operator_lane_from_query(selected_lane_key)
+    if lane == "fundamentals":
+        return [
+            {
+                "kicker": "YOU CAME HERE FOR",
+                "title": "DCF proof planning",
+                "body": (
+                    "Start with the DCF Proof Batch Planner inside the evidence drawer. "
+                    "Review one missing input family, source route, packet preview, validation gate, proof record, and stop rule before touching source rows."
+                ),
+                "badges": ["planner context", "source-backed only"],
+                "command": data_health_operator_lane_url("fundamentals"),
+            }
+        ]
+    if lane == "peers":
+        return [
+            {
+                "kicker": "YOU CAME HERE FOR",
+                "title": "Peer proof planning",
+                "body": (
+                    "Start with the Peer Proof Batch Planner inside the evidence drawer. "
+                    "Review source fields, write-back guard, duplicate checks, validation gates, proof record, and stop rule before peer rows change."
+                ),
+                "badges": ["planner context", "no inferred peers"],
+                "command": data_health_operator_lane_url("peers"),
+            }
+        ]
+    return []
+
+
 def data_health_optional_operator_console_frame(
     readiness_summary: dict[str, object],
     optional_context_worklist_frame: pd.DataFrame | None,
@@ -26616,6 +26647,7 @@ def render_data_health(
         else:
             fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)
         render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board, dcf_input_queue)
+        render_signal_cards(data_health_lane_auto_context_cards(selected_lane_key), show_commands=False, variant="queue")
         with st.expander("Fundamentals / DCF evidence drawer", expanded=False):
             render_section_header(
                 "DCF Input Proof Queue",
@@ -26736,6 +26768,7 @@ def render_data_health(
                 st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
     elif selected_lane == "Peers":
         render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)
+        render_signal_cards(data_health_lane_auto_context_cards(selected_lane_key), show_commands=False, variant="queue")
         peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)
         with st.expander("Peer evidence drawer", expanded=False):
             render_section_header("Peer Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
