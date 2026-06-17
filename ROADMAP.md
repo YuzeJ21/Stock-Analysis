@@ -130,6 +130,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add Proof Planner Drawer Auto-Context V1 so DCF and peer lanes show a "you came here for" proof-planning cue before their evidence drawers.
 - [x] Add DCF Input Proof Queue Dashboard UX V1 so the Fundamentals / DCF lane shows top input families, next proof command, proof packet command, and stop rule before raw queue rows.
 - [x] Add Proof Planner Stale-State CTA V1 so stale or missing readiness artifacts show one refresh-first CTA before DCF/peer proof-planning language.
+- [x] Extract DCF/peer proof CTA card builders from the Streamlit dashboard into a focused tested module.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
 ### Trusted Coverage Growth V2
