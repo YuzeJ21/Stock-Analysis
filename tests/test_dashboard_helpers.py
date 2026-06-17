@@ -12055,6 +12055,60 @@ def test_dcf_source_packet_separates_sec_manual_and_price_routes():
     assert "sell now" not in rendered
 
 
+def test_fundamentals_batch_review_queue_shows_gates_and_proof_scaffolds():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "META",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+            },
+            {
+                "Ticker": "ACHV",
+                "Missing Input Family": "fcf_margin",
+                "Missing DCF Fields": "fcf_margin",
+                "Source Mode": "trusted-local/manual; configure SEC_USER_AGENT for SEC staging",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
+                "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
+            },
+            {
+                "Ticker": "AIAI",
+                "Missing Input Family": "price",
+                "Missing DCF Fields": "price",
+                "Source Mode": "price dry-run first",
+                "Validation Sequence": "dry-run -> reviewed capped refresh/import -> make price-validate -> make price-preview -> reviewed apply",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=prices TICKERS=AIAI",
+                "Stop Rule": "Stop if price rows cannot be source-reviewed.",
+            },
+        ]
+    )
+
+    queue = dashboard.data_health_fundamentals_batch_review_queue_frame(frame, "All families")
+    cards = dashboard.data_health_fundamentals_batch_review_queue_cards(frame, "All families")
+    rendered = " ".join(
+        queue.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert queue["Batch Route"].tolist() == ["SEC-stageable", "Trusted-local/manual", "Price dry-run path"]
+    assert queue.loc[queue["Batch Route"].eq("SEC-stageable"), "Dry Run Or Stage Command"].iloc[0] == "make sec-stage TICKERS=META"
+    assert queue.loc[queue["Batch Route"].eq("Trusted-local/manual"), "Dry Run Or Stage Command"].iloc[0] == "make dcf-input-source-review FAMILY=fcf_margin TOP_N=10"
+    assert queue.loc[queue["Batch Route"].eq("Price dry-run path"), "Dry Run Or Stage Command"].iloc[0] == "DRY_RUN=1 make reviewed-batch LANE=prices TICKERS=AIAI"
+    assert "review data/rejected/fundamentals_import_rejected.csv" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "dry_run=1 make reviewed-batch-proof-record" in rendered
+    assert "needs_reviewed_results" in rendered
+    assert "proof before unlock" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
 def test_dcf_import_preview_keeps_guard_between_source_review_and_handoff():
     frame = pd.DataFrame(
         [
@@ -12562,6 +12616,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "Trusted Fundamentals Source Packet" in source
     assert "data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_packet_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "Trusted Fundamentals Batch Review Queue" in source
+    assert "data_health_fundamentals_batch_review_queue_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_fundamentals_batch_review_queue_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_input_source_review_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_input_source_review_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_import_preview_cards(dcf_input_queue_filtered, dcf_family_selection)" in source

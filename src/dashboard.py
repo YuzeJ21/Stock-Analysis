@@ -8165,6 +8165,143 @@ def data_health_dcf_source_packet_cards(frame: pd.DataFrame | None, selection: o
     ]
 
 
+def _data_health_batch_proof_record_scaffold(*, lane: str, tickers: list[str], command_run: str) -> str:
+    ticker_text = ",".join(tickers) if tickers else "<reviewed_tickers>"
+    assignments = {
+        "BATCH_ID": "<reviewed_batch_id>",
+        "LANE": lane,
+        "REVIEW_DATE": "<yyyy-mm-dd>",
+        "FINAL_OUTCOME": "<supported|still_blocked|skipped|excluded>",
+        "TICKERS": ticker_text,
+        "COMMAND_RUN": command_run,
+        "VALIDATION_RESULT": "<reviewed_validation_result>",
+        "PREVIEW_RESULT": "<reviewed_preview_result>",
+        "APPLY_RESULT": "<reviewed_apply_result>",
+        "CHANGED_READINESS_COUNTS": "<from_reviewed_batch_compare>",
+        "CHANGED_TICKERS": "<from_reviewed_batch_compare>",
+        "SOURCE_FILES": "<reviewed_source_files>",
+        "GENERATED_ARTIFACTS_REVIEWED": "<kept_evidence_or_excluded_churn>",
+    }
+    values = " ".join(f"{name}='{value}'" for name, value in assignments.items())
+    return f"DRY_RUN=1 make reviewed-batch-proof-record {values}"
+
+
+def data_health_fundamentals_batch_review_queue_frame(
+    frame: pd.DataFrame | None,
+    selection: object,
+    *,
+    batch_size: int = 10,
+) -> pd.DataFrame:
+    columns = [
+        "Batch Route",
+        "Batch Scope",
+        "Tickers",
+        "Expected Source Fields",
+        "Source Files",
+        "Dry Run Or Stage Command",
+        "Validation Gate",
+        "Preview Gate",
+        "Rejected Row Check",
+        "Apply Boundary",
+        "Post-Run Proof",
+        "Proof Record Readiness",
+        "Proof Record Scaffold",
+        "Stop Rule",
+    ]
+    packet = data_health_dcf_source_packet_frame(frame, selection)
+    if packet.empty:
+        return pd.DataFrame(columns=columns)
+    rows: list[dict[str, object]] = []
+    cap = max(batch_size, 1)
+    for _, item in packet.iterrows():
+        route = format_missing(item.get("Source Route"), "Trusted-local/manual")
+        family = format_missing(item.get("Input Family"), "fundamentals")
+        ticker_text = format_missing(item.get("Tickers"), "")
+        tickers = [ticker.strip().upper() for ticker in ticker_text.split(",") if ticker.strip()]
+        selected = tickers[:cap] or ["<reviewed_ticker>"]
+        selected_arg = ",".join(selected)
+        lane = "share_count" if family == "shares_outstanding" else "prices" if route == "Price dry-run path" else "fundamentals"
+        expected_fields = format_missing(item.get("Blocking Inputs"), family)
+        if route == "Price dry-run path":
+            source_files = "data/imports/prices.csv or reviewed provider refresh log"
+            stage_command = f"DRY_RUN=1 make reviewed-batch LANE=prices TICKERS={selected_arg}"
+            validation_gate = "make price-validate"
+            preview_gate = "make price-preview"
+            rejected_check = "review price rejected-row report if generated"
+            apply_boundary = "Apply/import price rows only after dry-run scope, validation, preview, and artifact review."
+            post_run = f"make price-coverage TOP_N=25 && make readiness && make stock-report-md TICKER={selected[0]}"
+        elif route == "SEC-stageable":
+            source_files = "data/staged/fundamentals/ plus data/imports/fundamentals.csv after review"
+            stage_command = f"make sec-stage TICKERS={selected_arg}"
+            validation_gate = "make imports-validate"
+            preview_gate = "make imports-preview"
+            rejected_check = "review data/rejected/fundamentals_import_rejected.csv"
+            apply_boundary = "Apply only reviewed SEC/manual fundamentals rows after preview and rejected-row review."
+            post_run = f"make dcf-readiness && make readiness && make stock-report-md TICKER={selected[0]}"
+        else:
+            source_files = "data/imports/fundamentals.csv with reviewer-provided filing/report source"
+            stage_command = f"make dcf-input-source-review FAMILY={family} TOP_N={cap}"
+            validation_gate = "make imports-validate"
+            preview_gate = "make imports-preview"
+            rejected_check = "review data/rejected/fundamentals_import_rejected.csv"
+            apply_boundary = "Apply only source-backed trusted-local rows after preview and rejected-row review."
+            post_run = f"make dcf-readiness && make readiness && make stock-report-md TICKER={selected[0]}"
+        proof_scaffold = _data_health_batch_proof_record_scaffold(
+            lane=lane,
+            tickers=selected,
+            command_run=f"{stage_command} && {validation_gate} && {preview_gate}",
+        )
+        rows.append(
+            {
+                "Batch Route": route,
+                "Batch Scope": f"{family}: {min(len(tickers) or 1, cap)} of {len(tickers) or 1}",
+                "Tickers": selected_arg,
+                "Expected Source Fields": expected_fields,
+                "Source Files": source_files,
+                "Dry Run Or Stage Command": stage_command,
+                "Validation Gate": validation_gate,
+                "Preview Gate": preview_gate,
+                "Rejected Row Check": rejected_check,
+                "Apply Boundary": apply_boundary,
+                "Post-Run Proof": post_run,
+                "Proof Record Readiness": "needs_reviewed_results",
+                "Proof Record Scaffold": proof_scaffold,
+                "Stop Rule": format_missing(item.get("Stop Rule"), "Stop if source proof does not support the required DCF input."),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def data_health_fundamentals_batch_review_queue_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
+    queue = data_health_fundamentals_batch_review_queue_frame(frame, selection)
+    if queue.empty:
+        return [
+            {
+                "kicker": "FUNDAMENTALS BATCH REVIEW",
+                "title": "No reviewed batch route selected",
+                "body": "Select a DCF source packet before preparing SEC-stageable or trusted-local batch proof.",
+                "badges": ["source first", "blocked visible"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    routes = ", ".join(f"{row['Batch Route']}: {row['Batch Scope']}" for _, row in queue.iterrows())
+    first = queue.iloc[0]
+    return [
+        {
+            "kicker": "FUNDAMENTALS BATCH REVIEW",
+            "title": f"{len(queue):,} source route(s) ready for review",
+            "body": (
+                f"{compact_card_fragment(routes, max_chars=180)}. "
+                f"{card_sentence('First batch', first.get('Tickers'))} "
+                f"{card_sentence('Expected fields', first.get('Expected Source Fields'))} "
+                "Record proof only after validation, preview, rejected-row review, apply decision, rebuilt readiness, and artifact hygiene."
+            ),
+            "badges": ["batch cap", "proof before unlock"],
+            "command": format_missing(first.get("Dry Run Or Stage Command"), "make dcf-input-source-review TOP_N=10"),
+        }
+    ]
+
+
 def data_health_dcf_import_preview_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
     source_frame = data_health_dcf_input_source_review_frame(frame, selection)
     if source_frame.empty:
@@ -25241,6 +25378,18 @@ def render_data_health(
             render_signal_cards(data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
             st.dataframe(
                 clean_display_frame(data_health_dcf_source_packet_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_section_header("Trusted Fundamentals Batch Review Queue", "Review capped source batches, rejected-row checks, and proof-record readiness before staging or imports.")
+            render_signal_cards(
+                data_health_fundamentals_batch_review_queue_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(
+                    data_health_fundamentals_batch_review_queue_frame(dcf_input_queue_filtered, dcf_family_selection)
+                ),
                 width="stretch",
                 hide_index=True,
             )
