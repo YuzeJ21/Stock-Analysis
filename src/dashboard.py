@@ -27,6 +27,7 @@ from src.data_health_console import (
 from src import data_health_proof_console as proof_console
 from src import data_health_batch_console as batch_console
 from src import data_health_coverage_console as coverage_console
+from src import data_health_overview_console as overview_console
 from src import data_health_trusted_pilot_console as trusted_pilot_console
 from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
@@ -7093,151 +7094,16 @@ def data_health_overview_cards(
 
 
 def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
-    price_ready = int(readiness_summary.get("price_ready") or 0)
-    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
-    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
-    peer_ready = int(readiness_summary.get("peer_ready") or 0)
-    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
-    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
-    return [
-        {
-            "kicker": "WHAT THIS MEANS",
-            "title": "Use this page to prove analysis readiness",
-            "body": (
-                "Data Health is not an error page. It shows what you can analyze now, what is still locked, "
-                "which trusted local inputs are ready, and which proof path should be checked next."
-            ),
-            "badges": ["review guide", "copy only"],
-            "command": "make status-check TOP_N=5",
-        },
-        {
-            "kicker": "WHAT YOU CAN ANALYZE NOW",
-            "title": f"{price_ready} price-ready / {fundamentals_ready} fundamentals-ready / {dcf_ready} DCF-ready",
-            "body": (
-                "What this means: price coverage makes setup review available first. Trusted fundamentals make company-level "
-                "valuation available only after required DCF fields pass readiness."
-            ),
-            "badges": ["price first", "fundamentals next"],
-            "command": "make sec-stage-queue TOP_N=25",
-        },
-        {
-            "kicker": "WHAT IS STILL LOCKED",
-            "title": f"{peer_ready} peer-ready / {earnings_ready} earnings / {estimates_ready} estimates",
-            "body": "What is still locked: peer, earnings, and estimate context stays unavailable until trusted rows exist. The app does not infer these inputs.",
-            "badges": ["trusted rows only", "no inference"],
-            "command": "make templates",
-        },
-    ]
+    # Public-safe orientation badges remain ["review guide", "copy only"].
+    return overview_console.orientation_cards(readiness_summary)
 
 
 def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
-    price_ready = int(readiness_summary.get("price_ready") or 0)
-    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
-    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
-    peer_ready = int(readiness_summary.get("peer_ready") or 0)
-    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
-    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
-
-    if price_ready <= 0:
-        first_title = "Start with trusted price coverage"
-        first_body = (
-            "No price-ready rows means setup, DCF, peer, earnings, and estimate analysis should stay locked. "
-            "Use the scalable dry run first so you can review a capped batch plan instead of repeating 25-ticker refreshes by hand."
-        )
-        first_command = "make price-refresh-loop DRY_RUN=1"
-        first_badges = ["price first", "dry run first"]
-    elif fundamentals_ready < price_ready:
-        gap = max(price_ready - fundamentals_ready, 0)
-        first_title = "Prove fundamentals before valuation"
-        first_body = (
-            f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
-            "Missing fundamentals are an input gap, not a negative company signal. Review the fundamentals list first, then use the detailed proof commands only when source rows are ready."
-        )
-        first_command = "make sec-stage-queue TOP_N=25"
-        first_badges = ["fundamentals next", "no valuation inference"]
-    elif dcf_ready > peer_ready:
-        gap = max(dcf_ready - peer_ready, 0)
-        first_title = "Add trusted peers for DCF-ready names"
-        first_body = (
-            f"{gap} DCF-ready row(s) still have peer-relative valuation locked. Standalone DCF can be reviewed, "
-            "but peer premium/discount stays withheld until source-backed peer rows, mappings, and peer valuation inputs exist."
-        )
-        first_command = "make peer-mapping-queue TOP_N=10"
-        first_badges = ["peer unlock", "source-backed rows"]
-    elif earnings_ready == 0 or estimates_ready == 0:
-        first_title = "Optional context is intentionally locked"
-        first_body = (
-            "Earnings and analyst estimates add context only after trusted local CSV rows pass validation. "
-            "Empty optional coverage should not weaken ready price, DCF, or peer analysis. Use the templates and import guide only when trusted rows are available; rejected-row paths stay in the detailed help."
-        )
-        first_command = "make optional-context-summary TOP_N=10"
-        first_badges = ["optional context", "trusted rows only"]
-    else:
-        first_title = "Review single-stock reports"
-        first_body = "Core proof paths look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and source readiness."
-        first_command = "make stock-report-md TICKER=NVDA"
-        first_badges = ["single-stock review", "source readiness"]
-
-    return [
-        {
-            "kicker": "FIRST READ",
-            "title": first_title,
-            "body": f"What this means: {first_body}",
-            "badges": first_badges,
-            "command": first_command,
-        },
-        {
-            "kicker": "ANALYZE NOW",
-            "title": f"{price_ready} price / {dcf_ready} DCF / {peer_ready} peer-ready",
-            "body": (
-                "What you can analyze now: price-ready rows can support setup review; DCF-ready rows can support "
-                "assumption and sensitivity review; peer-ready rows can support source-backed relative context. "
-                "Do not read locked sections as weak conclusions."
-            ),
-            "badges": ["supported only", "plain English"],
-            "command": "make status-check TOP_N=5",
-        },
-        {
-            "kicker": "STILL LOCKED",
-            "title": f"{earnings_ready} earnings / {estimates_ready} estimates",
-            "body": (
-                "What is still locked: optional context remains unavailable until trusted earnings and analyst-estimate "
-                "rows exist; missing optional rows are not hidden analysis."
-            ),
-            "badges": ["no inference", "optional context"],
-            "command": "make templates",
-        },
-    ]
+    return overview_console.quick_read_cards(readiness_summary)
 
 
 def data_health_public_visitor_path_cards(readiness_summary: dict[str, object]) -> list[tuple[str, str, str, str]]:
-    price_ready = int(readiness_summary.get("price_ready") or 0)
-    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
-    peer_ready = int(readiness_summary.get("peer_ready") or 0)
-    review_body = (
-        f"Open a ticker report to see exactly which sections are supported. Current proof: {price_ready:,} price-ready, "
-        f"{dcf_ready:,} DCF-ready, and {peer_ready:,} peer-ready."
-    )
-    return [
-        (
-            "Review one stock",
-            review_body,
-            "Single-Stock Report",
-            "neutral",
-        ),
-        (
-            "Improve data coverage",
-            "You are here. Read Quick Read first; the public page shows what is ready, what is blocked, and which trusted-data lane needs attention next.",
-            "Data Health",
-            "warning",
-        ),
-        (
-            "Inspect proof",
-            "Use the latest reviewed evidence before treating a changed readiness state as supported. Operator detail stays behind deeper drawers by default.",
-            "Proof History",
-            "neutral",
-        ),
-    ]
+    return overview_console.public_visitor_path_cards(readiness_summary)
 
 
 def _trusted_ready_count(frame: pd.DataFrame | None, column: str) -> int:
@@ -7254,97 +7120,15 @@ def data_health_operations_cockpit_cards(
     analyst_readiness_frame: pd.DataFrame | None,
     freshness: FreshnessStatus | None = None,
 ) -> list[dict[str, object]]:
-    price_ready = int(readiness_summary.get("price_ready") or 0)
-    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
-    peer_ready = int(readiness_summary.get("peer_ready") or 0)
-    lane_count = 0 if ops_frame is None else len(ops_frame)
-    review_lanes = 0
-    dry_run_lanes = 0
-    locked_lanes = 0
-    if ops_frame is not None and not ops_frame.empty and "Workflow Mode" in ops_frame.columns:
-        modes = ops_frame["Workflow Mode"].astype(str).str.lower()
-        review_lanes = int(modes.str.contains("review", na=False).sum())
-        dry_run_lanes = int(modes.str.contains("dry", na=False).sum())
-        locked_lanes = int(modes.str.contains("locked|manual", regex=True, na=False).sum())
-
-    frontier_title = "No frontier row yet"
-    frontier_body = (
-        "Run the read-only frontier view after readiness outputs exist; frontier rows describe data-lane impact, "
-        "not security attractiveness."
-    )
-    frontier_command = "make coverage-frontier TOP_N=10"
-    if frontier_frame is not None and not frontier_frame.empty:
-        top = frontier_frame.iloc[0]
-        frontier_title = format_missing(top.get("Lane"), "Coverage frontier")
-        impact = format_missing(top.get("Unlock Impact"), "0")
-        move = compact_card_fragment(top.get("Possible State Move"), max_chars=150)
-        frontier_body = (
-            f"Top data-lane opportunity has unlock impact {impact}. "
-            f"{card_sentence('State move', move)} Use this as a proof queue, not a ranking."
-        )
-        frontier_command = format_missing(top.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
-
-    earnings_ready = _trusted_ready_count(earnings_readiness_frame, "has_trusted_earnings")
-    estimate_ready = _trusted_ready_count(analyst_readiness_frame, "has_trusted_analyst_estimates")
-    earnings_total = 0 if earnings_readiness_frame is None else len(earnings_readiness_frame)
-    estimate_total = 0 if analyst_readiness_frame is None else len(analyst_readiness_frame)
-    optional_locked = max(earnings_total - earnings_ready, 0) + max(estimate_total - estimate_ready, 0)
     freshness = freshness or readiness_freshness_status(BASE_DIR)
-    freshness_title = public_status_label(freshness.status).title()
-    freshness_body = (
-        f"{freshness.message} "
-        f"Refresh command: {freshness.refresh_command}. "
-        "Treat stale or missing readiness artifacts as a stop sign before relying on final counts."
+    return overview_console.operations_cockpit_cards(
+        readiness_summary,
+        ops_frame,
+        frontier_frame,
+        earnings_readiness_frame,
+        analyst_readiness_frame,
+        freshness,
     )
-    freshness_badges = [freshness.status, "refresh before counts"] if freshness.status in {"missing", "stale"} else [freshness.status, "counts usable"]
-
-    return [
-        {
-            "kicker": "READINESS FRESHNESS",
-            "title": freshness_title,
-            "body": freshness_body,
-            "badges": freshness_badges,
-            "command": freshness.refresh_command,
-        },
-        {
-            "kicker": "OPS COCKPIT",
-            "title": f"{price_ready:,} price / {dcf_ready:,} DCF / {peer_ready:,} peer-ready",
-            "body": (
-                f"{lane_count} lane(s) are visible before ticker drilldown: {review_lanes} review lane(s), "
-                f"{dry_run_lanes} dry-run lane(s), and {locked_lanes} locked/manual lane(s). "
-                "Choose the data lane first, then inspect one capped proof path."
-            ),
-            "badges": ["lane-first", "copy-only"],
-            "command": "make readiness-ops-center",
-        },
-        {
-            "kicker": "NEXT FRONTIER",
-            "title": frontier_title,
-            "body": frontier_body,
-            "badges": ["data-lane impact", "not a ranking"],
-            "command": frontier_command,
-        },
-        {
-            "kicker": "OPTIONAL CONTEXT",
-            "title": f"{earnings_ready:,} earnings / {estimate_ready:,} estimates ready",
-            "body": (
-                f"{optional_locked:,} optional-context row(s) remain locked until trusted local rows exist. "
-                "Inspect the read-only summary first; write readiness CSVs only after trusted optional rows change."
-            ),
-            "badges": ["read-only first", "trusted local rows"],
-            "command": "make optional-context-summary TOP_N=10",
-        },
-        {
-            "kicker": "PROOF HYGIENE",
-            "title": "Preview, then prove",
-            "body": (
-                "Mutating workflows still go through validate, preview, apply, rejected-row review, and rebuilt readiness. "
-                "Keep broad generated CSV churn out unless it is reviewed evidence."
-            ),
-            "badges": ["validate", "preview", "apply"],
-            "command": "make diff-hygiene",
-        },
-    ]
 
 
 def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
@@ -7714,42 +7498,7 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
 
 
 def data_health_freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
-    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
-    price_ready = int(readiness_summary.get("price_ready") or 0)
-    missing_prices = max(master - price_ready, 0) if master else 0
-    capped_target = ((min(max(missing_prices, 100), 3500) + 99) // 100) * 100 if missing_prices else 100
-    return [
-        {
-            "kicker": "READ-ONLY ROUTINE",
-            "title": "Start without changing files",
-            "body": (
-                "Use status, readiness, dashboard smoke, and a price-loop dry run as the normal freshness check. "
-                "This keeps the app useful without hand-refreshing every ticker every day."
-            ),
-            "badges": ["safe default", "no file changes"],
-            "command": "make status-check TOP_N=5 && make readiness && make dashboard-smoke && make price-refresh-loop DRY_RUN=1",
-        },
-        {
-            "kicker": "PRICE FRESHNESS",
-            "title": f"{missing_prices:,} ticker(s) still need price coverage",
-            "body": (
-                "Prices are the only broad lane designed for capped refresh loops. Run a real loop only after reviewing the dry-run plan, "
-                "then inspect generated CSV diffs before committing anything."
-            ),
-            "badges": ["dry run first", "review diffs"],
-            "command": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={capped_target} TOP_N=100 PROVIDER=yahoo",
-        },
-        {
-            "kicker": "REVIEW-REQUIRED LANES",
-            "title": "Do not automate source judgment",
-            "body": (
-                "Fundamentals, peer mappings, earnings, and analyst estimates stay review-required. "
-                "Use trusted-data pilot packets, validation, preview, rejected-row checks, and readiness rebuilds before analysis changes."
-            ),
-            "badges": ["trusted source", "no unattended apply"],
-            "command": "make trusted-data-pilot-candidates TOP_N=10",
-        },
-    ]
+    return overview_console.freshness_routine_cards(readiness_summary)
 
 
 def data_health_trusted_pilot_preview_frame(
