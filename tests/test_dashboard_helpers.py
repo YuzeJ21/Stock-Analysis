@@ -12153,6 +12153,72 @@ def test_fundamentals_batch_review_queue_shows_gates_and_proof_scaffolds():
     assert "sell now" not in rendered
 
 
+def test_dcf_proof_batch_planner_selects_top_family_and_keeps_stop_rule_visible():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "META",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+            },
+            {
+                "Ticker": "ABNB",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=ABNB",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+            },
+            {
+                "Ticker": "ACHV",
+                "Missing Input Family": "fcf_margin",
+                "Missing DCF Fields": "fcf_margin",
+                "Source Mode": "trusted-local/manual; configure SEC_USER_AGENT for SEC staging",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
+                "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
+            },
+        ]
+    )
+
+    planner = dashboard.data_health_dcf_proof_batch_planner_frame(frame, "All families")
+    cards = dashboard.data_health_dcf_proof_batch_planner_cards(frame, "All families")
+    rendered = " ".join(
+        planner.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert planner["Step"].tolist() == [
+        "1. Choose DCF input family",
+        "2. Review source route",
+        "3. Preview reviewed batch packet",
+        "4. Validate and preview",
+        "5. Record proof only after review",
+        "6. Stop rule",
+    ]
+    assert planner.iloc[0]["Scope"] == "shares_outstanding: 2 selected row(s)"
+    assert "top blocker families: shares_outstanding: 2; fcf_margin: 1" in rendered
+    assert planner.iloc[1]["Status"] == "SEC-stageable"
+    assert planner.iloc[2]["Status"] == "dry_run_first"
+    assert planner.iloc[2]["Copy-Ready Action"] == "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META"
+    assert "make imports-validate && make imports-preview" in rendered
+    assert "dry_run=1 make reviewed-batch-proof-record" in rendered
+    assert "changed counts, changed tickers, source files" in rendered
+    assert "stop if shares_outstanding is unavailable" in rendered
+    assert cards[0]["title"] == "shares_outstanding: 2 selected row(s)"
+    assert cards[0]["command"] == "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META"
+    assert "capped proof" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+    assert "broker" not in rendered
+    assert "order routing" not in rendered
+
+
 def test_dcf_import_preview_keeps_guard_between_source_review_and_handoff():
     frame = pd.DataFrame(
         [
@@ -12742,6 +12808,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "DCF input family" in source
     assert "data_health_filter_dcf_input_queue_by_family(dcf_input_queue, dcf_family_selection)" in source
     assert "data_health_dcf_input_family_filter_cards(" in source
+    assert "DCF Proof Batch Planner" in source
+    assert "data_health_dcf_proof_batch_planner_cards(dcf_input_queue, dcf_family_selection)" in source
+    assert "data_health_dcf_proof_batch_planner_frame(dcf_input_queue, dcf_family_selection)" in source
     assert "Trusted Fundamentals Source Packet" in source
     assert "data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_packet_frame(dcf_input_queue_filtered, dcf_family_selection)" in source

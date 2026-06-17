@@ -8304,6 +8304,140 @@ def data_health_fundamentals_batch_review_queue_cards(frame: pd.DataFrame | None
     ]
 
 
+def _data_health_dcf_planner_scope(frame: pd.DataFrame | None, selection: object) -> tuple[pd.DataFrame, str, str]:
+    if frame is None or frame.empty:
+        return pd.DataFrame(), "all families", "No DCF input families loaded"
+    work = data_health_filter_dcf_input_queue_by_family(frame, selection)
+    family = data_health_dcf_input_family_key(selection)
+    if not family and not work.empty and "Missing Input Family" in work.columns:
+        counts = work["Missing Input Family"].fillna("").astype(str).str.strip()
+        counts = counts.loc[counts.ne("")].value_counts()
+        if not counts.empty:
+            family = str(counts.index[0])
+            work = data_health_filter_dcf_input_queue_by_family(frame, family)
+    family = family or "all families"
+    if "Missing Input Family" in frame.columns:
+        family_counts = frame["Missing Input Family"].fillna("").astype(str).str.strip()
+        family_counts = family_counts.loc[family_counts.ne("")].value_counts()
+        summary = "; ".join(f"{name}: {count}" for name, count in family_counts.head(4).items())
+    else:
+        summary = "Missing input family counts unavailable"
+    return work, family, summary or "Missing input family counts unavailable"
+
+
+def data_health_dcf_proof_batch_planner_frame(
+    frame: pd.DataFrame | None,
+    selection: object,
+    *,
+    batch_size: int = 10,
+) -> pd.DataFrame:
+    columns = ["Step", "Status", "Scope", "Copy-Ready Action", "Review Boundary"]
+    work, family, family_summary = _data_health_dcf_planner_scope(frame, selection)
+    if work.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Step": "1. Choose DCF input family",
+                    "Status": "blocked",
+                    "Scope": family,
+                    "Copy-Ready Action": "make dcf-input-proof-queue TOP_N=10",
+                    "Review Boundary": "Refresh the DCF input proof queue before building a batch plan.",
+                }
+            ],
+            columns=columns,
+        )
+    source_packet = data_health_dcf_source_packet_frame(work, family)
+    batch_queue = data_health_fundamentals_batch_review_queue_frame(work, family, batch_size=batch_size)
+    first_source = source_packet.iloc[0] if not source_packet.empty else pd.Series(dtype=object)
+    first_batch = batch_queue.iloc[0] if not batch_queue.empty else pd.Series(dtype=object)
+    tickers = format_missing(first_batch.get("Tickers"), format_missing(first_source.get("Tickers"), "<reviewed_tickers>"))
+    route = format_missing(first_batch.get("Batch Route"), format_missing(first_source.get("Source Route"), "source route pending"))
+    proof_packet = format_missing(first_source.get("Proof Packet Command"), "DRY_RUN=1 make fundamentals-batch-proof TOP_N=10")
+    stage_or_review = format_missing(first_batch.get("Dry Run Or Stage Command"), format_missing(first_source.get("Stage Or Review Command"), "make dcf-input-source-review TOP_N=10"))
+    validation = format_missing(first_batch.get("Validation Gate"), format_missing(first_source.get("Validation Gate"), "make imports-validate"))
+    preview = format_missing(first_batch.get("Preview Gate"), "make imports-preview")
+    proof_record = format_missing(first_batch.get("Proof Record Scaffold"), "DRY_RUN=1 make reviewed-batch-proof-record ...")
+    stop_rule = format_missing(first_batch.get("Stop Rule"), format_missing(first_source.get("Stop Rule"), "Stop if source proof is missing."))
+    rows = [
+        {
+            "Step": "1. Choose DCF input family",
+            "Status": "ready",
+            "Scope": f"{family}: {len(work):,} selected row(s)",
+            "Copy-Ready Action": "make dcf-input-proof-queue TOP_N=10",
+            "Review Boundary": f"Top blocker families: {family_summary}. Plan one family at a time.",
+        },
+        {
+            "Step": "2. Review source route",
+            "Status": route,
+            "Scope": tickers,
+            "Copy-Ready Action": stage_or_review,
+            "Review Boundary": "Use SEC staging only when configured and source-backed; otherwise keep the lane trusted-local/manual.",
+        },
+        {
+            "Step": "3. Preview reviewed batch packet",
+            "Status": "dry_run_first",
+            "Scope": tickers,
+            "Copy-Ready Action": proof_packet,
+            "Review Boundary": "Packet preview is copy-only and does not make DCF-ready claims.",
+        },
+        {
+            "Step": "4. Validate and preview",
+            "Status": "review_gate",
+            "Scope": format_missing(first_batch.get("Expected Source Fields"), family),
+            "Copy-Ready Action": f"{validation} && {preview}",
+            "Review Boundary": "Validation, preview, and rejected-row review must be checked before any apply decision.",
+        },
+        {
+            "Step": "5. Record proof only after review",
+            "Status": format_missing(first_batch.get("Proof Record Readiness"), "needs_reviewed_results"),
+            "Scope": tickers,
+            "Copy-Ready Action": proof_record,
+            "Review Boundary": "Fill changed counts, changed tickers, source files, and generated-artifact review before recording.",
+        },
+        {
+            "Step": "6. Stop rule",
+            "Status": "stop_if_missing_source_proof",
+            "Scope": family,
+            "Copy-Ready Action": "do not proceed",
+            "Review Boundary": stop_rule,
+        },
+    ]
+    return pd.DataFrame(rows, columns=columns)
+
+
+def data_health_dcf_proof_batch_planner_cards(
+    frame: pd.DataFrame | None,
+    selection: object,
+) -> list[dict[str, object]]:
+    planner = data_health_dcf_proof_batch_planner_frame(frame, selection)
+    if planner.empty:
+        return [
+            {
+                "kicker": "DCF BATCH PLANNER",
+                "title": "No DCF batch plan available",
+                "body": "Refresh the DCF input proof queue before planning a capped proof batch.",
+                "badges": ["blocked visible", "readiness first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    choose = planner.iloc[0]
+    packet = planner.iloc[2] if len(planner) > 2 else planner.iloc[0]
+    stop = planner.iloc[-1]
+    return [
+        {
+            "kicker": "DCF BATCH PLANNER",
+            "title": format_missing(choose.get("Scope"), "DCF input family pending"),
+            "body": (
+                f"{card_sentence('Route', planner.iloc[1].get('Status') if len(planner) > 1 else 'source route pending')} "
+                f"{card_sentence('Packet', packet.get('Copy-Ready Action'))} "
+                f"{card_sentence('Stop rule', compact_card_fragment(stop.get('Review Boundary'), max_chars=180))}"
+            ),
+            "badges": ["capped proof", "copy-only"],
+            "command": format_missing(packet.get("Copy-Ready Action"), "DRY_RUN=1 make fundamentals-batch-proof TOP_N=10"),
+        }
+    ]
+
+
 def data_health_dcf_import_preview_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
     source_frame = data_health_dcf_input_source_review_frame(frame, selection)
     if source_frame.empty:
@@ -26162,6 +26296,16 @@ def render_data_health(
                     dcf_family_selection,
                 ),
                 show_commands=True,
+            )
+            render_section_header("DCF Proof Batch Planner", "One capped source-proof plan before detailed rows, import previews, or proof-record tables.")
+            render_signal_cards(
+                data_health_dcf_proof_batch_planner_cards(dcf_input_queue, dcf_family_selection),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_dcf_proof_batch_planner_frame(dcf_input_queue, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
             )
             render_signal_cards(data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered), show_commands=True)
             render_section_header("Finish This DCF Proof", "One compact checklist before source-review rows, import previews, or proof-record tables.")
