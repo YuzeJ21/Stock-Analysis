@@ -35,6 +35,7 @@ from src.data_health_coverage_delta import (
     readiness_delta_board_frame as data_health_readiness_delta_board_frame,
 )
 from src.data_health_recent_progress import readiness_recent_progress_cards
+from src.data_health_summary import dashboard_readiness_summary
 from src.data_health_proof_ctas import (
     data_health_dcf_input_proof_queue_dashboard_cards,
     data_health_lane_auto_context_cards,
@@ -10584,117 +10585,6 @@ def load_prior_ticker_readiness_report(data_dir: Path = DATA_DIR) -> tuple[pd.Da
             frame, message = load_output(path)
             return frame, str(path) if frame is not None else (message or str(path))
     return None, "No prior ticker readiness snapshot found in data/reports."
-
-
-def dashboard_readiness_summary(
-    coverage_frame: pd.DataFrame | None,
-    dcf_readiness_frame: pd.DataFrame | None,
-    earnings_readiness_frame: pd.DataFrame | None,
-    analyst_readiness_frame: pd.DataFrame | None,
-    ticker_readiness_frame: pd.DataFrame | None = None,
-) -> dict[str, object]:
-    universe_count = 0 if coverage_frame is None or coverage_frame.empty else len(coverage_frame)
-    master_count = 0 if ticker_readiness_frame is None or ticker_readiness_frame.empty else int(bool_series(ticker_readiness_frame, "in_master_universe").sum())
-    active_count = 0 if ticker_readiness_frame is None or ticker_readiness_frame.empty else int(bool_series(ticker_readiness_frame, "in_active_universe").sum())
-    if ticker_readiness_frame is not None and not ticker_readiness_frame.empty:
-        universe_count = master_count
-        price_ready = int(bool_series(ticker_readiness_frame, "price_ready").sum())
-        momentum_ready = int(bool_series(ticker_readiness_frame, "momentum_ready").sum())
-        peer_ready = int(bool_series(ticker_readiness_frame, "peer_ready").sum())
-    else:
-        price_ready = len(ticker_set_from_bool(coverage_frame, "has_prices"))
-        if not price_ready:
-            price_ready = len(ticker_set_from_bool(coverage_frame, "price_ready"))
-        momentum_ready = len(ticker_set_from_bool(coverage_frame, "usable_for_momentum"))
-        if not momentum_ready:
-            momentum_ready = len(ticker_set_from_bool(coverage_frame, "momentum_ready"))
-        peer_ready = len(ticker_set_from_bool(coverage_frame, "peer_ready"))
-    liquidity_ready = int(bool_series(ticker_readiness_frame, "liquidity_ready").sum()) if ticker_readiness_frame is not None else 0
-    correlation_ready = int(bool_series(ticker_readiness_frame, "correlation_ready").sum()) if ticker_readiness_frame is not None else 0
-    market_direction_ready = int(bool_series(ticker_readiness_frame, "market_direction_ready").sum()) if ticker_readiness_frame is not None else 0
-    fundamentals_ready = int(bool_series(ticker_readiness_frame, "fundamentals_ready").sum()) if ticker_readiness_frame is not None else 0
-    blocked_by_data = 0
-    partial_count = 0
-    excluded_count = 0
-    if ticker_readiness_frame is not None and not ticker_readiness_frame.empty and "overall_readiness_state" in ticker_readiness_frame.columns:
-        state_series = ticker_readiness_frame["overall_readiness_state"].fillna("").astype(str).str.lower()
-        blocked_by_data = int(state_series.eq("blocked").sum())
-        partial_count = int(state_series.eq("partial").sum())
-        excluded_count = int(state_series.eq("excluded").sum())
-    if ticker_readiness_frame is not None and not ticker_readiness_frame.empty and "dcf_ready" in ticker_readiness_frame.columns:
-        dcf_ready = int(bool_series(ticker_readiness_frame, "dcf_ready").sum())
-    else:
-        dcf_ready = int(bool_series(dcf_readiness_frame, "is_dcf_ready").sum()) if dcf_readiness_frame is not None else 0
-    dcf_excluded = 0
-    if ticker_readiness_frame is not None and not ticker_readiness_frame.empty and "excluded_features" in ticker_readiness_frame.columns:
-        dcf_excluded = int(
-            ticker_readiness_frame["excluded_features"]
-            .fillna("")
-            .astype(str)
-            .str.contains(r"\bdcf\b", case=False, na=False)
-            .sum()
-        )
-    elif dcf_readiness_frame is not None and not dcf_readiness_frame.empty and "asset_type" in dcf_readiness_frame.columns:
-        dcf_excluded = int(dcf_readiness_frame["asset_type"].fillna("company").astype(str).str.lower().ne("company").sum())
-    if earnings_readiness_frame is not None:
-        earnings_ready = int(bool_series(earnings_readiness_frame, "has_trusted_earnings").sum())
-    elif ticker_readiness_frame is not None:
-        earnings_ready = int(bool_series(ticker_readiness_frame, "earnings_ready").sum())
-    else:
-        earnings_ready = 0
-    if analyst_readiness_frame is not None:
-        analyst_ready = int(bool_series(analyst_readiness_frame, "has_trusted_analyst_estimates").sum())
-    elif ticker_readiness_frame is not None:
-        analyst_ready = int(bool_series(ticker_readiness_frame, "analyst_estimates_ready").sum())
-    else:
-        analyst_ready = 0
-    updated_at = ""
-    if ticker_readiness_frame is not None and not ticker_readiness_frame.empty and "updated_at" in ticker_readiness_frame.columns:
-        updated_values = ticker_readiness_frame["updated_at"].dropna().astype(str).str.strip()
-        if not updated_values.empty:
-            updated_at = str(updated_values.max())
-    missing_credentials = [
-        name
-        for name in ("STOOQ_API_KEY", "SEC_USER_AGENT")
-        if not os.environ.get(name, "").strip()
-    ]
-    configured_credentials = [
-        name
-        for name in ("STOOQ_API_KEY", "SEC_USER_AGENT")
-        if os.environ.get(name, "").strip()
-    ]
-    return {
-        "universe_count": universe_count,
-        "master_count": master_count or universe_count,
-        "master_universe": master_count or universe_count,
-        "active_count": active_count or universe_count,
-        "active_universe": active_count or universe_count,
-        "price_ready": price_ready,
-        "momentum_ready": momentum_ready,
-        "market_direction_ready": market_direction_ready,
-        "liquidity_ready": liquidity_ready,
-        "correlation_ready": correlation_ready,
-        "fundamentals_ready": fundamentals_ready,
-        "dcf_ready": dcf_ready,
-        "dcf_excluded": dcf_excluded,
-        "peer_ready": peer_ready,
-        "earnings_ready": earnings_ready,
-        "analyst_ready": analyst_ready,
-        "analyst_estimates_ready": analyst_ready,
-        "blocked_by_data": blocked_by_data,
-        "blocked": blocked_by_data,
-        "partial": partial_count,
-        "excluded_count": excluded_count or dcf_excluded,
-        "missing_credentials": missing_credentials,
-        "configured_credentials": configured_credentials,
-        "updated_at": updated_at,
-        "manual_import_paths": [
-            "Price import file folder: data/staged/prices/ -> make import-prices",
-            "Fundamentals import file folder: data/staged/fundamentals/ -> make import-fundamentals",
-            "Earnings import file folder: data/staged/earnings/ -> make import-earnings",
-            "Analyst estimates import file folder: data/staged/analyst_estimates/ -> make import-analyst-estimates",
-        ],
-    }
 
 
 def readiness_panel_cards(summary: dict[str, object]) -> list[dict[str, object]]:
