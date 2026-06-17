@@ -113,3 +113,28 @@ def test_dashboard_readiness_summary_prefers_ticker_readiness_counts(monkeypatch
     assert summary["partial"] == 2
     assert summary["missing_credentials"] == []
     assert summary["configured_credentials"] == ["STOOQ_API_KEY", "SEC_USER_AGENT"]
+
+
+def test_market_wide_readiness_summary_adds_decision_buckets(monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC"],
+            "in_master_universe": [True, True, True],
+            "in_active_universe": [True, True, False],
+            "price_ready": [True, True, False],
+            "momentum_ready": [True, False, False],
+            "dcf_ready": [True, False, False],
+            "peer_ready": [False, False, False],
+            "overall_readiness_state": ["partial", "partial", "blocked"],
+        }
+    )
+    decisions = pd.DataFrame({"ticker": ["AAA", "BBB", "CCC"], "decision_bucket": ["Monitor", "Monitor", "Blocked by Data"]})
+
+    summary = summary_mod.market_wide_readiness_summary(readiness, None, decisions)
+
+    assert summary["price_ready"] == 2
+    assert summary["dcf_ready"] == 1
+    assert summary["blocked_by_data"] == 1
+    assert summary["decision_buckets"] == {"Monitor": 2, "Blocked by Data": 1}

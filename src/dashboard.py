@@ -35,7 +35,7 @@ from src.data_health_coverage_delta import (
     readiness_delta_board_frame as data_health_readiness_delta_board_frame,
 )
 from src.data_health_recent_progress import readiness_recent_progress_cards
-from src.data_health_summary import dashboard_readiness_summary
+from src.data_health_summary import dashboard_readiness_summary, market_wide_readiness_summary
 from src.data_health_proof_ctas import (
     data_health_dcf_input_proof_queue_dashboard_cards,
     data_health_lane_auto_context_cards,
@@ -10772,26 +10772,6 @@ MARKET_READINESS_FILTERS = [
 ]
 MARKET_ASSET_FILTERS = ["All assets", "Companies only", "ETFs / index proxies"]
 DEFAULT_MARKET_ROW_LIMIT = 50
-
-
-def market_wide_readiness_summary(
-    ticker_readiness_frame: pd.DataFrame | None,
-    coverage_frame: pd.DataFrame | None = None,
-    decisions_frame: pd.DataFrame | None = None,
-) -> dict[str, object]:
-    summary = dashboard_readiness_summary(
-        coverage_frame,
-        None,
-        None,
-        None,
-        ticker_readiness_frame,
-    )
-    decisions = {} if decisions_frame is None or decisions_frame.empty or "decision_bucket" not in decisions_frame.columns else {
-        str(bucket): int(count)
-        for bucket, count in decisions_frame["decision_bucket"].fillna("Not available").astype(str).value_counts().items()
-    }
-    summary["decision_buckets"] = decisions
-    return summary
 
 
 def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit: int = 6) -> list[dict[str, object]]:

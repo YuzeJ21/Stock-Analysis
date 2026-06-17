@@ -132,3 +132,27 @@ def dashboard_readiness_summary(
             "Analyst estimates import file folder: data/staged/analyst_estimates/ -> make import-analyst-estimates",
         ],
     }
+
+
+def market_wide_readiness_summary(
+    ticker_readiness_frame: pd.DataFrame | None,
+    coverage_frame: pd.DataFrame | None = None,
+    decisions_frame: pd.DataFrame | None = None,
+) -> dict[str, object]:
+    summary = dashboard_readiness_summary(
+        coverage_frame,
+        None,
+        None,
+        None,
+        ticker_readiness_frame,
+    )
+    decisions = (
+        {}
+        if decisions_frame is None or decisions_frame.empty or "decision_bucket" not in decisions_frame.columns
+        else {
+            str(bucket): int(count)
+            for bucket, count in decisions_frame["decision_bucket"].fillna("Not available").astype(str).value_counts().items()
+        }
+    )
+    summary["decision_buckets"] = decisions
+    return summary
