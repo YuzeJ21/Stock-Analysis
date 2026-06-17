@@ -138,6 +138,7 @@ Goal: make coverage growth proof-backed at the lane level before any ticker-leve
 - [x] Add Peer Source-Review Write-Back Guard V1 so reviewed peer rows are checked for placeholders, stale readiness, self-peers, and duplicate pairs before any copy/paste into the peer import file.
 - [x] Add Peer Source-Review Ledger Handoff V1 so the write-back guard prints a dry-run reviewed-batch proof-record scaffold and the still-missing review fields before any supported outcome can be recorded.
 - [x] Add Peer Proof-Loop Outcome UX in Data Health so source-review, write-back guard, validate/preview/rebuild, proof-record scaffold, and latest peer proof ledger outcome appear before raw peer tables.
+- [x] Add Peer Proof Completion Checklist V1 so the peer drawer shows freshness, missing source fields, write-back guard status, proof-record readiness, and latest ledger outcome before detailed tables.
 - Keep proof-ledger rows local and reviewable; do not claim a supported lane until source proof, validation, preview, rejected-row review, post-run readiness, and artifact hygiene are complete.
 
 ### Readiness-Gated Review Metrics V1

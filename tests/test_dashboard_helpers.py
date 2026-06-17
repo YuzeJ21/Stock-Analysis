@@ -18997,6 +18997,50 @@ def test_peer_proof_loop_outcome_summarizes_source_guard_and_ledger(tmp_path: Pa
     assert "sell now" not in rendered
 
 
+def test_peer_proof_completion_checklist_summarizes_missing_steps_before_tables(tmp_path: Path):
+    packet = dashboard.build_peer_mapping_source_review_packet(_peer_source_review_root(tmp_path), top_n=1)
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-PEERS",
+                "Review Date": "2026-06-17",
+                "Lane": "peer_mapping",
+                "Final Outcome": "still_blocked",
+                "Changed Readiness Counts": "none; source rows still need review",
+            }
+        ]
+    )
+
+    checklist = dashboard.data_health_peer_proof_completion_checklist_frame(packet, ledger)
+    cards = dashboard.data_health_peer_proof_completion_checklist_cards(packet, ledger)
+    rendered = " ".join(
+        checklist.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert checklist["Checklist Item"].tolist() == [
+        "1. Confirm freshness and packet scope",
+        "2. Fill peer source-review fields",
+        "3. Pass write-back guard",
+        "4. Validate, preview, and rebuild peer proof",
+        "5. Record reviewed peer proof outcome",
+        "6. Check latest peer ledger outcome",
+    ]
+    assert checklist.iloc[0]["Status"] == "current"
+    assert checklist.iloc[1]["Status"] == "needs_field_fills"
+    assert "proposed_peer_ticker" in checklist.iloc[1]["Need Before Proceeding"]
+    assert checklist.iloc[2]["Status"] == "needs_field_fills"
+    assert checklist.iloc[4]["Status"] == "blocked_by_guard"
+    assert checklist.iloc[5]["Status"] == "still_blocked"
+    assert cards[0]["title"] == "Finish peer proof: 4 step(s) need review"
+    assert cards[0]["command"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
+    assert "use this checklist before reading source-review" in rendered
+    assert "copy proof-record command only after source files" in rendered
+    assert "no inferred peers" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
 def test_peer_proof_loop_outcome_blocks_stale_readiness(tmp_path: Path):
     root = _peer_source_review_root(tmp_path)
     source = root / "data" / "peers.csv"
@@ -19021,15 +19065,21 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
 
     source_review_index = source.index('render_section_header("Peer Source-Review Intake"')
     source_review_cards_index = source.index("data_health_peer_source_review_cards(peer_source_review_packet)")
-    proof_loop_index = source.index('render_section_header("Peer Proof-Loop Outcome"')
-    proof_loop_cards_index = source.index("data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_frame)")
-    proof_loop_frame_index = source.index("data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_frame)")
+    completion_index = source.index('render_section_header("Finish This Peer Proof"', source_review_cards_index)
+    completion_cards_index = source.index("data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_frame)", completion_index)
+    completion_frame_index = source.index("data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_frame)", completion_cards_index)
+    proof_loop_index = source.index('render_section_header("Peer Proof-Loop Outcome"', completion_frame_index)
+    proof_loop_cards_index = source.index("data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_frame)", proof_loop_index)
+    proof_loop_frame_index = source.index("data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_frame)", proof_loop_cards_index)
     source_review_frame_index = source.index("data_health_peer_source_review_frame(peer_source_review_packet)")
     matrix_index = source.index('render_section_header("Peer Readiness Sub-State Matrix"')
 
     assert (
         source_review_index
         < source_review_cards_index
+        < completion_index
+        < completion_cards_index
+        < completion_frame_index
         < proof_loop_index
         < proof_loop_cards_index
         < proof_loop_frame_index
@@ -19037,6 +19087,9 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
         < matrix_index
     )
     assert "peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)" in source
+    assert "Finish This Peer Proof" in source
+    assert "data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_frame)" in source
+    assert "data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_frame)" in source
 
 
 def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_agent():

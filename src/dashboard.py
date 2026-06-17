@@ -13115,6 +13115,154 @@ def data_health_peer_proof_loop_outcome_cards(
     ]
 
 
+def data_health_peer_proof_completion_checklist_frame(
+    packet: PeerMappingSourceReviewPacket | None,
+    batch_proof_frame: pd.DataFrame | None,
+) -> pd.DataFrame:
+    columns = ["Checklist Item", "Status", "Need Before Proceeding", "Next Safest Action", "Stop Rule"]
+    if packet is None:
+        return pd.DataFrame(
+            [
+                {
+                    "Checklist Item": "1. Build peer source-review packet",
+                    "Status": "missing_packet",
+                    "Need Before Proceeding": "Rebuild readiness and generate the peer source-review packet before source proof.",
+                    "Next Safest Action": "make readiness && make peer-mapping-source-review TOP_N=10",
+                    "Stop Rule": "Stop if peer readiness artifacts are missing; do not infer peer rows.",
+                }
+            ],
+            columns=columns,
+        )
+
+    proof_loop = data_health_peer_proof_loop_outcome_frame(packet, batch_proof_frame)
+    source_frame = data_health_peer_source_review_frame(packet)
+    freshness_status = format_missing(packet.freshness.status, "unknown")
+    freshness_need = packet.freshness.message if freshness_status not in {"current", "fresh"} else "freshness current"
+    source_status = "no_source_rows"
+    source_need = "No peer source-review rows are loaded."
+    if not source_frame.empty:
+        statuses = source_frame["Completion Status"].fillna("").astype(str).value_counts()
+        source_status = "ready_for_validate_preview" if set(statuses.index) == {"ready for validate preview"} else "needs_field_fills"
+        missing_fields = sorted(
+            {
+                field.strip()
+                for value in source_frame["Missing Fields"].fillna("").astype(str).tolist()
+                for field in value.split(",")
+                if field.strip() and field.strip().lower() != "none"
+            }
+        )
+        source_need = "reviewed peer source fields complete" if not missing_fields else ", ".join(missing_fields)
+
+    def _proof_row(step: str, field: str, fallback: str) -> str:
+        if proof_loop.empty:
+            return fallback
+        rows = proof_loop.loc[proof_loop["Proof Loop Step"].eq(step)]
+        if rows.empty:
+            return fallback
+        return format_missing(rows.iloc[0].get(field), fallback)
+
+    guard_status = _proof_row("Write-back guard", "Status", "not_loaded")
+    guard_need = _proof_row("Write-back guard", "Detail", "Open peer source review before guard review.")
+    guard_command = _proof_row("Write-back guard", "Next Safe Action", "make peer-mapping-writeback-guard ...")
+    proof_status = _proof_row("Proof-record scaffold", "Status", "not_loaded")
+    proof_need = _proof_row("Proof-record scaffold", "Detail", "Open the write-back guard before proof-record review.")
+    proof_command = _proof_row("Proof-record scaffold", "Next Safe Action", "DRY_RUN=1 make reviewed-batch-proof-record ...")
+    ledger_status = _proof_row("Latest peer ledger outcome", "Status", "not_recorded")
+    ledger_need = _proof_row("Latest peer ledger outcome", "Detail", "No peer reviewed batch proof row recorded yet.")
+    packet_command = f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}"
+    tickers = ", ".join(packet.tickers[:10]) if packet.tickers else "<reviewed_tickers>"
+    return pd.DataFrame(
+        [
+            {
+                "Checklist Item": "1. Confirm freshness and packet scope",
+                "Status": freshness_status,
+                "Need Before Proceeding": f"{freshness_need}; tickers: {tickers}",
+                "Next Safest Action": packet.freshness.refresh_command if freshness_status in {"missing", "stale"} else packet_command,
+                "Stop Rule": "Stop if readiness is stale or missing; do not use stale peer rows as proof.",
+            },
+            {
+                "Checklist Item": "2. Fill peer source-review fields",
+                "Status": source_status,
+                "Need Before Proceeding": source_need,
+                "Next Safest Action": packet_command,
+                "Stop Rule": "Stop if the source does not name the peer relationship or comparable business context.",
+            },
+            {
+                "Checklist Item": "3. Pass write-back guard",
+                "Status": guard_status,
+                "Need Before Proceeding": guard_need,
+                "Next Safest Action": guard_command,
+                "Stop Rule": "Stop if placeholders, stale readiness, self-peers, or duplicate peer pairs are present.",
+            },
+            {
+                "Checklist Item": "4. Validate, preview, and rebuild peer proof",
+                "Status": "copy_only_gate",
+                "Need Before Proceeding": "Validate and preview reviewed peer rows, apply only after review, rebuild readiness, then rerun the peer queue.",
+                "Next Safest Action": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+                "Stop Rule": "Stop if validate, preview, apply decision, or rebuilt readiness proof is missing.",
+            },
+            {
+                "Checklist Item": "5. Record reviewed peer proof outcome",
+                "Status": proof_status,
+                "Need Before Proceeding": proof_need,
+                "Next Safest Action": proof_command,
+                "Stop Rule": "Copy proof-record command only after source files, changed counts, changed tickers, and generated artifacts are reviewed.",
+            },
+            {
+                "Checklist Item": "6. Check latest peer ledger outcome",
+                "Status": ledger_status,
+                "Need Before Proceeding": ledger_need,
+                "Next Safest Action": "make reviewed-batch-proof",
+                "Stop Rule": "A missing or still-blocked ledger outcome is honest evidence; do not call the peer lane supported without proof.",
+            },
+        ],
+        columns=columns,
+    )
+
+
+def data_health_peer_proof_completion_checklist_cards(
+    packet: PeerMappingSourceReviewPacket | None,
+    batch_proof_frame: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    checklist = data_health_peer_proof_completion_checklist_frame(packet, batch_proof_frame)
+    if checklist.empty:
+        return [
+            {
+                "kicker": "PEER PROOF CHECKLIST",
+                "title": "No peer proof checklist loaded",
+                "body": "Build the peer source-review packet before reviewing import or proof-record gates.",
+                "badges": ["blocked visible", "no inferred peers"],
+                "command": "make peer-mapping-source-review TOP_N=10",
+            }
+        ]
+    blocking = checklist.loc[
+        ~checklist["Status"].astype(str).str.lower().isin(
+            {"current", "fresh", "ready_for_validate_preview", "copy_only_gate", "ready_for_review_fields", "supported"}
+        )
+    ]
+    if blocking.empty:
+        title = "Peer proof checklist ready for final review"
+        first = checklist.iloc[-1]
+        badges = ["ready after review", "source-backed only"]
+    else:
+        title = f"Finish peer proof: {len(blocking)} step(s) need review"
+        first = blocking.iloc[0]
+        badges = ["finish proof", "no inferred peers"]
+    return [
+        {
+            "kicker": "PEER PROOF CHECKLIST",
+            "title": title,
+            "body": (
+                f"{card_sentence('Next item', first.get('Checklist Item'))} "
+                f"{card_sentence('Needed', compact_card_fragment(first.get('Need Before Proceeding'), max_chars=190))} "
+                "Use this checklist before reading source-review, write-back, or peer proof tables."
+            ),
+            "badges": badges,
+            "command": format_missing(first.get("Next Safest Action"), "make peer-mapping-source-review TOP_N=10"),
+        }
+    ]
+
+
 def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | None = None) -> pd.DataFrame:
     ticker = str(next_ticker or "").strip().upper()
     has_ticker = bool(ticker and ticker not in {"NOT AVAILABLE", "NONE", "NAN"})
@@ -25976,6 +26124,13 @@ def render_data_health(
             )
             render_section_header("Peer Source-Review Intake", "Fill source proof before editing peer import rows; peer valuation stays locked until rebuilt readiness proves inputs.")
             render_signal_cards(data_health_peer_source_review_cards(peer_source_review_packet))
+            render_section_header("Finish This Peer Proof", "One compact checklist before source-review rows, write-back guard, or peer proof tables.")
+            render_signal_cards(data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_frame))
+            st.table(
+                clean_display_frame(
+                    data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_frame)
+                )
+            )
             render_section_header("Peer Proof-Loop Outcome", "Source-review, write-back guard, validation gates, and latest proof ledger outcome before raw peer rows.")
             render_signal_cards(data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_frame))
             st.dataframe(
