@@ -86,3 +86,71 @@ def test_peer_analysis_boundary_cards_handle_missing_report_without_fake_peer_co
     assert "peer readiness not loaded" in rendered
     assert "missing peer output means peer analysis stays locked" in rendered
     assert "make readiness" in rendered
+
+
+def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+            },
+            {
+                "ticker": "META",
+                "peer_ready": False,
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+            },
+            {
+                "ticker": "NVDA",
+                "peer_ready": True,
+                "peer_blocker_type": "",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": True,
+                "peer_dcf_comparison_ready": True,
+            },
+            {
+                "ticker": "COHR",
+                "peer_ready": False,
+                "peer_blocker_type": "peer_price_missing",
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+            },
+        ]
+    )
+    worklist = pd.DataFrame([{"ticker": "A"}, {"ticker": "META"}])
+
+    frame = peer_analysis.peer_function_quality_frame(peer_readiness, worklist)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == [
+        "Peer Area",
+        "Current Coverage",
+        "Supported Today",
+        "Not Supported Yet",
+        "Methodology / Provenance",
+        "Next Step",
+    ]
+    assert "source-backed mappings" in rendered
+    assert "1 ticker(s) missing mappings; 2 unlock row(s) queued" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "peer-selection rules stay in this repository" in rendered
+    assert "peer trend comparison" in rendered
+    assert "2 ticker(s) trend-ready" in rendered
+    assert "peer-relative valuation or quality conclusions" in rendered
+    assert "peer valuation comparison" in rendered
+    assert "1 ticker(s) valuation-ready; 3 still blocked" in rendered
+    assert "withheld, not inferred" in rendered
+    assert "peer dcf comparison" in rendered
+    assert "1 ticker(s) dcf-peer-ready" in rendered
+    assert "peer data follow-through" in rendered
+    assert "1 price-gap ticker(s); 1 fundamentals-gap ticker(s)" in rendered
+    assert "sector or industry fallback" in rendered
+    assert "dependencies" in rendered

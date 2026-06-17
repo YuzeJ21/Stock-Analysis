@@ -140,3 +140,87 @@ def peer_analysis_boundary_cards(
             "command": "make templates",
         },
     ]
+
+
+def peer_function_quality_frame(
+    peer_readiness_frame: pd.DataFrame | None,
+    peer_unlock_worklist_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    if peer_readiness_frame is None or peer_readiness_frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Peer Area": "Peer workflow",
+                    "Current Coverage": "Peer readiness not ready yet",
+                    "Supported Today": "Nothing yet; run readiness before interpreting peer context.",
+                    "Not Supported Yet": "Peer trend or valuation comparison.",
+                    "Methodology / Provenance": "Project peer readiness checks after make readiness.",
+                    "Next Step": "make readiness",
+                }
+            ]
+        )
+
+    frame = peer_readiness_frame.copy()
+    peer_ready = bool_series(frame, "peer_ready")
+    trend_ready = bool_series(frame, "peer_trend_comparison_ready")
+    valuation_ready = bool_series(frame, "peer_valuation_comparison_ready")
+    dcf_comparison_ready = bool_series(frame, "peer_dcf_comparison_ready")
+    blocker = frame.get("peer_blocker_type", pd.Series("", index=frame.index)).fillna("").astype(str)
+    missing_mapping = int(blocker.eq("missing_peer_mapping").sum())
+    peer_price_missing = int(blocker.eq("peer_price_missing").sum())
+    peer_fundamentals_missing = int(blocker.eq("peer_fundamentals_missing").sum())
+    valuation_blocked = int((~valuation_ready & ~peer_ready).sum())
+    queued = 0 if peer_unlock_worklist_frame is None else int(len(peer_unlock_worklist_frame))
+
+    return pd.DataFrame(
+        [
+            {
+                "Peer Area": "Source-backed mappings",
+                "Current Coverage": f"{missing_mapping} ticker(s) missing mappings; {queued} unlock row(s) queued",
+                "Supported Today": "Prioritizing which manual peer rows to add to data/imports/peers.csv.",
+                "Not Supported Yet": "Trusted peer comparison until relationships are source-backed or clearly marked as fallback context.",
+                "Methodology / Provenance": "Project peer readiness and peer unlock worklist generation; peer-selection rules stay in this repository.",
+                "Next Step": "make peer-mapping-queue TOP_N=25",
+            },
+            {
+                "Peer Area": "Peer trend comparison",
+                "Current Coverage": f"{int(trend_ready.sum())} ticker(s) trend-ready",
+                "Supported Today": "Relative price or momentum context when mapped peers have enough local price rows.",
+                "Not Supported Yet": "Peer-relative valuation or quality conclusions.",
+                "Methodology / Provenance": "Project price/momentum readiness checks for mapped peers.",
+                "Next Step": "make readiness",
+            },
+            {
+                "Peer Area": "Peer valuation comparison",
+                "Current Coverage": f"{int(valuation_ready.sum())} ticker(s) valuation-ready; {valuation_blocked} still blocked",
+                "Supported Today": "Peer-relative valuation only after peer mappings and peer valuation inputs are ready.",
+                "Not Supported Yet": "Valuation conclusions when peer fundamentals, peer metrics, or mapped peer inputs are missing.",
+                "Methodology / Provenance": "Project peer valuation readiness gates; missing peer inputs are withheld, not inferred.",
+                "Next Step": "make imports-validate",
+            },
+            {
+                "Peer Area": "Peer DCF comparison",
+                "Current Coverage": f"{int(dcf_comparison_ready.sum())} ticker(s) DCF-peer-ready",
+                "Supported Today": "DCF peer context when both subject and mapped peer valuation inputs pass readiness.",
+                "Not Supported Yet": "Using DCF-ready subject companies as if peer-relative valuation is ready.",
+                "Methodology / Provenance": "Project DCF and peer readiness intersection checks.",
+                "Next Step": "make dcf-readiness",
+            },
+            {
+                "Peer Area": "Peer data follow-through",
+                "Current Coverage": f"{peer_price_missing} price-gap ticker(s); {peer_fundamentals_missing} fundamentals-gap ticker(s)",
+                "Supported Today": "Finding whether peer blockers are price rows, fundamentals rows, or peer metrics.",
+                "Not Supported Yet": "Treating sector or industry fallback as trusted manual peer valuation.",
+                "Methodology / Provenance": "Project blocker classification with explicit fallback labeling.",
+                "Next Step": "make price-worklist TOP_N=25",
+            },
+            {
+                "Peer Area": "Dependencies",
+                "Current Coverage": "Support layer only.",
+                "Supported Today": "Data handling, table display, tests, and optional development review.",
+                "Not Supported Yet": "Replacing source-backed peer mappings or project peer-readiness rules.",
+                "Methodology / Provenance": "Standard libraries and optional provider adapters support data handling; peer rules run from this repository.",
+                "Next Step": "make project-status",
+            },
+        ]
+    )
