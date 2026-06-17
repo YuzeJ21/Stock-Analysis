@@ -27,6 +27,7 @@ from src.data_health_console import (
 from src import data_health_proof_console as proof_console
 from src import data_health_batch_console as batch_console
 from src import data_health_coverage_console as coverage_console
+from src import data_health_trusted_pilot_console as trusted_pilot_console
 from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.decision_proof_queue import (
@@ -74,22 +75,6 @@ from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_stat
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
-from src.trusted_data_pilot import (
-    build_trusted_data_pilot_candidates,
-    pilot_evidence_expectation,
-    pilot_evidence_row_template,
-    pilot_lane_label,
-    pilot_lane_runbook,
-    pilot_lane_summary_rows,
-    pilot_local_file_status,
-    pilot_operator_decision,
-    pilot_quick_path_lines,
-    pilot_rank_reason,
-    pilot_review_path,
-    pilot_selection_brief,
-    pilot_skip_condition,
-    pilot_trusted_row_path,
-)
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
 
@@ -7725,49 +7710,7 @@ def data_health_action_path_cards(
 
 
 def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
-    price_ready = int(readiness_summary.get("price_ready") or 0)
-    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
-    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
-    peer_ready = int(readiness_summary.get("peer_ready") or 0)
-    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
-    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
-    depth_gap = max(price_ready - min(fundamentals_ready, dcf_ready), 0)
-    peer_gap = max(dcf_ready - peer_ready, 0)
-
-    return [
-        {
-            "kicker": "PILOT STEP 1",
-            "title": "Rank 5-10 companies first",
-            "body": (
-                f"{depth_gap:,} price-ready company row(s) still need trusted fundamentals or DCF inputs, and "
-                f"{peer_gap:,} DCF-ready row(s) still need source-backed peer context. Start with a small ranked pilot instead of the full universe; "
-                "the candidate output explains each rank reason from scope, demo relevance, lane, priority, and missing input."
-            ),
-            "badges": ["rank reason", "read-only"],
-            "command": "make trusted-data-pilot-candidates TOP_N=10",
-        },
-        {
-            "kicker": "PILOT STEP 2",
-            "title": "Inspect one proof packet",
-            "body": (
-                "Use the first shortlisted ticker packet to see the current report, missing input, review lane, trusted input target, and rebuild proof. "
-                "It explains the baseline, source proof, validation, rejected-row check, rebuild, and stop rule before any conclusion changes."
-            ),
-            "badges": ["one company", "no fake rows"],
-            "command": "make trusted-data-pilot-packet TICKER=<ticker>",
-        },
-        {
-            "kicker": "PILOT STEP 3",
-            "title": "Run the selected proof loop",
-            "body": (
-                f"Optional context remains locked at {earnings_ready:,} earnings-ready and {estimates_ready:,} estimate-ready row(s) until trusted CSV rows exist. "
-                "Use the pilot loop only for selected company names with source proof; only the rebuilt readiness and stock report can prove the lane changed. "
-                "Read the outcome as Supported, Still blocked, or Skip; a still-blocked or skipped ticker is useful proof, not a failure."
-            ),
-            "badges": ["supported / blocked / skip", "trusted CSVs"],
-            "command": "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10",
-        },
-    ]
+    return trusted_pilot_console.trusted_pilot_cards(readiness_summary)
 
 
 def data_health_freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
@@ -7816,36 +7759,13 @@ def data_health_trusted_pilot_preview_frame(
     *,
     limit: int = 5,
 ) -> pd.DataFrame:
-    fundamentals_rows = [] if fundamentals_peer_worklist_frame is None else fundamentals_peer_worklist_frame.to_dict("records")
-    peer_rows = [] if peer_unlock_worklist_frame is None else peer_unlock_worklist_frame.to_dict("records")
-    readiness_rows = [] if ticker_readiness_frame is None else ticker_readiness_frame.to_dict("records")
-    candidates = build_trusted_data_pilot_candidates(
-        fundamentals_rows,
-        peer_rows,
-        readiness_rows,
-        top_n=max(limit, 0),
+    return trusted_pilot_console.trusted_pilot_preview_frame(
+        fundamentals_peer_worklist_frame,
+        peer_unlock_worklist_frame,
+        ticker_readiness_frame,
+        root=BASE_DIR,
+        limit=limit,
     )
-    rows = [
-        {
-            "Ticker": candidate.ticker,
-            "Pilot Lane": pilot_lane_label(candidate.lane),
-            "Scope": "Active universe" if candidate.active_universe else "Master universe",
-            "Rank Reason": plain_dashboard_input_copy(pilot_rank_reason(candidate)),
-            "Missing Input": plain_dashboard_input_copy(candidate.missing_input),
-            "Review Decision": pilot_operator_decision(candidate),
-            "Review Path": pilot_review_path(candidate.validation_path),
-            "Trusted Input Target": pilot_trusted_row_path(candidate),
-            "Local File Status": pilot_local_file_status(candidate, root=BASE_DIR),
-            "Skip If": pilot_skip_condition(candidate),
-            "Packet Command": f"make trusted-data-pilot-packet TICKER={candidate.ticker}",
-            "Next Command": candidate.next_command,
-            "Proof After Data Changes": candidate.proof_after_unlock,
-            "Evidence Expectation": pilot_evidence_expectation(candidate),
-            "Evidence Row": pilot_evidence_row_template(candidate),
-        }
-        for candidate in candidates[: max(limit, 0)]
-    ]
-    return pd.DataFrame(rows)
 
 
 def data_health_trusted_pilot_lane_board_frame(
@@ -7855,86 +7775,16 @@ def data_health_trusted_pilot_lane_board_frame(
     *,
     limit: int = 10,
 ) -> pd.DataFrame:
-    """Return the lane-group board shown in Data Health without writing files."""
-
-    fundamentals_rows = [] if fundamentals_peer_worklist_frame is None else fundamentals_peer_worklist_frame.to_dict("records")
-    peer_rows = [] if peer_unlock_worklist_frame is None else peer_unlock_worklist_frame.to_dict("records")
-    readiness_rows = [] if ticker_readiness_frame is None else ticker_readiness_frame.to_dict("records")
-    candidates = build_trusted_data_pilot_candidates(
-        fundamentals_rows,
-        peer_rows,
-        readiness_rows,
-        top_n=max(limit, 0),
+    return trusted_pilot_console.trusted_pilot_lane_board_frame(
+        fundamentals_peer_worklist_frame,
+        peer_unlock_worklist_frame,
+        ticker_readiness_frame,
+        limit=limit,
     )
-    rows = []
-    for row in pilot_lane_summary_rows(candidates):
-        lane = str(row.get("lane", ""))
-        runbook = pilot_lane_runbook(lane)
-        rows.append(
-            {
-                "Lane": row["lane_label"],
-                "Candidates": row["candidate_count"],
-                "Tickers": row["tickers"],
-                "Current Blocker Theme": plain_dashboard_input_copy(row["blocker_theme"]),
-                "Status": row["status"],
-                "Next Safe Command": row["next_safe_command"],
-                "What Proves It": row["what_proves_lane"],
-                "Rows / Files Needed": row["needed_rows_files"],
-                "Rejected-Row Reports": row["rejected_row_reports"],
-                "Readiness Proof": row["readiness_proof_command"],
-                "Still Blocked When": row["remains_blocked_when"],
-                "Locked / Manual Note": row["locked_manual_note"],
-                "Ordered Steps": " ".join(f"{index}. {step}" for index, step in enumerate(runbook.ordered_steps, start=1)),
-            }
-        )
-    return pd.DataFrame(rows)
 
 
 def data_health_trusted_pilot_lane_cards(lane_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
-    if lane_frame is None or lane_frame.empty:
-        return [
-            {
-                "kicker": "LANE BOARD",
-                "title": "Lane groups need current readiness rows",
-                "body": "Run the read-only pilot candidate command after rebuilding readiness outputs; do not force a lane when source proof is unavailable.",
-                "badges": ["read-only", "no fake rows"],
-                "command": "make trusted-data-pilot-candidates TOP_N=10",
-            }
-        ]
-    cards: list[dict[str, object]] = []
-    priority = {"review_only": 0, "safe_to_batch_dry_run": 1, "locked": 2}
-    sorted_frame = lane_frame.copy()
-    sorted_frame["_priority"] = sorted_frame["Status"].map(lambda value: priority.get(str(value), 9))
-    sorted_frame["_count"] = pd.to_numeric(sorted_frame["Candidates"], errors="coerce").fillna(0).astype(int)
-    sorted_frame = sorted_frame.sort_values(["_priority", "_count", "Lane"], ascending=[True, False, True])
-    for _, row in sorted_frame.head(max(limit, 0)).iterrows():
-        lane = format_missing(row.get("Lane"), "Trusted-data lane")
-        status = format_missing(row.get("Status"), "review_only")
-        count = format_missing(row.get("Candidates"), "0")
-        tickers = format_missing(row.get("Tickers"), "-")
-        blocker = compact_card_fragment(row.get("Current Blocker Theme"), max_chars=180)
-        proof = compact_card_fragment(row.get("What Proves It"), max_chars=190)
-        command = format_missing(row.get("Next Safe Command"), "make trusted-data-pilot-candidates TOP_N=10")
-        manual = compact_card_fragment(row.get("Locked / Manual Note"), max_chars=150)
-        body = (
-            f"{count} candidate(s) in this lane; tickers: {tickers}. "
-            f"{card_sentence('Blocker theme', blocker)} "
-            f"{card_sentence('Proof', proof)} "
-            f"Next safe command: {command}. "
-            "Rows are not applied from this board; validate, preview, rejected-row checks, and rebuilt readiness must prove any change."
-        )
-        if manual:
-            body = f"{body} {card_sentence('Locked/manual lane', manual)}"
-        cards.append(
-            {
-                "kicker": "LANE GROUP",
-                "title": lane,
-                "body": body,
-                "badges": [status, "copy-only"],
-                "command": command,
-            }
-        )
-    return cards
+    return trusted_pilot_console.trusted_pilot_lane_cards(lane_frame, limit=limit)
 
 
 @lru_cache(maxsize=4)
@@ -8964,63 +8814,16 @@ def data_health_trusted_pilot_selection_note(
     *,
     limit: int = 10,
 ) -> str:
-    """Return a capped dashboard note that mirrors the trusted-data CLI selection brief."""
-
-    fundamentals_rows = [] if fundamentals_peer_worklist_frame is None else fundamentals_peer_worklist_frame.to_dict("records")
-    peer_rows = [] if peer_unlock_worklist_frame is None else peer_unlock_worklist_frame.to_dict("records")
-    readiness_rows = [] if ticker_readiness_frame is None else ticker_readiness_frame.to_dict("records")
-    candidates = build_trusted_data_pilot_candidates(
-        fundamentals_rows,
-        peer_rows,
-        readiness_rows,
-        top_n=max(limit, 0),
+    return trusted_pilot_console.trusted_pilot_selection_note(
+        fundamentals_peer_worklist_frame,
+        peer_unlock_worklist_frame,
+        ticker_readiness_frame,
+        limit=limit,
     )
-    brief = pilot_selection_brief(candidates)
-    quick_path = pilot_quick_path_lines(candidates)
-    return " ".join([*brief, "Quick path:", *quick_path])
 
 
 def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
-    if preview_frame is None or preview_frame.empty:
-        return []
-    cards: list[dict[str, object]] = []
-    for _, row in preview_frame.head(max(limit, 0)).iterrows():
-        ticker = format_missing(row.get("Ticker"), "Ticker")
-        lane = format_missing(row.get("Pilot Lane"), "Trusted-data proof path")
-        scope = format_missing(row.get("Scope"), "Current queue")
-        rank_reason = compact_card_fragment(row.get("Rank Reason"), max_chars=170)
-        missing_input = compact_card_fragment(plain_dashboard_input_copy(row.get("Missing Input")), max_chars=190)
-        review_decision = compact_card_fragment(row.get("Review Decision") or row.get("Operator Decision"), max_chars=170)
-        trusted_target = compact_card_fragment(row.get("Trusted Input Target") or row.get("Trusted Row Target"), max_chars=170)
-        skip_if = compact_card_fragment(row.get("Skip If"), max_chars=150)
-        review_path = compact_card_fragment(row.get("Review Path"), max_chars=165)
-        proof = compact_card_fragment(
-            row.get("Proof After Data Changes") or row.get("Proof After Unlock"),
-            "make readiness && make stock-report-md TICKER=<ticker>",
-            max_chars=175,
-        )
-        lane_command = format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")
-        command = format_missing(row.get("Packet Command"), f"make trusted-data-pilot-packet TICKER={ticker}")
-        cards.append(
-            {
-                "kicker": "PILOT CANDIDATE",
-                "title": f"{ticker}: {lane}",
-                "body": (
-                    f"{card_sentence('Why this is next', rank_reason)} "
-                    f"{card_sentence('Missing input', missing_input)} "
-                    f"Start with: {command}. "
-                    f"Review lane: {review_path}; then run {lane_command}. "
-                    f"{card_sentence('Trusted input target', trusted_target)} "
-                    f"{card_sentence('Decision', review_decision)} "
-                    f"{card_sentence('Stop rule', skip_if)} "
-                    f"{card_sentence('Proof after data changes', proof)} "
-                    "Outcome: Supported only after rebuilt readiness and the regenerated report prove it; Still blocked or Skip should stay visible when source proof is missing."
-                ),
-                "badges": [scope, "read-only"],
-                "command": command,
-            }
-        )
-    return cards
+    return trusted_pilot_console.trusted_pilot_preview_cards(preview_frame, limit=limit)
 
 
 def data_health_advanced_unlock_map_cards(
