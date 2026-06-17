@@ -43,6 +43,8 @@ from src.decision_proof_queue import (
     decision_proof_queue_artifact_status,
 )
 from src.coverage_expansion_loop import CoverageExpansionLoop, build_coverage_expansion_loop
+from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_handoff, build_dcf_input_proof_queue_from_files
+from src.dcf_input_proof_queue import build_dcf_input_source_guard, build_dcf_input_source_review_rows
 from src.monthly_picks import build_monthly_research_picks
 from src.monthly_picks import MonthlyPickConfig
 from src.providers.local_data_catalog import LocalDataCatalog
@@ -7550,6 +7552,11 @@ def cached_fundamentals_peer_metrics_queue(root_text: str, top_n: int):
 
 
 @lru_cache(maxsize=8)
+def cached_dcf_input_proof_queue_rows(root_text: str, top_n: int):
+    return tuple(build_dcf_input_proof_queue_from_files(Path(root_text), top_n=top_n))
+
+
+@lru_cache(maxsize=8)
 def cached_metric_readiness_queue_rows(root_text: str, top_n: int):
     root = Path(root_text)
     provider = build_provider("local", base_dir=root)
@@ -7698,6 +7705,457 @@ def data_health_fundamentals_peer_metrics_queue_cards(frame: pd.DataFrame | None
             }
         )
     return cards
+
+
+def data_health_dcf_input_proof_queue_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
+    """Return the compact DCF input proof queue for the Data Health fundamentals lane."""
+
+    rows = cached_dcf_input_proof_queue_rows(str(root or BASE_DIR), top_n)
+    return pd.DataFrame(
+        [
+            {
+                "Priority": row.priority,
+                "Ticker": row.ticker,
+                "Scope": row.scope,
+                "Missing Input Family": row.missing_input_family,
+                "Missing DCF Fields": row.missing_dcf_fields,
+                "Ready DCF Inputs": row.ready_dcf_inputs,
+                "DCF Input Status": row.dcf_input_status,
+                "Source Mode": row.source_mode,
+                "Next Proof Command": row.next_safe_command,
+                "Proof Packet Command": row.proof_packet_command,
+                "Validation Sequence": row.validation_sequence,
+                "Proof After Update": row.proof_after_update,
+                "Stop Rule": row.stop_rule,
+                "Source Note": row.source_note,
+            }
+            for row in rows
+        ]
+    )
+
+
+def data_health_dcf_input_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 2) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "DCF INPUT PROOF",
+                "title": "Run the DCF input queue",
+                "body": (
+                    "No DCF input proof rows are loaded in this view. Run the queue after readiness artifacts are current "
+                    "before treating DCF blockers as resolved."
+                ),
+                "badges": ["read-only", "no inference"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    work = frame.copy()
+    family_summary = "none"
+    if "Missing Input Family" in work.columns:
+        counts = work["Missing Input Family"].fillna("").astype(str).str.strip()
+        counts = counts.loc[counts.ne("")]
+        if not counts.empty:
+            family_summary = ", ".join(f"{family}: {count}" for family, count in counts.value_counts().head(4).items())
+    top = work.iloc[0]
+    top_ticker = format_missing(top.get("Ticker"), "TICKER")
+    top_family = format_missing(top.get("Missing Input Family"), "DCF input")
+    top_stop = compact_card_fragment(top.get("Stop Rule"), max_chars=180)
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "DCF INPUT PROOF",
+            "title": f"{len(work):,} queued row(s)",
+            "body": (
+                f"Shown input families: {family_summary}. "
+                f"Start with {top_ticker}: {top_family}. "
+                "This is source-proof work before DCF assumptions or valuation review can change."
+            ),
+            "badges": ["readiness gate", "trusted rows only"],
+            "command": "make dcf-input-proof-queue TOP_N=10",
+        }
+    ]
+    for _, row in work.head(max(limit, 0)).iterrows():
+        ticker = format_missing(row.get("Ticker"), "TICKER")
+        family = format_missing(row.get("Missing Input Family"), "DCF input")
+        missing = compact_card_fragment(row.get("Missing DCF Fields"), max_chars=90)
+        source_mode = compact_card_fragment(row.get("Source Mode"), max_chars=90)
+        stop_rule = compact_card_fragment(row.get("Stop Rule"), max_chars=180)
+        cards.append(
+            {
+                "kicker": "NEXT PROOF STEP",
+                "title": f"{ticker}: {family}",
+                "body": (
+                    f"{card_sentence('Missing fields', missing)} "
+                    f"{card_sentence('Source mode', source_mode)} "
+                    f"{card_sentence('Stop rule', stop_rule)}"
+                ),
+                "badges": [format_missing(row.get("Scope"), "scope"), "copy-only"],
+                "command": format_missing(row.get("Next Proof Command"), "make dcf-input-proof-queue TOP_N=10"),
+            }
+        )
+    cards.append(
+        {
+            "kicker": "PROOF PACKET",
+            "title": "Preview before local rows change",
+            "body": (
+                f"{card_sentence('Packet command', top.get('Proof Packet Command'))} "
+                f"{card_sentence('Validation gate', top.get('Validation Sequence'))} "
+                f"{card_sentence('After update proof', top.get('Proof After Update'))} "
+                f"{card_sentence('Boundary', top_stop)}"
+            ),
+            "badges": ["validate", "preview before apply"],
+            "command": format_missing(top.get("Proof Packet Command"), "DRY_RUN=1 make fundamentals-batch-proof TOP_N=10"),
+        }
+    )
+    return cards
+
+
+def data_health_dcf_input_family_options(frame: pd.DataFrame | None) -> list[str]:
+    if frame is None or frame.empty or "Missing Input Family" not in frame.columns:
+        return ["All families"]
+    families = frame["Missing Input Family"].fillna("").astype(str).str.strip()
+    counts = families.loc[families.ne("")].value_counts()
+    if counts.empty:
+        return ["All families"]
+    return ["All families"] + [f"{family} ({count})" for family, count in counts.items()]
+
+
+def data_health_dcf_input_family_key(selection: object) -> str:
+    text = format_missing(selection, "All families")
+    if text == "All families":
+        return ""
+    return text.split(" (", 1)[0].strip()
+
+
+def data_health_filter_dcf_input_queue_by_family(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
+    if frame is None or frame.empty:
+        return pd.DataFrame() if frame is None else frame.copy()
+    family = data_health_dcf_input_family_key(selection)
+    if not family or "Missing Input Family" not in frame.columns:
+        return frame.copy()
+    mask = frame["Missing Input Family"].fillna("").astype(str).str.strip().eq(family)
+    return frame.loc[mask].copy()
+
+
+def data_health_dcf_input_rows_from_frame(frame: pd.DataFrame | None) -> list[DcfInputProofRow]:
+    if frame is None or frame.empty:
+        return []
+    rows = []
+    for _, item in frame.iterrows():
+        rows.append(
+            DcfInputProofRow(
+                priority=int(item.get("Priority", len(rows) + 1) or len(rows) + 1),
+                ticker=format_missing(item.get("Ticker"), ""),
+                scope=format_missing(item.get("Scope"), ""),
+                missing_input_family=format_missing(item.get("Missing Input Family"), ""),
+                missing_dcf_fields=format_missing(item.get("Missing DCF Fields"), ""),
+                ready_dcf_inputs=format_missing(item.get("Ready DCF Inputs"), ""),
+                dcf_input_status=format_missing(item.get("DCF Input Status"), ""),
+                source_mode=format_missing(item.get("Source Mode"), ""),
+                next_safe_command=format_missing(item.get("Next Proof Command"), ""),
+                proof_packet_command=format_missing(item.get("Proof Packet Command"), ""),
+                validation_sequence=format_missing(item.get("Validation Sequence"), ""),
+                proof_after_update=format_missing(item.get("Proof After Update"), ""),
+                stop_rule=format_missing(item.get("Stop Rule"), ""),
+                source_note=format_missing(item.get("Source Note"), ""),
+            )
+        )
+    return rows
+
+
+def data_health_dcf_input_family_filter_cards(
+    full_frame: pd.DataFrame | None,
+    filtered_frame: pd.DataFrame | None,
+    selection: object,
+) -> list[dict[str, object]]:
+    if full_frame is None or full_frame.empty:
+        return [
+            {
+                "kicker": "DCF FILTER",
+                "title": "No proof-family rows loaded",
+                "body": "Run the DCF input proof queue before filtering by missing input family.",
+                "badges": ["read-only", "blocked visible"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    family = data_health_dcf_input_family_key(selection) or "all families"
+    filtered_count = 0 if filtered_frame is None else len(filtered_frame)
+    total_count = len(full_frame)
+    if filtered_frame is None or filtered_frame.empty:
+        next_command = "make dcf-input-proof-queue TOP_N=10"
+        first_ticker = "No ticker"
+        first_stop = "No rows match this family filter."
+    else:
+        first = filtered_frame.iloc[0]
+        next_command = format_missing(first.get("Next Proof Command"), "make dcf-input-proof-queue TOP_N=10")
+        first_ticker = format_missing(first.get("Ticker"), "Ticker")
+        first_stop = compact_card_fragment(first.get("Stop Rule"), max_chars=170)
+    return [
+        {
+            "kicker": "DCF FILTER",
+            "title": f"{family}: {filtered_count:,} of {total_count:,}",
+            "body": (
+                f"Showing {filtered_count:,} row(s) for {family}. "
+                f"{card_sentence('First ticker', first_ticker)} "
+                f"{card_sentence('Stop rule', first_stop)} "
+                "Switch families to triage one proof lane at a time."
+            ),
+            "badges": ["family filter", "proof first"],
+            "command": next_command,
+        }
+    ]
+
+
+def data_health_dcf_input_proof_handoff_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
+    if frame is None or frame.empty:
+        handoff = build_dcf_input_proof_handoff([], family=data_health_dcf_input_family_key(selection) or None)
+    else:
+        handoff = build_dcf_input_proof_handoff(
+            data_health_dcf_input_rows_from_frame(frame),
+            family=data_health_dcf_input_family_key(selection) or None,
+        )
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Reviewed packet preview",
+                "Command": handoff.proof_packet_command,
+                "Review Boundary": "Copy-only packet; no local rows change from this preview.",
+            },
+            {
+                "Step": "2. Validate gate",
+                "Command": handoff.validation_command,
+                "Review Boundary": "Validation must pass or the lane remains blocked.",
+            },
+            {
+                "Step": "3. Preview gate",
+                "Command": handoff.preview_command,
+                "Review Boundary": "Preview and rejected-row review must be checked before any apply decision.",
+            },
+            {
+                "Step": "4. Apply boundary",
+                "Command": handoff.apply_boundary,
+                "Review Boundary": "Apply is reviewed/manual; do not infer or auto-fill DCF inputs.",
+            },
+            {
+                "Step": "5. Post-run proof",
+                "Command": handoff.post_run_proof_command,
+                "Review Boundary": "Rebuild readiness and report before outcome recording.",
+            },
+            {
+                "Step": "6. Compare snapshots",
+                "Command": handoff.compare_command,
+                "Review Boundary": "Changed counts and tickers must come from comparison proof.",
+            },
+            {
+                "Step": "7. Proof record dry run",
+                "Command": handoff.proof_record_scaffold,
+                "Review Boundary": handoff.record_boundary,
+            },
+        ]
+    )
+
+
+def data_health_dcf_input_proof_handoff_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
+    family = data_health_dcf_input_family_key(selection) or "all families"
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "DCF PROOF HANDOFF",
+                "title": "No selected DCF rows",
+                "body": "Run the DCF input proof queue or switch family filters before building a proof-record handoff.",
+                "badges": ["copy-only", "blocked visible"],
+                "command": "make dcf-input-proof-handoff TOP_N=10",
+            }
+        ]
+    work = frame.copy()
+    if family == "all families" and "Missing Input Family" in work.columns:
+        top_family = format_missing(work.iloc[0].get("Missing Input Family"), "DCF input")
+        work = work.loc[work["Missing Input Family"].fillna("").astype(str).str.strip().eq(top_family)].copy()
+        family_label = f"{top_family} top family"
+        handoff_command = f"make dcf-input-proof-handoff FAMILY={top_family} TOP_N=10"
+    else:
+        family_label = family
+        handoff_command = f"make dcf-input-proof-handoff FAMILY={family} TOP_N=10"
+    tickers = ",".join(str(ticker).strip() for ticker in work["Ticker"].head(10).tolist() if str(ticker).strip())
+    family_for_packet = family_label.replace(" top family", "")
+    if family_for_packet == "shares_outstanding":
+        packet = f"DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS={tickers}"
+    elif family_for_packet == "price":
+        packet = f"DRY_RUN=1 make reviewed-batch LANE=prices TICKERS={tickers}"
+    else:
+        packet = f"DRY_RUN=1 make fundamentals-batch-proof TICKERS={tickers}"
+    return [
+        {
+            "kicker": "DCF PROOF HANDOFF",
+            "title": f"{family_label}: packet to proof record",
+            "body": (
+                f"{len(work):,} selected row(s). "
+                f"{card_sentence('Tickers', tickers)} "
+                f"{card_sentence('Packet preview', packet)} "
+                "Record only after validate, preview, apply decision, rebuilt readiness, comparison, source files, and artifact review."
+            ),
+            "badges": ["proof scaffold", "dry-run first"],
+            "command": handoff_command,
+        }
+    ]
+
+
+def data_health_dcf_input_source_review_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
+    rows = data_health_dcf_input_rows_from_frame(frame)
+    review_rows = build_dcf_input_source_review_rows(rows, family=data_health_dcf_input_family_key(selection) or None)
+    return pd.DataFrame(
+        [
+            {
+                "Ticker": row.ticker,
+                "Input Family": row.input_family,
+                "Missing DCF Fields": row.missing_dcf_fields,
+                "Target File": row.target_file,
+                "Source Type": row.source_type,
+                "Source File Or URL": row.source_file_or_url,
+                "Source As Of Date": row.source_as_of_date,
+                "Reviewer": row.reviewer,
+                "Review Date": row.review_date,
+                "Source Proof Status": row.source_proof_status,
+                "Validation Result": row.validation_result,
+                "Preview Result": row.preview_result,
+                "Apply Decision": row.apply_decision,
+                "Completion Status": row.completion_status,
+                "Missing Review Fields": row.missing_review_fields,
+                "Import Row Scaffold": row.import_row_scaffold,
+                "Next Safe Action": row.next_safe_action,
+                "Do Not Proceed If": row.do_not_proceed_if,
+            }
+            for row in review_rows
+        ]
+    )
+
+
+def data_health_dcf_input_source_review_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
+    review_frame = data_health_dcf_input_source_review_frame(frame, selection)
+    family = data_health_dcf_input_family_key(selection) or "top family"
+    if review_frame.empty:
+        return [
+            {
+                "kicker": "DCF SOURCE INTAKE",
+                "title": "No source-review rows loaded",
+                "body": "Select a DCF input family before filling source-review fields or proof-record evidence.",
+                "badges": ["source proof", "blocked visible"],
+                "command": "make dcf-input-source-review TOP_N=10",
+            }
+        ]
+    first = review_frame.iloc[0]
+    missing = compact_card_fragment(first.get("Missing Review Fields"), max_chars=180)
+    ticker = format_missing(first.get("Ticker"), "Ticker")
+    return [
+        {
+            "kicker": "DCF SOURCE INTAKE",
+            "title": f"{family}: fill source proof before import",
+            "body": (
+                f"{len(review_frame):,} scaffold row(s). "
+                f"{card_sentence('First ticker', ticker)} "
+                f"{card_sentence('Missing review fields', missing)} "
+                "Do not use the import row or proof-record scaffold until these reviewed fields are filled."
+            ),
+            "badges": ["source review", "validate before apply"],
+            "command": f"make dcf-input-source-review FAMILY={family} TOP_N=10" if family != "top family" else "make dcf-input-source-review TOP_N=10",
+        }
+    ]
+
+
+def data_health_dcf_import_preview_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
+    source_frame = data_health_dcf_input_source_review_frame(frame, selection)
+    if source_frame.empty:
+        guard = build_dcf_input_source_guard(ticker="", input_family=data_health_dcf_input_family_key(selection))
+    else:
+        first = source_frame.iloc[0]
+        guard = build_dcf_input_source_guard(
+            ticker=format_missing(first.get("Ticker"), ""),
+            input_family=format_missing(first.get("Input Family"), ""),
+            missing_dcf_fields=format_missing(first.get("Missing DCF Fields"), ""),
+            source_type=format_missing(first.get("Source Type"), ""),
+            source_file_or_url=format_missing(first.get("Source File Or URL"), ""),
+            source_as_of_date=format_missing(first.get("Source As Of Date"), ""),
+            reviewer=format_missing(first.get("Reviewer"), ""),
+            review_date=format_missing(first.get("Review Date"), ""),
+            source_proof_status=format_missing(first.get("Source Proof Status"), ""),
+            validation_result=format_missing(first.get("Validation Result"), ""),
+            preview_result=format_missing(first.get("Preview Result"), ""),
+            apply_decision=format_missing(first.get("Apply Decision"), ""),
+        )
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Guard status",
+                "Status": guard.status,
+                "Command Or Value": "make dcf-input-source-guard ...",
+                "Review Boundary": ", ".join(guard.blocking_reasons) if guard.blocking_reasons else "reviewed fields complete",
+            },
+            {
+                "Step": "2. Import header",
+                "Status": "preview",
+                "Command Or Value": guard.csv_header,
+                "Review Boundary": "Header only; do not edit canonical data from this preview.",
+            },
+            {
+                "Step": "3. Import row",
+                "Status": "ready" if guard.csv_row else "blocked",
+                "Command Or Value": guard.csv_row or "blocked until reviewed fields are complete",
+                "Review Boundary": "Use only after reviewed source fields and guard status are ready.",
+            },
+            {
+                "Step": "4. Validate",
+                "Status": "copy-only",
+                "Command Or Value": guard.validation_command,
+                "Review Boundary": "Validation must pass before preview or apply decisions count as proof.",
+            },
+            {
+                "Step": "5. Preview",
+                "Status": "copy-only",
+                "Command Or Value": guard.preview_command,
+                "Review Boundary": "Preview and rejected-row reports must be reviewed before any apply step.",
+            },
+            {
+                "Step": "6. Apply boundary",
+                "Status": "manual reviewed boundary",
+                "Command Or Value": guard.apply_boundary,
+                "Review Boundary": "No automatic imports; missing DCF inputs stay blocked until reviewed.",
+            },
+            {
+                "Step": "7. Post-apply proof",
+                "Status": "copy-only",
+                "Command Or Value": guard.post_apply_proof,
+                "Review Boundary": "Rebuild readiness and report before any supported proof outcome.",
+            },
+        ]
+    )
+
+
+def data_health_dcf_import_preview_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
+    preview = data_health_dcf_import_preview_frame(frame, selection)
+    if preview.empty:
+        return [
+            {
+                "kicker": "DCF IMPORT PREVIEW",
+                "title": "No import preview available",
+                "body": "Open the DCF source-review intake before previewing any fundamentals import row.",
+                "badges": ["copy-only", "blocked visible"],
+                "command": "make dcf-input-source-review TOP_N=10",
+            }
+        ]
+    status = format_missing(preview.iloc[0].get("Status"), "blocked")
+    blockers = compact_card_fragment(preview.iloc[0].get("Review Boundary"), max_chars=190)
+    row_status = format_missing(preview.iloc[2].get("Status"), "blocked") if len(preview) > 2 else "blocked"
+    return [
+        {
+            "kicker": "DCF IMPORT PREVIEW",
+            "title": f"Fundamentals row preview: {row_status}",
+            "body": (
+                f"Guard status: {status}. "
+                f"{card_sentence('Blocking fields', blockers)} "
+                "Header, row, validate, preview, apply boundary, and post-apply proof stay together here."
+            ),
+            "badges": ["validate", "preview before apply"],
+            "command": "make dcf-input-source-guard ...",
+        }
+    ]
 
 
 def data_health_readiness_queue_drilldown_frame(
@@ -16945,6 +17403,7 @@ def data_health_fundamentals_operator_console_frame(
     readiness_summary: dict[str, object],
     pilot_preview: pd.DataFrame | None,
     lane_board: pd.DataFrame | None,
+    dcf_input_queue_frame: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     price_ready = int(readiness_summary.get("price_ready") or 0)
     dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
@@ -16965,6 +17424,21 @@ def data_health_fundamentals_operator_console_frame(
             "Next Proof": "Keep standalone DCF separate until source-backed peer inputs are ready.",
         },
     ]
+    if dcf_input_queue_frame is not None and not dcf_input_queue_frame.empty:
+        top = dcf_input_queue_frame.iloc[0]
+        rows.insert(
+            0,
+            {
+                "Family": "DCF input proof queue",
+                "Sub": format_missing(top.get("Missing Input Family"), "top blocker"),
+                "State": "partial",
+                "Blocked": f"{len(dcf_input_queue_frame):,} shown",
+                "Next Proof": (
+                    f"Start with {format_missing(top.get('Ticker'), 'TICKER')}; "
+                    "open the drawer for proof command, packet preview, and stop rule."
+                ),
+            },
+        )
     if pilot_preview is not None and not pilot_preview.empty:
         for _, row in pilot_preview.head(3).iterrows():
             rows.append(
@@ -16994,6 +17468,7 @@ def data_health_fundamentals_operator_console_html(
     readiness_summary: dict[str, object],
     pilot_preview: pd.DataFrame | None,
     lane_board: pd.DataFrame | None,
+    dcf_input_queue_frame: pd.DataFrame | None = None,
 ) -> str:
     price_ready = int(readiness_summary.get("price_ready") or 0)
     dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
@@ -17005,6 +17480,13 @@ def data_health_fundamentals_operator_console_html(
         next_title = f"{format_missing(top.get('Ticker'), 'Ticker')} / {format_missing(top.get('Pilot Lane'), 'pilot lane')}"
         blocker = compact_card_fragment(top.get("Missing Input"), max_chars=110)
         next_body = f"{card_sentence('Missing input', blocker)} Open evidence for the packet, source target, and stop rule."
+    if dcf_input_queue_frame is not None and not dcf_input_queue_frame.empty:
+        top = dcf_input_queue_frame.iloc[0]
+        top_ticker = format_missing(top.get("Ticker"), "Ticker")
+        top_family = format_missing(top.get("Missing Input Family"), "DCF input")
+        missing = compact_card_fragment(top.get("Missing DCF Fields"), max_chars=110)
+        next_title = f"{top_ticker} / {top_family}"
+        next_body = f"{card_sentence('Missing fields', missing)} Open the drawer for the proof command, packet preview, and stop rule."
     return data_health_lane_operator_console_html(
         kicker="Fundamentals / DCF Lane",
         title="Source proof first, model review second.",
@@ -17016,7 +17498,7 @@ def data_health_fundamentals_operator_console_html(
         ],
         next_title=next_title,
         next_body=next_body,
-        rows=data_health_fundamentals_operator_console_frame(readiness_summary, pilot_preview, lane_board),
+        rows=data_health_fundamentals_operator_console_frame(readiness_summary, pilot_preview, lane_board, dcf_input_queue_frame),
         footnote="Evidence, commands, rejected-row checks, and detailed pilot packets stay in the drawer.",
     )
 
@@ -17025,9 +17507,10 @@ def render_data_health_fundamentals_operator_console(
     readiness_summary: dict[str, object],
     pilot_preview: pd.DataFrame | None,
     lane_board: pd.DataFrame | None,
+    dcf_input_queue_frame: pd.DataFrame | None = None,
 ) -> None:
     st.markdown(
-        data_health_fundamentals_operator_console_html(readiness_summary, pilot_preview, lane_board),
+        data_health_fundamentals_operator_console_html(readiness_summary, pilot_preview, lane_board, dcf_input_queue_frame),
         unsafe_allow_html=True,
     )
 
@@ -24084,6 +24567,11 @@ def render_data_health(
         if selected_lane_key == "fundamentals"
         else pd.DataFrame()
     )
+    dcf_input_queue = (
+        data_health_dcf_input_proof_queue_frame(top_n=10)
+        if selected_lane_key == "fundamentals"
+        else pd.DataFrame()
+    )
     queue_drilldown = (
         data_health_readiness_queue_drilldown_frame(
             readiness_queue,
@@ -24324,8 +24812,50 @@ def render_data_health(
             )
         else:
             fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)
-        render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board)
+        render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board, dcf_input_queue)
         with st.expander("Fundamentals / DCF evidence drawer", expanded=False):
+            render_section_header(
+                "DCF Input Proof Queue",
+                "Top DCF input families, next proof command, proof packet preview, and stop rule before raw readiness tables.",
+            )
+            dcf_family_options = data_health_dcf_input_family_options(dcf_input_queue)
+            dcf_family_selection = st.segmented_control(
+                "DCF input family",
+                dcf_family_options,
+                default=dcf_family_options[0],
+                key="data-health-dcf-input-family",
+                help="Filter the proof queue by one missing DCF input family before opening row-level evidence.",
+            )
+            dcf_input_queue_filtered = data_health_filter_dcf_input_queue_by_family(dcf_input_queue, dcf_family_selection)
+            render_signal_cards(
+                data_health_dcf_input_family_filter_cards(
+                    dcf_input_queue,
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                ),
+                show_commands=True,
+            )
+            render_signal_cards(data_health_dcf_input_source_review_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
+            st.dataframe(
+                clean_display_frame(data_health_dcf_input_source_review_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_signal_cards(data_health_dcf_import_preview_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
+            st.dataframe(
+                clean_display_frame(data_health_dcf_import_preview_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_signal_cards(data_health_dcf_input_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
+            st.dataframe(
+                clean_display_frame(data_health_dcf_input_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_signal_cards(data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered), show_commands=True)
+            if not dcf_input_queue_filtered.empty:
+                st.dataframe(clean_display_frame(dcf_input_queue_filtered), width="stretch", hide_index=True)
             render_section_header("Fundamentals / DCF Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
             render_signal_cards(fundamentals_preview_cards, show_commands=False)
             render_context_note(

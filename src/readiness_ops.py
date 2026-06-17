@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files, summarize_missing_input_families
 from src.share_count_proof_queue import build_share_count_proof_queue_from_files
 
 
@@ -269,6 +270,8 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
     feature_rows = _read_csv(reports / "feature_readiness_summary.csv")
     peer_unlock_rows = _read_csv(reports / "peer_unlock_worklist.csv")
     peer_summary = build_peer_readiness_summary(root)
+    dcf_input_rows = build_dcf_input_proof_queue_from_files(root, top_n=100000)
+    dcf_input_summary = summarize_missing_input_families(dcf_input_rows)
     share_count_rows = build_share_count_proof_queue_from_files(root, top_n=100000)
     share_count_only_blockers = sum(1 for row in share_count_rows if row.dcf_input_status.startswith("share-count-only"))
     stale_warning = build_stale_proof_warning(root)
@@ -338,11 +341,14 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
             unlock_impact=fundamentals_blocked + max(fundamentals_ready - dcf_ready, 0),
             source_lane="fundamentals",
             source_readiness="SEC staging or trusted manual rows must pass validation, preview, rejected-row review, and readiness proof.",
-            next_safe_command="make sec-stage-queue TOP_N=25",
+            next_safe_command="make dcf-input-proof-queue TOP_N=25",
             proof_command="make imports-validate && make imports-preview && make readiness && make dcf-readiness",
             generated_churn_policy="Stage/apply only reviewed trusted fundamentals rows; avoid broad generated report churn by default.",
             stale_proof_warning=stale_warning,
-            notes="Missing fundamentals keep DCF withheld; no placeholder revenue, cash flow, margin, or shares rows.",
+            notes=(
+                "Missing DCF inputs keep valuation withheld; no placeholder revenue, cash flow, margin, or shares rows. "
+                f"Current DCF input families: {dcf_input_summary}."
+            ),
         ),
         ReadinessLane(
             lane="share_count_proof",
@@ -755,7 +761,10 @@ def build_fundamentals_peer_metrics_queue_from_lanes(
         rows.append(
             _queue_row_from_lane(
                 fundamentals,
-                top_missing_input_families="trusted fundamentals, dated revenue, free cash flow, FCF margin, shares outstanding",
+                top_missing_input_families=(
+                    "exact DCF input families via make dcf-input-proof-queue TOP_N=25; "
+                    "trusted fundamentals, dated revenue, free cash flow, FCF margin, shares outstanding"
+                ),
                 source_mode="SEC-stageable or trusted-local",
                 proof_gate="Validate -> preview -> rejected-row review -> apply only reviewed trusted rows -> rebuild readiness.",
             )

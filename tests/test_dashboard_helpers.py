@@ -11775,6 +11775,333 @@ def test_fundamentals_operator_console_keeps_pilot_detail_in_drawer_language():
     assert "trading" not in html
 
 
+def test_fundamentals_operator_console_surfaces_dcf_input_queue_without_commands():
+    summary = {
+        "price_ready": 25,
+        "dcf_ready": 5,
+        "peer_ready": 2,
+    }
+    dcf_queue = pd.DataFrame(
+        [
+            {
+                "Ticker": "META",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+            }
+        ]
+    )
+
+    frame = dashboard.data_health_fundamentals_operator_console_frame(
+        summary,
+        pd.DataFrame(),
+        pd.DataFrame(),
+        dcf_queue,
+    )
+    html = dashboard.data_health_fundamentals_operator_console_html(
+        summary,
+        pd.DataFrame(),
+        pd.DataFrame(),
+        dcf_queue,
+    ).lower()
+
+    assert frame.iloc[0]["Family"] == "DCF input proof queue"
+    assert frame.iloc[0]["Sub"] == "shares_outstanding"
+    assert "meta / shares_outstanding" in html
+    assert "proof command, packet preview, and stop rule" in html
+    assert "make " not in html
+    assert "buy" not in html
+    assert "sell" not in html
+    assert "broker" not in html
+    assert "order" not in html
+    assert "trading" not in html
+
+
+def test_data_health_dcf_input_proof_queue_cards_keep_commands_in_drawer_boundary():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof; do not infer it from price or placeholder rows.",
+            },
+            {
+                "Ticker": "ACHV",
+                "Scope": "master universe",
+                "Missing Input Family": "fcf_margin",
+                "Missing DCF Fields": "fcf_margin",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make focus-fundamentals TICKER=ACHV",
+                "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=ACHV",
+                "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_dcf_input_proof_queue_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "2 queued row(s)"
+    assert cards[0]["command"] == "make dcf-input-proof-queue TOP_N=10"
+    assert cards[1]["command"] == "make share-count-proof-queue TICKERS=META"
+    assert cards[-1]["command"] == "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META"
+    assert "shown input families: shares_outstanding: 1, fcf_margin: 1" in rendered
+    assert "next proof step" in rendered
+    assert "proof packet" in rendered
+    assert "validation gate" in rendered
+    assert "stop if shares_outstanding is unavailable" in rendered
+    assert "readiness gate" in rendered
+    assert "broker" not in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
+def test_dcf_input_family_filter_scopes_cards_and_rows_without_hiding_blockers():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+            },
+            {
+                "Ticker": "ABNB",
+                "Scope": "master universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=ABNB",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=ABNB",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=ABNB",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+            },
+            {
+                "Ticker": "ACHV",
+                "Scope": "master universe",
+                "Missing Input Family": "fcf_margin",
+                "Missing DCF Fields": "fcf_margin",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make focus-fundamentals TICKER=ACHV",
+                "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=ACHV",
+                "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
+            },
+        ]
+    )
+
+    options = dashboard.data_health_dcf_input_family_options(frame)
+    filtered = dashboard.data_health_filter_dcf_input_queue_by_family(frame, "shares_outstanding (2)")
+    all_rows = dashboard.data_health_filter_dcf_input_queue_by_family(frame, "All families")
+    cards = dashboard.data_health_dcf_input_family_filter_cards(frame, filtered, "shares_outstanding (2)")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert options == ["All families", "shares_outstanding (2)", "fcf_margin (1)"]
+    assert filtered["Ticker"].tolist() == ["META", "ABNB"]
+    assert all_rows["Ticker"].tolist() == ["META", "ABNB", "ACHV"]
+    assert cards[0]["title"] == "shares_outstanding: 2 of 3"
+    assert cards[0]["command"] == "make share-count-proof-queue TICKERS=META"
+    assert "switch families to triage one proof lane at a time" in rendered
+    assert "broker" not in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
+def test_dcf_input_proof_handoff_cards_and_frame_keep_record_boundary_visible():
+    frame = pd.DataFrame(
+        [
+            {
+                "Priority": 1,
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Ready DCF Inputs": "free_cash_flow, revenue, fcf_margin, price",
+                "DCF Input Status": "single-input blocker: shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+                "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_dcf_input_proof_handoff_cards(frame, "shares_outstanding (1)")
+    handoff = dashboard.data_health_dcf_input_proof_handoff_frame(frame, "shares_outstanding (1)")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    table_text = " ".join(str(value) for value in handoff.to_numpy().flatten()).lower()
+
+    assert cards[0]["title"] == "shares_outstanding: packet to proof record"
+    assert cards[0]["command"] == "make dcf-input-proof-handoff FAMILY=shares_outstanding TOP_N=10"
+    assert "record only after validate, preview, apply decision" in rendered
+    assert handoff.iloc[0]["Step"] == "1. Reviewed packet preview"
+    assert handoff.iloc[-1]["Step"] == "7. Proof record dry run"
+    assert "dry_run=1 make reviewed-batch-proof-record" in table_text
+    assert "final_outcome='<supported|still_blocked|skipped|excluded>'" in table_text
+    assert "copy the proof-record command only after" in table_text
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
+def test_dcf_input_source_review_cards_show_missing_fields_before_handoff():
+    frame = pd.DataFrame(
+        [
+            {
+                "Priority": 1,
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Ready DCF Inputs": "free_cash_flow, revenue, fcf_margin, price",
+                "DCF Input Status": "single-input blocker: shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+                "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_dcf_input_source_review_cards(frame, "shares_outstanding (1)")
+    review_frame = dashboard.data_health_dcf_input_source_review_frame(frame, "shares_outstanding (1)")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    table_text = " ".join(str(value) for value in review_frame.to_numpy().flatten()).lower()
+
+    assert cards[0]["title"] == "shares_outstanding: fill source proof before import"
+    assert cards[0]["command"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert "missing review fields" in rendered
+    assert review_frame.iloc[0]["Completion Status"] == "needs_field_fills"
+    assert "source_file_or_url" in review_frame.iloc[0]["Missing Review Fields"]
+    assert "<reviewed_shares_outstanding>" in table_text
+    assert "do not use the import row or proof-record scaffold" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
+def test_dcf_import_preview_keeps_guard_between_source_review_and_handoff():
+    frame = pd.DataFrame(
+        [
+            {
+                "Priority": 1,
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Ready DCF Inputs": "free_cash_flow, revenue, fcf_margin, price",
+                "DCF Input Status": "single-input blocker: shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+                "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_dcf_import_preview_cards(frame, "shares_outstanding (1)")
+    preview = dashboard.data_health_dcf_import_preview_frame(frame, "shares_outstanding (1)")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    table_text = " ".join(str(value) for value in preview.to_numpy().flatten()).lower()
+
+    assert cards[0]["title"] == "Fundamentals row preview: blocked"
+    assert cards[0]["command"] == "make dcf-input-source-guard ..."
+    assert preview["Step"].tolist() == [
+        "1. Guard status",
+        "2. Import header",
+        "3. Import row",
+        "4. Validate",
+        "5. Preview",
+        "6. Apply boundary",
+        "7. Post-apply proof",
+    ]
+    assert preview.iloc[0]["Status"] == "blocked"
+    assert "source_file_or_url" in preview.iloc[0]["Review Boundary"]
+    assert preview.iloc[1]["Command Or Value"] == "ticker,period,revenue,free_cash_flow,fcf_margin,shares_outstanding,source,as_of_date"
+    assert preview.iloc[2]["Command Or Value"] == "blocked until reviewed fields are complete"
+    assert "make imports-validate" in table_text
+    assert "make imports-preview" in table_text
+    assert "do not edit or apply data/imports/fundamentals.csv" in table_text
+    assert "header, row, validate, preview, apply boundary" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
+def test_dcf_input_proof_handoff_all_families_uses_top_family_scope():
+    frame = pd.DataFrame(
+        [
+            {
+                "Priority": 1,
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Ready DCF Inputs": "free_cash_flow, revenue, fcf_margin, price",
+                "DCF Input Status": "single-input blocker: shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+                "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
+            },
+            {
+                "Priority": 2,
+                "Ticker": "ACHV",
+                "Scope": "master universe",
+                "Missing Input Family": "fcf_margin",
+                "Missing DCF Fields": "fcf_margin",
+                "Ready DCF Inputs": "free_cash_flow, revenue, shares_outstanding, price",
+                "DCF Input Status": "single-input blocker: fcf_margin",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make focus-fundamentals TICKER=ACHV",
+                "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=ACHV",
+                "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
+                "Source Note": "SEC staging is configured; review exact DCF fields.",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_dcf_input_proof_handoff_cards(frame, "All families")
+    handoff = dashboard.data_health_dcf_input_proof_handoff_frame(frame, "All families")
+    table_text = " ".join(str(value) for value in handoff.to_numpy().flatten())
+
+    assert cards[0]["title"] == "shares_outstanding top family: packet to proof record"
+    assert cards[0]["command"] == "make dcf-input-proof-handoff FAMILY=shares_outstanding TOP_N=10"
+    assert "Packet preview: DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META" in cards[0]["body"]
+    assert "TICKERS=META" in table_text
+    assert "TICKERS=META,ACHV" not in table_text
+
+
 def test_peer_operator_console_separates_peer_substates_without_commands():
     summary = {"dcf_ready": 12, "peer_ready": 3}
     peer_v2 = pd.DataFrame(
@@ -12117,7 +12444,20 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "def render_operator_queue_preview(cards: list[dict[str, object]], *, limit: int = 4)" in source
     assert "render_data_health_price_operator_console(" in source
     assert "Price Queue Snapshot" in source
-    assert "render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board)" in source
+    assert "render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board, dcf_input_queue)" in source
+    assert "dcf_input_queue = (" in source
+    assert "data_health_dcf_input_proof_queue_frame(top_n=10)" in source
+    assert "DCF Input Proof Queue" in source
+    assert "DCF input family" in source
+    assert "data_health_filter_dcf_input_queue_by_family(dcf_input_queue, dcf_family_selection)" in source
+    assert "data_health_dcf_input_family_filter_cards(" in source
+    assert "data_health_dcf_input_source_review_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_input_source_review_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_import_preview_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_import_preview_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_input_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_input_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)" in source
     assert "Fundamentals / DCF Queue Snapshot" in source
     assert "render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)" in source
     assert "Peer Queue Snapshot" in source

@@ -21,7 +21,7 @@ Use this guide before changing local data:
 | If the gap is... | Do this first | Do not do this |
 | --- | --- | --- |
 | Missing or stale prices | Run `make price-refresh-loop DRY_RUN=1`, then snapshot readiness before any capped refresh. | Do not refresh the full universe blindly or commit broad CSV churn by default. |
-| Missing fundamentals or DCF fields | Run `make trusted-data-pilot-candidates TOP_N=10`, then use SEC staging or trusted manual imports for 5-10 reviewed companies. | Do not fill placeholder fundamentals to make valuation appear ready. |
+| Missing fundamentals or DCF fields | Run `make dcf-input-proof-queue TOP_N=25`, then `make dcf-input-source-review FAMILY=<family> TOP_N=10` and `make dcf-input-source-guard ...` before `make dcf-input-proof-handoff FAMILY=<family> TOP_N=10`, SEC staging, or trusted manual imports. | Do not fill placeholder fundamentals to make valuation appear ready. |
 | Missing `shares_outstanding` | Run `make share-count-proof-queue TOP_N=10`, then review SEC/manual source proof for the named tickers. | Do not infer share count from price, market cap, peers, or placeholder rows. |
 | Missing peers | Run `make peer-mapping-queue TOP_N=25`, then `DRY_RUN=1 make peer-mapping-source-review TOP_N=10` before adding source-backed mappings or mapped-peer price/fundamental inputs. | Do not turn sector or industry similarity, memory, popularity, or row-count convenience into trusted peer valuation. |
 | Missing earnings or estimates | Keep the section locked until trusted local rows pass validate, preview, and apply. | Do not render empty optional context as analysis. |
@@ -43,7 +43,7 @@ The product can automate repeatable checks, but it should not automate source ju
 | Workflow | Safe to automate | Keep human-reviewed |
 | --- | --- | --- |
 | Price coverage | Dry-run planning, capped refresh loops, import normalization, validation, readiness rebuilds. | Whether a refreshed CSV should be committed or treated as local working data. |
-| Fundamentals / DCF | Missing-field diagnostics, SEC staging helpers, schema validation, DCF readiness checks, report regeneration. | Whether a source row is trusted, which fiscal period is appropriate, and whether manual fundamentals should be applied. |
+| Fundamentals / DCF | Exact DCF input proof queues, SEC staging helpers, schema validation, DCF readiness checks, report regeneration. | Whether a source row is trusted, which fiscal period is appropriate, and whether manual fundamentals should be applied. |
 | Share-count proof | Ranking DCF blockers where `shares_outstanding` is the gating input, printing copy-only SEC/manual review commands, and showing stop conditions. | Whether a reviewed 10-K, 10-Q, annual report, or trusted local source actually proves the share count. |
 | Peers | Peer blocker queues, import schema checks, readiness status, peer trend versus valuation-input gating. | Which companies are real peers and whether any fallback sector/industry context is acceptable as context only. Also review whether mapped-peer inputs are source-backed. |
 | Earnings / estimates | Schema templates, staged-folder checks, rejected-row reports, unavailable-state rendering. | Whether a source is trusted enough to become local optional context. |
@@ -152,12 +152,16 @@ Run the matching rebuild proof:
 1. Save the baseline with `make readiness-snapshot`.
 2. Confirm blockers with `make status-check TOP_N=10`.
 3. For prices, inspect ticker-level gaps with `make price-worklist TOP_N=10`, then preview any broader update with `make price-refresh-loop DRY_RUN=1`.
-4. For fundamentals, use `make sec-stage-queue TOP_N=25` and `make focus-fundamentals TICKER=...`.
+4. For fundamentals, use `make dcf-input-proof-queue TOP_N=25`, then `make dcf-input-source-review FAMILY=<family> TOP_N=10` to fill source file, as-of date, reviewer, review date, source proof status, validation result, preview result, and apply decision. Use `make dcf-input-source-guard ...` to block placeholders and preview the exact import row before `make dcf-input-proof-handoff FAMILY=<family> TOP_N=10` groups the packet, validation, preview, apply boundary, readiness proof, comparison, and proof-record dry run.
 5. When the DCF gap is `shares_outstanding`, use `make share-count-proof-queue TOP_N=10` to separate share-count-only blockers from tickers that still need price, revenue, free cash flow, or FCF margin too.
 6. For peers, use `make peer-mapping-queue TOP_N=25` and add only source-backed rows.
 7. For manual imports, run `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
 8. Prove the result with `make readiness`, `make project-status`, and `make stock-report-md TICKER=...`.
 9. Keep the public branch clean with `make diff-hygiene`; stage only reviewed docs/code/tests or sample Markdown reports unless a refreshed CSV is the artifact you intentionally want to publish.
+
+The DCF input source-review intake, source guard, and proof handoff are copy-only. They do not apply imports, infer valuation inputs, or append the reviewed batch proof ledger; they keep placeholders visible until source files, source as-of date, reviewer, review date, validation, preview, apply decision, rebuilt readiness, comparison, changed tickers, and generated-artifact review have been filled.
+
+In Data Health -> Fundamentals / DCF, the import preview repeats the same guard path in one drawer: source-review fields, blocked/ready guard status, exact fundamentals import header, import row preview when ready, `make imports-validate`, `make imports-preview`, apply boundary, and post-apply readiness proof. A blocked preview is expected until reviewed source values replace placeholders.
 
 ## Pilot Evidence Checklist
 
