@@ -30,6 +30,7 @@ from src import data_health_coverage_console as coverage_console
 from src import data_health_command_console as command_console
 from src import data_health_overview_console as overview_console
 from src import data_health_trusted_pilot_console as trusted_pilot_console
+from src import overview_workflow_console as workflow_console
 from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.decision_proof_queue import (
@@ -18247,34 +18248,7 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
 
 
 def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str, str]]:
-    if not payload:
-        return []
-
-    command_rows = payload.get("recommended_next_command_rows", [])
-    if command_rows:
-        rows: list[dict[str, str]] = []
-        for row in command_rows:
-            command = normalize_operator_command(row.get("Command"))
-            if not command:
-                command = "make status-check TOP_N=5"
-            rows.append(
-                {
-                    "Step": format_missing(row.get("Step"), "Next"),
-                    "Command": command,
-                    "Reason": format_missing(row.get("Reason"), ""),
-                    "SourceContext": format_missing(row.get("SourceContext"), ""),
-                    "FreshnessContext": format_missing(row.get("FreshnessContext"), ""),
-                }
-            )
-        if rows:
-            return rows
-
-    commands = payload.get("recommended_next_commands", [])
-    normalized: list[dict[str, str]] = []
-    for index, command in enumerate(commands, start=1):
-        command_text = normalize_operator_command(command)
-        normalized.append({"Step": f"Next {index}", "Command": command_text})
-    return normalized
+    return workflow_console.project_status_command_rows(payload)
 
 
 def _project_status_context_lines(row: dict[str, object]) -> list[str]:
@@ -19921,180 +19895,14 @@ def overview_workflow_path_cards(
     project_status_payload: dict[str, Any] | None,
     action_queue: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
-    command_rows = project_status_command_rows(project_status_payload)
-    top_signal: list[dict[str, object]] = []
-    structured_rows = bool(project_status_payload and project_status_payload.get("recommended_next_command_rows"))
-    if structured_rows and command_rows:
-        cards: list[dict[str, object]] = []
-        for index, row in enumerate(command_rows[:3], start=1):
-            command = format_missing(row.get("Command"), "make status-check TOP_N=5")
-            reason = compact_reason(row.get("Reason"), max_sentences=2, max_chars=220)
-            context_lines = _project_status_context_lines(row)
-            has_reason = bool(reason and reason != "Not available")
-            lower_reason = reason.lower() if has_reason else ""
-            body = reason or "Project next step from the current local workflow snapshot."
-            badges = ["today", "data first"] if index == 1 else ["workflow", "command"]
-            lowered = command.lower()
-            if "verify" in lowered:
-                badges = ["verify", "safe"]
-                body = reason if has_reason else "Run deterministic verification so the current dashboard state is trustworthy."
-            elif "dashboard-smoke" in lowered:
-                badges = ["ui", "workflow"]
-                body = reason if has_reason else "Open or smoke-check the dashboard after the data and verification steps are complete."
-            elif "focus-" in lowered:
-                badges = ["today", "single name"] if index == 1 else ["single name", "workflow"]
-                body = reason if has_reason else "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
-            elif "bundle-" in lowered:
-                badges = ["today", "guided batch"] if index == 1 else ["guided batch", "workflow"]
-                body = reason if has_reason else GUIDED_BATCH_FIRST_COPY
-            elif "imports-" in lowered:
-                badges = ["today", "review first"] if index == 1 else ["review first", "import file"]
-                if has_reason and "make imports-preview" in lower_reason and "make imports-apply" in lower_reason:
-                    body = reason
-                else:
-                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
-            elif lowered == "make price-validate":
-                badges = ["today", "review first"] if index == 1 else ["review first", "import file"]
-                if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
-                    body = reason
-                else:
-                    body = "Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
-            elif "runbook-" in lowered:
-                badges = ["today", "guided batch"] if index == 1 else ["guided batch", "workflow"]
-                body = reason if has_reason else GUIDED_BATCH_WORKFLOW_COPY
-            if context_lines:
-                body = "\n".join([body, *context_lines])
-            cards.append(
-                {
-                    "kicker": f"STEP {index}",
-                    "title": command,
-                    "body": body,
-                    "badges": badges,
-                    "command": command,
-                }
-            )
-        if cards:
-            return cards
-
-    commands = [row.get("Command", "") for row in command_rows]
-    first_command = "make status-check TOP_N=5"
-    if action_queue is not None and not action_queue.empty:
-        top_signal = top_priority_signals(action_queue, limit=1)
-        if top_signal:
-            candidate = format_missing(top_signal[0].get("command"), "")
-            if candidate and candidate != "Not available":
-                first_command = candidate
-    elif commands:
-        first_command = str(commands[0])
-
-    second_command = "make verify"
-    third_command = "make dashboard-smoke"
-    if any("dashboard-smoke" in str(command) for command in commands):
-        third_command = "make dashboard-smoke"
-
-    first_body = "Start with the highest-value local data or workflow blocker before interpreting downstream research outputs."
-    first_badges = ["today", "data first"]
-    lowered_first = first_command.lower()
-    if "focus-" in lowered_first:
-        first_body = "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
-        first_badges = ["today", "single name"]
-    elif "bundle-" in lowered_first:
-        first_body = GUIDED_BATCH_FIRST_COPY
-        first_badges = ["today", "guided batch"]
-    elif "imports-" in lowered_first:
-        first_body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
-        first_badges = ["today", "review first"]
-    elif "runbook-" in lowered_first:
-        first_body = GUIDED_BATCH_WORKFLOW_COPY
-        first_badges = ["today", "guided batch"]
-    if top_signal:
-        signal_body = compact_reason(top_signal[0].get("body"), max_sentences=2, max_chars=240)
-        if signal_body and signal_body != "Not available":
-            first_body = signal_body
-
-    return [
-        {
-            "kicker": "STEP 1",
-            "title": first_command,
-            "body": first_body,
-            "badges": first_badges,
-            "command": first_command,
-        },
-        {
-            "kicker": "STEP 2",
-            "title": second_command,
-            "body": "Run deterministic verification so the current dashboard state is trustworthy.",
-            "badges": ["verify", "safe"],
-            "command": second_command,
-        },
-        {
-            "kicker": "STEP 3",
-            "title": third_command,
-            "body": "Open or smoke-check the dashboard after the data and verification steps are complete.",
-            "badges": ["ui", "workflow"],
-            "command": third_command,
-        },
-    ]
+    return workflow_console.overview_workflow_path_cards(project_status_payload, action_queue)
 
 
 def overview_workflow_reason_card(
     project_status_payload: dict[str, Any] | None,
     action_queue: pd.DataFrame | None,
 ) -> dict[str, object]:
-    first_card = overview_workflow_path_cards(project_status_payload, action_queue)[0]
-    first_command = first_card["title"]
-    reason = f"Run {first_command} first to refresh local blocker triage before verification and UI review."
-    badges = ["why now", "research only"]
-
-    if action_queue is not None and not action_queue.empty:
-        top_row = action_queue.sort_values(["priority", "ticker", "action_type"], na_position="last").iloc[0]
-        dataset = format_missing(top_row.get("action_type"), "data")
-        ticker = format_missing(top_row.get("ticker"), "")
-        signal = top_priority_signals(action_queue, limit=1)
-        signal_command = format_missing(signal[0].get("command"), "") if signal else preferred_row_command(
-            top_row,
-            ticker_focus_command(top_row.get("action_type"), top_row.get("ticker"), "make action-queue-check TOP_N=10"),
-        )
-        row_reason = compact_reason(top_row.get("reason"), max_sentences=1, max_chars=170)
-        signal_reason = compact_reason(signal[0].get("body"), max_sentences=2, max_chars=240) if signal else row_reason
-        if not signal_reason or signal_reason == "Not available":
-            signal_reason = command_family_fallback(signal_command, review_path_fallback(top_row.get("action_type")))
-        if ticker and ticker != "Not available":
-            reason = f"{dataset.title()} pressure is currently led by {ticker}. {signal_reason}"
-        else:
-            reason = f"{dataset.title()} pressure is currently the top local blocker. {signal_reason}"
-        badges = [f"P{format_missing(top_row.get('priority'), '-')}", dataset]
-    elif project_status_payload:
-        summary = project_status_payload.get("summary", {})
-        data_gaps = int(summary.get("data_gaps") or 0)
-        critical_actions = int(summary.get("critical_actions") or 0)
-        if first_command == "make status":
-            first_command = "make status-check TOP_N=5"
-        if project_status_payload.get("recommended_next_command_rows") and critical_actions == 0 and data_gaps == 0:
-            structured_reason = compact_reason(first_card.get("body"), max_sentences=2, max_chars=240)
-            if structured_reason and structured_reason != "Not available":
-                reason = structured_reason
-                badges = [str(item) for item in first_card.get("badges", [])][:2] or ["workflow", "command"]
-            else:
-                reason = (
-                    f"{critical_actions} critical actions and {data_gaps} visible data gaps are in the current read-only status snapshot, "
-                    "so the workflow starts with local coverage before interpretation."
-                )
-                badges = ["status snapshot", "data first"]
-        else:
-            reason = (
-                f"{critical_actions} critical actions and {data_gaps} visible data gaps are in the current read-only status snapshot, "
-                "so the workflow starts with local coverage before interpretation."
-            )
-            badges = ["status snapshot", "data first"]
-
-    return {
-        "kicker": "WHY THIS STEP NOW",
-        "title": str(first_command),
-        "body": reason,
-        "badges": badges,
-        "command": str(first_command),
-    }
+    return workflow_console.overview_workflow_reason_card(project_status_payload, action_queue)
 
 
 def overview_handoff_cards() -> list[dict[str, object]]:
@@ -20790,88 +20598,7 @@ def stock_report_brief_html(payload: dict[str, Any]) -> str:
 
 
 def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
-    if action_queue is None or action_queue.empty:
-        return []
-    rows = []
-    ordered = action_queue.sort_values(["priority", "ticker", "action_type"], na_position="last").head(limit)
-    for _, row in ordered.iterrows():
-        command = preferred_row_command(
-            row,
-            ticker_focus_command(
-                row.get("action_type"),
-                row.get("ticker"),
-                "make action-queue-check TOP_N=10",
-            ),
-        )
-        lowered_command = command.lower()
-        reason = normalize_operator_copy(row.get("reason"))
-        recommended_action = normalize_operator_copy(row.get("recommended_action"))
-        target_file = format_missing(row.get("target_file"), "")
-        body_source = command_family_fallback(command, review_path_fallback(row.get("action_type")))
-        if "runbook-" in command.lower():
-            body_source = GUIDED_BATCH_WORKFLOW_COPY
-        if recommended_action and recommended_action != reason:
-            body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
-        elif reason and reason != "Not available":
-            body_source = reason
-        if lowered_command == "make imports-validate":
-            normalized_body = body_source.lower()
-            if "make imports-preview" not in normalized_body or "make imports-apply" not in normalized_body:
-                body_source = (
-                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
-                    if reason and reason != "Not available"
-                    else "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
-                )
-        elif lowered_command == "make price-validate":
-            normalized_body = body_source.lower()
-            if "make price-preview" not in normalized_body or "make price-apply" not in normalized_body:
-                body_source = (
-                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
-                    if reason and reason != "Not available"
-                    else "Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
-                )
-        staged_follow_through = ""
-        if target_file == "data/imports/fundamentals.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import file."
-        elif target_file == "data/imports/peers.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import file."
-        elif target_file == "data/imports/prices.csv":
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import file."
-        if staged_follow_through:
-            normalized_body = body_source.lower()
-            needs_staged_upgrade = False
-            if target_file == "data/imports/prices.csv":
-                needs_staged_upgrade = (
-                    "make price-validate" not in normalized_body
-                    or "make price-preview" not in normalized_body
-                    or "make price-apply" not in normalized_body
-                )
-            else:
-                needs_staged_upgrade = (
-                    "make imports-validate" not in normalized_body
-                    or "make imports-preview" not in normalized_body
-                    or "make imports-apply" not in normalized_body
-                )
-            if needs_staged_upgrade:
-                body_source = (
-                    f"{reason} {staged_follow_through}".strip()
-                    if reason and reason != "Not available"
-                    else staged_follow_through
-                )
-        rows.append(
-            {
-                "kicker": str(row.get("urgency", "Action")).upper(),
-                "title": command,
-                "body": compact_reason(body_source, max_sentences=2, max_chars=240),
-                "badges": [
-                    f"P{format_missing(row.get('priority'), '-')}",
-                    format_missing(row.get("action_type"), "action"),
-                    format_missing(row.get("ticker"), "portfolio-wide"),
-                ],
-                "command": command,
-            }
-        )
-    return rows
+    return workflow_console.top_priority_signals(action_queue, limit=limit)
 
 
 def priority_now_fallback_actions(
