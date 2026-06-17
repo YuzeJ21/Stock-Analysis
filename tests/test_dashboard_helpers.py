@@ -1053,6 +1053,7 @@ def test_dashboard_not_ready_notices_avoid_generated_file_language():
 
 def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    console_source = Path("src/data_health_console.py").read_text(encoding="utf-8")
 
     hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)")
     queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
@@ -1072,7 +1073,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Data Health Command Center" in source
-    assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in source
+    assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in console_source
     assert "Open the lane evidence drawer or Additional operator evidence above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
     assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
@@ -12005,6 +12006,7 @@ def test_reviewed_batch_execution_checklist_keeps_metrics_read_only():
 
 def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    console_source = Path("src/data_health_console.py").read_text(encoding="utf-8")
 
     public_return_index = source.index("return", source.index("Operator details are hidden."))
     hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
@@ -12068,8 +12070,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_operator_snapshot_cards(" in source
     assert "render_data_health_operator_hero(operator_snapshot_cards)" in source
     assert "data_health_current_mode_strip_html(" in source
-    assert "data_health_selected_detail_mode(" in source
-    assert "data_health_current_mode_next_action(" in source
+    assert "data_health_selected_detail_mode(" in console_source
+    assert "data_health_current_mode_next_action(" in console_source
     assert "render_data_health_current_mode_strip(" in source
     assert "data_health_batch_lane_for_operator(selected_lane_key)" in source
     assert 'if selected_lane_key not in {"metrics", "proof"} and batch_details_requested' in source
