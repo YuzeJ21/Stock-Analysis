@@ -133,6 +133,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Extract DCF/peer proof CTA card builders from the Streamlit dashboard into a focused tested module.
 - [x] Extract proof planner outcome summary logic from the Streamlit dashboard into a focused tested module.
 - [x] Extract proof checklist summary logic from the Streamlit dashboard into a focused tested module.
+- [x] Extract readiness queue outcome summary card logic from the Streamlit dashboard into a focused tested module.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
 ### Trusted Coverage Growth V2
