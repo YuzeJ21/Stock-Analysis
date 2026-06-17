@@ -9160,6 +9160,151 @@ def data_health_proof_checklist_summary_cards(
     ]
 
 
+def _data_health_proof_planner_state_from_frame(frame: pd.DataFrame | None) -> str:
+    if frame is None or frame.empty or "Status" not in frame.columns:
+        return ""
+    statuses = set(frame["Status"].fillna("").astype(str).str.lower().str.strip())
+    if any(status in statuses for status in {"blocked_by_stale", "blocked_by_missing", "blocked_by_freshness"}):
+        return "blocked_by_freshness"
+    if "ready_for_review_fields" in statuses:
+        return "ready_for_proof_record_review"
+    if "blocked_by_guard" in statuses:
+        return "blocked_by_guard"
+    if any(status in statuses for status in {"needs_field_fills", "needs_source_fields", "needs_peer_source_proof"}):
+        return "needs_source_fields"
+    if any(status.startswith("blocked") for status in statuses):
+        return "blocked"
+    if any(status in statuses for status in {"dry_run_first", "copy_only_gate", "ready", "current", "fresh"}):
+        return "ready_to_plan"
+    return ""
+
+
+def data_health_proof_planner_outcome_summary_frame(
+    readiness_summary: dict[str, object],
+    queue_outcome_summary: pd.DataFrame | None = None,
+    readiness_freshness: FreshnessStatus | None = None,
+    dcf_planner_frame: pd.DataFrame | None = None,
+    peer_planner_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = [
+        "Planner Lane",
+        "Planner State",
+        "Coverage Gap",
+        "Latest Outcome",
+        "Detail Level",
+        "Next Safest Action",
+        "Stop Rule",
+    ]
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    freshness_status = format_missing(getattr(readiness_freshness, "status", ""), "").lower()
+    dcf_gap = max(price_ready - dcf_ready, 0)
+    peer_gap = max(price_ready - peer_ready, 0)
+    dcf_outcome_row = _data_health_latest_outcome_for_lane(queue_outcome_summary, "fundamentals", "dcf", "share_count")
+    peer_outcome_row = _data_health_latest_outcome_for_lane(queue_outcome_summary, "peer")
+
+    def _latest(row: pd.Series) -> str:
+        if row.empty:
+            return "not_recorded"
+        return format_missing(row.get("Latest Outcome"), "not_recorded").lower()
+
+    def _summary_state(gap: int, latest: str, planner_frame: pd.DataFrame | None, fallback: str) -> str:
+        detail_state = _data_health_proof_planner_state_from_frame(planner_frame)
+        if detail_state:
+            return detail_state
+        if freshness_status in {"missing", "stale"}:
+            return "blocked_by_freshness"
+        if latest in {"still_blocked", "skipped", "excluded"}:
+            return latest
+        if latest == "supported" and gap:
+            return "supported_but_more_rows_blocked"
+        if gap:
+            return fallback
+        return "ready_or_no_current_gap"
+
+    dcf_state = _summary_state(dcf_gap, _latest(dcf_outcome_row), dcf_planner_frame, "needs_source_fields")
+    peer_state = _summary_state(peer_gap, _latest(peer_outcome_row), peer_planner_frame, "needs_source_fields")
+    return pd.DataFrame(
+        [
+            {
+                "Planner Lane": "DCF proof planner",
+                "Planner State": dcf_state,
+                "Coverage Gap": f"{dcf_gap:,} price-ready row(s) still need trusted DCF inputs",
+                "Latest Outcome": _latest(dcf_outcome_row),
+                "Detail Level": "planner_loaded" if dcf_planner_frame is not None and not dcf_planner_frame.empty else "summary_only",
+                "Next Safest Action": "Open Fundamentals / DCF lane drawer",
+                "Stop Rule": "Stop if source fields, validation, preview, changed counts, source files, or artifact review are missing.",
+            },
+            {
+                "Planner Lane": "Peer proof planner",
+                "Planner State": peer_state,
+                "Coverage Gap": f"{peer_gap:,} price-ready row(s) still need source-backed peer proof",
+                "Latest Outcome": _latest(peer_outcome_row),
+                "Detail Level": "planner_loaded" if peer_planner_frame is not None and not peer_planner_frame.empty else "summary_only",
+                "Next Safest Action": "Open Peers lane drawer",
+                "Stop Rule": "Stop if peer source fields, write-back guard, duplicate checks, changed counts, source files, or artifact review are missing.",
+            },
+        ],
+        columns=columns,
+    )
+
+
+def data_health_proof_planner_outcome_summary_cards(
+    readiness_summary: dict[str, object],
+    queue_outcome_summary: pd.DataFrame | None = None,
+    readiness_freshness: FreshnessStatus | None = None,
+    dcf_planner_frame: pd.DataFrame | None = None,
+    peer_planner_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    frame = data_health_proof_planner_outcome_summary_frame(
+        readiness_summary,
+        queue_outcome_summary,
+        readiness_freshness,
+        dcf_planner_frame,
+        peer_planner_frame,
+    )
+    if frame.empty:
+        return [
+            {
+                "kicker": "PROOF PLANNERS",
+                "title": "Planner summary unavailable",
+                "body": "Refresh readiness before relying on DCF or peer planner status.",
+                "badges": ["readiness first", "blocked visible"],
+                "command": "make readiness",
+            }
+        ]
+    ready_states = {"ready_or_no_current_gap", "ready_to_plan", "ready_for_proof_record_review", "supported"}
+    blocking = frame.loc[~frame["Planner State"].fillna("").astype(str).str.lower().isin(ready_states)]
+    first = blocking.iloc[0] if not blocking.empty else frame.iloc[0]
+    state_pairs = "; ".join(
+        f"{row['Planner Lane']}: {str(row['Planner State']).replace('_', ' ')}" for _, row in frame.iterrows()
+    )
+    return [
+        {
+            "kicker": "PROOF PLANNER OUTCOMES",
+            "title": f"{len(blocking)} planner lane(s) need review",
+            "body": (
+                f"{compact_card_fragment(state_pairs, max_chars=220)}. "
+                "Summary uses readiness counts and proof-ledger outcomes first; detailed planner tables stay in lane drawers."
+            ),
+            "badges": ["summary first", "drawers lazy"],
+            "command": "make readiness-queue TOP_N=10",
+        },
+        {
+            "kicker": str(first.get("Planner Lane", "Planner lane")).upper(),
+            "title": str(first.get("Planner State", "not_recorded")).replace("_", " "),
+            "body": (
+                f"{card_sentence('Gap', first.get('Coverage Gap'))} "
+                f"{card_sentence('Latest outcome', first.get('Latest Outcome'))} "
+                f"{card_sentence('Stop rule', compact_card_fragment(first.get('Stop Rule'), max_chars=180))}"
+            ),
+            "badges": ["finish planner", "source-backed only"],
+            "command": str(first.get("Next Safest Action", "Open Data Health lane drawer")),
+        },
+    ]
+
+
 def data_health_readiness_ops_center_cards(ops_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
     if ops_frame is None or ops_frame.empty:
         return [
@@ -26174,6 +26319,19 @@ def render_data_health(
     )
     render_signal_cards(
         data_health_proof_checklist_summary_cards(readiness_summary, queue_outcome_summary),
+        show_commands=False,
+        variant="queue",
+    )
+    render_section_header(
+        "Proof Planner Outcome Summary",
+        "DCF and peer planner states side by side before opening lane-specific proof drawers.",
+    )
+    render_signal_cards(
+        data_health_proof_planner_outcome_summary_cards(
+            readiness_summary,
+            queue_outcome_summary,
+            readiness_freshness,
+        ),
         show_commands=False,
         variant="queue",
     )

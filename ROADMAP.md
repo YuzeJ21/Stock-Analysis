@@ -125,6 +125,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add Trusted Fundamentals Batch Review Queue UX so source packets become capped SEC-stageable, trusted-local/manual, or price dry-run review batches with validation, rejected-row, proof-record, and stop-rule gates.
 - [x] Add Data Health Proof Checklist Summary V1 so DCF and peer proof-checklist status appears near the top of the operator page before detailed source/proof drawers.
 - [x] Add DCF Proof Batch Planner V1 so the DCF drawer turns the top blocker family into one capped source-proof plan with packet, validation, proof-record, and stop-rule gates before detailed rows.
+- [x] Add Proof Planner Outcome Summary V1 so Data Health compares DCF and peer planner states before opening lane-specific proof drawers.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
 ### Trusted Coverage Growth V2
