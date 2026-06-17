@@ -36,6 +36,7 @@ from src.data_health_coverage_delta import (
 )
 from src.data_health_recent_progress import readiness_recent_progress_cards
 from src.data_health_summary import dashboard_readiness_summary, market_wide_readiness_summary
+from src.data_health_feature_readiness import feature_readiness_cards
 from src.data_health_proof_ctas import (
     data_health_dcf_input_proof_queue_dashboard_cards,
     data_health_lane_auto_context_cards,
@@ -10772,68 +10773,6 @@ MARKET_READINESS_FILTERS = [
 ]
 MARKET_ASSET_FILTERS = ["All assets", "Companies only", "ETFs / index proxies"]
 DEFAULT_MARKET_ROW_LIMIT = 50
-
-
-def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit: int = 6) -> list[dict[str, object]]:
-    if feature_summary_frame is None or feature_summary_frame.empty:
-        return [
-            {
-                "kicker": "FEATURE READINESS",
-                "title": "Feature readiness not ready yet",
-                "body": "Run readiness to rebuild the feature proof before reviewing which analysis areas are ready, partial, blocked, or excluded.",
-                "badges": ["blocked"],
-                "command": "make readiness",
-            }
-        ]
-    frame = feature_summary_frame.copy()
-    for column in ["ready_count", "partial_count", "blocked_count", "excluded_count", "total_count"]:
-        if column in frame.columns:
-            frame[column] = pd.to_numeric(frame[column], errors="coerce").fillna(0).astype(int)
-    if "blocked_count" in frame.columns:
-        frame = frame.sort_values(["blocked_count", "ready_count"], ascending=[False, True]).copy()
-    cards: list[dict[str, object]] = []
-    for _, row in frame.head(limit).iterrows():
-        feature = format_missing(row.get("feature"), "Feature")
-        feature_key = feature.lower().replace(" ", "_")
-        ready = int(row.get("ready_count") or 0)
-        partial = int(row.get("partial_count") or 0)
-        blocked = int(row.get("blocked_count") or 0)
-        excluded = int(row.get("excluded_count") or 0)
-        total = int(row.get("total_count") or 0)
-        blocker = format_missing(row.get("top_blocker"), "No dominant blocker")
-        section = format_missing(row.get("dashboard_section"), "Dashboard")
-        command = str(row.get("next_action") or "make readiness")
-        body = f"Partial: {partial}. Blocked: {blocked}. Excluded: {excluded}. Top blocker: {blocker}."
-        if feature_key == "earnings":
-            body = (
-                f"{body} Optional context is intentionally locked until trusted local rows exist. "
-                "Use schema-only templates, place files in data/staged/earnings/, import to data/imports/earnings.csv, "
-                "then run make imports-validate -> make imports-preview -> make imports-apply."
-            )
-            command = "make templates"
-        elif feature_key == "analyst_estimates":
-            body = (
-                f"{body} Optional context is intentionally locked until trusted local rows exist. "
-                "Use schema-only templates, place files in data/staged/analyst_estimates/, import to data/imports/analyst_estimates.csv, "
-                "then run make imports-validate -> make imports-preview -> make imports-apply."
-            )
-            command = "make templates"
-        elif feature_key == "price":
-            body = (
-                f"{body} For broad coverage, dry-run the capped refresh loop first; this avoids repeating small "
-                "worklists manually and previews local CSV churn before any provider-backed update."
-            )
-            command = "make price-refresh-loop DRY_RUN=1"
-        cards.append(
-            {
-                "kicker": section.upper(),
-                "title": f"{feature}: {ready}/{total} ready",
-                "body": body,
-                "badges": ["feature readiness", "product status"],
-                "command": command,
-            }
-        )
-    return cards
 
 
 def peer_readiness_product_cards(
