@@ -115,10 +115,12 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add Reviewed Batch Ledger Record Safety V1 so `reviewed-batch-proof-record` can dry-run the exact ledger row and validation status before appending.
 - [x] Add Reviewed Batch Loop Map V1 so Data Health shows snapshot -> reviewed packet/dry run -> validate/preview/apply gate -> proof record -> before/after comparison before the detailed drawer.
 - [x] Add Readiness Coverage Delta Board V1 so Data Health summarizes prior/current lane deltas, still-blocked lanes, latest proof outcomes, and generated-artifact review status before raw CSV reports.
+- [x] Add Generated Churn Review Drawer V1 so Data Health classifies dirty generated CSV/report artifacts as excluded by default versus reviewed evidence before staging.
 - [x] Add Decision Proof Queue UI V2 so Data Health shows a completion checklist, freshness, top proof row, reviewable inputs, locked context, copy-only command, and post-unlock proof before raw decision rows.
 - [x] Add Reviewed Batch Execution Checklist V2 so the reviewed-batch drawer shows lane choice, source/freshness warnings, packet, capped preview, validate/preview/apply gate, before/after comparison, proof outcome, and artifact hygiene before detailed tables.
 - [x] Add first-class `share_count` reviewed-batch packets and preflight commands so shares-outstanding DCF blockers no longer fall back to generic fundamentals wording.
 - [x] Add DCF Input Proof Queue UX in Data Health so top input families, source-review fields, import preview, proof packet handoff, stop rules, and latest proof outcome stay in one collapsed drawer before raw DCF tables.
+- [x] Add DCF Proof Source Review Compact Checklist V1 so the DCF drawer shows missing source fields, import guard status, proof-record placeholders, and latest ledger outcome before detailed tables.
 - [x] Add Trusted Fundamentals Source Packet UX so the DCF drawer separates SEC-stageable, trusted-local/manual, and price dry-run source routes before detailed import scaffolds.
 - [x] Add Trusted Fundamentals Batch Review Queue UX so source packets become capped SEC-stageable, trusted-local/manual, or price dry-run review batches with validation, rejected-row, proof-record, and stop-rule gates.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.

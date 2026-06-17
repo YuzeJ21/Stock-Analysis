@@ -12215,6 +12215,69 @@ def test_dcf_proof_loop_outcome_summarizes_source_guard_handoff_and_ledger():
     assert "sell now" not in rendered
 
 
+def test_dcf_proof_source_review_checklist_summarizes_missing_steps_before_tables():
+    frame = pd.DataFrame(
+        [
+            {
+                "Priority": 1,
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Ready DCF Inputs": "free_cash_flow, revenue, fcf_margin, price",
+                "DCF Input Status": "single-input blocker: shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+                "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
+            }
+        ]
+    )
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-SHARECOUNT",
+                "Review Date": "2026-06-17",
+                "Lane": "share_count",
+                "Final Outcome": "still_blocked",
+                "Changed Readiness Counts": "none; no readiness count changes",
+            }
+        ]
+    )
+
+    checklist = dashboard.data_health_dcf_proof_source_review_checklist_frame(frame, "shares_outstanding (1)", ledger)
+    cards = dashboard.data_health_dcf_proof_source_review_checklist_cards(frame, "shares_outstanding (1)", ledger)
+    rendered = " ".join(
+        checklist.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert checklist["Checklist Item"].tolist() == [
+        "1. Confirm DCF blocker scope",
+        "2. Create proof packet preview",
+        "3. Fill source-review fields",
+        "4. Pass import preview guard",
+        "5. Validate, preview, and rebuild proof",
+        "6. Record reviewed proof outcome",
+        "7. Check latest ledger outcome",
+    ]
+    assert checklist.iloc[2]["Status"] == "needs_field_fills"
+    assert "source_file_or_url" in checklist.iloc[2]["Need Before Proceeding"]
+    assert checklist.iloc[3]["Status"] == "blocked"
+    assert checklist.iloc[5]["Status"] == "needs_field_fills"
+    assert checklist.iloc[6]["Status"] == "still_blocked"
+    assert cards[0]["title"] == "Finish DCF proof: 5 step(s) need review"
+    assert cards[0]["command"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert "use this checklist before reading source-review" in rendered
+    assert "copy proof-record command only after source files" in rendered
+    assert "no inferred inputs" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
 def test_dcf_input_proof_handoff_all_families_uses_top_family_scope():
     frame = pd.DataFrame(
         [
@@ -12506,7 +12569,12 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     coverage_delta_index = source.index('render_section_header(\n        "Readiness Coverage Delta"', queue_summary_index)
     coverage_delta_cards_index = source.index("data_health_readiness_delta_board_cards(", coverage_delta_index)
     coverage_delta_frame_index = source.index("data_health_readiness_delta_board_frame(", coverage_delta_cards_index)
-    lane_snapshot_index = source.index('render_section_header(\n        "Readiness Lane Snapshot"', coverage_delta_frame_index)
+    generated_artifact_index = source.index('render_section_header(\n        "Generated Artifact Review"', coverage_delta_frame_index)
+    generated_artifact_cards_index = source.index("data_health_generated_churn_review_cards(BASE_DIR)", generated_artifact_index)
+    generated_artifact_drawer_index = source.index('st.expander("Generated churn review drawer", expanded=False)', generated_artifact_cards_index)
+    generated_artifact_frame_index = source.index("data_health_generated_churn_review_frame(BASE_DIR)", generated_artifact_drawer_index)
+    generated_artifact_detail_index = source.index("data_health_generated_churn_detail_frame(BASE_DIR)", generated_artifact_frame_index)
+    lane_snapshot_index = source.index('render_section_header(\n        "Readiness Lane Snapshot"', generated_artifact_detail_index)
     decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", lane_snapshot_index)
     decision_queue_expand_state_index = source.index("decision_queue_drawer_expanded =", decision_queue_status_index)
     decision_queue_drawer_index = source.index('st.expander("Decision proof queue drawer", expanded=decision_queue_drawer_expanded)', decision_queue_status_index)
@@ -12550,7 +12618,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -12569,6 +12637,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "Readiness Coverage Delta" in source
     assert "data_health_readiness_delta_board_cards(" in source
     assert "data_health_readiness_delta_board_frame(" in source
+    assert "Generated Artifact Review" in source
+    assert "data_health_generated_churn_review_cards(BASE_DIR)" in source
+    assert "Generated churn review drawer" in source
     assert "data_health_batch_lane_for_operator(selected_lane_key)" in source
     assert 'if selected_lane_key not in {"metrics", "proof"} and batch_details_requested' in source
     assert "build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)" in source
@@ -12636,6 +12707,18 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_dcf_proof_loop_outcome_frame(dcf_input_queue_filtered, dcf_family_selection, batch_proof_frame)" in source
     assert "data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)" in source
     assert "Fundamentals / DCF Queue Snapshot" in source
+    dcf_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)')
+    dcf_filter_index = source.index("data_health_dcf_input_family_filter_cards(", dcf_drawer_index)
+    dcf_queue_cards_index = source.index("data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)", dcf_filter_index)
+    dcf_checklist_index = source.index('render_section_header("Finish This DCF Proof"', dcf_queue_cards_index)
+    dcf_checklist_cards_index = source.index("data_health_dcf_proof_source_review_checklist_cards(", dcf_checklist_index)
+    dcf_checklist_frame_index = source.index("data_health_dcf_proof_source_review_checklist_frame(", dcf_checklist_cards_index)
+    dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_checklist_frame_index)
+    dcf_raw_rows_index = source.index("st.dataframe(clean_display_frame(dcf_input_queue_filtered)", dcf_source_packet_index)
+    assert dcf_filter_index < dcf_queue_cards_index < dcf_checklist_index < dcf_checklist_cards_index < dcf_checklist_frame_index < dcf_source_packet_index < dcf_raw_rows_index
+    assert "Finish This DCF Proof" in source
+    assert "data_health_dcf_proof_source_review_checklist_cards(" in source
+    assert "data_health_dcf_proof_source_review_checklist_frame(" in source
     assert "render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)" in source
     assert "Peer Queue Snapshot" in source
     assert "render_data_health_optional_operator_console(readiness_summary, optional_context_worklist_frame)" in source
@@ -17603,6 +17686,46 @@ def test_readiness_delta_board_summarizes_lane_changes_and_artifact_review():
     assert "dcf +1" in rendered
     assert "generated-artifact review recorded" in rendered
     assert "not recommendations" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_generated_churn_review_drawer_classifies_generated_artifacts(monkeypatch):
+    entries = [
+        dashboard.StatusEntry("M", "src/dashboard.py"),
+        dashboard.StatusEntry("M", "data/reports/ticker_readiness_report.csv"),
+        dashboard.StatusEntry("??", "outputs/research_action_queue.csv"),
+        dashboard.StatusEntry("M", "outputs/stock_reports/nvda.md"),
+        dashboard.StatusEntry("M", "scratch/local.txt"),
+    ]
+    monkeypatch.setattr(dashboard, "diff_hygiene_load_status", lambda _root: entries)
+
+    frame = dashboard.data_health_generated_churn_review_frame(Path("."))
+    detail = dashboard.data_health_generated_churn_detail_frame(Path("."))
+    cards = dashboard.data_health_generated_churn_review_cards(Path("."))
+    rendered = " ".join(
+        frame.astype(str).to_numpy().flatten().tolist()
+        + detail.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    generated = frame.loc[frame["Bucket"].eq("Generated CSV/JSON churn")].iloc[0]
+    product = frame.loc[frame["Bucket"].eq("Product/code/docs/tests")].iloc[0]
+    reports = frame.loc[frame["Bucket"].eq("Markdown sample reports")].iloc[0]
+    manual = frame.loc[frame["Bucket"].eq("Manual-review paths")].iloc[0]
+
+    assert int(generated["Files"]) == 2
+    assert int(generated["Changed"]) == 1
+    assert int(generated["New"]) == 1
+    assert int(product["Files"]) == 1
+    assert int(reports["Files"]) == 1
+    assert int(manual["Files"]) == 1
+    assert detail["Path"].tolist() == ["data/reports/ticker_readiness_report.csv", "outputs/research_action_queue.csv"]
+    assert cards[0]["title"] == "2 generated artifact(s) excluded by default"
+    assert cards[0]["command"] == "make diff-hygiene-files"
+    assert "generated csv/json churn should stay local" in rendered
+    assert "reviewed evidence" in rendered
+    assert "safe staging" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

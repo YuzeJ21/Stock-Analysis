@@ -12,6 +12,8 @@ import pandas as pd
 import streamlit as st
 
 from src.artifact_freshness import generated_artifact_stale_warning
+from scripts.diff_hygiene import StatusEntry
+from scripts.diff_hygiene import group_entries as diff_hygiene_group_entries, load_status as diff_hygiene_load_status
 from src.action_queue import write_action_queue_output
 from src.data_onboarding import write_onboarding_outputs
 from src.data_health_console import (
@@ -8535,6 +8537,191 @@ def data_health_dcf_proof_loop_outcome_cards(
     ]
 
 
+def data_health_dcf_proof_source_review_checklist_frame(
+    frame: pd.DataFrame | None,
+    selection: object,
+    batch_proof_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Return the compact DCF source-review completion checklist for the drawer."""
+
+    columns = ["Checklist Item", "Status", "Need Before Proceeding", "Next Safest Action", "Stop Rule"]
+    family = data_health_dcf_input_family_key(selection)
+    family_label = family or "top family"
+    source_command = f"make dcf-input-source-review FAMILY={family} TOP_N=10" if family else "make dcf-input-source-review TOP_N=10"
+    handoff_command = f"make dcf-input-proof-handoff FAMILY={family} TOP_N=10" if family else "make dcf-input-proof-handoff TOP_N=10"
+    if frame is None or frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Checklist Item": "Select DCF input family",
+                    "Status": "blocked_no_queue",
+                    "Need Before Proceeding": "Run the DCF input proof queue and choose one family before source review.",
+                    "Next Safest Action": "make dcf-input-proof-queue TOP_N=10",
+                    "Stop Rule": "Stop if no DCF input family is queued; do not invent DCF inputs.",
+                }
+            ],
+            columns=columns,
+        )
+
+    work = data_health_filter_dcf_input_queue_by_family(frame, selection)
+    if work.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Checklist Item": "Select DCF input family",
+                    "Status": "blocked_no_matching_family",
+                    "Need Before Proceeding": f"No queued DCF blockers match {family_label}.",
+                    "Next Safest Action": "make dcf-input-proof-queue TOP_N=10",
+                    "Stop Rule": "Stop if the selected family has no queued blocker rows.",
+                }
+            ],
+            columns=columns,
+        )
+
+    first = work.iloc[0]
+    tickers = ", ".join(str(ticker).strip() for ticker in work["Ticker"].head(10).tolist() if str(ticker).strip())
+    stop_rule = format_missing(first.get("Stop Rule"), "Stop if source proof does not support the required DCF input.")
+    proof_packet = format_missing(first.get("Proof Packet Command"), "DRY_RUN=1 make fundamentals-batch-proof TOP_N=10")
+    source_frame = data_health_dcf_input_source_review_frame(work, selection)
+    preview_frame = data_health_dcf_import_preview_frame(work, selection)
+    handoff_frame = data_health_dcf_input_proof_handoff_frame(work, selection)
+    outcome_frame = data_health_dcf_proof_loop_outcome_frame(work, selection, batch_proof_frame)
+
+    source_status = "needs_source_review_rows"
+    source_need = "Create source-review rows before using an import scaffold."
+    if not source_frame.empty:
+        missing_fields = sorted(
+            {
+                field.strip()
+                for value in source_frame["Missing Review Fields"].fillna("").astype(str).tolist()
+                for field in value.split(",")
+                if field.strip()
+            }
+        )
+        source_status = "ready_for_guard" if not missing_fields else "needs_field_fills"
+        source_need = "reviewed source fields complete" if not missing_fields else ", ".join(missing_fields)
+
+    guard_status = "blocked"
+    guard_need = "Run source-review rows through the import preview guard."
+    if not preview_frame.empty:
+        guard_status = format_missing(preview_frame.iloc[0].get("Status"), "blocked")
+        row_status = format_missing(preview_frame.iloc[2].get("Status"), "blocked") if len(preview_frame) > 2 else "blocked"
+        guard_need = f"guard={guard_status}; import row={row_status}; {format_missing(preview_frame.iloc[0].get('Review Boundary'), 'review guard output')}"
+
+    proof_record_command = "DRY_RUN=1 make reviewed-batch-proof-record ..."
+    proof_need = "Fill proof-record placeholders after comparison, source files, and generated-artifact review."
+    proof_status = "needs_field_fills"
+    if not handoff_frame.empty:
+        proof_rows = handoff_frame.loc[handoff_frame["Step"].astype(str).str.contains("Proof record", case=False, na=False)]
+        if not proof_rows.empty:
+            proof_record_command = format_missing(proof_rows.iloc[0].get("Command"), proof_record_command)
+            proof_need = format_missing(proof_rows.iloc[0].get("Review Boundary"), proof_need)
+            proof_status = "needs_field_fills" if "<" in proof_record_command and ">" in proof_record_command else "ready_after_review"
+
+    ledger_status = "not_recorded"
+    ledger_need = "No DCF ledger outcome recorded for this selected proof loop."
+    if not outcome_frame.empty:
+        ledger = outcome_frame.loc[outcome_frame["Proof Loop Step"].eq("Latest DCF ledger outcome")]
+        if not ledger.empty:
+            ledger_status = format_missing(ledger.iloc[0].get("Status"), "not_recorded")
+            ledger_need = format_missing(ledger.iloc[0].get("Detail"), ledger_need)
+
+    rows = [
+        {
+            "Checklist Item": "1. Confirm DCF blocker scope",
+            "Status": "selected",
+            "Need Before Proceeding": f"{family_label}; {len(work)} queued row(s); tickers: {tickers or '<reviewed_tickers>'}",
+            "Next Safest Action": "make dcf-input-proof-queue TOP_N=10",
+            "Stop Rule": stop_rule,
+        },
+        {
+            "Checklist Item": "2. Create proof packet preview",
+            "Status": "copy_only",
+            "Need Before Proceeding": "Review the packet before local fundamentals rows change.",
+            "Next Safest Action": proof_packet,
+            "Stop Rule": "Stop if the packet scope is broader than the reviewed DCF input family.",
+        },
+        {
+            "Checklist Item": "3. Fill source-review fields",
+            "Status": source_status,
+            "Need Before Proceeding": source_need,
+            "Next Safest Action": source_command,
+            "Stop Rule": stop_rule,
+        },
+        {
+            "Checklist Item": "4. Pass import preview guard",
+            "Status": guard_status,
+            "Need Before Proceeding": guard_need,
+            "Next Safest Action": "make dcf-input-source-guard ...",
+            "Stop Rule": "Stop if guard status is blocked; do not edit canonical fundamentals rows.",
+        },
+        {
+            "Checklist Item": "5. Validate, preview, and rebuild proof",
+            "Status": "needs_reviewed_results",
+            "Need Before Proceeding": "Run validate, preview, rejected-row review, apply decision, rebuilt DCF readiness, and stock-report proof.",
+            "Next Safest Action": handoff_command,
+            "Stop Rule": "Stop if validation, preview, rejected-row review, or rebuilt readiness is missing.",
+        },
+        {
+            "Checklist Item": "6. Record reviewed proof outcome",
+            "Status": proof_status,
+            "Need Before Proceeding": proof_need,
+            "Next Safest Action": proof_record_command,
+            "Stop Rule": "Copy proof-record command only after source files, changed counts, changed tickers, and generated artifacts are reviewed.",
+        },
+        {
+            "Checklist Item": "7. Check latest ledger outcome",
+            "Status": ledger_status,
+            "Need Before Proceeding": ledger_need,
+            "Next Safest Action": "make reviewed-batch-proof",
+            "Stop Rule": "A missing or still-blocked ledger outcome is honest evidence; do not call the lane supported without proof.",
+        },
+    ]
+    return pd.DataFrame(rows, columns=columns)
+
+
+def data_health_dcf_proof_source_review_checklist_cards(
+    frame: pd.DataFrame | None,
+    selection: object,
+    batch_proof_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    checklist = data_health_dcf_proof_source_review_checklist_frame(frame, selection, batch_proof_frame)
+    if checklist.empty:
+        return [
+            {
+                "kicker": "DCF PROOF CHECKLIST",
+                "title": "No DCF proof checklist loaded",
+                "body": "Run the DCF input queue before reviewing source proof or import gates.",
+                "badges": ["blocked visible", "readiness first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    blocking = checklist.loc[
+        ~checklist["Status"].astype(str).str.lower().isin({"selected", "copy_only", "ready", "ready_for_guard", "ready_after_review", "supported"})
+    ]
+    if blocking.empty:
+        title = "DCF proof checklist ready for final review"
+        first = checklist.iloc[-1]
+        badges = ["ready after review", "source-backed only"]
+    else:
+        title = f"Finish DCF proof: {len(blocking)} step(s) need review"
+        first = blocking.iloc[0]
+        badges = ["finish proof", "no inferred inputs"]
+    return [
+        {
+            "kicker": "DCF PROOF CHECKLIST",
+            "title": title,
+            "body": (
+                f"{card_sentence('Next item', first.get('Checklist Item'))} "
+                f"{card_sentence('Needed', compact_card_fragment(first.get('Need Before Proceeding'), max_chars=190))} "
+                "Use this checklist before reading source-review, import-preview, or proof-record tables."
+            ),
+            "badges": badges,
+            "command": format_missing(first.get("Next Safest Action"), "make dcf-input-proof-queue TOP_N=10"),
+        }
+    ]
+
+
 def data_health_readiness_queue_drilldown_frame(
     queue_frame: pd.DataFrame | None,
     *,
@@ -10681,6 +10868,126 @@ def data_health_readiness_delta_board_cards(
             ),
             "badges": ["previous vs current", "proof ledger aware"],
             "command": "make reviewed-batch-compare LANE=<lane>",
+        }
+    ]
+
+
+def data_health_generated_churn_review_frame(repo_root: Path | str = BASE_DIR) -> pd.DataFrame:
+    columns = [
+        "Bucket",
+        "Files",
+        "Changed",
+        "New",
+        "Default Decision",
+        "Review Boundary",
+        "Safe Command",
+    ]
+    entries = diff_hygiene_load_status(Path(repo_root))
+    groups = diff_hygiene_group_entries(entries)
+
+    def _row(bucket: str, key: str, decision: str, boundary: str, command: str) -> dict[str, object]:
+        items = groups[key]
+        new_count = sum(1 for item in items if item.status in {"??", "A"})
+        return {
+            "Bucket": bucket,
+            "Files": len(items),
+            "Changed": len(items) - new_count,
+            "New": new_count,
+            "Default Decision": decision,
+            "Review Boundary": boundary,
+            "Safe Command": command,
+        }
+
+    return pd.DataFrame(
+        [
+            _row(
+                "Product/code/docs/tests",
+                "product_candidate",
+                "stage when intentional",
+                "Stage only after product review and public wording checks.",
+                "git add -- <product files> && make staged-hygiene-check",
+            ),
+            _row(
+                "Markdown sample reports",
+                "sample_report_candidate",
+                "review individually",
+                "Stage only if the regenerated report is intentional public/demo evidence.",
+                "make diff-hygiene-files",
+            ),
+            _row(
+                "Generated CSV/JSON churn",
+                "generated_csv_churn",
+                "exclude by default",
+                "Do not stage unless the exact artifact is intentionally reviewed evidence.",
+                "make diff-hygiene-files && inspect outputs/staging/generated_churn.txt",
+            ),
+            _row(
+                "Manual-review paths",
+                "review_manually",
+                "stop and inspect",
+                "Inspect before staging; classifier does not know whether these are public-safe.",
+                "make diff-hygiene",
+            ),
+        ],
+        columns=columns,
+    )
+
+
+def data_health_generated_churn_detail_frame(repo_root: Path | str = BASE_DIR, *, limit: int = 80) -> pd.DataFrame:
+    columns = ["Status", "Path", "Default Decision", "Review Boundary"]
+    entries = diff_hygiene_load_status(Path(repo_root))
+    groups = diff_hygiene_group_entries(entries)
+    rows: list[dict[str, object]] = []
+    for item in groups["generated_csv_churn"][: max(limit, 0)]:
+        rows.append(
+            {
+                "Status": item.status or "M",
+                "Path": item.path,
+                "Default Decision": "exclude by default",
+                "Review Boundary": "Keep local unless this exact generated artifact is selected as reviewed evidence.",
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def data_health_generated_churn_review_cards(repo_root: Path | str = BASE_DIR) -> list[dict[str, object]]:
+    frame = data_health_generated_churn_review_frame(repo_root)
+    if frame.empty:
+        return [
+            {
+                "kicker": "GENERATED CHURN",
+                "title": "No dirty files detected",
+                "body": "Working tree is clean. Keep using diff hygiene before staging future product changes.",
+                "badges": ["clean", "read-only"],
+                "command": "make diff-hygiene-summary",
+            }
+        ]
+    generated = frame.loc[frame["Bucket"].eq("Generated CSV/JSON churn")]
+    product = frame.loc[frame["Bucket"].eq("Product/code/docs/tests")]
+    manual = frame.loc[frame["Bucket"].eq("Manual-review paths")]
+    generated_count = int(generated["Files"].iloc[0]) if not generated.empty else 0
+    product_count = int(product["Files"].iloc[0]) if not product.empty else 0
+    manual_count = int(manual["Files"].iloc[0]) if not manual.empty else 0
+    if generated_count:
+        title = f"{generated_count} generated artifact(s) excluded by default"
+        body = (
+            f"Product files: {product_count}. Manual-review paths: {manual_count}. "
+            "Generated CSV/JSON churn should stay local unless the exact file is reviewed evidence."
+        )
+        badges = ["exclude generated churn", "safe staging"]
+        command = "make diff-hygiene-files"
+    else:
+        title = "No generated churn detected"
+        body = f"Product files: {product_count}. Manual-review paths: {manual_count}. Stage product files only after review."
+        badges = ["product-only", "safe staging"]
+        command = "make staged-hygiene-check"
+    return [
+        {
+            "kicker": "GENERATED CHURN",
+            "title": title,
+            "body": body,
+            "badges": badges,
+            "command": command,
         }
     ]
 
@@ -25317,6 +25624,30 @@ def render_data_health(
             hide_index=True,
         )
     render_section_header(
+        "Generated Artifact Review",
+        "Classify local generated CSV/report churn before staging or public sharing.",
+    )
+    render_signal_cards(data_health_generated_churn_review_cards(BASE_DIR), show_commands=False, variant="queue")
+    with st.expander("Generated churn review drawer", expanded=False):
+        render_section_header(
+            "Generated Churn Decision",
+            "These rows mirror make diff-hygiene: generated CSV/JSON churn is excluded unless intentionally reviewed evidence.",
+        )
+        st.dataframe(
+            clean_display_frame(data_health_generated_churn_review_frame(BASE_DIR)),
+            width="stretch",
+            hide_index=True,
+        )
+        render_section_header(
+            "Generated Artifact Paths",
+            "Dirty generated files are listed for review, not staging by default.",
+        )
+        st.dataframe(
+            clean_display_frame(data_health_generated_churn_detail_frame(BASE_DIR)),
+            width="stretch",
+            hide_index=True,
+        )
+    render_section_header(
         "Readiness Lane Snapshot",
         "Post-price bottlenecks before single-stock reports or raw proof tables.",
     )
@@ -25548,6 +25879,25 @@ def render_data_health(
                 ),
                 show_commands=True,
             )
+            render_signal_cards(data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered), show_commands=True)
+            render_section_header("Finish This DCF Proof", "One compact checklist before source-review rows, import previews, or proof-record tables.")
+            render_signal_cards(
+                data_health_dcf_proof_source_review_checklist_cards(
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                    batch_proof_frame,
+                ),
+                show_commands=True,
+            )
+            st.table(
+                clean_display_frame(
+                    data_health_dcf_proof_source_review_checklist_frame(
+                        dcf_input_queue_filtered,
+                        dcf_family_selection,
+                        batch_proof_frame,
+                    )
+                )
+            )
             render_section_header("Trusted Fundamentals Source Packet", "Choose SEC-stageable or trusted-local source review before filling detailed import scaffolds.")
             render_signal_cards(data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
             st.dataframe(
@@ -25596,7 +25946,6 @@ def render_data_health(
                 width="stretch",
                 hide_index=True,
             )
-            render_signal_cards(data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered), show_commands=True)
             if not dcf_input_queue_filtered.empty:
                 st.dataframe(clean_display_frame(dcf_input_queue_filtered), width="stretch", hide_index=True)
             render_section_header("Fundamentals / DCF Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
