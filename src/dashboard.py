@@ -8117,6 +8117,112 @@ def data_health_trusted_fundamentals_source_review_command_cards(frame: pd.DataF
     ]
 
 
+def data_health_trusted_fundamentals_evidence_writer_frame(frame: pd.DataFrame | None) -> pd.DataFrame:
+    columns = [
+        "Dry Run",
+        "Selected Ticker",
+        "Input Family",
+        "Writer Status",
+        "Reviewed Source Fields",
+        "Proposed Import Row",
+        "Missing Fields",
+        "Source Guard Status",
+        "Validate Command",
+        "Preview Command",
+        "Apply Boundary",
+        "Post-Run Proof Command",
+        "Proof Record Dry-Run Command",
+        "Stop Rule",
+    ]
+    if frame is None or frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Dry Run": "DRY_RUN=1",
+                    "Selected Ticker": "",
+                    "Input Family": "",
+                    "Writer Status": "blocked_no_source_review_scope",
+                    "Reviewed Source Fields": "none",
+                    "Proposed Import Row": "blocked until source-review scope exists",
+                    "Missing Fields": "selected ticker, input family, reviewed source fields",
+                    "Source Guard Status": "blocked_no_source_review_scope",
+                    "Validate Command": "make imports-validate",
+                    "Preview Command": "make imports-preview",
+                    "Apply Boundary": "Do not apply imports without reviewed source proof.",
+                    "Post-Run Proof Command": "make dcf-readiness && make readiness",
+                    "Proof Record Dry-Run Command": "Finish source review before proof-record dry run.",
+                    "Stop Rule": "Run the trusted fundamentals source-review drawer before building an evidence writer packet.",
+                }
+            ],
+            columns=columns,
+        )
+    row = frame.iloc[0]
+    ticker = format_missing(row.get("Selected Tickers"), "").split(",", 1)[0].strip().upper()
+    family = format_missing(row.get("Top Blocker Family"), "trusted fundamentals")
+    missing = format_missing(row.get("Missing Source-Review Fields"), "reviewed source fields")
+    guard_status = format_missing(row.get("Source Guard Status"), "blocked")
+    import_row = format_missing(row.get("Import Row Scaffold"), "blocked until reviewed fields are complete")
+    ready = guard_status == "ready_for_guard" and bool(import_row) and not import_row.lower().startswith("blocked")
+    reviewed_fields = (
+        f"source guard reviewed for {ticker}; import row preview built from reviewed source fields"
+        if ready
+        else f"missing reviewed fields: {missing}"
+    )
+    return pd.DataFrame(
+        [
+            {
+                "Dry Run": "DRY_RUN=1",
+                "Selected Ticker": ticker,
+                "Input Family": family,
+                "Writer Status": "preview_packet_ready" if ready else "blocked_by_placeholders",
+                "Reviewed Source Fields": reviewed_fields,
+                "Proposed Import Row": import_row if ready else "blocked until reviewed source fields pass the source guard",
+                "Missing Fields": "-" if ready else missing,
+                "Source Guard Status": guard_status,
+                "Validate Command": "make imports-validate",
+                "Preview Command": "make imports-preview",
+                "Apply Boundary": format_missing(row.get("Apply Boundary"), "Do not apply rows without reviewed source proof."),
+                "Post-Run Proof Command": format_missing(row.get("Post-Run Proof"), "make dcf-readiness && make readiness"),
+                "Proof Record Dry-Run Command": format_missing(
+                    row.get("Proof Record Dry-Run Boundary"),
+                    "Finish source review before proof-record dry run.",
+                ),
+                "Stop Rule": format_missing(row.get("Stop Rule"), "Stop if source proof is missing."),
+            }
+        ],
+        columns=columns,
+    )
+
+
+def data_health_trusted_fundamentals_evidence_writer_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    writer = data_health_trusted_fundamentals_evidence_writer_frame(frame)
+    row = writer.iloc[0]
+    status = format_missing(row.get("Writer Status"), "blocked")
+    ready = status == "preview_packet_ready"
+    title = "Preview packet ready" if ready else "Preview packet blocked"
+    body = (
+        f"{card_sentence('Ticker', row.get('Selected Ticker'))} "
+        f"{card_sentence('Family', row.get('Input Family'))} "
+        f"{card_sentence('Missing fields', compact_card_fragment(row.get('Missing Fields'), max_chars=160))} "
+        f"{card_sentence('Apply boundary', compact_card_fragment(row.get('Apply Boundary'), max_chars=170))} "
+        "Dry-run only; this does not write canonical fundamentals."
+    )
+    command = (
+        format_missing(row.get("Proposed Import Row"), "blocked until reviewed source fields pass the source guard")
+        if ready
+        else format_missing(row.get("Validate Command"), "make imports-validate")
+    )
+    return [
+        {
+            "kicker": "EVIDENCE WRITER PREVIEW",
+            "title": title,
+            "body": body,
+            "badges": [status.replace("_", " "), "dry-run only"],
+            "command": command,
+        }
+    ]
+
+
 def data_health_trusted_fundamentals_source_review_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
     if frame is None or frame.empty:
         return [
@@ -25606,6 +25712,12 @@ def render_data_health(
                 variant="queue",
             )
             st.table(clean_display_frame(data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review)))
+            render_signal_cards(
+                data_health_trusted_fundamentals_evidence_writer_cards(trusted_fundamentals_source_review),
+                show_commands=True,
+                variant="queue",
+            )
+            st.table(clean_display_frame(data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review)))
             st.table(clean_display_frame(trusted_fundamentals_source_review))
         with st.expander("Data coverage proof queue detail", expanded=False):
             st.dataframe(clean_display_frame(data_coverage_proof_queues), width="stretch", hide_index=True)

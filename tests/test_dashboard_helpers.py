@@ -384,10 +384,14 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
     cards = dashboard.data_health_trusted_fundamentals_source_review_cards(frame)
     command_frame = dashboard.data_health_trusted_fundamentals_source_review_command_frame(frame)
     command_cards = dashboard.data_health_trusted_fundamentals_source_review_command_cards(frame)
+    writer_frame = dashboard.data_health_trusted_fundamentals_evidence_writer_frame(frame)
+    writer_cards = dashboard.data_health_trusted_fundamentals_evidence_writer_cards(frame)
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
     rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
     rendered_commands = " ".join(str(value) for value in command_frame.to_numpy().ravel()).lower()
     rendered_command_cards = " ".join(str(value) for card in command_cards for value in card.values()).lower()
+    rendered_writer = " ".join(str(value) for value in writer_frame.to_numpy().ravel()).lower()
+    rendered_writer_cards = " ".join(str(value) for card in writer_cards for value in card.values()).lower()
 
     row = frame.iloc[0]
     assert row["Top Blocker Family"] == "fundamentals_bundle_plus_shares"
@@ -421,6 +425,17 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
     assert "dry_run_only_after_review" in rendered_commands
     assert "finish this source review first" in rendered_command_cards
     assert "commands are copy-only" in rendered_command_cards
+    writer = writer_frame.iloc[0]
+    assert writer["Dry Run"] == "DRY_RUN=1"
+    assert writer["Writer Status"] == "blocked_by_placeholders"
+    assert writer["Proposed Import Row"] == "blocked until reviewed source fields pass the source guard"
+    assert "source_file_or_url" in writer["Missing Fields"]
+    assert writer["Validate Command"] == "make imports-validate"
+    assert writer["Preview Command"] == "make imports-preview"
+    assert "do not apply imports" in writer["Apply Boundary"].lower()
+    assert "finish evidence intake and source guard" in writer["Proof Record Dry-Run Command"].lower()
+    assert "preview packet blocked" in rendered_writer_cards
+    assert "dry-run only" in rendered_writer_cards
     assert "fundamentals_bundle_plus_shares: source review first" in rendered_cards
     assert "validate then preview" in rendered_cards
     assert "no fabricated inputs" in rendered_cards
@@ -428,6 +443,8 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
     assert "sell" not in rendered
     assert "buy" not in rendered_commands
     assert "sell" not in rendered_commands
+    assert "buy" not in rendered_writer
+    assert "sell" not in rendered_writer
 
 
 def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evidence_is_reviewed():
@@ -459,9 +476,13 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     )
     command_frame = dashboard.data_health_trusted_fundamentals_source_review_command_frame(frame)
     command_cards = dashboard.data_health_trusted_fundamentals_source_review_command_cards(frame)
+    writer_frame = dashboard.data_health_trusted_fundamentals_evidence_writer_frame(frame)
+    writer_cards = dashboard.data_health_trusted_fundamentals_evidence_writer_cards(frame)
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
     rendered_commands = " ".join(str(value) for value in command_frame.to_numpy().ravel()).lower()
     rendered_command_cards = " ".join(str(value) for card in command_cards for value in card.values()).lower()
+    rendered_writer = " ".join(str(value) for value in writer_frame.to_numpy().ravel()).lower()
+    rendered_writer_cards = " ".join(str(value) for card in writer_cards for value in card.values()).lower()
 
     row = frame.iloc[0]
     assert row["Source Guard Status"] == "ready_for_guard"
@@ -485,10 +506,26 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     assert "dry_run=1 make reviewed-batch-proof-record" in rendered_commands
     assert "ready for source guard review" in rendered_command_cards
     assert "validate then preview" in rendered_command_cards
+    writer = writer_frame.iloc[0]
+    assert writer["Dry Run"] == "DRY_RUN=1"
+    assert writer["Writer Status"] == "preview_packet_ready"
+    assert writer["Selected Ticker"] == "AACB"
+    assert writer["Input Family"] == "fundamentals_bundle_plus_shares"
+    assert writer["Missing Fields"] == "-"
+    assert writer["Proposed Import Row"] == "AACB,<reviewed_period>,100,20,0.20,1000,https://www.sec.gov/example,2026-06-01"
+    assert writer["Validate Command"] == "make imports-validate"
+    assert writer["Preview Command"] == "make imports-preview"
+    assert "run make imports-apply only after source guard" in writer["Apply Boundary"].lower()
+    assert writer["Post-Run Proof Command"] == "make dcf-readiness && make readiness && make stock-report-md TICKER=AACB"
+    assert writer["Proof Record Dry-Run Command"].startswith("DRY_RUN=1 make reviewed-batch-proof-record")
+    assert "preview packet ready" in rendered_writer_cards
+    assert "dry-run only" in rendered_writer_cards
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "buy" not in rendered_commands
     assert "sell" not in rendered_commands
+    assert "buy" not in rendered_writer
+    assert "sell" not in rendered_writer
 
 
 def test_data_health_readiness_queue_drilldown_combines_examples_packet_and_proof_status():
@@ -13321,9 +13358,17 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         "data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review)",
         trusted_source_review_command_cards_index,
     )
+    trusted_source_review_writer_cards_index = source.index(
+        "data_health_trusted_fundamentals_evidence_writer_cards(trusted_fundamentals_source_review)",
+        trusted_source_review_command_frame_index,
+    )
+    trusted_source_review_writer_frame_index = source.index(
+        "data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review)",
+        trusted_source_review_writer_cards_index,
+    )
     trusted_source_review_frame_index = source.index(
         "st.table(clean_display_frame(trusted_fundamentals_source_review))",
-        trusted_source_review_command_frame_index,
+        trusted_source_review_writer_frame_index,
     )
     coverage_proof_queue_drawer_index = source.index(
         'st.expander("Data coverage proof queue detail", expanded=False)',
@@ -13391,6 +13436,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review)" in source
     assert "data_health_trusted_fundamentals_source_review_command_cards(trusted_fundamentals_source_review)" in source
     assert "data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review)" in source
+    assert "data_health_trusted_fundamentals_evidence_writer_cards(trusted_fundamentals_source_review)" in source
+    assert "data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review)" in source
     assert "Data coverage proof queue detail" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source
