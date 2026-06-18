@@ -4,6 +4,7 @@ import pandas as pd
 
 from src.data_health_proof_ctas import card_sentence, compact_card_fragment
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_source_command_plan
+from src.reviewed_batch_command_builder import shell_assignment
 
 
 def dcf_source_command_plan_frame(rows: list[DcfInputProofRow], family: str | None = None) -> pd.DataFrame:
@@ -474,6 +475,119 @@ def dcf_source_guard_preview_cards(preview: pd.DataFrame | None, family: str | N
     ]
 
 
+def dcf_source_proof_handoff_frame(preview: pd.DataFrame | None, family: str | None = None) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "Proof Handoff Status",
+        "Missing Proof Fields",
+        "Proof Record Dry Run",
+        "Validation Boundary",
+        "Artifact Boundary",
+        "Stop Rule",
+    ]
+    family_label = str(family or "").strip() or "top family"
+    if preview is None or preview.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Ticker": "<select_batch>",
+                    "Proof Handoff Status": "blocked_until_guard_preview",
+                    "Missing Proof Fields": "guard_preview",
+                    "Proof Record Dry Run": "make dcf-input-proof-queue TOP_N=10",
+                    "Validation Boundary": "Build guard preview before proof-record dry-run work.",
+                    "Artifact Boundary": "Do not record proof without reviewed source files and generated-artifact review.",
+                    "Stop Rule": "Stop until a current DCF source guard preview exists.",
+                }
+            ],
+            columns=columns,
+        )
+
+    rows: list[dict[str, object]] = []
+    for _, row in preview.iterrows():
+        ticker = str(row.get("Ticker") or "<ticker>").strip()
+        guard_status = str(row.get("Guard Status") or "").strip()
+        ready = guard_status == "ready_for_guard"
+        if not ready:
+            rows.append(
+                {
+                    "Ticker": ticker,
+                    "Proof Handoff Status": "blocked_until_guard_ready",
+                    "Missing Proof Fields": "guard_status, reviewed_source_fields",
+                    "Proof Record Dry Run": "Finish evidence intake and source guard before proof-record dry run.",
+                    "Validation Boundary": "Validation and preview stay blocked until guard readiness is ready_for_guard.",
+                    "Artifact Boundary": "No generated artifacts are record-ready while source evidence is incomplete.",
+                    "Stop Rule": "Stop if reviewed source evidence is missing or still contains placeholders.",
+                }
+            )
+            continue
+        missing_fields = [
+            "batch_id",
+            "review_date",
+            "final_outcome",
+            "validation_result",
+            "preview_result",
+            "apply_result",
+            "changed_readiness_counts",
+            "changed_tickers",
+            "source_files",
+            "generated_artifacts_reviewed",
+        ]
+        command = _proof_record_dry_run_command(
+            ticker=ticker,
+            family=family_label,
+            command_run=str(row.get("Guard Command") or ""),
+        )
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Proof Handoff Status": "ready_after_validate_preview_review",
+                "Missing Proof Fields": ", ".join(missing_fields),
+                "Proof Record Dry Run": command,
+                "Validation Boundary": (
+                    "Run and review source guard, make imports-validate, make imports-preview, and rejected-row reports "
+                    "before filling validation_result, preview_result, or apply_result."
+                ),
+                "Artifact Boundary": (
+                    "Fill source_files and generated_artifacts_reviewed only after reviewing retained evidence and excluding broad churn."
+                ),
+                "Stop Rule": "Stop if validation, preview, apply result, readiness comparison, source files, or artifact review is missing.",
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def dcf_source_proof_handoff_cards(handoff: pd.DataFrame | None, family: str | None = None) -> list[dict[str, object]]:
+    family_label = str(family or "top family").strip() or "top family"
+    if handoff is None or handoff.empty:
+        return [
+            {
+                "kicker": "DCF PROOF HANDOFF",
+                "title": "No DCF proof handoff loaded",
+                "body": "Build guard preview before creating a proof-record dry-run scaffold.",
+                "badges": ["blocked visible", "proof after validation"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    statuses = handoff["Proof Handoff Status"].fillna("unknown").astype(str).value_counts()
+    summary = "; ".join(f"{status.replace('_', ' ')}: {count}" for status, count in statuses.items())
+    ready_rows = handoff.loc[handoff["Proof Handoff Status"].astype(str).eq("ready_after_validate_preview_review")]
+    focus = ready_rows.iloc[0] if not ready_rows.empty else handoff.iloc[0]
+    return [
+        {
+            "kicker": "DCF PROOF HANDOFF",
+            "title": f"{family_label}: {summary}",
+            "body": (
+                f"{card_sentence('Ticker', focus.get('Ticker'))} "
+                f"{card_sentence('Missing proof fields', compact_card_fragment(focus.get('Missing Proof Fields'), max_chars=190))} "
+                f"{card_sentence('Stop rule', compact_card_fragment(focus.get('Stop Rule'), max_chars=190))} "
+                "Use this handoff after guard/validate/preview review; it is not a recommendation or an unlock by itself."
+            ),
+            "badges": ["dry-run proof record", "review required"],
+            "command": str(focus.get("Proof Record Dry Run") or "make dcf-input-proof-queue TOP_N=10"),
+        }
+    ]
+
+
 def _first_command(frame: pd.DataFrame, mask: pd.Series) -> str:
     matches = frame.loc[mask]
     if matches.empty or "Command" not in matches.columns:
@@ -555,3 +669,28 @@ def _guard_command_from_evidence(group: pd.DataFrame) -> str:
         if value and not _is_placeholder(value):
             parts.append(f"{make_name}={value}")
     return "make dcf-input-source-guard " + " ".join(parts)
+
+
+def _proof_record_lane(family: str) -> str:
+    return "share_count" if family == "shares_outstanding" else "fundamentals"
+
+
+def _proof_record_dry_run_command(*, ticker: str, family: str, command_run: str) -> str:
+    lane = _proof_record_lane(family)
+    values = {
+        "BATCH_ID": "<reviewed_batch_id>",
+        "LANE": lane,
+        "TICKERS": ticker,
+        "REVIEW_DATE": "<yyyy-mm-dd>",
+        "FINAL_OUTCOME": "<supported|still_blocked|skipped|excluded>",
+        "COMMAND_RUN": command_run or "<reviewed_guard_command>",
+        "VALIDATION_RESULT": "<reviewed_validation_result>",
+        "PREVIEW_RESULT": "<reviewed_preview_result>",
+        "APPLY_RESULT": "<reviewed_apply_result>",
+        "CHANGED_READINESS_COUNTS": "<from_reviewed_batch_compare>",
+        "CHANGED_TICKERS": "<from_reviewed_batch_compare>",
+        "SOURCE_FILES": "<reviewed_source_files>",
+        "GENERATED_ARTIFACTS_REVIEWED": "<kept_evidence_or_excluded_churn>",
+    }
+    assignments = " ".join(shell_assignment(name, value) for name, value in values.items())
+    return f"DRY_RUN=1 make reviewed-batch-proof-record {assignments}"

@@ -13,6 +13,8 @@ from src.data_health_dcf_source_commands import (
     dcf_source_guard_preview_frame,
     dcf_source_guard_readiness_cards,
     dcf_source_guard_readiness_frame,
+    dcf_source_proof_handoff_cards,
+    dcf_source_proof_handoff_frame,
 )
 from src.dcf_input_proof_queue import DcfInputProofRow
 
@@ -272,3 +274,56 @@ def test_dcf_source_guard_preview_shows_validate_preview_apply_boundary_when_rea
     assert "validate then preview" in lowered
     assert "buy now" not in lowered
     assert "sell now" not in lowered
+
+
+def test_dcf_source_proof_handoff_blocks_until_guard_ready():
+    intake = dcf_source_evidence_intake_frame([_row("META")], family="shares_outstanding", top_n=1)
+    readiness = dcf_source_guard_readiness_frame(intake)
+    preview = dcf_source_guard_preview_frame(readiness)
+    handoff = dcf_source_proof_handoff_frame(preview, "shares_outstanding")
+    cards = dcf_source_proof_handoff_cards(handoff, "shares_outstanding")
+    rendered = " ".join(handoff.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert handoff.iloc[0]["Proof Handoff Status"] == "blocked_until_guard_ready"
+    assert "guard_status" in handoff.iloc[0]["Missing Proof Fields"]
+    assert handoff.iloc[0]["Proof Record Dry Run"] == "Finish evidence intake and source guard before proof-record dry run."
+    assert cards[0]["command"] == "Finish evidence intake and source guard before proof-record dry run."
+    assert "validation and preview stay blocked" in lowered
+    assert "no generated artifacts are record-ready" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+    assert "broker" not in lowered
+
+
+def test_dcf_source_proof_handoff_builds_dry_run_record_scaffold_when_guard_ready():
+    intake = dcf_source_evidence_intake_frame([_row("META")], family="shares_outstanding", top_n=1)
+    replacements = {
+        "source_file_or_url": "https://www.sec.gov/example",
+        "source_as_of_date": "2026-06-01",
+        "reviewer": "local_reviewer",
+        "review_date": "2026-06-18",
+        "source_proof_status": "reviewed",
+        "shares_outstanding": "123456789",
+    }
+    intake["Reviewer Fill"] = intake["Evidence Field"].map(replacements).fillna(intake["Reviewer Fill"])
+    readiness = dcf_source_guard_readiness_frame(intake)
+    preview = dcf_source_guard_preview_frame(readiness)
+    handoff = dcf_source_proof_handoff_frame(preview, "shares_outstanding")
+    cards = dcf_source_proof_handoff_cards(handoff, "shares_outstanding")
+    rendered = " ".join(handoff.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert handoff.iloc[0]["Proof Handoff Status"] == "ready_after_validate_preview_review"
+    assert "validation_result" in handoff.iloc[0]["Missing Proof Fields"]
+    assert "generated_artifacts_reviewed" in handoff.iloc[0]["Missing Proof Fields"]
+    assert handoff.iloc[0]["Proof Record Dry Run"].startswith("DRY_RUN=1 make reviewed-batch-proof-record")
+    assert "LANE=share_count" in handoff.iloc[0]["Proof Record Dry Run"]
+    assert "VALIDATION_RESULT='<reviewed_validation_result>'" in handoff.iloc[0]["Proof Record Dry Run"]
+    assert "SOURCE_FILES='<reviewed_source_files>'" in handoff.iloc[0]["Proof Record Dry Run"]
+    assert "GENERATED_ARTIFACTS_REVIEWED='<kept_evidence_or_excluded_churn>'" in handoff.iloc[0]["Proof Record Dry Run"]
+    assert cards[0]["command"].startswith("DRY_RUN=1 make reviewed-batch-proof-record")
+    assert "not a recommendation" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+    assert "broker" not in lowered

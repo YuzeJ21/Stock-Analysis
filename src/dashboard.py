@@ -59,6 +59,8 @@ from src.data_health_dcf_source_commands import (
     dcf_source_guard_preview_frame,
     dcf_source_guard_readiness_cards,
     dcf_source_guard_readiness_frame,
+    dcf_source_proof_handoff_cards,
+    dcf_source_proof_handoff_frame,
 )
 from src.data_health_proof_checklist import (
     proof_checklist_summary_cards as data_health_proof_checklist_summary_cards,
@@ -8176,6 +8178,16 @@ def data_health_dcf_source_guard_preview_frame(frame: pd.DataFrame | None, selec
 def data_health_dcf_source_guard_preview_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
     preview = data_health_dcf_source_guard_preview_frame(frame, selection, top_n=top_n)
     return dcf_source_guard_preview_cards(preview, data_health_dcf_input_family_key(selection) or None)
+
+
+def data_health_dcf_source_proof_handoff_frame(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> pd.DataFrame:
+    preview = data_health_dcf_source_guard_preview_frame(frame, selection, top_n=top_n)
+    return dcf_source_proof_handoff_frame(preview, data_health_dcf_input_family_key(selection) or None)
+
+
+def data_health_dcf_source_proof_handoff_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
+    handoff = data_health_dcf_source_proof_handoff_frame(frame, selection, top_n=top_n)
+    return dcf_source_proof_handoff_cards(handoff, data_health_dcf_input_family_key(selection) or None)
 
 
 def _data_health_dcf_source_route(row: pd.Series) -> str:
@@ -25253,6 +25265,16 @@ def render_data_health(
             )
             st.dataframe(
                 clean_display_frame(data_health_dcf_source_guard_preview_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_section_header("DCF Source Proof Handoff", "Proof-record dry-run fields and stop rule after guard, validation, preview, and artifact review.")
+            render_signal_cards(
+                data_health_dcf_source_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_dcf_source_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection)),
                 width="stretch",
                 hide_index=True,
             )
