@@ -47,6 +47,8 @@ from src.data_health_proof_ctas import (
     data_health_operator_lane_url,
 )
 from src.data_health_dcf_source_commands import (
+    dcf_source_batch_selector_cards,
+    dcf_source_batch_selector_frame,
     dcf_source_command_plan_cards,
     dcf_source_command_plan_frame,
     dcf_source_command_triage_cards,
@@ -8119,6 +8121,21 @@ def data_health_dcf_source_command_triage_frame(frame: pd.DataFrame | None, sele
 def data_health_dcf_source_command_triage_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
     triage = data_health_dcf_source_command_triage_frame(frame, selection)
     return dcf_source_command_triage_cards(triage, data_health_dcf_input_family_key(selection) or None)
+
+
+def data_health_dcf_source_batch_selector_frame(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> pd.DataFrame:
+    rows = data_health_dcf_input_rows_from_frame(frame)
+    return dcf_source_batch_selector_frame(
+        rows,
+        family=data_health_dcf_input_family_key(selection) or None,
+        triage_bucket="needs_source_fields",
+        top_n=top_n,
+    )
+
+
+def data_health_dcf_source_batch_selector_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
+    selector = data_health_dcf_source_batch_selector_frame(frame, selection, top_n=top_n)
+    return dcf_source_batch_selector_cards(selector, data_health_dcf_input_family_key(selection) or None)
 
 
 def _data_health_dcf_source_route(row: pd.Series) -> str:
@@ -25156,6 +25173,16 @@ def render_data_health(
             )
             st.dataframe(
                 clean_display_frame(data_health_dcf_source_command_triage_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_section_header("DCF Source Batch Selector", "Choose one capped source-review scope before opening command-plan or raw queue details.")
+            render_signal_cards(
+                data_health_dcf_source_batch_selector_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_dcf_source_batch_selector_frame(dcf_input_queue_filtered, dcf_family_selection)),
                 width="stretch",
                 hide_index=True,
             )

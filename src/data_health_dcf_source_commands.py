@@ -152,6 +152,91 @@ def dcf_source_command_triage_cards(triage: pd.DataFrame | None, family: str | N
     ]
 
 
+def dcf_source_batch_selector_frame(
+    rows: list[DcfInputProofRow],
+    *,
+    family: str | None = None,
+    triage_bucket: str = "needs_source_fields",
+    top_n: int = 5,
+) -> pd.DataFrame:
+    columns = [
+        "Batch Scope",
+        "Triage Bucket",
+        "Selected Count",
+        "Tickers",
+        "Command Plan",
+        "First Missing Fields",
+        "Stop Rule",
+    ]
+    family_key = str(family or "").strip()
+    selected = [row for row in rows if not family_key or row.missing_input_family == family_key]
+    selected = selected[: max(top_n, 0)]
+    if not selected:
+        fallback_family = family_key or "top family"
+        return pd.DataFrame(
+            [
+                {
+                    "Batch Scope": f"{fallback_family}: no queued rows",
+                    "Triage Bucket": "blocked_no_rows",
+                    "Selected Count": 0,
+                    "Tickers": "",
+                    "Command Plan": "make dcf-input-proof-queue TOP_N=10",
+                    "First Missing Fields": "queued DCF blockers",
+                    "Stop Rule": "Do not build a source-review batch until current DCF blocker rows exist.",
+                }
+            ],
+            columns=columns,
+        )
+    first = selected[0]
+    batch_family = family_key or first.missing_input_family
+    tickers = ",".join(row.ticker for row in selected if row.ticker)
+    command = f"make dcf-input-source-command-plan FAMILY={batch_family} TICKERS={tickers} TOP_N={len(selected)}"
+    return pd.DataFrame(
+        [
+            {
+                "Batch Scope": f"{batch_family}: top {len(selected)}",
+                "Triage Bucket": triage_bucket,
+                "Selected Count": len(selected),
+                "Tickers": tickers,
+                "Command Plan": command,
+                "First Missing Fields": first.missing_dcf_fields,
+                "Stop Rule": first.stop_rule,
+            }
+        ],
+        columns=columns,
+    )
+
+
+def dcf_source_batch_selector_cards(selector: pd.DataFrame | None, family: str | None = None) -> list[dict[str, object]]:
+    family_label = str(family or "top family").strip() or "top family"
+    if selector is None or selector.empty:
+        return [
+            {
+                "kicker": "DCF BATCH SELECTOR",
+                "title": "No DCF source batch selected",
+                "body": "Build source-review triage before selecting a capped command-plan batch.",
+                "badges": ["blocked visible", "readiness first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    first = selector.iloc[0]
+    count = int(first.get("Selected Count", 0) or 0)
+    return [
+        {
+            "kicker": "DCF BATCH SELECTOR",
+            "title": f"{family_label}: {count} selected for source review",
+            "body": (
+                f"{card_sentence('Tickers', compact_card_fragment(first.get('Tickers'), fallback='No tickers selected', max_chars=160))} "
+                f"{card_sentence('Missing fields', compact_card_fragment(first.get('First Missing Fields'), max_chars=120))} "
+                f"{card_sentence('Stop rule', compact_card_fragment(first.get('Stop Rule'), max_chars=190))} "
+                "Use this capped scope before opening raw DCF rows."
+            ),
+            "badges": ["capped scope", "copy-only"],
+            "command": str(first.get("Command Plan") or "make dcf-input-proof-queue TOP_N=10"),
+        }
+    ]
+
+
 def _first_command(frame: pd.DataFrame, mask: pd.Series) -> str:
     matches = frame.loc[mask]
     if matches.empty or "Command" not in matches.columns:

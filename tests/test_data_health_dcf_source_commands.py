@@ -1,6 +1,8 @@
 import pandas as pd
 
 from src.data_health_dcf_source_commands import (
+    dcf_source_batch_selector_cards,
+    dcf_source_batch_selector_frame,
     dcf_source_command_plan_cards,
     dcf_source_command_plan_frame,
     dcf_source_command_triage_cards,
@@ -103,5 +105,38 @@ def test_dcf_source_command_triage_empty_plan_uses_refresh_first_gate():
     assert triage.iloc[0]["Next Safe Action"] == "make dcf-input-proof-queue TOP_N=10"
     assert cards[0]["command"] == "make dcf-input-proof-queue TOP_N=10"
     assert "refresh the dcf input queue" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_batch_selector_creates_capped_command_scope():
+    rows = [_row("META"), _row("ABNB"), _row("HOOD")]
+    selector = dcf_source_batch_selector_frame(rows, family="shares_outstanding", top_n=2)
+    cards = dcf_source_batch_selector_cards(selector, "shares_outstanding")
+    rendered = " ".join(selector.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert selector.iloc[0]["Batch Scope"] == "shares_outstanding: top 2"
+    assert selector.iloc[0]["Selected Count"] == 2
+    assert selector.iloc[0]["Tickers"] == "META,ABNB"
+    assert selector.iloc[0]["Command Plan"] == "make dcf-input-source-command-plan FAMILY=shares_outstanding TICKERS=META,ABNB TOP_N=2"
+    assert cards[0]["title"] == "shares_outstanding: 2 selected for source review"
+    assert cards[0]["command"] == "make dcf-input-source-command-plan FAMILY=shares_outstanding TICKERS=META,ABNB TOP_N=2"
+    assert "use this capped scope before opening raw dcf rows" in lowered
+    assert "copy-only" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_batch_selector_blocks_empty_scope():
+    selector = dcf_source_batch_selector_frame([], family="shares_outstanding", top_n=5)
+    cards = dcf_source_batch_selector_cards(selector, "shares_outstanding")
+    rendered = " ".join(selector.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert selector.iloc[0]["Triage Bucket"] == "blocked_no_rows"
+    assert selector.iloc[0]["Command Plan"] == "make dcf-input-proof-queue TOP_N=10"
+    assert cards[0]["command"] == "make dcf-input-proof-queue TOP_N=10"
+    assert "do not build a source-review batch" in lowered
     assert "buy now" not in lowered
     assert "sell now" not in lowered
