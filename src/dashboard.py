@@ -12556,6 +12556,114 @@ def data_health_peer_proof_closeout_cards(
     ]
 
 
+def data_health_proof_closeout_summary_frame(
+    dcf_closeout: pd.DataFrame | None,
+    peer_closeout: pd.DataFrame | None,
+) -> pd.DataFrame:
+    columns = [
+        "Proof Lane",
+        "Closeout Status",
+        "Latest Outcome",
+        "Comparison Status",
+        "Evidence Remaining",
+        "Next Safest Action",
+        "Lane URL",
+        "Closeout Boundary",
+    ]
+
+    def _row(lane: str, lane_url: str, frame: pd.DataFrame | None, fallback_action: str) -> dict[str, object]:
+        if frame is None or frame.empty:
+            return {
+                "Proof Lane": lane,
+                "Closeout Status": "not_loaded",
+                "Latest Outcome": "not_recorded",
+                "Comparison Status": "not_loaded",
+                "Evidence Remaining": "Open the lane drawer to build closeout evidence.",
+                "Next Safest Action": fallback_action,
+                "Lane URL": lane_url,
+                "Closeout Boundary": "Closeout rows are data-readiness proof states only, not recommendations.",
+            }
+        first = frame.iloc[0]
+        return {
+            "Proof Lane": lane,
+            "Closeout Status": format_missing(first.get("Closeout Status"), "not_recorded"),
+            "Latest Outcome": format_missing(first.get("Latest Outcome"), "not_recorded"),
+            "Comparison Status": format_missing(first.get("Comparison Status"), "deferred"),
+            "Evidence Remaining": compact_card_fragment(
+                first.get("Evidence Remaining"),
+                fallback="Open the lane drawer to review evidence gates.",
+                max_chars=220,
+            ),
+            "Next Safest Action": format_missing(first.get("Next Safest Action"), fallback_action),
+            "Lane URL": lane_url,
+            "Closeout Boundary": format_missing(
+                first.get("Closeout Boundary"),
+                "Closeout rows are data-readiness proof states only, not recommendations.",
+            ),
+        }
+
+    return pd.DataFrame(
+        [
+            _row(
+                "DCF proof closeout",
+                data_health_operator_lane_url("fundamentals"),
+                dcf_closeout,
+                "make dcf-input-proof-queue TOP_N=10",
+            ),
+            _row(
+                "Peer proof closeout",
+                data_health_operator_lane_url("peers"),
+                peer_closeout,
+                "make peer-mapping-source-review TOP_N=10",
+            ),
+        ],
+        columns=columns,
+    )
+
+
+def data_health_proof_closeout_summary_cards(
+    dcf_closeout: pd.DataFrame | None,
+    peer_closeout: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    summary = data_health_proof_closeout_summary_frame(dcf_closeout, peer_closeout)
+    if summary.empty:
+        return [
+            {
+                "kicker": "PROOF CLOSEOUT",
+                "title": "No closeout lanes loaded",
+                "body": "Open DCF or Peer drawers to review proof closeout status.",
+                "badges": ["blocked visible", "research-only"],
+                "command": data_health_operator_lane_url("fundamentals"),
+            }
+        ]
+    status_series = summary["Closeout Status"].fillna("not_recorded").astype(str).str.lower()
+    complete = status_series.isin({"supported", "still_blocked", "skipped", "excluded"})
+    needs_review = summary.loc[~complete]
+    focus = needs_review.iloc[0] if not needs_review.empty else summary.iloc[0]
+    if needs_review.empty:
+        title = "2 proof lane(s) have closeout states"
+        badges = ["closeout visible", "proof states only"]
+    else:
+        title = f"{len(needs_review)} proof lane(s) need closeout review"
+        badges = ["closeout review", "blocked visible"]
+    ordered_statuses = list(dict.fromkeys(status_series.tolist()))
+    counts = "; ".join(f"{status}: {int((status_series == status).sum())}" for status in ordered_statuses)
+    return [
+        {
+            "kicker": "PROOF CLOSEOUT",
+            "title": title,
+            "body": (
+                f"{card_sentence('Closeout states', counts)} "
+                f"{card_sentence('Next lane', focus.get('Proof Lane'))} "
+                f"{card_sentence('Evidence remaining', compact_card_fragment(focus.get('Evidence Remaining'), max_chars=190))} "
+                "Closeout is data-readiness evidence, not analysis or recommendation output."
+            ),
+            "badges": badges,
+            "command": format_missing(focus.get("Lane URL"), data_health_operator_lane_url("fundamentals")),
+        }
+    ]
+
+
 def data_health_peer_proof_completion_checklist_frame(
     packet: PeerMappingSourceReviewPacket | None,
     batch_proof_frame: pd.DataFrame | None,
@@ -25157,6 +25265,19 @@ def render_data_health(
         if selected_lane_key == "fundamentals"
         else pd.DataFrame()
     )
+    proof_closeout_dcf_queue = dcf_input_queue if not dcf_input_queue.empty else data_health_dcf_input_proof_queue_frame(top_n=10)
+    proof_closeout_peer_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)
+    proof_closeout_dcf_frame = data_health_dcf_proof_closeout_frame(
+        proof_closeout_dcf_queue,
+        "All families",
+        batch_proof_summary_frame,
+        readiness_comparison,
+    )
+    proof_closeout_peer_frame = data_health_peer_proof_closeout_frame(
+        proof_closeout_peer_packet,
+        batch_proof_summary_frame,
+        readiness_comparison,
+    )
     queue_drilldown = (
         data_health_readiness_queue_drilldown_frame(
             readiness_queue,
@@ -25207,6 +25328,15 @@ def render_data_health(
             queue_outcome_summary,
             readiness_freshness,
         ),
+        show_commands=False,
+        variant="queue",
+    )
+    render_section_header(
+        "Proof Closeout Summary",
+        "DCF and peer closeout states side by side before opening lane-specific evidence drawers.",
+    )
+    render_signal_cards(
+        data_health_proof_closeout_summary_cards(proof_closeout_dcf_frame, proof_closeout_peer_frame),
         show_commands=False,
         variant="queue",
     )

@@ -607,6 +607,55 @@ def test_data_health_proof_planner_outcome_summary_shows_refresh_cta_when_stale(
     assert "broker" not in rendered
 
 
+def test_data_health_proof_closeout_summary_compares_dcf_and_peer_lanes():
+    dcf_closeout = pd.DataFrame(
+        [
+            {
+                "Closeout Status": "still_blocked",
+                "Latest Outcome": "still_blocked",
+                "Comparison Status": "ready",
+                "Evidence Remaining": "Source review intake: missing source_file_or_url",
+                "Next Safest Action": "make dcf-input-source-review TOP_N=10",
+                "Closeout Boundary": "Closeout is evidence for data readiness only; not investment advice.",
+            }
+        ]
+    )
+    peer_closeout = pd.DataFrame(
+        [
+            {
+                "Closeout Status": "not_recorded",
+                "Latest Outcome": "not_recorded",
+                "Comparison Status": "deferred",
+                "Evidence Remaining": "Source-review intake: proposed_peer_ticker missing",
+                "Next Safest Action": "DRY_RUN=1 make peer-mapping-source-review TOP_N=10",
+                "Closeout Boundary": "Closeout is evidence for peer-data readiness only; not investment advice.",
+            }
+        ]
+    )
+
+    frame = dashboard.data_health_proof_closeout_summary_frame(dcf_closeout, peer_closeout)
+    cards = dashboard.data_health_proof_closeout_summary_cards(dcf_closeout, peer_closeout)
+    rendered = " ".join(
+        frame.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert frame["Proof Lane"].tolist() == ["DCF proof closeout", "Peer proof closeout"]
+    assert frame.iloc[0]["Closeout Status"] == "still_blocked"
+    assert frame.iloc[0]["Lane URL"] == "?mode=operator&page=data-health&lane=fundamentals"
+    assert frame.iloc[1]["Closeout Status"] == "not_recorded"
+    assert frame.iloc[1]["Comparison Status"] == "deferred"
+    assert frame.iloc[1]["Lane URL"] == "?mode=operator&page=data-health&lane=peers"
+    assert cards[0]["title"] == "1 proof lane(s) need closeout review"
+    assert cards[0]["command"] == "?mode=operator&page=data-health&lane=peers"
+    assert "closeout states: still_blocked: 1; not_recorded: 1" in rendered
+    assert "data-readiness evidence, not analysis or recommendation output" in rendered
+    assert "not investment advice" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_data_health_operator_lane_url_uses_existing_lane_aliases():
     assert dashboard.data_health_operator_lane_url("dcf") == "?mode=operator&page=data-health&lane=fundamentals"
     assert dashboard.data_health_operator_lane_url("peer") == "?mode=operator&page=data-health&lane=peers"
@@ -13020,7 +13069,12 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         proof_planner_summary_index,
     )
     prior_snapshot_load_index = source.index("load_prior_ticker_readiness_report()", public_return_index)
-    coverage_delta_index = source.index('render_section_header(\n        "Readiness Coverage Delta"', proof_planner_cards_index)
+    proof_closeout_summary_index = source.index('render_section_header(\n        "Proof Closeout Summary"', proof_planner_cards_index)
+    proof_closeout_cards_index = source.index(
+        "data_health_proof_closeout_summary_cards(proof_closeout_dcf_frame, proof_closeout_peer_frame)",
+        proof_closeout_summary_index,
+    )
+    coverage_delta_index = source.index('render_section_header(\n        "Readiness Coverage Delta"', proof_closeout_cards_index)
     coverage_delta_cards_index = source.index("data_health_readiness_delta_board_cards(", coverage_delta_index)
     coverage_delta_frame_index = source.index("data_health_readiness_delta_board_frame(", coverage_delta_cards_index)
     generated_artifact_index = source.index('render_section_header(\n        "Generated Artifact Review"', coverage_delta_frame_index)
@@ -13075,7 +13129,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     details_index = source.index("if show_details:", all_details_index)
 
     assert public_return_index < prior_snapshot_load_index < coverage_delta_index
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < proof_closeout_summary_index < proof_closeout_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -13092,6 +13146,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_proof_checklist_summary_cards(readiness_summary, queue_outcome_summary)" in source
     assert "Proof Planner Outcome Summary" in source
     assert "data_health_proof_planner_outcome_summary_cards(" in source
+    assert "Proof Closeout Summary" in source
+    assert "data_health_proof_closeout_summary_cards(proof_closeout_dcf_frame, proof_closeout_peer_frame)" in source
     assert "data_health_selected_detail_mode(" in console_source
     assert "data_health_current_mode_next_action(" in console_source
     assert "render_data_health_current_mode_strip(" in source

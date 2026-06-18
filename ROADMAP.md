@@ -139,6 +139,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add DCF Source Proof Handoff V2 so guard preview rows show proof-record dry-run fields, validation/preview boundaries, artifact review, and stop rules before lower source tables.
 - [x] Add DCF Proof Ledger Outcome Compare V1 so source proof, before/after readiness comparison, and latest ledger outcome appear together before lower source tables.
 - [x] Add DCF Proof Outcome Closeout V1 so supported, still-blocked, skipped, or excluded closeout status and remaining evidence gates appear before lower source tables.
+- [x] Add Proof Closeout Summary Board V1 so DCF and peer closeout states appear side by side before opening lane-specific evidence drawers.
 - [x] Add Proof Planner Stale-State CTA V1 so stale or missing readiness artifacts show one refresh-first CTA before DCF/peer proof-planning language.
 - [x] Extract DCF/peer proof CTA card builders from the Streamlit dashboard into a focused tested module.
 - [x] Extract DCF source command-plan card/frame helpers from the Streamlit dashboard into a focused tested module.
