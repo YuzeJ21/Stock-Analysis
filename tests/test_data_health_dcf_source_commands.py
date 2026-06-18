@@ -7,6 +7,8 @@ from src.data_health_dcf_source_commands import (
     dcf_source_command_plan_frame,
     dcf_source_command_triage_cards,
     dcf_source_command_triage_frame,
+    dcf_source_evidence_intake_cards,
+    dcf_source_evidence_intake_frame,
 )
 from src.dcf_input_proof_queue import DcfInputProofRow
 
@@ -138,5 +140,38 @@ def test_dcf_source_batch_selector_blocks_empty_scope():
     assert selector.iloc[0]["Command Plan"] == "make dcf-input-proof-queue TOP_N=10"
     assert cards[0]["command"] == "make dcf-input-proof-queue TOP_N=10"
     assert "do not build a source-review batch" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_evidence_intake_groups_reviewer_fields_before_csv_rows():
+    intake = dcf_source_evidence_intake_frame([_row("META"), _row("ABNB")], family="shares_outstanding", top_n=2)
+    cards = dcf_source_evidence_intake_cards(intake, "shares_outstanding")
+    rendered = " ".join(intake.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert intake["Ticker"].nunique() == 2
+    assert "source_file_or_url" in intake["Evidence Field"].tolist()
+    assert "shares_outstanding" in intake["Evidence Field"].tolist()
+    assert "<reviewed_shares_outstanding>" in intake["Reviewer Fill"].tolist()
+    assert "sec filing" in lowered
+    assert cards[0]["title"] == "shares_outstanding: 2 ticker(s), 12 evidence field(s)"
+    assert cards[0]["command"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert "evidence before csv" in lowered
+    assert "fill evidence fields before import rows" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_evidence_intake_empty_scope_stays_blocked():
+    intake = dcf_source_evidence_intake_frame([], family="shares_outstanding", top_n=5)
+    cards = dcf_source_evidence_intake_cards(intake, "shares_outstanding")
+    rendered = " ".join(intake.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert intake.iloc[0]["Ticker"] == "<select_batch>"
+    assert intake.iloc[0]["Reviewer Fill"] == "<run_dcf_input_proof_queue_first>"
+    assert cards[0]["command"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert "do not fill evidence fields" in lowered
     assert "buy now" not in lowered
     assert "sell now" not in lowered

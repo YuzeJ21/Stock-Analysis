@@ -13079,6 +13079,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "DCF Source Batch Selector" in source
     assert "data_health_dcf_source_batch_selector_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_batch_selector_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "DCF Source Evidence Intake" in source
+    assert "data_health_dcf_source_evidence_intake_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_source_evidence_intake_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "DCF Source Command Plan" in source
     assert "data_health_dcf_source_command_plan_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_command_plan_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
@@ -13110,7 +13113,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_batch_selector_index = source.index('render_section_header("DCF Source Batch Selector"', dcf_triage_frame_index)
     dcf_batch_selector_cards_index = source.index("data_health_dcf_source_batch_selector_cards(", dcf_batch_selector_index)
     dcf_batch_selector_frame_index = source.index("data_health_dcf_source_batch_selector_frame(", dcf_batch_selector_cards_index)
-    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_batch_selector_frame_index)
+    dcf_evidence_intake_index = source.index('render_section_header("DCF Source Evidence Intake"', dcf_batch_selector_frame_index)
+    dcf_evidence_intake_cards_index = source.index("data_health_dcf_source_evidence_intake_cards(", dcf_evidence_intake_index)
+    dcf_evidence_intake_frame_index = source.index("data_health_dcf_source_evidence_intake_frame(", dcf_evidence_intake_cards_index)
+    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_evidence_intake_frame_index)
     dcf_command_plan_cards_index = source.index("data_health_dcf_source_command_plan_cards(", dcf_command_plan_index)
     dcf_command_plan_frame_index = source.index("data_health_dcf_source_command_plan_frame(", dcf_command_plan_cards_index)
     dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_command_plan_frame_index)
@@ -13128,6 +13134,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         < dcf_batch_selector_index
         < dcf_batch_selector_cards_index
         < dcf_batch_selector_frame_index
+        < dcf_evidence_intake_index
+        < dcf_evidence_intake_cards_index
+        < dcf_evidence_intake_frame_index
         < dcf_command_plan_index
         < dcf_command_plan_cards_index
         < dcf_command_plan_frame_index

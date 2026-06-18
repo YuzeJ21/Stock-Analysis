@@ -237,6 +237,86 @@ def dcf_source_batch_selector_cards(selector: pd.DataFrame | None, family: str |
     ]
 
 
+def dcf_source_evidence_intake_frame(
+    rows: list[DcfInputProofRow],
+    *,
+    family: str | None = None,
+    top_n: int = 5,
+) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "Input Family",
+        "Evidence Field",
+        "Reviewer Fill",
+        "Source Expectation",
+        "Stop Rule",
+    ]
+    family_key = str(family or "").strip()
+    selected = [row for row in rows if not family_key or row.missing_input_family == family_key]
+    selected = selected[: max(top_n, 0)]
+    if not selected:
+        return pd.DataFrame(
+            [
+                {
+                    "Ticker": "<select_batch>",
+                    "Input Family": family_key or "top family",
+                    "Evidence Field": "queued DCF blocker",
+                    "Reviewer Fill": "<run_dcf_input_proof_queue_first>",
+                    "Source Expectation": "Current DCF source-review evidence cannot be scoped until blocker rows exist.",
+                    "Stop Rule": "Do not fill evidence fields without a selected DCF blocker batch.",
+                }
+            ],
+            columns=columns,
+        )
+    rows_out: list[dict[str, object]] = []
+    for row in selected:
+        source_expectation = _source_expectation(row.missing_input_family)
+        for field in _evidence_fields_for_row(row):
+            rows_out.append(
+                {
+                    "Ticker": row.ticker,
+                    "Input Family": row.missing_input_family,
+                    "Evidence Field": field,
+                    "Reviewer Fill": _reviewer_placeholder(field),
+                    "Source Expectation": source_expectation,
+                    "Stop Rule": row.stop_rule,
+                }
+            )
+    return pd.DataFrame(rows_out, columns=columns)
+
+
+def dcf_source_evidence_intake_cards(intake: pd.DataFrame | None, family: str | None = None) -> list[dict[str, object]]:
+    family_label = str(family or "top family").strip() or "top family"
+    if intake is None or intake.empty:
+        return [
+            {
+                "kicker": "DCF EVIDENCE INTAKE",
+                "title": "No DCF evidence fields loaded",
+                "body": "Select a capped DCF source batch before filling source evidence fields.",
+                "badges": ["blocked visible", "source proof first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    ticker_count = intake["Ticker"].astype(str).nunique() if "Ticker" in intake.columns else 0
+    field_summary = _field_summary(intake.get("Evidence Field", pd.Series("", index=intake.index)))
+    first = intake.iloc[0]
+    return [
+        {
+            "kicker": "DCF EVIDENCE INTAKE",
+            "title": f"{family_label}: {ticker_count} ticker(s), {len(intake)} evidence field(s)",
+            "body": (
+                f"{card_sentence('Fields', compact_card_fragment(field_summary, max_chars=170))} "
+                f"{card_sentence('First reviewer fill', compact_card_fragment(first.get('Reviewer Fill'), max_chars=130))} "
+                f"{card_sentence('Stop rule', compact_card_fragment(first.get('Stop Rule'), max_chars=190))} "
+                "Fill evidence fields before import rows, guard commands, or proof-record outcomes."
+            ),
+            "badges": ["evidence before CSV", "no inferred inputs"],
+            "command": "make dcf-input-source-review "
+            + (f"FAMILY={family_label} TOP_N=10" if family_label != "top family" else "TOP_N=10"),
+        }
+    ]
+
+
 def _first_command(frame: pd.DataFrame, mask: pd.Series) -> str:
     matches = frame.loc[mask]
     if matches.empty or "Command" not in matches.columns:
@@ -252,3 +332,40 @@ def _field_summary(values: pd.Series) -> str:
             if field and field not in fields:
                 fields.append(field)
     return ", ".join(fields[:8]) if fields else "reviewed source fields"
+
+
+def _evidence_fields_for_row(row: DcfInputProofRow) -> list[str]:
+    base = [
+        "source_file_or_url",
+        "source_as_of_date",
+        "reviewer",
+        "review_date",
+        "source_proof_status",
+    ]
+    dcf_fields = [field.strip() for field in str(row.missing_dcf_fields or "").split(",") if field.strip()]
+    if not dcf_fields and row.missing_input_family:
+        dcf_fields = [row.missing_input_family]
+    return base + [field for field in dcf_fields if field != "price"]
+
+
+def _reviewer_placeholder(field: str) -> str:
+    mapping = {
+        "source_file_or_url": "<reviewed_source_file_or_url>",
+        "source_as_of_date": "<yyyy-mm-dd>",
+        "reviewer": "<reviewer>",
+        "review_date": "<yyyy-mm-dd>",
+        "source_proof_status": "<reviewed|supported|source_backed>",
+        "revenue": "<reviewed_revenue>",
+        "free_cash_flow": "<reviewed_free_cash_flow>",
+        "fcf_margin": "<reviewed_fcf_margin>",
+        "shares_outstanding": "<reviewed_shares_outstanding>",
+    }
+    return mapping.get(field, f"<reviewed_{field}>")
+
+
+def _source_expectation(family: str) -> str:
+    if family == "shares_outstanding":
+        return "Use SEC filing, annual/quarterly report, or trusted local source proof for share count."
+    if family == "price":
+        return "Use reviewed OHLCV source path; do not fill fundamentals rows for price blockers."
+    return "Use SEC Companyfacts, reviewed company filing, or trusted local source proof for DCF fields."
