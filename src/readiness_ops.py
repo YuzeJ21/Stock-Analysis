@@ -76,6 +76,25 @@ class DataCoverageExpansionStep:
 
 
 @dataclass(frozen=True)
+class DataCoverageProofQueueRow:
+    queue_key: str
+    label: str
+    readiness_state: str
+    queued_rows: int
+    ready_count: int
+    partial_count: int
+    blocked_count: int
+    top_blockers: str
+    source_mode: str
+    next_safe_command: str
+    proof_packet_command: str
+    review_gate: str
+    stop_rule: str
+    proof_record_boundary: str
+    generated_churn_policy: str
+
+
+@dataclass(frozen=True)
 class PeerReadinessSummary:
     total_count: int
     peer_mapping_ready: int
@@ -833,6 +852,209 @@ def render_data_coverage_expansion_plan(steps: list[DataCoverageExpansionStep]) 
     return "\n".join(lines)
 
 
+def _top_family(rows: list[object], *, fallback: str = "shares_outstanding") -> str:
+    counts: dict[str, int] = {}
+    for row in rows:
+        family = str(getattr(row, "missing_input_family", "") or "").strip()
+        if not family:
+            continue
+        counts[family] = counts.get(family, 0) + 1
+    if not counts:
+        return fallback
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+
+
+def _fundamentals_dcf_rows(rows: list[object]) -> list[object]:
+    fundamentals_families = {
+        "revenue",
+        "free_cash_flow",
+        "fcf_margin",
+        "fundamentals_bundle",
+        "fundamentals_bundle_plus_shares",
+    }
+    return [row for row in rows if str(getattr(row, "missing_input_family", "") or "") in fundamentals_families]
+
+
+def build_data_coverage_proof_queues(
+    root: Path | str = ".",
+    *,
+    top_n: int = 10,
+) -> list[DataCoverageProofQueueRow]:
+    """Build the post-price proof queues without refreshing or applying local data."""
+
+    root = Path(root)
+    lanes = build_readiness_ops_lanes(root)
+    lanes_by_key = {lane.lane: lane for lane in lanes}
+    dcf_rows = build_dcf_input_proof_queue_from_files(root, top_n=100000)
+    share_count_rows = build_share_count_proof_queue_from_files(root, top_n=100000)
+    fundamentals_rows = _fundamentals_dcf_rows(dcf_rows)
+    top_family = _top_family(fundamentals_rows or dcf_rows, fallback="shares_outstanding")
+    peer_summary = build_peer_readiness_summary(root)
+    rows: list[DataCoverageProofQueueRow] = []
+
+    dcf_lane = lanes_by_key.get("fundamentals_dcf")
+    if dcf_lane is not None:
+        rows.append(
+            DataCoverageProofQueueRow(
+                queue_key="dcf_input_batches",
+                label="DCF Input Proof Batches",
+                readiness_state=dcf_lane.readiness_state,
+                queued_rows=len(dcf_rows),
+                ready_count=dcf_lane.ready_count,
+                partial_count=dcf_lane.partial_count,
+                blocked_count=dcf_lane.blocked_count,
+                top_blockers=summarize_missing_input_families(dcf_rows),
+                source_mode="SEC-stageable or trusted-local fundamentals rows",
+                next_safe_command=f"make dcf-input-proof-queue TOP_N={top_n}",
+                proof_packet_command=f"make dcf-input-proof-handoff FAMILY={top_family} TOP_N={top_n}",
+                review_gate="Source proof -> validate -> preview -> rejected-row review -> reviewed apply decision -> rebuild readiness.",
+                stop_rule="Stop if any required DCF input would be inferred, stale, or placeholder-backed.",
+                proof_record_boundary="Record supported only after rebuilt readiness and reviewed-batch comparison prove the lane changed.",
+                generated_churn_policy=dcf_lane.generated_churn_policy,
+            )
+        )
+
+    share_lane = lanes_by_key.get("share_count_proof")
+    if share_lane is not None:
+        share_only = sum(1 for row in share_count_rows if row.dcf_input_status.startswith("share-count-only"))
+        rows.append(
+            DataCoverageProofQueueRow(
+                queue_key="shares_outstanding",
+                label="Shares Outstanding Proof",
+                readiness_state=share_lane.readiness_state,
+                queued_rows=len(share_count_rows),
+                ready_count=share_lane.ready_count,
+                partial_count=share_lane.partial_count,
+                blocked_count=share_lane.blocked_count,
+                top_blockers=f"shares_outstanding: {len(share_count_rows)}; share-count-only blockers: {share_only}",
+                source_mode="SEC/manual source proof or trusted local fundamentals rows",
+                next_safe_command=f"make share-count-proof-queue TOP_N={top_n}",
+                proof_packet_command=f"DRY_RUN=1 make reviewed-batch LANE=share_count TOP_N={top_n}",
+                review_gate="Use SEC/manual source proof, then imports-validate and imports-preview before any apply decision.",
+                stop_rule="Stop if shares outstanding would be inferred from price, market cap, peers, or placeholders.",
+                proof_record_boundary="Use the reviewed-batch proof record only after source files, changed counts, changed tickers, and artifact review are filled.",
+                generated_churn_policy=share_lane.generated_churn_policy,
+            )
+        )
+
+    if dcf_lane is not None:
+        rows.append(
+            DataCoverageProofQueueRow(
+                queue_key="trusted_fundamentals",
+                label="Trusted Fundamentals Proof Queue",
+                readiness_state=dcf_lane.readiness_state,
+                queued_rows=len(fundamentals_rows),
+                ready_count=dcf_lane.ready_count,
+                partial_count=dcf_lane.partial_count,
+                blocked_count=dcf_lane.blocked_count,
+                top_blockers=summarize_missing_input_families(fundamentals_rows),
+                source_mode="SEC-stageable or trusted local revenue, free cash flow, FCF margin, and shares rows",
+                next_safe_command=f"make dcf-input-source-command-plan FAMILY={top_family} TOP_N={top_n}",
+                proof_packet_command=f"DRY_RUN=1 make fundamentals-batch-proof TOP_N={top_n}",
+                review_gate="Do not edit import rows until source-review fields are filled and the guard can preview a row.",
+                stop_rule="Stop if revenue, free cash flow, FCF margin, or share-count proof is unavailable.",
+                proof_record_boundary="Keep proof-record commands dry-run until validation, preview, apply result, source files, and generated-artifact review are complete.",
+                generated_churn_policy=dcf_lane.generated_churn_policy,
+            )
+        )
+
+    peer_mapping_lane = lanes_by_key.get("peer_mapping")
+    if peer_mapping_lane is not None:
+        rows.append(
+            DataCoverageProofQueueRow(
+                queue_key="peer_mapping",
+                label="Peer Mapping Proof Queue",
+                readiness_state=peer_mapping_lane.readiness_state,
+                queued_rows=peer_summary.missing_mapping or peer_mapping_lane.blocked_count,
+                ready_count=peer_mapping_lane.ready_count,
+                partial_count=peer_mapping_lane.partial_count,
+                blocked_count=peer_mapping_lane.blocked_count,
+                top_blockers=f"source-backed peer mappings: {peer_summary.missing_mapping or peer_mapping_lane.blocked_count}",
+                source_mode="manual/source-reviewed peer relationships",
+                next_safe_command=f"DRY_RUN=1 make peer-mapping-source-review TOP_N={top_n}",
+                proof_packet_command=f"DRY_RUN=1 make peer-batch-proof TOP_N={top_n}",
+                review_gate="Peer relationships need source proof; sector or theme similarity stays fallback context only.",
+                stop_rule="Stop if peer rows are guessed, self-peers, duplicates, undocumented, or stale.",
+                proof_record_boundary="Use the peer write-back guard and reviewed-batch proof record only after validate, preview, readiness, and artifact review.",
+                generated_churn_policy=peer_mapping_lane.generated_churn_policy,
+            )
+        )
+
+    peer_input_lane = lanes_by_key.get("peer_valuation_inputs")
+    if peer_input_lane is not None:
+        rows.append(
+            DataCoverageProofQueueRow(
+                queue_key="peer_valuation_inputs",
+                label="Peer Valuation Input Proof Queue",
+                readiness_state=peer_input_lane.readiness_state,
+                queued_rows=peer_summary.valuation_input_blockers or peer_input_lane.blocked_count,
+                ready_count=peer_input_lane.ready_count,
+                partial_count=peer_input_lane.partial_count,
+                blocked_count=peer_input_lane.blocked_count,
+                top_blockers=(
+                    f"peer prices: {peer_summary.missing_peer_price}; "
+                    f"peer fundamentals: {peer_summary.missing_peer_fundamentals}; "
+                    f"mapped-peer valuation blockers: {peer_summary.peer_valuation_blocked}"
+                ),
+                source_mode="trusted mapped-peer prices, fundamentals, market cap, and valuation inputs",
+                next_safe_command="make peer-mapping-queue TOP_N=25",
+                proof_packet_command=f"DRY_RUN=1 make peer-batch-proof TOP_N={top_n}",
+                review_gate="Peer valuation appears only after mapped peers and trusted peer inputs pass readiness.",
+                stop_rule="Stop if mapped peers lack trusted price, market-cap, fundamentals, or valuation-input rows.",
+                proof_record_boundary="Record still_blocked when mappings exist but peer valuation inputs remain missing.",
+                generated_churn_policy=peer_input_lane.generated_churn_policy,
+            )
+        )
+    return rows
+
+
+def render_data_coverage_proof_queues(rows: list[DataCoverageProofQueueRow]) -> str:
+    lines = [
+        "Data Coverage Proof Queues",
+        "Read-only: this queue portfolio does not refresh data, apply imports, record proof, or rewrite local CSVs.",
+        "Research-only: these are data-readiness proof queues, not rankings, recommendations, or trade instructions.",
+        "",
+    ]
+    if not rows:
+        lines.append("No proof queues are available. Run make readiness before relying on data-coverage queue counts.")
+        return "\n".join(lines)
+    lines.append(
+        "Queue | State | Queued | Ready | Partial | Blocked | Top blockers | Next safe command | Proof packet"
+    )
+    lines.append("--- | --- | ---: | ---: | ---: | ---: | --- | --- | ---")
+    for row in rows:
+        lines.append(
+            " | ".join(
+                [
+                    row.label,
+                    row.readiness_state,
+                    str(row.queued_rows),
+                    str(row.ready_count),
+                    str(row.partial_count),
+                    str(row.blocked_count),
+                    row.top_blockers,
+                    row.next_safe_command,
+                    row.proof_packet_command,
+                ]
+            )
+        )
+    lines.append("")
+    lines.append("Review gates and stop rules:")
+    for row in rows:
+        lines.append(f"- {row.label}: {row.review_gate} Stop rule: {row.stop_rule}")
+    lines.append("")
+    lines.append("Proof-record boundaries:")
+    for row in rows:
+        lines.append(f"- {row.label}: {row.proof_record_boundary}")
+    lines.append("")
+    lines.append("Generated-artifact policy:")
+    for row in rows:
+        lines.append(f"- {row.label}: {row.generated_churn_policy}")
+    lines.append("")
+    lines.append("Guardrail: missing inputs remain blocked; do not fabricate fundamentals, shares, market cap, peers, or valuation inputs.")
+    return "\n".join(lines)
+
+
 def render_fundamentals_peer_metrics_queue(rows: list[ReadinessQueueRow]) -> str:
     lines = [
         "Fundamentals, Peer, and Metrics Readiness Queue",
@@ -948,6 +1170,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--root", default=".", help="Project root.")
     parser.add_argument("--coverage-frontier", action="store_true", help="Print coverage frontier planner.")
     parser.add_argument("--expansion-plan", action="store_true", help="Print repeatable data coverage expansion plan.")
+    parser.add_argument("--coverage-proof-queues", action="store_true", help="Print DCF/fundamentals/peer proof queue portfolio.")
     parser.add_argument("--readiness-queue", action="store_true", help="Print fundamentals, peer, and metrics readiness queue.")
     parser.add_argument("--evidence", action="store_true", help="Print readiness ops evidence checklist.")
     parser.add_argument("--top-n", type=int, default=10)
@@ -961,6 +1184,8 @@ def main(argv: list[str] | None = None) -> int:
     frontier = build_coverage_frontier(lanes, top_n=args.top_n)
     if args.evidence:
         print(render_readiness_ops_evidence(lanes, frontier))
+    elif args.coverage_proof_queues:
+        print(render_data_coverage_proof_queues(build_data_coverage_proof_queues(root, top_n=args.top_n)))
     elif args.readiness_queue:
         print(render_fundamentals_peer_metrics_queue(build_fundamentals_peer_metrics_queue(root, top_n=args.top_n)))
     elif args.expansion_plan:

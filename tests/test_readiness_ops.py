@@ -3,10 +3,12 @@ from pathlib import Path
 from src.readiness_ops import (
     build_fundamentals_peer_metrics_queue,
     build_fundamentals_peer_metrics_queue_from_lanes,
+    build_data_coverage_proof_queues,
     build_data_coverage_expansion_plan,
     build_peer_readiness_summary,
     build_coverage_frontier,
     build_readiness_ops_lanes,
+    render_data_coverage_proof_queues,
     render_fundamentals_peer_metrics_queue,
     render_data_coverage_expansion_plan,
     render_coverage_frontier,
@@ -284,6 +286,43 @@ def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tm
     assert "trusted local rows" in rendered
     assert "investment advice" in rendered
     assert "buy/sell" not in rendered.lower()
+
+
+def test_data_coverage_proof_queues_connect_next_batches_without_applying_data(tmp_path: Path):
+    rows = build_data_coverage_proof_queues(_sample_root(tmp_path), top_n=3)
+    rendered = render_data_coverage_proof_queues(rows)
+    by_key = {row.queue_key: row for row in rows}
+
+    assert set(by_key) == {
+        "dcf_input_batches",
+        "shares_outstanding",
+        "trusted_fundamentals",
+        "peer_mapping",
+        "peer_valuation_inputs",
+    }
+    assert by_key["dcf_input_batches"].next_safe_command == "make dcf-input-proof-queue TOP_N=3"
+    assert by_key["dcf_input_batches"].proof_packet_command.startswith("make dcf-input-proof-handoff FAMILY=")
+    assert by_key["shares_outstanding"].queued_rows == 1
+    assert by_key["shares_outstanding"].proof_packet_command == "DRY_RUN=1 make reviewed-batch LANE=share_count TOP_N=3"
+    assert "price, market cap, peers, or placeholders" in by_key["shares_outstanding"].stop_rule
+    assert by_key["trusted_fundamentals"].proof_packet_command == "DRY_RUN=1 make fundamentals-batch-proof TOP_N=3"
+    assert "source-review fields" in by_key["trusted_fundamentals"].review_gate
+    assert by_key["peer_mapping"].next_safe_command == "DRY_RUN=1 make peer-mapping-source-review TOP_N=3"
+    assert "sector or theme similarity stays fallback context only" in by_key["peer_mapping"].review_gate
+    assert "peer fundamentals: 1" in by_key["peer_valuation_inputs"].top_blockers
+    assert by_key["peer_valuation_inputs"].proof_packet_command == "DRY_RUN=1 make peer-batch-proof TOP_N=3"
+
+    assert "Data Coverage Proof Queues" in rendered
+    assert "does not refresh data, apply imports, record proof, or rewrite local CSVs" in rendered
+    assert "DCF Input Proof Batches" in rendered
+    assert "Shares Outstanding Proof" in rendered
+    assert "Trusted Fundamentals Proof Queue" in rendered
+    assert "Peer Mapping Proof Queue" in rendered
+    assert "Peer Valuation Input Proof Queue" in rendered
+    assert "validate -> preview" in rendered.lower()
+    assert "missing inputs remain blocked" in rendered
+    assert "trade instructions" in rendered
+    assert "recommendations" in rendered
 
 
 def test_readiness_ops_rendering_keeps_research_only_and_churn_boundaries(tmp_path: Path):

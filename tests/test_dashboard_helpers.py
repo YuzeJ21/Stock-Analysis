@@ -278,6 +278,58 @@ def test_data_health_next_layer_queue_cards_keep_commands_out_of_first_read():
     assert "sell" not in rendered
 
 
+def test_data_health_data_coverage_proof_queue_cards_keep_batch_proof_path_compact():
+    frame = pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "partial",
+                "Queued Rows": 3472,
+                "Ready": 59,
+                "Partial": 21,
+                "Blocked": 3458,
+                "Top Blockers": "fundamentals_bundle_plus_shares: 3459",
+                "Source Mode": "SEC-stageable or trusted local",
+                "Next Safe Command": "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10",
+                "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TOP_N=10",
+                "Review Gate": "Do not edit import rows until source-review fields are filled.",
+                "Stop Rule": "Stop if revenue, free cash flow, FCF margin, or share-count proof is unavailable.",
+                "Proof Record Boundary": "Keep proof-record commands dry-run.",
+                "Generated Churn Policy": "Avoid broad generated report churn by default.",
+            },
+            {
+                "Queue": "Peer Mapping Proof Queue",
+                "State": "partial",
+                "Queued Rows": 3512,
+                "Ready": 26,
+                "Partial": 0,
+                "Blocked": 3512,
+                "Top Blockers": "source-backed peer mappings: 3512",
+                "Source Mode": "manual/source-reviewed",
+                "Next Safe Command": "DRY_RUN=1 make peer-mapping-source-review TOP_N=10",
+                "Proof Packet Command": "DRY_RUN=1 make peer-batch-proof TOP_N=10",
+                "Review Gate": "Peer relationships need source proof.",
+                "Stop Rule": "Stop if peer rows are guessed, self-peers, duplicates, undocumented, or stale.",
+                "Proof Record Boundary": "Use the peer write-back guard.",
+                "Generated Churn Policy": "Do not infer trusted peers from sector similarity.",
+            },
+        ]
+    )
+    cards = dashboard.data_health_data_coverage_proof_queue_cards(frame, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Proof queues before row work"
+    assert "trusted fundamentals proof queue" in rendered
+    assert "peer mapping proof queue" in rendered
+    assert "open the exact dcf input" in rendered
+    assert "source proof first" in rendered
+    assert "copy-only commands" in rendered
+    assert "make dcf-input-source-command-plan" in rendered
+    assert "dry_run=1 make peer-mapping-source-review" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_readiness_queue_drilldown_combines_examples_packet_and_proof_status():
     queue = pd.DataFrame(
         [
@@ -13085,7 +13137,18 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     generated_artifact_frame_index = source.index("data_health_generated_churn_review_frame(base_dir)", generated_artifact_drawer_index)
     generated_artifact_detail_index = source.index("data_health_generated_churn_detail_frame(base_dir)", generated_artifact_frame_index)
     lane_snapshot_index = source.index('render_section_header(\n        "Readiness Lane Snapshot"', top_summary_block_index)
-    decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", lane_snapshot_index)
+    readiness_queue_cards_index = source.index("data_health_fundamentals_peer_metrics_queue_cards(readiness_queue)", lane_snapshot_index)
+    queue_detail_selector_index = source.index('label="Readiness queue detail level"', readiness_queue_cards_index)
+    coverage_proof_queue_section_index = source.index('render_section_header(\n            "Data Coverage Proof Queues"', queue_detail_selector_index)
+    coverage_proof_queue_cards_index = source.index(
+        "data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues)",
+        coverage_proof_queue_section_index,
+    )
+    coverage_proof_queue_drawer_index = source.index(
+        'st.expander("Data coverage proof queue detail", expanded=False)',
+        coverage_proof_queue_cards_index,
+    )
+    decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", coverage_proof_queue_drawer_index)
     decision_queue_expand_state_index = source.index("decision_queue_drawer_expanded =", decision_queue_status_index)
     decision_queue_drawer_index = source.index('st.expander("Decision proof queue drawer", expanded=decision_queue_drawer_expanded)', decision_queue_status_index)
     decision_queue_completion_index = source.index("decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)", decision_queue_drawer_index)
@@ -13132,7 +13195,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
 
     assert public_return_index < prior_snapshot_load_index < top_summary_block_index
     assert queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < proof_closeout_summary_index < proof_closeout_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < top_summary_block_index < lane_snapshot_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < top_summary_block_index < lane_snapshot_index < readiness_queue_cards_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -13140,6 +13203,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "defer_broad_queue = public_mode or not queue_details_requested" in source
     assert "ops_center = pd.DataFrame() if defer_broad_queue else data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = pd.DataFrame() if defer_broad_queue else data_health_coverage_frontier_frame(top_n=10)" in source
+    assert "data_health_data_coverage_proof_queue_frame(top_n=10)" in source
+    assert "data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues)" in source
+    assert "Data coverage proof queue detail" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source
     assert "data_health_operator_snapshot_cards(" in source

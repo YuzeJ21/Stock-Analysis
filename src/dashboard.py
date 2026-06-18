@@ -117,6 +117,7 @@ from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.readiness_ops import (
+    build_data_coverage_proof_queues,
     build_fundamentals_peer_metrics_queue_from_lanes,
     build_readiness_ops_lanes,
 )
@@ -7618,6 +7619,11 @@ def cached_fundamentals_peer_metrics_queue(root_text: str, top_n: int):
 
 
 @lru_cache(maxsize=8)
+def cached_data_coverage_proof_queues(root_text: str, top_n: int):
+    return tuple(build_data_coverage_proof_queues(Path(root_text), top_n=top_n))
+
+
+@lru_cache(maxsize=8)
 def cached_dcf_input_proof_queue_rows(root_text: str, top_n: int):
     return tuple(build_dcf_input_proof_queue_from_files(Path(root_text), top_n=top_n))
 
@@ -7714,6 +7720,82 @@ def data_health_fundamentals_peer_metrics_queue_frame(root: Path | None = None, 
             for row in rows
         ]
     )
+
+
+def data_health_data_coverage_proof_queue_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
+    """Return proof queues for DCF, share count, trusted fundamentals, and peers."""
+
+    rows = cached_data_coverage_proof_queues(str(root or BASE_DIR), top_n)
+    return pd.DataFrame(
+        [
+            {
+                "Queue": row.label,
+                "State": row.readiness_state,
+                "Queued Rows": row.queued_rows,
+                "Ready": row.ready_count,
+                "Partial": row.partial_count,
+                "Blocked": row.blocked_count,
+                "Top Blockers": row.top_blockers,
+                "Source Mode": row.source_mode,
+                "Next Safe Command": row.next_safe_command,
+                "Proof Packet Command": row.proof_packet_command,
+                "Review Gate": row.review_gate,
+                "Stop Rule": row.stop_rule,
+                "Proof Record Boundary": row.proof_record_boundary,
+                "Generated Churn Policy": row.generated_churn_policy,
+            }
+            for row in rows
+        ]
+    )
+
+
+def data_health_data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "PROOF QUEUES",
+                "title": "Run readiness before proof queue review",
+                "body": "DCF, shares, fundamentals, peer mapping, and peer valuation proof queues need saved readiness artifacts.",
+                "badges": ["read-only", "blocked visible"],
+                "command": "make data-coverage-proof-queues TOP_N=10",
+            }
+        ]
+    work = frame.copy()
+    work["_queued"] = pd.to_numeric(work.get("Queued Rows", 0), errors="coerce").fillna(0)
+    work = work.sort_values(["_queued", "Queue"], ascending=[False, True])
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "DATA COVERAGE PROOF",
+            "title": "Proof queues before row work",
+            "body": (
+                "Open the exact DCF input, shares-outstanding, trusted fundamentals, peer mapping, or peer valuation "
+                "proof queue before touching raw CSV rows."
+            ),
+            "badges": ["source proof first", "copy-only commands"],
+            "command": "make data-coverage-proof-queues TOP_N=10",
+        }
+    ]
+    for _, row in work.head(max(limit, 0)).iterrows():
+        queue = format_missing(row.get("Queue"), "Proof queue")
+        state = public_status_label(row.get("State"))
+        queued = int(row.get("_queued", 0) or 0)
+        blockers = compact_card_fragment(row.get("Top Blockers"), max_chars=150)
+        stop_rule = compact_card_fragment(row.get("Stop Rule"), max_chars=170)
+        command = format_missing(row.get("Next Safe Command"), "make data-coverage-proof-queues TOP_N=10")
+        cards.append(
+            {
+                "kicker": "PROOF QUEUE",
+                "title": queue,
+                "body": (
+                    f"{queued:,} queued row(s). "
+                    f"{card_sentence('Top blockers', blockers)} "
+                    f"{card_sentence('Stop rule', stop_rule)}"
+                ),
+                "badges": [state, "read-only"],
+                "command": command,
+            }
+        )
+    return cards
 
 
 def data_health_fundamentals_peer_metrics_queue_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -24943,6 +25025,9 @@ def render_data_health(
     ops_center = pd.DataFrame() if defer_broad_queue else data_health_readiness_ops_center_frame()
     coverage_frontier = pd.DataFrame() if defer_broad_queue else data_health_coverage_frontier_frame(top_n=10)
     readiness_queue = pd.DataFrame() if defer_broad_queue else data_health_fundamentals_peer_metrics_queue_frame(top_n=10)
+    data_coverage_proof_queues = (
+        pd.DataFrame() if defer_broad_queue else data_health_data_coverage_proof_queue_frame(top_n=10)
+    )
     readiness_freshness = data_health_freshness_status(BASE_DIR)
     if public_mode:
         render_section_header(
@@ -25111,13 +25196,25 @@ def render_data_health(
         render_signal_cards(
             data_health_deferred_detail_cards(
                 title="Queue details are not loaded yet",
-                body="Broad readiness ops, lane drilldowns, and row-level proof tables are deferred.",
+                body="Broad readiness ops, data-coverage proof queues, lane drilldowns, and row-level proof tables are deferred.",
                 command="Switch Readiness queue detail level to Review details.",
                 badges=["fast first view", "row proof deferred"],
             ),
             show_commands=False,
             variant="queue",
         )
+    if queue_details_requested:
+        render_section_header(
+            "Data Coverage Proof Queues",
+            "DCF input, shares-outstanding, trusted fundamentals, peer mapping, and peer valuation proof queues before raw CSV work.",
+        )
+        render_signal_cards(
+            data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues),
+            show_commands=True,
+            variant="queue",
+        )
+        with st.expander("Data coverage proof queue detail", expanded=False):
+            st.dataframe(clean_display_frame(data_coverage_proof_queues), width="stretch", hide_index=True)
     with st.expander("Queue outcome ledger summary", expanded=False):
         st.dataframe(clean_display_frame(queue_outcome_summary), width="stretch", hide_index=True)
     with st.expander("Readiness queue evidence", expanded=False):
