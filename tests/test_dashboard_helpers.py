@@ -12588,6 +12588,72 @@ def test_dcf_proof_loop_outcome_summarizes_source_guard_handoff_and_ledger():
     assert "sell now" not in rendered
 
 
+def test_dcf_proof_closeout_summarizes_final_state_and_remaining_evidence():
+    frame = pd.DataFrame(
+        [
+            {
+                "Priority": 1,
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Ready DCF Inputs": "free_cash_flow, revenue, fcf_margin, price",
+                "DCF Input Status": "single-input blocker: shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+                "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
+            }
+        ]
+    )
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-SHARECOUNT",
+                "Review Date": "2026-06-17",
+                "Lane": "share_count",
+                "Final Outcome": "still_blocked",
+                "Changed Readiness Counts": "none; no readiness count changes",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=3538,
+        after_rows=3538,
+        changed_tickers=("META",),
+        changed_count=1,
+        changed_readiness_counts="dcf_ready (not_ready: 1->0; ready: 0->1)",
+        freshness_status="current",
+        freshness_message="readiness artifacts are current",
+        blocking_message="",
+    )
+
+    closeout = dashboard.data_health_dcf_proof_closeout_frame(frame, "shares_outstanding (1)", ledger, comparison)
+    cards = dashboard.data_health_dcf_proof_closeout_cards(frame, "shares_outstanding (1)", ledger, comparison)
+    rendered = " ".join(
+        closeout.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert closeout.iloc[0]["Closeout Status"] == "still_blocked"
+    assert closeout.iloc[0]["Latest Outcome"] == "still_blocked"
+    assert closeout.iloc[0]["Comparison Status"] == "ready"
+    assert "Source review intake" in closeout.iloc[0]["Evidence Remaining"]
+    assert closeout.iloc[0]["Next Safest Action"] == "make dcf-input-source-review TOP_N=10"
+    assert cards[0]["title"] == "Closeout status: still_blocked"
+    assert "proof state only" in rendered
+    assert "not investment advice" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+    assert "broker" not in rendered
+
+
 def test_dcf_proof_source_review_checklist_summarizes_missing_steps_before_tables():
     frame = pd.DataFrame(
         [
@@ -13129,6 +13195,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "batch_proof_summary_frame" in source
     assert "readiness_comparison" in source
     assert "data_health_dcf_proof_loop_outcome_frame(" in source
+    assert "DCF Proof Closeout" in source
+    assert "data_health_dcf_proof_closeout_cards(" in source
+    assert "data_health_dcf_proof_closeout_frame(" in source
     assert "data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)" in source
     assert "Fundamentals / DCF Queue Snapshot" in source
     dcf_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)')
@@ -13159,7 +13228,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_outcome_compare_index = source.index('render_section_header("DCF Proof Outcome Compare"', dcf_proof_handoff_frame_index)
     dcf_outcome_compare_cards_index = source.index("data_health_dcf_proof_loop_outcome_cards(", dcf_outcome_compare_index)
     dcf_outcome_compare_frame_index = source.index("data_health_dcf_proof_loop_outcome_frame(", dcf_outcome_compare_cards_index)
-    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_outcome_compare_frame_index)
+    dcf_closeout_index = source.index('render_section_header("DCF Proof Closeout"', dcf_outcome_compare_frame_index)
+    dcf_closeout_cards_index = source.index("data_health_dcf_proof_closeout_cards(", dcf_closeout_index)
+    dcf_closeout_frame_index = source.index("data_health_dcf_proof_closeout_frame(", dcf_closeout_cards_index)
+    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_closeout_frame_index)
     dcf_command_plan_cards_index = source.index("data_health_dcf_source_command_plan_cards(", dcf_command_plan_index)
     dcf_command_plan_frame_index = source.index("data_health_dcf_source_command_plan_frame(", dcf_command_plan_cards_index)
     dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_command_plan_frame_index)
@@ -13192,6 +13264,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         < dcf_outcome_compare_index
         < dcf_outcome_compare_cards_index
         < dcf_outcome_compare_frame_index
+        < dcf_closeout_index
+        < dcf_closeout_cards_index
+        < dcf_closeout_frame_index
         < dcf_command_plan_index
         < dcf_command_plan_cards_index
         < dcf_command_plan_frame_index
