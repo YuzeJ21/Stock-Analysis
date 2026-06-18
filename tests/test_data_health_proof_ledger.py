@@ -1,6 +1,6 @@
 import pandas as pd
 
-from src.data_health_proof_ledger import case_column, latest_dcf_proof_row, latest_peer_proof_row
+from src.data_health_proof_ledger import case_column, latest_dcf_proof_row, latest_peer_proof_row, latest_proof_status_detail
 
 
 def test_case_column_matches_case_insensitive_headers():
@@ -49,3 +49,40 @@ def test_latest_proof_row_returns_empty_series_when_lane_column_missing():
 
     assert latest_dcf_proof_row(frame).empty
     assert latest_peer_proof_row(frame).empty
+
+
+def test_latest_proof_status_detail_formats_reviewed_row():
+    frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-7",
+                "Review Date": "2026-06-17",
+                "Lane": "share_count",
+                "Final Outcome": "still_blocked",
+                "Changed Readiness Counts": "dcf_ready unchanged; source rows still need proof",
+            }
+        ]
+    )
+    latest = latest_dcf_proof_row(frame)
+
+    status, detail, command = latest_proof_status_detail(
+        frame,
+        latest,
+        empty_detail="No DCF reviewed batch proof row recorded yet.",
+    )
+
+    assert status == "still_blocked"
+    assert detail == "Batch RB-7 on 2026-06-17; dcf_ready unchanged; source rows still need proof"
+    assert command == "make reviewed-batch-proof"
+
+
+def test_latest_proof_status_detail_uses_empty_fallback():
+    status, detail, command = latest_proof_status_detail(
+        None,
+        None,
+        empty_detail="No reviewed proof row recorded yet.",
+    )
+
+    assert status == "not_recorded"
+    assert detail == "No reviewed proof row recorded yet."
+    assert command == "make reviewed-batch-proof"

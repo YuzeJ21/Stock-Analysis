@@ -43,3 +43,51 @@ def latest_dcf_proof_row(batch_proof_frame: pd.DataFrame | None) -> pd.Series:
 
 def latest_peer_proof_row(batch_proof_frame: pd.DataFrame | None) -> pd.Series:
     return latest_proof_row_for_lanes(batch_proof_frame, PEER_PROOF_LANES)
+
+
+def _format_missing(value: object, fallback: str = "Not available") -> str:
+    if value is None:
+        return fallback
+    try:
+        if pd.isna(value):
+            return fallback
+    except (TypeError, ValueError):
+        pass
+    text = str(value).strip()
+    if not text or text.lower() in {"nan", "none", "null", "<na>"}:
+        return fallback
+    return text
+
+
+def _compact_fragment(value: object, fallback: str = "Not available", *, max_chars: int = 130) -> str:
+    text = _format_missing(value, fallback).replace("\n", " ").strip()
+    if len(text) > max_chars:
+        text = text[: max_chars - 1].rstrip() + "..."
+    if text.endswith("..."):
+        return text
+    return text.rstrip(" .;:")
+
+
+def latest_proof_status_detail(
+    batch_proof_frame: pd.DataFrame | None,
+    latest: pd.Series | None,
+    *,
+    empty_detail: str,
+) -> tuple[str, str, str]:
+    latest_status = "not_recorded"
+    latest_detail = empty_detail
+    latest_command = "make reviewed-batch-proof"
+    if latest is None or latest.empty:
+        return latest_status, latest_detail, latest_command
+
+    outcome_col = case_column(batch_proof_frame, "final_outcome", "Final Outcome")
+    batch_col = case_column(batch_proof_frame, "batch_id", "Batch ID")
+    date_col = case_column(batch_proof_frame, "review_date", "Review Date")
+    changed_col = case_column(batch_proof_frame, "changed_readiness_counts", "Changed Readiness Counts")
+    latest_status = _format_missing(latest.get(outcome_col), "not_recorded").lower() if outcome_col else "not_recorded"
+    latest_detail = (
+        f"Batch {_format_missing(latest.get(batch_col), 'not recorded')} on "
+        f"{_format_missing(latest.get(date_col), 'not recorded')}; "
+        f"{_compact_fragment(latest.get(changed_col), fallback='changed counts not recorded', max_chars=130)}"
+    )
+    return latest_status, latest_detail, latest_command

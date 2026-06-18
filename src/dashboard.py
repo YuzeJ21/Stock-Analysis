@@ -87,6 +87,7 @@ from src.data_health_proof_ledger import (
     case_column as _proof_ledger_case_column,
     latest_dcf_proof_row,
     latest_peer_proof_row,
+    latest_proof_status_detail,
 )
 from src import data_health_proof_console as proof_console
 from src import data_health_batch_console as batch_console
@@ -8720,15 +8721,10 @@ def data_health_dcf_proof_loop_outcome_frame(
     latest_detail = "No DCF reviewed batch proof row recorded yet."
     latest_command = "make reviewed-batch-proof"
     if not latest.empty:
-        outcome_col = _data_health_case_column(batch_proof_frame, "final_outcome", "Final Outcome")
-        batch_col = _data_health_case_column(batch_proof_frame, "batch_id", "Batch ID")
-        date_col = _data_health_case_column(batch_proof_frame, "review_date", "Review Date")
-        changed_col = _data_health_case_column(batch_proof_frame, "changed_readiness_counts", "Changed Readiness Counts")
-        latest_status = format_missing(latest.get(outcome_col), "not_recorded").lower() if outcome_col else "not_recorded"
-        latest_detail = (
-            f"Batch {format_missing(latest.get(batch_col), 'not recorded')} on "
-            f"{format_missing(latest.get(date_col), 'not recorded')}; "
-            f"{compact_card_fragment(latest.get(changed_col), fallback='changed counts not recorded', max_chars=130)}"
+        latest_status, latest_detail, latest_command = latest_proof_status_detail(
+            batch_proof_frame,
+            latest,
+            empty_detail=latest_detail,
         )
     family = data_health_dcf_input_family_key(selection)
     compare_lane = "share_count" if family == "shares_outstanding" else "fundamentals"
@@ -12216,15 +12212,10 @@ def data_health_peer_proof_loop_outcome_frame(
     latest_detail = "No peer reviewed batch proof row recorded yet."
     latest_command = "make reviewed-batch-proof"
     if not latest.empty:
-        outcome_col = _data_health_case_column(batch_proof_frame, "final_outcome", "Final Outcome")
-        batch_col = _data_health_case_column(batch_proof_frame, "batch_id", "Batch ID")
-        date_col = _data_health_case_column(batch_proof_frame, "review_date", "Review Date")
-        changed_col = _data_health_case_column(batch_proof_frame, "changed_readiness_counts", "Changed Readiness Counts")
-        latest_status = format_missing(latest.get(outcome_col), "not_recorded").lower() if outcome_col else "not_recorded"
-        latest_detail = (
-            f"Batch {format_missing(latest.get(batch_col), 'not recorded')} on "
-            f"{format_missing(latest.get(date_col), 'not recorded')}; "
-            f"{compact_card_fragment(latest.get(changed_col), fallback='changed counts not recorded', max_chars=130)}"
+        latest_status, latest_detail, latest_command = latest_proof_status_detail(
+            batch_proof_frame,
+            latest,
+            empty_detail=latest_detail,
         )
     comparison_status = "deferred"
     comparison_detail = "Switch Proof detail level to Review details before using changed counts in a peer proof row."

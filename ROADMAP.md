@@ -146,6 +146,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Extract proof planner outcome summary logic from the Streamlit dashboard into a focused tested module.
 - [x] Extract generic DCF/peer proof outcome card logic from the Streamlit dashboard into a focused tested module.
 - [x] Extract DCF/peer latest proof-ledger row selection from the Streamlit dashboard into a focused tested module.
+- [x] Extract latest proof-ledger status/detail formatting from the Streamlit dashboard into a focused tested module.
 - [x] Extract generic DCF/peer proof closeout state logic from the Streamlit dashboard into a focused tested module.
 - [x] Extract proof closeout summary board logic from the Streamlit dashboard into a focused tested module.
 - [x] Extract proof checklist summary logic from the Streamlit dashboard into a focused tested module.
