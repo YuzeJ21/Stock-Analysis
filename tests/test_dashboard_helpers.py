@@ -12240,6 +12240,57 @@ def test_dcf_input_source_review_cards_show_missing_fields_before_handoff():
     assert "sell now" not in rendered
 
 
+def test_dcf_source_command_plan_shows_copy_only_path_before_raw_tables():
+    frame = pd.DataFrame(
+        [
+            {
+                "Priority": 1,
+                "Ticker": "META",
+                "Scope": "active universe",
+                "Missing Input Family": "shares_outstanding",
+                "Missing DCF Fields": "shares_outstanding",
+                "Ready DCF Inputs": "free_cash_flow, revenue, fcf_margin, price",
+                "DCF Input Status": "single-input blocker: shares_outstanding",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make share-count-proof-queue TICKERS=META",
+                "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
+                "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+                "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
+            }
+        ]
+    )
+
+    plan = dashboard.data_health_dcf_source_command_plan_frame(frame, "shares_outstanding (1)")
+    cards = dashboard.data_health_dcf_source_command_plan_cards(frame, "shares_outstanding (1)")
+    rendered = " ".join(
+        plan.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert plan["Step"].tolist() == [
+        "1. Open source-review intake",
+        "2. Fill and run source guard",
+        "3. Validate import rows",
+        "4. Preview import merge",
+        "5. Apply boundary",
+        "6. Rebuild DCF proof",
+        "7. Proof handoff",
+    ]
+    assert cards[0]["title"] == "shares_outstanding: source review to proof handoff"
+    assert cards[0]["command"] == "make dcf-input-source-command-plan FAMILY=shares_outstanding TOP_N=10"
+    assert "next blocked step" in rendered
+    assert "source_file_or_url" in rendered
+    assert "make dcf-input-source-guard" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "do not run apply unless source proof" in rendered
+    assert "use this command path before opening raw source-review" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
 def test_dcf_source_packet_separates_sec_manual_and_price_routes():
     frame = pd.DataFrame(
         [
@@ -13022,6 +13073,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_dcf_proof_batch_planner_cards(dcf_input_queue, dcf_family_selection)" in source
     assert "data_health_dcf_proof_batch_planner_frame(dcf_input_queue, dcf_family_selection)" in source
     assert "Trusted Fundamentals Source Packet" in source
+    assert "DCF Source Command Plan" in source
+    assert "data_health_dcf_source_command_plan_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_source_command_plan_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_packet_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "Trusted Fundamentals Batch Review Queue" in source
@@ -13044,10 +13098,24 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_checklist_index = source.index('render_section_header("Finish This DCF Proof"', dcf_queue_cards_index)
     dcf_checklist_cards_index = source.index("data_health_dcf_proof_source_review_checklist_cards(", dcf_checklist_index)
     dcf_checklist_frame_index = source.index("data_health_dcf_proof_source_review_checklist_frame(", dcf_checklist_cards_index)
-    dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_checklist_frame_index)
+    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_checklist_frame_index)
+    dcf_command_plan_cards_index = source.index("data_health_dcf_source_command_plan_cards(", dcf_command_plan_index)
+    dcf_command_plan_frame_index = source.index("data_health_dcf_source_command_plan_frame(", dcf_command_plan_cards_index)
+    dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_command_plan_frame_index)
     dcf_raw_rows_index = source.index("st.dataframe(clean_display_frame(dcf_input_queue_filtered)", dcf_source_packet_index)
     assert fundamentals_console_index < dcf_dashboard_cards_index < dcf_drawer_index
-    assert dcf_filter_index < dcf_queue_cards_index < dcf_checklist_index < dcf_checklist_cards_index < dcf_checklist_frame_index < dcf_source_packet_index < dcf_raw_rows_index
+    assert (
+        dcf_filter_index
+        < dcf_queue_cards_index
+        < dcf_checklist_index
+        < dcf_checklist_cards_index
+        < dcf_checklist_frame_index
+        < dcf_command_plan_index
+        < dcf_command_plan_cards_index
+        < dcf_command_plan_frame_index
+        < dcf_source_packet_index
+        < dcf_raw_rows_index
+    )
     assert "Finish This DCF Proof" in source
     assert "data_health_dcf_proof_source_review_checklist_cards(" in source
     assert "data_health_dcf_proof_source_review_checklist_frame(" in source

@@ -78,6 +78,7 @@ from src.decision_proof_queue import (
 )
 from src.coverage_expansion_loop import CoverageExpansionLoop, build_coverage_expansion_loop
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_handoff, build_dcf_input_proof_queue_from_files
+from src.dcf_input_proof_queue import build_dcf_input_source_command_plan
 from src.dcf_input_proof_queue import build_dcf_input_source_guard, build_dcf_input_source_review_rows
 from src.monthly_picks import build_monthly_research_picks
 from src.monthly_picks import MonthlyPickConfig
@@ -8091,6 +8092,61 @@ def data_health_dcf_input_source_review_cards(frame: pd.DataFrame | None, select
             ),
             "badges": ["source review", "validate before apply"],
             "command": f"make dcf-input-source-review FAMILY={family} TOP_N=10" if family != "top family" else "make dcf-input-source-review TOP_N=10",
+        }
+    ]
+
+
+def data_health_dcf_source_command_plan_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
+    rows = data_health_dcf_input_rows_from_frame(frame)
+    plan = build_dcf_input_source_command_plan(rows, family=data_health_dcf_input_family_key(selection) or None)
+    return pd.DataFrame(
+        [
+            {
+                "Step": row.step,
+                "Status": row.status,
+                "Command": row.command,
+                "Fields To Fill": row.fields_to_fill,
+                "Review Boundary": row.review_boundary,
+            }
+            for row in plan
+        ]
+    )
+
+
+def data_health_dcf_source_command_plan_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
+    plan = data_health_dcf_source_command_plan_frame(frame, selection)
+    family = data_health_dcf_input_family_key(selection) or "top family"
+    if plan.empty:
+        return [
+            {
+                "kicker": "DCF COMMAND PLAN",
+                "title": "No DCF source command plan available",
+                "body": "Refresh the DCF input queue before building source-review, guard, validation, and proof commands.",
+                "badges": ["copy-only", "blocked visible"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    first_blocker = plan.loc[
+        plan["Status"].fillna("").astype(str).str.lower().str.contains("blocked|needs", regex=True)
+    ]
+    focus = first_blocker.iloc[0] if not first_blocker.empty else plan.iloc[0]
+    source_command = (
+        f"make dcf-input-source-command-plan FAMILY={family} TOP_N=10"
+        if family != "top family"
+        else "make dcf-input-source-command-plan TOP_N=10"
+    )
+    return [
+        {
+            "kicker": "DCF COMMAND PLAN",
+            "title": f"{family}: source review to proof handoff",
+            "body": (
+                f"{len(plan):,} copy-only step(s). "
+                f"{card_sentence('Next blocked step', focus.get('Step'))} "
+                f"{card_sentence('Fields to fill', compact_card_fragment(focus.get('Fields To Fill'), max_chars=180))} "
+                "Use this command path before opening raw source-review or import-preview tables."
+            ),
+            "badges": ["copy-only", "validate then preview"],
+            "command": source_command,
         }
     ]
 
@@ -25122,6 +25178,16 @@ def render_data_health(
                         batch_proof_frame,
                     )
                 )
+            )
+            render_section_header("DCF Source Command Plan", "Copy-only source-review, guard, validate, preview, and proof commands before detailed source tables.")
+            render_signal_cards(
+                data_health_dcf_source_command_plan_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_dcf_source_command_plan_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
             )
             render_section_header("Trusted Fundamentals Source Packet", "Choose SEC-stageable or trusted-local source review before filling detailed import scaffolds.")
             render_signal_cards(data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)

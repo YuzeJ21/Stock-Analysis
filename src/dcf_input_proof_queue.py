@@ -89,6 +89,14 @@ SOURCE_GUARD_COLUMNS = [
     "proof_record_boundary",
 ]
 
+SOURCE_COMMAND_PLAN_COLUMNS = [
+    "step",
+    "status",
+    "command",
+    "fields_to_fill",
+    "review_boundary",
+]
+
 REQUIRED_SOURCE_REVIEW_FIELDS = (
     "source_type",
     "source_file_or_url",
@@ -216,6 +224,18 @@ class DcfInputSourceGuard:
         data = asdict(self)
         data["blocking_reasons"] = ", ".join(self.blocking_reasons)
         return data
+
+
+@dataclass(frozen=True)
+class DcfInputSourceCommandPlan:
+    step: str
+    status: str
+    command: str
+    fields_to_fill: str
+    review_boundary: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 def _read_csv(path: Path) -> pd.DataFrame:
@@ -431,6 +451,10 @@ def _proof_record_scaffold(*, lane: str, tickers: list[str], command_run: str) -
     return f"DRY_RUN=1 make reviewed-batch-proof-record {assignments}"
 
 
+def _make_assignments(values: dict[str, object]) -> str:
+    return " ".join(shell_assignment(name, value) for name, value in values.items() if str(value or "").strip())
+
+
 def _source_type_for_family(family: str) -> str:
     if family == "price":
         return "verified_price_file_or_provider_log"
@@ -460,6 +484,34 @@ def _blank_import_row_scaffold(row: DcfInputProofRow) -> str:
         "as_of_date": "<yyyy-mm-dd>",
     }
     return _csv_row([values[column] for column in FUNDAMENTALS_IMPORT_COLUMNS])
+
+
+def _reviewed_value_assignments(row: DcfInputSourceReviewRow) -> dict[str, object]:
+    fields = set(_split_fields(row.missing_dcf_fields))
+    values: dict[str, object] = {
+        "TICKER": row.ticker,
+        "FAMILY": row.input_family,
+        "MISSING_DCF_FIELDS": row.missing_dcf_fields,
+        "PERIOD": "<reviewed_period>",
+        "SOURCE_TYPE": row.source_type,
+        "SOURCE_FILE_OR_URL": row.source_file_or_url,
+        "SOURCE_AS_OF_DATE": row.source_as_of_date,
+        "REVIEWER": row.reviewer,
+        "REVIEW_DATE": row.review_date,
+        "SOURCE_PROOF_STATUS": row.source_proof_status,
+        "VALIDATION_RESULT": row.validation_result,
+        "PREVIEW_RESULT": row.preview_result,
+        "APPLY_DECISION": row.apply_decision,
+    }
+    if "revenue" in fields or row.input_family in {"fundamentals_bundle", "fundamentals_bundle_plus_shares"}:
+        values["REVENUE"] = "<reviewed_revenue>"
+    if "free_cash_flow" in fields or row.input_family in {"fundamentals_bundle", "fundamentals_bundle_plus_shares"}:
+        values["FREE_CASH_FLOW"] = "<reviewed_free_cash_flow>"
+    if "fcf_margin" in fields or row.input_family in {"fundamentals_bundle", "fundamentals_bundle_plus_shares"}:
+        values["FCF_MARGIN"] = "<reviewed_fcf_margin>"
+    if "shares_outstanding" in fields or row.input_family in {"shares_outstanding", "fundamentals_bundle_plus_shares"}:
+        values["SHARES_OUTSTANDING"] = "<reviewed_shares_outstanding>"
+    return values
 
 
 def _source_review_missing_fields(values: dict[str, str]) -> list[str]:
@@ -741,6 +793,101 @@ def render_dcf_input_source_review_rows(rows: list[DcfInputSourceReviewRow]) -> 
     return "\n".join(lines)
 
 
+def build_dcf_input_source_command_plan(
+    rows: list[DcfInputProofRow],
+    *,
+    family: str | None = None,
+    limit: int = 10,
+) -> list[DcfInputSourceCommandPlan]:
+    review_rows = build_dcf_input_source_review_rows(rows, family=family, limit=limit)
+    if not review_rows:
+        family_label = str(family or "selected DCF family").strip()
+        return [
+            DcfInputSourceCommandPlan(
+                step="1. Refresh DCF input queue",
+                status="blocked",
+                command="make dcf-input-proof-queue TOP_N=10",
+                fields_to_fill="queued DCF blockers",
+                review_boundary=f"No source-review command can be built until {family_label} has queued blockers.",
+            )
+        ]
+    first = review_rows[0]
+    family_key = first.input_family
+    ticker = first.ticker
+    guard_command = f"make dcf-input-source-guard {_make_assignments(_reviewed_value_assignments(first))}"
+    handoff = build_dcf_input_proof_handoff(rows, family=family_key, limit=limit)
+    missing_fields = first.missing_review_fields or "reviewed source fields"
+    return [
+        DcfInputSourceCommandPlan(
+            step="1. Open source-review intake",
+            status=first.completion_status,
+            command=f"make dcf-input-source-review FAMILY={family_key} TOP_N={max(limit, 0) or 10}",
+            fields_to_fill=missing_fields,
+            review_boundary="Use this first to see source fields before editing import rows or proof records.",
+        ),
+        DcfInputSourceCommandPlan(
+            step="2. Fill and run source guard",
+            status="blocked_until_reviewed_fields_filled" if first.completion_status != "ready_for_validate_preview" else "ready_for_guard",
+            command=guard_command,
+            fields_to_fill=missing_fields,
+            review_boundary="Replace placeholders with reviewed source proof; the guard prints an import row preview only.",
+        ),
+        DcfInputSourceCommandPlan(
+            step="3. Validate import rows",
+            status="copy_only_after_guard",
+            command="make imports-validate",
+            fields_to_fill="validation_result",
+            review_boundary="Validation must pass before preview or apply decisions count as proof.",
+        ),
+        DcfInputSourceCommandPlan(
+            step="4. Preview import merge",
+            status="copy_only_after_validate",
+            command="make imports-preview",
+            fields_to_fill="preview_result and rejected-row review",
+            review_boundary="Preview and rejected-row reports must be reviewed before any apply step.",
+        ),
+        DcfInputSourceCommandPlan(
+            step="5. Apply boundary",
+            status="manual_review_boundary",
+            command="make imports-apply",
+            fields_to_fill="apply_decision",
+            review_boundary="Do not run apply unless source proof, validation, preview, rejected-row review, and scope review are complete.",
+        ),
+        DcfInputSourceCommandPlan(
+            step="6. Rebuild DCF proof",
+            status="copy_only_after_apply_or_skip",
+            command=f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}",
+            fields_to_fill="post-run readiness proof",
+            review_boundary="A supported outcome needs rebuilt readiness proof; skipped or still-blocked outcomes should stay honest.",
+        ),
+        DcfInputSourceCommandPlan(
+            step="7. Proof handoff",
+            status="dry_run_first",
+            command=f"make dcf-input-proof-handoff FAMILY={family_key} TOP_N={max(limit, 0) or 10}",
+            fields_to_fill="changed counts, changed tickers, source files, generated artifact review",
+            review_boundary=handoff.record_boundary,
+        ),
+    ]
+
+
+def render_dcf_input_source_command_plan(plan: list[DcfInputSourceCommandPlan]) -> str:
+    lines = [
+        "DCF Source Review Command Plan",
+        "Read-only: this plan prints copy-ready commands only; it does not apply imports, record proof, or unlock DCF readiness.",
+        "Research-only: commands support data-readiness review, not investment advice, broker integration, order routing, or buy/sell instructions.",
+        "Do not replace placeholders unless reviewed source proof exists.",
+    ]
+    if not plan:
+        lines.append("No DCF source-review command plan available.")
+        return "\n".join(lines)
+    lines.append("")
+    lines.append("Step | Status | Command | Fields to fill | Review boundary")
+    lines.append("--- | --- | --- | --- | ---")
+    for row in plan:
+        lines.append(" | ".join([row.step, row.status, row.command, row.fields_to_fill, row.review_boundary]))
+    return "\n".join(lines)
+
+
 def build_dcf_input_source_guard(
     *,
     ticker: str,
@@ -938,6 +1085,7 @@ def main() -> None:
     parser.add_argument("--family", help="Optional DCF input family to hand off, such as shares_outstanding or fcf_margin.")
     parser.add_argument("--handoff", action="store_true", help="Print a reviewed-batch proof handoff for the selected queue/family.")
     parser.add_argument("--source-intake", action="store_true", help="Print fillable source-review rows for the selected DCF queue/family.")
+    parser.add_argument("--source-command-plan", action="store_true", help="Print copy-only source-review, guard, validate, preview, and proof handoff commands.")
     parser.add_argument("--source-guard", action="store_true", help="Validate reviewed source fields and print an import-row preview when complete.")
     parser.add_argument("--ticker")
     parser.add_argument("--missing-dcf-fields", default="")
@@ -992,6 +1140,9 @@ def main() -> None:
         if args.source_intake:
             source_rows = build_dcf_input_source_review_rows(rows, family=args.family, limit=args.top_n)
             print(render_dcf_input_source_review_rows(source_rows))
+        elif args.source_command_plan:
+            command_plan = build_dcf_input_source_command_plan(rows, family=args.family, limit=args.top_n)
+            print(render_dcf_input_source_command_plan(command_plan))
         elif args.handoff:
             handoff = build_dcf_input_proof_handoff(rows, family=args.family, limit=args.top_n)
             print(render_dcf_input_proof_handoff(handoff))
@@ -1035,6 +1186,10 @@ def main() -> None:
             source_rows = build_dcf_input_source_review_rows(rows, family=args.family, limit=args.top_n)
             pd.DataFrame([row.to_dict() for row in source_rows], columns=SOURCE_REVIEW_COLUMNS).to_csv(output, index=False)
             print(f"\nWrote DCF input source-review intake CSV: {output}")
+        elif args.source_command_plan:
+            command_plan = build_dcf_input_source_command_plan(rows, family=args.family, limit=args.top_n)
+            pd.DataFrame([row.to_dict() for row in command_plan], columns=SOURCE_COMMAND_PLAN_COLUMNS).to_csv(output, index=False)
+            print(f"\nWrote DCF input source-review command plan CSV: {output}")
         elif args.handoff:
             handoff = build_dcf_input_proof_handoff(rows, family=args.family, limit=args.top_n)
             pd.DataFrame([handoff.to_dict()], columns=HANDOFF_COLUMNS).to_csv(output, index=False)

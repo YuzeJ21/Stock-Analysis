@@ -130,6 +130,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add Proof Planner Drawer Auto-Context V1 so DCF and peer lanes show a "you came here for" proof-planning cue before their evidence drawers.
 - [x] Add DCF Input Proof Queue Dashboard UX V1 so the Fundamentals / DCF lane shows top input families, next proof command, proof packet command, and stop rule before raw queue rows.
 - [x] Add DCF Source Review Completion UX V1 so the DCF checklist card shows exact missing fields, next safest action, and stop rule before source-review tables.
+- [x] Add DCF Source Review Command Builder V1 so source-review, guard, validate, preview, apply boundary, rebuild proof, and proof handoff commands appear before raw source-review tables.
 - [x] Add Proof Planner Stale-State CTA V1 so stale or missing readiness artifacts show one refresh-first CTA before DCF/peer proof-planning language.
 - [x] Extract DCF/peer proof CTA card builders from the Streamlit dashboard into a focused tested module.
 - [x] Extract proof planner outcome summary logic from the Streamlit dashboard into a focused tested module.

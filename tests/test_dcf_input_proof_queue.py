@@ -3,10 +3,12 @@ import pandas as pd
 from src.dcf_input_proof_queue import (
     build_dcf_input_proof_handoff,
     build_dcf_input_proof_queue,
+    build_dcf_input_source_command_plan,
     build_dcf_input_source_review_rows,
     build_dcf_input_source_guard,
     render_dcf_input_proof_handoff,
     render_dcf_input_proof_queue,
+    render_dcf_input_source_command_plan,
     render_dcf_input_source_guard,
     render_dcf_input_source_review_rows,
     summarize_missing_input_families,
@@ -249,6 +251,54 @@ def test_dcf_input_source_review_defaults_to_top_family_not_mixed(monkeypatch):
 
     assert [row.ticker for row in rows] == ["AMD"]
     assert {row.input_family for row in rows} == {"shares_outstanding"}
+
+
+def test_dcf_input_source_command_plan_builds_copy_only_guard_sequence(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+
+    queue = build_dcf_input_proof_queue(
+        universe=_sample_universe(),
+        fundamentals=_sample_fundamentals(),
+        prices=_sample_prices(),
+        top_n=10,
+    )
+    plan = build_dcf_input_source_command_plan(queue, family="shares_outstanding")
+    rendered = render_dcf_input_source_command_plan(plan).lower()
+
+    assert [row.step for row in plan] == [
+        "1. Open source-review intake",
+        "2. Fill and run source guard",
+        "3. Validate import rows",
+        "4. Preview import merge",
+        "5. Apply boundary",
+        "6. Rebuild DCF proof",
+        "7. Proof handoff",
+    ]
+    assert plan[0].command == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert plan[1].status == "blocked_until_reviewed_fields_filled"
+    assert "make dcf-input-source-guard" in plan[1].command
+    assert "TICKER=AMD" in plan[1].command
+    assert "SHARES_OUTSTANDING='<reviewed_shares_outstanding>'" in plan[1].command
+    assert plan[2].command == "make imports-validate"
+    assert plan[3].command == "make imports-preview"
+    assert plan[4].command == "make imports-apply"
+    assert "do not run apply unless source proof" in plan[4].review_boundary.lower()
+    assert plan[6].command == "make dcf-input-proof-handoff FAMILY=shares_outstanding TOP_N=10"
+    assert "read-only" in rendered
+    assert "research-only" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
+def test_dcf_input_source_command_plan_blocks_empty_family():
+    plan = build_dcf_input_source_command_plan([], family="shares_outstanding")
+    rendered = render_dcf_input_source_command_plan(plan).lower()
+
+    assert len(plan) == 1
+    assert plan[0].status == "blocked"
+    assert plan[0].command == "make dcf-input-proof-queue TOP_N=10"
+    assert "no source-review command can be built" in plan[0].review_boundary.lower()
+    assert "does not apply imports" in rendered
 
 
 def test_dcf_input_source_guard_blocks_placeholders_and_missing_values():
