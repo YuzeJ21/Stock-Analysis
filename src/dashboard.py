@@ -55,6 +55,8 @@ from src.data_health_dcf_source_commands import (
     dcf_source_command_triage_frame,
     dcf_source_evidence_intake_cards,
     dcf_source_evidence_intake_frame,
+    dcf_source_guard_readiness_cards,
+    dcf_source_guard_readiness_frame,
 )
 from src.data_health_proof_checklist import (
     proof_checklist_summary_cards as data_health_proof_checklist_summary_cards,
@@ -8152,6 +8154,16 @@ def data_health_dcf_source_evidence_intake_frame(frame: pd.DataFrame | None, sel
 def data_health_dcf_source_evidence_intake_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
     intake = data_health_dcf_source_evidence_intake_frame(frame, selection, top_n=top_n)
     return dcf_source_evidence_intake_cards(intake, data_health_dcf_input_family_key(selection) or None)
+
+
+def data_health_dcf_source_guard_readiness_frame(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> pd.DataFrame:
+    intake = data_health_dcf_source_evidence_intake_frame(frame, selection, top_n=top_n)
+    return dcf_source_guard_readiness_frame(intake)
+
+
+def data_health_dcf_source_guard_readiness_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
+    readiness = data_health_dcf_source_guard_readiness_frame(frame, selection, top_n=top_n)
+    return dcf_source_guard_readiness_cards(readiness, data_health_dcf_input_family_key(selection) or None)
 
 
 def _data_health_dcf_source_route(row: pd.Series) -> str:
@@ -25209,6 +25221,16 @@ def render_data_health(
             )
             st.dataframe(
                 clean_display_frame(data_health_dcf_source_evidence_intake_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_section_header("DCF Source Guard Readiness", "Whether selected evidence is ready for source guard, still missing fields, or stopped by source gaps.")
+            render_signal_cards(
+                data_health_dcf_source_guard_readiness_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_dcf_source_guard_readiness_frame(dcf_input_queue_filtered, dcf_family_selection)),
                 width="stretch",
                 hide_index=True,
             )

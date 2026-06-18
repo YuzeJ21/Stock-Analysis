@@ -9,6 +9,8 @@ from src.data_health_dcf_source_commands import (
     dcf_source_command_triage_frame,
     dcf_source_evidence_intake_cards,
     dcf_source_evidence_intake_frame,
+    dcf_source_guard_readiness_cards,
+    dcf_source_guard_readiness_frame,
 )
 from src.dcf_input_proof_queue import DcfInputProofRow
 
@@ -173,5 +175,52 @@ def test_dcf_source_evidence_intake_empty_scope_stays_blocked():
     assert intake.iloc[0]["Reviewer Fill"] == "<run_dcf_input_proof_queue_first>"
     assert cards[0]["command"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
     assert "do not fill evidence fields" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_guard_readiness_blocks_placeholder_evidence():
+    intake = dcf_source_evidence_intake_frame([_row("META")], family="shares_outstanding", top_n=1)
+    readiness = dcf_source_guard_readiness_frame(intake)
+    cards = dcf_source_guard_readiness_cards(readiness, "shares_outstanding")
+    rendered = " ".join(readiness.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert readiness.iloc[0]["Ticker"] == "META"
+    assert readiness.iloc[0]["Guard Status"] == "needs_field_fills"
+    assert "source_file_or_url" in readiness.iloc[0]["Missing Evidence Fields"]
+    assert "shares_outstanding" in readiness.iloc[0]["Missing Evidence Fields"]
+    assert readiness.iloc[0]["Guard Command"] == "Fill evidence fields before running dcf-input-source-guard."
+    assert cards[0]["title"].startswith("shares_outstanding: needs field fills: 1")
+    assert "run the guard only when every required evidence field is reviewed" in lowered
+    assert "no placeholder proof" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_guard_readiness_builds_guard_command_when_evidence_is_filled():
+    intake = dcf_source_evidence_intake_frame([_row("META")], family="shares_outstanding", top_n=1)
+    replacements = {
+        "source_file_or_url": "https://www.sec.gov/example",
+        "source_as_of_date": "2026-06-01",
+        "reviewer": "local_reviewer",
+        "review_date": "2026-06-18",
+        "source_proof_status": "reviewed",
+        "shares_outstanding": "123456789",
+    }
+    intake["Reviewer Fill"] = intake["Evidence Field"].map(replacements).fillna(intake["Reviewer Fill"])
+
+    readiness = dcf_source_guard_readiness_frame(intake)
+    cards = dcf_source_guard_readiness_cards(readiness, "shares_outstanding")
+    rendered = " ".join(readiness.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert readiness.iloc[0]["Guard Status"] == "ready_for_guard"
+    assert readiness.iloc[0]["Missing Evidence Fields"] == "-"
+    assert "make dcf-input-source-guard" in readiness.iloc[0]["Guard Command"]
+    assert "TICKER=META" in readiness.iloc[0]["Guard Command"]
+    assert "SHARES_OUTSTANDING=123456789" in readiness.iloc[0]["Guard Command"]
+    assert cards[0]["command"].startswith("make dcf-input-source-guard")
+    assert "ready for guard: 1" in lowered
     assert "buy now" not in lowered
     assert "sell now" not in lowered

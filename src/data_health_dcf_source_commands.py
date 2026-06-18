@@ -317,6 +317,93 @@ def dcf_source_evidence_intake_cards(intake: pd.DataFrame | None, family: str | 
     ]
 
 
+def dcf_source_guard_readiness_frame(intake: pd.DataFrame | None) -> pd.DataFrame:
+    columns = ["Ticker", "Input Family", "Guard Status", "Missing Evidence Fields", "Guard Command", "Stop Rule"]
+    if intake is None or intake.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Ticker": "<select_batch>",
+                    "Input Family": "top family",
+                    "Guard Status": "blocked_no_evidence",
+                    "Missing Evidence Fields": "selected evidence intake",
+                    "Guard Command": "make dcf-input-proof-queue TOP_N=10",
+                    "Stop Rule": "Do not run the DCF source guard until a selected evidence batch exists.",
+                }
+            ],
+            columns=columns,
+        )
+    work = intake.copy()
+    rows = []
+    for (ticker, family), group in work.groupby(["Ticker", "Input Family"], dropna=False, sort=False):
+        ticker_text = str(ticker or "").strip()
+        family_text = str(family or "").strip()
+        if ticker_text.startswith("<"):
+            missing = _field_summary(group.get("Evidence Field", pd.Series("", index=group.index)))
+            rows.append(
+                {
+                    "Ticker": ticker_text,
+                    "Input Family": family_text or "top family",
+                    "Guard Status": "blocked_no_batch",
+                    "Missing Evidence Fields": missing,
+                    "Guard Command": "make dcf-input-proof-queue TOP_N=10",
+                    "Stop Rule": str(group.iloc[0].get("Stop Rule") or "Do not run the guard without selected DCF blockers."),
+                }
+            )
+            continue
+        missing_fields = [
+            str(row.get("Evidence Field"))
+            for _, row in group.iterrows()
+            if _is_placeholder(row.get("Reviewer Fill"))
+        ]
+        status = "needs_field_fills" if missing_fields else "ready_for_guard"
+        command = _guard_command_from_evidence(group) if status == "ready_for_guard" else "Fill evidence fields before running dcf-input-source-guard."
+        rows.append(
+            {
+                "Ticker": ticker_text,
+                "Input Family": family_text,
+                "Guard Status": status,
+                "Missing Evidence Fields": ", ".join(dict.fromkeys(missing_fields)) or "-",
+                "Guard Command": command,
+                "Stop Rule": str(group.iloc[0].get("Stop Rule") or "Do not infer DCF inputs."),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def dcf_source_guard_readiness_cards(readiness: pd.DataFrame | None, family: str | None = None) -> list[dict[str, object]]:
+    family_label = str(family or "top family").strip() or "top family"
+    if readiness is None or readiness.empty:
+        return [
+            {
+                "kicker": "DCF GUARD READINESS",
+                "title": "No DCF guard readiness loaded",
+                "body": "Fill evidence intake first; do not run source guard commands from empty scope.",
+                "badges": ["blocked visible", "source proof first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    status_counts = readiness["Guard Status"].fillna("unknown").astype(str).value_counts()
+    summary = "; ".join(f"{status.replace('_', ' ')}: {count}" for status, count in status_counts.items())
+    guard_statuses = readiness["Guard Status"].astype(str)
+    first_blocked = readiness.loc[~guard_statuses.eq("ready_for_guard")]
+    focus = first_blocked.iloc[0] if not first_blocked.empty else readiness.iloc[0]
+    return [
+        {
+            "kicker": "DCF GUARD READINESS",
+            "title": f"{family_label}: {summary}",
+            "body": (
+                f"{card_sentence('Next ticker', focus.get('Ticker'))} "
+                f"{card_sentence('Missing evidence', compact_card_fragment(focus.get('Missing Evidence Fields'), max_chars=170))} "
+                f"{card_sentence('Stop rule', compact_card_fragment(focus.get('Stop Rule'), max_chars=190))} "
+                "Run the guard only when every required evidence field is reviewed."
+            ),
+            "badges": ["guard gate", "no placeholder proof"],
+            "command": str(focus.get("Guard Command") or "make dcf-input-proof-queue TOP_N=10"),
+        }
+    ]
+
+
 def _first_command(frame: pd.DataFrame, mask: pd.Series) -> str:
     matches = frame.loc[mask]
     if matches.empty or "Command" not in matches.columns:
@@ -369,3 +456,32 @@ def _source_expectation(family: str) -> str:
     if family == "price":
         return "Use reviewed OHLCV source path; do not fill fundamentals rows for price blockers."
     return "Use SEC Companyfacts, reviewed company filing, or trusted local source proof for DCF fields."
+
+
+def _is_placeholder(value: object) -> bool:
+    text = str(value or "").strip()
+    return not text or (text.startswith("<") and text.endswith(">"))
+
+
+def _guard_command_from_evidence(group: pd.DataFrame) -> str:
+    first = group.iloc[0]
+    values = {str(row.get("Evidence Field")): str(row.get("Reviewer Fill")) for _, row in group.iterrows()}
+    parts = [
+        f"TICKER={first.get('Ticker')}",
+        f"FAMILY={first.get('Input Family')}",
+    ]
+    for field, make_name in [
+        ("source_file_or_url", "SOURCE_FILE_OR_URL"),
+        ("source_as_of_date", "SOURCE_AS_OF_DATE"),
+        ("reviewer", "REVIEWER"),
+        ("review_date", "REVIEW_DATE"),
+        ("source_proof_status", "SOURCE_PROOF_STATUS"),
+        ("revenue", "REVENUE"),
+        ("free_cash_flow", "FREE_CASH_FLOW"),
+        ("fcf_margin", "FCF_MARGIN"),
+        ("shares_outstanding", "SHARES_OUTSTANDING"),
+    ]:
+        value = values.get(field)
+        if value and not _is_placeholder(value):
+            parts.append(f"{make_name}={value}")
+    return "make dcf-input-source-guard " + " ".join(parts)
