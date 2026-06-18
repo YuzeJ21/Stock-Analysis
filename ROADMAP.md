@@ -137,6 +137,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add DCF Source Review Guard Readiness V1 so selected evidence shows guard-ready, missing-field, or stop status before guard commands.
 - [x] Add DCF Source Review Guard Preview V1 so guard-ready rows show the exact guard command, validate/preview gates, apply boundary, and post-guard proof before import-preview tables.
 - [x] Add DCF Source Proof Handoff V2 so guard preview rows show proof-record dry-run fields, validation/preview boundaries, artifact review, and stop rules before lower source tables.
+- [x] Add DCF Proof Ledger Outcome Compare V1 so source proof, before/after readiness comparison, and latest ledger outcome appear together before lower source tables.
 - [x] Add Proof Planner Stale-State CTA V1 so stale or missing readiness artifacts show one refresh-first CTA before DCF/peer proof-planning language.
 - [x] Extract DCF/peer proof CTA card builders from the Streamlit dashboard into a focused tested module.
 - [x] Extract DCF source command-plan card/frame helpers from the Streamlit dashboard into a focused tested module.

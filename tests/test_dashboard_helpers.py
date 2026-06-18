@@ -12545,25 +12545,44 @@ def test_dcf_proof_loop_outcome_summarizes_source_guard_handoff_and_ledger():
             }
         ]
     )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=3538,
+        after_rows=3538,
+        changed_tickers=("META",),
+        changed_count=1,
+        changed_readiness_counts="dcf_ready (not_ready: 1->0; ready: 0->1)",
+        freshness_status="current",
+        freshness_message="readiness artifacts are current",
+        blocking_message="",
+    )
 
-    cards = dashboard.data_health_dcf_proof_loop_outcome_cards(frame, "shares_outstanding (1)", ledger)
-    outcome = dashboard.data_health_dcf_proof_loop_outcome_frame(frame, "shares_outstanding (1)", ledger)
+    cards = dashboard.data_health_dcf_proof_loop_outcome_cards(frame, "shares_outstanding (1)", ledger, comparison)
+    outcome = dashboard.data_health_dcf_proof_loop_outcome_frame(frame, "shares_outstanding (1)", ledger, comparison)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert outcome["Proof Loop Step"].tolist() == [
         "Source review intake",
         "Import preview guard",
         "Proof-record readiness",
+        "Before / after readiness comparison",
         "Latest DCF ledger outcome",
     ]
     assert outcome.iloc[0]["Status"] == "needs_field_fills"
     assert outcome.iloc[1]["Status"] == "blocked"
     assert outcome.iloc[2]["Status"] == "needs_field_fills"
-    assert outcome.iloc[3]["Status"] == "still_blocked"
-    assert "RB-SHARECOUNT" in outcome.iloc[3]["Detail"]
+    assert outcome.iloc[3]["Status"] == "ready"
+    assert "1 changed ticker(s)" in outcome.iloc[3]["Detail"]
+    assert "dcf_ready" in outcome.iloc[3]["Detail"]
+    assert outcome.iloc[4]["Status"] == "still_blocked"
+    assert "RB-SHARECOUNT" in outcome.iloc[4]["Detail"]
     assert cards[0]["title"] == "Latest ledger outcome: still_blocked"
-    assert cards[0]["command"] == "make reviewed-batch-proof"
+    assert cards[0]["command"] == "make dcf-input-source-review TOP_N=10"
     assert "source review intake: needs_field_fills" in rendered
+    assert "before / after readiness comparison: ready" in rendered
+    assert "next proof gate" in rendered
     assert "no inferred inputs" in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered
@@ -13105,8 +13124,11 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_dcf_import_preview_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_input_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_input_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
-    assert "data_health_dcf_proof_loop_outcome_cards(dcf_input_queue_filtered, dcf_family_selection, batch_proof_frame)" in source
-    assert "data_health_dcf_proof_loop_outcome_frame(dcf_input_queue_filtered, dcf_family_selection, batch_proof_frame)" in source
+    assert "DCF Proof Outcome Compare" in source
+    assert "data_health_dcf_proof_loop_outcome_cards(" in source
+    assert "batch_proof_summary_frame" in source
+    assert "readiness_comparison" in source
+    assert "data_health_dcf_proof_loop_outcome_frame(" in source
     assert "data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)" in source
     assert "Fundamentals / DCF Queue Snapshot" in source
     dcf_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)')
@@ -13134,7 +13156,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_proof_handoff_index = source.index('render_section_header("DCF Source Proof Handoff"', dcf_guard_preview_frame_index)
     dcf_proof_handoff_cards_index = source.index("data_health_dcf_source_proof_handoff_cards(", dcf_proof_handoff_index)
     dcf_proof_handoff_frame_index = source.index("data_health_dcf_source_proof_handoff_frame(", dcf_proof_handoff_cards_index)
-    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_proof_handoff_frame_index)
+    dcf_outcome_compare_index = source.index('render_section_header("DCF Proof Outcome Compare"', dcf_proof_handoff_frame_index)
+    dcf_outcome_compare_cards_index = source.index("data_health_dcf_proof_loop_outcome_cards(", dcf_outcome_compare_index)
+    dcf_outcome_compare_frame_index = source.index("data_health_dcf_proof_loop_outcome_frame(", dcf_outcome_compare_cards_index)
+    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_outcome_compare_frame_index)
     dcf_command_plan_cards_index = source.index("data_health_dcf_source_command_plan_cards(", dcf_command_plan_index)
     dcf_command_plan_frame_index = source.index("data_health_dcf_source_command_plan_frame(", dcf_command_plan_cards_index)
     dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_command_plan_frame_index)
@@ -13164,6 +13189,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         < dcf_proof_handoff_index
         < dcf_proof_handoff_cards_index
         < dcf_proof_handoff_frame_index
+        < dcf_outcome_compare_index
+        < dcf_outcome_compare_cards_index
+        < dcf_outcome_compare_frame_index
         < dcf_command_plan_index
         < dcf_command_plan_cards_index
         < dcf_command_plan_frame_index

@@ -8694,6 +8694,7 @@ def data_health_dcf_proof_loop_outcome_frame(
     frame: pd.DataFrame | None,
     selection: object,
     batch_proof_frame: pd.DataFrame | None,
+    comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     source_frame = data_health_dcf_input_source_review_frame(frame, selection)
     preview_frame = data_health_dcf_import_preview_frame(frame, selection)
@@ -8735,6 +8736,31 @@ def data_health_dcf_proof_loop_outcome_frame(
             f"{format_missing(latest.get(date_col), 'not recorded')}; "
             f"{compact_card_fragment(latest.get(changed_col), fallback='changed counts not recorded', max_chars=130)}"
         )
+    family = data_health_dcf_input_family_key(selection)
+    compare_lane = "share_count" if family == "shares_outstanding" else "fundamentals"
+    comparison_status = "deferred"
+    comparison_detail = "Switch Proof detail level to Review details before using changed counts in a DCF proof row."
+    comparison_command = "Switch Proof detail level to Review details."
+    if comparison is not None:
+        comparison_command = f"make reviewed-batch-compare LANE={compare_lane}"
+        if comparison.status != "ok":
+            comparison_status = comparison.status
+            comparison_detail = comparison.blocking_message or "Snapshot comparison is blocked until before/after readiness reports exist."
+            comparison_command = "make readiness-snapshot" if comparison.status == "missing_before" else "make readiness"
+        elif comparison.blocking_message:
+            comparison_status = "stale_snapshot_warning"
+            comparison_detail = (
+                f"{comparison.blocking_message} Changed counts: "
+                f"{compact_card_fragment(comparison.changed_readiness_counts, max_chars=150)}."
+            )
+        else:
+            comparison_status = "ready"
+            changed_tickers = ", ".join(comparison.changed_tickers) if comparison.changed_tickers else "none"
+            comparison_detail = (
+                f"{comparison.changed_count} changed ticker(s); "
+                f"{compact_card_fragment(comparison.changed_readiness_counts, max_chars=140)}; "
+                f"changed tickers: {compact_card_fragment(changed_tickers, max_chars=100)}"
+            )
     return pd.DataFrame(
         [
             {
@@ -8756,6 +8782,12 @@ def data_health_dcf_proof_loop_outcome_frame(
                 "Next Safe Action": proof_command,
             },
             {
+                "Proof Loop Step": "Before / after readiness comparison",
+                "Status": comparison_status,
+                "Detail": comparison_detail,
+                "Next Safe Action": comparison_command,
+            },
+            {
                 "Proof Loop Step": "Latest DCF ledger outcome",
                 "Status": latest_status,
                 "Detail": latest_detail,
@@ -8769,8 +8801,9 @@ def data_health_dcf_proof_loop_outcome_cards(
     frame: pd.DataFrame | None,
     selection: object,
     batch_proof_frame: pd.DataFrame | None,
+    comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
-    outcome = data_health_dcf_proof_loop_outcome_frame(frame, selection, batch_proof_frame)
+    outcome = data_health_dcf_proof_loop_outcome_frame(frame, selection, batch_proof_frame, comparison)
     if outcome.empty:
         return [
             {
@@ -8783,16 +8816,21 @@ def data_health_dcf_proof_loop_outcome_cards(
         ]
     statuses = ", ".join(f"{row['Proof Loop Step']}: {row['Status']}" for _, row in outcome.iterrows())
     latest = outcome.iloc[-1]
+    blockers = outcome.loc[
+        outcome["Status"].fillna("").astype(str).str.lower().str.contains("blocked|missing|deferred|warning|needs", regex=True)
+    ]
+    focus = blockers.iloc[0] if not blockers.empty else latest
     return [
         {
             "kicker": "DCF PROOF OUTCOME",
             "title": f"Latest ledger outcome: {format_missing(latest.get('Status'), 'not_recorded')}",
             "body": (
                 f"{compact_card_fragment(statuses, max_chars=210)}. "
+                f"{card_sentence('Next proof gate', focus.get('Proof Loop Step'))} "
                 "Use this summary to decide whether the DCF proof loop is ready, still blocked, skipped, or only scaffolded."
             ),
             "badges": ["proof loop", "no inferred inputs"],
-            "command": format_missing(latest.get("Next Safe Action"), "make reviewed-batch-proof"),
+            "command": format_missing(focus.get("Next Safe Action"), "make reviewed-batch-proof"),
         }
     ]
 
@@ -25278,6 +25316,28 @@ def render_data_health(
                 width="stretch",
                 hide_index=True,
             )
+            render_section_header("DCF Proof Outcome Compare", "Source proof, readiness comparison, and latest ledger outcome before lower source tables.")
+            render_signal_cards(
+                data_health_dcf_proof_loop_outcome_cards(
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                    batch_proof_summary_frame,
+                    readiness_comparison,
+                ),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(
+                    data_health_dcf_proof_loop_outcome_frame(
+                        dcf_input_queue_filtered,
+                        dcf_family_selection,
+                        batch_proof_summary_frame,
+                        readiness_comparison,
+                    )
+                ),
+                width="stretch",
+                hide_index=True,
+            )
             render_section_header("DCF Source Command Plan", "Copy-only source-review, guard, validate, preview, and proof commands before detailed source tables.")
             render_signal_cards(
                 data_health_dcf_source_command_plan_cards(dcf_input_queue_filtered, dcf_family_selection),
@@ -25326,12 +25386,22 @@ def render_data_health(
                 hide_index=True,
             )
             render_signal_cards(
-                data_health_dcf_proof_loop_outcome_cards(dcf_input_queue_filtered, dcf_family_selection, batch_proof_frame),
+                data_health_dcf_proof_loop_outcome_cards(
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                    batch_proof_summary_frame,
+                    readiness_comparison,
+                ),
                 show_commands=True,
             )
             st.dataframe(
                 clean_display_frame(
-                    data_health_dcf_proof_loop_outcome_frame(dcf_input_queue_filtered, dcf_family_selection, batch_proof_frame)
+                    data_health_dcf_proof_loop_outcome_frame(
+                        dcf_input_queue_filtered,
+                        dcf_family_selection,
+                        batch_proof_summary_frame,
+                        readiness_comparison,
+                    )
                 ),
                 width="stretch",
                 hide_index=True,
