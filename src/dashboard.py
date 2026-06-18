@@ -121,6 +121,7 @@ from src.readiness_ops import (
     build_fundamentals_peer_metrics_queue_from_lanes,
     build_readiness_ops_lanes,
 )
+from src.pilot_readiness import build_pilot_readiness_checks, pilot_readiness_verdict
 from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
@@ -7624,6 +7625,11 @@ def cached_data_coverage_proof_queues(root_text: str, top_n: int):
 
 
 @lru_cache(maxsize=8)
+def cached_pilot_readiness_checks(root_text: str, top_n: int):
+    return tuple(build_pilot_readiness_checks(Path(root_text), top_n=top_n))
+
+
+@lru_cache(maxsize=8)
 def cached_dcf_input_proof_queue_rows(root_text: str, top_n: int):
     return tuple(build_dcf_input_proof_queue_from_files(Path(root_text), top_n=top_n))
 
@@ -7747,6 +7753,83 @@ def data_health_data_coverage_proof_queue_frame(root: Path | None = None, *, top
             for row in rows
         ]
     )
+
+
+def data_health_pilot_readiness_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
+    checks = cached_pilot_readiness_checks(str(root or BASE_DIR), top_n)
+    return pd.DataFrame(
+        [
+            {
+                "Area": check.area,
+                "Status": check.status,
+                "Gate": check.title,
+                "Detail": check.detail,
+                "Command": check.command,
+                "Stop Rule": check.stop_rule,
+            }
+            for check in checks
+        ]
+    )
+
+
+def data_health_pilot_readiness_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "PILOT GATE",
+                "title": "Run pilot readiness check",
+                "body": (
+                    "The pilot gate needs sync, hygiene, freshness, source-proof, public-check, "
+                    "and research-only guardrail status before sharing."
+                ),
+                "badges": ["read-only", "pilot gate"],
+                "command": "make pilot-readiness-check TOP_N=10",
+            }
+        ]
+    statuses = [str(value).strip().lower() for value in frame.get("Status", pd.Series(dtype=str)).tolist()]
+    if "blocked" in statuses:
+        verdict = "Blocked before pilot"
+        badge = "blocked"
+    elif "manual" in statuses:
+        verdict = "Pilot-ready with manual gates"
+        badge = "manual gates"
+    else:
+        verdict = "Pilot-ready"
+        badge = "green"
+    manual_count = statuses.count("manual")
+    blocked_count = statuses.count("blocked")
+    green_count = statuses.count("green")
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "PILOT READINESS",
+            "title": verdict,
+            "body": (
+                f"{green_count} green gate(s), {manual_count} manual gate(s), and {blocked_count} blocked gate(s). "
+                "This is a packaging checklist, not an analysis unlock; missing trusted inputs stay visible."
+            ),
+            "badges": [badge, "research-only"],
+            "command": "make pilot-readiness-check TOP_N=10",
+        }
+    ]
+    priority = {"blocked": 0, "manual": 1, "green": 2}
+    work = frame.copy()
+    work["_rank"] = work["Status"].map(lambda value: priority.get(str(value).strip().lower(), 9))
+    for _, row in work.sort_values(["_rank", "Area"]).head(max(limit, 0)).iterrows():
+        area = format_missing(row.get("Area"), "Pilot gate")
+        status = public_status_label(row.get("Status"))
+        detail = compact_card_fragment(row.get("Detail"), max_chars=170)
+        stop_rule = compact_card_fragment(row.get("Stop Rule"), max_chars=150)
+        command = format_missing(row.get("Command"), "make pilot-readiness-check TOP_N=10")
+        cards.append(
+            {
+                "kicker": "PILOT CHECK",
+                "title": area,
+                "body": f"{card_sentence('Status', status)} {card_sentence('Detail', detail)} {card_sentence('Stop rule', stop_rule)}",
+                "badges": [status],
+                "command": command,
+            }
+        )
+    return cards
 
 
 def data_health_data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -25671,6 +25754,7 @@ def render_data_health(
                 "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
             )
         return
+    pilot_readiness = data_health_pilot_readiness_frame(top_n=10)
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
     batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
     batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
@@ -25792,6 +25876,13 @@ def render_data_health(
         batch_proof_summary_frame=batch_proof_summary_frame,
         base_dir=BASE_DIR,
     )
+    render_section_header(
+        "Pilot Readiness Gate",
+        "Sync, hygiene, freshness, source-proof, public-check, and research-only status before a pilot package.",
+    )
+    render_signal_cards(data_health_pilot_readiness_cards(pilot_readiness), show_commands=True, variant="queue")
+    with st.expander("Pilot readiness checklist detail", expanded=False):
+        st.dataframe(clean_display_frame(pilot_readiness), width="stretch", hide_index=True)
     render_section_header(
         "Readiness Lane Snapshot",
         "Post-price bottlenecks before single-stock reports or raw proof tables.",
