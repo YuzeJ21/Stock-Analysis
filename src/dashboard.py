@@ -83,6 +83,11 @@ from src.data_health_queue_outcome import (
     readiness_queue_outcome_summary_cards as data_health_readiness_queue_outcome_summary_cards,
     readiness_queue_outcome_summary_frame as data_health_readiness_queue_outcome_summary_frame,
 )
+from src.data_health_proof_ledger import (
+    case_column as _proof_ledger_case_column,
+    latest_dcf_proof_row,
+    latest_peer_proof_row,
+)
 from src import data_health_proof_console as proof_console
 from src import data_health_batch_console as batch_console
 from src import data_health_coverage_console as coverage_console
@@ -8672,31 +8677,11 @@ def data_health_dcf_import_preview_cards(frame: pd.DataFrame | None, selection: 
 
 
 def _data_health_case_column(frame: pd.DataFrame | None, *candidates: str) -> str | None:
-    if frame is None or frame.empty:
-        return None
-    by_lower = {str(column).strip().lower(): str(column) for column in frame.columns}
-    for candidate in candidates:
-        column = by_lower.get(candidate.strip().lower())
-        if column is not None:
-            return column
-    return None
+    return _proof_ledger_case_column(frame, *candidates)
 
 
 def data_health_dcf_latest_proof_row(batch_proof_frame: pd.DataFrame | None) -> pd.Series:
-    if batch_proof_frame is None or batch_proof_frame.empty:
-        return pd.Series(dtype=object)
-    lane_col = _data_health_case_column(batch_proof_frame, "lane", "Lane")
-    if lane_col is None:
-        return pd.Series(dtype=object)
-    lanes = batch_proof_frame[lane_col].fillna("").astype(str).str.lower().str.strip()
-    dcf_lanes = {"fundamentals", "fundamentals_dcf", "share_count"}
-    matches = batch_proof_frame.loc[lanes.isin(dcf_lanes)]
-    if matches.empty:
-        return pd.Series(dtype=object)
-    review_col = _data_health_case_column(matches, "review_date", "Review Date")
-    batch_col = _data_health_case_column(matches, "batch_id", "Batch ID")
-    sort_cols = [col for col in (review_col, batch_col) if col is not None]
-    return matches.sort_values(sort_cols, ascending=[False] * len(sort_cols)).iloc[0] if sort_cols else matches.iloc[0]
+    return latest_dcf_proof_row(batch_proof_frame)
 
 
 def data_health_dcf_proof_loop_outcome_frame(
@@ -12156,20 +12141,7 @@ def data_health_peer_proof_batch_planner_cards(
 
 
 def data_health_peer_latest_proof_row(batch_proof_frame: pd.DataFrame | None) -> pd.Series:
-    if batch_proof_frame is None or batch_proof_frame.empty:
-        return pd.Series(dtype=object)
-    lane_col = _data_health_case_column(batch_proof_frame, "lane", "Lane")
-    if lane_col is None:
-        return pd.Series(dtype=object)
-    lanes = batch_proof_frame[lane_col].fillna("").astype(str).str.lower().str.strip()
-    peer_lanes = {"peers", "peer_mapping", "peer_valuation_inputs"}
-    matches = batch_proof_frame.loc[lanes.isin(peer_lanes)]
-    if matches.empty:
-        return pd.Series(dtype=object)
-    review_col = _data_health_case_column(matches, "review_date", "Review Date")
-    batch_col = _data_health_case_column(matches, "batch_id", "Batch ID")
-    sort_cols = [col for col in (review_col, batch_col) if col is not None]
-    return matches.sort_values(sort_cols, ascending=[False] * len(sort_cols)).iloc[0] if sort_cols else matches.iloc[0]
+    return latest_peer_proof_row(batch_proof_frame)
 
 
 def data_health_peer_proof_loop_outcome_frame(
