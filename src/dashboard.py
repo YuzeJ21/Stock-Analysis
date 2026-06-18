@@ -46,6 +46,10 @@ from src.data_health_proof_ctas import (
     data_health_lane_auto_context_cards,
     data_health_operator_lane_url,
 )
+from src.data_health_dcf_source_commands import (
+    dcf_source_command_plan_cards,
+    dcf_source_command_plan_frame,
+)
 from src.data_health_proof_checklist import (
     proof_checklist_summary_cards as data_health_proof_checklist_summary_cards,
     proof_checklist_summary_frame as data_health_proof_checklist_summary_frame,
@@ -78,7 +82,6 @@ from src.decision_proof_queue import (
 )
 from src.coverage_expansion_loop import CoverageExpansionLoop, build_coverage_expansion_loop
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_handoff, build_dcf_input_proof_queue_from_files
-from src.dcf_input_proof_queue import build_dcf_input_source_command_plan
 from src.dcf_input_proof_queue import build_dcf_input_source_guard, build_dcf_input_source_review_rows
 from src.monthly_picks import build_monthly_research_picks
 from src.monthly_picks import MonthlyPickConfig
@@ -8098,57 +8101,12 @@ def data_health_dcf_input_source_review_cards(frame: pd.DataFrame | None, select
 
 def data_health_dcf_source_command_plan_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
     rows = data_health_dcf_input_rows_from_frame(frame)
-    plan = build_dcf_input_source_command_plan(rows, family=data_health_dcf_input_family_key(selection) or None)
-    return pd.DataFrame(
-        [
-            {
-                "Step": row.step,
-                "Status": row.status,
-                "Command": row.command,
-                "Fields To Fill": row.fields_to_fill,
-                "Review Boundary": row.review_boundary,
-            }
-            for row in plan
-        ]
-    )
+    return dcf_source_command_plan_frame(rows, data_health_dcf_input_family_key(selection) or None)
 
 
 def data_health_dcf_source_command_plan_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
     plan = data_health_dcf_source_command_plan_frame(frame, selection)
-    family = data_health_dcf_input_family_key(selection) or "top family"
-    if plan.empty:
-        return [
-            {
-                "kicker": "DCF COMMAND PLAN",
-                "title": "No DCF source command plan available",
-                "body": "Refresh the DCF input queue before building source-review, guard, validation, and proof commands.",
-                "badges": ["copy-only", "blocked visible"],
-                "command": "make dcf-input-proof-queue TOP_N=10",
-            }
-        ]
-    first_blocker = plan.loc[
-        plan["Status"].fillna("").astype(str).str.lower().str.contains("blocked|needs", regex=True)
-    ]
-    focus = first_blocker.iloc[0] if not first_blocker.empty else plan.iloc[0]
-    source_command = (
-        f"make dcf-input-source-command-plan FAMILY={family} TOP_N=10"
-        if family != "top family"
-        else "make dcf-input-source-command-plan TOP_N=10"
-    )
-    return [
-        {
-            "kicker": "DCF COMMAND PLAN",
-            "title": f"{family}: source review to proof handoff",
-            "body": (
-                f"{len(plan):,} copy-only step(s). "
-                f"{card_sentence('Next blocked step', focus.get('Step'))} "
-                f"{card_sentence('Fields to fill', compact_card_fragment(focus.get('Fields To Fill'), max_chars=180))} "
-                "Use this command path before opening raw source-review or import-preview tables."
-            ),
-            "badges": ["copy-only", "validate then preview"],
-            "command": source_command,
-        }
-    ]
+    return dcf_source_command_plan_cards(plan, data_health_dcf_input_family_key(selection) or None)
 
 
 def _data_health_dcf_source_route(row: pd.Series) -> str:

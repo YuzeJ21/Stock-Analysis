@@ -1,0 +1,63 @@
+import pandas as pd
+
+from src.data_health_dcf_source_commands import dcf_source_command_plan_cards, dcf_source_command_plan_frame
+from src.dcf_input_proof_queue import DcfInputProofRow
+
+
+def _row(ticker: str = "META") -> DcfInputProofRow:
+    return DcfInputProofRow(
+        priority=1,
+        ticker=ticker,
+        scope="active universe",
+        missing_input_family="shares_outstanding",
+        missing_dcf_fields="shares_outstanding",
+        ready_dcf_inputs="free_cash_flow, revenue, fcf_margin, price",
+        dcf_input_status="single-input blocker: shares_outstanding",
+        source_mode="SEC-stageable or trusted-local",
+        next_safe_command=f"make share-count-proof-queue TICKERS={ticker}",
+        proof_packet_command=f"DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS={ticker}",
+        validation_sequence="make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+        proof_after_update=f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}",
+        stop_rule="Stop if shares_outstanding is unavailable from SEC/manual source proof.",
+        source_note="SEC staging is configured; use SEC/manual filing proof.",
+    )
+
+
+def _render_cards(cards: list[dict[str, object]]) -> str:
+    return " ".join(str(value) for card in cards for value in card.values()).lower()
+
+
+def test_dcf_source_command_plan_frame_and_cards_show_next_blocked_step():
+    frame = dcf_source_command_plan_frame([_row()], "shares_outstanding")
+    cards = dcf_source_command_plan_cards(frame, "shares_outstanding")
+    rendered = " ".join(frame.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert frame["Step"].tolist() == [
+        "1. Open source-review intake",
+        "2. Fill and run source guard",
+        "3. Validate import rows",
+        "4. Preview import merge",
+        "5. Apply boundary",
+        "6. Rebuild DCF proof",
+        "7. Proof handoff",
+    ]
+    assert cards[0]["title"] == "shares_outstanding: source review to proof handoff"
+    assert cards[0]["command"] == "make dcf-input-source-command-plan FAMILY=shares_outstanding TOP_N=10"
+    assert "next blocked step: 1. open source-review intake" in lowered
+    assert "source_file_or_url" in lowered
+    assert "make dcf-input-source-guard" in lowered
+    assert "use this command path before opening raw source-review" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_command_plan_cards_empty_state_stays_blocked():
+    cards = dcf_source_command_plan_cards(pd.DataFrame(), "shares_outstanding")
+    rendered = _render_cards(cards)
+
+    assert cards[0]["title"] == "No DCF source command plan available"
+    assert cards[0]["command"] == "make dcf-input-proof-queue TOP_N=10"
+    assert "refresh the dcf input queue" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
