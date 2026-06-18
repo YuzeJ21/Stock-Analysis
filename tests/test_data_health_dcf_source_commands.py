@@ -9,6 +9,8 @@ from src.data_health_dcf_source_commands import (
     dcf_source_command_triage_frame,
     dcf_source_evidence_intake_cards,
     dcf_source_evidence_intake_frame,
+    dcf_source_guard_preview_cards,
+    dcf_source_guard_preview_frame,
     dcf_source_guard_readiness_cards,
     dcf_source_guard_readiness_frame,
 )
@@ -222,5 +224,51 @@ def test_dcf_source_guard_readiness_builds_guard_command_when_evidence_is_filled
     assert "SHARES_OUTSTANDING=123456789" in readiness.iloc[0]["Guard Command"]
     assert cards[0]["command"].startswith("make dcf-input-source-guard")
     assert "ready for guard: 1" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_guard_preview_blocks_until_guard_ready():
+    intake = dcf_source_evidence_intake_frame([_row("META")], family="shares_outstanding", top_n=1)
+    readiness = dcf_source_guard_readiness_frame(intake)
+    preview = dcf_source_guard_preview_frame(readiness)
+    cards = dcf_source_guard_preview_cards(preview, "shares_outstanding")
+    rendered = " ".join(preview.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert preview.iloc[0]["Guard Status"] == "needs_field_fills"
+    assert preview.iloc[0]["Validate"] == "blocked until guard readiness is ready_for_guard"
+    assert preview.iloc[0]["Preview"] == "blocked until validation is reviewed"
+    assert "do not apply imports while evidence fields are missing" in preview.iloc[0]["Apply Boundary"].lower()
+    assert cards[0]["title"] == "shares_outstanding: 0 ready for guard"
+    assert "missing evidence keeps the row blocked" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_guard_preview_shows_validate_preview_apply_boundary_when_ready():
+    intake = dcf_source_evidence_intake_frame([_row("META")], family="shares_outstanding", top_n=1)
+    replacements = {
+        "source_file_or_url": "https://www.sec.gov/example",
+        "source_as_of_date": "2026-06-01",
+        "reviewer": "local_reviewer",
+        "review_date": "2026-06-18",
+        "source_proof_status": "reviewed",
+        "shares_outstanding": "123456789",
+    }
+    intake["Reviewer Fill"] = intake["Evidence Field"].map(replacements).fillna(intake["Reviewer Fill"])
+    readiness = dcf_source_guard_readiness_frame(intake)
+    preview = dcf_source_guard_preview_frame(readiness)
+    cards = dcf_source_guard_preview_cards(preview, "shares_outstanding")
+    rendered = " ".join(preview.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert preview.iloc[0]["Guard Status"] == "ready_for_guard"
+    assert preview.iloc[0]["Validate"] == "make imports-validate"
+    assert preview.iloc[0]["Preview"] == "make imports-preview"
+    assert "make imports-apply only after source guard" in preview.iloc[0]["Apply Boundary"]
+    assert preview.iloc[0]["Post-Guard Proof"] == "make dcf-readiness && make readiness && make stock-report-md TICKER=META"
+    assert cards[0]["command"].startswith("make dcf-input-source-guard")
+    assert "validate then preview" in lowered
     assert "buy now" not in lowered
     assert "sell now" not in lowered

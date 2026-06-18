@@ -13085,6 +13085,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "DCF Source Guard Readiness" in source
     assert "data_health_dcf_source_guard_readiness_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_guard_readiness_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "DCF Source Guard Preview" in source
+    assert "data_health_dcf_source_guard_preview_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_source_guard_preview_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "DCF Source Command Plan" in source
     assert "data_health_dcf_source_command_plan_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_command_plan_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
@@ -13122,7 +13125,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_guard_readiness_index = source.index('render_section_header("DCF Source Guard Readiness"', dcf_evidence_intake_frame_index)
     dcf_guard_readiness_cards_index = source.index("data_health_dcf_source_guard_readiness_cards(", dcf_guard_readiness_index)
     dcf_guard_readiness_frame_index = source.index("data_health_dcf_source_guard_readiness_frame(", dcf_guard_readiness_cards_index)
-    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_guard_readiness_frame_index)
+    dcf_guard_preview_index = source.index('render_section_header("DCF Source Guard Preview"', dcf_guard_readiness_frame_index)
+    dcf_guard_preview_cards_index = source.index("data_health_dcf_source_guard_preview_cards(", dcf_guard_preview_index)
+    dcf_guard_preview_frame_index = source.index("data_health_dcf_source_guard_preview_frame(", dcf_guard_preview_cards_index)
+    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_guard_preview_frame_index)
     dcf_command_plan_cards_index = source.index("data_health_dcf_source_command_plan_cards(", dcf_command_plan_index)
     dcf_command_plan_frame_index = source.index("data_health_dcf_source_command_plan_frame(", dcf_command_plan_cards_index)
     dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_command_plan_frame_index)
@@ -13146,6 +13152,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         < dcf_guard_readiness_index
         < dcf_guard_readiness_cards_index
         < dcf_guard_readiness_frame_index
+        < dcf_guard_preview_index
+        < dcf_guard_preview_cards_index
+        < dcf_guard_preview_frame_index
         < dcf_command_plan_index
         < dcf_command_plan_cards_index
         < dcf_command_plan_frame_index

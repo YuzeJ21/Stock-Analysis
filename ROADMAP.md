@@ -135,6 +135,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add DCF Source Review Batch Selector V1 so a capped source-review scope and command-plan command appear before raw queue rows.
 - [x] Add DCF Source Review Evidence Intake V1 so reviewer evidence fields appear before import-row scaffolds or proof-record outcomes.
 - [x] Add DCF Source Review Guard Readiness V1 so selected evidence shows guard-ready, missing-field, or stop status before guard commands.
+- [x] Add DCF Source Review Guard Preview V1 so guard-ready rows show the exact guard command, validate/preview gates, apply boundary, and post-guard proof before import-preview tables.
 - [x] Add Proof Planner Stale-State CTA V1 so stale or missing readiness artifacts show one refresh-first CTA before DCF/peer proof-planning language.
 - [x] Extract DCF/peer proof CTA card builders from the Streamlit dashboard into a focused tested module.
 - [x] Extract DCF source command-plan card/frame helpers from the Streamlit dashboard into a focused tested module.

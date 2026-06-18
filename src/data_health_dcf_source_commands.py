@@ -404,6 +404,76 @@ def dcf_source_guard_readiness_cards(readiness: pd.DataFrame | None, family: str
     ]
 
 
+def dcf_source_guard_preview_frame(readiness: pd.DataFrame | None) -> pd.DataFrame:
+    columns = ["Ticker", "Guard Status", "Guard Command", "Validate", "Preview", "Apply Boundary", "Post-Guard Proof"]
+    if readiness is None or readiness.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Ticker": "<select_batch>",
+                    "Guard Status": "blocked_no_readiness",
+                    "Guard Command": "make dcf-input-proof-queue TOP_N=10",
+                    "Validate": "blocked until evidence intake exists",
+                    "Preview": "blocked until evidence intake exists",
+                    "Apply Boundary": "Do not apply imports without reviewed source proof.",
+                    "Post-Guard Proof": "make dcf-readiness && make readiness",
+                }
+            ],
+            columns=columns,
+        )
+    rows = []
+    for _, row in readiness.iterrows():
+        status = str(row.get("Guard Status") or "").strip()
+        ticker = str(row.get("Ticker") or "<ticker>").strip()
+        ready = status == "ready_for_guard"
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Guard Status": status,
+                "Guard Command": str(row.get("Guard Command") or "make dcf-input-proof-queue TOP_N=10"),
+                "Validate": "make imports-validate" if ready else "blocked until guard readiness is ready_for_guard",
+                "Preview": "make imports-preview" if ready else "blocked until validation is reviewed",
+                "Apply Boundary": (
+                    "Run make imports-apply only after source guard, validation, preview, and rejected-row review are complete."
+                    if ready
+                    else "Do not apply imports while evidence fields are missing."
+                ),
+                "Post-Guard Proof": f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}",
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def dcf_source_guard_preview_cards(preview: pd.DataFrame | None, family: str | None = None) -> list[dict[str, object]]:
+    family_label = str(family or "top family").strip() or "top family"
+    if preview is None or preview.empty:
+        return [
+            {
+                "kicker": "DCF GUARD PREVIEW",
+                "title": "No DCF guard preview loaded",
+                "body": "Build guard readiness before previewing source guard commands.",
+                "badges": ["blocked visible", "source proof first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    ready_rows = preview.loc[preview["Guard Status"].astype(str).eq("ready_for_guard")]
+    focus = ready_rows.iloc[0] if not ready_rows.empty else preview.iloc[0]
+    return [
+        {
+            "kicker": "DCF GUARD PREVIEW",
+            "title": f"{family_label}: {len(ready_rows)} ready for guard",
+            "body": (
+                f"{card_sentence('Ticker', focus.get('Ticker'))} "
+                f"{card_sentence('Guard', compact_card_fragment(focus.get('Guard Command'), max_chars=190))} "
+                f"{card_sentence('Apply boundary', compact_card_fragment(focus.get('Apply Boundary'), max_chars=190))} "
+                "Use validate and preview after the guard; missing evidence keeps the row blocked."
+            ),
+            "badges": ["guard preview", "validate then preview"],
+            "command": str(focus.get("Guard Command") or "make dcf-input-proof-queue TOP_N=10"),
+        }
+    ]
+
+
 def _first_command(frame: pd.DataFrame, mask: pd.Series) -> str:
     matches = frame.loc[mask]
     if matches.empty or "Command" not in matches.columns:
