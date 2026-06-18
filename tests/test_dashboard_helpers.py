@@ -386,12 +386,16 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
     command_cards = dashboard.data_health_trusted_fundamentals_source_review_command_cards(frame)
     writer_frame = dashboard.data_health_trusted_fundamentals_evidence_writer_frame(frame)
     writer_cards = dashboard.data_health_trusted_fundamentals_evidence_writer_cards(frame)
+    gate_frame = dashboard.data_health_trusted_fundamentals_apply_decision_gate_frame(frame)
+    gate_cards = dashboard.data_health_trusted_fundamentals_apply_decision_gate_cards(frame)
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
     rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
     rendered_commands = " ".join(str(value) for value in command_frame.to_numpy().ravel()).lower()
     rendered_command_cards = " ".join(str(value) for card in command_cards for value in card.values()).lower()
     rendered_writer = " ".join(str(value) for value in writer_frame.to_numpy().ravel()).lower()
     rendered_writer_cards = " ".join(str(value) for card in writer_cards for value in card.values()).lower()
+    rendered_gate = " ".join(str(value) for value in gate_frame.to_numpy().ravel()).lower()
+    rendered_gate_cards = " ".join(str(value) for card in gate_cards for value in card.values()).lower()
 
     row = frame.iloc[0]
     assert row["Top Blocker Family"] == "fundamentals_bundle_plus_shares"
@@ -436,6 +440,14 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
     assert "finish evidence intake and source guard" in writer["Proof Record Dry-Run Command"].lower()
     assert "preview packet blocked" in rendered_writer_cards
     assert "dry-run only" in rendered_writer_cards
+    gate = gate_frame.iloc[0]
+    assert gate["Writer Preview Status"] == "blocked_by_placeholders"
+    assert gate["Gate Status"] == "blocked_by_writer_preview"
+    assert "apply_reviewed, skip_reviewed, still_blocked" == gate["Apply Decision Options"]
+    assert gate["Proof Record Dry-Run Command"] == "blocked until validation, preview, rejected-row review, and apply decision are reviewed"
+    assert "finish reviewed source fields" in gate["Next Safe Action"].lower()
+    assert "apply decision gate blocked" in rendered_gate_cards
+    assert "no canonical fundamentals write" in rendered_gate_cards
     assert "fundamentals_bundle_plus_shares: source review first" in rendered_cards
     assert "validate then preview" in rendered_cards
     assert "no fabricated inputs" in rendered_cards
@@ -445,6 +457,8 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
     assert "sell" not in rendered_commands
     assert "buy" not in rendered_writer
     assert "sell" not in rendered_writer
+    assert "buy" not in rendered_gate
+    assert "sell" not in rendered_gate
 
 
 def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evidence_is_reviewed():
@@ -478,11 +492,13 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     command_cards = dashboard.data_health_trusted_fundamentals_source_review_command_cards(frame)
     writer_frame = dashboard.data_health_trusted_fundamentals_evidence_writer_frame(frame)
     writer_cards = dashboard.data_health_trusted_fundamentals_evidence_writer_cards(frame)
+    gate_frame = dashboard.data_health_trusted_fundamentals_apply_decision_gate_frame(frame)
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
     rendered_commands = " ".join(str(value) for value in command_frame.to_numpy().ravel()).lower()
     rendered_command_cards = " ".join(str(value) for card in command_cards for value in card.values()).lower()
     rendered_writer = " ".join(str(value) for value in writer_frame.to_numpy().ravel()).lower()
     rendered_writer_cards = " ".join(str(value) for card in writer_cards for value in card.values()).lower()
+    rendered_gate = " ".join(str(value) for value in gate_frame.to_numpy().ravel()).lower()
 
     row = frame.iloc[0]
     assert row["Source Guard Status"] == "ready_for_guard"
@@ -520,12 +536,96 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     assert writer["Proof Record Dry-Run Command"].startswith("DRY_RUN=1 make reviewed-batch-proof-record")
     assert "preview packet ready" in rendered_writer_cards
     assert "dry-run only" in rendered_writer_cards
+    gate = gate_frame.iloc[0]
+    assert gate["Writer Preview Status"] == "preview_packet_ready"
+    assert gate["Gate Status"] == "not_ready_missing_review_results"
+    assert gate["Validation Result"] == "<reviewed_validation_result>"
+    assert gate["Preview Result"] == "<reviewed_preview_result>"
+    assert gate["Rejected-Row Review"] == "<reviewed_rejected_row_review>"
+    assert gate["Apply Decision"] == "<apply_reviewed|skip_reviewed|still_blocked>"
+    assert gate["Proof Record Dry-Run Command"] == "blocked until validation, preview, rejected-row review, and apply decision are reviewed"
+    assert "imports-validate" in gate["Next Safe Action"]
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "buy" not in rendered_commands
     assert "sell" not in rendered_commands
     assert "buy" not in rendered_writer
     assert "sell" not in rendered_writer
+    assert "buy" not in rendered_gate
+    assert "sell" not in rendered_gate
+
+
+def test_trusted_fundamentals_apply_decision_gate_states_after_reviews_are_filled():
+    proof_queue = _trusted_fundamentals_proof_queue_frame()
+    dcf_queue = _trusted_fundamentals_dcf_input_frame()
+    intake = dashboard.data_health_dcf_source_evidence_intake_frame(
+        dcf_queue,
+        "fundamentals_bundle_plus_shares",
+        top_n=1,
+    )
+    replacements = {
+        "source_file_or_url": "https://www.sec.gov/example",
+        "source_as_of_date": "2026-06-01",
+        "reviewer": "local_reviewer",
+        "review_date": "2026-06-18",
+        "source_proof_status": "reviewed",
+        "revenue": "100",
+        "free_cash_flow": "20",
+        "fcf_margin": "0.20",
+        "shares_outstanding": "1000",
+    }
+    intake["Reviewer Fill"] = intake["Evidence Field"].map(replacements).fillna(intake["Reviewer Fill"])
+    frame = dashboard.data_health_trusted_fundamentals_source_review_frame(
+        proof_queue,
+        dcf_queue,
+        top_n=1,
+        evidence_intake_frame=intake,
+    )
+
+    base_kwargs = {
+        "validation_result": "validation_passed",
+        "preview_result": "preview_reviewed",
+        "rejected_row_review": "rejected_rows_clean",
+        "changed_readiness_proof": "make dcf-readiness && make readiness reviewed",
+        "generated_artifacts_reviewed": "generated CSV churn excluded; evidence packet reviewed",
+    }
+    missing_decision_gate = dashboard.data_health_trusted_fundamentals_apply_decision_gate_frame(
+        frame,
+        **base_kwargs,
+    )
+    assert missing_decision_gate.iloc[0]["Gate Status"] == "proof_blocked_missing_apply_decision"
+    assert "choose apply_reviewed, skip_reviewed, or still_blocked" in missing_decision_gate.iloc[0]["Next Safe Action"].lower()
+
+    expected = {
+        "apply_reviewed": "ready_for_reviewed_apply",
+        "skip_reviewed": "skip_reviewed_ready",
+        "still_blocked": "still_blocked_ready",
+    }
+    for decision, status in expected.items():
+        gate = dashboard.data_health_trusted_fundamentals_apply_decision_gate_frame(
+            frame,
+            apply_decision=decision,
+            **base_kwargs,
+        )
+        cards = dashboard.data_health_trusted_fundamentals_apply_decision_gate_cards(frame)
+        rendered = " ".join(str(value) for value in gate.to_numpy().ravel()).lower()
+
+        row = gate.iloc[0]
+        assert row["Selected Ticker"] == "AACB"
+        assert row["Input Family"] == "fundamentals_bundle_plus_shares"
+        assert row["Writer Preview Status"] == "preview_packet_ready"
+        assert row["Validation Result"] == "validation_passed"
+        assert row["Preview Result"] == "preview_reviewed"
+        assert row["Rejected-Row Review"] == "rejected_rows_clean"
+        assert row["Apply Decision Options"] == "apply_reviewed, skip_reviewed, still_blocked"
+        assert row["Apply Decision"] == decision
+        assert row["Gate Status"] == status
+        assert row["Proof Record Dry-Run Command"].startswith("DRY_RUN=1 make reviewed-batch-proof-record")
+        assert "generated csv churn excluded" in row["Generated Artifact Review Requirement"].lower()
+        assert "make dcf-readiness" in row["Changed Readiness Proof Requirement"]
+        assert "buy" not in rendered
+        assert "sell" not in rendered
+        assert cards[0]["title"] == "Apply decision gate blocked"
 
 
 def test_data_health_readiness_queue_drilldown_combines_examples_packet_and_proof_status():
@@ -13366,9 +13466,17 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         "data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review)",
         trusted_source_review_writer_cards_index,
     )
+    trusted_source_review_apply_gate_cards_index = source.index(
+        "data_health_trusted_fundamentals_apply_decision_gate_cards(trusted_fundamentals_source_review)",
+        trusted_source_review_writer_frame_index,
+    )
+    trusted_source_review_apply_gate_frame_index = source.index(
+        "data_health_trusted_fundamentals_apply_decision_gate_frame(trusted_fundamentals_source_review)",
+        trusted_source_review_apply_gate_cards_index,
+    )
     trusted_source_review_frame_index = source.index(
         "st.table(clean_display_frame(trusted_fundamentals_source_review))",
-        trusted_source_review_writer_frame_index,
+        trusted_source_review_apply_gate_frame_index,
     )
     coverage_proof_queue_drawer_index = source.index(
         'st.expander("Data coverage proof queue detail", expanded=False)',
@@ -13438,6 +13546,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review)" in source
     assert "data_health_trusted_fundamentals_evidence_writer_cards(trusted_fundamentals_source_review)" in source
     assert "data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review)" in source
+    assert "data_health_trusted_fundamentals_apply_decision_gate_cards(trusted_fundamentals_source_review)" in source
+    assert "data_health_trusted_fundamentals_apply_decision_gate_frame(trusted_fundamentals_source_review)" in source
     assert "Data coverage proof queue detail" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source
