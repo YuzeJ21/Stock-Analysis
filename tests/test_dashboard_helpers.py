@@ -19581,9 +19581,22 @@ def test_peer_proof_loop_outcome_summarizes_source_guard_and_ledger(tmp_path: Pa
             }
         ]
     )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=3538,
+        after_rows=3538,
+        changed_tickers=("META",),
+        changed_count=1,
+        changed_readiness_counts="peer_ready (not_ready: 1->0; ready: 0->1)",
+        freshness_status="current",
+        freshness_message="readiness artifacts are current",
+        blocking_message="",
+    )
 
-    cards = dashboard.data_health_peer_proof_loop_outcome_cards(packet, ledger)
-    outcome = dashboard.data_health_peer_proof_loop_outcome_frame(packet, ledger)
+    cards = dashboard.data_health_peer_proof_loop_outcome_cards(packet, ledger, comparison)
+    outcome = dashboard.data_health_peer_proof_loop_outcome_frame(packet, ledger, comparison)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert outcome["Proof Loop Step"].tolist() == [
@@ -19591,23 +19604,77 @@ def test_peer_proof_loop_outcome_summarizes_source_guard_and_ledger(tmp_path: Pa
         "Write-back guard",
         "Validate / preview / rebuild",
         "Proof-record scaffold",
+        "Before / after readiness comparison",
         "Latest peer ledger outcome",
     ]
     assert outcome.iloc[0]["Status"] == "needs_field_fills"
     assert outcome.iloc[1]["Status"] == "needs_field_fills"
     assert outcome.iloc[2]["Status"] == "copy_only_gate"
     assert outcome.iloc[3]["Status"] == "blocked_by_guard"
-    assert outcome.iloc[4]["Status"] == "still_blocked"
-    assert "RB-PEERS" in outcome.iloc[4]["Detail"]
+    assert outcome.iloc[4]["Status"] == "ready"
+    assert "1 changed ticker(s)" in outcome.iloc[4]["Detail"]
+    assert "peer_ready" in outcome.iloc[4]["Detail"]
+    assert outcome.iloc[5]["Status"] == "still_blocked"
+    assert "RB-PEERS" in outcome.iloc[5]["Detail"]
     assert "make peer-mapping-writeback-guard" in outcome.iloc[1]["Next Safe Action"]
     assert "DRY_RUN=1 make reviewed-batch-proof-record" in outcome.iloc[3]["Next Safe Action"]
     assert "guard_blocking_reasons" in outcome.iloc[3]["Detail"]
     assert cards[0]["title"] == "Latest ledger outcome: still_blocked"
-    assert cards[0]["command"] == "make reviewed-batch-proof"
+    assert cards[0]["command"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
     assert "source-review intake: needs_field_fills" in rendered
+    assert "before / after readiness comparison: ready" in rendered
+    assert "next proof gate" in rendered
     assert "no inferred peers" in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered
+
+
+def test_peer_proof_closeout_summarizes_final_state_and_remaining_evidence(tmp_path: Path):
+    packet = dashboard.build_peer_mapping_source_review_packet(_peer_source_review_root(tmp_path), top_n=1)
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-PEERS",
+                "Review Date": "2026-06-17",
+                "Lane": "peer_mapping",
+                "Final Outcome": "still_blocked",
+                "Changed Readiness Counts": "none; source rows still need review",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=3538,
+        after_rows=3538,
+        changed_tickers=("META",),
+        changed_count=1,
+        changed_readiness_counts="peer_ready (not_ready: 1->0; ready: 0->1)",
+        freshness_status="current",
+        freshness_message="readiness artifacts are current",
+        blocking_message="",
+    )
+
+    closeout = dashboard.data_health_peer_proof_closeout_frame(packet, ledger, comparison)
+    cards = dashboard.data_health_peer_proof_closeout_cards(packet, ledger, comparison)
+    rendered = " ".join(
+        closeout.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert closeout.iloc[0]["Closeout Status"] == "still_blocked"
+    assert closeout.iloc[0]["Latest Outcome"] == "still_blocked"
+    assert closeout.iloc[0]["Comparison Status"] == "ready"
+    assert "Source-review intake" in closeout.iloc[0]["Evidence Remaining"]
+    assert closeout.iloc[0]["Next Safest Action"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
+    assert cards[0]["title"] == "Closeout status: still_blocked"
+    assert "proof state only" in rendered
+    assert "not investment advice" in rendered
+    assert "no advice" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+    assert "broker" not in rendered
 
 
 def test_peer_proof_completion_checklist_summarizes_missing_steps_before_tables(tmp_path: Path):
@@ -19679,14 +19746,17 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
     source_review_index = source.index('render_section_header("Peer Source-Review Intake"')
     source_review_cards_index = source.index("data_health_peer_source_review_cards(peer_source_review_packet)")
     planner_index = source.index('render_section_header("Peer Proof Batch Planner"', source_review_cards_index)
-    planner_cards_index = source.index("data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_frame)", planner_index)
-    planner_frame_index = source.index("data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_frame)", planner_cards_index)
+    planner_cards_index = source.index("data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_summary_frame)", planner_index)
+    planner_frame_index = source.index("data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_summary_frame)", planner_cards_index)
     completion_index = source.index('render_section_header("Finish This Peer Proof"', planner_frame_index)
-    completion_cards_index = source.index("data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_frame)", completion_index)
-    completion_frame_index = source.index("data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_frame)", completion_cards_index)
+    completion_cards_index = source.index("data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_summary_frame)", completion_index)
+    completion_frame_index = source.index("data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_summary_frame)", completion_cards_index)
     proof_loop_index = source.index('render_section_header("Peer Proof-Loop Outcome"', completion_frame_index)
-    proof_loop_cards_index = source.index("data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_frame)", proof_loop_index)
-    proof_loop_frame_index = source.index("data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_frame)", proof_loop_cards_index)
+    proof_loop_cards_index = source.index("data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)", proof_loop_index)
+    proof_loop_frame_index = source.index("data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)", proof_loop_cards_index)
+    closeout_index = source.index('render_section_header("Peer Proof Closeout"', proof_loop_frame_index)
+    closeout_cards_index = source.index("data_health_peer_proof_closeout_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)", closeout_index)
+    closeout_frame_index = source.index("data_health_peer_proof_closeout_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)", closeout_cards_index)
     source_review_frame_index = source.index("data_health_peer_source_review_frame(peer_source_review_packet)")
     matrix_index = source.index('render_section_header("Peer Readiness Sub-State Matrix"')
 
@@ -19702,16 +19772,22 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
         < proof_loop_index
         < proof_loop_cards_index
         < proof_loop_frame_index
+        < closeout_index
+        < closeout_cards_index
+        < closeout_frame_index
         < source_review_frame_index
         < matrix_index
     )
     assert "peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)" in source
     assert "Peer Proof Batch Planner" in source
-    assert "data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_frame)" in source
-    assert "data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_frame)" in source
+    assert "data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_summary_frame)" in source
+    assert "data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_summary_frame)" in source
     assert "Finish This Peer Proof" in source
-    assert "data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_frame)" in source
-    assert "data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_frame)" in source
+    assert "data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_summary_frame)" in source
+    assert "data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_summary_frame)" in source
+    assert "Peer Proof Closeout" in source
+    assert "data_health_peer_proof_closeout_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)" in source
+    assert "data_health_peer_proof_closeout_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)" in source
 
 
 def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_agent():

@@ -173,6 +173,7 @@ Goal: make coverage growth proof-backed at the lane level before any ticker-leve
 - [x] Add Peer Proof-Loop Outcome UX in Data Health so source-review, write-back guard, validate/preview/rebuild, proof-record scaffold, and latest peer proof ledger outcome appear before raw peer tables.
 - [x] Add Peer Proof Completion Checklist V1 so the peer drawer shows freshness, missing source fields, write-back guard status, proof-record readiness, and latest ledger outcome before detailed tables.
 - [x] Add Peer Proof Batch Planner V1 so the peer drawer turns source-review rows into a capped source-proof plan with reviewed-batch packet, write-back guard, validation, proof-record, and stop-rule gates before raw peer tables.
+- [x] Add Peer Proof Closeout Parity V1 so peer proof comparison, supported/still-blocked/skipped/excluded closeout status, and remaining evidence gates mirror the DCF closeout flow.
 - Keep proof-ledger rows local and reviewable; do not claim a supported lane until source proof, validation, preview, rejected-row review, post-run readiness, and artifact hygiene are complete.
 
 ### Readiness-Gated Review Metrics V1
