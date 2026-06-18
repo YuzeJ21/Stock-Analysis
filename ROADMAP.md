@@ -144,6 +144,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Extract DCF/peer proof CTA card builders from the Streamlit dashboard into a focused tested module.
 - [x] Extract DCF source command-plan card/frame helpers from the Streamlit dashboard into a focused tested module.
 - [x] Extract proof planner outcome summary logic from the Streamlit dashboard into a focused tested module.
+- [x] Extract generic DCF/peer proof outcome card logic from the Streamlit dashboard into a focused tested module.
 - [x] Extract generic DCF/peer proof closeout state logic from the Streamlit dashboard into a focused tested module.
 - [x] Extract proof closeout summary board logic from the Streamlit dashboard into a focused tested module.
 - [x] Extract proof checklist summary logic from the Streamlit dashboard into a focused tested module.

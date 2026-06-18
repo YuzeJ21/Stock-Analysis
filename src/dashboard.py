@@ -78,6 +78,7 @@ from src.data_health_proof_closeout_summary import (
     proof_closeout_summary_cards as data_health_proof_closeout_summary_cards,
     proof_closeout_summary_frame as data_health_proof_closeout_summary_frame,
 )
+from src.data_health_proof_outcome import proof_outcome_cards_from_frame
 from src.data_health_queue_outcome import (
     readiness_queue_outcome_summary_cards as data_health_readiness_queue_outcome_summary_cards,
     readiness_queue_outcome_summary_frame as data_health_readiness_queue_outcome_summary_frame,
@@ -8812,35 +8813,19 @@ def data_health_dcf_proof_loop_outcome_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     outcome = data_health_dcf_proof_loop_outcome_frame(frame, selection, batch_proof_frame, comparison)
-    if outcome.empty:
-        return [
-            {
-                "kicker": "DCF PROOF OUTCOME",
-                "title": "No proof-loop status loaded",
-                "body": "Open the DCF source-review drawer before recording an outcome.",
-                "badges": ["readiness first", "blocked visible"],
-                "command": "make dcf-input-proof-queue TOP_N=10",
-            }
-        ]
-    statuses = ", ".join(f"{row['Proof Loop Step']}: {row['Status']}" for _, row in outcome.iterrows())
-    latest = outcome.iloc[-1]
-    blockers = outcome.loc[
-        outcome["Status"].fillna("").astype(str).str.lower().str.contains("blocked|missing|deferred|warning|needs", regex=True)
-    ]
-    focus = blockers.iloc[0] if not blockers.empty else latest
-    return [
-        {
-            "kicker": "DCF PROOF OUTCOME",
-            "title": f"Latest ledger outcome: {format_missing(latest.get('Status'), 'not_recorded')}",
-            "body": (
-                f"{compact_card_fragment(statuses, max_chars=210)}. "
-                f"{card_sentence('Next proof gate', focus.get('Proof Loop Step'))} "
-                "Use this summary to decide whether the DCF proof loop is ready, still blocked, skipped, or only scaffolded."
-            ),
-            "badges": ["proof loop", "no inferred inputs"],
-            "command": format_missing(focus.get("Next Safe Action"), "make reviewed-batch-proof"),
-        }
-    ]
+    return proof_outcome_cards_from_frame(
+        outcome,
+        kicker="DCF PROOF OUTCOME",
+        empty_title="No proof-loop status loaded",
+        empty_body="Open the DCF source-review drawer before recording an outcome.",
+        empty_badges=["readiness first", "blocked visible"],
+        empty_command="make dcf-input-proof-queue TOP_N=10",
+        latest_title_prefix="Latest ledger outcome",
+        decision_sentence="Use this summary to decide whether the DCF proof loop is ready, still blocked, skipped, or only scaffolded.",
+        badges=["proof loop", "no inferred inputs"],
+        fallback_command="make reviewed-batch-proof",
+        status_max_chars=210,
+    )
 
 
 def data_health_dcf_proof_closeout_frame(
@@ -12341,35 +12326,19 @@ def data_health_peer_proof_loop_outcome_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     outcome = data_health_peer_proof_loop_outcome_frame(packet, batch_proof_frame, comparison)
-    if outcome.empty:
-        return [
-            {
-                "kicker": "PEER PROOF OUTCOME",
-                "title": "No proof-loop status loaded",
-                "body": "Open peer source review before recording peer mapping or peer valuation outcomes.",
-                "badges": ["readiness first", "blocked visible"],
-                "command": "make peer-mapping-source-review TOP_N=10",
-            }
-        ]
-    statuses = ", ".join(f"{row['Proof Loop Step']}: {row['Status']}" for _, row in outcome.iterrows())
-    latest = outcome.iloc[-1]
-    blockers = outcome.loc[
-        outcome["Status"].fillna("").astype(str).str.lower().str.contains("blocked|missing|deferred|warning|needs|not_loaded|no_source", regex=True)
-    ]
-    focus = blockers.iloc[0] if not blockers.empty else latest
-    return [
-        {
-            "kicker": "PEER PROOF OUTCOME",
-            "title": f"Latest ledger outcome: {format_missing(latest.get('Status'), 'not_recorded')}",
-            "body": (
-                f"{compact_card_fragment(statuses, max_chars=220)}. "
-                f"{card_sentence('Next proof gate', focus.get('Proof Loop Step'))} "
-                "Use this summary to decide whether peer mapping is supported, still blocked, skipped, or only scaffolded."
-            ),
-            "badges": ["proof loop", "no inferred peers"],
-            "command": format_missing(focus.get("Next Safe Action"), "make reviewed-batch-proof"),
-        }
-    ]
+    return proof_outcome_cards_from_frame(
+        outcome,
+        kicker="PEER PROOF OUTCOME",
+        empty_title="No proof-loop status loaded",
+        empty_body="Open peer source review before recording peer mapping or peer valuation outcomes.",
+        empty_badges=["readiness first", "blocked visible"],
+        empty_command="make peer-mapping-source-review TOP_N=10",
+        latest_title_prefix="Latest ledger outcome",
+        decision_sentence="Use this summary to decide whether peer mapping is supported, still blocked, skipped, or only scaffolded.",
+        badges=["proof loop", "no inferred peers"],
+        fallback_command="make reviewed-batch-proof",
+        status_max_chars=220,
+    )
 
 
 def data_health_peer_proof_closeout_frame(
