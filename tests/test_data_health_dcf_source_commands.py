@@ -1,6 +1,11 @@
 import pandas as pd
 
-from src.data_health_dcf_source_commands import dcf_source_command_plan_cards, dcf_source_command_plan_frame
+from src.data_health_dcf_source_commands import (
+    dcf_source_command_plan_cards,
+    dcf_source_command_plan_frame,
+    dcf_source_command_triage_cards,
+    dcf_source_command_triage_frame,
+)
 from src.dcf_input_proof_queue import DcfInputProofRow
 
 
@@ -61,3 +66,42 @@ def test_dcf_source_command_plan_cards_empty_state_stays_blocked():
     assert "refresh the dcf input queue" in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered
+
+
+def test_dcf_source_command_triage_summarizes_blocked_and_review_gates():
+    plan = dcf_source_command_plan_frame([_row()], "shares_outstanding")
+    triage = dcf_source_command_triage_frame(plan)
+    cards = dcf_source_command_triage_cards(triage, "shares_outstanding")
+    rendered = " ".join(triage.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert triage["Triage Bucket"].tolist() == [
+        "needs_source_fields",
+        "ready_for_guard_or_validate",
+        "manual_apply_boundary",
+        "proof_handoff_ready_after_review",
+    ]
+    assert triage.iloc[0]["Count"] == 2
+    assert "source_file_or_url" in triage.iloc[0]["Review Boundary"]
+    assert triage.iloc[0]["Next Safe Action"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert cards[0]["title"].startswith("shares_outstanding: needs source fields: 2")
+    assert cards[0]["command"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert "next safest action" in lowered
+    assert "fill fields, run the guard, validate/preview, or stop" in lowered
+    assert "no fabricated unlocks" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_command_triage_empty_plan_uses_refresh_first_gate():
+    triage = dcf_source_command_triage_frame(pd.DataFrame())
+    cards = dcf_source_command_triage_cards(triage, "shares_outstanding")
+    rendered = " ".join(triage.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert triage.iloc[0]["Triage Bucket"] == "blocked_no_plan"
+    assert triage.iloc[0]["Next Safe Action"] == "make dcf-input-proof-queue TOP_N=10"
+    assert cards[0]["command"] == "make dcf-input-proof-queue TOP_N=10"
+    assert "refresh the dcf input queue" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered

@@ -13073,6 +13073,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_dcf_proof_batch_planner_cards(dcf_input_queue, dcf_family_selection)" in source
     assert "data_health_dcf_proof_batch_planner_frame(dcf_input_queue, dcf_family_selection)" in source
     assert "Trusted Fundamentals Source Packet" in source
+    assert "DCF Source Review Triage" in source
+    assert "data_health_dcf_source_command_triage_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_source_command_triage_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "DCF Source Command Plan" in source
     assert "data_health_dcf_source_command_plan_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_command_plan_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
@@ -13098,7 +13101,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_checklist_index = source.index('render_section_header("Finish This DCF Proof"', dcf_queue_cards_index)
     dcf_checklist_cards_index = source.index("data_health_dcf_proof_source_review_checklist_cards(", dcf_checklist_index)
     dcf_checklist_frame_index = source.index("data_health_dcf_proof_source_review_checklist_frame(", dcf_checklist_cards_index)
-    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_checklist_frame_index)
+    dcf_triage_index = source.index('render_section_header("DCF Source Review Triage"', dcf_checklist_frame_index)
+    dcf_triage_cards_index = source.index("data_health_dcf_source_command_triage_cards(", dcf_triage_index)
+    dcf_triage_frame_index = source.index("data_health_dcf_source_command_triage_frame(", dcf_triage_cards_index)
+    dcf_command_plan_index = source.index('render_section_header("DCF Source Command Plan"', dcf_triage_frame_index)
     dcf_command_plan_cards_index = source.index("data_health_dcf_source_command_plan_cards(", dcf_command_plan_index)
     dcf_command_plan_frame_index = source.index("data_health_dcf_source_command_plan_frame(", dcf_command_plan_cards_index)
     dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_command_plan_frame_index)
@@ -13110,6 +13116,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         < dcf_checklist_index
         < dcf_checklist_cards_index
         < dcf_checklist_frame_index
+        < dcf_triage_index
+        < dcf_triage_cards_index
+        < dcf_triage_frame_index
         < dcf_command_plan_index
         < dcf_command_plan_cards_index
         < dcf_command_plan_frame_index

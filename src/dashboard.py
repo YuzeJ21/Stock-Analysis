@@ -49,6 +49,8 @@ from src.data_health_proof_ctas import (
 from src.data_health_dcf_source_commands import (
     dcf_source_command_plan_cards,
     dcf_source_command_plan_frame,
+    dcf_source_command_triage_cards,
+    dcf_source_command_triage_frame,
 )
 from src.data_health_proof_checklist import (
     proof_checklist_summary_cards as data_health_proof_checklist_summary_cards,
@@ -8107,6 +8109,16 @@ def data_health_dcf_source_command_plan_frame(frame: pd.DataFrame | None, select
 def data_health_dcf_source_command_plan_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
     plan = data_health_dcf_source_command_plan_frame(frame, selection)
     return dcf_source_command_plan_cards(plan, data_health_dcf_input_family_key(selection) or None)
+
+
+def data_health_dcf_source_command_triage_frame(frame: pd.DataFrame | None, selection: object) -> pd.DataFrame:
+    plan = data_health_dcf_source_command_plan_frame(frame, selection)
+    return dcf_source_command_triage_frame(plan)
+
+
+def data_health_dcf_source_command_triage_cards(frame: pd.DataFrame | None, selection: object) -> list[dict[str, object]]:
+    triage = data_health_dcf_source_command_triage_frame(frame, selection)
+    return dcf_source_command_triage_cards(triage, data_health_dcf_input_family_key(selection) or None)
 
 
 def _data_health_dcf_source_route(row: pd.Series) -> str:
@@ -25136,6 +25148,16 @@ def render_data_health(
                         batch_proof_frame,
                     )
                 )
+            )
+            render_section_header("DCF Source Review Triage", "Blocked source fields, guard-ready steps, validation gates, and proof handoff status before command details.")
+            render_signal_cards(
+                data_health_dcf_source_command_triage_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_dcf_source_command_triage_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
             )
             render_section_header("DCF Source Command Plan", "Copy-only source-review, guard, validate, preview, and proof commands before detailed source tables.")
             render_signal_cards(
