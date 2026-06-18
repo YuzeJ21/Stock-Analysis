@@ -382,25 +382,52 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
 
     frame = dashboard.data_health_trusted_fundamentals_source_review_frame(proof_queue, dcf_queue, top_n=1)
     cards = dashboard.data_health_trusted_fundamentals_source_review_cards(frame)
+    command_frame = dashboard.data_health_trusted_fundamentals_source_review_command_frame(frame)
+    command_cards = dashboard.data_health_trusted_fundamentals_source_review_command_cards(frame)
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
     rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
+    rendered_commands = " ".join(str(value) for value in command_frame.to_numpy().ravel()).lower()
+    rendered_command_cards = " ".join(str(value) for card in command_cards for value in card.values()).lower()
 
     row = frame.iloc[0]
     assert row["Top Blocker Family"] == "fundamentals_bundle_plus_shares"
     assert row["Selected Tickers"] == "AACB"
     assert row["Source Command Plan"] == "make dcf-input-source-review FAMILY=fundamentals_bundle_plus_shares TOP_N=10"
+    assert row["Command Readiness"] == "blocked_by_placeholders"
+    assert "Fill reviewed source fields" in row["Finish Source Review Checklist"]
     assert row["Source Guard Status"] == "needs_field_fills"
+    assert row["Source Guard Command"].startswith("blocked until reviewed fields are filled")
     assert "source_file_or_url" in row["Missing Source-Review Fields"]
     assert row["Import Row Scaffold"] == "blocked until source-review fields and guard status are ready"
     assert row["Validate Command"] == "blocked until guard readiness is ready_for_guard"
     assert row["Preview Command"] == "blocked until validation is reviewed"
     assert "do not apply imports while evidence fields are missing" in row["Apply Boundary"].lower()
     assert "finish evidence intake and source guard" in row["Proof Record Dry-Run Boundary"].lower()
+    assert list(command_frame["Step"]) == [
+        "Finish source-review fields",
+        "Run source guard",
+        "Validate import rows",
+        "Preview import rows",
+        "Apply boundary",
+        "Post-run readiness proof",
+        "Proof-record dry run",
+    ]
+    assert "blocked_by_placeholders" in set(command_frame["Status"])
+    assert "make dcf-input-source-review family=fundamentals_bundle_plus_shares top_n=10" in rendered_commands
+    assert "blocked until reviewed fields are filled" in rendered_commands
+    assert "make imports-validate" in rendered_commands
+    assert "make imports-preview" in rendered_commands
+    assert "manual_review_boundary" in rendered_commands
+    assert "dry_run_only_after_review" in rendered_commands
+    assert "finish this source review first" in rendered_command_cards
+    assert "commands are copy-only" in rendered_command_cards
     assert "fundamentals_bundle_plus_shares: source review first" in rendered_cards
     assert "validate then preview" in rendered_cards
     assert "no fabricated inputs" in rendered_cards
     assert "buy" not in rendered
     assert "sell" not in rendered
+    assert "buy" not in rendered_commands
+    assert "sell" not in rendered_commands
 
 
 def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evidence_is_reviewed():
@@ -430,11 +457,18 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
         top_n=1,
         evidence_intake_frame=intake,
     )
+    command_frame = dashboard.data_health_trusted_fundamentals_source_review_command_frame(frame)
+    command_cards = dashboard.data_health_trusted_fundamentals_source_review_command_cards(frame)
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+    rendered_commands = " ".join(str(value) for value in command_frame.to_numpy().ravel()).lower()
+    rendered_command_cards = " ".join(str(value) for card in command_cards for value in card.values()).lower()
 
     row = frame.iloc[0]
     assert row["Source Guard Status"] == "ready_for_guard"
+    assert row["Command Readiness"] == "ready_for_guard_review"
     assert row["Missing Source-Review Fields"] == "-"
+    assert row["Source Guard Command"].startswith("make dcf-input-source-guard TICKER=AACB")
+    assert "SOURCE_FILE_OR_URL=https://www.sec.gov/example" in row["Source Guard Command"]
     assert "AACB,<reviewed_period>,100,20,0.20,1000" in row["Import Row Scaffold"]
     assert row["Validate Command"] == "make imports-validate"
     assert row["Preview Command"] == "make imports-preview"
@@ -443,8 +477,18 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     assert row["Proof Record Dry-Run Boundary"].startswith("DRY_RUN=1 make reviewed-batch-proof-record")
     assert "validation_result" in row["Proof Record Dry-Run Boundary"]
     assert "generated_artifacts_reviewed" in row["Proof Record Dry-Run Boundary"].lower()
+    assert "ready_after_review" in set(command_frame["Status"])
+    assert "make dcf-input-source-guard ticker=aacb" in rendered_commands
+    assert "make imports-validate" in rendered_commands
+    assert "make imports-preview" in rendered_commands
+    assert "run make imports-apply only after source guard" in rendered_commands
+    assert "dry_run=1 make reviewed-batch-proof-record" in rendered_commands
+    assert "ready for source guard review" in rendered_command_cards
+    assert "validate then preview" in rendered_command_cards
     assert "buy" not in rendered
     assert "sell" not in rendered
+    assert "buy" not in rendered_commands
+    assert "sell" not in rendered_commands
 
 
 def test_data_health_readiness_queue_drilldown_combines_examples_packet_and_proof_status():
@@ -13269,9 +13313,17 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         "data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review)",
         trusted_source_review_drawer_index,
     )
+    trusted_source_review_command_cards_index = source.index(
+        "data_health_trusted_fundamentals_source_review_command_cards(trusted_fundamentals_source_review)",
+        trusted_source_review_cards_index,
+    )
+    trusted_source_review_command_frame_index = source.index(
+        "data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review)",
+        trusted_source_review_command_cards_index,
+    )
     trusted_source_review_frame_index = source.index(
         "st.table(clean_display_frame(trusted_fundamentals_source_review))",
-        trusted_source_review_cards_index,
+        trusted_source_review_command_frame_index,
     )
     coverage_proof_queue_drawer_index = source.index(
         'st.expander("Data coverage proof queue detail", expanded=False)',
@@ -13337,6 +13389,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "trusted_fundamentals_source_review = (" in source
     assert "Trusted fundamentals source review" in source
     assert "data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review)" in source
+    assert "data_health_trusted_fundamentals_source_review_command_cards(trusted_fundamentals_source_review)" in source
+    assert "data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review)" in source
     assert "Data coverage proof queue detail" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source

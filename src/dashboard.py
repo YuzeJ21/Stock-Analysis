@@ -7848,6 +7848,33 @@ def _data_health_import_row_from_evidence(intake: pd.DataFrame | None, ticker: o
     )
 
 
+def _data_health_source_review_missing_fields(value: object) -> list[str]:
+    text = format_missing(value, "")
+    if not text or text == "-":
+        return []
+    fields: list[str] = []
+    for part in text.replace("|", ",").replace(";", ",").split(","):
+        field = part.strip()
+        if field and field not in fields:
+            fields.append(field)
+    return fields
+
+
+def _data_health_source_review_checklist(missing_fields: list[str], guard_status: str) -> str:
+    if missing_fields:
+        visible = ", ".join(missing_fields[:8])
+        return f"Fill reviewed source fields: {visible}. Then run the source guard before validate/preview."
+    if guard_status == "ready_for_guard":
+        return "Reviewed source fields are filled. Run the source guard, then validate and preview before any apply decision."
+    return f"Resolve guard status `{guard_status}` before validate, preview, apply, or proof-record work."
+
+
+def _data_health_blocked_command(action: str, missing_fields: list[str]) -> str:
+    if missing_fields:
+        return f"blocked until reviewed fields are filled: {', '.join(missing_fields[:8])}"
+    return f"blocked until {action}"
+
+
 def data_health_trusted_fundamentals_source_review_frame(
     proof_queue_frame: pd.DataFrame | None,
     dcf_input_frame: pd.DataFrame | None,
@@ -7859,8 +7886,11 @@ def data_health_trusted_fundamentals_source_review_frame(
         "Top Blocker Family",
         "Selected Tickers",
         "Source Command Plan",
+        "Finish Source Review Checklist",
+        "Command Readiness",
         "Missing Source-Review Fields",
         "Source Guard Status",
+        "Source Guard Command",
         "Import Row Scaffold",
         "Validate Command",
         "Preview Command",
@@ -7877,8 +7907,11 @@ def data_health_trusted_fundamentals_source_review_frame(
                     "Top Blocker Family": family,
                     "Selected Tickers": "",
                     "Source Command Plan": "make data-coverage-proof-queues TOP_N=10",
+                    "Finish Source Review Checklist": "Run the data coverage proof queue before selecting trusted fundamentals source rows.",
+                    "Command Readiness": "blocked_no_dcf_queue",
                     "Missing Source-Review Fields": "DCF input proof queue rows",
                     "Source Guard Status": "blocked_no_dcf_queue",
+                    "Source Guard Command": "blocked until DCF input proof queue exists",
                     "Import Row Scaffold": "blocked until DCF input proof queue exists",
                     "Validate Command": "blocked until source-review scope exists",
                     "Preview Command": "blocked until validation is reviewed",
@@ -7898,8 +7931,11 @@ def data_health_trusted_fundamentals_source_review_frame(
                     "Top Blocker Family": family,
                     "Selected Tickers": "",
                     "Source Command Plan": f"make dcf-input-source-command-plan FAMILY={family} TOP_N={top_n}",
+                    "Finish Source Review Checklist": "Select queued rows for this DCF input family before building guard commands.",
+                    "Command Readiness": "blocked_no_rows",
                     "Missing Source-Review Fields": "queued rows for selected family",
                     "Source Guard Status": "blocked_no_rows",
+                    "Source Guard Command": "blocked until selected family has queued rows",
                     "Import Row Scaffold": "blocked until selected family has queued rows",
                     "Validate Command": "blocked until source-review scope exists",
                     "Preview Command": "blocked until validation is reviewed",
@@ -7927,6 +7963,8 @@ def data_health_trusted_fundamentals_source_review_frame(
     first_preview = guard_preview.iloc[0] if not guard_preview.empty else pd.Series(dtype=object)
     first_handoff = proof_handoff.iloc[0] if not proof_handoff.empty else pd.Series(dtype=object)
     guard_status = format_missing(first_guard.get("Guard Status"), "blocked")
+    missing_fields = _data_health_source_review_missing_fields(first_guard.get("Missing Evidence Fields"))
+    command_readiness = "ready_for_guard_review" if guard_status == "ready_for_guard" else "blocked_by_placeholders"
     safe_import_row = (
         _data_health_import_row_from_evidence(intake, first_guard.get("Ticker"))
         if guard_status == "ready_for_guard"
@@ -7942,11 +7980,18 @@ def data_health_trusted_fundamentals_source_review_frame(
                     first_plan.get("Command"),
                     f"make dcf-input-source-command-plan FAMILY={family} TOP_N={top_n}",
                 ),
+                "Finish Source Review Checklist": _data_health_source_review_checklist(missing_fields, guard_status),
+                "Command Readiness": command_readiness,
                 "Missing Source-Review Fields": format_missing(
                     first_guard.get("Missing Evidence Fields"),
                     format_missing(first_source.get("Missing Review Fields"), "reviewed source fields"),
                 ),
                 "Source Guard Status": guard_status,
+                "Source Guard Command": (
+                    format_missing(first_guard.get("Guard Command"), "make dcf-input-proof-queue TOP_N=10")
+                    if guard_status == "ready_for_guard"
+                    else _data_health_blocked_command("source guard readiness is ready_for_guard", missing_fields)
+                ),
                 "Import Row Scaffold": safe_import_row,
                 "Validate Command": format_missing(first_preview.get("Validate"), "make imports-validate"),
                 "Preview Command": format_missing(first_preview.get("Preview"), "make imports-preview"),
@@ -7967,6 +8012,109 @@ def data_health_trusted_fundamentals_source_review_frame(
         ],
         columns=columns,
     )
+
+
+def data_health_trusted_fundamentals_source_review_command_frame(frame: pd.DataFrame | None) -> pd.DataFrame:
+    columns = ["Step", "Status", "Copy Command", "Review Boundary"]
+    if frame is None or frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Step": "Load source review scope",
+                    "Status": "blocked_no_scope",
+                    "Copy Command": "make data-coverage-proof-queues TOP_N=10",
+                    "Review Boundary": "Load the proof queue before building source-review commands.",
+                }
+            ],
+            columns=columns,
+        )
+    row = frame.iloc[0]
+    readiness = format_missing(row.get("Command Readiness"), "blocked")
+    ready = readiness == "ready_for_guard_review"
+    missing = format_missing(row.get("Missing Source-Review Fields"), "reviewed source fields")
+    guard_status = format_missing(row.get("Source Guard Status"), "blocked")
+    blocked_status = "ready_after_review" if ready else "blocked_by_placeholders"
+    return pd.DataFrame(
+        [
+            {
+                "Step": "Finish source-review fields",
+                "Status": "needs_field_fills" if not ready else "reviewed_fields_filled",
+                "Copy Command": format_missing(row.get("Source Command Plan"), "make dcf-input-source-review TOP_N=10"),
+                "Review Boundary": (
+                    "Fill exact source_file_or_url, source_as_of_date, reviewer, review_date, source_proof_status, "
+                    "and required DCF fields. Missing fields: "
+                    + missing
+                ),
+            },
+            {
+                "Step": "Run source guard",
+                "Status": blocked_status,
+                "Copy Command": format_missing(row.get("Source Guard Command"), "blocked until source-review fields are filled"),
+                "Review Boundary": f"Run only when source guard status is ready_for_guard. Current status: {guard_status}.",
+            },
+            {
+                "Step": "Validate import rows",
+                "Status": blocked_status,
+                "Copy Command": "make imports-validate",
+                "Review Boundary": "Validate after reviewed guard output exists; rejected rows remain blockers.",
+            },
+            {
+                "Step": "Preview import rows",
+                "Status": blocked_status,
+                "Copy Command": "make imports-preview",
+                "Review Boundary": "Preview after validation and rejected-row review; do not treat preview as an apply decision.",
+            },
+            {
+                "Step": "Apply boundary",
+                "Status": "manual_review_boundary",
+                "Copy Command": format_missing(row.get("Apply Boundary"), "Do not apply rows without reviewed source proof."),
+                "Review Boundary": "Apply is an explicit reviewed decision, not an automatic command from this drawer.",
+            },
+            {
+                "Step": "Post-run readiness proof",
+                "Status": "after_reviewed_apply_or_skip",
+                "Copy Command": format_missing(row.get("Post-Run Proof"), "make dcf-readiness && make readiness"),
+                "Review Boundary": "Run after a reviewed apply or skip decision to prove the lane is supported or still blocked.",
+            },
+            {
+                "Step": "Proof-record dry run",
+                "Status": "dry_run_only_after_review",
+                "Copy Command": format_missing(
+                    row.get("Proof Record Dry-Run Boundary"),
+                    "Finish evidence intake and source guard before proof-record dry run.",
+                ),
+                "Review Boundary": "Use only after validation_result, preview_result, apply_result, source_files, changed counts, and generated-artifact review are filled.",
+            },
+        ],
+        columns=columns,
+    )
+
+
+def data_health_trusted_fundamentals_source_review_command_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    summary = data_health_trusted_fundamentals_source_review_frame(None, None) if frame is None or frame.empty else frame
+    row = summary.iloc[0]
+    readiness = format_missing(row.get("Command Readiness"), "blocked")
+    checklist = compact_card_fragment(row.get("Finish Source Review Checklist"), max_chars=220)
+    guard_status = format_missing(row.get("Source Guard Status"), "blocked")
+    command = (
+        format_missing(row.get("Source Guard Command"), "make dcf-input-proof-queue TOP_N=10")
+        if readiness == "ready_for_guard_review"
+        else format_missing(row.get("Source Command Plan"), "make dcf-input-source-review TOP_N=10")
+    )
+    title = "Ready for source guard review" if readiness == "ready_for_guard_review" else "Finish this source review first"
+    return [
+        {
+            "kicker": "FINISH THIS SOURCE REVIEW",
+            "title": title,
+            "body": (
+                f"{card_sentence('Checklist', checklist)} "
+                f"{card_sentence('Guard status', guard_status)} "
+                "Commands are copy-only; apply and proof-record stay gated until reviewed results exist."
+            ),
+            "badges": [readiness.replace("_", " "), "validate then preview"],
+            "command": command,
+        }
+    ]
 
 
 def data_health_trusted_fundamentals_source_review_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
@@ -25452,6 +25600,12 @@ def render_data_health(
                 show_commands=True,
                 variant="queue",
             )
+            render_signal_cards(
+                data_health_trusted_fundamentals_source_review_command_cards(trusted_fundamentals_source_review),
+                show_commands=True,
+                variant="queue",
+            )
+            st.table(clean_display_frame(data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review)))
             st.table(clean_display_frame(trusted_fundamentals_source_review))
         with st.expander("Data coverage proof queue detail", expanded=False):
             st.dataframe(clean_display_frame(data_coverage_proof_queues), width="stretch", hide_index=True)
