@@ -330,6 +330,123 @@ def test_data_health_data_coverage_proof_queue_cards_keep_batch_proof_path_compa
     assert "sell" not in rendered
 
 
+def _trusted_fundamentals_proof_queue_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "partial",
+                "Queued Rows": 12,
+                "Ready": 2,
+                "Partial": 1,
+                "Blocked": 10,
+                "Top Blockers": "fundamentals_bundle_plus_shares: 9, fcf_margin: 1",
+                "Source Mode": "SEC-stageable or trusted local",
+                "Next Safe Command": "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10",
+                "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TOP_N=10",
+                "Review Gate": "Do not edit import rows until source-review fields are filled.",
+                "Stop Rule": "Stop if revenue, free cash flow, FCF margin, or share-count proof is unavailable.",
+                "Proof Record Boundary": "Keep proof-record commands dry-run.",
+                "Generated Churn Policy": "Avoid broad generated report churn by default.",
+            }
+        ]
+    )
+
+
+def _trusted_fundamentals_dcf_input_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Priority": 1,
+                "Ticker": "AACB",
+                "Scope": "active universe",
+                "Missing Input Family": "fundamentals_bundle_plus_shares",
+                "Missing DCF Fields": "free_cash_flow, shares_outstanding, revenue, fcf_margin",
+                "Ready DCF Inputs": "price",
+                "DCF Input Status": "input bundle blocker",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Proof Command": "make focus-fundamentals TICKER=AACB",
+                "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=AACB",
+                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=AACB",
+                "Stop Rule": "Stop if trusted source rows do not prove the required revenue, free cash flow, FCF margin, and share-count fields.",
+                "Source Note": "SEC staging is not configured; review exact DCF fields.",
+            }
+        ]
+    )
+
+
+def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_family():
+    proof_queue = _trusted_fundamentals_proof_queue_frame()
+    dcf_queue = _trusted_fundamentals_dcf_input_frame()
+
+    frame = dashboard.data_health_trusted_fundamentals_source_review_frame(proof_queue, dcf_queue, top_n=1)
+    cards = dashboard.data_health_trusted_fundamentals_source_review_cards(frame)
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+    rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    row = frame.iloc[0]
+    assert row["Top Blocker Family"] == "fundamentals_bundle_plus_shares"
+    assert row["Selected Tickers"] == "AACB"
+    assert row["Source Command Plan"] == "make dcf-input-source-review FAMILY=fundamentals_bundle_plus_shares TOP_N=10"
+    assert row["Source Guard Status"] == "needs_field_fills"
+    assert "source_file_or_url" in row["Missing Source-Review Fields"]
+    assert row["Import Row Scaffold"] == "blocked until source-review fields and guard status are ready"
+    assert row["Validate Command"] == "blocked until guard readiness is ready_for_guard"
+    assert row["Preview Command"] == "blocked until validation is reviewed"
+    assert "do not apply imports while evidence fields are missing" in row["Apply Boundary"].lower()
+    assert "finish evidence intake and source guard" in row["Proof Record Dry-Run Boundary"].lower()
+    assert "fundamentals_bundle_plus_shares: source review first" in rendered_cards
+    assert "validate then preview" in rendered_cards
+    assert "no fabricated inputs" in rendered_cards
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evidence_is_reviewed():
+    proof_queue = _trusted_fundamentals_proof_queue_frame()
+    dcf_queue = _trusted_fundamentals_dcf_input_frame()
+    intake = dashboard.data_health_dcf_source_evidence_intake_frame(
+        dcf_queue,
+        "fundamentals_bundle_plus_shares",
+        top_n=1,
+    )
+    replacements = {
+        "source_file_or_url": "https://www.sec.gov/example",
+        "source_as_of_date": "2026-06-01",
+        "reviewer": "local_reviewer",
+        "review_date": "2026-06-18",
+        "source_proof_status": "reviewed",
+        "revenue": "100",
+        "free_cash_flow": "20",
+        "fcf_margin": "0.20",
+        "shares_outstanding": "1000",
+    }
+    intake["Reviewer Fill"] = intake["Evidence Field"].map(replacements).fillna(intake["Reviewer Fill"])
+
+    frame = dashboard.data_health_trusted_fundamentals_source_review_frame(
+        proof_queue,
+        dcf_queue,
+        top_n=1,
+        evidence_intake_frame=intake,
+    )
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    row = frame.iloc[0]
+    assert row["Source Guard Status"] == "ready_for_guard"
+    assert row["Missing Source-Review Fields"] == "-"
+    assert "AACB,<reviewed_period>,100,20,0.20,1000" in row["Import Row Scaffold"]
+    assert row["Validate Command"] == "make imports-validate"
+    assert row["Preview Command"] == "make imports-preview"
+    assert "run make imports-apply only after source guard" in row["Apply Boundary"].lower()
+    assert row["Post-Run Proof"] == "make dcf-readiness && make readiness && make stock-report-md TICKER=AACB"
+    assert row["Proof Record Dry-Run Boundary"].startswith("DRY_RUN=1 make reviewed-batch-proof-record")
+    assert "validation_result" in row["Proof Record Dry-Run Boundary"]
+    assert "generated_artifacts_reviewed" in row["Proof Record Dry-Run Boundary"].lower()
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_readiness_queue_drilldown_combines_examples_packet_and_proof_status():
     queue = pd.DataFrame(
         [
@@ -13144,9 +13261,21 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         "data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues)",
         coverage_proof_queue_section_index,
     )
+    trusted_source_review_drawer_index = source.index(
+        'st.expander("Trusted fundamentals source review", expanded=False)',
+        coverage_proof_queue_cards_index,
+    )
+    trusted_source_review_cards_index = source.index(
+        "data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review)",
+        trusted_source_review_drawer_index,
+    )
+    trusted_source_review_frame_index = source.index(
+        "st.table(clean_display_frame(trusted_fundamentals_source_review))",
+        trusted_source_review_cards_index,
+    )
     coverage_proof_queue_drawer_index = source.index(
         'st.expander("Data coverage proof queue detail", expanded=False)',
-        coverage_proof_queue_cards_index,
+        trusted_source_review_frame_index,
     )
     decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", coverage_proof_queue_drawer_index)
     decision_queue_expand_state_index = source.index("decision_queue_drawer_expanded =", decision_queue_status_index)
@@ -13195,7 +13324,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
 
     assert public_return_index < prior_snapshot_load_index < top_summary_block_index
     assert queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < proof_closeout_summary_index < proof_closeout_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < top_summary_block_index < lane_snapshot_index < readiness_queue_cards_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < top_summary_block_index < lane_snapshot_index < readiness_queue_cards_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_drawer_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -13205,6 +13334,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "coverage_frontier = pd.DataFrame() if defer_broad_queue else data_health_coverage_frontier_frame(top_n=10)" in source
     assert "data_health_data_coverage_proof_queue_frame(top_n=10)" in source
     assert "data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues)" in source
+    assert "trusted_fundamentals_source_review = (" in source
+    assert "Trusted fundamentals source review" in source
+    assert "data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review)" in source
     assert "Data coverage proof queue detail" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source

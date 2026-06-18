@@ -7798,6 +7798,219 @@ def data_health_data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, l
     return cards
 
 
+def _data_health_top_blocker_family(value: object, fallback: str = "fundamentals_bundle_plus_shares") -> str:
+    text = format_missing(value, fallback)
+    first = text.split(",", 1)[0].strip()
+    if ":" in first:
+        first = first.split(":", 1)[0].strip()
+    return first or fallback
+
+
+def _data_health_trusted_fundamentals_family(proof_queue_frame: pd.DataFrame | None, dcf_input_frame: pd.DataFrame | None) -> str:
+    if proof_queue_frame is not None and not proof_queue_frame.empty and "Queue" in proof_queue_frame.columns:
+        queue_names = proof_queue_frame["Queue"].fillna("").astype(str).str.lower()
+        matches = proof_queue_frame.loc[queue_names.eq("trusted fundamentals proof queue")]
+        if not matches.empty:
+            return _data_health_top_blocker_family(matches.iloc[0].get("Top Blockers"))
+    if dcf_input_frame is not None and not dcf_input_frame.empty and "Missing Input Family" in dcf_input_frame.columns:
+        families = dcf_input_frame["Missing Input Family"].fillna("").astype(str).str.strip()
+        families = families.loc[families.ne("")]
+        if not families.empty:
+            return str(families.value_counts().index[0])
+    return "fundamentals_bundle_plus_shares"
+
+
+def _data_health_import_row_from_evidence(intake: pd.DataFrame | None, ticker: object) -> str:
+    if intake is None or intake.empty:
+        return "blocked until source-review fields and guard status are ready"
+    ticker_text = format_missing(ticker, "").upper()
+    work = intake.copy()
+    if ticker_text and "Ticker" in work.columns:
+        tickers = work["Ticker"].fillna("").astype(str).str.upper().str.strip()
+        work = work.loc[tickers.eq(ticker_text)]
+    if work.empty:
+        return "blocked until reviewed evidence rows match the selected ticker"
+    values = {
+        str(row.get("Evidence Field") or "").strip(): format_missing(row.get("Reviewer Fill"), "")
+        for _, row in work.iterrows()
+    }
+    return ",".join(
+        [
+            ticker_text or "<ticker>",
+            "<reviewed_period>",
+            values.get("revenue", ""),
+            values.get("free_cash_flow", ""),
+            values.get("fcf_margin", ""),
+            values.get("shares_outstanding", ""),
+            values.get("source_file_or_url", "<reviewed_source>"),
+            values.get("source_as_of_date", "<yyyy-mm-dd>"),
+        ]
+    )
+
+
+def data_health_trusted_fundamentals_source_review_frame(
+    proof_queue_frame: pd.DataFrame | None,
+    dcf_input_frame: pd.DataFrame | None,
+    *,
+    top_n: int = 5,
+    evidence_intake_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = [
+        "Top Blocker Family",
+        "Selected Tickers",
+        "Source Command Plan",
+        "Missing Source-Review Fields",
+        "Source Guard Status",
+        "Import Row Scaffold",
+        "Validate Command",
+        "Preview Command",
+        "Apply Boundary",
+        "Post-Run Proof",
+        "Proof Record Dry-Run Boundary",
+        "Stop Rule",
+    ]
+    family = _data_health_trusted_fundamentals_family(proof_queue_frame, dcf_input_frame)
+    if dcf_input_frame is None or dcf_input_frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Top Blocker Family": family,
+                    "Selected Tickers": "",
+                    "Source Command Plan": "make data-coverage-proof-queues TOP_N=10",
+                    "Missing Source-Review Fields": "DCF input proof queue rows",
+                    "Source Guard Status": "blocked_no_dcf_queue",
+                    "Import Row Scaffold": "blocked until DCF input proof queue exists",
+                    "Validate Command": "blocked until source-review scope exists",
+                    "Preview Command": "blocked until validation is reviewed",
+                    "Apply Boundary": "Do not apply fundamentals rows without reviewed source proof.",
+                    "Post-Run Proof": "make dcf-readiness && make readiness",
+                    "Proof Record Dry-Run Boundary": "blocked until reviewed source scope exists",
+                    "Stop Rule": "Run make dcf-input-proof-queue TOP_N=10 before reviewing trusted fundamentals source rows.",
+                }
+            ],
+            columns=columns,
+        )
+    filtered = data_health_filter_dcf_input_queue_by_family(dcf_input_frame, family).head(max(top_n, 0)).copy()
+    if filtered.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Top Blocker Family": family,
+                    "Selected Tickers": "",
+                    "Source Command Plan": f"make dcf-input-source-command-plan FAMILY={family} TOP_N={top_n}",
+                    "Missing Source-Review Fields": "queued rows for selected family",
+                    "Source Guard Status": "blocked_no_rows",
+                    "Import Row Scaffold": "blocked until selected family has queued rows",
+                    "Validate Command": "blocked until source-review scope exists",
+                    "Preview Command": "blocked until validation is reviewed",
+                    "Apply Boundary": "Do not apply fundamentals rows without reviewed source proof.",
+                    "Post-Run Proof": "make dcf-readiness && make readiness",
+                    "Proof Record Dry-Run Boundary": "blocked until reviewed source scope exists",
+                    "Stop Rule": "Keep the lane blocked when the selected family has no current proof rows.",
+                }
+            ],
+            columns=columns,
+        )
+
+    selection = family
+    plan = data_health_dcf_source_command_plan_frame(filtered, selection)
+    source_review = data_health_dcf_input_source_review_frame(filtered, selection)
+    intake = evidence_intake_frame if evidence_intake_frame is not None else data_health_dcf_source_evidence_intake_frame(filtered, selection, top_n=top_n)
+    guard_readiness = dcf_source_guard_readiness_frame(intake)
+    guard_preview = dcf_source_guard_preview_frame(guard_readiness)
+    proof_handoff = dcf_source_proof_handoff_frame(guard_preview, family)
+
+    first_filtered = filtered.iloc[0]
+    first_source = source_review.iloc[0] if not source_review.empty else pd.Series(dtype=object)
+    first_plan = plan.iloc[0] if not plan.empty else pd.Series(dtype=object)
+    first_guard = guard_readiness.iloc[0] if not guard_readiness.empty else pd.Series(dtype=object)
+    first_preview = guard_preview.iloc[0] if not guard_preview.empty else pd.Series(dtype=object)
+    first_handoff = proof_handoff.iloc[0] if not proof_handoff.empty else pd.Series(dtype=object)
+    guard_status = format_missing(first_guard.get("Guard Status"), "blocked")
+    safe_import_row = (
+        _data_health_import_row_from_evidence(intake, first_guard.get("Ticker"))
+        if guard_status == "ready_for_guard"
+        else "blocked until source-review fields and guard status are ready"
+    )
+    tickers = ",".join(str(ticker).strip().upper() for ticker in filtered["Ticker"].head(top_n).tolist() if str(ticker).strip())
+    return pd.DataFrame(
+        [
+            {
+                "Top Blocker Family": family,
+                "Selected Tickers": tickers,
+                "Source Command Plan": format_missing(
+                    first_plan.get("Command"),
+                    f"make dcf-input-source-command-plan FAMILY={family} TOP_N={top_n}",
+                ),
+                "Missing Source-Review Fields": format_missing(
+                    first_guard.get("Missing Evidence Fields"),
+                    format_missing(first_source.get("Missing Review Fields"), "reviewed source fields"),
+                ),
+                "Source Guard Status": guard_status,
+                "Import Row Scaffold": safe_import_row,
+                "Validate Command": format_missing(first_preview.get("Validate"), "make imports-validate"),
+                "Preview Command": format_missing(first_preview.get("Preview"), "make imports-preview"),
+                "Apply Boundary": format_missing(first_preview.get("Apply Boundary"), "Do not apply rows without reviewed source proof."),
+                "Post-Run Proof": format_missing(
+                    first_preview.get("Post-Guard Proof"),
+                    format_missing(first_filtered.get("Proof After Update"), "make dcf-readiness && make readiness"),
+                ),
+                "Proof Record Dry-Run Boundary": format_missing(
+                    first_handoff.get("Proof Record Dry Run"),
+                    "Finish evidence intake and source guard before proof-record dry run.",
+                ),
+                "Stop Rule": format_missing(
+                    first_handoff.get("Stop Rule"),
+                    format_missing(first_filtered.get("Stop Rule"), "Stop if source proof is missing."),
+                ),
+            }
+        ],
+        columns=columns,
+    )
+
+
+def data_health_trusted_fundamentals_source_review_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "TRUSTED FUNDAMENTALS",
+                "title": "No source review scope loaded",
+                "body": "Open the data coverage proof queues before reviewing trusted fundamentals source evidence.",
+                "badges": ["source proof first", "blocked visible"],
+                "command": "make data-coverage-proof-queues TOP_N=10",
+            }
+        ]
+    row = frame.iloc[0]
+    family = format_missing(row.get("Top Blocker Family"), "trusted fundamentals")
+    guard_status = format_missing(row.get("Source Guard Status"), "blocked")
+    command = format_missing(row.get("Source Command Plan"), f"make dcf-input-source-command-plan FAMILY={family} TOP_N=10")
+    return [
+        {
+            "kicker": "TRUSTED FUNDAMENTALS",
+            "title": f"{family}: source review first",
+            "body": (
+                f"{card_sentence('Tickers', compact_card_fragment(row.get('Selected Tickers'), max_chars=130))} "
+                f"{card_sentence('Missing fields', compact_card_fragment(row.get('Missing Source-Review Fields'), max_chars=170))} "
+                f"{card_sentence('Guard', guard_status)} "
+                f"{card_sentence('Apply boundary', compact_card_fragment(row.get('Apply Boundary'), max_chars=170))}"
+            ),
+            "badges": ["validate then preview", "no fabricated inputs"],
+            "command": command,
+        },
+        {
+            "kicker": "PROOF RECORD",
+            "title": "Dry-run proof only after review",
+            "body": (
+                f"{card_sentence('Post-run proof', compact_card_fragment(row.get('Post-Run Proof'), max_chars=150))} "
+                f"{card_sentence('Proof boundary', compact_card_fragment(row.get('Proof Record Dry-Run Boundary'), max_chars=180))} "
+                f"{card_sentence('Stop rule', compact_card_fragment(row.get('Stop Rule'), max_chars=170))}"
+            ),
+            "badges": ["proof after review", "generated churn excluded"],
+            "command": format_missing(row.get("Proof Record Dry-Run Boundary"), "Finish evidence intake and source guard before proof-record dry run."),
+        },
+    ]
+
+
 def data_health_fundamentals_peer_metrics_queue_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
     if frame is None or frame.empty:
         return [
@@ -25131,6 +25344,22 @@ def render_data_health(
         if selected_lane_key == "fundamentals"
         else pd.DataFrame()
     )
+    trusted_fundamentals_source_dcf_queue = (
+        dcf_input_queue
+        if not dcf_input_queue.empty
+        else data_health_dcf_input_proof_queue_frame(top_n=10)
+        if queue_details_requested
+        else pd.DataFrame()
+    )
+    trusted_fundamentals_source_review = (
+        data_health_trusted_fundamentals_source_review_frame(
+            data_coverage_proof_queues,
+            trusted_fundamentals_source_dcf_queue,
+            top_n=5,
+        )
+        if queue_details_requested
+        else pd.DataFrame()
+    )
     proof_closeout_dcf_queue = dcf_input_queue if not dcf_input_queue.empty else data_health_dcf_input_proof_queue_frame(top_n=10)
     proof_closeout_peer_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)
     proof_closeout_dcf_frame = data_health_dcf_proof_closeout_frame(
@@ -25213,6 +25442,17 @@ def render_data_health(
             show_commands=True,
             variant="queue",
         )
+        with st.expander("Trusted fundamentals source review", expanded=False):
+            render_section_header(
+                "Trusted Fundamentals Source Review",
+                "Top DCF/fundamentals blocker family, source command plan, guard state, validate/preview gate, and proof-record boundary.",
+            )
+            render_signal_cards(
+                data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review),
+                show_commands=True,
+                variant="queue",
+            )
+            st.table(clean_display_frame(trusted_fundamentals_source_review))
         with st.expander("Data coverage proof queue detail", expanded=False):
             st.dataframe(clean_display_frame(data_coverage_proof_queues), width="stretch", hide_index=True)
     with st.expander("Queue outcome ledger summary", expanded=False):
