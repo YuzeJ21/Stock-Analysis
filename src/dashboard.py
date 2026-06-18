@@ -66,6 +66,10 @@ from src.data_health_proof_checklist import (
     proof_checklist_summary_cards as data_health_proof_checklist_summary_cards,
     proof_checklist_summary_frame as data_health_proof_checklist_summary_frame,
 )
+from src.data_health_proof_closeout import (
+    proof_closeout_cards_from_frame,
+    proof_closeout_frame_from_outcome,
+)
 from src.data_health_proof_planner import (
     proof_planner_outcome_summary_cards as data_health_proof_planner_outcome_summary_cards,
     proof_planner_outcome_summary_frame as data_health_proof_planner_outcome_summary_frame,
@@ -8845,80 +8849,21 @@ def data_health_dcf_proof_closeout_frame(
     batch_proof_frame: pd.DataFrame | None,
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
-    columns = [
-        "Closeout Status",
-        "Latest Outcome",
-        "Comparison Status",
-        "Evidence Remaining",
-        "Next Safest Action",
-        "Closeout Boundary",
-    ]
     outcome = data_health_dcf_proof_loop_outcome_frame(frame, selection, batch_proof_frame, comparison)
-    if outcome.empty:
-        return pd.DataFrame(
-            [
-                {
-                    "Closeout Status": "not_loaded",
-                    "Latest Outcome": "not_recorded",
-                    "Comparison Status": "not_loaded",
-                    "Evidence Remaining": "Open the DCF proof outcome loop before closeout.",
-                    "Next Safest Action": "make dcf-input-proof-queue TOP_N=10",
-                    "Closeout Boundary": "Do not close a DCF proof loop without source proof, comparison, and ledger outcome.",
-                }
-            ],
-            columns=columns,
-        )
-    latest_rows = outcome.loc[outcome["Proof Loop Step"].eq("Latest DCF ledger outcome")]
-    comparison_rows = outcome.loc[outcome["Proof Loop Step"].eq("Before / after readiness comparison")]
-    latest_status = (
-        format_missing(latest_rows.iloc[0].get("Status"), "not_recorded").lower()
-        if not latest_rows.empty
-        else "not_recorded"
-    )
-    comparison_status = (
-        format_missing(comparison_rows.iloc[0].get("Status"), "deferred").lower()
-        if not comparison_rows.empty
-        else "deferred"
-    )
-    gate_mask = outcome["Proof Loop Step"].ne("Latest DCF ledger outcome") & outcome["Status"].fillna("").astype(str).str.lower().str.contains(
-        "blocked|missing|deferred|warning|needs|not_loaded|no_source",
-        regex=True,
-    )
-    open_gates = outcome.loc[gate_mask]
-    if latest_status in {"supported", "still_blocked", "skipped", "excluded"}:
-        closeout_status = latest_status
-    elif latest_status in {"not_recorded", "not available", ""}:
-        closeout_status = "not_recorded"
-    else:
-        closeout_status = f"review_{latest_status}"
-    if not open_gates.empty:
-        evidence = "; ".join(
-            f"{row.get('Proof Loop Step')}: {compact_card_fragment(row.get('Detail'), max_chars=110)}"
-            for _, row in open_gates.head(3).iterrows()
-        )
-        next_action = format_missing(open_gates.iloc[0].get("Next Safe Action"), "make dcf-input-proof-queue TOP_N=10")
-    elif latest_status in {"supported", "still_blocked", "skipped", "excluded"}:
-        evidence = "No open source, comparison, or proof-record gates in this closeout view."
-        next_action = "make reviewed-batch-proof"
-    else:
-        evidence = "Record a reviewed ledger outcome after source files, comparison, and generated artifacts are reviewed."
-        next_action = "DRY_RUN=1 make reviewed-batch-proof-record ..."
-    boundary = (
-        "Closeout is evidence for data readiness only; supported, still_blocked, skipped, and excluded are proof states, "
-        "not investment advice, rankings, or trading instructions."
-    )
-    return pd.DataFrame(
-        [
-            {
-                "Closeout Status": closeout_status,
-                "Latest Outcome": latest_status,
-                "Comparison Status": comparison_status,
-                "Evidence Remaining": evidence,
-                "Next Safest Action": next_action,
-                "Closeout Boundary": boundary,
-            }
-        ],
-        columns=columns,
+    return proof_closeout_frame_from_outcome(
+        outcome,
+        latest_step="Latest DCF ledger outcome",
+        empty_evidence="Open the DCF proof outcome loop before closeout.",
+        empty_action="make dcf-input-proof-queue TOP_N=10",
+        empty_boundary="Do not close a DCF proof loop without source proof, comparison, and ledger outcome.",
+        fallback_action="make dcf-input-proof-queue TOP_N=10",
+        complete_action="make reviewed-batch-proof",
+        record_action="DRY_RUN=1 make reviewed-batch-proof-record ...",
+        record_evidence="Record a reviewed ledger outcome after source files, comparison, and generated artifacts are reviewed.",
+        boundary=(
+            "Closeout is evidence for data readiness only; supported, still_blocked, skipped, and excluded are proof states, "
+            "not investment advice, rankings, or trading instructions."
+        ),
     )
 
 
@@ -8929,32 +8874,15 @@ def data_health_dcf_proof_closeout_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     closeout = data_health_dcf_proof_closeout_frame(frame, selection, batch_proof_frame, comparison)
-    if closeout.empty:
-        return [
-            {
-                "kicker": "DCF CLOSEOUT",
-                "title": "DCF closeout is not loaded",
-                "body": "Open the DCF proof outcome loop before deciding whether the proof is supported, still blocked, skipped, or excluded.",
-                "badges": ["blocked visible", "research-only"],
-                "command": "make dcf-input-proof-queue TOP_N=10",
-            }
-        ]
-    row = closeout.iloc[0]
-    status = format_missing(row.get("Closeout Status"), "not_recorded")
-    return [
-        {
-            "kicker": "DCF CLOSEOUT",
-            "title": f"Closeout status: {status}",
-            "body": (
-                f"{card_sentence('Latest outcome', row.get('Latest Outcome'))} "
-                f"{card_sentence('Comparison', row.get('Comparison Status'))} "
-                f"{card_sentence('Evidence remaining', compact_card_fragment(row.get('Evidence Remaining'), max_chars=200))} "
-                "Closeout describes proof state only."
-            ),
-            "badges": ["proof state", "no advice"],
-            "command": format_missing(row.get("Next Safest Action"), "make reviewed-batch-proof"),
-        }
-    ]
+    return proof_closeout_cards_from_frame(
+        closeout,
+        kicker="DCF CLOSEOUT",
+        empty_title="DCF closeout is not loaded",
+        empty_body="Open the DCF proof outcome loop before deciding whether the proof is supported, still blocked, skipped, or excluded.",
+        empty_badges=["blocked visible", "research-only"],
+        empty_command="make dcf-input-proof-queue TOP_N=10",
+        fallback_command="make reviewed-batch-proof",
+    )
 
 
 def data_health_dcf_proof_source_review_checklist_frame(
@@ -12449,80 +12377,21 @@ def data_health_peer_proof_closeout_frame(
     batch_proof_frame: pd.DataFrame | None,
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
-    columns = [
-        "Closeout Status",
-        "Latest Outcome",
-        "Comparison Status",
-        "Evidence Remaining",
-        "Next Safest Action",
-        "Closeout Boundary",
-    ]
     outcome = data_health_peer_proof_loop_outcome_frame(packet, batch_proof_frame, comparison)
-    if outcome.empty:
-        return pd.DataFrame(
-            [
-                {
-                    "Closeout Status": "not_loaded",
-                    "Latest Outcome": "not_recorded",
-                    "Comparison Status": "not_loaded",
-                    "Evidence Remaining": "Open the peer proof outcome loop before closeout.",
-                    "Next Safest Action": "make peer-mapping-source-review TOP_N=10",
-                    "Closeout Boundary": "Do not close a peer proof loop without source proof, comparison, and ledger outcome.",
-                }
-            ],
-            columns=columns,
-        )
-    latest_rows = outcome.loc[outcome["Proof Loop Step"].eq("Latest peer ledger outcome")]
-    comparison_rows = outcome.loc[outcome["Proof Loop Step"].eq("Before / after readiness comparison")]
-    latest_status = (
-        format_missing(latest_rows.iloc[0].get("Status"), "not_recorded").lower()
-        if not latest_rows.empty
-        else "not_recorded"
-    )
-    comparison_status = (
-        format_missing(comparison_rows.iloc[0].get("Status"), "deferred").lower()
-        if not comparison_rows.empty
-        else "deferred"
-    )
-    gate_mask = outcome["Proof Loop Step"].ne("Latest peer ledger outcome") & outcome["Status"].fillna("").astype(str).str.lower().str.contains(
-        "blocked|missing|deferred|warning|needs|not_loaded|no_source",
-        regex=True,
-    )
-    open_gates = outcome.loc[gate_mask]
-    if latest_status in {"supported", "still_blocked", "skipped", "excluded"}:
-        closeout_status = latest_status
-    elif latest_status in {"not_recorded", "not available", ""}:
-        closeout_status = "not_recorded"
-    else:
-        closeout_status = f"review_{latest_status}"
-    if not open_gates.empty:
-        evidence = "; ".join(
-            f"{row.get('Proof Loop Step')}: {compact_card_fragment(row.get('Detail'), max_chars=110)}"
-            for _, row in open_gates.head(3).iterrows()
-        )
-        next_action = format_missing(open_gates.iloc[0].get("Next Safe Action"), "make peer-mapping-source-review TOP_N=10")
-    elif latest_status in {"supported", "still_blocked", "skipped", "excluded"}:
-        evidence = "No open source, comparison, or proof-record gates in this closeout view."
-        next_action = "make reviewed-batch-proof"
-    else:
-        evidence = "Record a reviewed ledger outcome after peer source files, comparison, and generated artifacts are reviewed."
-        next_action = "DRY_RUN=1 make reviewed-batch-proof-record ..."
-    boundary = (
-        "Closeout is evidence for peer-data readiness only; supported, still_blocked, skipped, and excluded are proof states, "
-        "not investment advice, rankings, or trading instructions."
-    )
-    return pd.DataFrame(
-        [
-            {
-                "Closeout Status": closeout_status,
-                "Latest Outcome": latest_status,
-                "Comparison Status": comparison_status,
-                "Evidence Remaining": evidence,
-                "Next Safest Action": next_action,
-                "Closeout Boundary": boundary,
-            }
-        ],
-        columns=columns,
+    return proof_closeout_frame_from_outcome(
+        outcome,
+        latest_step="Latest peer ledger outcome",
+        empty_evidence="Open the peer proof outcome loop before closeout.",
+        empty_action="make peer-mapping-source-review TOP_N=10",
+        empty_boundary="Do not close a peer proof loop without source proof, comparison, and ledger outcome.",
+        fallback_action="make peer-mapping-source-review TOP_N=10",
+        complete_action="make reviewed-batch-proof",
+        record_action="DRY_RUN=1 make reviewed-batch-proof-record ...",
+        record_evidence="Record a reviewed ledger outcome after peer source files, comparison, and generated artifacts are reviewed.",
+        boundary=(
+            "Closeout is evidence for peer-data readiness only; supported, still_blocked, skipped, and excluded are proof states, "
+            "not investment advice, rankings, or trading instructions."
+        ),
     )
 
 
@@ -12532,32 +12401,15 @@ def data_health_peer_proof_closeout_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     closeout = data_health_peer_proof_closeout_frame(packet, batch_proof_frame, comparison)
-    if closeout.empty:
-        return [
-            {
-                "kicker": "PEER CLOSEOUT",
-                "title": "Peer closeout is not loaded",
-                "body": "Open the peer proof outcome loop before deciding whether the proof is supported, still blocked, skipped, or excluded.",
-                "badges": ["blocked visible", "no inferred peers"],
-                "command": "make peer-mapping-source-review TOP_N=10",
-            }
-        ]
-    row = closeout.iloc[0]
-    status = format_missing(row.get("Closeout Status"), "not_recorded")
-    return [
-        {
-            "kicker": "PEER CLOSEOUT",
-            "title": f"Closeout status: {status}",
-            "body": (
-                f"{card_sentence('Latest outcome', row.get('Latest Outcome'))} "
-                f"{card_sentence('Comparison', row.get('Comparison Status'))} "
-                f"{card_sentence('Evidence remaining', compact_card_fragment(row.get('Evidence Remaining'), max_chars=200))} "
-                "Closeout describes proof state only."
-            ),
-            "badges": ["proof state", "no advice"],
-            "command": format_missing(row.get("Next Safest Action"), "make reviewed-batch-proof"),
-        }
-    ]
+    return proof_closeout_cards_from_frame(
+        closeout,
+        kicker="PEER CLOSEOUT",
+        empty_title="Peer closeout is not loaded",
+        empty_body="Open the peer proof outcome loop before deciding whether the proof is supported, still blocked, skipped, or excluded.",
+        empty_badges=["blocked visible", "no inferred peers"],
+        empty_command="make peer-mapping-source-review TOP_N=10",
+        fallback_command="make reviewed-batch-proof",
+    )
 
 
 def data_health_peer_proof_completion_checklist_frame(
