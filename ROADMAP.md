@@ -79,8 +79,14 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Data Health Operator Flow V5 so queue lane route cards include generated-artifact hygiene before staging recommendations.
 - [x] Trusted Fundamentals Proof Loop UX V3 so DCF source review shows source fields -> guard -> validate/preview -> apply/skip -> proof-record route cards before source tables.
 - [x] Trusted Fundamentals Proof Loop UX V4 so the DCF evidence drawer starts with an operator summary of selected blocker family, current gate, guard/proof status, next safe action, and stop rule before lower source tables.
+- [x] Trusted Fundamentals Evidence Writer Extraction V1 so dry-run preview and apply/skip gate logic live in a focused tested helper while Data Health remains the renderer.
+- [x] DCF Input Family Helper Extraction V1 so proof-family filtering, DCF input row conversion, and filter cards live in a focused tested helper while Data Health keeps source-proof rows collapsed.
+- [x] DCF Source Packet Extraction V1 so source-route grouping, capped fundamentals batch review, and DCF proof batch planner cards live in a focused tested helper while Data Health keeps commands copy-only and collapsed.
+- [x] DCF Import Preview Extraction V1 so guard, preview-row, validate, preview, apply-boundary, and post-proof table logic live in a focused tested helper while Data Health remains copy-only.
+- [x] Metric Readiness Console Extraction V1 so SPY/QQQ metric blocker summaries and progressive metric/proof detail gates live in a focused tested helper while Data Health keeps row-level details deferred.
 - [x] Peer Proof Operator Summary V1 so the peer evidence drawer starts with selected scope, current source-review gate, latest ledger status, next safe action, and stop rule before lower peer source/proof tables.
 - [x] Peer Proof Operator Summary Extraction V1 so the peer first-read summary logic lives in a focused tested helper while Streamlit remains the rendering layer.
+- [x] Data Coverage Proof Queue Summary Extraction V1 so post-price readiness queue cards and DCF, shares, fundamentals, peer mapping, and peer valuation proof queue cards live in a focused tested helper while Data Health keeps raw proof rows collapsed.
 - [x] Universe Scope Guide V1 so market-wide review starts with master vs active vs analysis-ready counts, safe row-limited filters, single-stock lookup boundaries, and the no broad-conclusions stop rule before the Readiness Explorer.
 - [x] Risk Context Workflow Extraction V1 so liquidity/correlation readiness and volatility-proxy approximation cards live in a focused tested helper while Data Health keeps raw risk tables collapsed.
 

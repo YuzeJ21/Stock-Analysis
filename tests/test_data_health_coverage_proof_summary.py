@@ -1,0 +1,103 @@
+import pandas as pd
+
+from src.data_health_coverage_proof_summary import data_coverage_proof_queue_cards, fundamentals_peer_metrics_queue_cards
+
+
+def test_fundamentals_peer_metrics_queue_cards_keep_next_layer_scan_friendly():
+    frame = pd.DataFrame(
+        [
+            {
+                "Lane": "Fundamentals / DCF Proof",
+                "State": "partial",
+                "Partial": 12,
+                "Blocked": 3458,
+                "Missing Input Families": "trusted fundamentals, dated revenue, free cash flow, FCF margin",
+                "Source Mode": "SEC-stageable or trusted-local",
+                "Next Safe Command": "make sec-stage-queue TOP_N=25",
+                "Proof Gate": "Validate -> preview -> rejected-row review -> apply only reviewed trusted rows -> rebuild readiness.",
+            },
+            {
+                "Lane": "Metrics Readiness",
+                "State": "partial",
+                "Partial": 10,
+                "Blocked": 2,
+                "Missing Input Families": "benchmark / risk: 2",
+                "Source Mode": "local_readiness",
+                "Next Safe Command": "make metric-readiness-board TOP_N=10",
+                "Proof Gate": "SPY/QQQ review metrics stay gated by trusted local inputs.",
+            },
+        ]
+    )
+
+    cards = fundamentals_peer_metrics_queue_cards(frame, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Fundamentals, peers, and metrics"
+    assert cards[1]["title"] == "Fundamentals / DCF Proof"
+    assert cards[2]["title"] == "Metrics Readiness"
+    assert "price coverage is broad" in rendered
+    assert "trusted fundamentals" in rendered
+    assert "spy/qqq review metrics" in rendered
+    assert "open the evidence drawer" in rendered
+    assert "readiness first" in rendered
+    assert "make sec-stage-queue" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_data_coverage_proof_queue_cards_keep_batch_path_compact_and_copy_only():
+    frame = pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "partial",
+                "Queued Rows": 3472,
+                "Top Blockers": "fundamentals_bundle_plus_shares: 3459",
+                "Next Safe Command": "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10",
+                "Stop Rule": "Stop if revenue, free cash flow, FCF margin, or share-count proof is unavailable.",
+            },
+            {
+                "Queue": "Peer Mapping Proof Queue",
+                "State": "still_blocked",
+                "Queued Rows": 3512,
+                "Top Blockers": "source-backed peer mappings: 3512",
+                "Next Safe Command": "DRY_RUN=1 make peer-mapping-source-review TOP_N=10",
+                "Stop Rule": "Stop if peer rows are guessed, self-peers, duplicates, undocumented, or stale.",
+            },
+        ]
+    )
+
+    cards = data_coverage_proof_queue_cards(frame, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Proof queues before row work"
+    assert cards[1]["title"] == "Peer Mapping Proof Queue"
+    assert cards[2]["title"] == "Trusted Fundamentals Proof Queue"
+    assert "3,512 queued row" in rendered
+    assert "3,472 queued row" in rendered
+    assert "source proof first" in rendered
+    assert "copy-only commands" in rendered
+    assert "dry_run=1 make peer-mapping-source-review" in rendered
+    assert "make dcf-input-source-command-plan" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_data_coverage_proof_queue_cards_empty_state_keeps_blockers_visible():
+    cards = data_coverage_proof_queue_cards(pd.DataFrame())
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards == [
+        {
+            "kicker": "PROOF QUEUES",
+            "title": "Run readiness before proof queue review",
+            "body": "DCF, shares, fundamentals, peer mapping, and peer valuation proof queues need saved readiness artifacts.",
+            "badges": ["read-only", "blocked visible"],
+            "command": "make data-coverage-proof-queues TOP_N=10",
+        }
+    ]
+    assert "blocked visible" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
