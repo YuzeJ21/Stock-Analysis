@@ -10367,6 +10367,30 @@ def test_data_health_public_visitor_path_cards_are_plain_language_without_comman
     assert "sell" not in rendered
 
 
+def test_data_health_public_first_30_second_cards_summarize_public_readiness_without_advice():
+    cards = dashboard.data_health_public_first_30_second_cards(
+        {
+            "price_ready": 3538,
+            "fundamentals_ready": 59,
+            "dcf_ready": 59,
+            "peer_ready": 26,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["READY NOW", "STILL BLOCKED", "PROOF BOUNDARY"]
+    assert "3,538 price / 59 dcf / 26 peer-ready" in rendered
+    assert "blocked rows are not weak conclusions" in rendered
+    assert "operator mode keeps validate, preview, apply" in rendered
+    assert "research-only" in rendered
+    assert "broker" not in rendered
+    assert "order routing" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overclaiming():
     ops = pd.DataFrame(
         [
@@ -23802,6 +23826,8 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
+    first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_index)
+    visitor_paths_index = source.index('render_section_header("Visitor Paths"', first_30_index)
     drawer_index = source.index('st.expander("Public evidence drawer", expanded=False)', public_index)
     freshness_index = source.index('render_section_header("Readiness Freshness"', drawer_index)
     batch_index = source.index('render_section_header("Latest Reviewed Batch Evidence"', freshness_index)
@@ -23811,7 +23837,19 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", return_index)
     batch_execution_index = source.index('render_section_header("Readiness Batch Execution"', ops_index)
 
-    assert public_index < drawer_index < freshness_index < batch_index < proof_index < hidden_index < return_index < ops_index < batch_execution_index
+    assert (
+        public_index
+        < first_30_index
+        < visitor_paths_index
+        < drawer_index
+        < freshness_index
+        < batch_index
+        < proof_index
+        < hidden_index
+        < return_index
+        < ops_index
+        < batch_execution_index
+    )
     assert "switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables." in source
     assert "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode." in source
     assert "Operator details are hidden." in source

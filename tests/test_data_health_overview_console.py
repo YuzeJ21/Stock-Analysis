@@ -71,6 +71,29 @@ def test_overview_public_visitor_path_cards_are_plain_language():
     assert "sell" not in rendered
 
 
+def test_overview_public_first_30_second_cards_summarize_ready_blocked_and_proof_boundary():
+    cards = overview_console.public_first_30_second_cards(
+        {
+            "price_ready": 3538,
+            "fundamentals_ready": 59,
+            "dcf_ready": 59,
+            "peer_ready": 26,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["READY NOW", "STILL BLOCKED", "PROOF BOUNDARY"]
+    assert "3,538 price / 59 dcf / 26 peer-ready" in rendered
+    assert "3,479 names need trusted fundamentals" in rendered
+    assert "blocked rows are not weak conclusions" in rendered
+    assert "operator mode keeps validate, preview, apply" in rendered
+    assert "research-only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible():
     ops = pd.DataFrame(
         [

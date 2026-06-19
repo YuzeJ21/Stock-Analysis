@@ -288,6 +288,113 @@ def pilot_reviewer_walkthrough_cards(frame: pd.DataFrame | None, *, limit: int =
     return cards
 
 
+def operator_next_action_summary_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    """Return the first-screen operator summary for the next safe action.
+
+    This is intentionally read-only. It summarizes saved readiness/proof state
+    and names copy-only commands without refreshing data, applying rows, or
+    inferring missing source inputs.
+    """
+
+    counts = _status_counts(pilot_frame)
+    verdict, verdict_badge = _pilot_verdict(counts)
+    priority_gate = _priority_gate(pilot_frame)
+    proof_queue = _leading_proof_queue(proof_queue_frame)
+
+    gate_title = "Run pilot readiness check"
+    gate_command = "make pilot-readiness-check TOP_N=10"
+    gate_status = "blocked"
+    if priority_gate is not None:
+        gate_title = _format_missing(priority_gate.get("Area"), "Pilot gate")
+        gate_command = _format_missing(priority_gate.get("Command"), gate_command)
+        gate_status = _format_missing(priority_gate.get("Status"), "manual")
+
+    proof_title = "Load source-proof queues"
+    proof_command = "make data-coverage-proof-queues TOP_N=10"
+    proof_status = "deferred"
+    proof_evidence = "Source-proof queues are not loaded in fast view; open review details before editing any data rows."
+    if proof_queue is not None:
+        proof_title = _format_missing(proof_queue.get("Queue"), "Source-proof queue")
+        proof_status = _format_missing(proof_queue.get("State"), "partial")
+        proof_command = _format_missing(proof_queue.get("Next Safe Command"), proof_command)
+        blocked = int(pd.to_numeric(pd.Series([proof_queue.get("Blocked", 0)]), errors="coerce").fillna(0).iloc[0])
+        blockers = _compact_fragment(proof_queue.get("Top Blockers"), max_chars=130)
+        proof_evidence = f"{blocked:,} blocked item(s). Leading blocker: {blockers}."
+
+    rows = [
+        {
+            "Question": "Can this be piloted?",
+            "Status": verdict_badge,
+            "Answer": verdict,
+            "Next Safe Action": gate_command,
+            "Evidence": f"{counts['green']} green, {counts['manual']} manual, {counts['blocked']} blocked gate(s).",
+            "Boundary": "Pilot status is a packaging gate, not a research decision.",
+        },
+        {
+            "Question": "What is the main manual gate?",
+            "Status": gate_status,
+            "Answer": gate_title,
+            "Next Safe Action": gate_command,
+            "Evidence": "Clear this gate before calling the package share-ready.",
+            "Boundary": "Do not push, stage generated churn, or quote stale counts until the gate is reviewed.",
+        },
+        {
+            "Question": "What blocks deeper analysis?",
+            "Status": proof_status,
+            "Answer": proof_title,
+            "Next Safe Action": proof_command,
+            "Evidence": proof_evidence,
+            "Boundary": "Missing fundamentals, shares, market cap, peer, earnings, and estimate rows stay blocked until source-proof exists.",
+        },
+        {
+            "Question": "What should stay hidden first?",
+            "Status": "copy-only",
+            "Answer": "Raw tables and proof commands",
+            "Next Safe Action": f"make pilot-readiness-packet OUTPUT={output_path.as_posix()}",
+            "Evidence": "Use the packet or collapsed drawers for review detail; keep the first screen focused on status and next action.",
+            "Boundary": "Commands remain copy-only; canonical data writes require validate, preview, rejected-row review, and explicit apply or skip.",
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def operator_next_action_summary_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "NEXT ACTION",
+                "title": "Run pilot readiness check",
+                "body": "Load pilot gate and source-proof status before opening raw tables or data-changing workflows.",
+                "badges": ["read-only", "research-only"],
+                "command": "make pilot-readiness-check TOP_N=10",
+            }
+        ]
+
+    cards: list[dict[str, object]] = []
+    for _, row in frame.head(max(limit, 0)).iterrows():
+        question = _format_missing(row.get("Question"), "Operator question")
+        status = _public_status_label(row.get("Status"))
+        answer = _format_missing(row.get("Answer"), question)
+        evidence = _compact_fragment(row.get("Evidence"), max_chars=150)
+        boundary = _compact_fragment(row.get("Boundary"), max_chars=150)
+        command = _format_missing(row.get("Next Safe Action"), "make pilot-readiness-check TOP_N=10")
+        cards.append(
+            {
+                "kicker": question.upper(),
+                "title": answer,
+                "body": f"{_card_sentence('Evidence', evidence)} {_card_sentence('Boundary', boundary)}",
+                "badges": [status, "copy-only"],
+                "command": command,
+            }
+        )
+    return cards
+
+
 def pilot_reviewer_walkthrough_strip_html(frame: pd.DataFrame | None, *, limit: int = 5) -> str:
     if frame is None or frame.empty:
         frame = pilot_reviewer_walkthrough_frame(pd.DataFrame(), pd.DataFrame())

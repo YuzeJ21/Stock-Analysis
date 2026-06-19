@@ -105,6 +105,10 @@ In Operator Data Health, start with the Pilot Reviewer Walkthrough before openin
 
 Visual Density V2 keeps that first read as a compact workflow strip and moves the longer pilot gate cards, packet table, and checklist into collapsed review controls. The behavior is unchanged: commands remain copy-only, proof tables remain available, and generated CSV/report churn stays excluded unless a specific artifact is reviewed evidence.
 
+Public Data Health now adds a first-30-seconds summary before visitor paths or proof drawers: what is ready, what remains blocked by trusted inputs, and which proof boundary prevents the page from turning missing data into conclusions.
+
+Operator Data Health now starts with a Next Operator Action summary before detailed queues. It answers whether the pilot can be reviewed, which manual gate matters first, which source-proof family blocks deeper analysis, and which raw commands or proof tables should stay collapsed until review details are needed.
+
 The candidate list and one-company packet also print local file status, such as import CSV data-row counts, staged-folder file counts, and whether the rejected-row report path exists. Treat that as an inspection cue only. A file with rows is not automatically trusted coverage; it still needs source review, validation, preview, apply when appropriate, and rebuilt readiness before analysis is described as available.
 
 Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.

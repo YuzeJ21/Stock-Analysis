@@ -206,6 +206,48 @@ def public_visitor_path_cards(readiness_summary: dict[str, object]) -> list[tupl
     ]
 
 
+def public_first_30_second_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    still_locked = max(price_ready - fundamentals_ready, 0)
+    return [
+        {
+            "kicker": "READY NOW",
+            "title": f"{price_ready:,} price / {dcf_ready:,} DCF / {peer_ready:,} peer-ready",
+            "body": (
+                "Visitors should read these as supported analysis lanes only. Price coverage supports setup review; "
+                "DCF and peer context appear only where trusted inputs pass readiness."
+            ),
+            "badges": ["supported lanes", "readiness first"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "STILL BLOCKED",
+            "title": f"{still_locked:,} names need trusted fundamentals before deeper review",
+            "body": (
+                "Blocked rows are not weak conclusions. They are proof checklists for source-backed fundamentals, "
+                "shares, peers, earnings, or analyst-estimate rows."
+            ),
+            "badges": ["blocked visible", "no inference"],
+            "command": "make data-coverage-proof-queues TOP_N=10",
+        },
+        {
+            "kicker": "PROOF BOUNDARY",
+            "title": f"{earnings_ready:,} earnings / {estimates_ready:,} estimates ready",
+            "body": (
+                "Optional context stays locked until trusted local rows exist. Public mode shows the product concept; "
+                "operator mode keeps validate, preview, apply, and proof-record details."
+            ),
+            "badges": ["research-only", "operator details hidden"],
+            "command": "make public-check",
+        },
+    ]
+
+
 def operations_cockpit_cards(
     readiness_summary: dict[str, object],
     ops_frame: pd.DataFrame | None,

@@ -7291,6 +7291,10 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
     return overview_console.quick_read_cards(readiness_summary)
 
 
+def data_health_public_first_30_second_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    return overview_console.public_first_30_second_cards(readiness_summary)
+
+
 def data_health_public_visitor_path_cards(readiness_summary: dict[str, object]) -> list[tuple[str, str, str, str]]:
     return overview_console.public_visitor_path_cards(readiness_summary)
 
@@ -7916,6 +7920,23 @@ def data_health_pilot_reviewer_walkthrough_cards(frame: pd.DataFrame | None, *, 
 
 def data_health_pilot_reviewer_walkthrough_strip_html(frame: pd.DataFrame | None, *, limit: int = 5) -> str:
     return pilot_console.pilot_reviewer_walkthrough_strip_html(frame, limit=limit)
+
+
+def data_health_operator_next_action_summary_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    return pilot_console.operator_next_action_summary_frame(
+        pilot_frame,
+        proof_queue_frame,
+        output_path=output_path,
+    )
+
+
+def data_health_operator_next_action_summary_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
+    return pilot_console.operator_next_action_summary_cards(frame, limit=limit)
 
 
 def data_health_data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -25799,6 +25820,7 @@ def render_data_health(
             "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
         )
         render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
+        render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
         render_context_note(
             "Public Data Health summary.",
             "Start with the three visitor paths. Open the evidence drawer only when you want readiness proof; switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
@@ -25951,6 +25973,22 @@ def render_data_health(
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
     )
+    operator_next_action_summary = data_health_operator_next_action_summary_frame(
+        pilot_readiness,
+        data_coverage_proof_queues,
+        output_path=DEFAULT_PACKET_PATH,
+    )
+    render_section_header(
+        "Next Operator Action",
+        "The first decision before opening raw tables or proof commands.",
+    )
+    render_signal_cards(
+        data_health_operator_next_action_summary_cards(operator_next_action_summary),
+        show_commands=True,
+        variant="queue",
+    )
+    with st.expander("Next action review detail", expanded=False):
+        st.dataframe(clean_display_frame(operator_next_action_summary), width="stretch", hide_index=True)
     render_data_health_top_operator_summary_block(
         readiness_summary=readiness_summary,
         queue_outcome_summary=queue_outcome_summary,

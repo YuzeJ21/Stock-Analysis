@@ -1,6 +1,8 @@
 import pandas as pd
 
 from src.dashboard import (
+    data_health_operator_next_action_summary_cards,
+    data_health_operator_next_action_summary_frame,
     data_health_pilot_packet_cards,
     data_health_pilot_readiness_cards,
     data_health_pilot_reviewer_walkthrough_cards,
@@ -114,3 +116,44 @@ def test_data_health_pilot_reviewer_walkthrough_wraps_compact_path():
     assert "pilot-flow" in rendered_strip
     assert "trusted fundamentals proof queue" in rendered_strip
     assert "make dcf-input-source-command-plan" in rendered_strip
+
+
+def test_data_health_operator_next_action_summary_wraps_first_screen_questions():
+    pilot = pd.DataFrame(
+        [
+            {"Area": "GitHub sync", "Status": "green", "Detail": "main is synced.", "Command": "git status --short --branch", "Stop Rule": "Stop if branch diverges."},
+            {"Area": "Generated artifact hygiene", "Status": "manual", "Detail": "Generated churn is excluded.", "Command": "make diff-hygiene-summary", "Stop Rule": "Do not stage broad generated churn."},
+        ]
+    )
+    queues = pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "partial",
+                "Queued Rows": 100,
+                "Blocked": 90,
+                "Top Blockers": "fundamentals_bundle_plus_shares: 90",
+                "Next Safe Command": "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10",
+                "Stop Rule": "Stop if source proof is unavailable.",
+            }
+        ]
+    )
+
+    frame = data_health_operator_next_action_summary_frame(pilot, queues)
+    cards = data_health_operator_next_action_summary_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert list(frame["Question"]) == [
+        "Can this be piloted?",
+        "What is the main manual gate?",
+        "What blocks deeper analysis?",
+        "What should stay hidden first?",
+    ]
+    assert "pilot-ready with manual gates" in rendered
+    assert "generated artifact hygiene" in rendered
+    assert "trusted fundamentals proof queue" in rendered
+    assert "raw tables and proof commands" in rendered
+    assert "copy-only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "advice" not in rendered

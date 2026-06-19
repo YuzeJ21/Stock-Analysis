@@ -129,3 +129,40 @@ def test_pilot_reviewer_walkthrough_strip_is_compact_and_safe():
     assert "make public-check" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_operator_next_action_summary_answers_first_screen_questions():
+    frame = pilot_console.operator_next_action_summary_frame(_pilot_frame(), _proof_queue_frame())
+    cards = pilot_console.operator_next_action_summary_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert list(frame["Question"]) == [
+        "Can this be piloted?",
+        "What is the main manual gate?",
+        "What blocks deeper analysis?",
+        "What should stay hidden first?",
+    ]
+    assert frame.iloc[0]["Answer"] == "Pilot-ready with manual gates"
+    assert frame.iloc[1]["Answer"] == "Generated artifact hygiene"
+    assert frame.iloc[2]["Answer"] == "Trusted Fundamentals Proof Queue"
+    assert frame.iloc[3]["Answer"] == "Raw tables and proof commands"
+    assert "make dcf-input-source-command-plan" in rendered
+    assert "validate, preview, rejected-row review" in rendered
+    assert "copy-only" in rendered
+    assert "research-only" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "advice" not in rendered
+
+
+def test_operator_next_action_summary_deferred_state_stays_copy_only():
+    frame = pilot_console.operator_next_action_summary_frame(_pilot_frame(), pd.DataFrame())
+    cards = pilot_console.operator_next_action_summary_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert frame.iloc[2]["Answer"] == "Load source-proof queues"
+    assert frame.iloc[2]["Status"] == "deferred"
+    assert "review details before editing any data rows" in rendered
+    assert "make data-coverage-proof-queues top_n=10" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
