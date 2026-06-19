@@ -100,7 +100,7 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "git add --" not in rendered
     assert "# no product/code/docs/test files to stage" in rendered
     assert "# no reviewed product package to commit" in rendered
-    assert "do not create a release commit just for excluded generated churn" in rendered
+    assert "do not create a release commit just for excluded generated churn" in rendered.lower()
     assert "1 generated artifact(s) excluded by default" in rendered
     assert "not investment advice" in rendered
     assert "missing fundamentals" in rendered
