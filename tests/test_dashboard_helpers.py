@@ -10904,6 +10904,46 @@ def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overcl
     assert "sell" not in rendered
 
 
+def test_data_health_source_readiness_guidance_cards_preflight_source_hygiene_without_advice():
+    cards = dashboard.overview_console.source_readiness_guidance_cards(
+        dashboard.FreshnessStatus("stale", "Generated readiness artifacts may be stale.", "make readiness"),
+        import_summary={"rejected_rows": 2, "missing_reports": 1, "staged_files": 3},
+        research_health_summary={"partial_coverage": 7, "thin_liquidity": 4},
+        generated_churn_cards=[
+            {
+                "title": "25 generated artifact(s) excluded by default",
+                "body": "Product files: 0. Generated CSV/JSON churn should stay local unless reviewed evidence.",
+                "command": "make diff-hygiene-files",
+            }
+        ],
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "SOURCE READINESS",
+        "SOURCE QUEUES",
+        "REJECTED ROWS",
+        "ARTIFACT HYGIENE",
+    ]
+    assert cards[0]["title"] == "Freshness: Stale"
+    assert cards[0]["command"] == "make readiness"
+    assert cards[1]["title"] == "7 partial coverage row(s)"
+    assert cards[1]["command"] == "make research-health-check TOP_N=10"
+    assert cards[2]["title"] == "2 rejected row(s) / 1 missing report(s)"
+    assert cards[2]["command"] == "make imports-validate"
+    assert cards[3]["title"] == "25 generated artifact(s) excluded by default"
+    assert cards[3]["command"] == "make diff-hygiene-files"
+    assert "confirm freshness before interpreting readiness counts" in rendered
+    assert "not as a ranking or recommendation" in rendered
+    assert "validate, preview, and inspect rejected-row" in rendered
+    assert "product files: 0" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_quick_read_cards_start_with_price_when_no_price_ready_rows():
     cards = dashboard.data_health_quick_read_cards({"price_ready": 0, "dcf_ready": 0, "peer_ready": 0})
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -23839,6 +23879,18 @@ def test_data_health_current_mode_strip_uses_metric_proof_and_stale_modes():
     assert "make readiness" in stale_html
     assert "buy" not in metric_html + proof_html + stale_html
     assert "sell" not in metric_html + proof_html + stale_html
+
+
+def test_data_health_source_readiness_guidance_renders_before_operator_next_action():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    mode_strip_index = source.index("render_data_health_current_mode_strip(")
+    guidance_header_index = source.index('render_section_header(\n        "Source Readiness Guidance"', mode_strip_index)
+    guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
+    next_action_index = source.index('render_section_header(\n        "Next Operator Action"', guidance_cards_index)
+
+    assert mode_strip_index < guidance_header_index < guidance_cards_index < next_action_index
+    assert "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts." in source
 
 
 def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated():

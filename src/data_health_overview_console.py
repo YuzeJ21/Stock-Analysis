@@ -348,6 +348,75 @@ def operations_cockpit_cards(
     ]
 
 
+def source_readiness_guidance_cards(
+    freshness: Any,
+    *,
+    import_summary: dict[str, int] | None = None,
+    research_health_summary: dict[str, int] | None = None,
+    generated_churn_cards: list[dict[str, object]] | None = None,
+) -> list[dict[str, object]]:
+    """Return the compact source-readiness strip shown before interpretation."""
+
+    import_summary = import_summary or {}
+    research_health_summary = research_health_summary or {}
+    freshness_status = _public_status_label(getattr(freshness, "status", ""), fallback="Unknown")
+    freshness_message = _compact_fragment(getattr(freshness, "message", ""), "No freshness message available.", max_chars=190)
+    freshness_command = _format_missing(getattr(freshness, "refresh_command", ""), "make status-check TOP_N=5")
+    rejected_rows = int(import_summary.get("rejected_rows") or 0)
+    missing_reports = int(import_summary.get("missing_reports") or 0)
+    staged_files = int(import_summary.get("staged_files") or 0)
+    partial_rows = int(research_health_summary.get("partial_coverage") or 0)
+    thin_liquidity = int(research_health_summary.get("thin_liquidity") or 0)
+
+    generated_card = (generated_churn_cards or [{}])[0]
+    generated_title = _format_missing(generated_card.get("title"), "Run diff hygiene before staging")
+    generated_body = _compact_fragment(
+        generated_card.get("body"),
+        "Generated CSV/JSON/report churn stays excluded unless an exact artifact is reviewed evidence.",
+        max_chars=190,
+    )
+    generated_command = _format_missing(generated_card.get("command"), "make diff-hygiene-summary")
+
+    return [
+        {
+            "kicker": "SOURCE READINESS",
+            "title": f"Freshness: {freshness_status}",
+            "body": (
+                f"{freshness_message} Confirm freshness before interpreting readiness counts or report sections."
+            ),
+            "badges": ["freshness first", "counts need proof"],
+            "command": freshness_command,
+        },
+        {
+            "kicker": "SOURCE QUEUES",
+            "title": f"{partial_rows:,} partial coverage row(s)",
+            "body": (
+                f"{thin_liquidity:,} row(s) need liquidity review. Use research health as a source/gap check, "
+                "not as a ranking or recommendation."
+            ),
+            "badges": ["source gaps", "review only"],
+            "command": "make research-health-check TOP_N=10",
+        },
+        {
+            "kicker": "REJECTED ROWS",
+            "title": f"{rejected_rows:,} rejected row(s) / {missing_reports:,} missing report(s)",
+            "body": (
+                f"{staged_files:,} staged import file(s) are visible. Validate, preview, and inspect rejected-row "
+                "reports before any apply or supported proof outcome."
+            ),
+            "badges": ["validate", "preview"],
+            "command": "make imports-validate",
+        },
+        {
+            "kicker": "ARTIFACT HYGIENE",
+            "title": generated_title,
+            "body": generated_body,
+            "badges": ["exclude by default", "review evidence"],
+            "command": generated_command,
+        },
+    ]
+
+
 def freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
     master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
     price_ready = int(readiness_summary.get("price_ready") or 0)

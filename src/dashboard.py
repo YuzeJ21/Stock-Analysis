@@ -7647,6 +7647,22 @@ def data_health_operations_cockpit_cards(
     )
 
 
+def data_health_source_readiness_guidance_cards(
+    readiness_freshness: FreshnessStatus,
+    data_quality_frame: pd.DataFrame | None,
+    liquidity_frame: pd.DataFrame | None,
+    correlation_frame: pd.DataFrame | None,
+    *,
+    base_dir: Path = BASE_DIR,
+) -> list[dict[str, object]]:
+    return overview_console.source_readiness_guidance_cards(
+        readiness_freshness,
+        import_summary=import_health_summary(import_health_frame(base_dir)),
+        research_health_summary=summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame),
+        generated_churn_cards=data_health_generated_churn_review_cards(base_dir),
+    )
+
+
 def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
     master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
     price_ready = int(readiness_summary.get("price_ready") or 0)
@@ -26652,6 +26668,21 @@ def render_data_health(
         readiness_freshness=readiness_freshness,
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
+    )
+    render_section_header(
+        "Source Readiness Guidance",
+        "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts.",
+    )
+    render_signal_cards(
+        data_health_source_readiness_guidance_cards(
+            readiness_freshness,
+            data_quality_frame,
+            liquidity_frame,
+            correlation_frame,
+            base_dir=BASE_DIR,
+        ),
+        show_commands=False,
+        variant="queue",
     )
     should_load_pilot_details = proof_details_requested or selected_lane_key in {"fundamentals", "proof"}
     pilot_readiness = data_health_pilot_readiness_frame(top_n=10) if should_load_pilot_details else pd.DataFrame()
