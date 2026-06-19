@@ -509,6 +509,16 @@ def build_pilot_commit_package_handoff(root: Path | str = ".") -> list[PilotComm
     manual_entries = groups["review_manually"]
     product_status = "ready_to_stage" if product_entries and not manual_entries else "manual_review" if manual_entries else "no_product_changes"
     generated_status = "excluded" if generated_entries else "none"
+    commit_command = (
+        'git commit -m "Package reviewed product changes"'
+        if product_entries and not manual_entries
+        else "# no reviewed product package to commit"
+    )
+    commit_boundary = (
+        "Commit only after tests, public wording, and staged hygiene pass."
+        if product_entries and not manual_entries
+        else "Do not create a release commit just for excluded generated churn."
+    )
 
     return [
         PilotCommitPackageItem(
@@ -529,8 +539,8 @@ def build_pilot_commit_package_handoff(root: Path | str = ".") -> list[PilotComm
         PilotCommitPackageItem(
             step="Commit reviewed package",
             status="copy-only",
-            command='git commit -m "Improve pilot handoff and workflow continuity"',
-            boundary="Commit only after tests, public wording, and staged hygiene pass.",
+            command=commit_command,
+            boundary=commit_boundary,
         ),
         PilotCommitPackageItem(
             step="Keep generated churn out",

@@ -99,6 +99,8 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "Stage reviewed product package" in rendered
     assert "git add --" not in rendered
     assert "# no product/code/docs/test files to stage" in rendered
+    assert "# no reviewed product package to commit" in rendered
+    assert "do not create a release commit just for excluded generated churn" in rendered
     assert "1 generated artifact(s) excluded by default" in rendered
     assert "not investment advice" in rendered
     assert "missing fundamentals" in rendered
@@ -128,7 +130,7 @@ def test_pilot_commit_package_handoff_prints_product_stage_and_generated_exclusi
     assert "git add -- readme.md src/dashboard.py" in rendered
     assert "do not use git add -a" in rendered
     assert "make staged-hygiene-check && git diff --cached --check" in rendered
-    assert "git commit -m" in rendered
+    assert 'git commit -m "package reviewed product changes"' in rendered
     assert "1 generated csv/json/report artifact" in rendered
     assert "stage only a specific reviewed evidence artifact" in rendered
     assert "buy" not in rendered
