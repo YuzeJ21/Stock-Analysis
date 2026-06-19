@@ -31,6 +31,7 @@ ROOT_PRODUCT_FILES = {
     "data/reviewed_batch_proofs.csv",
     "outputs/reviewed_batch_packet.csv",
     "outputs/reviewed_batch_packet.md",
+    "outputs/pilot_readiness_packet.md",
 }
 
 GENERATED_MARKDOWN_ARTIFACTS = {

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from src.dashboard import data_health_pilot_readiness_cards
+from src.dashboard import data_health_pilot_packet_cards, data_health_pilot_readiness_cards
 
 
 def test_data_health_pilot_readiness_cards_surface_verdict_and_priority_gates():
@@ -53,3 +53,22 @@ def test_data_health_pilot_readiness_cards_empty_state_is_copy_only():
     assert cards[0]["command"] == "make pilot-readiness-check TOP_N=10"
     assert "read-only" in rendered
     assert "pilot gate" in rendered
+
+
+def test_data_health_pilot_packet_cards_are_copy_only_and_show_packet_path():
+    frame = pd.DataFrame(
+        [
+            {"Area": "GitHub sync", "Status": "manual"},
+            {"Area": "Research guardrails", "Status": "green"},
+        ]
+    )
+
+    cards = data_health_pilot_packet_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert cards[0]["command"] == "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md"
+    assert "outputs/pilot_readiness_packet.md" in rendered
+    assert "does not refresh data or apply rows" in rendered
+    assert "manual gates visible" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered

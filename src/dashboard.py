@@ -121,7 +121,7 @@ from src.readiness_ops import (
     build_fundamentals_peer_metrics_queue_from_lanes,
     build_readiness_ops_lanes,
 )
-from src.pilot_readiness import build_pilot_readiness_checks, pilot_readiness_verdict
+from src.pilot_readiness import DEFAULT_PACKET_PATH, build_pilot_readiness_checks, pilot_readiness_verdict
 from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
@@ -7830,6 +7830,35 @@ def data_health_pilot_readiness_cards(frame: pd.DataFrame | None, *, limit: int 
             }
         )
     return cards
+
+
+def data_health_pilot_packet_cards(frame: pd.DataFrame | None, *, output_path: Path = DEFAULT_PACKET_PATH) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        verdict = "Run pilot readiness first"
+        status_badge = "read-only"
+    else:
+        statuses = [str(value).strip().lower() for value in frame.get("Status", pd.Series(dtype=str)).tolist()]
+        if "blocked" in statuses:
+            verdict = "Packet will show blocked pilot gates"
+            status_badge = "blocked gates visible"
+        elif "manual" in statuses:
+            verdict = "Packet will show manual pilot gates"
+            status_badge = "manual gates visible"
+        else:
+            verdict = "Packet will show pilot-ready gates"
+            status_badge = "green gates"
+    return [
+        {
+            "kicker": "PILOT PACKET",
+            "title": verdict,
+            "body": (
+                f"Write `{output_path.as_posix()}` as a reviewer-ready summary of the pilot verdict, readiness snapshot, "
+                "source-proof queues, proof ledger, stop rules, and excluded generated artifacts. The command does not refresh data or apply rows."
+            ),
+            "badges": [status_badge, "reviewer packet"],
+            "command": f"make pilot-readiness-packet OUTPUT={output_path.as_posix()}",
+        }
+    ]
 
 
 def data_health_data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -25881,6 +25910,25 @@ def render_data_health(
         "Sync, hygiene, freshness, source-proof, public-check, and research-only status before a pilot package.",
     )
     render_signal_cards(data_health_pilot_readiness_cards(pilot_readiness), show_commands=True, variant="queue")
+    render_signal_cards(data_health_pilot_packet_cards(pilot_readiness), show_commands=True, variant="queue")
+    with st.expander("Pilot packet drawer", expanded=False):
+        render_context_note(
+            "Reviewer packet boundary.",
+            "The packet command writes one Markdown summary artifact from saved local status and proof files. It does not refresh data, apply imports, record proof, stage files, commit, push, or change canonical source CSVs.",
+        )
+        st.table(
+            clean_display_frame(
+                pd.DataFrame(
+                    [
+                        {
+                            "Packet Path": DEFAULT_PACKET_PATH.as_posix(),
+                            "Command": f"make pilot-readiness-packet OUTPUT={DEFAULT_PACKET_PATH.as_posix()}",
+                            "Review Boundary": "Commit only as intentional reviewed pilot evidence; keep broad generated CSV/JSON/report churn excluded.",
+                        }
+                    ]
+                )
+            )
+        )
     with st.expander("Pilot readiness checklist detail", expanded=False):
         st.dataframe(clean_display_frame(pilot_readiness), width="stretch", hide_index=True)
     render_section_header(

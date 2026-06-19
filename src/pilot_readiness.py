@@ -8,13 +8,15 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from scripts.diff_hygiene import group_entries, load_status
+from scripts.diff_hygiene import StatusEntry, group_entries, load_status
 
 from src.readiness_ops import build_data_coverage_proof_queues
 from src.reviewed_batch import readiness_freshness_status
 
 
 VALID_STATUSES = {"green", "manual", "blocked"}
+DEFAULT_PACKET_PATH = Path("outputs/pilot_readiness_packet.md")
+REVIEWED_PACKET_PATH = DEFAULT_PACKET_PATH.as_posix()
 
 
 @dataclass(frozen=True)
@@ -27,11 +29,36 @@ class PilotReadinessCheck:
     stop_rule: str
 
 
+@dataclass(frozen=True)
+class ReadinessSnapshot:
+    total_tickers: int
+    price_ready: int
+    momentum_ready: int
+    dcf_ready: int
+    peer_ready: int
+    data_sources_available: int
+    data_sources_total: int
+    optional_manual_lanes_locked: int
+    missing_data_steps: int
+    urgent_missing_data_steps: int
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
     with path.open(newline="", encoding="utf-8") as handle:
         return [dict(row) for row in csv.DictReader(handle)]
+
+
+def _truthy(value: object) -> bool:
+    return str(value or "").strip().lower() in {"true", "1", "yes", "y"}
+
+
+def _int_value(value: object, fallback: int = 0) -> int:
+    try:
+        return int(float(str(value or "").replace(",", "").strip()))
+    except (TypeError, ValueError):
+        return fallback
 
 
 def _git_status_line(root: Path) -> str:
@@ -47,6 +74,10 @@ def _git_status_line(root: Path) -> str:
         return "git status unavailable"
     first_line = result.stdout.splitlines()[0] if result.stdout.splitlines() else ""
     return first_line or "git status unavailable"
+
+
+def _diff_hygiene_groups(root: Path) -> dict[str, list[StatusEntry]]:
+    return group_entries(load_status(root))
 
 
 def _sync_check(root: Path) -> PilotReadinessCheck:
@@ -79,7 +110,7 @@ def _sync_check(root: Path) -> PilotReadinessCheck:
 
 def _hygiene_check(root: Path) -> PilotReadinessCheck:
     try:
-        groups = group_entries(load_status(root))
+        groups = _diff_hygiene_groups(root)
     except Exception as exc:
         return PilotReadinessCheck(
             area="Diff hygiene",
@@ -90,7 +121,8 @@ def _hygiene_check(root: Path) -> PilotReadinessCheck:
             stop_rule="Stop until dirty files are classified.",
         )
 
-    product_count = len(groups["product_candidate"])
+    packet_count = sum(1 for entry in groups["product_candidate"] if entry.path == REVIEWED_PACKET_PATH)
+    product_count = len([entry for entry in groups["product_candidate"] if entry.path != REVIEWED_PACKET_PATH])
     report_count = len(groups["sample_report_candidate"])
     generated_count = len(groups["generated_csv_churn"])
     manual_count = len(groups["review_manually"])
@@ -101,9 +133,10 @@ def _hygiene_check(root: Path) -> PilotReadinessCheck:
             f"and {manual_count} manual-review path(s) are dirty."
         )
         stop_rule = "Stop before pilot packaging until product files are staged/committed or intentionally left local."
-    elif generated_count:
+    elif generated_count or packet_count:
         status = "manual"
-        detail = f"{generated_count} generated CSV/JSON/report artifact(s) are dirty and excluded by default."
+        packet_detail = f"{packet_count} reviewed pilot packet artifact(s) pending; " if packet_count else ""
+        detail = f"{packet_detail}{generated_count} generated CSV/JSON/report artifact(s) are dirty and excluded by default."
         stop_rule = "Do not stage broad generated churn unless those exact artifacts are reviewed pilot evidence."
     else:
         status = "green"
@@ -161,6 +194,58 @@ def _source_gate_check(root: Path, *, top_n: int) -> PilotReadinessCheck:
     )
 
 
+def build_readiness_snapshot(root: Path | str = ".") -> ReadinessSnapshot:
+    root = Path(root)
+    readiness_rows = _read_csv(root / "data" / "reports" / "ticker_readiness_report.csv")
+    try:
+        from src.project_status import build_project_status_payload
+
+        summary = build_project_status_payload(root, top_n=5)["summary"]
+        total = len(readiness_rows) or _int_value(summary.get("tickers_total"))
+        if total:
+            return ReadinessSnapshot(
+                total_tickers=total,
+                price_ready=sum(1 for row in readiness_rows if _truthy(row.get("price_ready"))),
+                momentum_ready=sum(1 for row in readiness_rows if _truthy(row.get("momentum_ready"))),
+                dcf_ready=sum(1 for row in readiness_rows if _truthy(row.get("dcf_ready"))),
+                peer_ready=sum(1 for row in readiness_rows if _truthy(row.get("peer_ready"))),
+                data_sources_available=_int_value(summary.get("data_sources_available")),
+                data_sources_total=_int_value(summary.get("data_sources_total")),
+                optional_manual_lanes_locked=_int_value(summary.get("data_sources_optional_locked")),
+                missing_data_steps=_int_value(summary.get("onboarding_actions")),
+                urgent_missing_data_steps=_int_value(summary.get("critical_actions")),
+            )
+    except Exception:
+        pass
+    source_rows = _read_csv(root / "data" / "reports" / "data_source_status.csv")
+    action_rows = _read_csv(root / "outputs" / "research_action_queue.csv")
+    total = len(readiness_rows)
+    available_sources = sum(1 for row in source_rows if str(row.get("status") or "").strip().lower() == "available")
+    optional_locked = sum(
+        1
+        for row in source_rows
+        if str(row.get("status") or "").strip().lower() in {"manual_only", "locked", "empty"}
+        and _truthy(row.get("manual_fallback_available"))
+    )
+    urgent_steps = sum(
+        1
+        for row in action_rows
+        if str(row.get("priority") or row.get("Priority") or "").strip().upper() in {"P0", "P1", "1", "URGENT"}
+    )
+    return ReadinessSnapshot(
+        total_tickers=total,
+        price_ready=sum(1 for row in readiness_rows if _truthy(row.get("price_ready"))),
+        momentum_ready=sum(1 for row in readiness_rows if _truthy(row.get("momentum_ready"))),
+        dcf_ready=sum(1 for row in readiness_rows if _truthy(row.get("dcf_ready"))),
+        peer_ready=sum(1 for row in readiness_rows if _truthy(row.get("peer_ready"))),
+        data_sources_available=available_sources,
+        data_sources_total=len(source_rows),
+        optional_manual_lanes_locked=optional_locked,
+        missing_data_steps=len(action_rows),
+        urgent_missing_data_steps=urgent_steps,
+    )
+
+
 def _proof_ledger_check(root: Path) -> PilotReadinessCheck:
     rows = _read_csv(root / "data" / "reviewed_batch_proofs.csv")
     if not rows:
@@ -183,6 +268,24 @@ def _proof_ledger_check(root: Path) -> PilotReadinessCheck:
         command="make reviewed-batch-proof",
         stop_rule="Do not record supported outcomes without reviewed proof-row fields and generated-artifact review.",
     )
+
+
+def _latest_proof_summary(root: Path) -> str:
+    rows = _read_csv(root / "data" / "reviewed_batch_proofs.csv")
+    if not rows:
+        return "No reviewed batch proof rows yet."
+    latest = rows[-1]
+    return (
+        f"{latest.get('batch_id', '-')} / {latest.get('lane', '-')} / "
+        f"{latest.get('final_outcome', '-')} / {latest.get('notes', '-')}"
+    )
+
+
+def _excluded_generated_artifacts(root: Path) -> list[str]:
+    try:
+        return [entry.path for entry in _diff_hygiene_groups(root)["generated_csv_churn"]]
+    except Exception:
+        return []
 
 
 def _public_check_gate() -> PilotReadinessCheck:
@@ -262,16 +365,174 @@ def render_pilot_readiness_checks(checks: list[PilotReadinessCheck]) -> str:
     return "\n".join(lines)
 
 
+def _status_counts(checks: list[PilotReadinessCheck]) -> str:
+    counts = {status: 0 for status in VALID_STATUSES}
+    for check in checks:
+        counts[check.status] = counts.get(check.status, 0) + 1
+    return ", ".join(f"{status}: {counts.get(status, 0)}" for status in ("green", "manual", "blocked"))
+
+
+def _markdown_table(headers: list[str], rows: list[list[object]]) -> list[str]:
+    def _cell(value: object) -> str:
+        return str(value).replace("\n", " ").replace("|", "\\|").strip()
+
+    lines = ["| " + " | ".join(headers) + " |", "| " + " | ".join("---" for _ in headers) + " |"]
+    for row in rows:
+        lines.append("| " + " | ".join(_cell(value) for value in row) + " |")
+    return lines
+
+
+def render_pilot_readiness_packet(
+    *,
+    checks: list[PilotReadinessCheck],
+    snapshot: ReadinessSnapshot,
+    source_queues: list[object],
+    latest_proof: str,
+    excluded_artifacts: list[str],
+) -> str:
+    verdict = pilot_readiness_verdict(checks)
+    manual_gates = [check for check in checks if check.status == "manual"]
+    blocked_gates = [check for check in checks if check.status == "blocked"]
+    next_commands = list(dict.fromkeys(check.command for check in checks if check.command))
+    lines = [
+        "# Pilot Readiness Packet",
+        "",
+        "> Data readiness first. Analysis second. Research decision last.",
+        "",
+        "This packet is a read-only reviewer summary. It does not refresh data, apply imports, record proof, stage files, commit, push, connect to brokers, route orders, auto-trade, or provide direct buy/sell instructions.",
+        "",
+        f"## Verdict: {verdict}",
+        "",
+        f"- Gate counts: {_status_counts(checks)}.",
+        f"- Manual gates still required: {len(manual_gates)}.",
+        f"- Blocked gates: {len(blocked_gates)}.",
+        "- Blocked source inputs remain blocked until trusted source proof and review gates pass.",
+        "",
+        "## Readiness Snapshot",
+        "",
+        *_markdown_table(
+            ["Metric", "Current saved value"],
+            [
+                ["Tracked tickers", snapshot.total_tickers],
+                ["Price-ready", f"{snapshot.price_ready}/{snapshot.total_tickers}"],
+                ["Momentum usable", f"{snapshot.momentum_ready}/{snapshot.total_tickers}"],
+                ["DCF-ready", f"{snapshot.dcf_ready}/{snapshot.total_tickers}"],
+                ["Peer-ready", f"{snapshot.peer_ready}/{snapshot.total_tickers}"],
+                ["Data sources available", f"{snapshot.data_sources_available}/{snapshot.data_sources_total}"],
+                ["Optional/manual lanes locked", snapshot.optional_manual_lanes_locked],
+                ["Missing-data steps", snapshot.missing_data_steps],
+                ["Urgent missing-data steps", snapshot.urgent_missing_data_steps],
+            ],
+        ),
+        "",
+        "## Pilot Gates",
+        "",
+        *_markdown_table(
+            ["Area", "Status", "Gate", "Detail", "Command"],
+            [[check.area, check.status, check.title, check.detail, check.command] for check in checks],
+        ),
+        "",
+        "## Source-Proof Queue Summary",
+        "",
+        *_markdown_table(
+            ["Queue", "State", "Ready", "Partial", "Blocked", "Top blockers", "Next safest command"],
+            [
+                [
+                    getattr(row, "label", "-"),
+                    getattr(row, "readiness_state", "-"),
+                    getattr(row, "ready_count", "-"),
+                    getattr(row, "partial_count", "-"),
+                    getattr(row, "blocked_count", "-"),
+                    getattr(row, "top_blockers", "-"),
+                    getattr(row, "next_safe_command", "-"),
+                ]
+                for row in source_queues
+            ],
+        ),
+        "",
+        "## Latest Reviewed Batch Proof",
+        "",
+        f"- {latest_proof}",
+        "",
+        "## Manual Gates Still Required",
+        "",
+    ]
+    if manual_gates:
+        lines.extend(f"- {check.area}: {check.stop_rule}" for check in manual_gates)
+    else:
+        lines.append("- None from the current checklist.")
+    lines.extend(
+        [
+            "",
+            "## Stop Rules",
+            "",
+            *[f"- {check.area}: {check.stop_rule}" for check in checks],
+            "",
+            "## Exact Next Safest Commands",
+            "",
+            *[f"- `{command}`" for command in next_commands],
+            "",
+            "## Generated Artifacts Excluded From Staging",
+            "",
+        ]
+    )
+    if excluded_artifacts:
+        lines.extend(f"- `{path}`" for path in excluded_artifacts)
+    else:
+        lines.append("- No generated CSV/JSON/report churn is currently dirty.")
+    lines.extend(
+        [
+            "",
+            "## Research-Only Guardrails",
+            "",
+            "- This is research software, not investment advice.",
+            "- No broker integration, order routing, auto-trading, options recommendations, or direct buy/sell instructions.",
+            "- Do not fabricate prices, fundamentals, shares, market cap, peers, earnings, estimates, valuation inputs, metrics, or recommendations.",
+            "- Preserve ready, partial, blocked, excluded, supported, still_blocked, and skipped states.",
+            "- Keep broad generated CSV/JSON/report churn out of commits unless a specific artifact is intentionally reviewed evidence.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def write_pilot_readiness_packet(
+    root: Path | str = ".",
+    *,
+    top_n: int = 10,
+    output: Path | str = DEFAULT_PACKET_PATH,
+) -> Path:
+    root = Path(root)
+    output_path = root / Path(output)
+    checks = build_pilot_readiness_checks(root, top_n=top_n)
+    packet = render_pilot_readiness_packet(
+        checks=checks,
+        snapshot=build_readiness_snapshot(root),
+        source_queues=build_data_coverage_proof_queues(root, top_n=top_n),
+        latest_proof=_latest_proof_summary(root),
+        excluded_artifacts=_excluded_generated_artifacts(root),
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(packet, encoding="utf-8")
+    return output_path
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Print a read-only pilot readiness checklist.")
     parser.add_argument("--root", default=".", help="Project root.")
     parser.add_argument("--top-n", type=int, default=10)
+    parser.add_argument("--packet", action="store_true", help="Write the reviewer-ready pilot packet.")
+    parser.add_argument("--output", default=str(DEFAULT_PACKET_PATH), help="Packet output path.")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    print(render_pilot_readiness_checks(build_pilot_readiness_checks(args.root, top_n=args.top_n)))
+    if args.packet:
+        output = write_pilot_readiness_packet(args.root, top_n=args.top_n, output=args.output)
+        print(f"Wrote pilot readiness packet: {output}")
+    else:
+        print(render_pilot_readiness_checks(build_pilot_readiness_checks(args.root, top_n=args.top_n)))
     return 0
 
 

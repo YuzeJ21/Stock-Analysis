@@ -50,6 +50,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "data/reviewed_batch_proofs.csv",
         "outputs/reviewed_batch_packet.md",
         "outputs/reviewed_batch_packet.csv",
+        "outputs/pilot_readiness_packet.md",
     ):
         assert module.classify_path(path) == "product_candidate"
 

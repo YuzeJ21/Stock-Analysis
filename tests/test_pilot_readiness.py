@@ -4,7 +4,13 @@ from pathlib import Path
 from scripts.diff_hygiene import StatusEntry
 
 from src import pilot_readiness
-from src.pilot_readiness import build_pilot_readiness_checks, pilot_readiness_verdict, render_pilot_readiness_checks
+from src.pilot_readiness import (
+    build_pilot_readiness_checks,
+    build_readiness_snapshot,
+    pilot_readiness_verdict,
+    render_pilot_readiness_checks,
+    write_pilot_readiness_packet,
+)
 
 
 def _write(path: Path, text: str) -> None:
@@ -107,3 +113,50 @@ def test_pilot_readiness_blocks_unsynced_remote(tmp_path: Path, monkeypatch):
 
     assert by_area["GitHub sync"].status == "blocked"
     assert by_area["GitHub sync"].command == "git pull --ff-only"
+
+
+def test_pilot_readiness_treats_pending_packet_as_manual_reviewed_evidence(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
+    monkeypatch.setattr(
+        pilot_readiness,
+        "load_status",
+        lambda _root: [StatusEntry("??", "outputs/pilot_readiness_packet.md")],
+    )
+
+    checks = build_pilot_readiness_checks(root, top_n=2)
+    by_area = {check.area: check for check in checks}
+
+    assert by_area["Generated artifact hygiene"].status == "manual"
+    assert "reviewed pilot packet" in by_area["Generated artifact hygiene"].detail
+    assert pilot_readiness_verdict(checks) == "pilot-ready with manual gates"
+
+
+def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    output = Path("outputs/pilot_readiness_packet.md")
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main [ahead 1]")
+    monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [StatusEntry("M", "data/prices.csv")])
+
+    packet_path = write_pilot_readiness_packet(root, top_n=2, output=output)
+    body = packet_path.read_text(encoding="utf-8")
+    snapshot = build_readiness_snapshot(root)
+
+    assert packet_path == root / output
+    assert snapshot.total_tickers == 1
+    assert snapshot.price_ready == 1
+    assert "# Pilot Readiness Packet" in body
+    assert "Verdict: pilot-ready with manual gates" in body
+    assert "GitHub sync" in body
+    assert "Generated artifact hygiene" in body
+    assert "Readiness Snapshot" in body
+    assert "Source-Proof Queue Summary" in body
+    assert "Latest Reviewed Batch Proof" in body
+    assert "Manual Gates Still Required" in body
+    assert "Generated Artifacts Excluded From Staging" in body
+    assert "data/prices.csv" in body
+    assert "not investment advice" in body
+    assert "No broker integration" in body
+    assert "direct buy/sell instructions" in body
+    assert "Blocked source inputs remain blocked" in body
+    assert "refresh data, apply imports, record proof, stage files, commit, push" in body

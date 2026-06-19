@@ -41,6 +41,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Metrics lane operator queue shows page-level freshness, metric source/freshness, and proof-gate context before evidence tables or copy-only commands.
 - [x] Status refresh path reuses current research-health, source, and onboarding payloads so operator status checks stay fast without weakening stale-artifact detection.
 - [x] Pilot Readiness Checklist V1 with `make pilot-readiness-check`, Data Health pilot-gate cards, GitHub sync status, generated-artifact hygiene, readiness freshness, source-proof gates, proof-ledger status, public-check boundary, and research-only guardrails.
+- [x] Pilot Packet Export V1 with `make pilot-readiness-packet`, `outputs/pilot_readiness_packet.md`, Data Health packet card, source-proof queue summary, latest proof outcome, manual gates, stop rules, and excluded generated-artifact list.
 
 ## 2. Current Product State
 
