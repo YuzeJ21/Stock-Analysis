@@ -18,7 +18,7 @@ flowchart LR
 
 ## LinkedIn Visitor Snapshot
 
-- Best first click: open the real dashboard preview, then skim the example reports for `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`; the LinkedIn Featured thumbnail is `docs/assets/linkedin-public-dashboard.png`, while `make status-check TOP_N=5` remains the source for current local counts.
+- Best first click: open the real dashboard preview, then skim the example reports for `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`; the LinkedIn Featured thumbnail is `docs/assets/linkedin-public-dashboard.png`, while `make status-check TOP_N=5` remains the source for current local counts and `make browser-qa-evidence` checks public screenshot assets before replacement.
 - Core product idea: missing data is a quality-control signal, not something to hide or guess.
 - Strongest demo: ready data is analyzed, blocked data stays visible, and ETF/index methods are excluded instead of forced.
 - Share-safe boundary: this is research software, not investment advice, broker integration, or an execution system.

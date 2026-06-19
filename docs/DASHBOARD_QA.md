@@ -2,6 +2,33 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-06-19 Browser QA Evidence V1
+
+Checked pages:
+
+- Public Home: confirmed the public visitor route renders the research loop strip and does not show a traceback.
+- Single-Stock Report: confirmed the public route renders the workflow continuity strip and keeps example report states below the main report path.
+- Data Health metrics lane: confirmed `?mode=operator&page=data-health&lane=metrics&drawer=metrics` renders the research loop strip, current-mode strip, operator queue, and review-detail route without horizontal overflow.
+- Data Health proof lane: confirmed `?mode=operator&page=data-health&lane=proof&drawer=proof` renders without traceback or horizontal overflow.
+
+Screenshot asset check:
+
+- Use `make browser-qa-evidence` to verify the current committed dashboard screenshot assets, dimensions, route expectations, and public/LinkedIn use.
+- Current LinkedIn thumbnail path remains [LinkedIn public dashboard](assets/linkedin-public-dashboard.png).
+- Current public README screenshot remains [Public demo home](assets/public-demo-home-real.jpg).
+- Current operator-mode reference remains [Operator Data Health metrics](assets/operator-data-health-metrics-real.jpg).
+
+Capture limitation:
+
+- The in-app browser could read and verify the Streamlit routes, but its screenshot endpoint timed out during `Page.captureScreenshot`.
+- The local `screencapture` fallback also failed with `could not create image from display`.
+- Because screenshot capture is environment-limited in this run, keep the existing real screenshot assets until a normal local browser can recapture them.
+
+Boundary checked:
+
+- Browser QA and screenshot assets are product evidence only; they do not refresh data, apply imports, record proof rows, stage files, commit, push, or unlock missing fundamentals, peers, earnings, analyst estimates, valuation inputs, or metrics.
+- Commands remain copy-only; missing source inputs remain visibly blocked until trusted source proof, validate, preview, rejected-row review, apply or skip decision, rebuilt readiness, and proof record pass.
+
 ## 2026-06-06 Main Gap Fix Pass
 
 Checked pages:
