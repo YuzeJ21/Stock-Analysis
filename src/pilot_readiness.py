@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import importlib.util
+from shlex import quote
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -57,6 +58,23 @@ class ReadinessSnapshot:
     urgent_missing_data_steps: int
 
 
+@dataclass(frozen=True)
+class PilotHandoffItem:
+    question: str
+    status: str
+    answer: str
+    next_safe_command: str
+    boundary: str
+
+
+@dataclass(frozen=True)
+class PilotCommitPackageItem:
+    step: str
+    status: str
+    command: str
+    boundary: str
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -92,6 +110,12 @@ def _git_status_line(root: Path) -> str:
 
 def _diff_hygiene_groups(root: Path) -> dict[str, list[StatusEntry]]:
     return group_entries(load_status(root))
+
+
+def _git_add_command(entries: list[StatusEntry]) -> str:
+    if not entries:
+        return "# no product/code/docs/test files to stage"
+    return "git add -- " + " ".join(quote(entry.path) for entry in entries)
 
 
 def _sync_check(root: Path) -> PilotReadinessCheck:
@@ -180,8 +204,8 @@ def _freshness_check(root: Path) -> PilotReadinessCheck:
     )
 
 
-def _source_gate_check(root: Path, *, top_n: int) -> PilotReadinessCheck:
-    rows = build_data_coverage_proof_queues(root, top_n=top_n)
+def _source_gate_check(root: Path, *, top_n: int, source_queues: list[object] | None = None) -> PilotReadinessCheck:
+    rows = source_queues if source_queues is not None else build_data_coverage_proof_queues(root, top_n=top_n)
     if not rows:
         return PilotReadinessCheck(
             area="Source proof gates",
@@ -330,13 +354,18 @@ def _guardrail_check() -> PilotReadinessCheck:
     )
 
 
-def build_pilot_readiness_checks(root: Path | str = ".", *, top_n: int = 10) -> list[PilotReadinessCheck]:
+def build_pilot_readiness_checks(
+    root: Path | str = ".",
+    *,
+    top_n: int = 10,
+    source_queues: list[object] | None = None,
+) -> list[PilotReadinessCheck]:
     root = Path(root)
     checks = [
         _sync_check(root),
         _hygiene_check(root),
         _freshness_check(root),
-        _source_gate_check(root, top_n=top_n),
+        _source_gate_check(root, top_n=top_n, source_queues=source_queues),
         _proof_ledger_check(root),
         _public_check_gate(),
         _guardrail_check(),
@@ -352,13 +381,218 @@ def pilot_readiness_verdict(checks: list[PilotReadinessCheck]) -> str:
     return "pilot-ready"
 
 
-def render_pilot_readiness_checks(checks: list[PilotReadinessCheck]) -> str:
+def _priority_check(checks: list[PilotReadinessCheck]) -> PilotReadinessCheck | None:
+    priority = {"blocked": 0, "manual": 1, "green": 2}
+    if not checks:
+        return None
+    return sorted(checks, key=lambda check: (priority.get(check.status, 9), check.area))[0]
+
+
+def _leading_source_queue(source_queues: list[object] | None) -> object | None:
+    if not source_queues:
+        return None
+    return source_queues[0]
+
+
+def _queue_value(row: object, *names: str, fallback: object = "") -> object:
+    if isinstance(row, dict):
+        for name in names:
+            for candidate in {name, name.replace("_", " "), name.replace("_", " ").title()}:
+                if candidate in row:
+                    return row[candidate]
+        return fallback
+    for name in names:
+        if hasattr(row, name):
+            return getattr(row, name)
+    return fallback
+
+
+def build_pilot_handoff_summary(
+    checks: list[PilotReadinessCheck],
+    *,
+    source_queues: list[object] | None = None,
+    excluded_artifacts: list[str] | None = None,
+) -> list[PilotHandoffItem]:
+    """Build the compact reviewer handoff before detailed pilot tables."""
+
     verdict = pilot_readiness_verdict(checks)
+    priority = _priority_check(checks)
+    leading_queue = _leading_source_queue(source_queues)
+    artifacts = excluded_artifacts or []
+
+    gate_status = priority.status if priority is not None else "blocked"
+    gate_answer = priority.area if priority is not None else "Run pilot readiness check"
+    gate_command = priority.command if priority is not None else "make pilot-readiness-check TOP_N=10"
+    gate_boundary = priority.stop_rule if priority is not None else "Stop before sharing until the pilot gate has been run."
+
+    if leading_queue is None:
+        proof_answer = "Load source-proof queues"
+        proof_status = "manual"
+        proof_command = "make data-coverage-proof-queues TOP_N=10"
+        proof_boundary = "Do not edit source rows until proof queues are loaded and reviewed."
+    else:
+        proof_answer = str(_queue_value(leading_queue, "label", "queue", fallback="Source-proof queue"))
+        proof_status = str(_queue_value(leading_queue, "readiness_state", "state", fallback="manual"))
+        proof_command = str(
+            _queue_value(
+                leading_queue,
+                "next_safe_command",
+                "next safe command",
+                fallback="make data-coverage-proof-queues TOP_N=10",
+            )
+        )
+        proof_boundary = (
+            f"{_int_value(_queue_value(leading_queue, 'blocked_count', 'blocked')):,} blocked item(s); "
+            f"top blockers: {_queue_value(leading_queue, 'top_blockers', 'top blockers', fallback='-')}"
+        )
+
+    churn_status = "manual" if artifacts else "green"
+    churn_answer = f"{len(artifacts)} generated artifact(s) excluded by default" if artifacts else "No generated churn detected"
+
+    return [
+        PilotHandoffItem(
+            question="Can this be shared as a pilot?",
+            status="blocked" if verdict == "blocked" else "manual" if "manual" in verdict else "green",
+            answer=verdict,
+            next_safe_command=gate_command,
+            boundary="Pilot readiness is a packaging gate, not an analysis or recommendation unlock.",
+        ),
+        PilotHandoffItem(
+            question="What must be reviewed first?",
+            status=gate_status,
+            answer=gate_answer,
+            next_safe_command=gate_command,
+            boundary=gate_boundary,
+        ),
+        PilotHandoffItem(
+            question="What blocks deeper analysis?",
+            status=proof_status,
+            answer=proof_answer,
+            next_safe_command=proof_command,
+            boundary=proof_boundary,
+        ),
+        PilotHandoffItem(
+            question="What stays out of staging?",
+            status=churn_status,
+            answer=churn_answer,
+            next_safe_command="make diff-hygiene-summary",
+            boundary="Do not stage broad generated CSV/JSON/report churn unless a specific artifact is intentionally reviewed evidence.",
+        ),
+        PilotHandoffItem(
+            question="What should the reviewer run next?",
+            status="copy-only",
+            answer=REVIEWED_PACKET_PATH,
+            next_safe_command=f"make pilot-readiness-packet OUTPUT={REVIEWED_PACKET_PATH}",
+            boundary="The packet is read-only; it does not refresh data, apply imports, record proof, stage files, commit, or push.",
+        ),
+    ]
+
+
+def build_pilot_commit_package_handoff(root: Path | str = ".") -> list[PilotCommitPackageItem]:
+    """Build a copy-only product staging handoff for the current dirty tree."""
+
+    root = Path(root)
+    try:
+        groups = _diff_hygiene_groups(root)
+    except Exception as exc:
+        return [
+            PilotCommitPackageItem(
+                step="Classify dirty tree",
+                status="blocked",
+                command="make diff-hygiene-summary",
+                boundary=f"Could not classify dirty files: {exc}",
+            )
+        ]
+
+    product_entries = groups["product_candidate"] + groups["sample_report_candidate"]
+    generated_entries = groups["generated_csv_churn"]
+    manual_entries = groups["review_manually"]
+    product_status = "ready_to_stage" if product_entries and not manual_entries else "manual_review" if manual_entries else "no_product_changes"
+    generated_status = "excluded" if generated_entries else "none"
+
+    return [
+        PilotCommitPackageItem(
+            step="Stage reviewed product package",
+            status=product_status,
+            command=_git_add_command(product_entries),
+            boundary=(
+                f"{len(product_entries)} product/code/docs/test or reviewed Markdown file(s) are eligible for staging. "
+                "Review the diff first; do not use git add -A."
+            ),
+        ),
+        PilotCommitPackageItem(
+            step="Verify staged package",
+            status="copy-only",
+            command="make staged-hygiene-check && git diff --cached --check",
+            boundary="Stop if staged hygiene shows generated CSV/JSON churn or manual-review paths.",
+        ),
+        PilotCommitPackageItem(
+            step="Commit reviewed package",
+            status="copy-only",
+            command='git commit -m "Improve pilot handoff and workflow continuity"',
+            boundary="Commit only after tests, public wording, and staged hygiene pass.",
+        ),
+        PilotCommitPackageItem(
+            step="Keep generated churn out",
+            status=generated_status,
+            command="make diff-hygiene-summary",
+            boundary=(
+                f"{len(generated_entries)} generated CSV/JSON/report artifact(s) remain excluded by default. "
+                "Stage only a specific reviewed evidence artifact if intentionally selected."
+            ),
+        ),
+    ]
+
+
+def render_pilot_readiness_checks(
+    checks: list[PilotReadinessCheck],
+    *,
+    source_queues: list[object] | None = None,
+    excluded_artifacts: list[str] | None = None,
+    commit_handoff: list[PilotCommitPackageItem] | None = None,
+) -> str:
+    verdict = pilot_readiness_verdict(checks)
+    handoff = build_pilot_handoff_summary(
+        checks,
+        source_queues=source_queues,
+        excluded_artifacts=excluded_artifacts,
+    )
     lines = [
         "Pilot Readiness Checklist",
         "Read-only: this checklist does not refresh data, apply imports, stage files, commit, push, or rewrite CSVs.",
         "Research-only: this is a pilot packaging gate, not investment advice, ranking, recommendation, or trade instruction.",
         f"Verdict: {verdict}",
+        "",
+        "Reviewer Handoff Summary",
+        "Question | Status | Answer | Next Safe Command | Boundary",
+        "--- | --- | --- | --- | ---",
+        *[
+            " | ".join(
+                [
+                    item.question,
+                    item.status,
+                    item.answer,
+                    item.next_safe_command,
+                    item.boundary,
+                ]
+            )
+            for item in handoff
+        ],
+        "",
+        "Commit Package Handoff",
+        "Step | Status | Copy-only Command | Boundary",
+        "--- | --- | --- | ---",
+        *[
+            " | ".join(
+                [
+                    item.step,
+                    item.status,
+                    item.command,
+                    item.boundary,
+                ]
+            )
+            for item in (commit_handoff or [])
+        ],
         "",
         "Area | Status | Gate | Detail | Command",
         "--- | --- | --- | --- | ---",
@@ -403,11 +637,17 @@ def render_pilot_readiness_packet(
     source_queues: list[object],
     latest_proof: str,
     excluded_artifacts: list[str],
+    commit_handoff: list[PilotCommitPackageItem] | None = None,
 ) -> str:
     verdict = pilot_readiness_verdict(checks)
     manual_gates = [check for check in checks if check.status == "manual"]
     blocked_gates = [check for check in checks if check.status == "blocked"]
     next_commands = list(dict.fromkeys(check.command for check in checks if check.command))
+    handoff = build_pilot_handoff_summary(
+        checks,
+        source_queues=source_queues,
+        excluded_artifacts=excluded_artifacts,
+    )
     lines = [
         "# Pilot Readiness Packet",
         "",
@@ -421,6 +661,32 @@ def render_pilot_readiness_packet(
         f"- Manual gates still required: {len(manual_gates)}.",
         f"- Blocked gates: {len(blocked_gates)}.",
         "- Blocked source inputs remain blocked until trusted source proof and review gates pass.",
+        "",
+        "## Reviewer Handoff Summary",
+        "",
+        *_markdown_table(
+            ["Question", "Status", "Answer", "Next safe command", "Boundary"],
+            [
+                [
+                    item.question,
+                    item.status,
+                    item.answer,
+                    item.next_safe_command,
+                    item.boundary,
+                ]
+                for item in handoff
+            ],
+        ),
+        "",
+        "## Commit Package Handoff",
+        "",
+        *_markdown_table(
+            ["Step", "Status", "Copy-only command", "Boundary"],
+            [
+                [item.step, item.status, item.command, item.boundary]
+                for item in (commit_handoff or [])
+            ],
+        ),
         "",
         "## Readiness Snapshot",
         "",
@@ -518,13 +784,15 @@ def write_pilot_readiness_packet(
 ) -> Path:
     root = Path(root)
     output_path = root / Path(output)
-    checks = build_pilot_readiness_checks(root, top_n=top_n)
+    source_queues = build_data_coverage_proof_queues(root, top_n=top_n)
+    checks = build_pilot_readiness_checks(root, top_n=top_n, source_queues=source_queues)
     packet = render_pilot_readiness_packet(
         checks=checks,
         snapshot=build_readiness_snapshot(root),
-        source_queues=build_data_coverage_proof_queues(root, top_n=top_n),
+        source_queues=source_queues,
         latest_proof=_latest_proof_summary(root),
         excluded_artifacts=_excluded_generated_artifacts(root),
+        commit_handoff=build_pilot_commit_package_handoff(root),
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(packet, encoding="utf-8")
@@ -546,7 +814,16 @@ def main(argv: list[str] | None = None) -> int:
         output = write_pilot_readiness_packet(args.root, top_n=args.top_n, output=args.output)
         print(f"Wrote pilot readiness packet: {output}")
     else:
-        print(render_pilot_readiness_checks(build_pilot_readiness_checks(args.root, top_n=args.top_n)))
+        root = Path(args.root)
+        source_queues = build_data_coverage_proof_queues(root, top_n=args.top_n)
+        print(
+            render_pilot_readiness_checks(
+                build_pilot_readiness_checks(root, top_n=args.top_n, source_queues=source_queues),
+                source_queues=source_queues,
+                excluded_artifacts=_excluded_generated_artifacts(root),
+                commit_handoff=build_pilot_commit_package_handoff(root),
+            )
+        )
     return 0
 
 

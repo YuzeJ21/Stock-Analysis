@@ -40,6 +40,54 @@ def public_home_first_30_second_cards(summary: dict[str, object]) -> list[dict[s
     ]
 
 
+def public_home_review_map_cards(summary: dict[str, object]) -> list[dict[str, object]]:
+    """Return the public Home review map without terminal or operator detail."""
+
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    blocked = int(summary.get("blocked_by_data") or summary.get("blocked") or max(master - dcf_ready, 0))
+    return [
+        {
+            "kicker": "CURRENT STEP",
+            "title": "Start from the readiness snapshot",
+            "body": (
+                f"{price_ready:,}/{master:,} tracked names have price coverage. "
+                "The Home page answers what the local data can support before any interpretation."
+            ),
+            "badges": ["snapshot", "ready vs blocked"],
+        },
+        {
+            "kicker": "REVIEW NOW",
+            "title": "Open one ticker only after the state is clear",
+            "body": (
+                f"{dcf_ready:,} names are DCF-ready and {peer_ready:,} are peer-ready. "
+                "Single-Stock Report starts with what can be reviewed now, what is blocked, and where proof fits next."
+            ),
+            "badges": ["one ticker", "review scope"],
+        },
+        {
+            "kicker": "NEXT SAFE ACTION",
+            "title": "Route missing inputs to Data Health",
+            "body": (
+                f"{blocked:,} blocked states remain source-proof work. "
+                "Data Health keeps the source lane, manual gate, proof packet, and stop rule together."
+            ),
+            "badges": ["source proof", "no raw tables first"],
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "Do not conclude from missing inputs",
+            "body": (
+                "If trusted fundamentals, shares, peers, earnings, estimates, valuation inputs, or metrics are unavailable, "
+                "the section stays blocked or excluded until reviewed proof exists."
+            ),
+            "badges": ["no data, no conclusion", "research-only"],
+        },
+    ]
+
+
 def public_home_loop_cards(summary: dict[str, object]) -> list[dict[str, object]]:
     """Return first-scan public workflow cards for the Home page."""
 

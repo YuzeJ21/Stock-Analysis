@@ -1,6 +1,7 @@
 from src.public_home_workflow import (
     public_home_first_30_second_cards,
     public_home_loop_cards,
+    public_home_review_map_cards,
     public_home_visitor_path_cards,
 )
 
@@ -53,6 +54,40 @@ def test_public_home_loop_cards_connect_public_workflow_without_commands_or_advi
     assert "proof history is checked before trusting a changed state" in rendered
     assert "blocked states remain visible" in rendered
     assert "blocked or excluded instead of filling the gap" in rendered
+    assert "make " not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_public_home_review_map_cards_show_current_step_next_action_and_stop_rule():
+    cards = public_home_review_map_cards(
+        {
+            "master_universe": 3538,
+            "price_ready": 3538,
+            "dcf_ready": 59,
+            "peer_ready": 26,
+            "blocked_by_data": 3479,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "CURRENT STEP",
+        "REVIEW NOW",
+        "NEXT SAFE ACTION",
+        "STOP RULE",
+    ]
+    assert "start from the readiness snapshot" in rendered
+    assert "3,538/3,538 tracked names have price coverage" in rendered
+    assert "59 names are dcf-ready and 26 are peer-ready" in rendered
+    assert "single-stock report starts with what can be reviewed now" in rendered
+    assert "3,479 blocked states remain source-proof work" in rendered
+    assert "manual gate, proof packet, and stop rule together" in rendered
+    assert "do not conclude from missing inputs" in rendered
+    assert "stays blocked or excluded until reviewed proof exists" in rendered
     assert "make " not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

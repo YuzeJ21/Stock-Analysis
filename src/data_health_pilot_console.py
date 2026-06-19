@@ -81,20 +81,7 @@ def _priority_gate(frame: pd.DataFrame | None) -> pd.Series | None:
 def _leading_proof_queue(frame: pd.DataFrame | None) -> pd.Series | None:
     if frame is None or frame.empty:
         return None
-    work = frame.copy()
-    blocked = (
-        pd.to_numeric(work["Blocked"], errors="coerce").fillna(0)
-        if "Blocked" in work.columns
-        else pd.Series([0] * len(work), index=work.index)
-    )
-    queued = (
-        pd.to_numeric(work["Queued Rows"], errors="coerce").fillna(0)
-        if "Queued Rows" in work.columns
-        else pd.Series([0] * len(work), index=work.index)
-    )
-    work["_blocked"] = blocked
-    work["_queued"] = queued
-    return work.sort_values(["_blocked", "_queued", "Queue"], ascending=[False, False, True]).iloc[0]
+    return frame.iloc[0]
 
 
 def pilot_readiness_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
@@ -172,6 +159,140 @@ def pilot_packet_cards(frame: pd.DataFrame | None, *, output_path: Path = DEFAUL
             "command": f"make pilot-readiness-packet OUTPUT={output_path.as_posix()}",
         }
     ]
+
+
+def pilot_handoff_summary_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    """Return the compact pilot reviewer handoff before detailed tables."""
+
+    counts = _status_counts(pilot_frame)
+    verdict, verdict_badge = _pilot_verdict(counts)
+    priority_gate = _priority_gate(pilot_frame)
+    proof_queue = _leading_proof_queue(proof_queue_frame)
+
+    gate_answer = "Run pilot readiness check"
+    gate_status = "blocked"
+    gate_command = "make pilot-readiness-check TOP_N=10"
+    gate_boundary = "Stop before sharing until the pilot gate has been run."
+    if priority_gate is not None:
+        gate_answer = _format_missing(priority_gate.get("Area"), gate_answer)
+        gate_status = _format_missing(priority_gate.get("Status"), gate_status)
+        gate_command = _format_missing(priority_gate.get("Command"), gate_command)
+        gate_boundary = _compact_fragment(priority_gate.get("Stop Rule"), max_chars=180)
+
+    proof_answer = "Load source-proof queues"
+    proof_status = "manual"
+    proof_command = "make data-coverage-proof-queues TOP_N=10"
+    proof_boundary = "Do not edit source rows until proof queues are loaded and reviewed."
+    if proof_queue is not None:
+        proof_answer = _format_missing(proof_queue.get("Queue"), proof_answer)
+        proof_status = _format_missing(proof_queue.get("State"), proof_status)
+        proof_command = _format_missing(proof_queue.get("Next Safe Command"), proof_command)
+        blocked = int(pd.to_numeric(pd.Series([proof_queue.get("Blocked", 0)]), errors="coerce").fillna(0).iloc[0])
+        blockers = _compact_fragment(proof_queue.get("Top Blockers"), max_chars=150)
+        proof_boundary = f"{blocked:,} blocked item(s); top blockers: {blockers}."
+
+    rows = [
+        {
+            "Question": "Can this be shared as a pilot?",
+            "Status": verdict_badge,
+            "Answer": verdict,
+            "Next Safe Action": gate_command,
+            "Boundary": "Pilot readiness is a packaging gate, not an analysis or recommendation unlock.",
+        },
+        {
+            "Question": "What must be reviewed first?",
+            "Status": gate_status,
+            "Answer": gate_answer,
+            "Next Safe Action": gate_command,
+            "Boundary": gate_boundary,
+        },
+        {
+            "Question": "What blocks deeper analysis?",
+            "Status": proof_status,
+            "Answer": proof_answer,
+            "Next Safe Action": proof_command,
+            "Boundary": proof_boundary,
+        },
+        {
+            "Question": "What stays out of staging?",
+            "Status": "manual",
+            "Answer": "Generated CSV/JSON/report churn",
+            "Next Safe Action": "make diff-hygiene-summary",
+            "Boundary": "Do not stage broad generated churn unless the exact artifact is intentionally reviewed evidence.",
+        },
+        {
+            "Question": "What should the reviewer run next?",
+            "Status": "copy-only",
+            "Answer": output_path.as_posix(),
+            "Next Safe Action": f"make pilot-readiness-packet OUTPUT={output_path.as_posix()}",
+            "Boundary": "The packet is read-only; it does not refresh data, apply imports, record proof, stage files, commit, or push.",
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def pilot_handoff_summary_cards(frame: pd.DataFrame | None, *, limit: int = 5) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "PILOT HANDOFF",
+                "title": "Run pilot readiness first",
+                "body": "Load pilot gates and source-proof queues before reviewing package status.",
+                "badges": ["read-only", "blocked visible"],
+                "command": "make pilot-readiness-check TOP_N=10",
+            }
+        ]
+    cards: list[dict[str, object]] = []
+    for _, row in frame.head(max(limit, 0)).iterrows():
+        question = _format_missing(row.get("Question"), "Pilot question")
+        status = _public_status_label(row.get("Status"))
+        answer = _format_missing(row.get("Answer"), question)
+        boundary = _compact_fragment(row.get("Boundary"), max_chars=170)
+        command = _format_missing(row.get("Next Safe Action"), "make pilot-readiness-check TOP_N=10")
+        cards.append(
+            {
+                "kicker": question.upper(),
+                "title": answer,
+                "body": _card_sentence("Boundary", boundary),
+                "badges": [status, "copy-only"],
+                "command": command,
+            }
+        )
+    return cards
+
+
+def pilot_commit_package_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "COMMIT PACKAGE",
+                "title": "Run pilot readiness check first",
+                "body": "Load the copy-only product staging and generated-churn exclusion handoff before packaging the pilot.",
+                "badges": ["read-only", "copy-only"],
+                "command": "make pilot-readiness-check TOP_N=10",
+            }
+        ]
+    cards: list[dict[str, object]] = []
+    for _, row in frame.head(max(limit, 0)).iterrows():
+        step = _format_missing(row.get("Step"), "Commit package step")
+        status = _public_status_label(row.get("Status"))
+        boundary = _compact_fragment(row.get("Boundary"), max_chars=180)
+        command = _format_missing(row.get("Copy-only Command"), "make pilot-readiness-check TOP_N=10")
+        cards.append(
+            {
+                "kicker": "COMMIT PACKAGE",
+                "title": step,
+                "body": _card_sentence("Boundary", boundary),
+                "badges": [status, "copy-only"],
+                "command": command,
+            }
+        )
+    return cards
 
 
 def pilot_packaging_summary_frame(

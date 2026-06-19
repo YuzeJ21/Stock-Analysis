@@ -26,8 +26,8 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
 - Use `docs/assets/linkedin-public-dashboard.png` as the LinkedIn Featured thumbnail unless you intentionally want an operator-mode screenshot; treat image counts as illustrative and use `make status-check TOP_N=5` for current local counts.
-- Run `make browser-qa-evidence` before replacing public screenshots. It checks committed screenshot assets, dimensions, route expectations, and capture boundaries without refreshing data or writing reports.
-- Run `make browser-qa-capture-plan` when you only need the real-screenshot capture sequence for GitHub or LinkedIn visuals.
+- Run `make browser-qa-evidence` before sharing or replacing public screenshots. It shows the current public-share image recommendation, committed asset checks, pending real-app captures, route expectations, and capture boundaries without refreshing data or writing reports.
+- Run `make browser-qa-capture-plan` only when you need the real-screenshot capture sequence for replacing GitHub or LinkedIn visuals.
 - Keep `docs/METHODOLOGY.md` linked from the README so visitors can see the readiness gates, DCF formula path, peer boundaries, and report-explanation rules.
 - Confirm sample stock reports include the visitor scan cue, `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Proof Commands` sections before sharing.
 - Review `docs/DIFF_HYGIENE_AUDIT.md` before staging so broad local CSV churn stays out of the public branch.
@@ -92,7 +92,7 @@ advice, broker/order execution, auto-trading, options recommendation, or direct
 buy/sell instruction language in public-facing surfaces.
 
 After it passes, run `make public-release-handoff` for the exact terminal
-sequence to verify, stage only product files, run staged hygiene, commit, and
+sequence to verify, run the pilot gate, stage only product files, run staged hygiene, commit, and
 push. Then run `make diff-hygiene` if you need the full file list and use only the safe staging
 suggestion for intentional product files and reviewed Markdown sample reports.
 For a large dirty tree, run `make diff-hygiene-files` and review the ignored
@@ -106,6 +106,7 @@ Expanded command list:
 ```bash
 make pipeline
 make readiness
+make public-check
 make pilot-readiness-check TOP_N=10
 make pilot-readiness-packet
 make browser-qa-evidence

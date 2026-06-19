@@ -2160,9 +2160,12 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
     first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', proof_strip_index)
     first_30_cards_index = source.index("render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)", first_30_index)
-    public_loop_index = source.index("render_signal_cards(_plain_home_public_loop_cards(summary), show_commands=False)", first_30_cards_index)
-    visitor_path_index = source.index('render_section_header(\n            "Visitor Path"', public_loop_index)
-    visitor_path_cards_index = source.index("render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False)", visitor_path_index)
+    connected_workflow_index = source.index('render_section_header(\n            "Connected Workflow"', first_30_cards_index)
+    review_map_cards_index = source.index(
+        'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
+        connected_workflow_index,
+    )
+    loop_strip_index = source.index("render_research_loop_strip(**home_research_loop_context(summary, freshness))", review_map_cards_index)
     workflow_spine_index = source.index('render_section_header(\n        "Research Workflow"')
     next_step_index = source.index('render_section_header("What To Do Next"')
     example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
@@ -2172,18 +2175,17 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
 
-    assert proof_strip_index < first_30_index < first_30_cards_index < public_loop_index < visitor_path_index < visitor_path_cards_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
+    assert proof_strip_index < first_30_index < first_30_cards_index < connected_workflow_index < review_map_cards_index < loop_strip_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
-    assert "The same loop in four steps: current readiness, one ticker, source-proof lane, then proof history." in source
+    assert "A compact map from readiness snapshot to one-ticker review, source-proof lane, and stop rule." in source
     assert "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)" in source
     assert "render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)" in source
-    assert "render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False)" in source
+    assert 'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")' in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
-    assert "render_signal_cards(_plain_home_public_loop_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4] if public_mode else _plain_home_next_step_cards(summary), show_commands=False)" in source
     assert "render_public_proof_strip(_public_home_snapshot_items(summary))" in source
 
@@ -9898,7 +9900,9 @@ def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_hando
     assert "a: standalone dcf review" in rendered
     assert "what can be reviewed" in rendered
     assert "standalone dcf assumptions" in rendered
+    assert "decision boundary: read this as research context only, not a ranking or action" in rendered
     assert "peer-relative valuation remains withheld" in rendered
+    assert "do not infer missing inputs from nearby ready sections" in rendered
     assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
     assert "peers source-proof lane" in rendered
     assert "next command remains copy-only" in rendered
@@ -9911,6 +9915,100 @@ def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_hando
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_report():
+    coverage = pd.DataFrame(
+        [
+            {
+                "dataset": "prices",
+                "ticker": "META",
+                "ticker_present": True,
+                "focus_command": "make focus-price TICKER=META",
+            },
+            {
+                "dataset": "fundamentals",
+                "ticker": "META",
+                "ticker_present": False,
+                "focus_command": "make focus-fundamentals TICKER=META",
+            },
+            {
+                "dataset": "peers",
+                "ticker": "META",
+                "ticker_present": False,
+                "focus_command": "make focus-peers TICKER=META",
+            },
+        ]
+    )
+
+    cards = dashboard.single_stock_pre_report_contract_cards("META", coverage, {"peer_dataset_present": False, "peer_count": 0})
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "SELECTED TICKER",
+        "REVIEW NOW",
+        "BLOCKED / EXCLUDED",
+        "NEXT SAFE ACTION",
+    ]
+    assert "meta: price context ready; fundamentals gated" in rendered
+    assert "local price context can be reviewed" in rendered
+    assert "trusted fundamentals, shares, fcf, market cap, and valuation inputs remain source-proof work" in rendered
+    assert "data health fundamentals lane" in rendered
+    assert "make focus-fundamentals ticker=meta" in rendered
+    assert "does not run imports, refreshes, or proof writes" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_pre_report_contract_cards_route_price_and_peer_gates():
+    price_blocked = dashboard.single_stock_pre_report_contract_cards(
+        "APLD",
+        pd.DataFrame(
+            [
+                {"dataset": "prices", "ticker": "APLD", "ticker_present": False},
+                {"dataset": "fundamentals", "ticker": "APLD", "ticker_present": False},
+            ]
+        ),
+        {},
+    )
+    peer_blocked = dashboard.single_stock_pre_report_contract_cards(
+        "NVDA",
+        pd.DataFrame(
+            [
+                {"dataset": "prices", "ticker": "NVDA", "ticker_present": True},
+                {"dataset": "fundamentals", "ticker": "NVDA", "ticker_present": True},
+                {"dataset": "peers", "ticker": "NVDA", "ticker_present": False},
+            ]
+        ),
+        {"peer_dataset_present": False, "peer_count": 0},
+    )
+    ready = dashboard.single_stock_pre_report_contract_cards(
+        "CRDO",
+        pd.DataFrame(
+            [
+                {"dataset": "prices", "ticker": "CRDO", "ticker_present": True},
+                {"dataset": "fundamentals", "ticker": "CRDO", "ticker_present": True},
+                {"dataset": "peers", "ticker": "CRDO", "ticker_present": True},
+            ]
+        ),
+        {"peer_dataset_present": True, "peer_count": 4},
+    )
+
+    price_rendered = " ".join(str(value) for card in price_blocked for value in card.values()).lower()
+    peer_rendered = " ".join(str(value) for card in peer_blocked for value in card.values()).lower()
+    ready_rendered = " ".join(str(value) for card in ready for value in card.values()).lower()
+
+    assert "apld: price proof comes first" in price_rendered
+    assert "make focus-price ticker=apld" in price_rendered
+    assert "setup, trend, dcf, peer, optional context, and review metrics stay locked" in price_rendered
+    assert "nvda: core inputs present; peer context gated" in peer_rendered
+    assert "data health peers lane" in peer_rendered
+    assert "make focus-peers ticker=nvda" in peer_rendered
+    assert "crdo: ready to open the local report" in ready_rendered
+    assert "make stock-report-md ticker=crdo" in ready_rendered
 
 
 def test_stock_report_workflow_fit_cards_route_price_setup_to_fundamentals_lane():
@@ -17999,9 +18097,17 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
 
 
-def test_data_health_pilot_packaging_summary_renders_before_reviewer_walkthrough():
+def test_data_health_pilot_handoff_summary_renders_before_packaging_and_walkthrough():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    handoff_frame_index = source.index("pilot_handoff_summary = data_health_pilot_handoff_summary_frame")
+    handoff_header_index = source.index('render_section_header(\n        "Pilot Handoff Summary"', handoff_frame_index)
+    handoff_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", handoff_header_index)
+    handoff_detail_index = source.index('st.expander("Pilot handoff review detail"', handoff_cards_index)
+    commit_frame_index = source.index("pilot_commit_package = data_health_pilot_commit_package_frame", handoff_frame_index)
+    commit_header_index = source.index('render_section_header(\n        "Commit Package Handoff"', commit_frame_index)
+    commit_cards_index = source.index("data_health_pilot_commit_package_cards(pilot_commit_package)", commit_header_index)
+    commit_detail_index = source.index('st.expander("Commit package commands"', commit_cards_index)
     packaging_frame_index = source.index("pilot_packaging_summary = data_health_pilot_packaging_summary_frame")
     packaging_header_index = source.index('render_section_header(\n        "Pilot Packaging Summary"', packaging_frame_index)
     packaging_cards_index = source.index("data_health_pilot_packaging_summary_cards(pilot_packaging_summary)", packaging_header_index)
@@ -18009,7 +18115,22 @@ def test_data_health_pilot_packaging_summary_renders_before_reviewer_walkthrough
     walkthrough_header_index = source.index('render_section_header(\n        "Pilot Reviewer Walkthrough"', packaging_detail_index)
     walkthrough_strip_index = source.index("data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough)", walkthrough_header_index)
 
-    assert packaging_frame_index < packaging_header_index < packaging_cards_index < packaging_detail_index < walkthrough_header_index < walkthrough_strip_index
+    assert handoff_frame_index < packaging_frame_index
+    assert (
+        handoff_header_index
+        < handoff_cards_index
+        < handoff_detail_index
+        < commit_header_index
+        < commit_cards_index
+        < commit_detail_index
+        < packaging_header_index
+        < packaging_cards_index
+        < packaging_detail_index
+        < walkthrough_header_index
+        < walkthrough_strip_index
+    )
+    assert "Verdict, manual gate, source-proof blocker, generated-churn boundary, and reviewer packet before detailed pilot tables." in source
+    assert "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing." in source
     assert "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary." in source
 
 
@@ -24566,6 +24687,21 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert '"Generated status may be stale"' in source
 
 
+def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_report_button():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+
+    selected_readiness_index = source.index('render_section_header(\n            "Selected Ticker Readiness"', render_index)
+    contract_cards_index = source.index("single_stock_pre_report_contract_cards(ticker, coverage, peer_summary)", selected_readiness_index)
+    coverage_expander_index = source.index('st.expander("Coverage and peer readiness"', contract_cards_index)
+    intro_cards_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())", coverage_expander_index)
+    report_button_index = source.index('st.button("Show Local Report"', intro_cards_index)
+
+    assert selected_readiness_index < contract_cards_index < coverage_expander_index < intro_cards_index < report_button_index
+    assert "What this ticker can support before opening the generated report." in source
+    assert "raw" not in source[selected_readiness_index:coverage_expander_index].lower()
+
+
 def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -24603,6 +24739,35 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     assert "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode." in source
     assert "Operator details are hidden." in source
     assert "Research-only boundary." in source
+
+
+def test_data_health_queue_drilldown_places_route_strip_before_route_cards_and_tables():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    wrapper_index = source.index("def data_health_readiness_queue_route_strip_cards")
+    drilldown_index = source.index('render_section_header(\n            "Lane Drilldowns"')
+    drilldown_cards_index = source.index("data_health_readiness_queue_drilldown_cards(drilldown_row)", drilldown_index)
+    route_strip_index = source.index("data_health_readiness_queue_route_strip_cards(drilldown_row)", drilldown_cards_index)
+    route_cards_index = source.index("data_health_readiness_queue_route_cards(drilldown_row)", route_strip_index)
+    action_cards_index = source.index("data_health_readiness_queue_lane_action_cards(drilldown_row)", route_cards_index)
+    action_table_index = source.index("data_health_readiness_queue_lane_action_frame(drilldown_row)", action_cards_index)
+
+    assert wrapper_index < drilldown_index
+    assert drilldown_cards_index < route_strip_index < route_cards_index < action_cards_index < action_table_index
+    assert "build_readiness_queue_route_strip_cards" in source
+
+
+def test_data_health_dcf_source_loop_places_progress_strip_before_routes_and_table():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    wrapper_index = source.index("def data_health_dcf_source_loop_progress_strip_cards")
+    section_index = source.index('render_section_header("DCF Source Loop Checklist"')
+    checklist_cards_index = source.index("data_health_dcf_source_loop_checklist_cards(dcf_input_queue_filtered, dcf_family_selection)", section_index)
+    progress_strip_index = source.index("data_health_dcf_source_loop_progress_strip_cards(dcf_input_queue_filtered, dcf_family_selection)", checklist_cards_index)
+    route_cards_index = source.index("data_health_dcf_source_loop_route_cards(dcf_input_queue_filtered, dcf_family_selection)", progress_strip_index)
+    table_index = source.index("data_health_dcf_source_loop_checklist_frame(dcf_input_queue_filtered, dcf_family_selection)", route_cards_index)
+
+    assert wrapper_index < section_index
+    assert checklist_cards_index < progress_strip_index < route_cards_index < table_index
+    assert "dcf_source_loop_progress_strip_cards" in source
 
 
 def test_dashboard_column_labels_cover_bundle_goal_fields():

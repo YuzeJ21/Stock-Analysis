@@ -347,6 +347,51 @@ def browser_qa_package_verdict(asset_rows: list[dict[str, object]], capture_rows
     return "ready"
 
 
+def browser_qa_share_recommendation_rows(
+    asset_rows: list[dict[str, object]],
+    capture_rows: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    ready_assets = [row for row in asset_rows if row["State"] == "ready"]
+    pending_targets = [row for row in capture_rows if row["State"] == "manual_capture_pending"]
+    linkedin_asset = next(
+        (row for row in ready_assets if "LinkedIn" in str(row["Asset"])),
+        ready_assets[0] if ready_assets else None,
+    )
+    recommendation = (
+        str(linkedin_asset["Path"])
+        if linkedin_asset
+        else "blocked until a real public dashboard screenshot is committed"
+    )
+    pending_names = ", ".join(str(row["Capture Target"]) for row in pending_targets) if pending_targets else "none"
+    pending_action = (
+        "Use the committed public dashboard image for GitHub/LinkedIn now; capture pending operator/workflow views later."
+        if linkedin_asset and pending_targets
+        else "All listed screenshot evidence is ready for public-review packaging."
+        if linkedin_asset
+        else "Capture a real public dashboard screenshot before public sharing."
+    )
+    return [
+        {
+            "Review Item": "Current public image",
+            "State": "ready" if linkedin_asset else "blocked",
+            "Recommendation": recommendation,
+            "Boundary": "Use real app screenshots only; do not use generated thumbnails as product proof.",
+        },
+        {
+            "Review Item": "Pending workflow captures",
+            "State": "manual_capture_pending" if pending_targets else "ready",
+            "Recommendation": pending_names,
+            "Boundary": pending_action,
+        },
+        {
+            "Review Item": "Data readiness claim",
+            "State": "blocked_inputs_remain_blocked",
+            "Recommendation": "Use make status-check TOP_N=5 for current counts; do not treat screenshots as data freshness proof.",
+            "Boundary": "Screenshots do not unlock fundamentals, peers, earnings, estimates, valuation inputs, or metrics.",
+        },
+    ]
+
+
 def browser_qa_route_rows(
     route_checks: Iterable[BrowserQaRouteCheck] = DEFAULT_BROWSER_QA_ROUTE_CHECKS,
 ) -> list[dict[str, object]]:
@@ -369,12 +414,14 @@ def browser_qa_evidence_payload(root: Path) -> dict[str, object]:
     capture_checklist_rows = browser_qa_capture_checklist_rows()
     capture_session_rows = browser_qa_capture_session_rows()
     route_rows = browser_qa_route_rows()
+    share_recommendation_rows = browser_qa_share_recommendation_rows(asset_rows, capture_rows)
     return {
         "verdict": browser_qa_package_verdict(asset_rows, capture_rows),
         "research_only_boundary": (
             "Browser QA evidence is product evidence only; it does not refresh data, apply imports, "
             "record proof, unlock blocked inputs, or provide investment advice."
         ),
+        "public_share_recommendation": share_recommendation_rows,
         "committed_screenshot_assets": asset_rows,
         "manual_capture_targets": capture_rows,
         "local_capture_checklist": capture_checklist_rows,
@@ -411,6 +458,7 @@ def main(argv: list[str] | None = None) -> int:
     payload = browser_qa_evidence_payload(root)
     rows = list(payload["committed_screenshot_assets"])
     capture_rows = list(payload["manual_capture_targets"])
+    share_recommendation_rows = list(payload["public_share_recommendation"])
     capture_checklist_rows = list(payload["local_capture_checklist"])
     capture_session_rows = list(payload["capture_session_plan"])
     route_rows = list(payload["route_qa_checklist"])
@@ -428,6 +476,9 @@ def main(argv: list[str] | None = None) -> int:
     print("Read-only: this command checks committed screenshot assets and route expectations only.")
     print("Research-only: screenshots and route checks are product evidence, not investment advice or trade instructions.")
     print(f"Verdict: {verdict}")
+    print()
+    print("Public Share Recommendation")
+    print(_markdown_table(share_recommendation_rows, ["Review Item", "State", "Recommendation", "Boundary"]))
     print()
     print("Committed Screenshot Assets")
     print(_markdown_table(rows, ["Asset", "State", "Path", "Route", "Dimensions", "Expected Markers", "Use"]))

@@ -43,12 +43,16 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Pilot Readiness Checklist V1 with `make pilot-readiness-check`, Data Health pilot-gate cards, GitHub sync status, generated-artifact hygiene, readiness freshness, source-proof gates, proof-ledger status, public-check boundary, and research-only guardrails.
 - [x] Pilot Packet Export V1 with `make pilot-readiness-packet`, `outputs/pilot_readiness_packet.md`, Data Health packet card, source-proof queue summary, latest proof outcome, manual gates, stop rules, and excluded generated-artifact list.
 - [x] Pilot Reviewer Walkthrough V1 in Data Health so the operator sees pilot status, the leading manual gate, source-proof focus, packet export, and public-check boundary before raw tables.
+- [x] Pilot Readiness Packaging V2 so the CLI packet and Data Health page show one reviewer handoff for share verdict, first manual gate, source-proof blocker, generated-churn boundary, and packet command before detailed pilot tables.
+- [x] Pilot Handoff Accuracy V3 so `make pilot-readiness-check` and Data Health name the current leading source-proof queue and generated-churn count directly in the reviewer handoff.
+- [x] Pilot Commit Package Handoff V1 so `make pilot-readiness-check` and Data Health print copy-only product staging, staged-hygiene, commit, and generated-churn exclusion steps before pilot sharing.
 - [x] Data Health Visual Density V2 with a compact pilot workflow strip, collapsed pilot gate details, tighter first-screen hierarchy, and preserved copy-only proof controls.
 - [x] Public Mode First-30-Seconds Polish V1 so visitors see ready coverage, blocked deeper-analysis inputs, and proof boundaries before operator paths or evidence drawers.
 - [x] Operator Next Action Summary V1 so Data Health answers pilot status, main manual gate, leading source-proof blocker, and hidden-detail boundary before raw tables.
 - [x] Browser QA Evidence V1 with `make browser-qa-evidence`, committed screenshot asset checks, route expectations, and environment-limited capture notes for GitHub/LinkedIn evidence.
 - [x] Browser QA Evidence V2 with route-level manual checks for public home, single-stock, Data Health fast view, metrics review, and proof history before replacing public screenshots.
 - [x] Browser Evidence Capture Plan V2 with a copy-ready session sequence for starting the dashboard, capturing pending real screenshots, verifying assets, running release gates, and staging only reviewed evidence.
+- [x] Public Screenshot Recommendation V1 so `make browser-qa-evidence` names the current LinkedIn/GitHub image, pending workflow captures, and the boundary that screenshots do not prove data freshness or unlock blocked inputs.
 - [x] Public Release Package V1 with `make public-release-package`, a read-only product staging, generated-churn exclusion, final-check, commit, and push checklist.
 - [x] Short Price-History Proof Queue V1 with `make price-history-proof-queue`, separating complete price coverage from short-history blockers for momentum, track-record, and review-metric workflows.
 - [x] Workflow Continuity V3 so Home, Single-Stock Report, and Data Health strip links route to the current page, proof drawer, next safe view, and stop-rule evidence without running commands.
@@ -62,6 +66,11 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Public Visitor Workflow Polish V3 so the GitHub/LinkedIn path starts browser-first, keeps examples as readiness states, and moves terminal proof commands into optional local checks.
 - [x] Single-Stock Workflow Fit V3 so loaded ticker reports show selected state, reviewable sections, blocked/excluded lanes, Data Health handoff, and stop rule before detailed report sections.
 - [x] Public Visitor Workflow Polish V4 so Home starts with a First 30 Seconds explanation before workflow examples or operator details.
+- [x] Public Visitor Flow V5 so Home replaces repeated visitor blocks with a Connected Workflow map plus the research-loop strip before deeper examples.
+- [x] Single-Stock Workflow Fit V5 so the selected ticker shows a pre-report readiness contract before raw coverage details or loaded report sections.
+- [x] Data Health Operator Flow V4 so each queue lane starts with a compact where-am-I, previous-proof, next-action, and stop-rule strip before detailed route/action tables.
+- [x] Trusted Fundamentals Proof Loop UX V3 so the DCF source loop shows current gate, reviewed evidence status, next safe action, and proof-record stop rule before detailed source tables.
+- [x] Dashboard helper extraction V3 so the Single-Stock pre-report readiness contract lives in a tested workflow module instead of the Streamlit render body.
 - [x] Single-Stock Workflow Fit V4 so both the drilldown and loaded report show current step, previous proof, next safe action, and stop rule before dense details.
 - [x] Data Health Drawer Routing V3 so queue lane drawers summarize queue -> source proof -> comparison -> proof record routes before detailed action tables.
 - [x] Trusted Fundamentals Proof Loop UX V3 so DCF source review shows source fields -> guard -> validate/preview -> apply/skip -> proof-record route cards before source tables.

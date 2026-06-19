@@ -1,6 +1,6 @@
 import pandas as pd
 
-from src.data_health_dcf_source_commands import dcf_source_loop_route_cards
+from src.data_health_dcf_source_commands import dcf_source_loop_progress_strip_cards, dcf_source_loop_route_cards
 from src.dcf_input_proof_queue import (
     build_dcf_input_proof_handoff,
     build_dcf_input_proof_queue,
@@ -75,6 +75,53 @@ def test_dcf_source_loop_route_cards_summarize_source_to_proof_path_without_unlo
     assert "rejected-row review and an explicit apply_reviewed, skip_reviewed, or still_blocked choice stay manual" in rendered
     assert "proof record comes last" in rendered
     assert "do not record supported until rebuilt readiness" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
+def test_dcf_source_loop_progress_strip_cards_show_current_gate_and_stop_rule():
+    checklist = pd.DataFrame(
+        [
+            {
+                "Step": "1. Select source-review batch",
+                "State": "ready",
+                "Next Safe Action": "make dcf-input-source-command-plan FAMILY=shares_outstanding TICKERS=AMD TOP_N=1",
+                "Missing Or Manual Gate": "-",
+                "Review Boundary": "Use a capped source-review scope before opening raw DCF rows.",
+            },
+            {
+                "Step": "2. Fill reviewed source fields",
+                "State": "needs_field_fills",
+                "Next Safe Action": "Fill reviewed source fields; do not write canonical fundamentals.",
+                "Missing Or Manual Gate": "source_file_or_url, source_date",
+                "Review Boundary": "Evidence fields must be reviewed source values, not placeholders or inferred inputs.",
+            },
+            {
+                "Step": "6. Rebuild readiness and record proof",
+                "State": "blocked",
+                "Next Safe Action": "Finish validate, preview, apply/skip, and readiness comparison first.",
+                "Missing Or Manual Gate": "validation_result, preview_result, apply_result",
+                "Review Boundary": "Record proof only after rebuilt readiness, changed counts, source files, and generated-artifact review.",
+            },
+        ]
+    )
+
+    cards = dcf_source_loop_progress_strip_cards(checklist, "shares_outstanding")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "WHERE AM I",
+        "REVIEWED EVIDENCE",
+        "NEXT SAFE ACTION",
+        "STOP RULE",
+    ]
+    assert "shares_outstanding: 1/3 source-loop steps ready" in rendered
+    assert "current gate: 2. fill reviewed source fields" in rendered
+    assert "source_file_or_url, source_date" in rendered
+    assert "evidence fields must be reviewed source values, not placeholders" in rendered
+    assert "commands stay copy-only and dry-run-first" in rendered
+    assert "do not record proof early" in rendered
+    assert "validate, preview, rejected-row review, apply/skip" in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered
 

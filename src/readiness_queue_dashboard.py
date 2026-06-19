@@ -589,3 +589,51 @@ def build_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> lis
             "command": "make diff-hygiene",
         },
     ]
+
+
+def build_readiness_queue_route_strip_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
+    """Return a compact selected-lane workflow strip before queue drawer details."""
+
+    get_value = row.get if isinstance(row, dict) else row.get
+    lane = _format_missing(get_value("Lane"), "Readiness lane")
+    lane_key = readiness_queue_lane_key(lane)
+    queue_state = _label(get_value("State"))
+    proof_status = _compact_fragment(
+        get_value("Proof Record Status"),
+        fallback="No reviewed batch proof row recorded yet.",
+        max_chars=110,
+    )
+    next_action = _format_missing(get_value("Next Safe Action"), queue_proof_packet_command(lane_key))
+    source_warning = _compact_fragment(
+        get_value("Stale / Source Warning"),
+        fallback="Review source readiness before proceeding.",
+        max_chars=120,
+    )
+    gate_status, _, _ = _queue_lane_gate_action(lane)
+    return [
+        {
+            "kicker": "WHERE AM I",
+            "title": f"{lane}: {queue_state}",
+            "body": "Selected lane is in the readiness queue. Open details only after the lane and gate are clear.",
+            "badges": ["selected lane", "operator flow"],
+        },
+        {
+            "kicker": "PREVIOUS PROOF",
+            "title": proof_status,
+            "body": "Latest reviewed-batch proof is context only; it does not unlock the current lane without fresh readiness proof.",
+            "badges": ["proof ledger", "read-only"],
+        },
+        {
+            "kicker": "NEXT SAFE ACTION",
+            "title": next_action,
+            "body": f"Gate status: {gate_status}. Source/freshness note: {source_warning}. Commands remain copy-only.",
+            "badges": ["copy-only", "validate before apply"],
+            "command": next_action,
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "Keep missing inputs blocked",
+            "body": "Stop before any supported outcome if source proof, validation, preview, rejected-row review, apply/skip, rebuilt readiness, or artifact review is missing.",
+            "badges": ["blocked stays blocked", "research-only"],
+        },
+    ]

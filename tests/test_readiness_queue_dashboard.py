@@ -9,6 +9,7 @@ from src.readiness_queue_dashboard import (
     build_readiness_queue_lane_action_frame,
     build_readiness_queue_outcome_summary_frame,
     build_readiness_queue_route_cards,
+    build_readiness_queue_route_strip_cards,
     queue_proof_packet_command,
     readiness_queue_lane_key,
 )
@@ -167,6 +168,38 @@ def test_readiness_queue_route_cards_summarize_navigation_without_unlocking_data
     assert "?mode=operator&page=data-health&lane=proof&drawer=proof-record" in rendered
     assert "do not treat a route as an unlock" in rendered
     assert "missing source inputs stay blocked" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_readiness_queue_route_strip_cards_show_lane_context_before_detail():
+    cards = build_readiness_queue_route_strip_cards(
+        {
+            "Lane": "Trusted Fundamentals Proof Queue",
+            "State": "partial",
+            "Next Safe Action": "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10",
+            "Proof Record Status": "No reviewed batch proof row recorded for this lane yet.",
+            "Stale / Source Warning": "Source mode: SEC-stageable. Validate before preview.",
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "WHERE AM I",
+        "PREVIOUS PROOF",
+        "NEXT SAFE ACTION",
+        "STOP RULE",
+    ]
+    assert "trusted fundamentals proof queue: partial" in rendered
+    assert "selected lane is in the readiness queue" in rendered
+    assert "no reviewed batch proof row recorded for this lane yet" in rendered
+    assert "latest reviewed-batch proof is context only" in rendered
+    assert "make dcf-input-source-command-plan family=fundamentals_bundle_plus_shares top_n=10" in rendered
+    assert "gate status: validate_preview_apply" in rendered
+    assert "commands remain copy-only" in rendered
+    assert "keep missing inputs blocked" in rendered
+    assert "source proof, validation, preview, rejected-row review, apply/skip" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered

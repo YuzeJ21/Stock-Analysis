@@ -1,7 +1,10 @@
+"""Single-stock workflow helpers for readiness-first dashboard rendering."""
+
 from __future__ import annotations
 
-import math
 import re
+
+import pandas as pd
 
 
 PUBLIC_STATUS_LABELS = {
@@ -25,12 +28,24 @@ PUBLIC_STATUS_LABELS = {
 def _format_missing(value: object, fallback: str = "Not available") -> str:
     if value is None:
         return fallback
-    if isinstance(value, float) and math.isnan(value):
-        return fallback
+    try:
+        if pd.isna(value):
+            return fallback
+    except (TypeError, ValueError):
+        pass
     text = str(value).strip()
     if not text or text.lower() in {"nan", "none", "null", "<na>"}:
         return fallback
     return text
+
+
+def _normalize_operator_command(command: object) -> str:
+    command_text = _format_missing(command, "")
+    if command_text == "make status":
+        return "make status-check TOP_N=5"
+    if command_text == "make onboarding":
+        return "make status-check TOP_N=5"
+    return command_text
 
 
 def _public_status_label(value: object, fallback: str = "Not available") -> str:
@@ -64,6 +79,30 @@ def _compact_reason(value: object, max_sentences: int = 1, max_chars: int = 150)
     if len(compact) > max_chars:
         compact = compact[: max_chars - 1].rstrip() + "..."
     return compact
+
+
+def _ticker_focus_command(lane: str, ticker: object, fallback: str = "") -> str:
+    ticker_text = _format_missing(ticker, fallback="").upper()
+    if not ticker_text:
+        return fallback
+    lane_key = _format_missing(lane, fallback="").strip().lower()
+    command_map = {
+        "prices": f"make focus-price TICKER={ticker_text}",
+        "fundamentals": f"make focus-fundamentals TICKER={ticker_text}",
+        "peers": f"make focus-peers TICKER={ticker_text}",
+    }
+    return command_map.get(lane_key, fallback)
+
+
+def _preferred_row_command(row: pd.Series | dict[str, object], fallback: str = "") -> str:
+    def _raw_value(key: str) -> object:
+        return row.get(key) if hasattr(row, "get") else ""
+
+    focus_command = ""
+    if hasattr(row, "get"):
+        focus_command = _normalize_operator_command(_format_missing(_raw_value("focus_command"), fallback=""))
+    example_command = _normalize_operator_command(_format_missing(_raw_value("example_command"), fallback=""))
+    return focus_command or example_command or _normalize_operator_command(fallback)
 
 
 def _stock_report_md_command(ticker: object, fallback: str = "TICKER") -> str:
@@ -246,5 +285,121 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
             "body": "Do not treat locked, partial, or excluded sections as conclusions. Reopen this report only after the matching proof command passes.",
             "badges": ["research only", "proof first"],
             "command": "make readiness",
+        },
+    ]
+
+
+def _coverage_dataset_row(coverage: pd.DataFrame, dataset: str) -> pd.Series | None:
+    if coverage.empty or "dataset" not in coverage.columns:
+        return None
+    matches = coverage.loc[coverage["dataset"].astype(str).str.strip().str.lower().eq(dataset)]
+    if matches.empty:
+        return None
+    return matches.iloc[0]
+
+
+def _coverage_row_present(row: pd.Series | None) -> bool:
+    if row is None:
+        return False
+    value = row.get("ticker_present", False)
+    return str(value).strip().lower() in {"true", "1", "yes"}
+
+
+def single_stock_pre_report_contract_cards(
+    ticker: str,
+    coverage: pd.DataFrame,
+    peer_summary: dict[str, object],
+) -> list[dict[str, object]]:
+    """Return a compact pre-click readiness contract for the selected ticker."""
+
+    ticker_text = _format_missing(ticker, "TICKER").upper()
+    price_row = _coverage_dataset_row(coverage, "prices")
+    fundamentals_row = _coverage_dataset_row(coverage, "fundamentals")
+    peer_row = _coverage_dataset_row(coverage, "peers")
+    price_ready = _coverage_row_present(price_row)
+    fundamentals_ready = _coverage_row_present(fundamentals_row)
+    peer_ready = _coverage_row_present(peer_row) and bool(peer_summary.get("peer_dataset_present"))
+    available_datasets = (
+        0
+        if coverage.empty
+        else int(
+            coverage.get("ticker_present", pd.Series(dtype=object))
+            .astype(str)
+            .str.lower()
+            .isin({"true", "1", "yes"})
+            .sum()
+        )
+    )
+    peer_count = int(peer_summary.get("peer_count") or 0)
+
+    if not price_ready:
+        state_title = "Price proof comes first"
+        review_now = "Only ticker identity and local row status should be reviewed before price history is trusted."
+        blocked = "Setup, trend, DCF, peer, optional context, and review metrics stay locked until price rows are ready."
+        next_command = _ticker_focus_command("prices", ticker_text, fallback=f"make price-refresh TICKERS={ticker_text}")
+        next_lane = "Data Health price lane"
+        badges = ["price first", "blocked"]
+    elif not fundamentals_ready:
+        state_title = "Price context ready; fundamentals gated"
+        review_now = "Local price context can be reviewed, but DCF and fundamentals trend panels stay unavailable."
+        blocked = "Trusted fundamentals, shares, FCF, market cap, and valuation inputs remain source-proof work."
+        next_command = (
+            _preferred_row_command(
+                fundamentals_row,
+                _ticker_focus_command("fundamentals", ticker_text, fallback=f"make sec-stage TICKERS={ticker_text}"),
+            )
+            if fundamentals_row is not None
+            else _ticker_focus_command("fundamentals", ticker_text, fallback=f"make sec-stage TICKERS={ticker_text}")
+        )
+        next_lane = "Data Health fundamentals lane"
+        badges = ["price ready", "fundamentals gated"]
+    elif not peer_ready:
+        state_title = "Core inputs present; peer context gated"
+        review_now = "Local price and fundamentals context can be reviewed before opening the generated report."
+        blocked = "Peer-relative context stays unavailable until source-backed mappings and peer inputs exist."
+        next_command = (
+            _preferred_row_command(
+                peer_row,
+                _ticker_focus_command("peers", ticker_text, fallback="make peer-mapping-queue TOP_N=25"),
+            )
+            if peer_row is not None
+            else _ticker_focus_command("peers", ticker_text, fallback="make peer-mapping-queue TOP_N=25")
+        )
+        next_lane = "Data Health peers lane"
+        badges = ["core review", "peer gated"]
+    else:
+        state_title = "Ready to open the local report"
+        review_now = "The selected ticker has local price, fundamentals, and peer setup context available for the report shell."
+        blocked = "Optional earnings, analyst estimates, or metric families may still be locked inside the report."
+        next_command = _stock_report_md_command(ticker_text)
+        next_lane = "Single-Stock Report"
+        badges = ["open report", "proof first"]
+
+    return [
+        {
+            "kicker": "SELECTED TICKER",
+            "title": f"{ticker_text}: {state_title}",
+            "body": f"{available_datasets} local dataset row(s) are present before the report loads. Peer mappings: {peer_count}.",
+            "badges": ["selected ticker", "local coverage"],
+            "command": _stock_report_md_command(ticker_text),
+        },
+        {
+            "kicker": "REVIEW NOW",
+            "title": "What can be read before opening details",
+            "body": review_now,
+            "badges": ["pre-report", "readiness-gated"],
+        },
+        {
+            "kicker": "BLOCKED / EXCLUDED",
+            "title": "What must not be inferred",
+            "body": blocked,
+            "badges": ["blocked visible", "no inference"],
+        },
+        {
+            "kicker": "NEXT SAFE ACTION",
+            "title": next_lane,
+            "body": "Use this as navigation or copy-only command context. The dashboard does not run imports, refreshes, or proof writes.",
+            "badges": badges,
+            "command": next_command,
         },
     ]

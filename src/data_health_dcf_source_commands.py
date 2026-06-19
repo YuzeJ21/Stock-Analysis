@@ -254,6 +254,64 @@ def _checklist_step_row(checklist: pd.DataFrame, step_prefix: str) -> pd.Series:
     return matches.iloc[0] if not matches.empty else pd.Series(dtype=object)
 
 
+def dcf_source_loop_progress_strip_cards(checklist: pd.DataFrame | None, family: str | None = None) -> list[dict[str, object]]:
+    """Return a compact trusted-fundamentals loop status before route detail."""
+
+    family_label = str(family or "top family").strip() or "top family"
+    if checklist is None or checklist.empty:
+        return [
+            {
+                "kicker": "WHERE AM I",
+                "title": f"{family_label}: source loop not loaded",
+                "body": "Build the DCF input proof queue before source review, guard, validate, preview, apply decision, or proof record work.",
+                "badges": ["blocked visible", "readiness first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    states = checklist["State"].astype(str)
+    incomplete = checklist.loc[~states.isin(["ready"])]
+    current = incomplete.iloc[0] if not incomplete.empty else checklist.iloc[-1]
+    source_row = _checklist_step_row(checklist, "2.")
+    proof_row = _checklist_step_row(checklist, "6.")
+    ready_count = int(states.eq("ready").sum())
+    return [
+        {
+            "kicker": "WHERE AM I",
+            "title": f"{family_label}: {ready_count}/{len(checklist)} source-loop steps ready",
+            "body": f"Current gate: {current.get('Step')}. State: {current.get('State')}.",
+            "badges": ["trusted fundamentals", "source proof loop"],
+        },
+        {
+            "kicker": "REVIEWED EVIDENCE",
+            "title": str(source_row.get("State") or "not reviewed"),
+            "body": (
+                f"Missing/manual gate: {compact_card_fragment(source_row.get('Missing Or Manual Gate'), max_chars=150)}. "
+                "Evidence fields must be reviewed source values, not placeholders."
+            ),
+            "badges": ["source fields", "no placeholders"],
+        },
+        {
+            "kicker": "NEXT SAFE ACTION",
+            "title": str(current.get("Next Safe Action") or "Finish current source-review gate."),
+            "body": (
+                f"Boundary: {compact_card_fragment(current.get('Review Boundary'), max_chars=170)} "
+                "Commands stay copy-only and dry-run-first."
+            ),
+            "badges": ["copy-only", "dry-run first"],
+            "command": str(current.get("Next Safe Action") or "make dcf-input-proof-queue TOP_N=10"),
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "Do not record proof early",
+            "body": (
+                f"Proof gate: {compact_card_fragment(proof_row.get('Missing Or Manual Gate'), max_chars=150)}. "
+                "Stop if validate, preview, rejected-row review, apply/skip, rebuilt readiness, source files, or artifact review is missing."
+            ),
+            "badges": ["proof last", "research-only"],
+        },
+    ]
+
+
 def dcf_source_loop_route_cards(checklist: pd.DataFrame | None, family: str | None = None) -> list[dict[str, object]]:
     """Return compact source-review -> proof-record route cards."""
 

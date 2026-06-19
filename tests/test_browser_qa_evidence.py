@@ -13,6 +13,7 @@ from src.browser_qa_evidence import (
     browser_qa_package_verdict,
     browser_qa_evidence_verdict,
     browser_qa_route_rows,
+    browser_qa_share_recommendation_rows,
     image_size,
     main,
 )
@@ -244,6 +245,38 @@ def test_browser_qa_package_verdict_keeps_ready_assets_honest_when_capture_targe
     assert browser_qa_package_verdict(asset_rows, capture_rows) == "ready_with_manual_capture_pending"
 
 
+def test_browser_qa_share_recommendation_prefers_ready_public_image_and_keeps_blockers_visible():
+    asset_rows = [
+        {
+            "Asset": "LinkedIn public dashboard thumbnail",
+            "State": "ready",
+            "Path": "docs/assets/linkedin-public-dashboard.png",
+        }
+    ]
+    capture_rows = [
+        {
+            "Capture Target": "Data Health proof lane screenshot",
+            "State": "manual_capture_pending",
+            "Path": "docs/assets/operator-data-health-proof-real.jpg",
+        }
+    ]
+
+    rows = browser_qa_share_recommendation_rows(asset_rows, capture_rows)
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+
+    assert rows[0]["Review Item"] == "Current public image"
+    assert rows[0]["State"] == "ready"
+    assert rows[0]["Recommendation"] == "docs/assets/linkedin-public-dashboard.png"
+    assert rows[1]["State"] == "manual_capture_pending"
+    assert "data health proof lane screenshot" in rendered
+    assert "use make status-check top_n=5 for current counts" in rendered
+    assert "screenshots do not unlock fundamentals" in rendered
+    assert "generated thumbnails" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_path):
     asset_dir = tmp_path / "docs" / "assets"
     asset_dir.mkdir(parents=True)
@@ -255,6 +288,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     rendered = json.dumps(payload).lower()
 
     assert payload["verdict"] == "ready_with_manual_capture_pending"
+    assert len(payload["public_share_recommendation"]) == 3
     assert len(payload["committed_screenshot_assets"]) == 3
     assert len(payload["manual_capture_targets"]) == 3
     assert len(payload["local_capture_checklist"]) == 3
@@ -269,6 +303,9 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "route 1" in rendered
     assert "proof record" in rendered
     assert "commit reviewed evidence only" in rendered
+    assert "public_share_recommendation" in rendered
+    assert "linkedin-public-dashboard.png" in rendered
+    assert "use make status-check top_n=5 for current counts" in rendered
     assert "make staged-hygiene-check" in rendered
     assert "do not use generated thumbnails" in rendered
     assert "missing source inputs remain blocked" in rendered
@@ -336,6 +373,9 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert exit_code == 0
     assert "read-only" in output
     assert "ready_with_manual_capture_pending" in output
+    assert "public share recommendation" in output
+    assert "linkedin-public-dashboard.png" in output
+    assert "use make status-check top_n=5 for current counts" in output
     assert "manual capture targets" in output
     assert "local capture checklist" in output
     assert "capture session plan" in output
@@ -374,9 +414,11 @@ def test_browser_qa_evidence_cli_json_mode_prints_payload(tmp_path, capsys):
     assert exit_code == 0
     assert payload["verdict"] == "ready_with_manual_capture_pending"
     assert "local_capture_checklist" in payload
+    assert "public_share_recommendation" in payload
     assert "capture_session_plan" in payload
     assert "route_qa_checklist" in payload
     assert "operator-data-health-queue-routing-real.jpg" in rendered
+    assert "linkedin-public-dashboard.png" in rendered
     assert "make staged-hygiene-check" in rendered
     assert "investment advice" in rendered
     assert "buy" not in rendered

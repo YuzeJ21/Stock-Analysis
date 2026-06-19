@@ -54,6 +54,7 @@ from src.data_health_dcf_source_commands import (
     dcf_source_command_triage_frame,
     dcf_source_loop_checklist_cards,
     dcf_source_loop_checklist_frame,
+    dcf_source_loop_progress_strip_cards,
     dcf_source_loop_route_cards,
     dcf_source_evidence_intake_cards,
     dcf_source_evidence_intake_frame,
@@ -142,16 +143,22 @@ from src.readiness_ops import (
     build_fundamentals_peer_metrics_queue_from_lanes,
     build_readiness_ops_lanes,
 )
-from src.pilot_readiness import DEFAULT_PACKET_PATH, build_pilot_readiness_checks, pilot_readiness_verdict
+from src.pilot_readiness import (
+    DEFAULT_PACKET_PATH,
+    build_pilot_commit_package_handoff,
+    build_pilot_readiness_checks,
+    pilot_readiness_verdict,
+)
 from src.public_home_workflow import (
     public_home_first_30_second_cards,
     public_home_loop_cards,
-    public_home_visitor_path_cards,
+    public_home_review_map_cards,
 )
 from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
     build_readiness_queue_route_cards,
+    build_readiness_queue_route_strip_cards,
 )
 from src.readiness_comparison import ReadinessComparison, compare_readiness_snapshots
 from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_batch_preflight
@@ -176,7 +183,12 @@ from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
-from src.single_stock_workflow import single_stock_next_command, single_stock_workflow_fit_cards, single_stock_workflow_loop_cards
+from src.single_stock_workflow import (
+    single_stock_next_command,
+    single_stock_pre_report_contract_cards,
+    single_stock_workflow_fit_cards,
+    single_stock_workflow_loop_cards,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -7034,14 +7046,14 @@ def stock_report_workflow_fit_cards(
         {
             "kicker": "REVIEW NOW",
             "title": "What can be reviewed",
-            "body": review_now,
+            "body": f"{review_now} Decision boundary: read this as research context only, not a ranking or action.",
             "badges": ["ready sections", "research-only"],
             "command": stock_report_md_command(ticker),
         },
         {
             "kicker": "STILL BLOCKED",
             "title": "What stays locked or excluded",
-            "body": withheld,
+            "body": f"{withheld} Do not infer missing inputs from nearby ready sections.",
             "badges": ["blocked visible", "no inference"],
             "command": route,
         },
@@ -8220,6 +8232,42 @@ def data_health_pilot_readiness_cards(frame: pd.DataFrame | None, *, limit: int 
 
 def data_health_pilot_packet_cards(frame: pd.DataFrame | None, *, output_path: Path = DEFAULT_PACKET_PATH) -> list[dict[str, object]]:
     return pilot_console.pilot_packet_cards(frame, output_path=output_path)
+
+
+def data_health_pilot_handoff_summary_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    return pilot_console.pilot_handoff_summary_frame(
+        pilot_frame,
+        proof_queue_frame,
+        output_path=output_path,
+    )
+
+
+def data_health_pilot_handoff_summary_cards(frame: pd.DataFrame | None, *, limit: int = 5) -> list[dict[str, object]]:
+    return pilot_console.pilot_handoff_summary_cards(frame, limit=limit)
+
+
+def data_health_pilot_commit_package_frame(root: Path | None = None) -> pd.DataFrame:
+    items = build_pilot_commit_package_handoff(root or BASE_DIR)
+    return pd.DataFrame(
+        [
+            {
+                "Step": item.step,
+                "Status": item.status,
+                "Copy-only Command": item.command,
+                "Boundary": item.boundary,
+            }
+            for item in items
+        ]
+    )
+
+
+def data_health_pilot_commit_package_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
+    return pilot_console.pilot_commit_package_cards(frame, limit=limit)
 
 
 def data_health_pilot_packaging_summary_frame(
@@ -9430,6 +9478,11 @@ def data_health_dcf_source_loop_checklist_cards(frame: pd.DataFrame | None, sele
     return dcf_source_loop_checklist_cards(checklist, data_health_dcf_input_family_key(selection) or None)
 
 
+def data_health_dcf_source_loop_progress_strip_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
+    checklist = data_health_dcf_source_loop_checklist_frame(frame, selection, top_n=top_n)
+    return dcf_source_loop_progress_strip_cards(checklist, data_health_dcf_input_family_key(selection) or None)
+
+
 def data_health_dcf_source_loop_route_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
     checklist = data_health_dcf_source_loop_checklist_frame(frame, selection, top_n=top_n)
     return dcf_source_loop_route_cards(checklist, data_health_dcf_input_family_key(selection) or None)
@@ -10360,6 +10413,10 @@ def data_health_readiness_queue_lane_action_frame(row: pd.Series | dict[str, obj
 
 def data_health_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
     return build_readiness_queue_route_cards(row)
+
+
+def data_health_readiness_queue_route_strip_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
+    return build_readiness_queue_route_strip_cards(row)
 
 
 def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
@@ -25157,12 +25214,11 @@ def render_home_page(
             "What the product does, how to read it, and when to stop before looking at examples.",
         )
         render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)
-        render_signal_cards(_plain_home_public_loop_cards(summary), show_commands=False)
         render_section_header(
-            "Visitor Path",
-            "The same loop in four steps: current readiness, one ticker, source-proof lane, then proof history.",
+            "Connected Workflow",
+            "A compact map from readiness snapshot to one-ticker review, source-proof lane, and stop rule.",
         )
-        render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False)
+        render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")
     else:
         render_signal_cards(dashboard_page_reader_summary_cards("Home"))
         render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
@@ -25182,12 +25238,15 @@ def render_home_page(
             freshness.refresh_command,
             tone="warning",
         )
-    render_research_loop_strip(**home_research_loop_context(summary, freshness))
+    if public_mode:
+        render_research_loop_strip(**home_research_loop_context(summary, freshness))
 
     render_section_header(
         "Research Workflow",
         "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states.",
     )
+    if not public_mode:
+        render_research_loop_strip(**home_research_loop_context(summary, freshness))
     render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
@@ -25514,6 +25573,11 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         peer_summary = provider.get_peer_summary(ticker)
+        render_section_header(
+            "Selected Ticker Readiness",
+            "What this ticker can support before opening the generated report.",
+        )
+        render_signal_cards(single_stock_pre_report_contract_cards(ticker, coverage, peer_summary), show_commands=False, variant="queue")
         with st.expander("Coverage and peer readiness", expanded=False):
             render_context_note(
                 "Local coverage.",
@@ -26776,11 +26840,39 @@ def render_data_health(
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
+    pilot_handoff_summary = data_health_pilot_handoff_summary_frame(
+        pilot_readiness,
+        data_coverage_proof_queues,
+        output_path=DEFAULT_PACKET_PATH,
+    )
+    pilot_commit_package = data_health_pilot_commit_package_frame(BASE_DIR)
     pilot_packaging_summary = data_health_pilot_packaging_summary_frame(
         pilot_readiness,
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
+    render_section_header(
+        "Pilot Handoff Summary",
+        "Verdict, manual gate, source-proof blocker, generated-churn boundary, and reviewer packet before detailed pilot tables.",
+    )
+    render_signal_cards(
+        data_health_pilot_handoff_summary_cards(pilot_handoff_summary),
+        show_commands=True,
+        variant="queue",
+    )
+    with st.expander("Pilot handoff review detail", expanded=False):
+        st.dataframe(clean_display_frame(pilot_handoff_summary), width="stretch", hide_index=True)
+    render_section_header(
+        "Commit Package Handoff",
+        "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing.",
+    )
+    render_signal_cards(
+        data_health_pilot_commit_package_cards(pilot_commit_package),
+        show_commands=False,
+        variant="queue",
+    )
+    with st.expander("Commit package commands", expanded=False):
+        st.dataframe(clean_display_frame(pilot_commit_package), width="stretch", hide_index=True)
     render_section_header(
         "Pilot Packaging Summary",
         "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary.",
@@ -26918,6 +27010,7 @@ def render_data_health(
         for _, drilldown_row in queue_drilldown.iterrows():
             with st.expander(str(drilldown_row.get("Lane", "Readiness lane")), expanded=False):
                 render_signal_cards(data_health_readiness_queue_drilldown_cards(drilldown_row), show_commands=True)
+                render_signal_cards(data_health_readiness_queue_route_strip_cards(drilldown_row), show_commands=False, variant="queue")
                 render_signal_cards(data_health_readiness_queue_route_cards(drilldown_row), show_commands=False)
                 render_signal_cards(data_health_readiness_queue_lane_action_cards(drilldown_row), show_commands=True)
                 st.dataframe(
@@ -27173,6 +27266,11 @@ def render_data_health(
             render_signal_cards(
                 data_health_dcf_source_loop_checklist_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
+            )
+            render_signal_cards(
+                data_health_dcf_source_loop_progress_strip_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=False,
+                variant="queue",
             )
             render_signal_cards(
                 data_health_dcf_source_loop_route_cards(dcf_input_queue_filtered, dcf_family_selection),

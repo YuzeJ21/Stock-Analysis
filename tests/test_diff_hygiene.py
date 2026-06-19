@@ -245,6 +245,7 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     staging_block = report.split("Stage only reviewed product/docs/tests", 1)[1].split("Do not stage generated churn", 1)[0]
     assert "data/prices.csv" not in staging_block
     assert "data/reports/ticker_readiness_report.previous.csv" not in staging_block
+    assert "make pilot-readiness-check TOP_N=10" in report
     assert "make browser-qa-evidence" in report
     assert "make browser-qa-capture-plan" in report
     assert "make dashboard-smoke" in report
@@ -252,7 +253,7 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "Do not stage generated churn as a workaround." in report
     assert "make diff-hygiene-files" in report
     assert "git add --pathspec-from-file=outputs/staging/product_plus_reports.txt" in report
-    assert "git commit -m" in report
+    assert "git commit -m \"Improve pilot handoff and workflow continuity\"" in report
     assert "git push origin main" in report
     assert "source proof, validate, preview" in report
     assert "real Streamlit route review" in report
@@ -281,13 +282,14 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "Package status: product package pending commit; commit this package before starting another feature slice" in report
     assert "Step 1 - verify before staging" in report
     assert "make public-check" in report
+    assert "make pilot-readiness-check TOP_N=10" in report
     assert "make public-release-package" in report
     assert "make browser-qa-evidence" in report
     assert "make browser-qa-capture-plan" in report
     assert "git add -- Makefile src/dashboard.py src/dashboard_navigation.py tests/test_dashboard_helpers.py" in report
     assert "make staged-hygiene-check" in report
     assert "git diff --cached --check" in report
-    assert "git commit -m" in report
+    assert "git commit -m \"Improve pilot handoff and workflow continuity\"" in report
     assert "git push origin main" in report
     staging_block = report.split("Step 2 - stage only", 1)[1].split("Step 3 - inspect", 1)[0]
     assert "data/prices.csv" not in staging_block

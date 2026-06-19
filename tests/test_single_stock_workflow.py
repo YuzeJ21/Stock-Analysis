@@ -1,8 +1,11 @@
 from src.single_stock_workflow import (
     single_stock_next_command,
+    single_stock_pre_report_contract_cards,
     single_stock_workflow_fit_cards,
     single_stock_workflow_loop_cards,
 )
+
+import pandas as pd
 
 
 def _render(cards: list[dict[str, object]]) -> str:
@@ -148,3 +151,97 @@ def test_single_stock_next_command_preserves_readiness_first_routes():
             "analyst_estimates_ready": False,
         }
     ) == "make optional-context-worklist TOP_N=25"
+
+
+def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_report():
+    coverage = pd.DataFrame(
+        [
+            {
+                "dataset": "prices",
+                "ticker": "META",
+                "ticker_present": True,
+                "focus_command": "make focus-price TICKER=META",
+            },
+            {
+                "dataset": "fundamentals",
+                "ticker": "META",
+                "ticker_present": False,
+                "focus_command": "make focus-fundamentals TICKER=META",
+            },
+            {
+                "dataset": "peers",
+                "ticker": "META",
+                "ticker_present": False,
+                "focus_command": "make focus-peers TICKER=META",
+            },
+        ]
+    )
+
+    cards = single_stock_pre_report_contract_cards("META", coverage, {"peer_dataset_present": False, "peer_count": 0})
+    rendered = _render(cards)
+
+    assert [card["kicker"] for card in cards] == [
+        "SELECTED TICKER",
+        "REVIEW NOW",
+        "BLOCKED / EXCLUDED",
+        "NEXT SAFE ACTION",
+    ]
+    assert "meta: price context ready; fundamentals gated" in rendered
+    assert "local price context can be reviewed" in rendered
+    assert "trusted fundamentals, shares, fcf, market cap, and valuation inputs remain source-proof work" in rendered
+    assert "data health fundamentals lane" in rendered
+    assert "make focus-fundamentals ticker=meta" in rendered
+    assert "does not run imports, refreshes, or proof writes" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_pre_report_contract_cards_route_price_peer_and_ready_states():
+    price_blocked = single_stock_pre_report_contract_cards(
+        "APLD",
+        pd.DataFrame(
+            [
+                {"dataset": "prices", "ticker": "APLD", "ticker_present": False},
+                {"dataset": "fundamentals", "ticker": "APLD", "ticker_present": False},
+            ]
+        ),
+        {},
+    )
+    peer_blocked = single_stock_pre_report_contract_cards(
+        "NVDA",
+        pd.DataFrame(
+            [
+                {"dataset": "prices", "ticker": "NVDA", "ticker_present": True},
+                {"dataset": "fundamentals", "ticker": "NVDA", "ticker_present": True},
+                {"dataset": "peers", "ticker": "NVDA", "ticker_present": False},
+            ]
+        ),
+        {"peer_dataset_present": False, "peer_count": 0},
+    )
+    ready = single_stock_pre_report_contract_cards(
+        "CRDO",
+        pd.DataFrame(
+            [
+                {"dataset": "prices", "ticker": "CRDO", "ticker_present": True},
+                {"dataset": "fundamentals", "ticker": "CRDO", "ticker_present": True},
+                {"dataset": "peers", "ticker": "CRDO", "ticker_present": True},
+            ]
+        ),
+        {"peer_dataset_present": True, "peer_count": 4},
+    )
+
+    price_rendered = _render(price_blocked)
+    peer_rendered = _render(peer_blocked)
+    ready_rendered = _render(ready)
+
+    assert "apld: price proof comes first" in price_rendered
+    assert "make focus-price ticker=apld" in price_rendered
+    assert "setup, trend, dcf, peer, optional context, and review metrics stay locked" in price_rendered
+    assert "nvda: core inputs present; peer context gated" in peer_rendered
+    assert "data health peers lane" in peer_rendered
+    assert "make focus-peers ticker=nvda" in peer_rendered
+    assert "crdo: ready to open the local report" in ready_rendered
+    assert "make stock-report-md ticker=crdo" in ready_rendered
