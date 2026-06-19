@@ -127,6 +127,59 @@ def single_stock_next_command(snapshot: dict[str, object]) -> str:
     return _stock_report_md_command(ticker)
 
 
+def single_stock_report_data_health_route(
+    *,
+    asset_type: object,
+    valuation_status: object,
+    price_ready: bool,
+    dcf_ready: bool,
+    peer_ready: bool,
+    earnings_ready: bool,
+    estimates_ready: bool,
+) -> dict[str, str]:
+    """Return the Data Health route for a loaded single-stock report."""
+
+    normalized_asset_type = _format_missing(asset_type, "").lower()
+    normalized_valuation_status = _format_missing(valuation_status, "").lower()
+    monitor_context = normalized_asset_type in {"etf", "index_proxy", "fund"} or "excluded" in normalized_valuation_status
+
+    if monitor_context:
+        return {
+            "route": "?mode=operator&page=data-health&lane=proof&drawer=proof",
+            "route_label": "Proof History",
+            "stop_rule": "Stop if monitor context is read as operating-company DCF or peer valuation.",
+        }
+    if not price_ready:
+        return {
+            "route": "?mode=operator&page=data-health&lane=prices&drawer=queue",
+            "route_label": "Prices lane",
+            "stop_rule": "Stop if price rows are missing, stale, rejected, or not tied to the selected ticker.",
+        }
+    if not dcf_ready:
+        return {
+            "route": "?mode=operator&page=data-health&lane=fundamentals&drawer=source-proof",
+            "route_label": "Fundamentals / DCF source-proof lane",
+            "stop_rule": "Stop if fundamentals, shares, market cap, or DCF inputs would be inferred or placeholder-backed.",
+        }
+    if not peer_ready:
+        return {
+            "route": "?mode=operator&page=data-health&lane=peers&drawer=source-proof",
+            "route_label": "Peers source-proof lane",
+            "stop_rule": "Stop if peer mappings or peer valuation inputs lack source-backed rows.",
+        }
+    if not earnings_ready or not estimates_ready:
+        return {
+            "route": "?mode=operator&page=data-health&lane=optional&drawer=queue",
+            "route_label": "Optional context lane",
+            "stop_rule": "Stop if earnings or analyst estimates are absent from trusted local rows.",
+        }
+    return {
+        "route": "?mode=operator&page=data-health&lane=proof&drawer=proof",
+        "route_label": "Proof History",
+        "stop_rule": "Stop if readiness changed since the report was generated; rebuild proof first.",
+    }
+
+
 def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     """Return a compact loop summary before single-stock details."""
 

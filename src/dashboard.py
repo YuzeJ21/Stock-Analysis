@@ -184,6 +184,7 @@ from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_repor
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 from src.single_stock_workflow import (
+    single_stock_report_data_health_route,
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
     single_stock_workflow_fit_cards,
@@ -6993,36 +6994,23 @@ def stock_report_workflow_fit_cards(
     peer_ready = bool(readiness.get("peer_ready"))
     earnings_ready = bool(readiness.get("earnings_available") or readiness.get("earnings_ready"))
     estimates_ready = bool(readiness.get("analyst_estimates_available") or readiness.get("analyst_estimates_ready"))
-    monitor_context = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status
     next_cards = stock_report_next_step_cards(report_payload, coverage, peer_summary)
     next_card = next_cards[0] if next_cards else {}
     next_command = format_missing(next_card.get("command"), stock_report_md_command(ticker))
     next_title = format_missing(next_card.get("title"), "Review local report")
 
-    if monitor_context:
-        route = "?mode=operator&page=data-health&lane=proof&drawer=proof"
-        route_label = "Proof History"
-        stop_rule = "Stop if monitor context is read as operating-company DCF or peer valuation."
-    elif not price_ready:
-        route = "?mode=operator&page=data-health&lane=prices&drawer=queue"
-        route_label = "Prices lane"
-        stop_rule = "Stop if price rows are missing, stale, rejected, or not tied to the selected ticker."
-    elif not dcf_ready:
-        route = "?mode=operator&page=data-health&lane=fundamentals&drawer=source-proof"
-        route_label = "Fundamentals / DCF source-proof lane"
-        stop_rule = "Stop if fundamentals, shares, market cap, or DCF inputs would be inferred or placeholder-backed."
-    elif not peer_ready:
-        route = "?mode=operator&page=data-health&lane=peers&drawer=source-proof"
-        route_label = "Peers source-proof lane"
-        stop_rule = "Stop if peer mappings or peer valuation inputs lack source-backed rows."
-    elif not earnings_ready or not estimates_ready:
-        route = "?mode=operator&page=data-health&lane=optional&drawer=queue"
-        route_label = "Optional context lane"
-        stop_rule = "Stop if earnings or analyst estimates are absent from trusted local rows."
-    else:
-        route = "?mode=operator&page=data-health&lane=proof&drawer=proof"
-        route_label = "Proof History"
-        stop_rule = "Stop if readiness changed since the report was generated; rebuild proof first."
+    route_decision = single_stock_report_data_health_route(
+        asset_type=asset_type,
+        valuation_status=valuation_status,
+        price_ready=price_ready,
+        dcf_ready=dcf_ready,
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
+    route = route_decision["route"]
+    route_label = route_decision["route_label"]
+    stop_rule = route_decision["stop_rule"]
 
     return [
         {

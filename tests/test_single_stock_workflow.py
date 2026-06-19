@@ -1,6 +1,7 @@
 from src.single_stock_workflow import (
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
+    single_stock_report_data_health_route,
     single_stock_workflow_fit_cards,
     single_stock_workflow_loop_cards,
 )
@@ -151,6 +152,77 @@ def test_single_stock_next_command_preserves_readiness_first_routes():
             "analyst_estimates_ready": False,
         }
     ) == "make optional-context-worklist TOP_N=25"
+
+
+def test_single_stock_report_data_health_route_covers_readiness_gates():
+    monitor = single_stock_report_data_health_route(
+        asset_type="etf",
+        valuation_status="excluded",
+        price_ready=True,
+        dcf_ready=False,
+        peer_ready=False,
+        earnings_ready=False,
+        estimates_ready=False,
+    )
+    price = single_stock_report_data_health_route(
+        asset_type="company",
+        valuation_status="insufficient_data",
+        price_ready=False,
+        dcf_ready=False,
+        peer_ready=False,
+        earnings_ready=False,
+        estimates_ready=False,
+    )
+    fundamentals = single_stock_report_data_health_route(
+        asset_type="company",
+        valuation_status="insufficient_data",
+        price_ready=True,
+        dcf_ready=False,
+        peer_ready=False,
+        earnings_ready=False,
+        estimates_ready=False,
+    )
+    peers = single_stock_report_data_health_route(
+        asset_type="company",
+        valuation_status="calculated",
+        price_ready=True,
+        dcf_ready=True,
+        peer_ready=False,
+        earnings_ready=False,
+        estimates_ready=False,
+    )
+    optional = single_stock_report_data_health_route(
+        asset_type="company",
+        valuation_status="calculated",
+        price_ready=True,
+        dcf_ready=True,
+        peer_ready=True,
+        earnings_ready=False,
+        estimates_ready=True,
+    )
+    proof = single_stock_report_data_health_route(
+        asset_type="company",
+        valuation_status="calculated",
+        price_ready=True,
+        dcf_ready=True,
+        peer_ready=True,
+        earnings_ready=True,
+        estimates_ready=True,
+    )
+    rendered = " ".join(str(value) for route in (monitor, price, fundamentals, peers, optional, proof) for value in route.values()).lower()
+
+    assert monitor["route_label"] == "Proof History"
+    assert price["route"] == "?mode=operator&page=data-health&lane=prices&drawer=queue"
+    assert fundamentals["route_label"] == "Fundamentals / DCF source-proof lane"
+    assert peers["route"] == "?mode=operator&page=data-health&lane=peers&drawer=source-proof"
+    assert optional["route_label"] == "Optional context lane"
+    assert proof["stop_rule"] == "Stop if readiness changed since the report was generated; rebuild proof first."
+    assert "placeholder-backed" in rendered
+    assert "source-backed rows" in rendered
+    assert "trusted local rows" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
 
 
 def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_report():
