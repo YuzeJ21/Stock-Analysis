@@ -1,4 +1,4 @@
-.PHONY: help help-full demo browser-qa-evidence pilot-readiness-check pilot-readiness-packet trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo browser-qa-evidence browser-qa-capture-plan pilot-readiness-check pilot-readiness-packet trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -21,7 +21,7 @@ help:
 	@echo "  make reviewed-batch-preflight   Check snapshot/freshness gates before a reviewed batch"
 	@echo "  make data-release-decision      Decide whether local data-output changes stay local or become reviewed evidence"
 	@echo "  make public-demo-readiness-pack Print the shareable demo proof set"
-	@echo "  make public-check               Run before sharing the GitHub link"
+	@echo "  make public-check / public-release-handoff Verify sharing and terminal steps"
 	@echo ""
 	@echo "Useful next paths:"
 	@echo "  Review one stock:        make stock-report-md TICKER=NVDA"
@@ -73,10 +73,14 @@ help-full:
 	@echo "                        Print keep-local, reviewed-data-release, and cleanup choices after local data-output changes"
 	@echo "  make public-release-package"
 	@echo "                        Print exact product staging, generated exclusion, final checks, commit, and push steps"
+	@echo "  make public-release-handoff"
+	@echo "                        Print the copy-ready terminal handoff for verify, stage, commit, and push"
 	@echo "  make public-demo-readiness-pack"
 	@echo "                        Print the small shareable public demo proof set"
 	@echo "  make browser-qa-evidence"
 	@echo "                        Check real dashboard screenshot assets and route expectations"
+	@echo "  make browser-qa-capture-plan"
+	@echo "                        Print the copy-ready real-screenshot capture and review sequence"
 	@echo "  make readiness-ops-center"
 	@echo "                        Print the broad lane-level readiness operations center"
 	@echo "  make readiness-queue"
@@ -309,6 +313,9 @@ demo:
 browser-qa-evidence:
 	@python3 -m src.browser_qa_evidence --strict
 
+browser-qa-capture-plan:
+	@python3 -m src.browser_qa_evidence --capture-plan
+
 pilot-readiness-check:
 	@python3 -m src.pilot_readiness --top-n $(or $(TOP_N),10)
 
@@ -509,6 +516,9 @@ data-release-decision:
 
 public-release-package:
 	@python3 scripts/diff_hygiene.py --public-release-package
+
+public-release-handoff:
+	@python3 scripts/diff_hygiene.py --public-release-handoff
 
 staged-hygiene-check:
 	@python3 scripts/diff_hygiene.py --staged-check

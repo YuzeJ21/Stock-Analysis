@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+import re
+from urllib.parse import unquote
+
+
+DETAILED_PAGE_PATH_TITLE = "More research views"
+PROOF_HISTORY_PATH_TITLE = "Proof History"
+PUBLIC_PATH_PAGE_TITLES = ["Home", "Single-Stock Report", "Data Health", PROOF_HISTORY_PATH_TITLE]
+PUBLIC_PATH_LABELS = {
+    "Home": "Start at Home",
+    "Single-Stock Report": "Review one stock",
+    "Data Health": "Improve data coverage",
+    PROOF_HISTORY_PATH_TITLE: "Inspect proof",
+    DETAILED_PAGE_PATH_TITLE: "More research views",
+}
+PUBLIC_DEMO_MODE = "public"
+OPERATOR_DEMO_MODE = "operator"
+DEMO_MODE_LABELS = {
+    PUBLIC_DEMO_MODE: "Public visitor mode",
+    OPERATOR_DEMO_MODE: "Operator mode",
+}
+
+
+def dashboard_page_slug(page_title: str) -> str:
+    slug = str(page_title or "").strip().lower()
+    slug = slug.replace("&", "and")
+    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+    return slug.strip("-")
+
+
+def dashboard_page_from_query(value: object, user_page_titles: list[str]) -> str:
+    raw = value[0] if isinstance(value, list) and value else value
+    slug = dashboard_page_slug(unquote(str(raw or "").strip()))
+    aliases = {
+        "data": "Data Health",
+        "data-health": "Data Health",
+        "datahealth": "Data Health",
+        "final": "Final Watchlist",
+        "final-watchlist": "Final Watchlist",
+        "market": "Market Direction",
+        "market-direction": "Market Direction",
+        "momentum": "Momentum Leaders",
+        "momentum-leaders": "Momentum Leaders",
+        "monthly": "Monthly Picks",
+        "monthly-picks": "Monthly Picks",
+        "portfolio": "Portfolio Review",
+        "portfolio-review": "Portfolio Review",
+        "single": "Single-Stock Report",
+        "single-stock": "Single-Stock Report",
+        "single-stock-report": "Single-Stock Report",
+        "stock-report": "Single-Stock Report",
+        "universe": "Universe Manager",
+        "universe-manager": "Universe Manager",
+        "undervalued-candidates": "Value / Re-rating",
+        "valuation": "Value / Re-rating",
+        "value": "Value / Re-rating",
+        "value-re-rating": "Value / Re-rating",
+        "value-rerating": "Value / Re-rating",
+    }
+    if slug in aliases:
+        return aliases[slug]
+    for title in user_page_titles:
+        if dashboard_page_slug(title) == slug:
+            return title
+    return "Home"
+
+
+def advanced_page_titles(user_page_titles: list[str]) -> list[str]:
+    return [title for title in user_page_titles if title not in PUBLIC_PATH_PAGE_TITLES]
+
+
+def dashboard_mode_from_query(value: object, initial_page: str, advanced_titles: list[str]) -> str:
+    raw = value[0] if isinstance(value, list) and value else value
+    slug = dashboard_page_slug(unquote(str(raw or "").strip()))
+    if slug in {"operator", "ops", "internal", "advanced", "full"}:
+        return OPERATOR_DEMO_MODE
+    if slug in {"public", "demo", "visitor", "share"}:
+        return PUBLIC_DEMO_MODE
+    if initial_page in advanced_titles:
+        return OPERATOR_DEMO_MODE
+    return PUBLIC_DEMO_MODE
+
+
+def dashboard_mode_label(mode: str) -> str:
+    return DEMO_MODE_LABELS.get(mode, DEMO_MODE_LABELS[PUBLIC_DEMO_MODE])
+
+
+def sidebar_path_options(initial_page: str, advanced_titles: list[str]) -> list[str]:
+    """Return visitor path choices without pretending detailed pages are Home."""
+    if initial_page in advanced_titles:
+        return PUBLIC_PATH_PAGE_TITLES + [DETAILED_PAGE_PATH_TITLE]
+    return PUBLIC_PATH_PAGE_TITLES
+
+
+def sidebar_path_index(initial_page: str, path_options: list[str], advanced_titles: list[str]) -> int:
+    if initial_page in path_options:
+        return path_options.index(initial_page)
+    if initial_page in advanced_titles and DETAILED_PAGE_PATH_TITLE in path_options:
+        return path_options.index(DETAILED_PAGE_PATH_TITLE)
+    return path_options.index("Home") if "Home" in path_options else 0
+
+
+def page_title_from_public_path(value: object) -> str:
+    """Map a sidebar path value or display label back to the canonical page title."""
+    text = str(value or "").strip()
+    if text in PUBLIC_PATH_LABELS:
+        return text
+    label_to_page = {label: page for page, label in PUBLIC_PATH_LABELS.items()}
+    return label_to_page.get(text, text)
+
+
+def public_path_label(page_title: str) -> str:
+    return PUBLIC_PATH_LABELS.get(page_title, page_title)

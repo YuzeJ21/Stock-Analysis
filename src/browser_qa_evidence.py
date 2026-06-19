@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import struct
 from dataclasses import dataclass
 from pathlib import Path
@@ -44,7 +45,7 @@ DEFAULT_BROWSER_QA_EVIDENCE: tuple[BrowserQaEvidence, ...] = (
         name="LinkedIn public dashboard thumbnail",
         path=Path("docs/assets/linkedin-public-dashboard.png"),
         route="http://localhost:8501/?mode=public",
-        expected_markers=("research-loop-strip", "Public visitor mode", "Data readiness first"),
+        expected_markers=("research-loop-strip", "Public visitor mode", "First 30 Seconds", "Data readiness first"),
         min_width=1200,
         min_height=600,
         use="LinkedIn Featured and GitHub preview image.",
@@ -53,7 +54,7 @@ DEFAULT_BROWSER_QA_EVIDENCE: tuple[BrowserQaEvidence, ...] = (
         name="Public visitor home screenshot",
         path=Path("docs/assets/public-demo-home-real.jpg"),
         route="http://localhost:8501/?mode=public",
-        expected_markers=("Research paths", "Review one stock", "Improve data coverage", "Inspect proof"),
+        expected_markers=("First 30 Seconds", "Review one stock", "Improve data coverage", "Inspect proof"),
         min_width=1000,
         min_height=600,
         use="README first-screen product preview.",
@@ -75,7 +76,7 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
         name="Single-stock workflow fit screenshot",
         path=Path("docs/assets/single-stock-workflow-fit-real.jpg"),
         route="http://localhost:8501/?mode=public&page=single-stock",
-        first_view_markers=("research-loop-strip", "Single-Stock Report", "Where This Ticker Fits", "Stop rule"),
+        first_view_markers=("research-loop-strip", "Single-Stock Report", "Current step", "Next safe action", "Stop rule"),
         min_width=1000,
         min_height=600,
         use="GitHub/LinkedIn proof that one-stock review shows current state, review scope, blocked inputs, and Data Health handoff.",
@@ -93,7 +94,7 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
         name="Data Health queue drawer routing screenshot",
         path=Path("docs/assets/operator-data-health-queue-routing-real.jpg"),
         route="http://localhost:8501/?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
-        first_view_markers=("research-loop-strip", "ops-mode-strip", "Operator Queue", "source-proof"),
+        first_view_markers=("research-loop-strip", "ops-mode-strip", "Operator Queue", "ROUTE 1", "proof record"),
         min_width=1000,
         min_height=600,
         use="Operator proof that queue lane routing leads to source proof and proof-record context without executing commands.",
@@ -105,7 +106,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Public visitor home",
         route="http://localhost:8501/?mode=public",
-        first_view_markers=("research-loop-strip", "Public visitor mode", "Review one stock", "Improve data coverage"),
+        first_view_markers=("research-loop-strip", "Public visitor mode", "First 30 Seconds", "Review one stock"),
         details_boundary="Operator commands and proof tables stay out of the first public view.",
         qa_focus="Visitor understands readiness-first workflow and research-only boundary in under 30 seconds.",
         stop_rule="Stop if the first view shows raw CSV tables, command-heavy copy, traceback text, or stale generated-thumbnail proof.",
@@ -113,9 +114,9 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Single-stock workflow fit",
         route="http://localhost:8501/?mode=public&page=single-stock",
-        first_view_markers=("research-loop-strip", "Single-Stock Report", "Workflow Fit", "Stop rule"),
-        details_boundary="Detailed report sections stay below the ticker state, reviewable-now, blocked, and Data Health handoff cues.",
-        qa_focus="Reader sees selected ticker state, what can be reviewed now, what is blocked or excluded, and where Data Health fits next.",
+        first_view_markers=("research-loop-strip", "Single-Stock Report", "Current step", "Next safe action", "Stop rule"),
+        details_boundary="Detailed report sections stay below the current-step, reviewable-now, blocked, and Data Health handoff cues.",
+        qa_focus="Reader sees selected ticker state, previous proof, next safe action, what is blocked or excluded, and where Data Health fits next.",
         stop_rule="Stop if unavailable DCF, peer, earnings, estimate, or metric outputs are shown as conclusions.",
     ),
     BrowserQaRouteCheck(
@@ -153,9 +154,9 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Data Health queue drawer routing",
         route="http://localhost:8501/?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
-        first_view_markers=("research-loop-strip", "ops-mode-strip", "Operator Queue", "source-proof"),
-        details_boundary="Queue lane links are navigation-only; source proof, packet, comparison, proof record, and artifact hygiene stay collapsed.",
-        qa_focus="Operator can move from readiness queue to source proof and proof record without hunting across disconnected sections.",
+        first_view_markers=("research-loop-strip", "ops-mode-strip", "Operator Queue", "ROUTE 1", "proof record"),
+        details_boundary="Navigation-only queue lane route cards appear before detailed action tables; source proof, packet, comparison, proof record, and artifact hygiene stay collapsed.",
+        qa_focus="Operator can move from readiness queue to source proof, comparison, and proof record without hunting across disconnected sections.",
         stop_rule="Stop if route links execute commands, expose raw tables first, or imply generated churn belongs in the default staging set.",
     ),
 )
@@ -292,6 +293,52 @@ def browser_qa_capture_checklist_rows(
     return rows
 
 
+def browser_qa_capture_session_rows(
+    targets: Iterable[BrowserQaCaptureTarget] = DEFAULT_BROWSER_QA_CAPTURE_TARGETS,
+) -> list[dict[str, object]]:
+    target_list = list(targets)
+    target_paths = ", ".join(item.path.as_posix() for item in target_list)
+    target_routes = ", ".join(item.route for item in target_list)
+    return [
+        {
+            "Step": "1. Start dashboard",
+            "Action": "Run `make dashboard` in a normal local terminal.",
+            "Proof": "The browser can open http://localhost:8501 without a connection error.",
+            "Stop Rule": "Stop if Streamlit shows a traceback or cannot bind a local port.",
+        },
+        {
+            "Step": "2. Capture pending views",
+            "Action": f"Open the pending routes and save real screenshots: {target_routes}.",
+            "Proof": f"Reviewed image files exist at: {target_paths}.",
+            "Stop Rule": "Do not use generated thumbnails or cropped GitHub cards as product evidence.",
+        },
+        {
+            "Step": "3. Confirm first viewport",
+            "Action": "Check the required first-view markers before replacing any asset.",
+            "Proof": "Each screenshot shows its workflow strip, next action, and stop rule or review-detail boundary.",
+            "Stop Rule": "Stop if the first viewport shows raw tables, command-heavy public copy, or missing guardrails.",
+        },
+        {
+            "Step": "4. Verify assets",
+            "Action": "Run `make browser-qa-evidence`.",
+            "Proof": "Verdict is `ready`; `manual_capture_pending` is gone for the captured targets.",
+            "Stop Rule": "Stop if any screenshot is missing, too small, or mismatched to its route.",
+        },
+        {
+            "Step": "5. Run release gate",
+            "Action": "Run `make public-check` and `make diff-hygiene-summary`.",
+            "Proof": "Public wording, tests, dashboard smoke, browser evidence, and churn classification pass.",
+            "Stop Rule": "Stop if public wording weakens research-only boundaries or generated churn is mixed into the release set.",
+        },
+        {
+            "Step": "6. Commit reviewed evidence only",
+            "Action": f"Stage only intentional product/docs/test files and reviewed assets: {target_paths}.",
+            "Proof": "`make staged-hygiene-check` reports no broad generated CSV/JSON/report churn.",
+            "Stop Rule": "Do not stage broad data/reports/outputs CSV churn unless it is explicitly selected evidence.",
+        },
+    ]
+
+
 def browser_qa_package_verdict(asset_rows: list[dict[str, object]], capture_rows: list[dict[str, object]]) -> str:
     if browser_qa_evidence_verdict(asset_rows) != "ready":
         return "blocked"
@@ -316,6 +363,32 @@ def browser_qa_route_rows(
     ]
 
 
+def browser_qa_evidence_payload(root: Path) -> dict[str, object]:
+    asset_rows = browser_qa_evidence_rows(root)
+    capture_rows = browser_qa_capture_target_rows(root)
+    capture_checklist_rows = browser_qa_capture_checklist_rows()
+    capture_session_rows = browser_qa_capture_session_rows()
+    route_rows = browser_qa_route_rows()
+    return {
+        "verdict": browser_qa_package_verdict(asset_rows, capture_rows),
+        "research_only_boundary": (
+            "Browser QA evidence is product evidence only; it does not refresh data, apply imports, "
+            "record proof, unlock blocked inputs, or provide investment advice."
+        ),
+        "committed_screenshot_assets": asset_rows,
+        "manual_capture_targets": capture_rows,
+        "local_capture_checklist": capture_checklist_rows,
+        "capture_session_plan": capture_session_rows,
+        "route_qa_checklist": route_rows,
+        "capture_boundary": [
+            "Use real Streamlit screenshots from the listed routes; do not use generated thumbnails as product proof.",
+            "Keep existing real assets if local browser or socket capture is environment-limited.",
+            "Re-run make public-check and make diff-hygiene-summary before committing updated assets.",
+            "Missing source inputs remain blocked; browser evidence does not unlock fundamentals, peers, earnings, estimates, or metrics.",
+        ],
+    }
+
+
 def _markdown_table(rows: list[dict[str, object]], columns: list[str]) -> str:
     lines = [" | ".join(columns), " | ".join("---" for _ in columns)]
     for row in rows:
@@ -326,6 +399,8 @@ def _markdown_table(rows: list[dict[str, object]], columns: list[str]) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Print read-only browser QA evidence asset status.")
     parser.add_argument("--root", default=".", help="Repository root. Defaults to the current directory.")
+    parser.add_argument("--json", action="store_true", help="Print machine-readable browser QA evidence and capture instructions.")
+    parser.add_argument("--capture-plan", action="store_true", help="Print only the copy-ready browser screenshot capture session plan.")
     parser.add_argument("--strict", action="store_true", help="Exit non-zero if any expected evidence asset is blocked.")
     return parser
 
@@ -333,11 +408,22 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     root = Path(args.root).resolve()
-    rows = browser_qa_evidence_rows(root)
-    capture_rows = browser_qa_capture_target_rows(root)
-    capture_checklist_rows = browser_qa_capture_checklist_rows()
-    route_rows = browser_qa_route_rows()
+    payload = browser_qa_evidence_payload(root)
+    rows = list(payload["committed_screenshot_assets"])
+    capture_rows = list(payload["manual_capture_targets"])
+    capture_checklist_rows = list(payload["local_capture_checklist"])
+    capture_session_rows = list(payload["capture_session_plan"])
+    route_rows = list(payload["route_qa_checklist"])
     verdict = browser_qa_package_verdict(rows, capture_rows)
+    if args.capture_plan:
+        print("Browser QA Capture Session Plan")
+        print("Read-only: this plan does not capture screenshots, refresh data, apply imports, stage files, commit, or push.")
+        print("Use it in a normal local browser session after `make dashboard` is running.")
+        print(_markdown_table(capture_session_rows, ["Step", "Action", "Proof", "Stop Rule"]))
+        return 0
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 1 if args.strict and browser_qa_evidence_verdict(rows) != "ready" else 0
     print("Browser QA Evidence")
     print("Read-only: this command checks committed screenshot assets and route expectations only.")
     print("Research-only: screenshots and route checks are product evidence, not investment advice or trade instructions.")
@@ -353,6 +439,10 @@ def main(argv: list[str] | None = None) -> int:
     print("Local Capture Checklist")
     print("Use this after `make dashboard` in a normal local terminal; save real app screenshots to the listed paths only after visual review.")
     print(_markdown_table(capture_checklist_rows, ["Target", "Open Route", "Save As", "Minimum Size", "First View Must Show", "Stop Rule"]))
+    print()
+    print("Capture Session Plan")
+    print("Follow this sequence when replacing or adding real product screenshots.")
+    print(_markdown_table(capture_session_rows, ["Step", "Action", "Proof", "Stop Rule"]))
     print()
     print("Route QA Checklist")
     print("Manual browser review: use these route checks when a normal local browser can open the Streamlit app.")

@@ -1,4 +1,8 @@
-from src.single_stock_workflow import single_stock_next_command, single_stock_workflow_fit_cards
+from src.single_stock_workflow import (
+    single_stock_next_command,
+    single_stock_workflow_fit_cards,
+    single_stock_workflow_loop_cards,
+)
 
 
 def _render(cards: list[dict[str, object]]) -> str:
@@ -38,6 +42,40 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
     assert "copy-only" in rendered
     assert "do not treat locked, partial, or excluded sections as conclusions" in rendered
     assert "make focus-peers ticker=nvda" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_workflow_loop_cards_keep_current_step_next_action_and_stop_rule_visible():
+    cards = single_stock_workflow_loop_cards(
+        {
+            "ticker": "MU",
+            "status": "partial",
+            "asset_type": "company",
+            "decision_bucket": "Research Now",
+            "decision_subtype": "Standalone DCF ready; peers gated",
+            "price_ready": True,
+            "dcf_status": "ready",
+            "peer_ready": False,
+            "earnings_ready": False,
+            "analyst_estimates_ready": False,
+            "missing_data": "peer valuation inputs",
+        }
+    )
+    rendered = _render(cards)
+
+    assert [card["kicker"] for card in cards] == ["CURRENT STEP", "NEXT SAFE ACTION", "STOP RULE"]
+    assert cards[0]["title"] == "MU: Single-stock review"
+    assert "previous proof: saved readiness row" in rendered
+    assert "current state: partial" in rendered
+    assert "review standalone dcf now; route peer-relative context to the peers lane" in rendered
+    assert "navigation and copy-only command context" in rendered
+    assert "no trusted input, no conclusion" in rendered
+    assert "locked, partial, and excluded sections stay visible" in rendered
+    assert "make focus-peers ticker=mu" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

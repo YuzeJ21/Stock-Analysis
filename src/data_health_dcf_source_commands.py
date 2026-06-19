@@ -249,6 +249,78 @@ def dcf_source_loop_checklist_cards(checklist: pd.DataFrame | None, family: str 
     ]
 
 
+def _checklist_step_row(checklist: pd.DataFrame, step_prefix: str) -> pd.Series:
+    matches = checklist.loc[checklist["Step"].astype(str).str.startswith(step_prefix)]
+    return matches.iloc[0] if not matches.empty else pd.Series(dtype=object)
+
+
+def dcf_source_loop_route_cards(checklist: pd.DataFrame | None, family: str | None = None) -> list[dict[str, object]]:
+    """Return compact source-review -> proof-record route cards."""
+
+    family_label = str(family or "top family").strip() or "top family"
+    if checklist is None or checklist.empty:
+        return [
+            {
+                "kicker": "DCF ROUTE",
+                "title": "Build the proof queue first",
+                "body": "No source-review route is ready until the DCF input proof queue and source loop checklist are loaded.",
+                "badges": ["blocked visible", "readiness first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+
+    source_row = _checklist_step_row(checklist, "2.")
+    guard_row = _checklist_step_row(checklist, "3.")
+    preview_row = _checklist_step_row(checklist, "4.")
+    decision_row = _checklist_step_row(checklist, "5.")
+    proof_row = _checklist_step_row(checklist, "6.")
+    return [
+        {
+            "kicker": "ROUTE 1",
+            "title": f"{family_label}: finish source review fields",
+            "body": (
+                f"{card_sentence('State', source_row.get('State'))} "
+                f"{card_sentence('Need', compact_card_fragment(source_row.get('Missing Or Manual Gate'), max_chars=160))} "
+                "Use reviewed source values only; placeholders keep the route blocked."
+            ),
+            "badges": ["source fields", "no placeholders"],
+            "command": str(source_row.get("Next Safe Action") or "Fill reviewed source fields"),
+        },
+        {
+            "kicker": "ROUTE 2",
+            "title": "Run guard before validate and preview",
+            "body": (
+                f"{card_sentence('Guard', guard_row.get('State'))} "
+                f"{card_sentence('Boundary', compact_card_fragment(guard_row.get('Review Boundary'), max_chars=180))} "
+                "Do not validate or preview until the guard row is ready."
+            ),
+            "badges": ["guard first", "copy-only"],
+            "command": str(guard_row.get("Next Safe Action") or "Finish source guard before validate/preview."),
+        },
+        {
+            "kicker": "ROUTE 3",
+            "title": "Validate, preview, then choose apply/skip",
+            "body": (
+                f"{card_sentence('Validate/preview', preview_row.get('State'))} "
+                f"{card_sentence('Decision gate', decision_row.get('Missing Or Manual Gate'))} "
+                "Rejected-row review and an explicit apply_reviewed, skip_reviewed, or still_blocked choice stay manual."
+            ),
+            "badges": ["validate -> preview", "manual decision"],
+            "command": str(preview_row.get("Next Safe Action") or "make imports-validate -> make imports-preview"),
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "Proof record comes last",
+            "body": (
+                f"{card_sentence('Proof gate', compact_card_fragment(proof_row.get('Missing Or Manual Gate'), max_chars=170))} "
+                "Do not record supported until rebuilt readiness, changed counts, source files, and generated-artifact review are complete."
+            ),
+            "badges": ["proof last", "research-only"],
+            "command": str(proof_row.get("Next Safe Action") or "Finish validate, preview, apply/skip, and readiness comparison first."),
+        },
+    ]
+
+
 def dcf_source_batch_selector_frame(
     rows: list[DcfInputProofRow],
     *,

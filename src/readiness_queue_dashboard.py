@@ -524,3 +524,68 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
             },
         ]
     )
+
+
+def build_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
+    """Return readable queue -> proof routing cards before the detailed action table."""
+
+    get_value = row.get if isinstance(row, dict) else row.get
+    lane = _format_missing(get_value("Lane"), "Readiness lane")
+    lane_key = readiness_queue_lane_key(lane)
+    batch_lane = _queue_lane_batch_lane(lane)
+    packet_command = _format_missing(get_value("Proof Packet Command"), queue_proof_packet_command(lane_key))
+    source_warning = _compact_fragment(
+        get_value("Stale / Source Warning"),
+        fallback="Review source readiness before proceeding.",
+        max_chars=180,
+    )
+    proof_status = _compact_fragment(
+        get_value("Proof Record Status"),
+        fallback="No reviewed batch proof row recorded yet.",
+        max_chars=160,
+    )
+    gate_status, gate_decision, gate_command = _queue_lane_gate_action(lane)
+
+    return [
+        {
+            "kicker": "ROUTE 1",
+            "title": f"{lane}: open queue packet",
+            "body": (
+                f"Start at {_queue_lane_drawer_route(lane, 'queue')} to review capped scope and blockers. "
+                "This route is navigation-only; it does not run commands or write rows."
+            ),
+            "badges": ["queue first", "navigation-only"],
+            "command": packet_command,
+        },
+        {
+            "kicker": "ROUTE 2",
+            "title": "Open source-proof gate before apply decisions",
+            "body": (
+                f"Gate state: {gate_status}. {gate_decision} Source warning: {source_warning}. "
+                "Keep validate, preview, rejected-row review, and apply/skip as explicit reviewed steps."
+            ),
+            "badges": ["validate -> preview", "manual gate"],
+            "command": gate_command,
+        },
+        {
+            "kicker": "ROUTE 3",
+            "title": "Compare readiness before proof record",
+            "body": (
+                f"Use {_proof_lane_drawer_route('comparison')} for before/after readiness proof, then "
+                f"{_proof_lane_drawer_route('proof-record')} for the dry-run proof record. Current proof status: {proof_status}."
+            ),
+            "badges": ["compare first", "dry-run proof"],
+            "command": f"make reviewed-batch-compare LANE={batch_lane} BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "Do not treat a route as an unlock",
+            "body": (
+                "Navigation links only move the operator through evidence. Missing source inputs stay blocked until "
+                "reviewed source proof, validation, preview, rejected-row review, explicit apply/skip, rebuilt readiness, "
+                "and proof record pass."
+            ),
+            "badges": ["blocked stays blocked", "research-only"],
+            "command": "make diff-hygiene",
+        },
+    ]

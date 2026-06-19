@@ -73,6 +73,7 @@ def test_makefile_contains_convenience_targets():
         "diff-hygiene-files",
         "data-release-decision",
         "public-release-package",
+        "public-release-handoff",
         "staged-hygiene-check",
         "public-wording-check",
         "public-check",
@@ -204,7 +205,7 @@ def test_makefile_help_documents_key_workflows():
         "make decision-proof-queue",
         "Preview or write the compact decision proof queue from current readiness outputs",
         "make metric-readiness-board [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARKS=SPY,QQQ] [OUTPUT=outputs/metric_readiness_board.csv]",
-        "make public-check     Run before sharing the GitHub link",
+        "make public-check / public-release-handoff Verify sharing and terminal steps",
         "make demo",
         "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
         "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot",
@@ -236,6 +237,8 @@ def test_makefile_help_documents_key_workflows():
         "Print read-only post-batch keep-local, reviewed-data-release, and cleanup guidance",
         "make public-release-package",
         "Print read-only product staging, generated exclusion, final checks, commit, and push guidance",
+        "make public-release-handoff",
+        "Print the copy-ready terminal handoff for verify, stage, commit, and push",
         "make staged-hygiene-check",
         "Fail if staged files include unreviewed local data/report changes",
         "make public-wording-check",
@@ -350,6 +353,7 @@ def test_make_help_output_stays_visitor_friendly():
     assert "make demo" in output
     assert "make stock-report-md TICKER=NVDA" in output
     assert "make trusted-data-pilot-candidates TOP_N=10" in output
+    assert "public-release-handoff" in output
     assert "For the full local command catalog, run: make help-full" in output
     assert "Data onboarding:" not in output
     assert "Preview-first fundamentals and universe imports:" not in output
@@ -1148,7 +1152,10 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
     assert "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Proof Commands`" in checklist
     assert "small pilot" in checklist
-    assert "After it passes, run `make diff-hygiene`" in checklist
+    assert "After it passes, run `make public-release-handoff`" in checklist
+    assert "exact terminal" in checklist
+    assert "make browser-qa-capture-plan" in checklist
+    assert "make public-release-handoff" in checklist
     assert "make diff-hygiene-files" in checklist
     assert "make staged-hygiene-check" in checklist
     assert "outputs/staging/" in checklist
@@ -2002,6 +2009,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
     assert "data-release-decision:\n\t@python3 scripts/diff_hygiene.py --data-release-decision" in makefile
     assert "public-release-package:\n\t@python3 scripts/diff_hygiene.py --public-release-package" in makefile
+    assert "public-release-handoff:\n\t@python3 scripts/diff_hygiene.py --public-release-handoff" in makefile
     assert "staged-hygiene-check:\n\t@python3 scripts/diff_hygiene.py --staged-check" in makefile
     assert "public-check:" in makefile
     for phrase in (

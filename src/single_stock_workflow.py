@@ -88,6 +88,71 @@ def single_stock_next_command(snapshot: dict[str, object]) -> str:
     return _stock_report_md_command(ticker)
 
 
+def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    """Return a compact loop summary before single-stock details."""
+
+    ticker = _format_missing(snapshot.get("ticker"), "TICKER").upper()
+    state = _public_status_label(snapshot.get("status"))
+    decision = _format_missing(snapshot.get("decision_subtype") or snapshot.get("decision_bucket"), "Not classified")
+    dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
+    monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    command = single_stock_next_command(snapshot)
+
+    if not snapshot or snapshot.get("status") == "missing":
+        next_step = "Refresh local readiness before reading ticker-level output."
+        stop_rule = "Stop until the ticker appears in local readiness outputs."
+        badges = ["missing ticker", "readiness first"]
+    elif monitor_context:
+        next_step = "Read monitor context, then use proof history only if source freshness needs review."
+        stop_rule = "Stop if ETF, fund, or index context is read as operating-company DCF."
+        badges = ["monitor context", "excluded methods visible"]
+    elif not snapshot.get("price_ready"):
+        next_step = "Prove trusted price history before setup, trend, valuation, peer, or optional context."
+        stop_rule = "Stop if price rows are missing, stale, rejected, or not tied to this ticker."
+        badges = ["price first", "no inference"]
+    elif dcf_status == "blocked":
+        next_step = "Route fundamentals, shares, market-cap, or DCF blockers to Data Health source review."
+        stop_rule = "Stop if valuation inputs would be inferred or placeholder-backed."
+        badges = ["fundamentals gate", "source proof"]
+    elif dcf_status == "ready" and not snapshot.get("peer_ready"):
+        next_step = "Review standalone DCF now; route peer-relative context to the peers lane."
+        stop_rule = "Stop if peer mappings or peer inputs lack source-backed rows."
+        badges = ["DCF reviewable", "peer gated"]
+    elif not snapshot.get("earnings_ready") or not snapshot.get("analyst_estimates_ready"):
+        next_step = "Review core sections now; keep optional earnings and estimate context locked."
+        stop_rule = "Stop if optional context is absent from trusted local rows."
+        badges = ["core reviewable", "optional locked"]
+    else:
+        next_step = "Read supported sections, then rerun proof after any local import or refresh."
+        stop_rule = "Stop if readiness changed since this report was generated."
+        badges = ["reviewable", "proof first"]
+
+    return [
+        {
+            "kicker": "CURRENT STEP",
+            "title": f"{ticker}: Single-stock review",
+            "body": f"Previous proof: saved readiness row. Current state: {state}. Decision context: {decision}.",
+            "badges": ["selected ticker", "local proof"],
+            "command": _stock_report_md_command(ticker),
+        },
+        {
+            "kicker": "NEXT SAFE ACTION",
+            "title": "Use the right proof lane before deeper interpretation",
+            "body": f"{next_step} The dashboard keeps this as navigation and copy-only command context.",
+            "badges": badges,
+            "command": command,
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "No trusted input, no conclusion",
+            "body": f"{stop_rule} Locked, partial, and excluded sections stay visible until proof changes the state.",
+            "badges": ["research-only", "blocked stays blocked"],
+            "command": "make readiness",
+        },
+    ]
+
+
 def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     """Return ticker workflow cards for the Single-Stock page before raw detail."""
 

@@ -1,6 +1,45 @@
 from __future__ import annotations
 
 
+def public_home_first_30_second_cards(summary: dict[str, object]) -> list[dict[str, object]]:
+    """Return a compact public explanation before workflow details."""
+
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    blocked = int(summary.get("blocked_by_data") or summary.get("blocked") or max(master - dcf_ready, 0))
+    return [
+        {
+            "kicker": "WHAT THIS IS",
+            "title": "A readiness-first research workflow",
+            "body": (
+                "The app checks local data coverage before showing analysis. "
+                "Ready, blocked, partial, and excluded states stay visible instead of being blended into one score."
+            ),
+            "badges": ["research-only", "data readiness first"],
+        },
+        {
+            "kicker": "HOW TO READ IT",
+            "title": f"{price_ready:,}/{master:,} price-ready; deeper work is gated",
+            "body": (
+                f"{dcf_ready:,} names are DCF-ready and {peer_ready:,} are peer-ready today. "
+                "Use Home for the snapshot, Single-Stock Report for one ticker, and Data Health for source-proof gaps."
+            ),
+            "badges": ["one connected loop", "proof before analysis"],
+        },
+        {
+            "kicker": "WHEN TO STOP",
+            "title": f"{blocked:,} blocked states remain withheld",
+            "body": (
+                "If trusted fundamentals, shares, peers, earnings, estimates, valuation inputs, or metrics are missing, "
+                "the product stops at the data gap and keeps the conclusion unavailable."
+            ),
+            "badges": ["no data, no conclusion", "blocked stays blocked"],
+        },
+    ]
+
+
 def public_home_loop_cards(summary: dict[str, object]) -> list[dict[str, object]]:
     """Return first-scan public workflow cards for the Home page."""
 

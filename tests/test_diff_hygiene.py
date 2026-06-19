@@ -220,6 +220,7 @@ def test_public_release_package_reports_clean_push_path():
     assert "Read-only: this command does not stage, delete, reset, refresh, rewrite files, commit, or push." in report
     assert "Working tree is clean." in report
     assert "make public-check" in report
+    assert "make browser-qa-capture-plan" not in report
     assert "git push origin main" in report
     assert "investment advice" in report
 
@@ -245,6 +246,7 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "data/prices.csv" not in staging_block
     assert "data/reports/ticker_readiness_report.previous.csv" not in staging_block
     assert "make browser-qa-evidence" in report
+    assert "make browser-qa-capture-plan" in report
     assert "make dashboard-smoke" in report
     assert "If git staging is environment-blocked:" in report
     assert "Do not stage generated churn as a workaround." in report
@@ -253,8 +255,71 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "git commit -m" in report
     assert "git push origin main" in report
     assert "source proof, validate, preview" in report
+    assert "real Streamlit route review" in report
     assert "Research-only guardrail" in report
     assert "direct buy/sell" in report
+
+
+def test_public_release_handoff_prints_terminal_safe_sequence():
+    module = load_diff_hygiene_module()
+    entries = [
+        module.StatusEntry("M", "Makefile"),
+        module.StatusEntry("M", "src/dashboard.py"),
+        module.StatusEntry("??", "src/dashboard_navigation.py"),
+        module.StatusEntry("M", "tests/test_dashboard_helpers.py"),
+        module.StatusEntry("M", "data/prices.csv"),
+        module.StatusEntry("??", "data/reports/ticker_readiness_report.previous.csv"),
+    ]
+
+    report = module.build_public_release_handoff_report(entries, branch_status="## main...origin/main")
+
+    assert "Public Release Terminal Handoff" in report
+    assert "Read-only" in report
+    assert "Product/code/docs/test candidates: 4 (3 changed, 1 new)" in report
+    assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
+    assert "Branch status: ## main...origin/main" in report
+    assert "Package status: product package pending commit; commit this package before starting another feature slice" in report
+    assert "Step 1 - verify before staging" in report
+    assert "make public-check" in report
+    assert "make public-release-package" in report
+    assert "make browser-qa-evidence" in report
+    assert "make browser-qa-capture-plan" in report
+    assert "git add -- Makefile src/dashboard.py src/dashboard_navigation.py tests/test_dashboard_helpers.py" in report
+    assert "make staged-hygiene-check" in report
+    assert "git diff --cached --check" in report
+    assert "git commit -m" in report
+    assert "git push origin main" in report
+    staging_block = report.split("Step 2 - stage only", 1)[1].split("Step 3 - inspect", 1)[0]
+    assert "data/prices.csv" not in staging_block
+    assert "ticker_readiness_report.previous.csv" not in staging_block
+    assert "data/prices.csv" in report.split("Generated churn to leave unstaged by default:", 1)[1]
+    assert "real Streamlit route review" in report
+    assert "Research-only guardrail" in report
+    assert "direct buy/sell" in report
+
+
+def test_public_release_handoff_defaults_branch_status_when_not_checked():
+    module = load_diff_hygiene_module()
+
+    report = module.build_public_release_handoff_report([])
+
+    assert "Branch status: not checked" in report
+    assert "Package status: clean; ready for the next reviewed work slice" in report
+    assert "Generated churn to leave unstaged by default:" in report
+
+
+def test_public_release_handoff_marks_generated_only_tree_as_local_churn():
+    module = load_diff_hygiene_module()
+    entries = [
+        module.StatusEntry("M", "data/prices.csv"),
+        module.StatusEntry("??", "data/reports/ticker_readiness_report.previous.csv"),
+    ]
+
+    report = module.build_public_release_handoff_report(entries)
+
+    assert "Product/code/docs/test candidates: 0 (0 changed, 0 new)" in report
+    assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
+    assert "Package status: generated churn only; keep it local unless intentionally reviewed as evidence" in report
 
 
 def test_staged_hygiene_check_passes_clean_product_and_sample_report_stage():

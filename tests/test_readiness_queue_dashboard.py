@@ -8,6 +8,7 @@ from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
     build_readiness_queue_outcome_summary_frame,
+    build_readiness_queue_route_cards,
     queue_proof_packet_command,
     readiness_queue_lane_key,
 )
@@ -143,6 +144,32 @@ def test_readiness_queue_lane_action_routes_mutating_and_read_only_lanes():
     assert "does not run commands or write data" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_readiness_queue_route_cards_summarize_navigation_without_unlocking_data():
+    cards = build_readiness_queue_route_cards(
+        {
+            "Lane": "Fundamentals / DCF Proof",
+            "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10",
+            "Stale / Source Warning": "Source mode: SEC-stageable. Validate before preview.",
+            "Proof Record Status": "No reviewed batch proof row recorded for this lane yet.",
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["ROUTE 1", "ROUTE 2", "ROUTE 3", "STOP RULE"]
+    assert "fundamentals / dcf proof: open queue packet" in rendered
+    assert "?mode=operator&page=data-health&lane=fundamentals&drawer=queue" in rendered
+    assert "navigation-only" in rendered
+    assert "gate state: validate_preview_apply" in rendered
+    assert "keep validate, preview, rejected-row review, and apply/skip as explicit reviewed steps" in rendered
+    assert "?mode=operator&page=data-health&lane=proof&drawer=comparison" in rendered
+    assert "?mode=operator&page=data-health&lane=proof&drawer=proof-record" in rendered
+    assert "do not treat a route as an unlock" in rendered
+    assert "missing source inputs stay blocked" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
 
 
 def test_readiness_queue_outcome_summary_reads_latest_batch_outcomes():

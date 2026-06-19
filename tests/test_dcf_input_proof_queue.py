@@ -1,5 +1,6 @@
 import pandas as pd
 
+from src.data_health_dcf_source_commands import dcf_source_loop_route_cards
 from src.dcf_input_proof_queue import (
     build_dcf_input_proof_handoff,
     build_dcf_input_proof_queue,
@@ -13,6 +14,69 @@ from src.dcf_input_proof_queue import (
     render_dcf_input_source_review_rows,
     summarize_missing_input_families,
 )
+
+
+def test_dcf_source_loop_route_cards_summarize_source_to_proof_path_without_unlocking():
+    checklist = pd.DataFrame(
+        [
+            {
+                "Step": "1. Select source-review batch",
+                "State": "ready",
+                "Next Safe Action": "make dcf-input-source-command-plan FAMILY=shares_outstanding TICKERS=AMD TOP_N=1",
+                "Missing Or Manual Gate": "-",
+                "Review Boundary": "Use a capped source-review scope before opening raw DCF rows.",
+            },
+            {
+                "Step": "2. Fill reviewed source fields",
+                "State": "needs_field_fills",
+                "Next Safe Action": "Fill reviewed source fields; do not write canonical fundamentals.",
+                "Missing Or Manual Gate": "source_file_or_url, source_date",
+                "Review Boundary": "Evidence fields must be reviewed source values, not placeholders or inferred inputs.",
+            },
+            {
+                "Step": "3. Run source guard",
+                "State": "blocked",
+                "Next Safe Action": "Finish source guard before validate/preview.",
+                "Missing Or Manual Gate": "reviewed source fields",
+                "Review Boundary": "Run the guard only after every required source field is reviewed.",
+            },
+            {
+                "Step": "4. Validate and preview",
+                "State": "blocked",
+                "Next Safe Action": "Finish source guard before validate/preview.",
+                "Missing Or Manual Gate": "ready_for_guard source row",
+                "Review Boundary": "Validation, preview, and rejected-row reports must be reviewed before any apply decision.",
+            },
+            {
+                "Step": "5. Apply, skip, or keep blocked",
+                "State": "blocked",
+                "Next Safe Action": "Choose apply_reviewed, skip_reviewed, or still_blocked after preview review.",
+                "Missing Or Manual Gate": "explicit apply/skip/still-blocked decision",
+                "Review Boundary": "Canonical data changes require an explicit reviewed decision; no automatic apply from the dashboard.",
+            },
+            {
+                "Step": "6. Rebuild readiness and record proof",
+                "State": "blocked",
+                "Next Safe Action": "Finish validate, preview, apply/skip, and readiness comparison first.",
+                "Missing Or Manual Gate": "validation_result, preview_result, apply_result",
+                "Review Boundary": "Record proof only after rebuilt readiness, changed counts, source files, and generated-artifact review.",
+            },
+        ]
+    )
+
+    cards = dcf_source_loop_route_cards(checklist, "shares_outstanding")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["ROUTE 1", "ROUTE 2", "ROUTE 3", "STOP RULE"]
+    assert "shares_outstanding: finish source review fields" in rendered
+    assert "use reviewed source values only" in rendered
+    assert "run guard before validate and preview" in rendered
+    assert "validate, preview, then choose apply/skip" in rendered
+    assert "rejected-row review and an explicit apply_reviewed, skip_reviewed, or still_blocked choice stay manual" in rendered
+    assert "proof record comes last" in rendered
+    assert "do not record supported until rebuilt readiness" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
 
 
 def _sample_universe() -> pd.DataFrame:

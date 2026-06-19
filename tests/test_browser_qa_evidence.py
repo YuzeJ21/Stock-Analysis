@@ -1,12 +1,15 @@
 from pathlib import Path
+import json
 
 from src.browser_qa_evidence import (
     BrowserQaCaptureTarget,
     BrowserQaEvidence,
     BrowserQaRouteCheck,
     browser_qa_capture_checklist_rows,
+    browser_qa_capture_session_rows,
     browser_qa_capture_target_rows,
     browser_qa_evidence_rows,
+    browser_qa_evidence_payload,
     browser_qa_package_verdict,
     browser_qa_evidence_verdict,
     browser_qa_route_rows,
@@ -186,6 +189,42 @@ def test_browser_qa_capture_checklist_rows_give_exact_local_capture_steps():
     assert "broker" not in rendered
 
 
+def test_browser_qa_capture_session_rows_keep_reviewer_sequence_copy_ready():
+    target = BrowserQaCaptureTarget(
+        name="Data Health queue drawer routing screenshot",
+        path=Path("docs/assets/operator-data-health-queue-routing-real.jpg"),
+        route="http://localhost:8501/?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
+        first_view_markers=("Operator Queue", "ROUTE 1", "proof record"),
+        min_width=1000,
+        min_height=600,
+        use="Queue routing evidence.",
+    )
+
+    rows = browser_qa_capture_session_rows((target,))
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+
+    assert [row["Step"] for row in rows] == [
+        "1. Start dashboard",
+        "2. Capture pending views",
+        "3. Confirm first viewport",
+        "4. Verify assets",
+        "5. Run release gate",
+        "6. Commit reviewed evidence only",
+    ]
+    assert "make dashboard" in rendered
+    assert "make browser-qa-evidence" in rendered
+    assert "make public-check" in rendered
+    assert "make diff-hygiene-summary" in rendered
+    assert "make staged-hygiene-check" in rendered
+    assert "operator-data-health-queue-routing-real.jpg" in rendered
+    assert "manual_capture_pending" in rendered
+    assert "broad generated csv/json/report churn" in rendered
+    assert "generated thumbnails" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_browser_qa_package_verdict_keeps_ready_assets_honest_when_capture_targets_pending():
     asset_rows = [
         {
@@ -203,6 +242,39 @@ def test_browser_qa_package_verdict_keeps_ready_assets_honest_when_capture_targe
     ]
 
     assert browser_qa_package_verdict(asset_rows, capture_rows) == "ready_with_manual_capture_pending"
+
+
+def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_path):
+    asset_dir = tmp_path / "docs" / "assets"
+    asset_dir.mkdir(parents=True)
+    _write_png(asset_dir / "linkedin-public-dashboard.png", width=1200, height=627)
+    _write_jpeg(asset_dir / "public-demo-home-real.jpg", width=1200, height=720)
+    _write_jpeg(asset_dir / "operator-data-health-metrics-real.jpg", width=1280, height=720)
+
+    payload = browser_qa_evidence_payload(tmp_path)
+    rendered = json.dumps(payload).lower()
+
+    assert payload["verdict"] == "ready_with_manual_capture_pending"
+    assert len(payload["committed_screenshot_assets"]) == 3
+    assert len(payload["manual_capture_targets"]) == 3
+    assert len(payload["local_capture_checklist"]) == 3
+    assert len(payload["capture_session_plan"]) == 6
+    assert len(payload["route_qa_checklist"]) >= 7
+    assert "browser qa evidence is product evidence only" in rendered
+    assert "first 30 seconds" in rendered
+    assert "single-stock workflow fit screenshot" in rendered
+    assert "current step" in rendered
+    assert "next safe action" in rendered
+    assert "operator-data-health-proof-real.jpg" in rendered
+    assert "route 1" in rendered
+    assert "proof record" in rendered
+    assert "commit reviewed evidence only" in rendered
+    assert "make staged-hygiene-check" in rendered
+    assert "do not use generated thumbnails" in rendered
+    assert "missing source inputs remain blocked" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
 
 
 def test_browser_qa_route_rows_keep_workflow_markers_and_stop_rules_visible():
@@ -237,10 +309,13 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Single-stock workflow fit" in route_names
     assert "Data Health proof lane progressive load" in route_names
     assert "Data Health queue drawer routing" in route_names
-    assert "workflow fit" in rendered
+    assert "first 30 seconds" in rendered
+    assert "current step" in rendered
+    assert "next safe action" in rendered
     assert "proof lane shell" in rendered
     assert "intentionally deferred" in rendered
     assert "navigation-only" in rendered
+    assert "route cards appear before detailed action tables" in rendered
     assert "generated churn" in rendered
     assert "execute commands" in rendered
     assert "investment advice" not in rendered
@@ -263,6 +338,8 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "ready_with_manual_capture_pending" in output
     assert "manual capture targets" in output
     assert "local capture checklist" in output
+    assert "capture session plan" in output
+    assert "commit reviewed evidence only" in output
     assert "save real app screenshots to the listed paths only after visual review" in output
     assert "single-stock workflow fit screenshot" in output
     assert "operator-data-health-proof-real.jpg" in output
@@ -273,9 +350,52 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "single-stock workflow fit" in output
     assert "data health proof lane progressive load" in output
     assert "data health queue drawer routing" in output
+    assert "first 30 seconds" in output
+    assert "next safe action" in output
     assert "next data-readiness action" in output
     assert "does not unlock fundamentals" in output
     assert "investment advice" in output
     assert "trade instructions" in output
+    assert "buy" not in output
+    assert "sell" not in output
+
+
+def test_browser_qa_evidence_cli_json_mode_prints_payload(tmp_path, capsys):
+    asset_dir = tmp_path / "docs" / "assets"
+    asset_dir.mkdir(parents=True)
+    _write_png(asset_dir / "linkedin-public-dashboard.png", width=1200, height=627)
+    _write_jpeg(asset_dir / "public-demo-home-real.jpg", width=1200, height=720)
+    _write_jpeg(asset_dir / "operator-data-health-metrics-real.jpg", width=1280, height=720)
+
+    exit_code = main(["--root", str(tmp_path), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    rendered = json.dumps(payload).lower()
+
+    assert exit_code == 0
+    assert payload["verdict"] == "ready_with_manual_capture_pending"
+    assert "local_capture_checklist" in payload
+    assert "capture_session_plan" in payload
+    assert "route_qa_checklist" in payload
+    assert "operator-data-health-queue-routing-real.jpg" in rendered
+    assert "make staged-hygiene-check" in rendered
+    assert "investment advice" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_browser_qa_capture_plan_cli_prints_only_capture_sequence(capsys):
+    exit_code = main(["--capture-plan"])
+    output = capsys.readouterr().out.lower()
+
+    assert exit_code == 0
+    assert "browser qa capture session plan" in output
+    assert "read-only" in output
+    assert "make dashboard" in output
+    assert "make browser-qa-evidence" in output
+    assert "make public-check" in output
+    assert "make staged-hygiene-check" in output
+    assert "commit reviewed evidence only" in output
+    assert "committed screenshot assets" not in output
+    assert "route qa checklist" not in output
     assert "buy" not in output
     assert "sell" not in output

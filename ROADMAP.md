@@ -48,6 +48,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Operator Next Action Summary V1 so Data Health answers pilot status, main manual gate, leading source-proof blocker, and hidden-detail boundary before raw tables.
 - [x] Browser QA Evidence V1 with `make browser-qa-evidence`, committed screenshot asset checks, route expectations, and environment-limited capture notes for GitHub/LinkedIn evidence.
 - [x] Browser QA Evidence V2 with route-level manual checks for public home, single-stock, Data Health fast view, metrics review, and proof history before replacing public screenshots.
+- [x] Browser Evidence Capture Plan V2 with a copy-ready session sequence for starting the dashboard, capturing pending real screenshots, verifying assets, running release gates, and staging only reviewed evidence.
 - [x] Public Release Package V1 with `make public-release-package`, a read-only product staging, generated-churn exclusion, final-check, commit, and push checklist.
 - [x] Short Price-History Proof Queue V1 with `make price-history-proof-queue`, separating complete price coverage from short-history blockers for momentum, track-record, and review-metric workflows.
 - [x] Workflow Continuity V3 so Home, Single-Stock Report, and Data Health strip links route to the current page, proof drawer, next safe view, and stop-rule evidence without running commands.
@@ -60,6 +61,10 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Data Health Drawer Routing V2 so readiness queue lanes expose navigation-only routes from lane drawer to source proof, comparison, proof record, and artifact hygiene without running commands.
 - [x] Public Visitor Workflow Polish V3 so the GitHub/LinkedIn path starts browser-first, keeps examples as readiness states, and moves terminal proof commands into optional local checks.
 - [x] Single-Stock Workflow Fit V3 so loaded ticker reports show selected state, reviewable sections, blocked/excluded lanes, Data Health handoff, and stop rule before detailed report sections.
+- [x] Public Visitor Workflow Polish V4 so Home starts with a First 30 Seconds explanation before workflow examples or operator details.
+- [x] Single-Stock Workflow Fit V4 so both the drilldown and loaded report show current step, previous proof, next safe action, and stop rule before dense details.
+- [x] Data Health Drawer Routing V3 so queue lane drawers summarize queue -> source proof -> comparison -> proof record routes before detailed action tables.
+- [x] Trusted Fundamentals Proof Loop UX V3 so DCF source review shows source fields -> guard -> validate/preview -> apply/skip -> proof-record route cards before source tables.
 
 ## 2. Current Product State
 

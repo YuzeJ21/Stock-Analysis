@@ -111,6 +111,17 @@ def load_staged_status(repo_root: Path) -> list[StatusEntry]:
     return [parse_name_status_line(line) for line in result.stdout.splitlines() if line]
 
 
+def load_branch_status(repo_root: Path) -> str:
+    result = subprocess.run(
+        ["git", "status", "--short", "--branch"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.splitlines()[0] if result.stdout.splitlines() else "branch status unavailable"
+
+
 def format_paths(entries: list[StatusEntry], *, limit: int = 80) -> list[str]:
     rows = [f"  {entry.status or 'M'} {entry.path}" for entry in entries[:limit]]
     if len(entries) > limit:
@@ -447,6 +458,12 @@ def build_public_release_package_report(entries: list[StatusEntry]) -> str:
     generated = groups["generated_csv_churn"]
     manual = groups["review_manually"]
     stage_candidates = product + sample_reports
+    if stage_candidates:
+        package_status = "product package pending commit; commit this package before starting another feature slice"
+    elif generated:
+        package_status = "generated churn only; keep it local unless intentionally reviewed as evidence"
+    else:
+        package_status = "clean; ready for the next reviewed work slice"
 
     lines = [
         "Public Release Package",
@@ -518,6 +535,7 @@ def build_public_release_package_report(entries: list[StatusEntry]) -> str:
             "Required final checks before commit/share:",
             "  make public-check",
             "  make browser-qa-evidence",
+            "  make browser-qa-capture-plan  # before replacing public/GitHub/LinkedIn screenshots",
             "  make dashboard-smoke  # rerun in a normal local terminal if sandbox socket binding is limited",
             "  git diff --check",
             "",
@@ -529,8 +547,94 @@ def build_public_release_package_report(entries: list[StatusEntry]) -> str:
             "- public-check fails",
             "- dashboard smoke fails for product-code reasons",
             "- generated CSV/JSON churn is staged unintentionally",
+            "- public screenshots are replaced without real Streamlit route review and first-viewport marker checks",
             "- missing fundamentals, peers, earnings, estimates, valuation inputs, or metrics are presented as conclusions",
             "- source proof, validate, preview, rejected-row review, apply or skip decision, rebuilt readiness, or proof record gates are incomplete",
+            "",
+            "Research-only guardrail: never stage broker, order execution, auto-trading,",
+            "options recommendation, or direct buy/sell instruction language.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_status: str = "") -> str:
+    groups = group_entries(entries)
+    product = groups["product_candidate"]
+    sample_reports = groups["sample_report_candidate"]
+    generated = groups["generated_csv_churn"]
+    manual = groups["review_manually"]
+    stage_candidates = product + sample_reports
+    if stage_candidates:
+        package_status = "product package pending commit; commit this package before starting another feature slice"
+    elif generated:
+        package_status = "generated churn only; keep it local unless intentionally reviewed as evidence"
+    else:
+        package_status = "clean; ready for the next reviewed work slice"
+
+    lines = [
+        "Public Release Terminal Handoff",
+        "Read-only: this command prints the safe terminal sequence only. It does not stage, delete, reset, refresh, rewrite files, commit, or push.",
+        "Research-only: the release handoff must preserve readiness-first workflow, blocked states, and no advice/execution boundaries.",
+        "",
+        format_count_line("Product/code/docs/test candidates", product),
+        format_count_line("Markdown sample report candidates", sample_reports),
+        format_count_line("Generated CSV/JSON churn excluded by default", generated),
+        format_count_line("Manual-review paths", manual),
+        f"Branch status: {branch_status or 'not checked'}",
+        f"Package status: {package_status}",
+        "",
+    ]
+    if manual:
+        lines.extend(
+            [
+                "Stop first: manual-review paths exist.",
+                "Inspect these paths before staging or sharing:",
+                *format_paths(manual, limit=30),
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "Step 1 - verify before staging:",
+            "  make public-check",
+            "  make public-release-package",
+            "  make browser-qa-evidence",
+            "  make browser-qa-capture-plan  # only needed before replacing screenshots",
+            "  git diff --check",
+            "",
+            "Step 2 - stage only reviewed product/docs/tests and reviewed Markdown reports:",
+            *format_git_add_command(stage_candidates, label="Stage public release handoff"),
+            "",
+            "Step 3 - inspect staged package:",
+            "  make staged-hygiene-check",
+            "  git diff --cached --stat",
+            "  git diff --cached --check",
+            "  git diff --cached --name-only",
+            "",
+            "Step 4 - commit locally if staged hygiene passes:",
+            "  git commit -m \"Improve workflow continuity and public release QA\"",
+            "",
+            "Step 5 - push only after the local commit is reviewed:",
+            "  git status --short --branch",
+            "  git push origin main",
+            "",
+            "Generated churn to leave unstaged by default:",
+        ]
+    )
+    if generated:
+        lines.extend(format_paths(generated, limit=40))
+    else:
+        lines.append("  none")
+    lines.extend(
+        [
+            "",
+            "Do not proceed if:",
+            "- staged hygiene shows generated CSV/JSON churn or manual-review paths",
+            "- public-check fails",
+            "- dashboard smoke fails for product-code reasons",
+            "- screenshots are replaced without real Streamlit route review and first-viewport marker checks",
+            "- blocked fundamentals, shares, peers, earnings, estimates, valuation inputs, or metrics are presented as conclusions",
             "",
             "Research-only guardrail: never stage broker, order execution, auto-trading,",
             "options recommendation, or direct buy/sell instruction language.",
@@ -675,6 +779,11 @@ def main() -> int:
         action="store_true",
         help="Print read-only product staging, generated-exclusion, and final public-share guidance.",
     )
+    parser.add_argument(
+        "--public-release-handoff",
+        action="store_true",
+        help="Print a copy-ready terminal handoff for verifying, staging, committing, and pushing a public-safe package.",
+    )
     args = parser.parse_args()
     repo_root = Path(__file__).resolve().parents[1]
     if args.staged_check:
@@ -684,6 +793,9 @@ def main() -> int:
     entries = load_status(repo_root)
     if args.public_release_package:
         print(build_public_release_package_report(entries))
+        return 0
+    if args.public_release_handoff:
+        print(build_public_release_handoff_report(entries, branch_status=load_branch_status(repo_root)))
         return 0
     if args.data_release_decision:
         print(build_data_release_decision_report(entries))

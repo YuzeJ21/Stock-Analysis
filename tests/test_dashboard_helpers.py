@@ -721,8 +721,10 @@ def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
         }
     )
     frame = dashboard.data_health_readiness_queue_lane_action_frame(row)
+    route_cards = dashboard.data_health_readiness_queue_route_cards(row)
     cards = dashboard.data_health_readiness_queue_lane_action_cards(row)
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+    rendered_routes = " ".join(str(value) for card in route_cards for value in card.values()).lower()
     rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert list(frame["Step"]) == [
@@ -740,6 +742,11 @@ def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
     assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
     assert "?mode=operator&page=data-health&lane=proof&drawer=proof-record" in rendered
     assert "navigation-only" in rendered
+    assert [card["kicker"] for card in route_cards] == ["ROUTE 1", "ROUTE 2", "ROUTE 3", "STOP RULE"]
+    assert "peer mapping proof: open queue packet" in rendered_routes
+    assert "compare readiness before proof record" in rendered_routes
+    assert "do not treat a route as an unlock" in rendered_routes
+    assert "missing source inputs stay blocked" in rendered_routes
     assert "you do not need to open proof history first" in rendered_cards
     assert "follow the lane route chain" in rendered_cards
     assert "comparison drawer" in rendered_cards
@@ -750,6 +757,7 @@ def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered_cards
+    assert "broker" not in rendered_routes
     assert "order routing" not in rendered_cards
 
 
@@ -1836,18 +1844,20 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     ticker_note_index = source.index('render_context_note(\n        "One ticker at a time."', drilldown_header_index)
     snapshot_index = source.index("snapshot = single_stock_readiness_snapshot", drilldown_header_index)
     workflow_fit_index = source.index('render_section_header(\n        "Where This Ticker Fits"', snapshot_index)
-    workflow_cards_index = source.index("render_signal_cards(single_stock_workflow_fit_cards(snapshot))", workflow_fit_index)
+    workflow_loop_index = source.index("render_signal_cards(single_stock_workflow_loop_cards(snapshot), show_commands=False)", workflow_fit_index)
+    workflow_cards_index = source.index("render_signal_cards(single_stock_workflow_fit_cards(snapshot))", workflow_loop_index)
     quick_read_index = source.index('render_section_header("Single-Stock Quick Read"', workflow_fit_index)
     source_table_expander_index = source.index('st.expander("Single-stock source readiness table", expanded=False)', quick_read_index)
     detail_expander_index = source.index('st.expander("Single-stock detailed fields", expanded=False)', source_table_expander_index)
 
     assert explorer_header_index < table_guide_index < filter_index
     assert drilldown_header_index < ticker_note_index < snapshot_index
-    assert snapshot_index < workflow_fit_index < workflow_cards_index < quick_read_index
+    assert snapshot_index < workflow_fit_index < workflow_loop_index < workflow_cards_index < quick_read_index
     assert quick_read_index < source_table_expander_index < detail_expander_index
     assert "missing rows are not analysis conclusions" in source
     assert "next copy-only command" in source
     assert "Selected ticker, review-now scope, blocked or excluded inputs, Data Health handoff, and stop rule before raw details." in source
+    assert "single_stock_workflow_loop_cards(snapshot)" in source
     assert "How The App Uses Trusted Data" in source
     assert "Source Vs Product Logic" not in source
     assert "full-table dumps" not in source
@@ -2148,7 +2158,9 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
-    public_loop_index = source.index("render_signal_cards(_plain_home_public_loop_cards(summary), show_commands=False)")
+    first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', proof_strip_index)
+    first_30_cards_index = source.index("render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)", first_30_index)
+    public_loop_index = source.index("render_signal_cards(_plain_home_public_loop_cards(summary), show_commands=False)", first_30_cards_index)
     visitor_path_index = source.index('render_section_header(\n            "Visitor Path"', public_loop_index)
     visitor_path_cards_index = source.index("render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False)", visitor_path_index)
     workflow_spine_index = source.index('render_section_header(\n        "Research Workflow"')
@@ -2160,13 +2172,14 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
 
-    assert proof_strip_index < public_loop_index < visitor_path_index < visitor_path_cards_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
+    assert proof_strip_index < first_30_index < first_30_cards_index < public_loop_index < visitor_path_index < visitor_path_cards_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
     assert "The same loop in four steps: current readiness, one ticker, source-proof lane, then proof history." in source
     assert "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)" in source
+    assert "render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False)" in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
@@ -9873,11 +9886,15 @@ def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_hando
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
+        "RESEARCH LOOP",
         "SELECTED TICKER",
         "REVIEW NOW",
         "STILL BLOCKED",
         "DATA HEALTH HANDOFF",
     ]
+    assert "a: report step before source-proof follow-up" in rendered
+    assert "previous proof: loaded report payload plus saved local readiness gates" in rendered
+    assert "current step: read supported sections first" in rendered
     assert "a: standalone dcf review" in rendered
     assert "what can be reviewed" in rendered
     assert "standalone dcf assumptions" in rendered
@@ -14000,6 +14017,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "Trusted Fundamentals Source Packet" in source
     assert "DCF Source Loop Checklist" in source
     assert "data_health_dcf_source_loop_checklist_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_source_loop_route_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_loop_checklist_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "DCF Source Review Triage" in source
     assert "data_health_dcf_source_command_triage_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
@@ -14052,7 +14070,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_checklist_frame_index = source.index("data_health_dcf_proof_source_review_checklist_frame(", dcf_checklist_cards_index)
     dcf_source_loop_index = source.index('render_section_header("DCF Source Loop Checklist"', dcf_checklist_frame_index)
     dcf_source_loop_cards_index = source.index("data_health_dcf_source_loop_checklist_cards(", dcf_source_loop_index)
-    dcf_source_loop_frame_index = source.index("data_health_dcf_source_loop_checklist_frame(", dcf_source_loop_cards_index)
+    dcf_source_loop_route_cards_index = source.index("data_health_dcf_source_loop_route_cards(", dcf_source_loop_cards_index)
+    dcf_source_loop_frame_index = source.index("data_health_dcf_source_loop_checklist_frame(", dcf_source_loop_route_cards_index)
     dcf_triage_index = source.index('render_section_header("DCF Source Review Triage"', dcf_source_loop_frame_index)
     dcf_triage_cards_index = source.index("data_health_dcf_source_command_triage_cards(", dcf_triage_index)
     dcf_triage_frame_index = source.index("data_health_dcf_source_command_triage_frame(", dcf_triage_cards_index)
@@ -14091,6 +14110,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         < dcf_checklist_frame_index
         < dcf_source_loop_index
         < dcf_source_loop_cards_index
+        < dcf_source_loop_route_cards_index
         < dcf_source_loop_frame_index
         < dcf_triage_index
         < dcf_triage_cards_index

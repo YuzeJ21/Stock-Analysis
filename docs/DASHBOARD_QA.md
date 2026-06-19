@@ -2,19 +2,38 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-06-19 Workflow Continuity And Route Card Pass
+
+Checked by tests and local read-only commands:
+
+- Public Home: added a First 30 Seconds view before visitor path examples so a new viewer sees what the product does, how to read readiness, and when to stop.
+- Single-Stock Report: added a compact current-step / next-safe-action / stop-rule loop before dense ticker details and added the same report-step cue to loaded reports.
+- Data Health queue drawers: added navigation-only route cards before the detailed lane action table so operators see queue -> source proof -> comparison -> proof record without jumping across sections.
+- Trusted Fundamentals / DCF source loop: added source-review route cards before the checklist table so source fields, guard, validate/preview, apply/skip, and proof-record boundaries stay in sequence.
+
+Boundary checked:
+
+- The new cards are workflow/navigation guidance only; they do not refresh data, apply imports, record proof rows, stage files, commit, push, or unlock missing fundamentals, peers, earnings, analyst estimates, valuation inputs, or metrics.
+- Commands remain copy-only; missing source inputs remain visibly blocked until trusted source proof, validate, preview, rejected-row review, explicit apply or skip decision, rebuilt readiness, and proof record pass.
+- In the restricted browser environment, the current in-app browser shows `localhost refused to connect`, so new real screenshot capture remains blocked until `make dashboard` is running in a normal local terminal.
+
 ## 2026-06-19 Browser QA Evidence V2
 
-Added route-level manual QA and local capture checklists to `make browser-qa-evidence`.
+Added route-level manual QA, local capture checklists, and a copy-ready capture
+session plan to `make browser-qa-evidence`.
 
 Use it after starting the dashboard locally:
 
 ```bash
 make dashboard
 make browser-qa-evidence
+make browser-qa-capture-plan
+python3 -m src.browser_qa_evidence --json
 ```
 
 The command remains read-only. It checks committed screenshot assets, prints exact
-local capture targets, and lists route checks for:
+local capture targets, gives a six-step capture session plan, and lists route
+checks for:
 
 - Public visitor home.
 - Single-stock workflow fit.
@@ -39,6 +58,17 @@ Local capture checklist:
 - Save only real app screenshots to the listed `docs/assets/...` path.
 - Keep the asset only if the first view shows the expected markers and no traceback, raw tables first, command-heavy public copy, or missing guardrails.
 - Re-run `make browser-qa-evidence`, `make public-check`, and `make diff-hygiene-summary`.
+- Follow the `Capture Session Plan` table from `make browser-qa-evidence` when
+  replacing assets: start dashboard, capture pending views, confirm the first
+  viewport, verify assets, run release gates, then stage only reviewed evidence
+  assets plus product/docs/test files.
+- Use `make browser-qa-capture-plan` when you only need the capture sequence and
+  not the full asset manifest.
+
+For automation or reviewer packets, `python3 -m src.browser_qa_evidence --json`
+prints the same verdict, committed screenshot assets, manual capture targets,
+local capture checklist, capture session plan, route QA checklist, and
+research-only boundary as structured JSON.
 
 Review boundary:
 

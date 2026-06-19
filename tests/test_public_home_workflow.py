@@ -1,4 +1,37 @@
-from src.public_home_workflow import public_home_loop_cards, public_home_visitor_path_cards
+from src.public_home_workflow import (
+    public_home_first_30_second_cards,
+    public_home_loop_cards,
+    public_home_visitor_path_cards,
+)
+
+
+def test_public_home_first_30_second_cards_explain_product_without_operator_detail():
+    cards = public_home_first_30_second_cards(
+        {
+            "master_universe": 3538,
+            "price_ready": 3538,
+            "dcf_ready": 59,
+            "peer_ready": 26,
+            "blocked_by_data": 3479,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["WHAT THIS IS", "HOW TO READ IT", "WHEN TO STOP"]
+    assert "a readiness-first research workflow" in rendered
+    assert "ready, blocked, partial, and excluded states stay visible" in rendered
+    assert "3,538/3,538 price-ready" in rendered
+    assert "59 names are dcf-ready and 26 are peer-ready today" in rendered
+    assert "single-stock report for one ticker" in rendered
+    assert "data health for source-proof gaps" in rendered
+    assert "3,479 blocked states remain withheld" in rendered
+    assert "keeps the conclusion unavailable" in rendered
+    assert "make " not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_public_home_loop_cards_connect_public_workflow_without_commands_or_advice():

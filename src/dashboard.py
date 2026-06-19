@@ -6,7 +6,6 @@ import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote
 
 import pandas as pd
 import streamlit as st
@@ -55,6 +54,7 @@ from src.data_health_dcf_source_commands import (
     dcf_source_command_triage_frame,
     dcf_source_loop_checklist_cards,
     dcf_source_loop_checklist_frame,
+    dcf_source_loop_route_cards,
     dcf_source_evidence_intake_cards,
     dcf_source_evidence_intake_frame,
     dcf_source_guard_preview_cards,
@@ -63,6 +63,24 @@ from src.data_health_dcf_source_commands import (
     dcf_source_guard_readiness_frame,
     dcf_source_proof_handoff_cards,
     dcf_source_proof_handoff_frame,
+)
+from src.dashboard_navigation import (
+    DEMO_MODE_LABELS,
+    DETAILED_PAGE_PATH_TITLE,
+    OPERATOR_DEMO_MODE,
+    PROOF_HISTORY_PATH_TITLE,
+    PUBLIC_DEMO_MODE,
+    PUBLIC_PATH_LABELS,
+    PUBLIC_PATH_PAGE_TITLES,
+    advanced_page_titles as _advanced_page_titles,
+    dashboard_mode_from_query as _dashboard_mode_from_query,
+    dashboard_mode_label,
+    dashboard_page_from_query as _dashboard_page_from_query,
+    dashboard_page_slug,
+    page_title_from_public_path,
+    public_path_label,
+    sidebar_path_index as _sidebar_path_index,
+    sidebar_path_options as _sidebar_path_options,
 )
 from src.data_health_proof_checklist import (
     proof_checklist_summary_cards as data_health_proof_checklist_summary_cards,
@@ -125,10 +143,15 @@ from src.readiness_ops import (
     build_readiness_ops_lanes,
 )
 from src.pilot_readiness import DEFAULT_PACKET_PATH, build_pilot_readiness_checks, pilot_readiness_verdict
-from src.public_home_workflow import public_home_loop_cards, public_home_visitor_path_cards
+from src.public_home_workflow import (
+    public_home_first_30_second_cards,
+    public_home_loop_cards,
+    public_home_visitor_path_cards,
+)
 from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
+    build_readiness_queue_route_cards,
 )
 from src.readiness_comparison import ReadinessComparison, compare_readiness_snapshots
 from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_batch_preflight
@@ -153,7 +176,7 @@ from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
-from src.single_stock_workflow import single_stock_next_command, single_stock_workflow_fit_cards
+from src.single_stock_workflow import single_stock_next_command, single_stock_workflow_fit_cards, single_stock_workflow_loop_cards
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -187,71 +210,15 @@ DASHBOARD_TAB_TITLES = [
     "Universe Manager",
 ]
 USER_PAGE_TITLES = ["Home"] + DASHBOARD_TAB_TITLES
-DETAILED_PAGE_PATH_TITLE = "More research views"
-PROOF_HISTORY_PATH_TITLE = "Proof History"
-PUBLIC_PATH_PAGE_TITLES = ["Home", "Single-Stock Report", "Data Health", PROOF_HISTORY_PATH_TITLE]
-ADVANCED_PAGE_TITLES = [title for title in USER_PAGE_TITLES if title not in PUBLIC_PATH_PAGE_TITLES]
-PUBLIC_PATH_LABELS = {
-    "Home": "Start at Home",
-    "Single-Stock Report": "Review one stock",
-    "Data Health": "Improve data coverage",
-    PROOF_HISTORY_PATH_TITLE: "Inspect proof",
-    DETAILED_PAGE_PATH_TITLE: "More research views",
-}
-PUBLIC_DEMO_MODE = "public"
-OPERATOR_DEMO_MODE = "operator"
-DEMO_MODE_LABELS = {
-    PUBLIC_DEMO_MODE: "Public visitor mode",
-    OPERATOR_DEMO_MODE: "Operator mode",
-}
+ADVANCED_PAGE_TITLES = _advanced_page_titles(USER_PAGE_TITLES)
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
 }
 
 
-def dashboard_page_slug(page_title: str) -> str:
-    slug = str(page_title or "").strip().lower()
-    slug = slug.replace("&", "and")
-    slug = re.sub(r"[^a-z0-9]+", "-", slug)
-    return slug.strip("-")
-
-
 def dashboard_page_from_query(value: object) -> str:
-    raw = value[0] if isinstance(value, list) and value else value
-    slug = dashboard_page_slug(unquote(str(raw or "").strip()))
-    aliases = {
-        "data": "Data Health",
-        "data-health": "Data Health",
-        "datahealth": "Data Health",
-        "final": "Final Watchlist",
-        "final-watchlist": "Final Watchlist",
-        "market": "Market Direction",
-        "market-direction": "Market Direction",
-        "momentum": "Momentum Leaders",
-        "momentum-leaders": "Momentum Leaders",
-        "monthly": "Monthly Picks",
-        "monthly-picks": "Monthly Picks",
-        "portfolio": "Portfolio Review",
-        "portfolio-review": "Portfolio Review",
-        "single": "Single-Stock Report",
-        "single-stock": "Single-Stock Report",
-        "single-stock-report": "Single-Stock Report",
-        "stock-report": "Single-Stock Report",
-        "universe": "Universe Manager",
-        "universe-manager": "Universe Manager",
-        "undervalued-candidates": "Value / Re-rating",
-        "valuation": "Value / Re-rating",
-        "value": "Value / Re-rating",
-        "value-re-rating": "Value / Re-rating",
-        "value-rerating": "Value / Re-rating",
-    }
-    if slug in aliases:
-        return aliases[slug]
-    for title in USER_PAGE_TITLES:
-        if dashboard_page_slug(title) == slug:
-            return title
-    return "Home"
+    return _dashboard_page_from_query(value, USER_PAGE_TITLES)
 
 
 def dashboard_query_value_present(value: object) -> bool:
@@ -262,19 +229,7 @@ def dashboard_query_value_present(value: object) -> bool:
 
 
 def dashboard_mode_from_query(value: object, initial_page: str = "Home") -> str:
-    raw = value[0] if isinstance(value, list) and value else value
-    slug = dashboard_page_slug(unquote(str(raw or "").strip()))
-    if slug in {"operator", "ops", "internal", "advanced", "full"}:
-        return OPERATOR_DEMO_MODE
-    if slug in {"public", "demo", "visitor", "share"}:
-        return PUBLIC_DEMO_MODE
-    if initial_page in ADVANCED_PAGE_TITLES:
-        return OPERATOR_DEMO_MODE
-    return PUBLIC_DEMO_MODE
-
-
-def dashboard_mode_label(mode: str) -> str:
-    return DEMO_MODE_LABELS.get(mode, DEMO_MODE_LABELS[PUBLIC_DEMO_MODE])
+    return _dashboard_mode_from_query(value, initial_page, ADVANCED_PAGE_TITLES)
 
 
 def dashboard_generated_artifact_stale_warning(root: Path = BASE_DIR) -> str:
@@ -313,27 +268,11 @@ def data_health_freshness_status(root: Path = BASE_DIR) -> FreshnessStatus:
 
 
 def sidebar_path_options(initial_page: str) -> list[str]:
-    """Return visitor path choices without pretending detailed pages are Home."""
-    if initial_page in ADVANCED_PAGE_TITLES:
-        return PUBLIC_PATH_PAGE_TITLES + [DETAILED_PAGE_PATH_TITLE]
-    return PUBLIC_PATH_PAGE_TITLES
+    return _sidebar_path_options(initial_page, ADVANCED_PAGE_TITLES)
 
 
 def sidebar_path_index(initial_page: str, path_options: list[str]) -> int:
-    if initial_page in path_options:
-        return path_options.index(initial_page)
-    if initial_page in ADVANCED_PAGE_TITLES and DETAILED_PAGE_PATH_TITLE in path_options:
-        return path_options.index(DETAILED_PAGE_PATH_TITLE)
-    return path_options.index("Home") if "Home" in path_options else 0
-
-
-def page_title_from_public_path(value: object) -> str:
-    """Map a sidebar path value or display label back to the canonical page title."""
-    text = str(value or "").strip()
-    if text in PUBLIC_PATH_LABELS:
-        return text
-    label_to_page = {label: page for page, label in PUBLIC_PATH_LABELS.items()}
-    return label_to_page.get(text, text)
+    return _sidebar_path_index(initial_page, path_options, ADVANCED_PAGE_TITLES)
 
 
 def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
@@ -7075,6 +7014,17 @@ def stock_report_workflow_fit_cards(
 
     return [
         {
+            "kicker": "RESEARCH LOOP",
+            "title": f"{ticker}: report step before source-proof follow-up",
+            "body": (
+                "Previous proof: loaded report payload plus saved local readiness gates. "
+                f"Current step: read supported sections first. Next safe action: {route_label}. "
+                f"Stop rule: {stop_rule}"
+            ),
+            "badges": ["Home -> report -> Data Health", "proof first"],
+            "command": route,
+        },
+        {
             "kicker": "SELECTED TICKER",
             "title": f"{ticker}: {mode}",
             "body": f"{confidence} Current page state comes from the loaded report payload and saved local readiness gates.",
@@ -9480,6 +9430,11 @@ def data_health_dcf_source_loop_checklist_cards(frame: pd.DataFrame | None, sele
     return dcf_source_loop_checklist_cards(checklist, data_health_dcf_input_family_key(selection) or None)
 
 
+def data_health_dcf_source_loop_route_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
+    checklist = data_health_dcf_source_loop_checklist_frame(frame, selection, top_n=top_n)
+    return dcf_source_loop_route_cards(checklist, data_health_dcf_input_family_key(selection) or None)
+
+
 def _data_health_dcf_source_route(row: pd.Series) -> str:
     family = format_missing(row.get("Missing Input Family"), "")
     mode = format_missing(row.get("Source Mode"), "").lower()
@@ -10401,6 +10356,10 @@ def data_health_readiness_queue_drilldown_cards(row: pd.Series | dict[str, objec
 
 def data_health_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) -> pd.DataFrame:
     return build_readiness_queue_lane_action_frame(row)
+
+
+def data_health_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
+    return build_readiness_queue_route_cards(row)
 
 
 def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
@@ -20579,10 +20538,6 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
     ]
 
 
-def public_path_label(page_title: str) -> str:
-    return PUBLIC_PATH_LABELS.get(page_title, page_title)
-
-
 def sidebar_quick_help_lines() -> list[str]:
     return [
         "Start with Home for the coverage snapshot.",
@@ -25197,6 +25152,11 @@ def render_home_page(
         )
     if public_mode:
         render_public_proof_strip(_public_home_snapshot_items(summary))
+        render_section_header(
+            "First 30 Seconds",
+            "What the product does, how to read it, and when to stop before looking at examples.",
+        )
+        render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)
         render_signal_cards(_plain_home_public_loop_cards(summary), show_commands=False)
         render_section_header(
             "Visitor Path",
@@ -26478,6 +26438,7 @@ def render_market_command_center(
         "Where This Ticker Fits",
         "Selected ticker, review-now scope, blocked or excluded inputs, Data Health handoff, and stop rule before raw details.",
     )
+    render_signal_cards(single_stock_workflow_loop_cards(snapshot), show_commands=False)
     render_signal_cards(single_stock_workflow_fit_cards(snapshot))
     render_section_header("Single-Stock Quick Read", "The first interpretation path before tables: what this page can support, what stays locked, and the next copy-only command.")
     render_signal_cards(single_stock_quick_read_cards(snapshot))
@@ -26957,6 +26918,7 @@ def render_data_health(
         for _, drilldown_row in queue_drilldown.iterrows():
             with st.expander(str(drilldown_row.get("Lane", "Readiness lane")), expanded=False):
                 render_signal_cards(data_health_readiness_queue_drilldown_cards(drilldown_row), show_commands=True)
+                render_signal_cards(data_health_readiness_queue_route_cards(drilldown_row), show_commands=False)
                 render_signal_cards(data_health_readiness_queue_lane_action_cards(drilldown_row), show_commands=True)
                 st.dataframe(
                     clean_display_frame(data_health_readiness_queue_lane_action_frame(drilldown_row)),
@@ -27211,6 +27173,10 @@ def render_data_health(
             render_signal_cards(
                 data_health_dcf_source_loop_checklist_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
+            )
+            render_signal_cards(
+                data_health_dcf_source_loop_route_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=False,
             )
             st.dataframe(
                 clean_display_frame(data_health_dcf_source_loop_checklist_frame(dcf_input_queue_filtered, dcf_family_selection)),
