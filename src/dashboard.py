@@ -3116,6 +3116,15 @@ def apply_dashboard_theme() -> None:
           margin-top: 0.14rem;
           overflow-wrap: anywhere;
         }
+        .research-loop-link {
+          color: #0f766e !important;
+          text-decoration: none !important;
+          border-bottom: 1px solid rgba(15, 118, 110, 0.24);
+        }
+        .research-loop-link:hover {
+          color: #0b3b36 !important;
+          border-bottom-color: rgba(15, 118, 110, 0.55);
+        }
         .research-loop-note {
           color: #526071;
           font-size: 0.72rem;
@@ -4041,6 +4050,7 @@ def research_loop_strip_html(
     proof_note: str = "",
     action_note: str = "",
     stop_note: str = "",
+    action_href: str = "",
 ) -> str:
     """Compact cross-page orientation strip for the readiness-first research loop."""
 
@@ -4054,10 +4064,19 @@ def research_loop_strip_html(
     for label, value, note, class_name in items:
         note_html = f"<div class='research-loop-note'>{html.escape(note)}</div>" if note else ""
         class_attr = f"research-loop-item {class_name}".strip()
+        if label == "Next safe action" and action_href:
+            safe_href = html.escape(action_href, quote=True)
+            value_html = (
+                "<div class='research-loop-value'>"
+                f"<a class='research-loop-link' href='{safe_href}'>{html.escape(value)}</a>"
+                "</div>"
+            )
+        else:
+            value_html = f"<div class='research-loop-value'>{html.escape(value)}</div>"
         item_html.append(
             f"<div class='{class_attr}'>"
             f"<div class='research-loop-label'>{html.escape(label)}</div>"
-            f"<div class='research-loop-value'>{html.escape(value)}</div>"
+            f"{value_html}"
             f"{note_html}"
             "</div>"
         )
@@ -4074,6 +4093,7 @@ def render_research_loop_strip(
     proof_note: str = "",
     action_note: str = "",
     stop_note: str = "",
+    action_href: str = "",
 ) -> None:
     st.markdown(
         research_loop_strip_html(
@@ -4085,6 +4105,7 @@ def render_research_loop_strip(
             proof_note=proof_note,
             action_note=action_note,
             stop_note=stop_note,
+            action_href=action_href,
         ),
         unsafe_allow_html=True,
     )
@@ -4105,6 +4126,7 @@ def home_research_loop_context(summary: dict[str, object], freshness: FreshnessS
         "previous_proof": proof_state,
         "proof_note": proof_note,
         "next_action": next_action,
+        "action_href": "?mode=public&page=single-stock",
         "action_note": "Review one ticker, then route locked fields to Data Health.",
         "stop_rule": "Do not infer missing inputs",
         "stop_note": "Blocked, partial, and excluded states stay visible until source proof changes readiness.",
@@ -4132,6 +4154,7 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
             "previous_proof": "Local readiness row and report payload",
             "proof_note": proof_note,
             "next_action": next_action,
+            "action_href": "?mode=operator&page=data-health" if "Data Health" in next_action else "",
             "action_note": "If a field is locked, continue in Data Health before trusting deeper analysis.",
             "stop_rule": "Do not read locked sections as conclusions",
             "stop_note": "Valuation, peers, metrics, earnings, and estimates stay withheld until trusted inputs exist.",
@@ -4142,10 +4165,26 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
         "previous_proof": "Home readiness snapshot",
         "proof_note": "Use saved readiness counts to understand whether this ticker can support deeper review.",
         "next_action": "Show Local Report",
+        "action_href": "",
         "action_note": "Read At A Glance first; then use Data Health for any locked input.",
         "stop_rule": "No report, no interpretation",
         "stop_note": "Do not use optional online lookup or missing local rows as proof.",
     }
+
+
+def data_health_research_loop_action_href(selected_lane_key: str, next_action: str, public_mode: bool) -> str:
+    if public_mode:
+        return "?mode=public&page=data-health&drawer=proof"
+    next_text = str(next_action or "").lower()
+    if next_text.startswith("make "):
+        return ""
+    if selected_lane_key == "metrics":
+        return "?mode=operator&page=data-health&lane=metrics&drawer=metrics"
+    if selected_lane_key == "proof":
+        return "?mode=operator&page=data-health&lane=proof&drawer=proof"
+    if selected_lane_key in DATA_HEALTH_OPERATOR_LANES:
+        return f"?mode=operator&page=data-health&lane={selected_lane_key}&drawer=batch"
+    return "?mode=operator&page=data-health"
 
 
 def data_health_research_loop_context(
@@ -4165,6 +4204,7 @@ def data_health_research_loop_context(
         "previous_proof": proof_state,
         "proof_note": readiness_freshness.message,
         "next_action": friendly_dashboard_card_copy(next_action),
+        "action_href": data_health_research_loop_action_href(selected_lane_key, next_action, public_mode),
         "action_note": "Commands stay copy-only and collapsed; validate and preview before any reviewed apply step.",
         "stop_rule": "Stop before apply without reviewed proof",
         "stop_note": "Missing source rows, stale snapshots, rejected rows, or placeholder fields keep the lane blocked.",
@@ -18352,6 +18392,42 @@ def data_health_detail_selector_requested(query_value: object, session_loaded: o
     return str(selector_value or "").strip().lower() == "review details"
 
 
+def data_health_drawer_from_query(query_value: object, selected_lane_key: str = "") -> str:
+    if isinstance(query_value, (list, tuple)):
+        query_value = query_value[0] if query_value else ""
+    token = dashboard_page_slug(str(query_value or "").strip())
+    aliases = {
+        "batch": "batch",
+        "batch-execution": "batch",
+        "packet": "batch",
+        "reviewed-batch": "batch",
+        "queue": "queue",
+        "readiness-queue": "queue",
+        "lane": "queue",
+        "source": "queue",
+        "source-proof": "queue",
+        "metric": "metrics",
+        "metrics": "metrics",
+        "metric-details": "metrics",
+        "proof": "proof",
+        "proof-history": "proof",
+        "proof-record": "proof",
+        "ledger": "proof",
+    }
+    drawer = aliases.get(token, "")
+    return drawer
+
+
+def data_health_drawer_detail_flags(drawer: str, selected_lane_key: str = "") -> dict[str, bool]:
+    normalized = data_health_drawer_from_query(drawer, selected_lane_key)
+    return {
+        "queue": normalized in {"queue", "batch"},
+        "batch": normalized == "batch" and selected_lane_key not in {"metrics", "proof"},
+        "metrics": normalized == "metrics",
+        "proof": normalized == "proof",
+    }
+
+
 def render_data_health_detail_selector(
     *,
     label: str,
@@ -25062,12 +25138,6 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
     render_signal_cards(single_stock_report_intro_summary_cards())
-    demo_note_title, demo_note_body = single_stock_demo_picker_note()
-    render_context_note(demo_note_title, demo_note_body)
-    render_signal_cards(single_stock_demo_picker_cards())
-    with st.expander("How single-stock reports work", expanded=False):
-        render_signal_cards(single_stock_report_intro_cards())
-
     render_context_note(
         "What happens when you open a report.",
         "Show Local Report displays the selected local ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
@@ -25085,6 +25155,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                 st.session_state["single_stock_report_ticker"] = ticker
                 st.session_state["single_stock_report_provider"] = provider_name
                 st.session_state["single_stock_report_history"] = history
+                report_payload = st.session_state["single_stock_report_payload"]
             except RuntimeError as exc:
                 st.error(str(exc))
             except (LookupError, FileNotFoundError, ValueError) as exc:
@@ -25094,6 +25165,12 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     if st.session_state.get("single_stock_report_ticker") != ticker:
         report_payload = None
     render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))
+    with st.expander("Example report states", expanded=False):
+        demo_note_title, demo_note_body = single_stock_demo_picker_note()
+        render_context_note(demo_note_title, demo_note_body)
+        render_signal_cards(single_stock_demo_picker_cards())
+        with st.expander("How single-stock reports work", expanded=False):
+            render_signal_cards(single_stock_report_intro_cards())
     if not report_payload:
         return
 
@@ -26047,19 +26124,21 @@ def render_data_health(
         ticker_readiness_frame,
     )
     selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
+    selected_drawer = data_health_drawer_from_query(st.query_params.get("drawer"), selected_lane_key)
+    drawer_detail_flags = data_health_drawer_detail_flags(selected_drawer, selected_lane_key)
     queue_details_requested = data_health_detail_selector_requested(
         st.query_params.get("queue_details"),
-        st.session_state.get("data_health_queue_details_loaded", False),
+        st.session_state.get("data_health_queue_details_loaded", False) or drawer_detail_flags["queue"],
         st.session_state.get("data-health-queue-detail-level"),
     )
     batch_details_requested = data_health_detail_selector_requested(
         st.query_params.get("batch_details"),
-        st.session_state.get("data_health_batch_details_loaded", False),
+        st.session_state.get("data_health_batch_details_loaded", False) or drawer_detail_flags["batch"],
         st.session_state.get("data-health-batch-detail-level"),
     )
     proof_details_requested = data_health_detail_selector_requested(
         st.query_params.get("proof_details"),
-        st.session_state.get("data_health_proof_details_loaded", False),
+        st.session_state.get("data_health_proof_details_loaded", False) or drawer_detail_flags["proof"],
         st.session_state.get("data-health-proof-detail-level"),
     )
 
@@ -26127,7 +26206,6 @@ def render_data_health(
                 "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
             )
         return
-    pilot_readiness = data_health_pilot_readiness_frame(top_n=10)
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
     batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
     batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
@@ -26137,6 +26215,45 @@ def render_data_health(
         coverage_frontier,
         readiness_freshness,
     )
+    metric_details_requested = data_health_metric_details_requested(
+        st.query_params.get("metric_details"),
+        st.session_state.get("data_health_metric_details_loaded", False)
+        or st.session_state.get("data-health-metric-detail-level") == "Review details",
+    ) or drawer_detail_flags["metrics"]
+    metric_detail_status = data_health_metric_detail_load_status(
+        selected_lane_key,
+        readiness_freshness,
+        metric_details_requested,
+    )
+    render_data_health_operator_hero(operator_snapshot_cards)
+    render_data_health_operator_queue_header()
+    render_data_health_operator_lane_nav(selected_lane_key)
+    render_research_loop_strip(
+        **data_health_research_loop_context(
+            selected_lane_key=selected_lane_key,
+            readiness_freshness=readiness_freshness,
+            next_action=data_health_current_mode_next_action(
+                selected_lane_key,
+                batch_details_requested=batch_details_requested,
+                metric_detail_status=metric_detail_status,
+                proof_details_requested=proof_details_requested,
+                readiness_freshness=readiness_freshness,
+                batch_preflight=batch_preflight,
+            ),
+            public_mode=False,
+        )
+    )
+    render_data_health_current_mode_strip(
+        selected_lane_key=selected_lane_key,
+        queue_details_requested=queue_details_requested,
+        batch_details_requested=batch_details_requested,
+        metric_details_requested=metric_details_requested,
+        proof_details_requested=proof_details_requested,
+        readiness_freshness=readiness_freshness,
+        batch_preflight=batch_preflight,
+        metric_detail_status=metric_detail_status,
+    )
+    pilot_readiness = data_health_pilot_readiness_frame(top_n=10)
     should_load_proof_details = proof_details_requested
     batch_proof_frame = data_health_reviewed_batch_proof_frame() if should_load_proof_details else pd.DataFrame()
     batch_proof_summary_frame = batch_proof_frame if not batch_proof_frame.empty else data_health_reviewed_batch_proof_frame()
@@ -26155,16 +26272,6 @@ def render_data_health(
         else pd.DataFrame()
     )
     proof_timeline = data_health_reviewed_proof_timeline_frame() if should_load_proof_details else pd.DataFrame()
-    metric_details_requested = data_health_metric_details_requested(
-        st.query_params.get("metric_details"),
-        st.session_state.get("data_health_metric_details_loaded", False)
-        or st.session_state.get("data-health-metric-detail-level") == "Review details",
-    )
-    metric_detail_status = data_health_metric_detail_load_status(
-        selected_lane_key,
-        readiness_freshness,
-        metric_details_requested,
-    )
     metric_queue_frame = pd.DataFrame()
     if metric_detail_status["status"] == "ready_to_load":
         metric_queue_frame = data_health_metric_readiness_queue_frame(top_n=10)
@@ -26225,34 +26332,6 @@ def render_data_health(
         else pd.DataFrame()
     )
     queue_outcome_summary = data_health_readiness_queue_outcome_summary_frame(readiness_queue, batch_proof_summary_frame)
-    render_data_health_operator_hero(operator_snapshot_cards)
-    render_data_health_operator_queue_header()
-    render_data_health_operator_lane_nav(selected_lane_key)
-    render_research_loop_strip(
-        **data_health_research_loop_context(
-            selected_lane_key=selected_lane_key,
-            readiness_freshness=readiness_freshness,
-            next_action=data_health_current_mode_next_action(
-                selected_lane_key,
-                batch_details_requested=batch_details_requested,
-                metric_detail_status=metric_detail_status,
-                proof_details_requested=proof_details_requested,
-                readiness_freshness=readiness_freshness,
-                batch_preflight=batch_preflight,
-            ),
-            public_mode=False,
-        )
-    )
-    render_data_health_current_mode_strip(
-        selected_lane_key=selected_lane_key,
-        queue_details_requested=queue_details_requested,
-        batch_details_requested=batch_details_requested,
-        metric_details_requested=metric_details_requested,
-        proof_details_requested=proof_details_requested,
-        readiness_freshness=readiness_freshness,
-        batch_preflight=batch_preflight,
-        metric_detail_status=metric_detail_status,
-    )
     operator_next_action_summary = data_health_operator_next_action_summary_frame(
         pilot_readiness,
         data_coverage_proof_queues,
@@ -26427,7 +26506,7 @@ def render_data_health(
                 data_health_deferred_detail_cards(
                     title="Decision proof queue is deferred",
                     body="Decision proof rows are proof-history detail, not first-viewport readiness status.",
-                    command="Open Proof History or add proof_details=1 when you need decision proof rows.",
+                    command="Open Proof History with the proof drawer when you need decision proof rows.",
                     badges=["proof deferred", "copy-only"],
                 ),
                 show_commands=False,
@@ -28109,13 +28188,22 @@ def main() -> None:
         )
         mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
         st.caption(f"Mode: {dashboard_mode_label(mode)}")
-        path_options = sidebar_path_options("Home" if public_demo_mode else initial_page)
+        path_options = sidebar_path_options(initial_page)
+        default_path = "Home" if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES else initial_page
+        route_signature = f"{mode}:{initial_page}"
+        path_state_key = "dashboard-path-selection"
+        if st.session_state.get("dashboard-route-signature") != route_signature:
+            st.session_state[path_state_key] = (
+                default_path if default_path in path_options else "Home" if "Home" in path_options else path_options[0]
+            )
+            st.session_state["dashboard-route-signature"] = route_signature
         path_selection = st.radio(
             "Choose your path",
             path_options,
-            index=sidebar_path_index("Home" if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES else initial_page, path_options),
+            index=sidebar_path_index(default_path, path_options),
             format_func=public_path_label,
             help="Most visitors only need these paths: review one stock, improve data coverage, or inspect proof.",
+            key=path_state_key,
         )
         path_selection = page_title_from_public_path(path_selection)
         if path_selection == DETAILED_PAGE_PATH_TITLE:

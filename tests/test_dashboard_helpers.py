@@ -1099,9 +1099,11 @@ def test_dashboard_page_query_supports_visitor_friendly_deep_links():
     assert dashboard.dashboard_page_slug("Single-Stock Report") == "single-stock-report"
     assert dashboard.dashboard_page_slug("Value / Re-rating") == "value-re-rating"
     assert dashboard.dashboard_page_from_query("single-stock-report") == "Single-Stock Report"
+    assert dashboard.dashboard_page_from_query("single-stock") == "Single-Stock Report"
     assert dashboard.dashboard_page_from_query("single_stock") == "Single-Stock Report"
     assert dashboard.dashboard_page_from_query("stock_report") == "Single-Stock Report"
     assert dashboard.dashboard_page_from_query("Single-Stock%20Report") == "Single-Stock Report"
+    assert dashboard.dashboard_page_from_query("data-health") == "Data Health"
     assert dashboard.dashboard_page_from_query(["data-health"]) == "Data Health"
     assert dashboard.dashboard_page_from_query(["data_health"]) == "Data Health"
     assert dashboard.dashboard_page_from_query("Value / Re-rating") == "Value / Re-rating"
@@ -1227,9 +1229,12 @@ def test_research_loop_strip_connects_current_proof_next_action_and_stop_rule():
         proof_note="Use this snapshot before opening ticker pages.",
         action_note="Review one ticker, then route locked fields to Data Health.",
         stop_note="Blocked and excluded states stay visible.",
+        action_href="?mode=public&page=single-stock",
     ).lower()
 
     assert "research-loop-strip" in rendered
+    assert "research-loop-link" in rendered
+    assert "?mode=public&amp;page=single-stock" in rendered
     assert "current step" in rendered
     assert "previous proof" in rendered
     assert "next safe action" in rendered
@@ -1269,6 +1274,7 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     assert home["current_step"] == "Home readiness snapshot"
     assert "3,538 price-ready / 59 DCF-ready / 26 peer-ready" in home["current_note"]
     assert home["next_action"] == "Open a Single-Stock Report"
+    assert home["action_href"] == "?mode=public&page=single-stock"
     assert home_stale["previous_proof"] == "Saved readiness snapshot needs refresh"
     assert home_stale["proof_note"] == "make readiness"
     assert pre_report["current_step"] == "Single-Stock Report"
@@ -1276,12 +1282,51 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     assert pre_report["next_action"] == "Show Local Report"
     assert loaded_report["current_step"] == "NVDA report review"
     assert loaded_report["next_action"] == "Read Best Review Path before detailed tabs"
+    assert loaded_report["action_href"] == ""
     assert data_health["current_step"] == "Data Health source-proof lane"
     assert data_health["current_note"] == "Fundamentals / DCF"
     assert data_health["previous_proof"] == "Readiness snapshot needs refresh"
     assert data_health["next_action"] == "make readiness"
+    assert data_health["action_href"] == ""
     rendered = " ".join(" ".join(value.values()) for value in [home, pre_report, loaded_report, data_health]).lower()
     assert "recommendation" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_research_loop_action_links_are_navigation_only_and_lane_aware():
+    assert dashboard.data_health_research_loop_action_href(
+        "metrics",
+        "Switch Metric detail level to Review details.",
+        public_mode=False,
+    ) == "?mode=operator&page=data-health&lane=metrics&drawer=metrics"
+    assert dashboard.data_health_research_loop_action_href(
+        "proof",
+        "Switch Proof detail level to Review details.",
+        public_mode=False,
+    ) == "?mode=operator&page=data-health&lane=proof&drawer=proof"
+    assert dashboard.data_health_research_loop_action_href(
+        "fundamentals",
+        "Switch Batch execution detail level to Review details.",
+        public_mode=False,
+    ) == "?mode=operator&page=data-health&lane=fundamentals&drawer=batch"
+    assert dashboard.data_health_research_loop_action_href(
+        "fundamentals",
+        "make readiness",
+        public_mode=False,
+    ) == ""
+    rendered = dashboard.research_loop_strip_html(
+        current_step="Data Health source-proof lane",
+        previous_proof="Readiness snapshot is current",
+        next_action="Switch Proof detail level to Review details.",
+        stop_rule="Stop before apply without reviewed proof",
+        action_href="?mode=operator&page=data-health&lane=proof&drawer=proof",
+    ).lower()
+    assert "research-loop-link" in rendered
+    assert "drawer=proof" in rendered
+    assert "proof_details=1" not in rendered
+    assert "make " not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
@@ -1304,6 +1349,19 @@ def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages(
     assert home_loop_index < home_workflow_index
     assert single_stock_button_index < single_stock_loop_index
     assert data_health_nav_index < data_health_loop_index < data_health_mode_index
+
+
+def test_data_health_operator_shell_renders_before_heavy_proof_sections():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    public_return_index = source.index("        return\n    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
+    shell_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
+    lane_nav_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", public_return_index)
+    mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
+    pilot_readiness_index = source.index("pilot_readiness = data_health_pilot_readiness_frame(top_n=10)", public_return_index)
+    proof_frame_index = source.index("batch_proof_frame = data_health_reviewed_batch_proof_frame()", public_return_index)
+
+    assert shell_index < lane_nav_index < mode_strip_index < pilot_readiness_index < proof_frame_index
 
 
 def test_major_dashboard_pages_avoid_duplicate_reader_guides():
@@ -1555,7 +1613,10 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard"' in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard-smoke"' not in source
     assert "sidebar_quick_help_lines()" in source
-    assert "path_options = sidebar_path_options(\"Home\" if public_demo_mode else initial_page)" in source
+    assert "path_options = sidebar_path_options(initial_page)" in source
+    assert 'path_state_key = "dashboard-path-selection"' in source
+    assert 'st.session_state["dashboard-route-signature"] = route_signature' in source
+    assert "key=path_state_key" in source
     assert 'elif path_selection == PROOF_HISTORY_PATH_TITLE:\n            selected_page = "Data Health"' in source
     assert "render_app_header(catalog, output_frames, compact=selected_page == \"Data Health\" and not public_demo_mode)" in source
     assert "hero_class = \"app-hero compact\" if compact else \"app-hero\"" in source
@@ -14773,14 +14834,18 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())")
-    note_index = source.index("demo_note_title, demo_note_body = single_stock_demo_picker_note()", summary_index)
-    demo_index = source.index("render_signal_cards(single_stock_demo_picker_cards())")
-    expander_index = source.index('st.expander("How single-stock reports work"')
-    full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())")
     preview_note_index = source.index('render_context_note(\n        "What happens when you open a report."')
     build_button_index = source.index('st.button("Show Local Report"')
+    loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
+    state_expander_index = source.index('st.expander("Example report states", expanded=False)')
+    note_index = source.index("demo_note_title, demo_note_body = single_stock_demo_picker_note()", state_expander_index)
+    demo_index = source.index("render_signal_cards(single_stock_demo_picker_cards())", state_expander_index)
+    expander_index = source.index('st.expander("How single-stock reports work"', state_expander_index)
+    full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())", state_expander_index)
 
-    assert summary_index < note_index < demo_index < expander_index < full_intro_index < preview_note_index < build_button_index
+    assert summary_index < preview_note_index < build_button_index < loop_index < state_expander_index
+    assert state_expander_index < note_index < demo_index < expander_index < full_intro_index
+    assert 'st.expander("Example report states", expanded=False)' in source
     assert 'st.expander("How single-stock reports work", expanded=False)' in source
     assert 'st.expander("Coverage and peer readiness", expanded=False)' in source
     assert 'st.expander("More coverage details", expanded=False)' in source
@@ -23102,6 +23167,40 @@ def test_data_health_detail_selector_requested_accepts_query_session_or_segment(
     assert dashboard.data_health_detail_selector_requested("0", selector_value="Fast view") is False
 
 
+def test_data_health_drawer_query_routes_to_existing_detail_flags():
+    assert dashboard.data_health_drawer_from_query("metric-details", "prices") == "metrics"
+    assert dashboard.data_health_drawer_from_query(["proof-record"], "prices") == "proof"
+    assert dashboard.data_health_drawer_from_query("source-proof", "fundamentals") == "queue"
+    assert dashboard.data_health_drawer_from_query("", "metrics") == ""
+    assert dashboard.data_health_drawer_from_query(None, "proof") == ""
+
+    assert dashboard.data_health_drawer_detail_flags("metrics", "metrics") == {
+        "queue": False,
+        "batch": False,
+        "metrics": True,
+        "proof": False,
+    }
+    assert dashboard.data_health_drawer_detail_flags("proof", "proof") == {
+        "queue": False,
+        "batch": False,
+        "metrics": False,
+        "proof": True,
+    }
+    assert dashboard.data_health_drawer_detail_flags("batch", "fundamentals") == {
+        "queue": True,
+        "batch": True,
+        "metrics": False,
+        "proof": False,
+    }
+    assert dashboard.data_health_drawer_detail_flags("queue", "fundamentals") == {
+        "queue": True,
+        "batch": False,
+        "metrics": False,
+        "proof": False,
+    }
+    assert "buy" not in " ".join(dashboard.data_health_drawer_detail_flags("batch", "fundamentals").keys())
+
+
 def _reviewed_batch_preflight_fixture(
     *,
     lane: str = "prices",
@@ -23928,7 +24027,9 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
 
     assert '"Public visitor mode"' in source
     assert "public_demo_mode = st.toggle" in source
-    assert "path_options = sidebar_path_options(\"Home\" if public_demo_mode else initial_page)" in source
+    assert "path_options = sidebar_path_options(initial_page)" in source
+    assert 'path_state_key = "dashboard-path-selection"' in source
+    assert "route_signature = f\"{mode}:{initial_page}\"" in source
     assert "show_reason_details = False" in source
     assert 'if not public_demo_mode and selected_page != "Data Health":' in source
     assert 'st.expander("Optional research views"' in source
