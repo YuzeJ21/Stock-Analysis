@@ -2,6 +2,7 @@ from src.single_stock_workflow import (
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
     single_stock_report_data_health_route,
+    single_stock_workflow_command_rows,
     single_stock_workflow_fit_cards,
     single_stock_workflow_loop_cards,
 )
@@ -51,6 +52,35 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_workflow_command_rows_are_collapsed_copy_only_rows():
+    cards = [
+        {"kicker": "WHERE AM I", "command": "make stock-report-md TICKER=NVDA"},
+        {"kicker": "REVIEW NOW", "command": ""},
+        {"kicker": "NEXT SAFE STEP", "command": "make focus-peers TICKER=NVDA"},
+        {"kicker": "NEXT SAFE STEP", "command": "make focus-peers TICKER=NVDA"},
+    ]
+
+    rows = single_stock_workflow_command_rows(cards)
+    rendered = " ".join(" ".join(row.values()) for row in rows).lower()
+
+    assert rows == [
+        {
+            "Step": "WHERE AM I",
+            "Command": "make stock-report-md TICKER=NVDA",
+            "Boundary": "Copy-only; the dashboard does not run imports, refreshes, or proof writes.",
+        },
+        {
+            "Step": "NEXT SAFE STEP",
+            "Command": "make focus-peers TICKER=NVDA",
+            "Boundary": "Copy-only; the dashboard does not run imports, refreshes, or proof writes.",
+        },
+    ]
+    assert "copy-only" in rendered
+    assert "dashboard does not run imports" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

@@ -1866,7 +1866,7 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     assert "next copy-only command" in source
     assert "Selected ticker, review-now scope, blocked or excluded inputs, Data Health handoff, and stop rule before raw details." in source
     assert "single_stock_workflow_loop_cards(snapshot)" in source
-    assert "Copy-only; the dashboard does not run imports, refreshes, or proof writes." in source
+    assert "single_stock_workflow_command_rows(workflow_fit_cards)" in source
     assert "How The App Uses Trusted Data" in source
     assert "Source Vs Product Logic" not in source
     assert "full-table dumps" not in source

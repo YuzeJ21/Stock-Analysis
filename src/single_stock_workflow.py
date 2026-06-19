@@ -356,6 +356,30 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
     ]
 
 
+def single_stock_workflow_command_rows(cards: list[dict[str, object]]) -> list[dict[str, str]]:
+    """Return collapsed command rows for the single-stock workflow drawer."""
+
+    rows: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for card in cards:
+        command = _format_missing(card.get("command"), "")
+        if not command:
+            continue
+        step = _format_missing(card.get("kicker"), "Workflow step")
+        key = (step, command)
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append(
+            {
+                "Step": step,
+                "Command": command,
+                "Boundary": "Copy-only; the dashboard does not run imports, refreshes, or proof writes.",
+            }
+        )
+    return rows
+
+
 def _coverage_dataset_row(coverage: pd.DataFrame, dataset: str) -> pd.Series | None:
     if coverage.empty or "dataset" not in coverage.columns:
         return None

@@ -189,6 +189,7 @@ from src.single_stock_workflow import (
     single_stock_report_data_health_route,
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
+    single_stock_workflow_command_rows,
     single_stock_workflow_fit_cards,
     single_stock_workflow_loop_cards,
 )
@@ -26453,19 +26454,7 @@ def render_market_command_center(
     render_signal_cards(workflow_fit_cards, show_commands=False)
     with st.expander("Single-stock copy-only commands", expanded=False):
         st.dataframe(
-            clean_display_frame(
-                pd.DataFrame(
-                    [
-                        {
-                            "Step": format_missing(card.get("kicker")),
-                            "Command": format_missing(card.get("command")),
-                            "Boundary": "Copy-only; the dashboard does not run imports, refreshes, or proof writes.",
-                        }
-                        for card in workflow_fit_cards
-                        if format_missing(card.get("command"), "") != ""
-                    ]
-                )
-            ),
+            clean_display_frame(pd.DataFrame(single_stock_workflow_command_rows(workflow_fit_cards))),
             width="stretch",
             hide_index=True,
         )
