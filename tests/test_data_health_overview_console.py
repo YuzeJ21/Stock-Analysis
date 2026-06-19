@@ -66,6 +66,8 @@ def test_overview_public_visitor_path_cards_are_plain_language():
     assert [card[0] for card in cards] == ["Review one stock", "Improve data coverage", "Inspect proof"]
     assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Proof History"]
     assert "3,536 price-ready" in rendered
+    assert "stop if source rows, freshness, or proof history are missing" in rendered
+    assert "operator detail stays behind deeper drawers by default" in rendered
     assert "make " not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

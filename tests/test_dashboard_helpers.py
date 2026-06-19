@@ -10883,6 +10883,7 @@ def test_data_health_public_visitor_path_cards_are_plain_language_without_comman
     assert "27 dcf-ready" in rendered
     assert "26 peer-ready" in rendered
     assert "you are here" in rendered
+    assert "stop if source rows, freshness, or proof history are missing" in rendered
     assert "operator detail stays behind deeper drawers by default" in rendered
     assert "make " not in rendered
     assert "broker" not in rendered

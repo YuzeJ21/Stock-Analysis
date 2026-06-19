@@ -199,7 +199,7 @@ def public_visitor_path_cards(readiness_summary: dict[str, object]) -> list[tupl
         ),
         (
             "Inspect proof",
-            "Use the latest reviewed evidence before treating a changed readiness state as supported. Operator detail stays behind deeper drawers by default.",
+            "Use the latest reviewed evidence before treating a changed readiness state as supported. Stop if source rows, freshness, or proof history are missing. Operator detail stays behind deeper drawers by default.",
             "Proof History",
             "neutral",
         ),
