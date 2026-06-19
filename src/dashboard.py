@@ -153,6 +153,7 @@ from src.public_home_workflow import (
     public_home_first_30_second_cards,
     public_home_loop_cards,
     public_home_review_map_cards,
+    public_home_visitor_path_cards,
 )
 from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
@@ -25144,6 +25145,7 @@ def render_home_page(
             "Data readiness first. Analysis second. Research decision last. This view keeps the research workflow readable and keeps detailed operator commands behind Operator mode.",
             tone="success",
         )
+        render_research_loop_strip(**home_research_loop_context(summary, freshness))
     if public_mode:
         render_public_proof_strip(_public_home_snapshot_items(summary))
         render_section_header(
@@ -25156,6 +25158,11 @@ def render_home_page(
             "A compact map from readiness snapshot to one-ticker review, source-proof lane, and stop rule.",
         )
         render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")
+        render_section_header(
+            "Visitor Path",
+            "A simple four-step path for reading the project without opening operator tables.",
+        )
+        render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")
     else:
         render_signal_cards(dashboard_page_reader_summary_cards("Home"))
         render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
@@ -25175,9 +25182,6 @@ def render_home_page(
             freshness.refresh_command,
             tone="warning",
         )
-    if public_mode:
-        render_research_loop_strip(**home_research_loop_context(summary, freshness))
-
     render_section_header(
         "Research Workflow",
         "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states.",

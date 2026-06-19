@@ -2160,7 +2160,8 @@ def test_home_current_data_coverage_cards_show_public_snapshot_and_unlock_paths(
 def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
+    loop_strip_index = source.index("render_research_loop_strip(**home_research_loop_context(summary, freshness))")
+    proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))", loop_strip_index)
     first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', proof_strip_index)
     first_30_cards_index = source.index("render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)", first_30_index)
     connected_workflow_index = source.index('render_section_header(\n            "Connected Workflow"', first_30_cards_index)
@@ -2168,7 +2169,11 @@ def test_home_page_renders_current_data_coverage_before_workflow():
         'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
         connected_workflow_index,
     )
-    loop_strip_index = source.index("render_research_loop_strip(**home_research_loop_context(summary, freshness))", review_map_cards_index)
+    visitor_path_index = source.index('render_section_header(\n            "Visitor Path"', review_map_cards_index)
+    visitor_path_cards_index = source.index(
+        'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")',
+        visitor_path_index,
+    )
     workflow_spine_index = source.index('render_section_header(\n        "Research Workflow"')
     next_step_index = source.index('render_section_header("What To Do Next"')
     example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
@@ -2178,15 +2183,17 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
 
-    assert proof_strip_index < first_30_index < first_30_cards_index < connected_workflow_index < review_map_cards_index < loop_strip_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
+    assert loop_strip_index < proof_strip_index < first_30_index < first_30_cards_index < connected_workflow_index < review_map_cards_index < visitor_path_index < visitor_path_cards_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
     assert "A compact map from readiness snapshot to one-ticker review, source-proof lane, and stop rule." in source
+    assert "A simple four-step path for reading the project without opening operator tables." in source
     assert "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)" in source
     assert "render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)" in source
     assert 'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")' in source
+    assert 'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")' in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4] if public_mode else _plain_home_next_step_cards(summary), show_commands=False)" in source
