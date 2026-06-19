@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from src import readiness_ops as readiness_ops_module
 from src.readiness_ops import (
     build_fundamentals_peer_metrics_queue,
     build_fundamentals_peer_metrics_queue_from_lanes,
@@ -161,6 +162,22 @@ def test_fundamentals_peer_metrics_queue_can_reuse_existing_lanes(tmp_path: Path
     assert [row.top_missing_input_families for row in reused_rows] == [
         row.top_missing_input_families for row in direct_rows
     ]
+
+
+def test_readiness_queue_cli_does_not_prebuild_unneeded_frontier(tmp_path: Path, monkeypatch, capsys):
+    lane_calls = []
+
+    def fail_if_prebuilt(root):
+        lane_calls.append(root)
+        raise AssertionError("readiness queue should not prebuild ops lanes before routing")
+
+    monkeypatch.setattr(readiness_ops_module, "build_readiness_ops_lanes", fail_if_prebuilt)
+    monkeypatch.setattr(readiness_ops_module, "build_fundamentals_peer_metrics_queue", lambda root, top_n: [])
+
+    assert readiness_ops_module.main(["--root", str(tmp_path), "--readiness-queue", "--top-n", "7"]) == 0
+
+    assert lane_calls == []
+    assert "No queue rows are available" in capsys.readouterr().out
 
 
 def test_peer_readiness_summary_separates_mapping_trend_and_valuation_inputs(tmp_path: Path):

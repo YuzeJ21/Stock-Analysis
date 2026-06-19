@@ -98,6 +98,78 @@ def test_local_provider_date_parsing_is_consistent(tmp_path: Path):
     assert pd.api.types.is_datetime64_any_dtype(history["date"])
 
 
+def test_local_provider_reuses_prepared_price_frame(tmp_path: Path, monkeypatch):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,SPY,100,1000\n"
+        "2026-01-03,SPY,101,1200\n"
+        "2026-01-02,QQQ,200,1000\n"
+        "2026-01-03,QQQ,202,1200\n",
+        encoding="utf-8",
+    )
+    provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
+    original = provider.catalog.load_dataframe
+    price_loads = []
+
+    def wrapped_load_dataframe(dataset_name: str):
+        if dataset_name == "prices":
+            price_loads.append(dataset_name)
+        return original(dataset_name)
+
+    monkeypatch.setattr(provider.catalog, "load_dataframe", wrapped_load_dataframe)
+
+    assert provider.get_quote("SPY").price == 101.0
+    assert provider.get_price_history("SPY", period="1y", interval="1d").iloc[-1]["close"] == 101.0
+    assert provider.get_quote("QQQ").price == 202.0
+
+    assert price_loads == ["prices"]
+
+
+def test_local_provider_reuses_financial_and_peer_lookups(tmp_path: Path, monkeypatch):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,ALFA,150,1000\n"
+        "2026-01-02,BETA,90,1000\n"
+        "2026-01-02,GAMMA,80,1000\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "fundamentals.csv").write_text(
+        "ticker,revenue,eps,free_cash_flow,shares_outstanding,market_cap\n"
+        "ALFA,1000,5,100,10,1500\n"
+        "BETA,800,4,90,12,1080\n"
+        "GAMMA,700,3,80,11,880\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group\n"
+        "ALFA,BETA,test_group\n"
+        "ALFA,GAMMA,test_group\n",
+        encoding="utf-8",
+    )
+    provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
+    original = provider.catalog.load_dataframe
+    loads = []
+
+    def wrapped_load_dataframe(dataset_name: str):
+        loads.append(dataset_name)
+        return original(dataset_name)
+
+    monkeypatch.setattr(provider.catalog, "load_dataframe", wrapped_load_dataframe)
+
+    summary = provider.get_peer_summary("ALFA")
+    inputs = provider.get_peer_valuation_inputs("ALFA")
+    financials = provider.get_financials("BETA")
+
+    assert summary["peer_count"] == 2
+    assert {item["ticker"] for item in inputs} == {"BETA", "GAMMA"}
+    assert financials.revenue == 800.0
+    assert loads.count("fundamentals") == 1
+    assert loads.count("peers") == 1
+    assert loads.count("prices") == 1
+
+
 def test_local_provider_loads_fundamentals_fixture_when_available(tmp_path: Path):
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "prices.csv").write_text(

@@ -250,6 +250,13 @@ def dashboard_page_from_query(value: object) -> str:
     return "Home"
 
 
+def dashboard_query_value_present(value: object) -> bool:
+    """Return whether a query param was explicitly supplied."""
+    if isinstance(value, list):
+        return any(str(item or "").strip() for item in value)
+    return bool(str(value or "").strip())
+
+
 def dashboard_mode_from_query(value: object, initial_page: str = "Home") -> str:
     raw = value[0] if isinstance(value, list) and value else value
     slug = dashboard_page_slug(unquote(str(raw or "").strip()))
@@ -4050,22 +4057,25 @@ def research_loop_strip_html(
     proof_note: str = "",
     action_note: str = "",
     stop_note: str = "",
+    current_href: str = "",
+    proof_href: str = "",
     action_href: str = "",
+    stop_href: str = "",
 ) -> str:
     """Compact cross-page orientation strip for the readiness-first research loop."""
 
     items = [
-        ("Current step", current_step, current_note, ""),
-        ("Previous proof", previous_proof, proof_note, ""),
-        ("Next safe action", next_action, action_note, "action"),
-        ("Stop rule", stop_rule, stop_note, "stop"),
+        ("Current step", current_step, current_note, "", current_href),
+        ("Previous proof", previous_proof, proof_note, "", proof_href),
+        ("Next safe action", next_action, action_note, "action", action_href),
+        ("Stop rule", stop_rule, stop_note, "stop", stop_href),
     ]
     item_html = []
-    for label, value, note, class_name in items:
+    for label, value, note, class_name, href in items:
         note_html = f"<div class='research-loop-note'>{html.escape(note)}</div>" if note else ""
         class_attr = f"research-loop-item {class_name}".strip()
-        if label == "Next safe action" and action_href:
-            safe_href = html.escape(action_href, quote=True)
+        if href:
+            safe_href = html.escape(href, quote=True)
             value_html = (
                 "<div class='research-loop-value'>"
                 f"<a class='research-loop-link' href='{safe_href}'>{html.escape(value)}</a>"
@@ -4093,7 +4103,10 @@ def render_research_loop_strip(
     proof_note: str = "",
     action_note: str = "",
     stop_note: str = "",
+    current_href: str = "",
+    proof_href: str = "",
     action_href: str = "",
+    stop_href: str = "",
 ) -> None:
     st.markdown(
         research_loop_strip_html(
@@ -4105,7 +4118,10 @@ def render_research_loop_strip(
             proof_note=proof_note,
             action_note=action_note,
             stop_note=stop_note,
+            current_href=current_href,
+            proof_href=proof_href,
             action_href=action_href,
+            stop_href=stop_href,
         ),
         unsafe_allow_html=True,
     )
@@ -4123,13 +4139,16 @@ def home_research_loop_context(summary: dict[str, object], freshness: FreshnessS
     return {
         "current_step": "Home readiness snapshot",
         "current_note": current_state,
+        "current_href": "?mode=public",
         "previous_proof": proof_state,
         "proof_note": proof_note,
+        "proof_href": "?mode=public&page=data-health&drawer=proof",
         "next_action": next_action,
         "action_href": "?mode=public&page=single-stock",
         "action_note": "Review one ticker, then route locked fields to Data Health.",
         "stop_rule": "Do not infer missing inputs",
         "stop_note": "Blocked, partial, and excluded states stay visible until source proof changes readiness.",
+        "stop_href": "?mode=public&page=data-health&drawer=proof",
     }
 
 
@@ -4151,24 +4170,32 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
         return {
             "current_step": f"{ticker_label} report review",
             "current_note": f"Mode: {format_missing(mode, 'local report')}",
+            "current_href": "?mode=public&page=single-stock",
             "previous_proof": "Local readiness row and report payload",
             "proof_note": proof_note,
+            "proof_href": "?mode=operator&page=data-health&lane=proof&drawer=proof",
             "next_action": next_action,
-            "action_href": "?mode=operator&page=data-health" if "Data Health" in next_action else "",
+            "action_href": "?mode=operator&page=data-health&lane=fundamentals&drawer=queue"
+            if "Data Health" in next_action
+            else "",
             "action_note": "If a field is locked, continue in Data Health before trusting deeper analysis.",
             "stop_rule": "Do not read locked sections as conclusions",
             "stop_note": "Valuation, peers, metrics, earnings, and estimates stay withheld until trusted inputs exist.",
+            "stop_href": "?mode=operator&page=data-health&lane=proof&drawer=proof",
         }
     return {
         "current_step": "Single-Stock Report",
         "current_note": f"Selected ticker: {ticker_label}",
+        "current_href": "?mode=public&page=single-stock",
         "previous_proof": "Home readiness snapshot",
         "proof_note": "Use saved readiness counts to understand whether this ticker can support deeper review.",
+        "proof_href": "?mode=public",
         "next_action": "Show Local Report",
         "action_href": "",
         "action_note": "Read At A Glance first; then use Data Health for any locked input.",
         "stop_rule": "No report, no interpretation",
         "stop_note": "Do not use optional online lookup or missing local rows as proof.",
+        "stop_href": "?mode=public&page=data-health&drawer=proof",
     }
 
 
@@ -4198,16 +4225,29 @@ def data_health_research_loop_context(
     if public_mode:
         lane_label = "Public readiness summary"
     proof_state = "Readiness snapshot is current" if readiness_freshness.status == "current" else "Readiness snapshot needs refresh"
+    current_href = (
+        "?mode=public&page=data-health"
+        if public_mode
+        else f"?mode=operator&page=data-health&lane={selected_lane_key}"
+    )
+    proof_href = (
+        "?mode=public&page=data-health&drawer=proof"
+        if public_mode
+        else "?mode=operator&page=data-health&lane=proof&drawer=proof"
+    )
     return {
         "current_step": "Data Health source-proof lane",
         "current_note": lane_label,
+        "current_href": current_href,
         "previous_proof": proof_state,
         "proof_note": readiness_freshness.message,
+        "proof_href": proof_href,
         "next_action": friendly_dashboard_card_copy(next_action),
         "action_href": data_health_research_loop_action_href(selected_lane_key, next_action, public_mode),
         "action_note": "Commands stay copy-only and collapsed; validate and preview before any reviewed apply step.",
         "stop_rule": "Stop before apply without reviewed proof",
         "stop_note": "Missing source rows, stale snapshots, rejected rows, or placeholder fields keep the lane blocked.",
+        "stop_href": proof_href,
     }
 
 
@@ -11086,7 +11126,119 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
                 ),
             }
         )
+    short_history_rows = 0
+    if "rows_needed_for_next_goal" in ordered.columns:
+        needed = pd.to_numeric(ordered["rows_needed_for_next_goal"], errors="coerce").fillna(0)
+        short_history_rows = int((needed > 0).sum())
+    if short_history_rows:
+        cards.append(
+            {
+                "kicker": "PROOF QUEUE",
+                "title": "Short price-history blockers",
+                "body": (
+                    f"{short_history_rows:,} ticker(s) still need verified local history for the next price-depth gate. "
+                    "Price coverage can be complete while momentum, track-record, or review metrics remain partial."
+                ),
+                "badges": ["read-only", "dry-run first"],
+                "command": "make price-history-proof-queue TOP_N=10",
+            }
+        )
     return cards
+
+
+def data_health_price_history_proof_drawer_frame(
+    price_worklist_frame: pd.DataFrame | None,
+    limit: int = 10,
+) -> pd.DataFrame:
+    if price_worklist_frame is None or price_worklist_frame.empty:
+        return pd.DataFrame(
+            columns=[
+                "Ticker",
+                "State",
+                "Local rows",
+                "Next gate",
+                "Rows needed",
+                "Next command",
+                "Dry-run batch",
+                "Stop rule",
+            ]
+        )
+
+    ordered = price_worklist_frame.copy()
+    if "rows_needed_for_next_goal" not in ordered.columns:
+        return pd.DataFrame()
+    ordered["_rows_needed"] = pd.to_numeric(ordered["rows_needed_for_next_goal"], errors="coerce").fillna(0).astype(int)
+    ordered["_price_rows"] = pd.to_numeric(ordered.get("price_history_days", pd.Series(0, index=ordered.index)), errors="coerce").fillna(0).astype(int)
+    ordered = ordered.loc[ordered["_rows_needed"].gt(0)].copy()
+    if ordered.empty:
+        return pd.DataFrame()
+    sort_columns = []
+    if "priority" in ordered.columns:
+        ordered["priority"] = pd.to_numeric(ordered["priority"], errors="coerce")
+        sort_columns.append("priority")
+    sort_columns.extend(["_rows_needed", "ticker"] if "ticker" in ordered.columns else ["_rows_needed"])
+    ascending = [False if column == "_rows_needed" else True for column in sort_columns]
+    ordered = ordered.sort_values(sort_columns, ascending=ascending, kind="stable")
+
+    rows: list[dict[str, object]] = []
+    dry_run_command = f"make price-history-proof-queue TOP_N={max(limit, 1)}"
+    for _, row in ordered.head(max(limit, 0)).iterrows():
+        ticker = format_missing(row.get("ticker"), "Ticker")
+        local_rows = int(row.get("_price_rows") or 0)
+        state = "blocked" if local_rows <= 0 else "partial"
+        next_command = preferred_row_command(
+            row,
+            ticker_focus_command("prices", row.get("ticker"), "make runbook-prices-broader"),
+        )
+        rows.append(
+            {
+                "Ticker": ticker,
+                "State": state,
+                "Local rows": local_rows,
+                "Next gate": format_missing(row.get("next_price_goal"), "Next history gate"),
+                "Rows needed": int(row.get("_rows_needed") or 0),
+                "Next command": next_command,
+                "Dry-run batch": dry_run_command,
+                "Stop rule": "Do not infer missing dates, prices, volume, or adjusted close rows.",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def data_health_price_history_proof_drawer_cards(price_worklist_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    frame = data_health_price_history_proof_drawer_frame(price_worklist_frame, limit=10)
+    if frame.empty:
+        return [
+            {
+                "kicker": "PRICE HISTORY",
+                "title": "No short-history blockers",
+                "body": "The current price worklist has no short-history proof rows for this scope.",
+                "badges": ["read-only"],
+                "command": "make price-history-proof-queue TOP_N=10",
+            }
+        ]
+    first = frame.iloc[0]
+    partial = int(frame["State"].astype(str).eq("partial").sum()) if "State" in frame.columns else 0
+    blocked = int(frame["State"].astype(str).eq("blocked").sum()) if "State" in frame.columns else 0
+    return [
+        {
+            "kicker": "PRICE PROOF",
+            "title": f"{len(frame):,} short-history blocker(s)",
+            "body": (
+                f"Start with {first['Ticker']}: {first['Rows needed']} verified row(s) still needed. "
+                "Price coverage can be complete while momentum, track-record, or review metrics remain partial."
+            ),
+            "badges": [f"{partial} partial", f"{blocked} blocked", "copy-only"],
+            "command": "make price-history-proof-queue TOP_N=10",
+        },
+        {
+            "kicker": "NEXT SAFE ACTION",
+            "title": str(first["Next command"]),
+            "body": "Inspect the ticker first, then use dry-run-first batch planning only if the source path is reviewed.",
+            "badges": ["dry-run first", "no fabricated history"],
+            "command": str(first["Next command"]),
+        },
+    ]
 
 
 def data_health_deep_research_target_cards(
@@ -18421,7 +18573,7 @@ def data_health_drawer_from_query(query_value: object, selected_lane_key: str = 
 def data_health_drawer_detail_flags(drawer: str, selected_lane_key: str = "") -> dict[str, bool]:
     normalized = data_health_drawer_from_query(drawer, selected_lane_key)
     return {
-        "queue": normalized in {"queue", "batch"},
+        "queue": False,
         "batch": normalized == "batch" and selected_lane_key not in {"metrics", "proof"},
         "metrics": normalized == "metrics",
         "proof": normalized == "proof",
@@ -26141,8 +26293,9 @@ def render_data_health(
         st.session_state.get("data_health_proof_details_loaded", False) or drawer_detail_flags["proof"],
         st.session_state.get("data-health-proof-detail-level"),
     )
+    queue_details_loaded = queue_details_requested and selected_lane_key != "prices"
 
-    defer_broad_queue = public_mode or not queue_details_requested
+    defer_broad_queue = public_mode or not queue_details_loaded
     ops_center = pd.DataFrame() if defer_broad_queue else data_health_readiness_ops_center_frame()
     coverage_frontier = pd.DataFrame() if defer_broad_queue else data_health_coverage_frontier_frame(top_n=10)
     readiness_queue = pd.DataFrame() if defer_broad_queue else data_health_fundamentals_peer_metrics_queue_frame(top_n=10)
@@ -26172,7 +26325,8 @@ def render_data_health(
         )
         render_section_header("Visitor Paths", "Choose the clean public path before opening proof or operator details.")
         render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
-        with st.expander("Public evidence drawer", expanded=False):
+        public_evidence_drawer_expanded = selected_drawer == "proof"
+        with st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded):
             render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
             render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
             render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
@@ -26245,7 +26399,7 @@ def render_data_health(
     )
     render_data_health_current_mode_strip(
         selected_lane_key=selected_lane_key,
-        queue_details_requested=queue_details_requested,
+        queue_details_requested=queue_details_loaded,
         batch_details_requested=batch_details_requested,
         metric_details_requested=metric_details_requested,
         proof_details_requested=proof_details_requested,
@@ -26253,7 +26407,8 @@ def render_data_health(
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
     )
-    pilot_readiness = data_health_pilot_readiness_frame(top_n=10)
+    should_load_pilot_details = proof_details_requested or selected_lane_key in {"fundamentals", "proof"}
+    pilot_readiness = data_health_pilot_readiness_frame(top_n=10) if should_load_pilot_details else pd.DataFrame()
     should_load_proof_details = proof_details_requested
     batch_proof_frame = data_health_reviewed_batch_proof_frame() if should_load_proof_details else pd.DataFrame()
     batch_proof_summary_frame = batch_proof_frame if not batch_proof_frame.empty else data_health_reviewed_batch_proof_frame()
@@ -26285,16 +26440,17 @@ def render_data_health(
         if selected_lane_key == "fundamentals"
         else pd.DataFrame()
     )
+    should_load_dcf_input_queue = selected_lane_key == "fundamentals" or queue_details_loaded or proof_details_requested
     dcf_input_queue = (
         data_health_dcf_input_proof_queue_frame(top_n=10)
-        if selected_lane_key == "fundamentals"
+        if should_load_dcf_input_queue
         else pd.DataFrame()
     )
     trusted_fundamentals_source_dcf_queue = (
         dcf_input_queue
         if not dcf_input_queue.empty
         else data_health_dcf_input_proof_queue_frame(top_n=10)
-        if queue_details_requested
+        if queue_details_loaded
         else pd.DataFrame()
     )
     trusted_fundamentals_source_review = (
@@ -26303,10 +26459,10 @@ def render_data_health(
             trusted_fundamentals_source_dcf_queue,
             top_n=5,
         )
-        if queue_details_requested
+        if queue_details_loaded
         else pd.DataFrame()
     )
-    proof_closeout_dcf_queue = dcf_input_queue if not dcf_input_queue.empty else data_health_dcf_input_proof_queue_frame(top_n=10)
+    proof_closeout_dcf_queue = dcf_input_queue if not dcf_input_queue.empty else pd.DataFrame()
     proof_closeout_peer_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)
     proof_closeout_dcf_frame = data_health_dcf_proof_closeout_frame(
         proof_closeout_dcf_queue,
@@ -26328,7 +26484,7 @@ def render_data_health(
             batch_proof_frame=batch_proof_summary_frame,
             freshness_status=readiness_freshness,
         )
-        if queue_details_requested and not readiness_queue.empty
+        if queue_details_loaded and not readiness_queue.empty
         else pd.DataFrame()
     )
     queue_outcome_summary = data_health_readiness_queue_outcome_summary_frame(readiness_queue, batch_proof_summary_frame)
@@ -26409,21 +26565,31 @@ def render_data_health(
     render_data_health_detail_selector(
         label="Readiness queue detail level",
         key="data-health-queue-detail-level",
-        loaded=queue_details_requested,
+        loaded=queue_details_loaded,
         help_text="Fast view keeps the first viewport light. Review details loads queue rows, lane drilldowns, and proof examples.",
     )
-    if not queue_details_requested:
+    if not queue_details_loaded:
+        queue_deferred_body = (
+            "The Prices lane keeps short-history proof in the Price evidence drawer; broad DCF, peer, and metric proof queues stay deferred."
+            if selected_lane_key == "prices" and queue_details_requested
+            else "Broad readiness ops, data-coverage proof queues, lane drilldowns, and row-level proof tables are deferred."
+        )
+        queue_deferred_command = (
+            "Open the Price evidence drawer for short-history proof rows."
+            if selected_lane_key == "prices" and queue_details_requested
+            else "Switch Readiness queue detail level to Review details."
+        )
         render_signal_cards(
             data_health_deferred_detail_cards(
                 title="Queue details are not loaded yet",
-                body="Broad readiness ops, data-coverage proof queues, lane drilldowns, and row-level proof tables are deferred.",
-                command="Switch Readiness queue detail level to Review details.",
+                body=queue_deferred_body,
+                command=queue_deferred_command,
                 badges=["fast first view", "row proof deferred"],
             ),
             show_commands=False,
             variant="queue",
         )
-    if queue_details_requested:
+    if queue_details_loaded:
         render_section_header(
             "Data Coverage Proof Queues",
             "DCF input, shares-outstanding, trusted fundamentals, peer mapping, and peer valuation proof queues before raw CSV work.",
@@ -26472,7 +26638,7 @@ def render_data_health(
             "Lane counts, missing input families, source mode, proof gate, and copy-only next command.",
         )
         st.dataframe(clean_display_frame(readiness_queue), width="stretch", hide_index=True)
-    if queue_details_requested:
+    if queue_details_loaded:
         render_section_header(
             "Lane Drilldowns",
             "Each lane keeps examples, proof packet command, stale/source warning, and proof-record status together.",
@@ -26635,6 +26801,23 @@ def render_data_health(
                 + data_health_risk_context_cards(liquidity_frame, correlation_frame),
                 show_commands=False,
             )
+            if price_worklist_frame is not None and not price_worklist_frame.empty:
+                render_section_header(
+                    "Short Price-History Proof",
+                    "Price coverage is broad; this drawer separates short-history blockers from missing-price work.",
+                )
+                render_signal_cards(
+                    data_health_price_history_proof_drawer_cards(price_worklist_frame),
+                    show_commands=True,
+                    variant="queue",
+                )
+                with st.expander("Review short-history proof rows", expanded=False):
+                    proof_frame = data_health_price_history_proof_drawer_frame(price_worklist_frame)
+                    render_context_note(
+                        "Copy-only proof path.",
+                        "Use the proof queue command before any capped refresh. Missing price dates, volume, and adjusted-close rows stay visible instead of being inferred.",
+                    )
+                    st.dataframe(clean_display_frame(proof_frame), width="stretch", hide_index=True)
             render_section_header("Reviewed Batch Preflight", "Snapshot and freshness gates before any capped reviewed execution.")
             render_signal_cards(data_health_reviewed_batch_preflight_cards(batch_preflight))
             st.dataframe(clean_display_frame(data_health_reviewed_batch_preflight_frame(batch_preflight)), width="stretch", hide_index=True)
@@ -27114,98 +27297,109 @@ def render_data_health(
                 render_section_header("Before / After Batch Proof", "Readiness snapshot comparison for proof-ledger changed counts and changed tickers.")
                 st.dataframe(clean_display_frame(data_health_readiness_comparison_frame(readiness_comparison)), width="stretch", hide_index=True)
 
-    with st.expander("Additional operator evidence", expanded=False):
-        render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
-        render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
-        st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
-        render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")
-        render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))
-        st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
-        render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
-        render_action_cards(data_health_fix_first_cards(actions_frame))
-        render_section_header("Guided Coverage Plans", "Holdings-first coverage plans for the next price, SEC fundamentals, and peer-mapping pass.")
-        render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
-        render_section_header("Guided Coverage Steps", "Ordered copy-only steps for each current coverage plan so the local follow-through stays explicit.")
-        render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
-        if command_bundles_frame is None:
-            bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
-            render_notice_card(
-                "Guided coverage plans not ready yet",
-                bundle_notice_body,
-                bundle_notice_command,
-            )
-        if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
-            detail_columns = [
-                column
-                for column in [
-                    "bundle_name",
-                    "lane",
-                    "ticker",
-                    "is_holding",
-                    "theme",
-                    "sector_etf",
-                    "current_unlock_stage",
-                    "target_goal",
-                    "rows_needed",
-                    "target_history_rows",
-                    "suggested_start_date",
-                    "exact_next_command",
-                    "fallback_manual_command",
-                    "recommended_action",
-                    "primary_command",
-                    "follow_up_command",
+    if show_details:
+        with st.expander("Additional operator evidence", expanded=False):
+            render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
+            render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
+            st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
+            render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")
+            render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))
+            st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
+            render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
+            render_action_cards(data_health_fix_first_cards(actions_frame))
+            render_section_header("Guided Coverage Plans", "Holdings-first coverage plans for the next price, SEC fundamentals, and peer-mapping pass.")
+            render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
+            render_section_header("Guided Coverage Steps", "Ordered copy-only steps for each current coverage plan so the local follow-through stays explicit.")
+            render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
+            if command_bundles_frame is None:
+                bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
+                render_notice_card(
+                    "Guided coverage plans not ready yet",
+                    bundle_notice_body,
+                    bundle_notice_command,
+                )
+            if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
+                detail_columns = [
+                    column
+                    for column in [
+                        "bundle_name",
+                        "lane",
+                        "ticker",
+                        "is_holding",
+                        "theme",
+                        "sector_etf",
+                        "current_unlock_stage",
+                        "target_goal",
+                        "rows_needed",
+                        "target_history_rows",
+                        "suggested_start_date",
+                        "exact_next_command",
+                        "fallback_manual_command",
+                        "recommended_action",
+                        "primary_command",
+                        "follow_up_command",
+                    ]
+                    if column in command_bundle_details_frame.columns
                 ]
-                if column in command_bundle_details_frame.columns
-            ]
-            st.caption("Ticker-level coverage steps.")
-            st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
-        elif command_bundle_details_frame is None:
-            detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
-            render_notice_card(
-                "Ticker-level coverage steps not ready yet",
-                detail_notice_body,
-                detail_notice_command,
-            )
-        if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
-            runbook_columns = [
-                column
-                for column in [
-                    "bundle_name",
-                    "lane",
-                    "scope",
-                    "step_order",
-                    "step_label",
-                    "command",
-                    "tickers",
-                    "goal_summary",
-                    "target_history_rows",
-                    "suggested_start_date",
-                    "fallback_manual_command",
-                    "target_file",
+                st.caption("Ticker-level coverage steps.")
+                st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
+            elif command_bundle_details_frame is None:
+                detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
+                render_notice_card(
+                    "Ticker-level coverage steps not ready yet",
+                    detail_notice_body,
+                    detail_notice_command,
+                )
+            if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
+                runbook_columns = [
+                    column
+                    for column in [
+                        "bundle_name",
+                        "lane",
+                        "scope",
+                        "step_order",
+                        "step_label",
+                        "command",
+                        "tickers",
+                        "goal_summary",
+                        "target_history_rows",
+                        "suggested_start_date",
+                        "fallback_manual_command",
+                        "target_file",
+                    ]
+                    if column in command_bundle_runbook_frame.columns
                 ]
-                if column in command_bundle_runbook_frame.columns
-            ]
-            st.caption("Guided coverage steps.")
-            st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
-        elif command_bundle_runbook_frame is None:
-            runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
-            render_notice_card(
-                "Guided coverage steps not ready yet",
-                runbook_notice_body,
-                runbook_notice_command,
-            )
-        render_section_header("Readiness Summaries", "Compact status cards for coverage, validation, and source readiness.")
-        render_signal_cards(readiness_panel_cards(readiness_summary))
-        render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
-        render_section_header("Next Data Proof Steps", "What to prove next for Monthly Picks, track record, DCF, and peer-relative research.")
-        render_signal_cards(data_coverage_wizard_cards(wizard_frame))
-        if wizard_frame is None:
-            wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
-            render_notice_card(
-                "Coverage proof guide not ready yet",
-                wizard_notice_body,
-                wizard_notice_command,
-            )
+                st.caption("Guided coverage steps.")
+                st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
+            elif command_bundle_runbook_frame is None:
+                runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
+                render_notice_card(
+                    "Guided coverage steps not ready yet",
+                    runbook_notice_body,
+                    runbook_notice_command,
+                )
+            render_section_header("Readiness Summaries", "Compact status cards for coverage, validation, and source readiness.")
+            render_signal_cards(readiness_panel_cards(readiness_summary))
+            render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
+            render_section_header("Next Data Proof Steps", "What to prove next for Monthly Picks, track record, DCF, and peer-relative research.")
+            render_signal_cards(data_coverage_wizard_cards(wizard_frame))
+            if wizard_frame is None:
+                wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
+                render_notice_card(
+                    "Coverage proof guide not ready yet",
+                    wizard_notice_body,
+                    wizard_notice_command,
+                )
+    else:
+        render_signal_cards(
+            data_health_deferred_detail_cards(
+                title="Additional operator evidence is hidden",
+                body="Broad operations tables, guided coverage plans, and full proof maps are deferred from the default operator view.",
+                command="Turn on reader tips to review additional operator evidence.",
+                badges=["fast first view", "details deferred"],
+            ),
+            show_commands=False,
+        )
     if show_details:
         with st.expander("Detailed market-wide review", expanded=False):
             render_section_header(
@@ -27919,6 +28113,19 @@ def render_data_health(
                 tone="warning",
             )
         if price_worklist_frame is not None and not price_worklist_frame.empty:
+            render_section_header(
+                "Short Price-History Proof",
+                "Price coverage can be complete while momentum, track-record, or review-metric history depth remains partial.",
+            )
+            render_signal_cards(data_health_price_history_proof_drawer_cards(price_worklist_frame))
+            proof_frame = data_health_price_history_proof_drawer_frame(price_worklist_frame)
+            if not proof_frame.empty:
+                with st.expander("Review short-history proof rows", expanded=False):
+                    render_context_note(
+                        "Copy-only proof path.",
+                        "Use the proof queue and focus command first. Refresh or apply local price rows only after source review, validation, preview, and generated-artifact hygiene.",
+                    )
+                    st.dataframe(clean_display_frame(proof_frame), width="stretch", hide_index=True)
             render_context_note(
                 "Price history checklist.",
                 "This local review list shows which tickers still need more verified history for momentum, track record, or preferred long-history research context.",
@@ -28179,31 +28386,33 @@ def main() -> None:
 
     with st.sidebar:
         render_sidebar_nav_header()
-        initial_page = dashboard_page_from_query(st.query_params.get("page"))
-        initial_mode = dashboard_mode_from_query(st.query_params.get("mode"), initial_page)
+        page_query_value = st.query_params.get("page")
+        mode_query_value = st.query_params.get("mode")
+        initial_page = dashboard_page_from_query(page_query_value)
+        initial_mode = dashboard_mode_from_query(mode_query_value, initial_page)
+        has_explicit_page_query = dashboard_query_value_present(page_query_value)
+        has_explicit_mode_query = dashboard_query_value_present(mode_query_value)
         public_demo_mode = st.toggle(
             "Public visitor mode",
             value=initial_mode == PUBLIC_DEMO_MODE,
             help="Keeps the dashboard focused on the real visitor workflow. Turn off for operator workflows, detailed boards, and local command runbooks.",
         )
+        if has_explicit_mode_query:
+            public_demo_mode = initial_mode == PUBLIC_DEMO_MODE
         mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
         st.caption(f"Mode: {dashboard_mode_label(mode)}")
         path_options = sidebar_path_options(initial_page)
         default_path = "Home" if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES else initial_page
         route_signature = f"{mode}:{initial_page}"
         path_state_key = "dashboard-path-selection"
-        if st.session_state.get("dashboard-route-signature") != route_signature:
-            st.session_state[path_state_key] = (
-                default_path if default_path in path_options else "Home" if "Home" in path_options else path_options[0]
-            )
-            st.session_state["dashboard-route-signature"] = route_signature
+        path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"
         path_selection = st.radio(
             "Choose your path",
             path_options,
             index=sidebar_path_index(default_path, path_options),
             format_func=public_path_label,
             help="Most visitors only need these paths: review one stock, improve data coverage, or inspect proof.",
-            key=path_state_key,
+            key=path_widget_key,
         )
         path_selection = page_title_from_public_path(path_selection)
         if path_selection == DETAILED_PAGE_PATH_TITLE:
@@ -28212,6 +28421,8 @@ def main() -> None:
             selected_page = "Data Health"
         else:
             selected_page = path_selection
+        if has_explicit_page_query:
+            selected_page = initial_page
         if not public_demo_mode and initial_page == "Data Health":
             selected_page = "Data Health"
         show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"

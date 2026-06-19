@@ -8,8 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files, summarize_missing_input_families
-from src.share_count_proof_queue import build_share_count_proof_queue_from_files
+from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_queue_from_files, summarize_missing_input_families
 
 
 LANE_ORDER = (
@@ -281,18 +280,28 @@ def build_peer_readiness_summary(root: Path | str = ".") -> PeerReadinessSummary
     )
 
 
-def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
+def build_readiness_ops_lanes(
+    root: Path | str = ".",
+    *,
+    dcf_input_rows: list[DcfInputProofRow] | None = None,
+    share_count_rows: list[object] | None = None,
+    peer_summary: PeerReadinessSummary | None = None,
+) -> list[ReadinessLane]:
     root = Path(root)
     data = root / "data"
     reports = data / "reports"
     readiness_rows = _read_csv(reports / "ticker_readiness_report.csv")
     feature_rows = _read_csv(reports / "feature_readiness_summary.csv")
     peer_unlock_rows = _read_csv(reports / "peer_unlock_worklist.csv")
-    peer_summary = build_peer_readiness_summary(root)
-    dcf_input_rows = build_dcf_input_proof_queue_from_files(root, top_n=100000)
+    peer_summary = peer_summary or build_peer_readiness_summary(root)
+    dcf_input_rows = dcf_input_rows if dcf_input_rows is not None else build_dcf_input_proof_queue_from_files(root, top_n=100000)
     dcf_input_summary = summarize_missing_input_families(dcf_input_rows)
-    share_count_rows = build_share_count_proof_queue_from_files(root, top_n=100000)
-    share_count_only_blockers = sum(1 for row in share_count_rows if row.dcf_input_status.startswith("share-count-only"))
+    share_count_rows = share_count_rows if share_count_rows is not None else _share_count_dcf_rows(dcf_input_rows)
+    share_count_only_blockers = sum(
+        1
+        for row in share_count_rows
+        if str(getattr(row, "dcf_input_status", "") or "").startswith(("share-count-only", "single-input blocker: shares_outstanding"))
+    )
     stale_warning = build_stale_proof_warning(root)
 
     total = len(readiness_rows)
@@ -875,6 +884,19 @@ def _fundamentals_dcf_rows(rows: list[object]) -> list[object]:
     return [row for row in rows if str(getattr(row, "missing_input_family", "") or "") in fundamentals_families]
 
 
+def _share_count_dcf_rows(rows: list[DcfInputProofRow]) -> list[DcfInputProofRow]:
+    return [row for row in rows if "shares_outstanding" in str(row.missing_dcf_fields or "")]
+
+
+def _share_count_only_dcf_rows(rows: list[DcfInputProofRow]) -> list[DcfInputProofRow]:
+    return [
+        row
+        for row in rows
+        if row.missing_input_family == "shares_outstanding"
+        and str(row.dcf_input_status or "").startswith("single-input blocker")
+    ]
+
+
 def build_data_coverage_proof_queues(
     root: Path | str = ".",
     *,
@@ -883,13 +905,13 @@ def build_data_coverage_proof_queues(
     """Build the post-price proof queues without refreshing or applying local data."""
 
     root = Path(root)
-    lanes = build_readiness_ops_lanes(root)
-    lanes_by_key = {lane.lane: lane for lane in lanes}
     dcf_rows = build_dcf_input_proof_queue_from_files(root, top_n=100000)
-    share_count_rows = build_share_count_proof_queue_from_files(root, top_n=100000)
+    share_count_rows = _share_count_dcf_rows(dcf_rows)
     fundamentals_rows = _fundamentals_dcf_rows(dcf_rows)
     top_family = _top_family(fundamentals_rows or dcf_rows, fallback="shares_outstanding")
     peer_summary = build_peer_readiness_summary(root)
+    lanes = build_readiness_ops_lanes(root, dcf_input_rows=dcf_rows, share_count_rows=share_count_rows, peer_summary=peer_summary)
+    lanes_by_key = {lane.lane: lane for lane in lanes}
     rows: list[DataCoverageProofQueueRow] = []
 
     dcf_lane = lanes_by_key.get("fundamentals_dcf")
@@ -916,7 +938,7 @@ def build_data_coverage_proof_queues(
 
     share_lane = lanes_by_key.get("share_count_proof")
     if share_lane is not None:
-        share_only = sum(1 for row in share_count_rows if row.dcf_input_status.startswith("share-count-only"))
+        share_only = len(_share_count_only_dcf_rows(share_count_rows))
         rows.append(
             DataCoverageProofQueueRow(
                 queue_key="shares_outstanding",
@@ -1180,19 +1202,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     root = Path(args.root)
-    lanes = build_readiness_ops_lanes(root)
-    frontier = build_coverage_frontier(lanes, top_n=args.top_n)
     if args.evidence:
+        lanes = build_readiness_ops_lanes(root)
+        frontier = build_coverage_frontier(lanes, top_n=args.top_n)
         print(render_readiness_ops_evidence(lanes, frontier))
     elif args.coverage_proof_queues:
         print(render_data_coverage_proof_queues(build_data_coverage_proof_queues(root, top_n=args.top_n)))
     elif args.readiness_queue:
         print(render_fundamentals_peer_metrics_queue(build_fundamentals_peer_metrics_queue(root, top_n=args.top_n)))
     elif args.expansion_plan:
+        lanes = build_readiness_ops_lanes(root)
         print(render_data_coverage_expansion_plan(build_data_coverage_expansion_plan(lanes, top_n=args.top_n)))
     elif args.coverage_frontier:
+        lanes = build_readiness_ops_lanes(root)
+        frontier = build_coverage_frontier(lanes, top_n=args.top_n)
         print(render_coverage_frontier(frontier))
     else:
+        lanes = build_readiness_ops_lanes(root)
         print(render_readiness_ops_center(lanes))
     return 0
 

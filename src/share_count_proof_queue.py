@@ -87,6 +87,26 @@ def _universe_scope(universe: pd.DataFrame, ticker: str) -> str:
     return "master universe"
 
 
+def _universe_scope_lookup(universe: pd.DataFrame) -> dict[str, str]:
+    if universe.empty or "ticker" not in universe.columns:
+        return {}
+    frame = universe.copy()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    scopes: dict[str, str] = {}
+    for _, row in frame.iterrows():
+        ticker = str(row.get("ticker", "")).upper().strip()
+        if not ticker:
+            continue
+        if _truthy(row.get("in_active_universe")):
+            scope = "active universe"
+        elif _truthy(row.get("in_portfolio")):
+            scope = "portfolio universe"
+        else:
+            scope = "master universe"
+        scopes[ticker] = scope
+    return scopes
+
+
 def _dcf_input_status(row: pd.Series) -> str:
     ready_fields = []
     missing_fields = []
@@ -106,9 +126,9 @@ def _dcf_input_status(row: pd.Series) -> str:
     return f"shares plus missing {', '.join(missing_fields)}"
 
 
-def _rank(row: pd.Series, universe: pd.DataFrame) -> tuple[int, int, str]:
+def _rank(row: pd.Series, scope_lookup: dict[str, str]) -> tuple[int, int, str]:
     ticker = str(row.get("ticker", "")).upper()
-    active_rank = 0 if _universe_scope(universe, ticker) == "active universe" else 1
+    active_rank = 0 if scope_lookup.get(ticker, "master universe") == "active universe" else 1
     other_inputs_rank = 0 if _dcf_input_status(row).startswith("share-count-only") else 1
     return active_rank, other_inputs_rank, ticker
 
@@ -135,7 +155,8 @@ def build_share_count_proof_queue(
         queue = queue.loc[queue["ticker"].astype(str).str.upper().isin(wanted)]
     if queue.empty:
         return []
-    ranked = sorted((row for _, row in queue.iterrows()), key=lambda row: _rank(row, universe))
+    scope_lookup = _universe_scope_lookup(universe)
+    ranked = sorted((row for _, row in queue.iterrows()), key=lambda row: _rank(row, scope_lookup))
     rows: list[ShareCountProofRow] = []
     for row in ranked[: max(top_n, 0)]:
         ticker = str(row.get("ticker", "")).upper().strip()
@@ -145,7 +166,7 @@ def build_share_count_proof_queue(
             ShareCountProofRow(
                 priority=len(rows) + 1,
                 ticker=ticker,
-                scope=_universe_scope(universe, ticker),
+                scope=scope_lookup.get(ticker, "master universe"),
                 missing_field="shares_outstanding",
                 dcf_input_status=row_status,
                 sec_stage_command=f"make sec-stage TICKERS={ticker}",

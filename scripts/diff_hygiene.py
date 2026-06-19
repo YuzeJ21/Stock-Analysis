@@ -440,6 +440,98 @@ def build_data_release_decision_report(entries: list[StatusEntry]) -> str:
     return "\n".join(lines)
 
 
+def build_public_release_package_report(entries: list[StatusEntry]) -> str:
+    groups = group_entries(entries)
+    product = groups["product_candidate"]
+    sample_reports = groups["sample_report_candidate"]
+    generated = groups["generated_csv_churn"]
+    manual = groups["review_manually"]
+    stage_candidates = product + sample_reports
+
+    lines = [
+        "Public Release Package",
+        "Read-only: this command does not stage, delete, reset, refresh, rewrite files, commit, or push.",
+        "Research-only: release packaging must preserve data-readiness gates, not investment advice or execution language.",
+        "",
+    ]
+    if not entries:
+        lines.extend(
+            [
+                "Working tree is clean.",
+                "Next safe action:",
+                "  make public-check",
+                "  git push origin main  # only after confirming the branch is ready to publish",
+            ]
+        )
+        return "\n".join(lines)
+
+    lines.extend(
+        [
+            format_count_line("Product/code/docs/test candidates", product),
+            format_count_line("Markdown sample report candidates", sample_reports),
+            format_count_line("Generated CSV/JSON churn excluded by default", generated),
+            format_count_line("Manual-review paths", manual),
+            "",
+        ]
+    )
+    if manual:
+        lines.extend(
+            [
+                "Stop first: manual-review paths exist.",
+                "Inspect these paths before staging or sharing:",
+                *format_paths(manual, limit=30),
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "Release verdict:",
+            (
+                "  Ready to stage product files after public-check and local dashboard smoke pass."
+                if stage_candidates and not manual
+                else "  Not ready to stage automatically; resolve manual-review paths or confirm the clean tree first."
+            ),
+            "",
+            "Stage only reviewed product/docs/tests and reviewed Markdown sample reports:",
+            *format_git_add_command(stage_candidates, label="Stage public release package"),
+            "  make staged-hygiene-check",
+            "  git diff --cached --stat",
+            "",
+            "Do not stage generated churn by default:",
+        ]
+    )
+    if generated:
+        lines.extend(format_paths(generated, limit=40))
+    else:
+        lines.append("  none")
+    lines.extend(
+        [
+            "",
+            "Required final checks before commit/share:",
+            "  make public-check",
+            "  make browser-qa-evidence",
+            "  make dashboard-smoke  # rerun in a normal local terminal if sandbox socket binding is limited",
+            "  git diff --check",
+            "",
+            "Commit and push only after staged hygiene passes:",
+            "  git commit -m \"Stabilize readiness workflows and browser QA\"",
+            "  git push origin main",
+            "",
+            "Do not proceed if:",
+            "- public-check fails",
+            "- dashboard smoke fails for product-code reasons",
+            "- generated CSV/JSON churn is staged unintentionally",
+            "- missing fundamentals, peers, earnings, estimates, valuation inputs, or metrics are presented as conclusions",
+            "- source proof, validate, preview, rejected-row review, apply or skip decision, rebuilt readiness, or proof record gates are incomplete",
+            "",
+            "Research-only guardrail: never stage broker, order execution, auto-trading,",
+            "options recommendation, or direct buy/sell instruction language.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def build_staged_check_report(entries: list[StatusEntry]) -> str:
     groups = group_entries(entries)
     lines = [
@@ -571,6 +663,11 @@ def main() -> int:
         action="store_true",
         help="Print read-only keep-local vs reviewed-data-release vs cleanup guidance for dirty generated artifacts.",
     )
+    parser.add_argument(
+        "--public-release-package",
+        action="store_true",
+        help="Print read-only product staging, generated-exclusion, and final public-share guidance.",
+    )
     args = parser.parse_args()
     repo_root = Path(__file__).resolve().parents[1]
     if args.staged_check:
@@ -578,6 +675,9 @@ def main() -> int:
         print(build_staged_check_report(entries))
         return 1 if staged_hygiene_has_blockers(entries) else 0
     entries = load_status(repo_root)
+    if args.public_release_package:
+        print(build_public_release_package_report(entries))
+        return 0
     if args.data_release_decision:
         print(build_data_release_decision_report(entries))
         return 0

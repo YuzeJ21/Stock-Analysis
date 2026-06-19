@@ -311,6 +311,26 @@ def _universe_scope(universe: pd.DataFrame, ticker: str) -> str:
     return "master universe"
 
 
+def _universe_scope_lookup(universe: pd.DataFrame) -> dict[str, str]:
+    if universe.empty or "ticker" not in universe.columns:
+        return {}
+    frame = universe.copy()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    scopes: dict[str, str] = {}
+    for _, row in frame.iterrows():
+        ticker = str(row.get("ticker", "")).upper().strip()
+        if not ticker:
+            continue
+        if _truthy(row.get("in_active_universe")):
+            scope = "active universe"
+        elif _truthy(row.get("in_portfolio")):
+            scope = "portfolio universe"
+        else:
+            scope = "master universe"
+        scopes[ticker] = scope
+    return scopes
+
+
 def _missing_input_family(fields: list[str]) -> str:
     field_set = set(fields)
     if not fields:
@@ -562,24 +582,22 @@ def _source_note(fields: list[str], family: str, *, sec_configured: bool) -> str
     return f"{source}; review the exact DCF fields before validate/preview/apply: {_display_fields(fields)}."
 
 
-def _rank(row: pd.Series, universe: pd.DataFrame) -> tuple[int, int, int, str]:
+def _rank(row: pd.Series, scope_lookup: dict[str, str]) -> tuple[int, int, int, str]:
     ticker = str(row.get("ticker", "")).upper()
-    scope_rank = 0 if _universe_scope(universe, ticker) == "active universe" else 1
+    scope_rank = 0 if scope_lookup.get(ticker, "master universe") == "active universe" else 1
     fields = _split_fields(row.get("missing_dcf_fields"))
     single_input_rank = 0 if len(fields) == 1 else 1
     family_rank = min((FIELD_PRIORITY.get(field, 99) for field in fields), default=99)
     return scope_rank, single_input_rank, family_rank, ticker
 
 
-def build_dcf_input_proof_queue(
+def build_dcf_input_proof_queue_from_dcf_frame(
     *,
     universe: pd.DataFrame,
-    fundamentals: pd.DataFrame,
-    prices: pd.DataFrame,
+    dcf: pd.DataFrame,
     top_n: int = 10,
     tickers: list[str] | None = None,
 ) -> list[DcfInputProofRow]:
-    dcf = build_dcf_readiness_frame(universe=universe, fundamentals=fundamentals, prices=prices)
     if dcf.empty:
         return []
     company = dcf.get("asset_type", pd.Series("", index=dcf.index)).astype(str).str.lower().eq("company")
@@ -590,7 +608,8 @@ def build_dcf_input_proof_queue(
         queue = queue.loc[queue["ticker"].astype(str).str.upper().isin(wanted)]
     if queue.empty:
         return []
-    ranked = sorted((row for _, row in queue.iterrows()), key=lambda row: _rank(row, universe))
+    scope_lookup = _universe_scope_lookup(universe)
+    ranked = sorted((row for _, row in queue.iterrows()), key=lambda row: _rank(row, scope_lookup))
     rows: list[DcfInputProofRow] = []
     for row in ranked[: max(top_n, 0)]:
         ticker = str(row.get("ticker", "")).upper().strip()
@@ -602,7 +621,7 @@ def build_dcf_input_proof_queue(
             DcfInputProofRow(
                 priority=len(rows) + 1,
                 ticker=ticker,
-                scope=_universe_scope(universe, ticker),
+                scope=scope_lookup.get(ticker, "master universe"),
                 missing_input_family=family,
                 missing_dcf_fields=_display_fields(fields),
                 ready_dcf_inputs=_display_fields(ready),
@@ -617,6 +636,23 @@ def build_dcf_input_proof_queue(
             )
         )
     return rows
+
+
+def build_dcf_input_proof_queue(
+    *,
+    universe: pd.DataFrame,
+    fundamentals: pd.DataFrame,
+    prices: pd.DataFrame,
+    top_n: int = 10,
+    tickers: list[str] | None = None,
+) -> list[DcfInputProofRow]:
+    dcf = build_dcf_readiness_frame(universe=universe, fundamentals=fundamentals, prices=prices)
+    return build_dcf_input_proof_queue_from_dcf_frame(
+        universe=universe,
+        dcf=dcf,
+        top_n=top_n,
+        tickers=tickers,
+    )
 
 
 def build_dcf_input_proof_queue_from_files(

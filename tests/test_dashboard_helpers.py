@@ -1229,11 +1229,17 @@ def test_research_loop_strip_connects_current_proof_next_action_and_stop_rule():
         proof_note="Use this snapshot before opening ticker pages.",
         action_note="Review one ticker, then route locked fields to Data Health.",
         stop_note="Blocked and excluded states stay visible.",
+        current_href="?mode=public",
+        proof_href="?mode=public&page=data-health&drawer=proof",
         action_href="?mode=public&page=single-stock",
+        stop_href="?mode=public&page=data-health&drawer=proof",
     ).lower()
 
     assert "research-loop-strip" in rendered
     assert "research-loop-link" in rendered
+    assert rendered.count("research-loop-link") == 4
+    assert "?mode=public" in rendered
+    assert "drawer=proof" in rendered
     assert "?mode=public&amp;page=single-stock" in rendered
     assert "current step" in rendered
     assert "previous proof" in rendered
@@ -1273,21 +1279,31 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
 
     assert home["current_step"] == "Home readiness snapshot"
     assert "3,538 price-ready / 59 DCF-ready / 26 peer-ready" in home["current_note"]
+    assert home["current_href"] == "?mode=public"
+    assert home["proof_href"] == "?mode=public&page=data-health&drawer=proof"
     assert home["next_action"] == "Open a Single-Stock Report"
     assert home["action_href"] == "?mode=public&page=single-stock"
+    assert home["stop_href"] == "?mode=public&page=data-health&drawer=proof"
     assert home_stale["previous_proof"] == "Saved readiness snapshot needs refresh"
     assert home_stale["proof_note"] == "make readiness"
     assert pre_report["current_step"] == "Single-Stock Report"
     assert "Selected ticker: NVDA" in pre_report["current_note"]
+    assert pre_report["current_href"] == "?mode=public&page=single-stock"
+    assert pre_report["proof_href"] == "?mode=public"
     assert pre_report["next_action"] == "Show Local Report"
     assert loaded_report["current_step"] == "NVDA report review"
     assert loaded_report["next_action"] == "Read Best Review Path before detailed tabs"
     assert loaded_report["action_href"] == ""
+    assert loaded_report["proof_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
+    assert loaded_report["stop_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
     assert data_health["current_step"] == "Data Health source-proof lane"
     assert data_health["current_note"] == "Fundamentals / DCF"
+    assert data_health["current_href"] == "?mode=operator&page=data-health&lane=fundamentals"
+    assert data_health["proof_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
     assert data_health["previous_proof"] == "Readiness snapshot needs refresh"
     assert data_health["next_action"] == "make readiness"
     assert data_health["action_href"] == ""
+    assert data_health["stop_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
     rendered = " ".join(" ".join(value.values()) for value in [home, pre_report, loaded_report, data_health]).lower()
     assert "recommendation" not in rendered
     assert "buy" not in rendered
@@ -1321,9 +1337,13 @@ def test_research_loop_action_links_are_navigation_only_and_lane_aware():
         previous_proof="Readiness snapshot is current",
         next_action="Switch Proof detail level to Review details.",
         stop_rule="Stop before apply without reviewed proof",
+        current_href="?mode=operator&page=data-health&lane=proof",
+        proof_href="?mode=operator&page=data-health&lane=proof&drawer=proof",
         action_href="?mode=operator&page=data-health&lane=proof&drawer=proof",
+        stop_href="?mode=operator&page=data-health&lane=proof&drawer=proof",
     ).lower()
     assert "research-loop-link" in rendered
+    assert rendered.count("research-loop-link") == 4
     assert "drawer=proof" in rendered
     assert "proof_details=1" not in rendered
     assert "make " not in rendered
@@ -1358,10 +1378,12 @@ def test_data_health_operator_shell_renders_before_heavy_proof_sections():
     shell_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
     lane_nav_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", public_return_index)
     mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
-    pilot_readiness_index = source.index("pilot_readiness = data_health_pilot_readiness_frame(top_n=10)", public_return_index)
+    pilot_gate_index = source.index("should_load_pilot_details =", public_return_index)
+    pilot_readiness_index = source.index("pilot_readiness = data_health_pilot_readiness_frame(top_n=10) if should_load_pilot_details else pd.DataFrame()", public_return_index)
     proof_frame_index = source.index("batch_proof_frame = data_health_reviewed_batch_proof_frame()", public_return_index)
 
-    assert shell_index < lane_nav_index < mode_strip_index < pilot_readiness_index < proof_frame_index
+    assert shell_index < lane_nav_index < mode_strip_index < pilot_gate_index < pilot_readiness_index < proof_frame_index
+    assert 'selected_lane_key in {"fundamentals", "proof"}' in source
 
 
 def test_major_dashboard_pages_avoid_duplicate_reader_guides():
@@ -1615,8 +1637,9 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "sidebar_quick_help_lines()" in source
     assert "path_options = sidebar_path_options(initial_page)" in source
     assert 'path_state_key = "dashboard-path-selection"' in source
-    assert 'st.session_state["dashboard-route-signature"] = route_signature' in source
-    assert "key=path_state_key" in source
+    assert 'path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"' in source
+    assert "key=path_widget_key" in source
+    assert 'st.session_state["dashboard-route-signature"] = route_signature' not in source
     assert 'elif path_selection == PROOF_HISTORY_PATH_TITLE:\n            selected_page = "Data Health"' in source
     assert "render_app_header(catalog, output_frames, compact=selected_page == \"Data Health\" and not public_demo_mode)" in source
     assert "hero_class = \"app-hero compact\" if compact else \"app-hero\"" in source
@@ -13743,10 +13766,14 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
     assert "render_data_health_detail_selector(" in source
-    assert "defer_broad_queue = public_mode or not queue_details_requested" in source
+    assert 'queue_details_loaded = queue_details_requested and selected_lane_key != "prices"' in source
+    assert "defer_broad_queue = public_mode or not queue_details_loaded" in source
     assert "ops_center = pd.DataFrame() if defer_broad_queue else data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = pd.DataFrame() if defer_broad_queue else data_health_coverage_frontier_frame(top_n=10)" in source
     assert "data_health_data_coverage_proof_queue_frame(top_n=10)" in source
+    assert 'should_load_pilot_details = proof_details_requested or selected_lane_key in {"fundamentals", "proof"}' in source
+    assert "pilot_readiness = data_health_pilot_readiness_frame(top_n=10) if should_load_pilot_details else pd.DataFrame()" in source
+    assert 'should_load_dcf_input_queue = selected_lane_key == "fundamentals" or queue_details_loaded or proof_details_requested' in source
     assert "data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues)" in source
     assert "trusted_fundamentals_source_review = (" in source
     assert "Trusted fundamentals source review" in source
@@ -14178,7 +14205,8 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     assert refresh_note_index < quick_read_index
     assert 'st.expander("Refresh status note", expanded=False)' in source
-    assert 'st.expander("Public evidence drawer", expanded=False)' in source
+    assert 'public_evidence_drawer_expanded = selected_drawer == "proof"' in source
+    assert 'st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded)' in source
     assert "Start with the three visitor paths. Open the evidence drawer only when you want readiness proof" in source
     assert "Data Health Quick Read" in source
     assert "Which proof path should you inspect first, before opening detailed sections." in source
@@ -16353,6 +16381,125 @@ def test_data_health_price_target_cards_surface_exact_history_targets_safely():
     assert "price-normalize" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_data_health_price_target_cards_add_short_history_proof_queue_card():
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "META",
+                "price_history_days": 5,
+                "next_price_goal": "Unlock Monthly Picks",
+                "next_target_history_rows": 21,
+                "rows_needed_for_next_goal": 16,
+                "suggested_start_date": "2026-01-01",
+                "focus_command": "make focus-price TICKER=META",
+            },
+            {
+                "priority": 2,
+                "ticker": "NVDA",
+                "price_history_days": 252,
+                "next_price_goal": "Maintain Coverage",
+                "next_target_history_rows": 252,
+                "rows_needed_for_next_goal": 0,
+                "suggested_start_date": "2025-01-01",
+                "focus_command": "make focus-price TICKER=NVDA",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_price_target_cards(worklist)
+    proof_card = cards[-1]
+    rendered = " ".join(str(value) for value in proof_card.values()).lower()
+
+    assert proof_card["kicker"] == "PROOF QUEUE"
+    assert proof_card["command"] == "make price-history-proof-queue TOP_N=10"
+    assert "short price-history blockers" in rendered
+    assert "price coverage can be complete while momentum" in rendered
+    assert "dry-run first" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_price_history_proof_drawer_frame_summarizes_copy_only_path():
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "META",
+                "price_history_days": 5,
+                "next_price_goal": "Unlock Monthly Picks",
+                "rows_needed_for_next_goal": 16,
+                "focus_command": "make focus-price TICKER=META",
+            },
+            {
+                "priority": 2,
+                "ticker": "AIAI",
+                "price_history_days": 0,
+                "next_price_goal": "Unlock Monthly Picks",
+                "rows_needed_for_next_goal": 21,
+                "focus_command": "make focus-price TICKER=AIAI",
+            },
+            {
+                "priority": 3,
+                "ticker": "NVDA",
+                "price_history_days": 252,
+                "next_price_goal": "Maintain Coverage",
+                "rows_needed_for_next_goal": 0,
+                "focus_command": "make focus-price TICKER=NVDA",
+            },
+        ]
+    )
+
+    frame = dashboard.data_health_price_history_proof_drawer_frame(worklist, limit=10)
+    rendered = " ".join(str(value) for value in frame.to_numpy().flatten()).lower()
+
+    assert frame["Ticker"].tolist() == ["META", "AIAI"]
+    assert frame.loc[frame["Ticker"].eq("META"), "State"].iloc[0] == "partial"
+    assert frame.loc[frame["Ticker"].eq("AIAI"), "State"].iloc[0] == "blocked"
+    assert frame.loc[frame["Ticker"].eq("META"), "Dry-run batch"].iloc[0] == "make price-history-proof-queue TOP_N=10"
+    assert "do not infer missing dates, prices, volume, or adjusted close rows" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_price_history_proof_drawer_cards_surface_next_action():
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "META",
+                "price_history_days": 5,
+                "next_price_goal": "Unlock Monthly Picks",
+                "rows_needed_for_next_goal": 16,
+                "focus_command": "make focus-price TICKER=META",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_price_history_proof_drawer_cards(worklist)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make price-history-proof-queue TOP_N=10"
+    assert cards[1]["command"] == "make focus-price TICKER=META"
+    assert "price coverage can be complete while momentum" in rendered
+    assert "dry-run first" in rendered
+    assert "no fabricated history" in rendered
+
+
+def test_data_health_price_updates_places_short_history_drawer_before_raw_worklist():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)')
+    short_proof_index = source.index('"Short Price-History Proof"', price_drawer_index)
+    drawer_index = source.index("Review short-history proof rows")
+    raw_context_index = source.index("Price history checklist.", drawer_index)
+
+    assert price_drawer_index < short_proof_index < drawer_index
+    assert drawer_index < raw_context_index
+    assert "data_health_price_history_proof_drawer_cards(price_worklist_frame)" in source
+    assert "data_health_price_history_proof_drawer_frame(price_worklist_frame)" in source
 
 
 def test_data_health_price_target_cards_keep_staged_price_follow_through_visible():
@@ -23161,6 +23308,7 @@ def test_metric_details_requested_accepts_query_or_session_state():
 
 def test_data_health_detail_selector_requested_accepts_query_session_or_segment():
     assert dashboard.data_health_detail_selector_requested("1") is True
+    assert dashboard.data_health_detail_selector_requested("details") is True
     assert dashboard.data_health_detail_selector_requested(None, session_loaded=True) is True
     assert dashboard.data_health_detail_selector_requested(None, selector_value="Review details") is True
     assert dashboard.data_health_detail_selector_requested(None, selector_value="Fast view") is False
@@ -23187,13 +23335,13 @@ def test_data_health_drawer_query_routes_to_existing_detail_flags():
         "proof": True,
     }
     assert dashboard.data_health_drawer_detail_flags("batch", "fundamentals") == {
-        "queue": True,
+        "queue": False,
         "batch": True,
         "metrics": False,
         "proof": False,
     }
     assert dashboard.data_health_drawer_detail_flags("queue", "fundamentals") == {
-        "queue": True,
+        "queue": False,
         "batch": False,
         "metrics": False,
         "proof": False,
@@ -23966,6 +24114,11 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
 
 
 def test_dashboard_public_demo_mode_query_defaults_to_visitor_view():
+    assert dashboard.dashboard_query_value_present("data-health")
+    assert dashboard.dashboard_query_value_present(["operator"])
+    assert not dashboard.dashboard_query_value_present(None)
+    assert not dashboard.dashboard_query_value_present("")
+    assert not dashboard.dashboard_query_value_present([""])
     assert dashboard.dashboard_mode_from_query(None) == dashboard.PUBLIC_DEMO_MODE
     assert dashboard.dashboard_mode_from_query("public") == dashboard.PUBLIC_DEMO_MODE
     assert dashboard.dashboard_mode_from_query("demo") == dashboard.PUBLIC_DEMO_MODE
@@ -24026,9 +24179,17 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert '"Public visitor mode"' in source
+    assert 'page_query_value = st.query_params.get("page")' in source
+    assert 'mode_query_value = st.query_params.get("mode")' in source
+    assert "has_explicit_page_query = dashboard_query_value_present(page_query_value)" in source
+    assert "has_explicit_mode_query = dashboard_query_value_present(mode_query_value)" in source
+    assert "if has_explicit_mode_query:\n            public_demo_mode = initial_mode == PUBLIC_DEMO_MODE" in source
+    assert "if has_explicit_page_query:\n            selected_page = initial_page" in source
     assert "public_demo_mode = st.toggle" in source
     assert "path_options = sidebar_path_options(initial_page)" in source
     assert 'path_state_key = "dashboard-path-selection"' in source
+    assert 'path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"' in source
+    assert "key=path_widget_key" in source
     assert "route_signature = f\"{mode}:{initial_page}\"" in source
     assert "show_reason_details = False" in source
     assert 'if not public_demo_mode and selected_page != "Data Health":' in source
@@ -24052,7 +24213,11 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_index)
     visitor_paths_index = source.index('render_section_header("Visitor Paths"', first_30_index)
-    drawer_index = source.index('st.expander("Public evidence drawer", expanded=False)', public_index)
+    drawer_open_state_index = source.index('public_evidence_drawer_expanded = selected_drawer == "proof"', public_index)
+    drawer_index = source.index(
+        'st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded)',
+        drawer_open_state_index,
+    )
     freshness_index = source.index('render_section_header("Readiness Freshness"', drawer_index)
     batch_index = source.index('render_section_header("Latest Reviewed Batch Evidence"', freshness_index)
     proof_index = source.index('render_section_header("Latest Reviewed Data Proof"', batch_index)
@@ -24065,6 +24230,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
         public_index
         < first_30_index
         < visitor_paths_index
+        < drawer_open_state_index
         < drawer_index
         < freshness_index
         < batch_index

@@ -2,6 +2,31 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-06-19 Browser QA Evidence V2
+
+Added a route-level manual QA checklist to `make browser-qa-evidence`.
+
+Use it after starting the dashboard locally:
+
+```bash
+make dashboard
+make browser-qa-evidence
+```
+
+The command remains read-only. It checks committed screenshot assets and prints route checks for:
+
+- Public visitor home.
+- Single-stock public path.
+- Data Health operator fast view.
+- Data Health metrics review.
+- Data Health proof history.
+
+Review boundary:
+
+- First view should show the workflow strip, current mode, readiness snapshot, and next safe action.
+- Raw tables, proof rows, generated-artifact lists, and command-heavy details should stay collapsed until the relevant review route or drawer is opened.
+- Missing source inputs stay blocked; browser evidence does not unlock fundamentals, peers, earnings, analyst estimates, valuation inputs, or metrics.
+
 ## 2026-06-19 Browser QA Evidence V1
 
 Checked pages:

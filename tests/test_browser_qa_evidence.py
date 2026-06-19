@@ -2,8 +2,10 @@ from pathlib import Path
 
 from src.browser_qa_evidence import (
     BrowserQaEvidence,
+    BrowserQaRouteCheck,
     browser_qa_evidence_rows,
     browser_qa_evidence_verdict,
+    browser_qa_route_rows,
     image_size,
     main,
 )
@@ -102,6 +104,30 @@ def test_browser_qa_evidence_verdict_blocks_missing_or_small_assets(tmp_path):
     assert browser_qa_evidence_verdict(rows) == "blocked"
 
 
+def test_browser_qa_route_rows_keep_workflow_markers_and_stop_rules_visible():
+    checks = (
+        BrowserQaRouteCheck(
+            name="Data Health operator fast view",
+            route="http://localhost:8501/?mode=operator&page=data-health",
+            first_view_markers=("research-loop-strip", "ops-mode-strip", "Next Data-Readiness Action"),
+            details_boundary="Raw tables stay collapsed.",
+            qa_focus="Operator sees next safe action before raw CSVs.",
+            stop_rule="Stop if broad proof queues load before explicit detail review.",
+        ),
+    )
+
+    rows = browser_qa_route_rows(checks)
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+
+    assert rows[0]["Route Check"] == "Data Health operator fast view"
+    assert "next data-readiness action" in rendered
+    assert "raw tables stay collapsed" in rendered
+    assert "stop if broad proof queues load" in rendered
+    assert "investment advice" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys):
     asset = tmp_path / "docs" / "assets" / "linkedin-public-dashboard.png"
     asset.parent.mkdir(parents=True)
@@ -113,6 +139,9 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert exit_code == 0
     assert "read-only" in output
     assert "real streamlit screenshots" in output
+    assert "route qa checklist" in output
+    assert "manual browser review" in output
+    assert "next data-readiness action" in output
     assert "does not unlock fundamentals" in output
     assert "investment advice" in output
     assert "trade instructions" in output

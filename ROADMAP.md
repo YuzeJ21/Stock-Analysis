@@ -47,6 +47,15 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Public Mode First-30-Seconds Polish V1 so visitors see ready coverage, blocked deeper-analysis inputs, and proof boundaries before operator paths or evidence drawers.
 - [x] Operator Next Action Summary V1 so Data Health answers pilot status, main manual gate, leading source-proof blocker, and hidden-detail boundary before raw tables.
 - [x] Browser QA Evidence V1 with `make browser-qa-evidence`, committed screenshot asset checks, route expectations, and environment-limited capture notes for GitHub/LinkedIn evidence.
+- [x] Browser QA Evidence V2 with route-level manual checks for public home, single-stock, Data Health fast view, metrics review, and proof history before replacing public screenshots.
+- [x] Public Release Package V1 with `make public-release-package`, a read-only product staging, generated-churn exclusion, final-check, commit, and push checklist.
+- [x] Short Price-History Proof Queue V1 with `make price-history-proof-queue`, separating complete price coverage from short-history blockers for momentum, track-record, and review-metric workflows.
+- [x] Workflow Continuity V3 so Home, Single-Stock Report, and Data Health strip links route to the current page, proof drawer, next safe view, and stop-rule evidence without running commands.
+- [x] Data Health Fast-View Stabilization V1 so deep links render the operator command center before broad proof queues, pilot gates, generated-artifact tables, or raw evidence drawers are opened.
+- [x] Data Health Queue Detail Gate V1 so `drawer=queue` and the Prices lane stay fast while source-proof portfolios load only through explicit review-detail gates.
+- [x] Data Coverage Proof Queue Performance V2 so broad proof queues reuse DCF blocker rows and avoid duplicate share-count readiness rebuilds.
+- [x] Local Price Provider Cache V1 so metric-readiness and single-stock review paths reuse prepared local price rows instead of repeatedly normalizing the full prices CSV.
+- [x] Readiness Queue Performance V3 so queue-specific CLI routes avoid prebuilding unrelated frontier views, share-count lanes reuse DCF blocker rows, and local provider lookups reuse ticker rows for financial and peer context.
 
 ## 2. Current Product State
 
@@ -385,7 +394,7 @@ This stage should improve breadth without pretending the whole 3,538-ticker univ
 
 | Workstream | Next product step | Safe command path | Completion signal |
 | --- | --- | --- | --- |
-| Scalable price refresh | Replace manual repeated 25-ticker refreshes with capped batches and dry-run-first guidance. | `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo`, then `make readiness-snapshot`, then capped `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30`, then `make diff-hygiene`. | Price-ready coverage improves without committing broad CSV churn by default. |
+| Scalable price refresh | Separate complete price coverage from short-history blockers, then use capped batches only after review. | `make price-history-proof-queue TOP_N=10`, `make focus-price TICKER=...`, then `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo`, then `make readiness-snapshot`, then capped `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30` only if reviewed, then `make diff-hygiene`. | Price-ready coverage stays honest while short-history momentum/track-record blockers move only from source-backed rows. |
 | Trusted fundamentals | Use SEC staging when configured, or trusted manual fundamentals imports when not. | `make sec-stage-queue TOP_N=25`, `make focus-fundamentals TICKER=...`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | `fundamentals_ready` and `dcf_ready` improve only from trusted rows. |
 | Source-backed peers | Prioritize active-universe and DCF-ready peer blockers before broad peer work. | `make peer-mapping-queue TOP_N=25`, `make focus-peers TICKER=...`, `make templates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Peer trend and peer valuation states are separated; peer valuation appears only when trusted peer inputs pass readiness. |
 | Optional context | Keep earnings and analyst estimates locked until trusted local rows exist. | `make optional-context-worklist TOP_N=25`, `make import-earnings`, `make import-analyst-estimates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Empty optional context reads as intentionally locked, not broken or inferred. |

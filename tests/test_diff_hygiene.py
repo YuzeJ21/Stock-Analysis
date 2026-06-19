@@ -211,6 +211,48 @@ def test_data_release_decision_keeps_generated_churn_local_by_default():
     assert "direct buy/sell" in report
 
 
+def test_public_release_package_reports_clean_push_path():
+    module = load_diff_hygiene_module()
+
+    report = module.build_public_release_package_report([])
+
+    assert "Public Release Package" in report
+    assert "Read-only: this command does not stage, delete, reset, refresh, rewrite files, commit, or push." in report
+    assert "Working tree is clean." in report
+    assert "make public-check" in report
+    assert "git push origin main" in report
+    assert "investment advice" in report
+
+
+def test_public_release_package_stages_product_and_excludes_generated_churn():
+    module = load_diff_hygiene_module()
+    entries = [
+        module.StatusEntry("M", "Makefile"),
+        module.StatusEntry("M", "src/dashboard.py"),
+        module.StatusEntry("M", "tests/test_dashboard_helpers.py"),
+        module.StatusEntry("??", "src/price_history_proof_queue.py"),
+        module.StatusEntry("M", "data/prices.csv"),
+        module.StatusEntry("??", "data/reports/ticker_readiness_report.previous.csv"),
+    ]
+
+    report = module.build_public_release_package_report(entries)
+
+    assert "Product/code/docs/test candidates: 4 (3 changed, 1 new)" in report
+    assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
+    assert "Ready to stage product files after public-check and local dashboard smoke pass." in report
+    assert "git add -- Makefile src/dashboard.py tests/test_dashboard_helpers.py src/price_history_proof_queue.py" in report
+    staging_block = report.split("Stage only reviewed product/docs/tests", 1)[1].split("Do not stage generated churn", 1)[0]
+    assert "data/prices.csv" not in staging_block
+    assert "data/reports/ticker_readiness_report.previous.csv" not in staging_block
+    assert "make browser-qa-evidence" in report
+    assert "make dashboard-smoke" in report
+    assert "git commit -m" in report
+    assert "git push origin main" in report
+    assert "source proof, validate, preview" in report
+    assert "Research-only guardrail" in report
+    assert "direct buy/sell" in report
+
+
 def test_staged_hygiene_check_passes_clean_product_and_sample_report_stage():
     module = load_diff_hygiene_module()
     entries = [

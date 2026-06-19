@@ -31,6 +31,10 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         self.catalog = LocalDataCatalog(self.base_dir, data_dir=self.data_dir, outputs_dir=self.outputs_dir)
         self.prices_path = self.data_dir / "prices.csv"
         self.fundamentals_path = self.data_dir / "fundamentals.csv"
+        self._prepared_prices: pd.DataFrame | None = None
+        self._price_rows_by_ticker: dict[str, pd.DataFrame] = {}
+        self._dataset_rows_by_ticker: dict[str, dict[str, pd.Series]] = {}
+        self._peer_rows_by_ticker: dict[str, tuple[pd.DataFrame, list[str]]] = {}
 
     def _source(self, file_path: Path, freshness: str, notes: list[str]) -> object:
         retrieved_at = (
@@ -76,9 +80,15 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         )
 
     def _load_prices(self) -> pd.DataFrame:
+        return self._prepared_prices_frame().copy()
+
+    def _prepared_prices_frame(self) -> pd.DataFrame:
+        if self._prepared_prices is not None:
+            return self._prepared_prices
         prices = self.catalog.load_dataframe("prices")
         if prices is None:
             raise FileNotFoundError(f"Local prices file is missing: {self.prices_path}")
+        prices = prices.copy()
         required_columns = {"date", "ticker"}
         missing_columns = sorted(required_columns - set(prices.columns))
         if missing_columns:
@@ -93,21 +103,52 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         for column in ("open", "high", "low", "close", "adj_close", "volume"):
             if column in prices.columns:
                 prices[column] = pd.to_numeric(prices[column], errors="coerce")
-        return prices.loc[prices["date"].notna()].copy()
+        prices = prices.loc[prices["date"].notna()].copy()
+        if "ticker" in prices.columns:
+            prices["ticker"] = prices["ticker"].astype(str).str.upper().str.strip()
+        self._prepared_prices = prices
+        return prices
+
+    def _price_rows_for_ticker(self, ticker: str) -> pd.DataFrame:
+        ticker = ticker.upper().strip()
+        if ticker not in self._price_rows_by_ticker:
+            prices = self._prepared_prices_frame()
+            self._price_rows_by_ticker[ticker] = prices.loc[prices["ticker"] == ticker].sort_values("date").copy()
+        return self._price_rows_by_ticker[ticker].copy()
 
     def _load_fundamentals(self) -> pd.DataFrame:
-        frame = self.catalog.load_dataframe("fundamentals")
-        return frame.copy() if frame is not None else pd.DataFrame()
+        return self._dataset_frame("fundamentals")
 
     def _load_optional_dataset(self, dataset_name: str) -> pd.DataFrame:
+        return self._dataset_frame(dataset_name)
+
+    def _dataset_frame(self, dataset_name: str) -> pd.DataFrame:
         frame = self.catalog.load_dataframe(dataset_name)
         return frame.copy() if frame is not None else pd.DataFrame()
 
     def _select_ticker_row(self, frame: pd.DataFrame, ticker: str) -> pd.Series:
         if frame.empty or "ticker" not in frame.columns:
             return pd.Series(dtype=object)
-        matches = frame.loc[frame["ticker"] == ticker]
+        ticker = ticker.upper().strip()
+        tickers = frame["ticker"].astype(str).str.upper().str.strip()
+        matches = frame.loc[tickers == ticker]
         return matches.iloc[-1] if not matches.empty else pd.Series(dtype=object)
+
+    def _select_ticker_row_from_dataset(self, dataset_name: str, ticker: str) -> pd.Series:
+        ticker = ticker.upper().strip()
+        if not ticker:
+            return pd.Series(dtype=object)
+        if dataset_name not in self._dataset_rows_by_ticker:
+            frame = self._dataset_frame(dataset_name)
+            lookup: dict[str, pd.Series] = {}
+            if not frame.empty and "ticker" in frame.columns:
+                tickers = frame["ticker"].astype(str).str.upper().str.strip()
+                for index, ticker_key in tickers.items():
+                    if ticker_key:
+                        lookup[ticker_key] = frame.loc[index]
+            self._dataset_rows_by_ticker[dataset_name] = lookup
+        row = self._dataset_rows_by_ticker[dataset_name].get(ticker)
+        return row.copy() if row is not None else pd.Series(dtype=object)
 
     def _float_value(self, row: pd.Series, *columns: str) -> float | None:
         for column in columns:
@@ -151,12 +192,17 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         return [row.to_dict() for row in coverage]
 
     def _peer_rows_for_ticker(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        ticker = ticker.upper().strip()
+        if ticker in self._peer_rows_by_ticker:
+            selected, warnings = self._peer_rows_by_ticker[ticker]
+            return selected.copy(), list(warnings)
         peers = self._load_optional_dataset("peers")
         if peers.empty or "ticker" not in peers.columns or "peer_ticker" not in peers.columns:
             return pd.DataFrame(), []
-        ticker = ticker.upper()
-        selected = peers.loc[peers["ticker"] == ticker].copy()
+        tickers = peers["ticker"].astype(str).str.upper().str.strip()
+        selected = peers.loc[tickers == ticker].copy()
         if selected.empty:
+            self._peer_rows_by_ticker[ticker] = (selected, [])
             return selected, []
 
         warnings: list[str] = []
@@ -172,7 +218,9 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             warnings.append(f"Ignored {duplicate_count} duplicate peer mapping row(s) for {ticker}.")
             selected = selected.loc[~duplicate_mask].copy()
 
-        return selected.sort_values(["ticker", "peer_ticker"]).reset_index(drop=True), warnings
+        selected = selected.sort_values(["ticker", "peer_ticker"]).reset_index(drop=True)
+        self._peer_rows_by_ticker[ticker] = (selected, warnings)
+        return selected.copy(), list(warnings)
 
     def get_peer_tickers(self, ticker: str) -> list[str]:
         peer_rows, _warnings = self._peer_rows_for_ticker(ticker)
@@ -292,8 +340,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
 
     def get_quote(self, ticker: str) -> QuoteSnapshot:
         ticker = ticker.upper()
-        prices = self._load_prices()
-        frame = prices.loc[prices["ticker"] == ticker].sort_values("date")
+        frame = self._price_rows_for_ticker(ticker)
         if frame.empty:
             raise LookupError(f"No local price rows were found for {ticker}.")
 
@@ -322,8 +369,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             raise ValueError("Local CSV market-data provider only supports 1d interval.")
 
         ticker = ticker.upper()
-        prices = self._load_prices()
-        frame = prices.loc[prices["ticker"] == ticker].sort_values("date").copy()
+        frame = self._price_rows_for_ticker(ticker)
         if frame.empty:
             return pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
 
@@ -340,8 +386,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
 
     def get_financials(self, ticker: str) -> FinancialSnapshot:
         ticker = ticker.upper()
-        fundamentals = self._load_fundamentals()
-        row = self._select_ticker_row(fundamentals, ticker)
+        row = self._select_ticker_row_from_dataset("fundamentals", ticker)
         metadata = self.catalog.dataset_metadata("fundamentals")
         source = self._row_source("fundamentals", row, ["Local fundamentals data."]) if not row.empty else (
             self._unavailable_source(
@@ -382,8 +427,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
 
     def get_earnings(self, ticker: str) -> EarningsSummary:
         ticker = ticker.upper()
-        earnings = self._load_optional_dataset("earnings")
-        row = self._select_ticker_row(earnings, ticker)
+        row = self._select_ticker_row_from_dataset("earnings", ticker)
         metadata = self.catalog.dataset_metadata("earnings")
         if metadata.validation_status == "missing_file":
             return EarningsSummary(
@@ -410,8 +454,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
 
     def get_analyst_estimates(self, ticker: str) -> AnalystEstimateSummary:
         ticker = ticker.upper()
-        estimates = self._load_optional_dataset("analyst_estimates")
-        row = self._select_ticker_row(estimates, ticker)
+        row = self._select_ticker_row_from_dataset("analyst_estimates", ticker)
         metadata = self.catalog.dataset_metadata("analyst_estimates")
         if metadata.validation_status == "missing_file":
             return AnalystEstimateSummary(

@@ -72,6 +72,7 @@ def test_makefile_contains_convenience_targets():
         "diff-hygiene-summary",
         "diff-hygiene-files",
         "data-release-decision",
+        "public-release-package",
         "staged-hygiene-check",
         "public-wording-check",
         "public-check",
@@ -233,6 +234,8 @@ def test_makefile_help_documents_key_workflows():
         "Write local pathspec files under outputs/staging for safer reviewed staging",
         "make data-release-decision",
         "Print read-only post-batch keep-local, reviewed-data-release, and cleanup guidance",
+        "make public-release-package",
+        "Print read-only product staging, generated exclusion, final checks, commit, and push guidance",
         "make staged-hygiene-check",
         "Fail if staged files include unreviewed local data/report changes",
         "make public-wording-check",
@@ -609,7 +612,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "readiness-state output, not an action list",
         "Roadmap Snapshot",
         "Review them before committing",
-        "Before sharing or committing, run `make public-check`, then `make diff-hygiene`",
+            "Before sharing or committing, run `make public-check`, then `make public-release-package`",
+            "Use `make diff-hygiene` when you need the full file list",
         "For a large dirty tree, run `make diff-hygiene-files`",
         "make staged-hygiene-check",
         "outputs/staging/",
@@ -1994,6 +1998,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Share-safe story: start with the connected workflow, then use NVDA, META, QQQ, MU, and CRDO only as optional state examples." in makefile
     assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
     assert "data-release-decision:\n\t@python3 scripts/diff_hygiene.py --data-release-decision" in makefile
+    assert "public-release-package:\n\t@python3 scripts/diff_hygiene.py --public-release-package" in makefile
     assert "staged-hygiene-check:\n\t@python3 scripts/diff_hygiene.py --staged-check" in makefile
     assert "public-check:" in makefile
     for phrase in (
