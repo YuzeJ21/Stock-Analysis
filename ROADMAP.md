@@ -53,6 +53,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Browser QA Evidence V2 with route-level manual checks for public home, single-stock, Data Health fast view, metrics review, and proof history before replacing public screenshots.
 - [x] Browser Evidence Capture Plan V2 with a copy-ready session sequence for starting the dashboard, capturing pending real screenshots, verifying assets, running release gates, and staging only reviewed evidence.
 - [x] Public Screenshot Recommendation V1 so `make browser-qa-evidence` names the current LinkedIn/GitHub image, pending workflow captures, and the boundary that screenshots do not prove data freshness or unlock blocked inputs.
+- [x] Pilot Screenshot Evidence Gate V1 so `make pilot-readiness-check` includes real screenshot evidence status and pending workflow captures alongside sync, churn, source-proof, public-check, and research-only gates.
 - [x] Public Release Package V1 with `make public-release-package`, a read-only product staging, generated-churn exclusion, final-check, commit, and push checklist.
 - [x] Short Price-History Proof Queue V1 with `make price-history-proof-queue`, separating complete price coverage from short-history blockers for momentum, track-record, and review-metric workflows.
 - [x] Workflow Continuity V3 so Home, Single-Stock Report, and Data Health strip links route to the current page, proof drawer, next safe view, and stop-rule evidence without running commands.
@@ -73,6 +74,9 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Dashboard helper extraction V3 so the Single-Stock pre-report readiness contract lives in a tested workflow module instead of the Streamlit render body.
 - [x] Single-Stock Workflow Fit V4 so both the drilldown and loaded report show current step, previous proof, next safe action, and stop rule before dense details.
 - [x] Data Health Drawer Routing V3 so queue lane drawers summarize queue -> source proof -> comparison -> proof record routes before detailed action tables.
+- [x] Public Visitor Workflow Polish V6 so Home opens with the research-loop strip, First 30 Seconds, Connected Workflow, and Visitor Path before heavier examples or operator details.
+- [x] Single-Stock Workflow Fit V6 so loaded ticker workflow cards stay readable while copy-only commands move into a collapsed command drawer.
+- [x] Data Health Operator Flow V5 so queue lane route cards include generated-artifact hygiene before staging recommendations.
 - [x] Trusted Fundamentals Proof Loop UX V3 so DCF source review shows source fields -> guard -> validate/preview -> apply/skip -> proof-record route cards before source tables.
 - [x] Universe Scope Guide V1 so market-wide review starts with master vs active vs analysis-ready counts, safe row-limited filters, single-stock lookup boundaries, and the no broad-conclusions stop rule before the Readiness Explorer.
 - [x] Risk Context Workflow Extraction V1 so liquidity/correlation readiness and volatility-proxy approximation cards live in a focused tested helper while Data Health keeps raw risk tables collapsed.
