@@ -379,6 +379,132 @@ def dcf_source_loop_route_cards(checklist: pd.DataFrame | None, family: str | No
     ]
 
 
+def dcf_source_loop_operator_summary_frame(
+    checklist: pd.DataFrame | None,
+    *,
+    selector: pd.DataFrame | None = None,
+    readiness: pd.DataFrame | None = None,
+    handoff: pd.DataFrame | None = None,
+    family: str | None = None,
+) -> pd.DataFrame:
+    """Return the first-read operator summary for the trusted fundamentals loop."""
+
+    columns = ["Question", "Status", "Answer", "Next Safe Action", "Boundary"]
+    family_label = str(family or "top family").strip() or "top family"
+    if checklist is None or checklist.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Question": "Where am I?",
+                    "Status": "blocked_no_checklist",
+                    "Answer": f"{family_label}: DCF source loop is not loaded.",
+                    "Next Safe Action": "make dcf-input-proof-queue TOP_N=10",
+                    "Boundary": "Build the DCF input proof queue before source review, guard, validate, preview, apply decision, or proof record work.",
+                }
+            ],
+            columns=columns,
+        )
+
+    states = checklist["State"].astype(str)
+    incomplete = checklist.loc[~states.isin(["ready"])]
+    current = incomplete.iloc[0] if not incomplete.empty else checklist.iloc[-1]
+    selected_count = _first_int(selector, "Selected Count")
+    selected_tickers = _first_text(selector, "Tickers", "selected scope not loaded")
+    guard_status = _status_summary(readiness, "Guard Status")
+    proof_status = _status_summary(handoff, "Proof Handoff Status")
+    ready_count = int(states.eq("ready").sum())
+    total_count = int(len(checklist))
+    current_status = str(current.get("State") or "blocked")
+    current_need = compact_card_fragment(current.get("Missing Or Manual Gate"), max_chars=190)
+    current_step = str(current.get("Step") or "Finish current source-review gate.")
+    current_action = str(current.get("Next Safe Action") or "make dcf-input-proof-queue TOP_N=10")
+    current_boundary = str(
+        current.get("Review Boundary")
+        or "Keep missing trusted fundamentals blocked until source proof exists."
+    )
+
+    return pd.DataFrame(
+        [
+            {
+                "Question": "What is selected?",
+                "Status": "ready" if selected_count else "blocked",
+                "Answer": (
+                    f"{family_label}: {selected_count} selected for source review. "
+                    f"Tickers: {compact_card_fragment(selected_tickers, max_chars=180)}."
+                ),
+                "Next Safe Action": _first_text(selector, "Command Plan", "make dcf-input-proof-queue TOP_N=10"),
+                "Boundary": "Use a capped source-review scope; do not infer fundamentals or shares from nearby fields.",
+            },
+            {
+                "Question": "What is the current gate?",
+                "Status": current_status,
+                "Answer": (
+                    f"{ready_count}/{total_count} source-loop step(s) ready. "
+                    f"Current gate: {current_step}. Need: {current_need}."
+                ),
+                "Next Safe Action": current_action,
+                "Boundary": current_boundary,
+            },
+            {
+                "Question": "What does the guard say?",
+                "Status": "ready" if "ready_for_guard" in guard_status else "blocked",
+                "Answer": f"Guard readiness: {guard_status}. Proof handoff: {proof_status}.",
+                "Next Safe Action": _first_text(readiness, "Guard Command", current_action),
+                "Boundary": "Run guard, validate, and preview only after reviewed source fields replace placeholders.",
+            },
+            {
+                "Question": "When must I stop?",
+                "Status": "stop_rule",
+                "Answer": "Stop before apply or proof record if any review field, validation result, preview result, apply/skip decision, readiness comparison, source file, or generated-artifact review is missing.",
+                "Next Safe Action": "Keep the lane blocked, skipped, or still_blocked until the missing proof is reviewed.",
+                "Boundary": "No canonical fundamentals write, no supported proof outcome, and no public claim without source-backed review.",
+            },
+        ],
+        columns=columns,
+    )
+
+
+def dcf_source_loop_operator_summary_cards(
+    summary: pd.DataFrame | None,
+    family: str | None = None,
+) -> list[dict[str, object]]:
+    family_label = str(family or "top family").strip() or "top family"
+    if summary is None or summary.empty:
+        return [
+            {
+                "kicker": "DCF OPERATOR SUMMARY",
+                "title": "No source-loop summary loaded",
+                "body": "Build the DCF input proof queue before opening source review, guard, validate, preview, apply decision, or proof record details.",
+                "badges": ["blocked visible", "readiness first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    current_rows = summary.loc[summary["Question"].astype(str).eq("What is the current gate?")]
+    stop_rows = summary.loc[summary["Question"].astype(str).eq("When must I stop?")]
+    current = current_rows.iloc[0] if not current_rows.empty else summary.iloc[0]
+    stop = stop_rows.iloc[0] if not stop_rows.empty else summary.iloc[-1]
+    return [
+        {
+            "kicker": "DCF OPERATOR SUMMARY",
+            "title": f"{family_label}: {current.get('Status')}",
+            "body": (
+                f"{card_sentence('Gate', compact_card_fragment(current.get('Answer'), max_chars=190))} "
+                f"{card_sentence('Boundary', compact_card_fragment(current.get('Boundary'), max_chars=190))} "
+                "Use this first-read summary before lower source tables."
+            ),
+            "badges": ["first read", "source proof"],
+            "command": str(current.get("Next Safe Action") or "make dcf-input-proof-queue TOP_N=10"),
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "Keep unsupported inputs blocked",
+            "body": compact_card_fragment(stop.get("Answer"), max_chars=260),
+            "badges": ["no fabricated unlocks", "research-only"],
+            "command": str(stop.get("Next Safe Action") or "Keep the lane blocked until proof is reviewed."),
+        },
+    ]
+
+
 def dcf_source_batch_selector_frame(
     rows: list[DcfInputProofRow],
     *,
@@ -844,6 +970,15 @@ def _count_matching(frame: pd.DataFrame | None, column: str, value: str) -> int:
     if frame is None or frame.empty or column not in frame.columns:
         return 0
     return int(frame[column].fillna("").astype(str).eq(value).sum())
+
+
+def _status_summary(frame: pd.DataFrame | None, column: str) -> str:
+    if frame is None or frame.empty or column not in frame.columns:
+        return "not loaded"
+    counts = frame[column].fillna("unknown").astype(str).value_counts()
+    if counts.empty:
+        return "not loaded"
+    return "; ".join(f"{status}: {count}" for status, count in counts.items())
 
 
 def _placeholder_count(frame: pd.DataFrame | None, column: str) -> int:

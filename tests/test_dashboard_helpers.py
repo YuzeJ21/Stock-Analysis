@@ -14168,6 +14168,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "DCF Proof Batch Planner" in source
     assert "data_health_dcf_proof_batch_planner_cards(dcf_input_queue, dcf_family_selection)" in source
     assert "data_health_dcf_proof_batch_planner_frame(dcf_input_queue, dcf_family_selection)" in source
+    assert "DCF Operator Summary" in source
+    assert "data_health_dcf_source_loop_operator_summary_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_source_loop_operator_summary_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "Trusted Fundamentals Source Packet" in source
     assert "DCF Source Loop Checklist" in source
     assert "data_health_dcf_source_loop_checklist_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
@@ -14219,7 +14222,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_dashboard_cards_index = source.index("data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue)", fundamentals_console_index)
     dcf_filter_index = source.index("data_health_dcf_input_family_filter_cards(", dcf_drawer_index)
     dcf_queue_cards_index = source.index("data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)", dcf_filter_index)
-    dcf_checklist_index = source.index('render_section_header("Finish This DCF Proof"', dcf_queue_cards_index)
+    dcf_operator_summary_index = source.index('render_section_header("DCF Operator Summary"', dcf_queue_cards_index)
+    dcf_operator_summary_cards_index = source.index("data_health_dcf_source_loop_operator_summary_cards(", dcf_operator_summary_index)
+    dcf_operator_summary_frame_index = source.index("data_health_dcf_source_loop_operator_summary_frame(", dcf_operator_summary_cards_index)
+    dcf_checklist_index = source.index('render_section_header("Finish This DCF Proof"', dcf_operator_summary_frame_index)
     dcf_checklist_cards_index = source.index("data_health_dcf_proof_source_review_checklist_cards(", dcf_checklist_index)
     dcf_checklist_frame_index = source.index("data_health_dcf_proof_source_review_checklist_frame(", dcf_checklist_cards_index)
     dcf_source_loop_index = source.index('render_section_header("DCF Source Loop Checklist"', dcf_checklist_frame_index)
@@ -14259,6 +14265,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert (
         dcf_filter_index
         < dcf_queue_cards_index
+        < dcf_operator_summary_index
+        < dcf_operator_summary_cards_index
+        < dcf_operator_summary_frame_index
         < dcf_checklist_index
         < dcf_checklist_cards_index
         < dcf_checklist_frame_index

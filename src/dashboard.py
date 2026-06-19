@@ -54,6 +54,8 @@ from src.data_health_dcf_source_commands import (
     dcf_source_command_triage_frame,
     dcf_source_loop_checklist_cards,
     dcf_source_loop_checklist_frame,
+    dcf_source_loop_operator_summary_cards,
+    dcf_source_loop_operator_summary_frame,
     dcf_source_loop_progress_strip_cards,
     dcf_source_loop_route_cards,
     dcf_source_evidence_intake_cards,
@@ -9494,6 +9496,25 @@ def data_health_dcf_source_loop_progress_strip_cards(frame: pd.DataFrame | None,
 def data_health_dcf_source_loop_route_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
     checklist = data_health_dcf_source_loop_checklist_frame(frame, selection, top_n=top_n)
     return dcf_source_loop_route_cards(checklist, data_health_dcf_input_family_key(selection) or None)
+
+
+def data_health_dcf_source_loop_operator_summary_frame(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> pd.DataFrame:
+    selector = data_health_dcf_source_batch_selector_frame(frame, selection, top_n=top_n)
+    readiness = data_health_dcf_source_guard_readiness_frame(frame, selection, top_n=top_n)
+    handoff = data_health_dcf_source_proof_handoff_frame(frame, selection, top_n=top_n)
+    checklist = data_health_dcf_source_loop_checklist_frame(frame, selection, top_n=top_n)
+    return dcf_source_loop_operator_summary_frame(
+        checklist,
+        selector=selector,
+        readiness=readiness,
+        handoff=handoff,
+        family=data_health_dcf_input_family_key(selection) or None,
+    )
+
+
+def data_health_dcf_source_loop_operator_summary_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
+    summary = data_health_dcf_source_loop_operator_summary_frame(frame, selection, top_n=top_n)
+    return dcf_source_loop_operator_summary_cards(summary, data_health_dcf_input_family_key(selection) or None)
 
 
 def _data_health_dcf_source_route(row: pd.Series) -> str:
@@ -27213,6 +27234,17 @@ def render_data_health(
                 hide_index=True,
             )
             render_signal_cards(data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered), show_commands=True)
+            render_section_header("DCF Operator Summary", "Current source-review gate, missing proof, next safe action, and stop rule before detailed source drawers.")
+            render_signal_cards(
+                data_health_dcf_source_loop_operator_summary_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=False,
+                variant="queue",
+            )
+            st.dataframe(
+                clean_display_frame(data_health_dcf_source_loop_operator_summary_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
+            )
             render_section_header("Finish This DCF Proof", "One compact checklist before source-review rows, import previews, or proof-record tables.")
             render_signal_cards(
                 data_health_dcf_proof_source_review_checklist_cards(

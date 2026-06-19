@@ -13,6 +13,8 @@ from src.data_health_dcf_source_commands import (
     dcf_source_guard_preview_frame,
     dcf_source_guard_readiness_cards,
     dcf_source_guard_readiness_frame,
+    dcf_source_loop_operator_summary_cards,
+    dcf_source_loop_operator_summary_frame,
     dcf_source_proof_handoff_cards,
     dcf_source_proof_handoff_frame,
 )
@@ -228,6 +230,119 @@ def test_dcf_source_guard_readiness_builds_guard_command_when_evidence_is_filled
     assert "ready for guard: 1" in lowered
     assert "buy now" not in lowered
     assert "sell now" not in lowered
+
+
+def test_dcf_source_loop_operator_summary_shows_current_gate_before_tables():
+    selector = dcf_source_batch_selector_frame([_row("META"), _row("ABNB")], family="shares_outstanding", top_n=2)
+    intake = dcf_source_evidence_intake_frame([_row("META"), _row("ABNB")], family="shares_outstanding", top_n=2)
+    readiness = dcf_source_guard_readiness_frame(intake)
+    preview = dcf_source_guard_preview_frame(readiness)
+    handoff = dcf_source_proof_handoff_frame(preview, "shares_outstanding")
+    checklist = pd.DataFrame(
+        [
+            {
+                "Step": "1. Select source-review batch",
+                "State": "ready",
+                "Next Safe Action": selector.iloc[0]["Command Plan"],
+                "Missing Or Manual Gate": "-",
+                "Review Boundary": "Use a capped source-review scope before opening raw DCF rows.",
+            },
+            {
+                "Step": "2. Fill reviewed source fields",
+                "State": "needs_field_fills",
+                "Next Safe Action": "Fill reviewed source fields; do not write canonical fundamentals.",
+                "Missing Or Manual Gate": "12 placeholder field(s)",
+                "Review Boundary": "Evidence fields must be reviewed source values, not placeholders or inferred inputs.",
+            },
+        ]
+    )
+
+    summary = dcf_source_loop_operator_summary_frame(
+        checklist,
+        selector=selector,
+        readiness=readiness,
+        handoff=handoff,
+        family="shares_outstanding",
+    )
+    cards = dcf_source_loop_operator_summary_cards(summary, "shares_outstanding")
+    rendered = " ".join(summary.astype(str).to_numpy().flatten().tolist()) + " " + _render_cards(cards)
+    lowered = rendered.lower()
+
+    assert summary["Question"].tolist() == [
+        "What is selected?",
+        "What is the current gate?",
+        "What does the guard say?",
+        "When must I stop?",
+    ]
+    assert summary.iloc[0]["Status"] == "ready"
+    assert "meta,abnb" in summary.iloc[0]["Answer"].lower()
+    assert summary.iloc[1]["Status"] == "needs_field_fills"
+    assert "current gate: 2. fill reviewed source fields" in summary.iloc[1]["Answer"].lower()
+    assert "needs_field_fills: 2" in summary.iloc[2]["Answer"].lower()
+    assert cards[0]["title"] == "shares_outstanding: needs_field_fills"
+    assert "use this first-read summary before lower source tables" in lowered
+    assert "no canonical fundamentals write" in lowered
+    assert "buy now" not in lowered
+    assert "sell now" not in lowered
+
+
+def test_dcf_source_loop_operator_summary_marks_guard_ready_without_unlocking():
+    selector = dcf_source_batch_selector_frame([_row("META")], family="shares_outstanding", top_n=1)
+    intake = dcf_source_evidence_intake_frame([_row("META")], family="shares_outstanding", top_n=1)
+    replacements = {
+        "source_file_or_url": "https://www.sec.gov/example",
+        "source_as_of_date": "2026-06-01",
+        "reviewer": "local_reviewer",
+        "review_date": "2026-06-18",
+        "source_proof_status": "reviewed",
+        "shares_outstanding": "123456789",
+    }
+    intake["Reviewer Fill"] = intake["Evidence Field"].map(replacements).fillna(intake["Reviewer Fill"])
+    readiness = dcf_source_guard_readiness_frame(intake)
+    preview = dcf_source_guard_preview_frame(readiness)
+    handoff = dcf_source_proof_handoff_frame(preview, "shares_outstanding")
+    checklist = pd.DataFrame(
+        [
+            {
+                "Step": "1. Select source-review batch",
+                "State": "ready",
+                "Next Safe Action": selector.iloc[0]["Command Plan"],
+                "Missing Or Manual Gate": "-",
+                "Review Boundary": "Use a capped source-review scope before opening raw DCF rows.",
+            },
+            {
+                "Step": "2. Fill reviewed source fields",
+                "State": "ready",
+                "Next Safe Action": "Fill reviewed source fields; do not write canonical fundamentals.",
+                "Missing Or Manual Gate": "-",
+                "Review Boundary": "Evidence fields must be reviewed source values, not placeholders or inferred inputs.",
+            },
+            {
+                "Step": "6. Rebuild readiness and record proof",
+                "State": "needs_reviewed_results",
+                "Next Safe Action": handoff.iloc[0]["Proof Record Dry Run"],
+                "Missing Or Manual Gate": handoff.iloc[0]["Missing Proof Fields"],
+                "Review Boundary": "Record proof only after rebuilt readiness, changed counts, source files, and generated-artifact review.",
+            },
+        ]
+    )
+
+    summary = dcf_source_loop_operator_summary_frame(
+        checklist,
+        selector=selector,
+        readiness=readiness,
+        handoff=handoff,
+        family="shares_outstanding",
+    )
+    rendered = " ".join(summary.astype(str).to_numpy().flatten().tolist()).lower()
+
+    assert summary.iloc[2]["Status"] == "ready"
+    assert "ready_for_guard: 1" in summary.iloc[2]["Answer"]
+    assert "Proof handoff: ready_after_validate_preview_review: 1" in summary.iloc[2]["Answer"]
+    assert "validation_result" in rendered
+    assert "no supported proof outcome" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
 
 
 def test_dcf_source_guard_preview_blocks_until_guard_ready():
