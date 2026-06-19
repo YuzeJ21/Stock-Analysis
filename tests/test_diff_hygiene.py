@@ -109,6 +109,7 @@ def test_diff_hygiene_file_report_points_to_pathspec_files(tmp_path: Path):
     staging_readme = files["readme"].read_text(encoding="utf-8")
     assert "Diff Hygiene Local Staging Files" in staging_readme
     assert "Product files: outputs/staging/product_files.txt (1 path(s))" in staging_readme
+    assert "Package status: product package pending commit; commit this package before starting another feature slice" in staging_readme
     assert "git add --pathspec-from-file=outputs/staging/product_files.txt" in staging_readme
     assert "make staged-hygiene-check" in staging_readme
     assert "Do not stage generated churn by default" in staging_readme
@@ -120,6 +121,7 @@ def test_diff_hygiene_file_report_points_to_pathspec_files(tmp_path: Path):
     assert "Markdown sample reports only: outputs/staging/sample_reports.txt (1 path(s))" in report
     assert "Generated CSV/JSON churn to avoid by default: outputs/staging/generated_churn.txt (1 path(s))" in report
     assert "Manual-review paths: outputs/staging/manual_review.txt (0 path(s))" in report
+    assert "Package status: not checked" in report
     assert "Usage notes: outputs/staging/README.txt" in report
     assert "git add --pathspec-from-file=outputs/staging/product_files.txt" in report
     assert "git add --pathspec-from-file=outputs/staging/product_plus_reports.txt" in report
@@ -128,6 +130,13 @@ def test_diff_hygiene_file_report_points_to_pathspec_files(tmp_path: Path):
     assert "broker" in report
     assert "order execution" in report
     assert "direct buy/sell" in report
+
+    report_with_status = module.build_file_report(
+        files,
+        tmp_path,
+        package_status="product package pending commit; commit this package before starting another feature slice",
+    )
+    assert "Package status: product package pending commit; commit this package before starting another feature slice" in report_with_status
 
 
 def test_diff_hygiene_staging_suggestions_exclude_generated_churn():
@@ -163,12 +172,23 @@ def test_diff_hygiene_summary_is_concise_but_preserves_guardrails():
     assert "Product/code/docs/test candidates: 1 (1 changed, 0 new)" in report
     assert "Markdown sample report candidates: 1 (1 changed, 0 new)" in report
     assert "Generated CSV/JSON churn to avoid by default: 1 (1 changed, 0 new)" in report
+    assert "Package status: product package pending commit; commit this package before starting another feature slice" in report
     assert "Use `make diff-hygiene` for full file lists" in report
     assert "New docs/scripts/tests are product candidates when intentional" in report
     assert "git add --" not in report
     assert "src/dashboard.py" not in report
     assert "outputs/research_decisions.csv" not in report
     assert "Research-only guardrail" in report
+
+
+def test_diff_hygiene_summary_marks_generated_only_and_clean_states():
+    module = load_diff_hygiene_module()
+
+    generated_only = module.build_summary_report([module.StatusEntry("M", "data/prices.csv")])
+    clean = module.build_summary_report([])
+
+    assert "Package status: generated churn only; keep it local unless intentionally reviewed as evidence" in generated_only
+    assert "Package status: clean; ready for the next reviewed work slice" in clean
 
 
 def test_data_release_decision_reports_clean_public_state():
@@ -218,7 +238,9 @@ def test_public_release_package_reports_clean_push_path():
 
     assert "Public Release Package" in report
     assert "Read-only: this command does not stage, delete, reset, refresh, rewrite files, commit, or push." in report
+    assert "Branch status: not checked" in report
     assert "Working tree is clean." in report
+    assert "Package status: clean; ready for the next reviewed work slice" in report
     assert "make public-check" in report
     assert "make browser-qa-capture-plan" not in report
     assert "git push origin main" in report
@@ -236,24 +258,31 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
         module.StatusEntry("??", "data/reports/ticker_readiness_report.previous.csv"),
     ]
 
-    report = module.build_public_release_package_report(entries)
+    report = module.build_public_release_package_report(entries, branch_status="## main...origin/main [ahead 19]")
 
     assert "Product/code/docs/test candidates: 4 (3 changed, 1 new)" in report
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
+    assert "Branch status: ## main...origin/main [ahead 19]" in report
+    assert "Package status: product package pending commit; commit this package before starting another feature slice" in report
     assert "Ready to stage product files after public-check and local dashboard smoke pass." in report
     assert "git add -- Makefile src/dashboard.py tests/test_dashboard_helpers.py src/price_history_proof_queue.py" in report
     staging_block = report.split("Stage only reviewed product/docs/tests", 1)[1].split("Do not stage generated churn", 1)[0]
     assert "data/prices.csv" not in staging_block
     assert "data/reports/ticker_readiness_report.previous.csv" not in staging_block
+    assert "git diff --cached --check" in staging_block
+    assert "git diff --cached --name-only" in staging_block
     assert "make pilot-readiness-check TOP_N=10" in report
     assert "make browser-qa-evidence" in report
     assert "make browser-qa-capture-plan" in report
+    assert "If screenshots were recaptured and visually reviewed, stage only those assets" in report
+    assert "git add -- docs/assets/single-stock-workflow-fit-real.jpg docs/assets/operator-data-health-proof-real.jpg docs/assets/operator-data-health-queue-routing-real.jpg" in report
     assert "make dashboard-smoke" in report
     assert "If git staging is environment-blocked:" in report
     assert "Do not stage generated churn as a workaround." in report
     assert "make diff-hygiene-files" in report
     assert "git add --pathspec-from-file=outputs/staging/product_plus_reports.txt" in report
     assert "git commit -m \"Improve pilot handoff and workflow continuity\"" in report
+    assert "git status --short --branch" in report
     assert "git push origin main" in report
     assert "source proof, validate, preview" in report
     assert "real Streamlit route review" in report
@@ -287,6 +316,8 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "make browser-qa-evidence" in report
     assert "make browser-qa-capture-plan" in report
     assert "git add -- Makefile src/dashboard.py src/dashboard_navigation.py tests/test_dashboard_helpers.py" in report
+    assert "If screenshots were recaptured and visually reviewed, stage only those evidence assets" in report
+    assert "git add -- docs/assets/single-stock-workflow-fit-real.jpg docs/assets/operator-data-health-proof-real.jpg docs/assets/operator-data-health-queue-routing-real.jpg" in report
     assert "make staged-hygiene-check" in report
     assert "git diff --cached --check" in report
     assert "git commit -m \"Improve pilot handoff and workflow continuity\"" in report
@@ -322,6 +353,21 @@ def test_public_release_handoff_marks_generated_only_tree_as_local_churn():
     assert "Product/code/docs/test candidates: 0 (0 changed, 0 new)" in report
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
     assert "Package status: generated churn only; keep it local unless intentionally reviewed as evidence" in report
+
+
+def test_public_release_package_marks_generated_only_tree_as_local_churn():
+    module = load_diff_hygiene_module()
+    entries = [
+        module.StatusEntry("M", "data/prices.csv"),
+        module.StatusEntry("??", "data/reports/ticker_readiness_report.previous.csv"),
+    ]
+
+    report = module.build_public_release_package_report(entries)
+
+    assert "Product/code/docs/test candidates: 0 (0 changed, 0 new)" in report
+    assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
+    assert "Package status: generated churn only; keep it local unless intentionally reviewed as evidence" in report
+    assert "Not ready to stage automatically" in report
 
 
 def test_staged_hygiene_check_passes_clean_product_and_sample_report_stage():

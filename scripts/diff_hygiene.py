@@ -38,6 +38,12 @@ GENERATED_MARKDOWN_ARTIFACTS = {
     "outputs/decision_proof_queue.md",
 }
 
+REVIEWED_SCREENSHOT_ASSET_PATHS = (
+    "docs/assets/single-stock-workflow-fit-real.jpg",
+    "docs/assets/operator-data-health-proof-real.jpg",
+    "docs/assets/operator-data-health-queue-routing-real.jpg",
+)
+
 
 @dataclass(frozen=True)
 class StatusEntry:
@@ -140,6 +146,10 @@ def format_git_add_command(entries: list[StatusEntry], *, label: str, max_paths:
     return rows
 
 
+def reviewed_screenshot_asset_stage_command() -> str:
+    return "git add -- " + " ".join(quote(path) for path in REVIEWED_SCREENSHOT_ASSET_PATHS)
+
+
 def write_path_file(path: Path, entries: list[StatusEntry]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     body = "".join(f"{entry.path}\n" for entry in entries)
@@ -151,7 +161,7 @@ def count_path_file(path: Path) -> int:
     return len([line for line in text.splitlines() if line.strip()])
 
 
-def build_staging_readme(files: dict[str, Path], repo_root: Path) -> str:
+def build_staging_readme(files: dict[str, Path], repo_root: Path, *, package_status: str = "") -> str:
     def _rel(path: Path) -> str:
         return path.relative_to(repo_root).as_posix()
 
@@ -171,6 +181,7 @@ def build_staging_readme(files: dict[str, Path], repo_root: Path) -> str:
             _line("Markdown sample reports only", "sample_reports"),
             _line("Generated CSV/JSON churn to avoid by default", "generated_churn"),
             _line("Manual-review paths", "manual_review"),
+            f"Package status: {package_status or 'not checked'}",
             "",
             "After reviewing the path list you want, optional staging commands are:",
             "git add --pathspec-from-file=outputs/staging/product_files.txt",
@@ -186,6 +197,7 @@ def build_staging_readme(files: dict[str, Path], repo_root: Path) -> str:
 
 def write_staging_files(entries: list[StatusEntry], output_dir: Path) -> dict[str, Path]:
     groups = group_entries(entries)
+    package_status = package_status_for_groups(groups)
     files = {
         "readme": output_dir / "README.txt",
         "product_files": output_dir / "product_files.txt",
@@ -199,11 +211,14 @@ def write_staging_files(entries: list[StatusEntry], output_dir: Path) -> dict[st
     write_path_file(files["sample_reports"], groups["sample_report_candidate"])
     write_path_file(files["generated_churn"], groups["generated_csv_churn"])
     write_path_file(files["manual_review"], groups["review_manually"])
-    files["readme"].write_text(build_staging_readme(files, output_dir.parents[1]), encoding="utf-8")
+    files["readme"].write_text(
+        build_staging_readme(files, output_dir.parents[1], package_status=package_status),
+        encoding="utf-8",
+    )
     return files
 
 
-def build_file_report(files: dict[str, Path], repo_root: Path) -> str:
+def build_file_report(files: dict[str, Path], repo_root: Path, *, package_status: str = "") -> str:
     def _rel(path: Path) -> str:
         return path.relative_to(repo_root).as_posix()
 
@@ -224,6 +239,7 @@ def build_file_report(files: dict[str, Path], repo_root: Path) -> str:
             _file_line("Markdown sample reports only", "sample_reports"),
             _file_line("Generated CSV/JSON churn to avoid by default", "generated_churn"),
             _file_line("Manual-review paths", "manual_review"),
+            f"Package status: {package_status or 'not checked'}",
             f"Usage notes: {_rel(files['readme'])}",
             "",
             "Optional staging commands after review:",
@@ -262,15 +278,25 @@ def group_entries(entries: list[StatusEntry]) -> dict[str, list[StatusEntry]]:
     return groups
 
 
+def package_status_for_groups(groups: dict[str, list[StatusEntry]]) -> str:
+    stage_candidates = groups["product_candidate"] + groups["sample_report_candidate"]
+    if stage_candidates:
+        return "product package pending commit; commit this package before starting another feature slice"
+    if groups["generated_csv_churn"]:
+        return "generated churn only; keep it local unless intentionally reviewed as evidence"
+    return "clean; ready for the next reviewed work slice"
+
+
 def build_summary_report(entries: list[StatusEntry]) -> str:
     groups = group_entries(entries)
+    package_status = package_status_for_groups(groups)
     lines = [
         "Diff Hygiene Summary",
         "Read-only: this command does not stage, delete, reset, refresh, or rewrite files.",
         "",
     ]
     if not entries:
-        lines.append("Working tree is clean.")
+        lines.extend(["Working tree is clean.", f"Package status: {package_status}"])
         return "\n".join(lines)
     lines.extend(
         [
@@ -278,6 +304,7 @@ def build_summary_report(entries: list[StatusEntry]) -> str:
             format_count_line("Markdown sample report candidates", groups["sample_report_candidate"]),
             format_count_line("Generated CSV/JSON churn to avoid by default", groups["generated_csv_churn"]),
             format_count_line("Manual-review paths", groups["review_manually"]),
+            f"Package status: {package_status}",
             "",
             "Use `make diff-hygiene` for full file lists and safe staging suggestions.",
             "New docs/scripts/tests are product candidates when intentional; review them before staging.",
@@ -451,30 +478,27 @@ def build_data_release_decision_report(entries: list[StatusEntry]) -> str:
     return "\n".join(lines)
 
 
-def build_public_release_package_report(entries: list[StatusEntry]) -> str:
+def build_public_release_package_report(entries: list[StatusEntry], *, branch_status: str = "") -> str:
     groups = group_entries(entries)
     product = groups["product_candidate"]
     sample_reports = groups["sample_report_candidate"]
     generated = groups["generated_csv_churn"]
     manual = groups["review_manually"]
     stage_candidates = product + sample_reports
-    if stage_candidates:
-        package_status = "product package pending commit; commit this package before starting another feature slice"
-    elif generated:
-        package_status = "generated churn only; keep it local unless intentionally reviewed as evidence"
-    else:
-        package_status = "clean; ready for the next reviewed work slice"
+    package_status = package_status_for_groups(groups)
 
     lines = [
         "Public Release Package",
         "Read-only: this command does not stage, delete, reset, refresh, rewrite files, commit, or push.",
         "Research-only: release packaging must preserve data-readiness gates, not investment advice or execution language.",
+        f"Branch status: {branch_status or 'not checked'}",
         "",
     ]
     if not entries:
         lines.extend(
             [
                 "Working tree is clean.",
+                f"Package status: {package_status}",
                 "Next safe action:",
                 "  make public-check",
                 "  git push origin main  # only after confirming the branch is ready to publish",
@@ -488,6 +512,7 @@ def build_public_release_package_report(entries: list[StatusEntry]) -> str:
             format_count_line("Markdown sample report candidates", sample_reports),
             format_count_line("Generated CSV/JSON churn excluded by default", generated),
             format_count_line("Manual-review paths", manual),
+            f"Package status: {package_status}",
             "",
         ]
     )
@@ -514,6 +539,8 @@ def build_public_release_package_report(entries: list[StatusEntry]) -> str:
             *format_git_add_command(stage_candidates, label="Stage public release package"),
             "  make staged-hygiene-check",
             "  git diff --cached --stat",
+            "  git diff --cached --check",
+            "  git diff --cached --name-only",
             "",
             "If git staging is environment-blocked:",
             "  # Do not stage generated churn as a workaround.",
@@ -537,11 +564,14 @@ def build_public_release_package_report(entries: list[StatusEntry]) -> str:
             "  make pilot-readiness-check TOP_N=10",
             "  make browser-qa-evidence",
             "  make browser-qa-capture-plan  # before replacing public/GitHub/LinkedIn screenshots",
+            "  # If screenshots were recaptured and visually reviewed, stage only those assets:",
+            f"  {reviewed_screenshot_asset_stage_command()}",
             "  make dashboard-smoke  # rerun in a normal local terminal if sandbox socket binding is limited",
             "  git diff --check",
             "",
             "Commit and push only after staged hygiene passes:",
             "  git commit -m \"Improve pilot handoff and workflow continuity\"",
+            "  git status --short --branch",
             "  git push origin main",
             "",
             "Do not proceed if:",
@@ -566,12 +596,7 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
     generated = groups["generated_csv_churn"]
     manual = groups["review_manually"]
     stage_candidates = product + sample_reports
-    if stage_candidates:
-        package_status = "product package pending commit; commit this package before starting another feature slice"
-    elif generated:
-        package_status = "generated churn only; keep it local unless intentionally reviewed as evidence"
-    else:
-        package_status = "clean; ready for the next reviewed work slice"
+    package_status = package_status_for_groups(groups)
 
     lines = [
         "Public Release Terminal Handoff",
@@ -607,6 +632,8 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
             "",
             "Step 2 - stage only reviewed product/docs/tests and reviewed Markdown reports:",
             *format_git_add_command(stage_candidates, label="Stage public release handoff"),
+            "  # If screenshots were recaptured and visually reviewed, stage only those evidence assets:",
+            f"  {reviewed_screenshot_asset_stage_command()}",
             "",
             "Step 3 - inspect staged package:",
             "  make staged-hygiene-check",
@@ -794,7 +821,7 @@ def main() -> int:
         return 1 if staged_hygiene_has_blockers(entries) else 0
     entries = load_status(repo_root)
     if args.public_release_package:
-        print(build_public_release_package_report(entries))
+        print(build_public_release_package_report(entries, branch_status=load_branch_status(repo_root)))
         return 0
     if args.public_release_handoff:
         print(build_public_release_handoff_report(entries, branch_status=load_branch_status(repo_root)))
@@ -804,7 +831,7 @@ def main() -> int:
         return 0
     if args.write_files:
         files = write_staging_files(entries, repo_root / "outputs" / "staging")
-        print(build_file_report(files, repo_root))
+        print(build_file_report(files, repo_root, package_status=package_status_for_groups(group_entries(entries))))
     else:
         print(build_summary_report(entries) if args.summary else build_report(entries))
     return 0

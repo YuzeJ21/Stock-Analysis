@@ -149,6 +149,9 @@ Use the `make diff-hygiene` staging suggestions only after reviewing the listed
 files. If the command line is too long to review comfortably, run
 `make diff-hygiene-files` and inspect `outputs/staging/product_files.txt` or
 `outputs/staging/product_plus_reports.txt` before using `git add
---pathspec-from-file=...`. Run `make staged-hygiene-check` after staging and
-before committing. The staged diff should include intentional code, docs, tests,
-and small Markdown sample reports only.
+--pathspec-from-file=...`. The generated `outputs/staging/README.txt` also
+shows the package status so reviewers can see whether the tree is product-package
+pending, generated-churn-only, or clean before staging. Run
+`make staged-hygiene-check` after staging and before committing. The staged diff
+should include intentional code, docs, tests, and small Markdown sample reports
+only. The `outputs/staging/sample_reports.txt` list is for small Markdown sample reports only, not broad generated CSV/JSON churn.

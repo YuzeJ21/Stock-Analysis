@@ -12,6 +12,7 @@ from src.browser_qa_evidence import (
     browser_qa_evidence_payload,
     browser_qa_package_verdict,
     browser_qa_evidence_verdict,
+    browser_qa_reviewed_asset_stage_command,
     browser_qa_route_rows,
     browser_qa_share_recommendation_rows,
     image_size,
@@ -218,12 +219,33 @@ def test_browser_qa_capture_session_rows_keep_reviewer_sequence_copy_ready():
     assert "make diff-hygiene-summary" in rendered
     assert "make staged-hygiene-check" in rendered
     assert "operator-data-health-queue-routing-real.jpg" in rendered
+    assert "reviewed asset command" in rendered
+    assert "git add -- docs/assets/operator-data-health-queue-routing-real.jpg" in rendered
     assert "manual_capture_pending" in rendered
     assert "broad generated csv/json/report churn" in rendered
     assert "generated thumbnails" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
+
+
+def test_browser_qa_reviewed_asset_stage_command_names_only_reviewed_screenshot_assets():
+    target = BrowserQaCaptureTarget(
+        name="Data Health queue drawer routing screenshot",
+        path=Path("docs/assets/operator-data-health-queue-routing-real.jpg"),
+        route="http://localhost:8501/?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
+        first_view_markers=("Operator Queue", "ROUTE 1", "proof record"),
+        min_width=1000,
+        min_height=600,
+        use="Queue routing evidence.",
+    )
+
+    command = browser_qa_reviewed_asset_stage_command((target,))
+
+    assert command == "git add -- docs/assets/operator-data-health-queue-routing-real.jpg"
+    assert "data/" not in command
+    assert "outputs/" not in command
+    assert "csv" not in command
 
 
 def test_browser_qa_package_verdict_keeps_ready_assets_honest_when_capture_targets_pending():
@@ -291,14 +313,20 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert len(payload["public_share_recommendation"]) == 3
     assert len(payload["committed_screenshot_assets"]) == 3
     assert len(payload["manual_capture_targets"]) == 3
+    assert payload["reviewed_asset_stage_command"] == (
+        "git add -- docs/assets/single-stock-workflow-fit-real.jpg "
+        "docs/assets/operator-data-health-proof-real.jpg "
+        "docs/assets/operator-data-health-queue-routing-real.jpg"
+    )
     assert len(payload["local_capture_checklist"]) == 3
     assert len(payload["capture_session_plan"]) == 6
     assert len(payload["route_qa_checklist"]) >= 7
     assert "browser qa evidence is product evidence only" in rendered
     assert "first 30 seconds" in rendered
     assert "single-stock workflow fit screenshot" in rendered
-    assert "current step" in rendered
-    assert "next safe action" in rendered
+    assert "selected ticker readiness" in rendered
+    assert "report handoff" in rendered
+    assert "stop rule" in rendered
     assert "operator-data-health-proof-real.jpg" in rendered
     assert "route 1" in rendered
     assert "proof record" in rendered
@@ -307,6 +335,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "linkedin-public-dashboard.png" in rendered
     assert "use make status-check top_n=5 for current counts" in rendered
     assert "make staged-hygiene-check" in rendered
+    assert "reviewed_asset_stage_command" in rendered
     assert "do not use generated thumbnails" in rendered
     assert "missing source inputs remain blocked" in rendered
     assert "buy" not in rendered
@@ -347,8 +376,10 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Data Health proof lane progressive load" in route_names
     assert "Data Health queue drawer routing" in route_names
     assert "first 30 seconds" in rendered
-    assert "current step" in rendered
-    assert "next safe action" in rendered
+    assert "where to go next" in rendered
+    assert "selected ticker readiness" in rendered
+    assert "report handoff" in rendered
+    assert "stop rule" in rendered
     assert "proof lane shell" in rendered
     assert "intentionally deferred" in rendered
     assert "navigation-only" in rendered
@@ -391,7 +422,8 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "data health proof lane progressive load" in output
     assert "data health queue drawer routing" in output
     assert "first 30 seconds" in output
-    assert "next safe action" in output
+    assert "selected ticker readiness" in output
+    assert "report handoff" in output
     assert "next data-readiness action" in output
     assert "does not unlock fundamentals" in output
     assert "investment advice" in output
@@ -417,7 +449,9 @@ def test_browser_qa_evidence_cli_json_mode_prints_payload(tmp_path, capsys):
     assert "public_share_recommendation" in payload
     assert "capture_session_plan" in payload
     assert "route_qa_checklist" in payload
+    assert payload["reviewed_asset_stage_command"].startswith("git add -- docs/assets/")
     assert "operator-data-health-queue-routing-real.jpg" in rendered
+    assert "reviewed_asset_stage_command" in rendered
     assert "linkedin-public-dashboard.png" in rendered
     assert "make staged-hygiene-check" in rendered
     assert "investment advice" in rendered

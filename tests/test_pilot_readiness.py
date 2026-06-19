@@ -34,6 +34,11 @@ def _stable_browser_qa_payload(monkeypatch):
                 {"Capture Target": "Single-stock workflow fit screenshot", "State": "manual_capture_pending"},
                 {"Capture Target": "Data Health proof lane screenshot", "State": "manual_capture_pending"},
             ],
+            "reviewed_asset_stage_command": (
+                "git add -- docs/assets/single-stock-workflow-fit-real.jpg "
+                "docs/assets/operator-data-health-proof-real.jpg "
+                "docs/assets/operator-data-health-queue-routing-real.jpg"
+            ),
         },
     )
 
@@ -116,6 +121,7 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert by_area["Browser QA evidence"].command == "make browser-qa-evidence"
     assert "3 committed screenshot asset" in by_area["Browser QA evidence"].detail
     assert "Single-stock workflow fit screenshot" in by_area["Browser QA evidence"].detail
+    assert "Reviewed asset staging command is available" in by_area["Browser QA evidence"].detail
     assert by_area["Public safety"].command == "make public-check"
     assert pilot_readiness_verdict(checks) == "pilot-ready with manual gates"
     assert "does not refresh data, apply imports, stage files, commit, push, or rewrite CSVs" in rendered
@@ -124,12 +130,17 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "Commit Package Handoff" in rendered
     assert "Browser QA evidence" in rendered
     assert "make browser-qa-evidence" in rendered
+    assert "Reviewed asset staging command is available" in rendered
     assert "Stage reviewed product package" in rendered
     assert "git add --" not in rendered
     assert "# no product/code/docs/test files to stage" in rendered
     assert "# no reviewed product package to commit" in rendered
     assert "do not create a release commit just for excluded generated churn" in rendered.lower()
     assert "1 generated artifact(s) excluded by default" in rendered
+    assert "data/*.csv" in rendered
+    assert "data/reports/*.csv" in rendered
+    assert "outputs/*.csv" in rendered
+    assert "ticker_readiness_report.previous.csv" in rendered
     assert "not investment advice" in rendered
     assert "missing fundamentals" in rendered
     assert "trade instruction" in rendered
@@ -160,6 +171,10 @@ def test_pilot_commit_package_handoff_prints_product_stage_and_generated_exclusi
     assert "make staged-hygiene-check && git diff --cached --check" in rendered
     assert 'git commit -m "package reviewed product changes"' in rendered
     assert "1 generated csv/json/report artifact" in rendered
+    assert "data/*.csv" in rendered
+    assert "data/reports/*.csv" in rendered
+    assert "outputs/*.csv" in rendered
+    assert "ticker_readiness_report.previous.csv" in rendered
     assert "stage only a specific reviewed evidence artifact" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -211,6 +226,10 @@ def test_pilot_handoff_summary_surfaces_reviewer_next_steps(tmp_path: Path, monk
     assert "trusted fundamentals proof queue" in rendered
     assert "make dcf-input-source-command-plan" in rendered
     assert "1 generated artifact(s) excluded by default" in rendered
+    assert "data/*.csv" in rendered
+    assert "data/reports/*.csv" in rendered
+    assert "outputs/*.csv" in rendered
+    assert "ticker_readiness_report.previous.csv" in rendered
     assert "make pilot-readiness-packet output=outputs/pilot_readiness_packet.md" in rendered
     assert "not an analysis or recommendation unlock" in rendered
     assert "buy" not in rendered
@@ -364,7 +383,13 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Latest Reviewed Batch Proof" in body
     assert "Manual Gates Still Required" in body
     assert "Generated Artifacts Excluded From Staging" in body
+    assert "Default broad exclusion patterns" in body
+    assert "Currently dirty generated artifacts" in body
     assert "data/prices.csv" in body
+    assert "data/*.csv" in body
+    assert "data/reports/*.csv" in body
+    assert "outputs/*.csv" in body
+    assert "ticker_readiness_report.previous.csv" in body
     assert "not investment advice" in body
     assert "No broker integration" in body
     assert "direct buy/sell instructions" in body

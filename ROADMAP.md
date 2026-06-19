@@ -46,17 +46,25 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Pilot Readiness Packaging V2 so the CLI packet and Data Health page show one reviewer handoff for share verdict, first manual gate, source-proof blocker, generated-churn boundary, and packet command before detailed pilot tables.
 - [x] Pilot Handoff Accuracy V3 so `make pilot-readiness-check` and Data Health name the current leading source-proof queue and generated-churn count directly in the reviewer handoff.
 - [x] Pilot Commit Package Handoff V1 so `make pilot-readiness-check` and Data Health print copy-only product staging, staged-hygiene, commit, and generated-churn exclusion steps before pilot sharing.
+- [x] Pilot Commit Package Exclusion Clarity V2 so the pilot handoff names broad generated patterns like `data/*.csv`, `data/reports/*.csv`, and `outputs/*.csv` before staging.
+- [x] Pilot Packet Exclusion Policy V2 so the reviewer packet separates broad generated-exclusion patterns from the currently dirty generated artifact list.
 - [x] Data Health Visual Density V2 with a compact pilot workflow strip, collapsed pilot gate details, tighter first-screen hierarchy, and preserved copy-only proof controls.
 - [x] Public Mode First-30-Seconds Polish V1 so visitors see ready coverage, blocked deeper-analysis inputs, and proof boundaries before operator paths or evidence drawers.
 - [x] Operator Next Action Summary V1 so Data Health answers pilot status, main manual gate, leading source-proof blocker, and hidden-detail boundary before raw tables.
 - [x] Browser QA Evidence V1 with `make browser-qa-evidence`, committed screenshot asset checks, route expectations, and environment-limited capture notes for GitHub/LinkedIn evidence.
 - [x] Browser QA Evidence V2 with route-level manual checks for public home, single-stock, Data Health fast view, metrics review, and proof history before replacing public screenshots.
 - [x] Browser Evidence Capture Plan V2 with a copy-ready session sequence for starting the dashboard, capturing pending real screenshots, verifying assets, running release gates, and staging only reviewed evidence.
+- [x] Browser QA Marker Alignment V3 so the single-stock screenshot checklist expects the selected-ticker contract, report handoff, and stop rule now shown on the first viewport.
+- [x] Browser Evidence Staging Command V3 so the screenshot capture plan prints the exact reviewed-asset `git add -- ...` command without including generated CSV/report churn.
+- [x] Browser QA Reviewed Asset JSON V1 so automation and reviewer packets expose the exact reviewed screenshot asset staging command without including generated CSV/report churn.
+- [x] Public Release Screenshot Handoff V1 so `make public-release-handoff` also prints the reviewed screenshot asset staging command after visual review.
 - [x] Public Screenshot Recommendation V1 so `make browser-qa-evidence` names the current LinkedIn/GitHub image, pending workflow captures, and the boundary that screenshots do not prove data freshness or unlock blocked inputs.
 - [x] Pilot Screenshot Evidence Gate V1 so `make pilot-readiness-check` includes real screenshot evidence status and pending workflow captures alongside sync, churn, source-proof, public-check, and research-only gates.
 - [x] Public Release Package V1 with `make public-release-package`, a read-only product staging, generated-churn exclusion, final-check, commit, and push checklist.
 - [x] Short Price-History Proof Queue V1 with `make price-history-proof-queue`, separating complete price coverage from short-history blockers for momentum, track-record, and review-metric workflows.
 - [x] Workflow Continuity V3 so Home, Single-Stock Report, and Data Health strip links route to the current page, proof drawer, next safe view, and stop-rule evidence without running commands.
+- [x] Single-Stock Pre-Report Stop Rule V1 so the selected-ticker contract shows the report loop, matching Data Health lane, and stop rule before opening details.
+- [x] Public README Flow Compression V1 so the visitor README stays compact while preserving pilot gates, generated-churn exclusions, and research-only boundaries.
 - [x] Data Health Fast-View Stabilization V1 so deep links render the operator command center before broad proof queues, pilot gates, generated-artifact tables, or raw evidence drawers are opened.
 - [x] Data Health Queue Detail Gate V1 so `drawer=queue` and the Prices lane stay fast while source-proof portfolios load only through explicit review-detail gates.
 - [x] Data Coverage Proof Queue Performance V2 so broad proof queues reuse DCF blocker rows and avoid duplicate share-count readiness rebuilds.
@@ -84,6 +92,11 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] DCF Source Packet Extraction V1 so source-route grouping, capped fundamentals batch review, and DCF proof batch planner cards live in a focused tested helper while Data Health keeps commands copy-only and collapsed.
 - [x] DCF Import Preview Extraction V1 so guard, preview-row, validate, preview, apply-boundary, and post-proof table logic live in a focused tested helper while Data Health remains copy-only.
 - [x] Metric Readiness Console Extraction V1 so SPY/QQQ metric blocker summaries and progressive metric/proof detail gates live in a focused tested helper while Data Health keeps row-level details deferred.
+- [x] Data Health Proof Loop UI Fit V1 so DCF and peer drawers share a compact status, blocker, next-proof, evidence, and stop-rule summary before detailed proof tables.
+- [x] Public Visitor Flow V6 so Home shows the route choice before optional workflow detail, keeping repeated workflow and next-step cards collapsed for first-time visitors.
+- [x] Single-Stock Pre-Report Handoff V1 so the selected ticker contract tells users to open the local report first, then route locked sections to the matching Data Health lane.
+- [x] Data Health Progressive Detail Copy V1 so queue, batch, metrics, and proof controls use operator-friendly "open review details" language instead of internal load/switch wording.
+- [x] Research Loop Helper Extraction V1 so Home, Single-Stock, and Data Health loop-strip contexts live in a focused tested module while Streamlit stays the rendering layer.
 - [x] Peer Proof Operator Summary V1 so the peer evidence drawer starts with selected scope, current source-review gate, latest ledger status, next safe action, and stop rule before lower peer source/proof tables.
 - [x] Peer Proof Operator Summary Extraction V1 so the peer first-read summary logic lives in a focused tested helper while Streamlit remains the rendering layer.
 - [x] Data Coverage Proof Queue Summary Extraction V1 so post-price readiness queue cards and DCF, shares, fundamentals, peer mapping, and peer valuation proof queue cards live in a focused tested helper while Data Health keeps raw proof rows collapsed.
@@ -470,6 +483,15 @@ The next roadmap milestone is complete when:
 Current boundary:
 
 - The product workflow for fundamentals import, SEC staging guidance, peer blocker triage, public UI polish, and single-stock report generation is implemented and verified at the public-share gate.
+- Data Health now has compact DCF and peer proof-loop summaries, with lower row-level proof tables tucked into collapsed evidence drawers so operators see status, blocker, next proof step, evidence, and stop rule before raw tables.
+- Single-Stock reports now keep workflow-fit, review-now, blocked/excluded, and Data Health handoff cards ahead of collapsed setup/fundamental detail tables.
+- Public Home now puts the next page choice before optional workflow detail so first-time visitors see the product loop without walking through every command-oriented card.
+- The Single-Stock pre-report contract now includes a report-first handoff before Data Health lane routing, reducing the feeling that the selected ticker, loaded report, and proof lane are separate demo surfaces.
+- Data Health progressive-detail controls now use review-drawer language for queue, batch, metrics, and proof detail, reducing the sense that operators are managing internal load state.
+- Cross-page research-loop context is now extracted into `src/research_loop.py` with direct tests, reducing dashboard monolith risk while preserving the same Home, Single-Stock, and Data Health orientation strip behavior.
+- Public Home computes freshness before rendering the research-loop strip, keeping the visitor path stable while stale-artifact warnings remain visible.
+- Readiness queue drilldowns now keep route cards visible while lane action tables and raw evidence rows stay collapsed by default.
+- Trusted Fundamentals source-review drawers now keep command, evidence-writer, apply-decision, and raw source-review tables collapsed under the first-read cards.
 - The remaining unchecked readiness-count items require real trusted data rows. They should not be closed by fabricated data or by committing broad CSV churn.
 - If the next work session is data-focused, start with `make readiness-snapshot`, then run only scoped trusted-data proof loops, then run the full verification commands listed above before updating these boxes.
 

@@ -92,15 +92,19 @@ That gate includes `make public-wording-check`, a read-only scan for unsupported
 advice, broker/order execution, auto-trading, options recommendation, or direct
 buy/sell instruction language in public-facing surfaces.
 
-After it passes, run `make public-release-handoff` for the exact terminal
-sequence to verify, run the pilot gate, stage only product files, run staged hygiene, commit, and
-push. Then run `make diff-hygiene` if you need the full file list and use only the safe staging
-suggestion for intentional product files and reviewed Markdown sample reports.
-For a large dirty tree, run `make diff-hygiene-files` and review the ignored
-local pathspec lists under `outputs/staging/` before using
-`git add --pathspec-from-file=...`. After staging, run
-`make staged-hygiene-check` before committing. Leave generated CSV/JSON churn
-out unless you intentionally want to publish that artifact.
+After it passes, run `make public-release-package` for the compact package
+status, branch status, generated-churn exclusion list, reviewed staging command,
+staged inspection commands, and push boundary. Run `make public-release-handoff`
+when you want the exact terminal sequence to verify, run the pilot gate, stage
+only product files, run staged hygiene, inspect staged filenames, commit, check
+branch status, and push. Then run `make diff-hygiene` if you need the full file
+list and use only the safe staging suggestion for intentional product files and
+reviewed Markdown sample reports. For a large dirty tree, run
+`make diff-hygiene-files` and review the ignored local pathspec lists under
+`outputs/staging/` before using `git add --pathspec-from-file=...`. After
+staging, run `make staged-hygiene-check`, `git diff --cached --check`, and
+`git diff --cached --name-only` before committing. Leave generated CSV/JSON
+churn out unless you intentionally want to publish that artifact.
 
 Expanded command list:
 

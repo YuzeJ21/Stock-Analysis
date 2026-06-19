@@ -2,11 +2,25 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## Current Screenshot Evidence Status
+
+| Evidence | Status | Use |
+| --- | --- | --- |
+| `docs/assets/linkedin-public-dashboard.png` | Ready | GitHub/LinkedIn thumbnail from the real public dashboard. |
+| `docs/assets/public-demo-home-real.jpg` | Ready | README first-screen product preview. |
+| `docs/assets/operator-data-health-metrics-real.jpg` | Ready | Operator metrics lane proof that Data Health is readiness-gated and copy-only. |
+| Single-stock workflow fit screenshot | Manual capture pending | Capture in a normal local browser before claiming full one-stock workflow screenshot coverage. |
+| Data Health proof lane screenshot | Manual capture pending | Capture in a normal local browser before claiming proof-lane progressive-load screenshot coverage. |
+| Data Health queue drawer routing screenshot | Manual capture pending | Capture in a normal local browser before claiming queue-to-proof routing screenshot coverage. |
+
+Screenshot evidence is product evidence only. It does not refresh data, apply imports, unlock blocked fundamentals, peers, earnings, analyst estimates, valuation inputs, or prove current readiness counts.
+
 ## 2026-06-19 Workflow Continuity And Route Card Pass
 
 Checked by tests and local read-only commands:
 
 - Public Home: added a First 30 Seconds view before visitor path examples so a new viewer sees what the product does, how to read readiness, and when to stop.
+- Public Home later moved the route choice to a visible `Where To Go Next` block before optional workflow detail, so screenshot review should confirm the first path reads as product navigation rather than a command-heavy demo.
 - Single-Stock Report: added a compact current-step / next-safe-action / stop-rule loop before dense ticker details and added the same report-step cue to loaded reports.
 - Data Health queue drawers: added navigation-only route cards before the detailed lane action table so operators see queue -> source proof -> comparison -> proof record without jumping across sections.
 - Trusted Fundamentals / DCF source loop: added source-review route cards before the checklist table so source fields, guard, validate/preview, apply/skip, and proof-record boundaries stay in sequence.
@@ -62,13 +76,18 @@ Local capture checklist:
   replacing assets: start dashboard, capture pending views, confirm the first
   viewport, verify assets, run release gates, then stage only reviewed evidence
   assets plus product/docs/test files.
+- The reviewed asset staging command is printed by `make browser-qa-capture-plan`;
+  use it only after visual review and before `make staged-hygiene-check`.
 - Use `make browser-qa-capture-plan` when you only need the capture sequence and
   not the full asset manifest.
 
 For automation or reviewer packets, `python3 -m src.browser_qa_evidence --json`
 prints the same verdict, committed screenshot assets, manual capture targets,
 local capture checklist, capture session plan, route QA checklist, and
-research-only boundary as structured JSON.
+research-only boundary as structured JSON. The JSON also includes
+`reviewed_asset_stage_command`, which names only the reviewed screenshot assets
+that may be staged after visual review; broad `data/`, `data/reports/`, and
+`outputs/` CSV/report churn remains excluded by default.
 
 Review boundary:
 

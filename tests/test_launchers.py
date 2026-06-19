@@ -526,12 +526,14 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## What You Can Analyze" in readme
     assert "## How Analysis Works" in readme
     assert "Read the counts in three layers:" in readme
-    assert "| Master universe | The broad ticker list the project can track. | Good for coverage planning, not proof that every analysis is ready. |" in readme
-    assert "| Active universe | The focused research list for demo and portfolio-style review. | Best place to inspect product flow and next trusted-data steps. |" in readme
-    assert "| Analysis-ready subset | Tickers whose required local inputs passed readiness for a feature. | Use this layer for DCF, peer context, or candidate review; blocked rows stay visibly locked. |" in readme
+    assert "master universe for broad coverage planning" in readme
+    assert "active universe for the demo/research workflow" in readme
+    assert "analysis-ready subsets for DCF, peer context, or candidate review" in readme
+    assert "A tracked ticker is not automatically ready for every analysis family" in readme
     assert "## What Works Today" in readme
     assert "## Try This Visitor Workflow" in readme
     assert "Open the product first: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history." in readme
+    assert "a visible Where To Go Next route choice before optional workflow detail or examples" in readme
     assert "Use terminal commands only when you want to inspect the same proof artifacts locally." in readme
     assert "Optional local proof checks:" in readme
     assert "| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
@@ -598,7 +600,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "The pilot candidate command may rank a peer-input example such as `MU` first and also name a fundamentals/DCF example such as `CRDO`",
         "both remain read-only proof packets until source review and rebuilt readiness prove a lane changed",
         "At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and copyable local proof commands",
-        "At A Glance status, a Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, methodology, risks, blockers, copyable local proof commands",
+            "single-stock reports with reader guidance, proof checklists, blockers, copyable local proof commands, and source readiness notes",
         "The report is not a black box",
         "project rules decide what can be analyzed",
         "Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears",
@@ -620,9 +622,14 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Roadmap Snapshot",
         "Review them before committing",
             "Before sharing or committing, run `make public-check`, then `make public-release-package`",
+            "compact branch status, package status, staging, generated-exclusion, final-check, commit, and push checklist",
+            "staged-file inspection, commit, branch-status check, and push",
             "Use `make diff-hygiene` when you need the full file list",
         "For a large dirty tree, run `make diff-hygiene-files`",
+        "product-pending, generated-churn-only, or clean before staging",
         "make staged-hygiene-check",
+        "git diff --cached --check",
+        "git diff --cached --name-only",
         "outputs/staging/",
         "internal development notes, and stale repo links",
         "safe staging suggestion for product files and reviewed Markdown reports",
@@ -1152,12 +1159,17 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
     assert "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Proof Commands`" in checklist
     assert "small pilot" in checklist
-    assert "After it passes, run `make public-release-handoff`" in checklist
+    assert "After it passes, run `make public-release-package`" in checklist
+    assert "compact package" in checklist
+    assert "branch status" in checklist
+    assert "staged inspection commands" in checklist
     assert "exact terminal" in checklist
     assert "make browser-qa-capture-plan" in checklist
     assert "make public-release-handoff" in checklist
     assert "make diff-hygiene-files" in checklist
     assert "make staged-hygiene-check" in checklist
+    assert "git diff --cached --check" in checklist
+    assert "git diff --cached --name-only" in checklist
     assert "outputs/staging/" in checklist
     assert "git add --pathspec-from-file=..." in checklist
     assert "local review next steps" in diff_audit
@@ -1170,6 +1182,8 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "make staged-hygiene-check" in diff_audit
     assert "outputs/staging/product_files.txt" in diff_audit
     assert "outputs/staging/product_plus_reports.txt" in diff_audit
+    assert "outputs/staging/README.txt" in diff_audit
+    assert "package status" in diff_audit
     assert "New files under `docs/`" in diff_audit
     assert "`scripts/`, and `tests/` are treated as product candidates" in diff_audit
     for demo_command in (
@@ -1331,6 +1345,12 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
     qa = Path("docs/DASHBOARD_QA.md").read_text(encoding="utf-8")
 
     for phrase in (
+        "Current Screenshot Evidence Status",
+        "`docs/assets/linkedin-public-dashboard.png`",
+        "`docs/assets/public-demo-home-real.jpg`",
+        "`docs/assets/operator-data-health-metrics-real.jpg`",
+        "Manual capture pending",
+        "Screenshot evidence is product evidence only",
         "2026-06-07 Public Product Flow Pass",
         "`Review one stock`, `Improve data coverage`, and `Inspect proof`",
         "trusted-data pilot path for improving 5-10 companies first",

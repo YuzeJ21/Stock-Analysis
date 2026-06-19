@@ -427,6 +427,7 @@ def single_stock_pre_report_contract_cards(
         state_title = "Price proof comes first"
         review_now = "Only ticker identity and local row status should be reviewed before price history is trusted."
         blocked = "Setup, trend, DCF, peer, optional context, and review metrics stay locked until price rows are ready."
+        stop_rule = "Stop if price rows are missing, stale, rejected, or not tied to the selected ticker."
         next_command = _ticker_focus_command("prices", ticker_text, fallback=f"make price-refresh TICKERS={ticker_text}")
         next_lane = "Data Health price lane"
         badges = ["price first", "blocked"]
@@ -434,6 +435,7 @@ def single_stock_pre_report_contract_cards(
         state_title = "Price context ready; fundamentals gated"
         review_now = "Local price context can be reviewed, but DCF and fundamentals trend panels stay unavailable."
         blocked = "Trusted fundamentals, shares, FCF, market cap, and valuation inputs remain source-proof work."
+        stop_rule = "Stop if fundamentals, shares, market cap, FCF, or valuation inputs would be inferred or placeholder-backed."
         next_command = (
             _preferred_row_command(
                 fundamentals_row,
@@ -448,6 +450,7 @@ def single_stock_pre_report_contract_cards(
         state_title = "Core inputs present; peer context gated"
         review_now = "Local price and fundamentals context can be reviewed before opening the generated report."
         blocked = "Peer-relative context stays unavailable until source-backed mappings and peer inputs exist."
+        stop_rule = "Stop if peer mappings or peer valuation inputs lack source-backed rows."
         next_command = (
             _preferred_row_command(
                 peer_row,
@@ -462,6 +465,7 @@ def single_stock_pre_report_contract_cards(
         state_title = "Ready to open the local report"
         review_now = "The selected ticker has local price, fundamentals, and peer setup context available for the report shell."
         blocked = "Optional earnings, analyst estimates, or metric families may still be locked inside the report."
+        stop_rule = "Stop if readiness changed after a local import, refresh, or proof update; rebuild the report first."
         next_command = _stock_report_md_command(ticker_text)
         next_lane = "Single-Stock Report"
         badges = ["open report", "proof first"]
@@ -487,10 +491,27 @@ def single_stock_pre_report_contract_cards(
             "badges": ["blocked visible", "no inference"],
         },
         {
+            "kicker": "REPORT HANDOFF",
+            "title": "Open the report, then follow the locks",
+            "body": (
+                "Loop: select ticker, show the local report, review supported sections, then route any locked input "
+                f"to {next_lane} before returning after proof."
+            ),
+            "badges": ["one loop", "report first"],
+            "command": _stock_report_md_command(ticker_text),
+        },
+        {
             "kicker": "NEXT SAFE ACTION",
             "title": next_lane,
             "body": "Use this as navigation or copy-only command context. The dashboard does not run imports, refreshes, or proof writes.",
             "badges": badges,
             "command": next_command,
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "No trusted input, no conclusion",
+            "body": f"{stop_rule} This is a handoff boundary, not a recommendation or ranking.",
+            "badges": ["research only", "blocked stays blocked"],
+            "command": "make readiness",
         },
     ]

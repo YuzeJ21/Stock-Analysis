@@ -1339,17 +1339,17 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
 def test_research_loop_action_links_are_navigation_only_and_lane_aware():
     assert dashboard.data_health_research_loop_action_href(
         "metrics",
-        "Switch Metric detail level to Review details.",
+        "Open Metrics review details.",
         public_mode=False,
     ) == "?mode=operator&page=data-health&lane=metrics&drawer=metrics"
     assert dashboard.data_health_research_loop_action_href(
         "proof",
-        "Switch Proof detail level to Review details.",
+        "Open Proof review details.",
         public_mode=False,
     ) == "?mode=operator&page=data-health&lane=proof&drawer=proof"
     assert dashboard.data_health_research_loop_action_href(
         "fundamentals",
-        "Switch Batch execution detail level to Review details.",
+        "Open Batch execution review details.",
         public_mode=False,
     ) == "?mode=operator&page=data-health&lane=fundamentals&drawer=batch"
     assert dashboard.data_health_research_loop_action_href(
@@ -1360,7 +1360,7 @@ def test_research_loop_action_links_are_navigation_only_and_lane_aware():
     rendered = dashboard.research_loop_strip_html(
         current_step="Data Health source-proof lane",
         previous_proof="Readiness snapshot is current",
-        next_action="Switch Proof detail level to Review details.",
+        next_action="Open Proof review details.",
         stop_rule="Stop before apply without reviewed proof",
         current_href="?mode=operator&page=data-health&lane=proof",
         proof_href="?mode=operator&page=data-health&lane=proof&drawer=proof",
@@ -1384,14 +1384,19 @@ def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages(
     assert "render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))" in source
     assert source.count("data_health_research_loop_context(") >= 2
     home_loop_index = source.index("render_research_loop_strip(**home_research_loop_context(summary, freshness))")
-    home_workflow_index = source.index('render_section_header(\n        "Research Workflow"')
+    public_first_scan_index = source.index('render_section_header(\n            "First 30 Seconds"', home_loop_index)
+    home_optional_workflow_index = source.index(
+        'st.expander("Optional: workflow and next-step details", expanded=False)',
+        public_first_scan_index,
+    )
+    home_workflow_index = source.index('render_section_header(\n                "Research Workflow"', home_optional_workflow_index)
     single_stock_button_index = source.index('if st.button("Show Local Report"')
     single_stock_loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
     data_health_nav_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
     data_health_loop_index = source.index("render_research_loop_strip(\n        **data_health_research_loop_context(", data_health_nav_index)
     data_health_mode_index = source.index("render_data_health_current_mode_strip(", data_health_nav_index)
 
-    assert home_loop_index < home_workflow_index
+    assert home_loop_index < public_first_scan_index < home_optional_workflow_index < home_workflow_index
     assert single_stock_button_index < single_stock_loop_index
     assert data_health_nav_index < data_health_loop_index < data_health_mode_index
 
@@ -1874,6 +1879,30 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     assert 'st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)' in source
 
 
+def test_loaded_single_stock_detail_tables_are_collapsed_after_workflow_fit():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    workflow_fit_index = source.index('render_section_header(\n        "Workflow Fit"')
+    at_a_glance_index = source.index('render_section_header(\n        "At A Glance"', workflow_fit_index)
+    setup_index = source.index('st.markdown("#### Setup And Trend Context")', at_a_glance_index)
+    setup_cards_index = source.index("stock_report_technical_context_cards(report_payload)", setup_index)
+    setup_detail_index = source.index(
+        'render_collapsed_detail_frame("Setup and trend detail table", stock_report_technical_context_frame(report_payload))',
+        setup_cards_index,
+    )
+    fundamentals_index = source.index('st.markdown("#### Company Fundamentals")', setup_detail_index)
+    fundamentals_cards_index = source.index("stock_report_fundamentals_quality_cards(report_payload)", fundamentals_index)
+    fundamentals_detail_index = source.index(
+        'render_collapsed_detail_frame("Company fundamentals detail table", stock_report_key_value_frame(financials, financial_fields))',
+        fundamentals_cards_index,
+    )
+
+    assert workflow_fit_index < at_a_glance_index < setup_index < setup_cards_index < setup_detail_index
+    assert setup_detail_index < fundamentals_index < fundamentals_cards_index < fundamentals_detail_index
+    assert 'st.dataframe(\n            clean_display_frame(stock_report_technical_context_frame(report_payload))' not in source
+    assert 'st.dataframe(\n            clean_display_frame(stock_report_key_value_frame(financials, financial_fields))' not in source
+
+
 def test_public_dashboard_quality_labels_avoid_internal_audit_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -2087,6 +2116,17 @@ def test_home_real_workflow_cards_connect_pages_without_demo_framing():
     assert "sell" not in rendered
 
 
+def test_public_home_computes_freshness_before_loop_strip():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_home_index = source.index("def render_home_page(")
+    freshness_index = source.index("freshness = readiness_freshness_status(BASE_DIR)", render_home_index)
+    public_mode_index = source.index("if public_mode:", freshness_index)
+    loop_strip_index = source.index("render_research_loop_strip(**home_research_loop_context(summary, freshness))", public_mode_index)
+
+    assert render_home_index < freshness_index < public_mode_index < loop_strip_index
+
+
 def test_home_public_loop_cards_connect_first_scan_without_commands_or_demo_framing():
     cards = dashboard._plain_home_public_loop_cards(
         {
@@ -2180,8 +2220,11 @@ def test_home_page_renders_current_data_coverage_before_workflow():
         'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")',
         visitor_path_index,
     )
-    workflow_spine_index = source.index('render_section_header(\n        "Research Workflow"')
-    next_step_index = source.index('render_section_header("What To Do Next"')
+    where_to_go_index = source.index('render_section_header("Where To Go Next"', visitor_path_cards_index)
+    route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", where_to_go_index)
+    optional_workflow_expander_index = source.index('st.expander("Optional: workflow and next-step details", expanded=False)', route_cards_index)
+    workflow_spine_index = source.index('render_section_header(\n                "Research Workflow"', optional_workflow_expander_index)
+    next_step_index = source.index('render_section_header("What To Do Next"', workflow_spine_index)
     example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
     details_gate_index = source.index("if show_details:")
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
@@ -2189,20 +2232,22 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
 
-    assert loop_strip_index < proof_strip_index < first_30_index < first_30_cards_index < connected_workflow_index < review_map_cards_index < visitor_path_index < visitor_path_cards_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
+    assert loop_strip_index < proof_strip_index < first_30_index < first_30_cards_index < connected_workflow_index < review_map_cards_index < visitor_path_index < visitor_path_cards_index < where_to_go_index < route_cards_index < optional_workflow_expander_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
     assert "A compact map from readiness snapshot to one-ticker review, source-proof lane, and stop rule." in source
     assert "A simple four-step path for reading the project without opening operator tables." in source
     assert "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
-    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)" in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)" in source
     assert "render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)" in source
     assert 'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")' in source
     assert 'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")' in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
-    assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4] if public_mode else _plain_home_next_step_cards(summary), show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4], show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)" in source
     assert "render_public_proof_strip(_public_home_snapshot_items(summary))" in source
 
 
@@ -2344,9 +2389,12 @@ def test_home_route_choice_cards_warn_when_candidate_pages_should_stay_empty():
 def test_home_page_renders_evaluation_workflow_before_next_steps():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    workflow_spine_index = source.index('render_section_header(\n        "Research Workflow"')
+    where_to_go_public_index = source.index('render_section_header("Where To Go Next"')
+    public_route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", where_to_go_public_index)
+    optional_workflow_expander_index = source.index('st.expander("Optional: workflow and next-step details", expanded=False)', public_route_cards_index)
+    workflow_spine_index = source.index('render_section_header(\n                "Research Workflow"', optional_workflow_expander_index)
     next_step_index = source.index('render_section_header("What To Do Next"')
-    where_to_go_index = source.index('render_section_header("Where To Go"')
+    where_to_go_index = source.index('render_section_header("Where To Go"', next_step_index)
     examples_public_expander_index = source.index('st.expander("Example state walkthrough", expanded=False)')
     details_gate_index = source.index("if show_details:")
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
@@ -2359,7 +2407,8 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
     commands_index = source.index('st.expander("Optional: local commands"')
 
-    assert workflow_spine_index < next_step_index < where_to_go_index < examples_public_expander_index < details_gate_index
+    assert where_to_go_public_index < public_route_cards_index < optional_workflow_expander_index < workflow_spine_index < next_step_index < examples_public_expander_index < details_gate_index
+    assert next_step_index < where_to_go_index
     assert details_gate_index < coverage_expander_index < workflow_index
     assert workflow_index < price_refresh_expander_index < price_refresh_index
     assert price_refresh_index < examples_expander_index < examples_index
@@ -2379,10 +2428,12 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])' not in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Import Review"])' not in source
     assert 'st.expander("Example state walkthrough", expanded=False)' in source
+    assert 'st.expander("Optional: workflow and next-step details", expanded=False)' in source
     assert 'st.expander("Optional: example reports", expanded=False)' in source
     assert 'st.expander("Optional: methodology, roadmap, and transparency", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
-    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)" in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)" in source
     assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source
 
@@ -9964,14 +10015,22 @@ def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_r
         "SELECTED TICKER",
         "REVIEW NOW",
         "BLOCKED / EXCLUDED",
+        "REPORT HANDOFF",
         "NEXT SAFE ACTION",
+        "STOP RULE",
     ]
     assert "meta: price context ready; fundamentals gated" in rendered
     assert "local price context can be reviewed" in rendered
     assert "trusted fundamentals, shares, fcf, market cap, and valuation inputs remain source-proof work" in rendered
+    assert "open the report, then follow the locks" in rendered
+    assert "loop: select ticker, show the local report, review supported sections" in rendered
+    assert "route any locked input to data health fundamentals lane" in rendered
     assert "data health fundamentals lane" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "does not run imports, refreshes, or proof writes" in rendered
+    assert "no trusted input, no conclusion" in rendered
+    assert "fundamentals, shares, market cap, fcf, or valuation inputs would be inferred" in rendered
+    assert "not a recommendation or ranking" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -10020,11 +10079,17 @@ def test_single_stock_pre_report_contract_cards_route_price_and_peer_gates():
     assert "apld: price proof comes first" in price_rendered
     assert "make focus-price ticker=apld" in price_rendered
     assert "setup, trend, dcf, peer, optional context, and review metrics stay locked" in price_rendered
+    assert "price rows are missing, stale, rejected, or not tied to the selected ticker" in price_rendered
+    assert "open the report, then follow the locks" in price_rendered
     assert "nvda: core inputs present; peer context gated" in peer_rendered
     assert "data health peers lane" in peer_rendered
     assert "make focus-peers ticker=nvda" in peer_rendered
+    assert "peer mappings or peer valuation inputs lack source-backed rows" in peer_rendered
+    assert "open the report, then follow the locks" in peer_rendered
     assert "crdo: ready to open the local report" in ready_rendered
     assert "make stock-report-md ticker=crdo" in ready_rendered
+    assert "readiness changed after a local import, refresh, or proof update" in ready_rendered
+    assert "open the report, then follow the locks" in ready_rendered
 
 
 def test_stock_report_workflow_fit_cards_route_price_setup_to_fundamentals_lane():
@@ -14007,7 +14072,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         trusted_source_review_apply_gate_cards_index,
     )
     trusted_source_review_frame_index = source.index(
-        "st.table(clean_display_frame(trusted_fundamentals_source_review))",
+        'render_collapsed_detail_frame(\n                "Trusted fundamentals raw source-review row"',
         trusted_source_review_apply_gate_frame_index,
     )
     coverage_proof_queue_drawer_index = source.index(
@@ -14087,6 +14152,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review)" in source
     assert "data_health_trusted_fundamentals_apply_decision_gate_cards(trusted_fundamentals_source_review)" in source
     assert "data_health_trusted_fundamentals_apply_decision_gate_frame(trusted_fundamentals_source_review)" in source
+    assert "Trusted fundamentals source-review command table" in source
+    assert "Trusted fundamentals evidence-writer table" in source
+    assert "Trusted fundamentals apply-decision gate table" in source
+    assert "Trusted fundamentals raw source-review row" in source
     assert "Data coverage proof queue detail" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source
@@ -14260,7 +14329,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_command_plan_cards_index = source.index("data_health_dcf_source_command_plan_cards(", dcf_command_plan_index)
     dcf_command_plan_frame_index = source.index("data_health_dcf_source_command_plan_frame(", dcf_command_plan_cards_index)
     dcf_source_packet_index = source.index("data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection)", dcf_command_plan_frame_index)
-    dcf_raw_rows_index = source.index("st.dataframe(clean_display_frame(dcf_input_queue_filtered)", dcf_source_packet_index)
+    dcf_raw_rows_index = source.index('render_collapsed_detail_frame("Filtered DCF input proof rows"', dcf_source_packet_index)
     assert fundamentals_console_index < dcf_dashboard_cards_index < dcf_drawer_index
     assert (
         dcf_filter_index
@@ -21056,6 +21125,59 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
     assert "data_health_peer_proof_closeout_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)" in source
 
 
+def test_data_health_proof_loop_fit_cards_render_before_detailed_proof_tables():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    dcf_operator_index = source.index('render_section_header("DCF Operator Summary"')
+    dcf_fit_index = source.index('render_section_header("DCF Proof Loop Fit"', dcf_operator_index)
+    dcf_fit_cards_index = source.index("data_health_proof_loop_fit_cards(dcf_proof_loop_fit, lane=\"DCF\")", dcf_fit_index)
+    dcf_fit_detail_index = source.index('st.expander("DCF proof loop fit details"', dcf_fit_cards_index)
+    dcf_finish_index = source.index('render_section_header("Finish This DCF Proof"', dcf_fit_detail_index)
+
+    peer_operator_index = source.index('render_section_header("Peer Operator Summary"')
+    peer_fit_index = source.index('render_section_header("Peer Proof Loop Fit"', peer_operator_index)
+    peer_fit_cards_index = source.index("data_health_proof_loop_fit_cards(peer_proof_loop_fit, lane=\"Peer\")", peer_fit_index)
+    peer_fit_detail_index = source.index('st.expander("Peer proof loop fit details"', peer_fit_cards_index)
+    peer_source_review_index = source.index('render_section_header("Peer Source-Review Intake"', peer_fit_detail_index)
+
+    assert dcf_operator_index < dcf_fit_index < dcf_fit_cards_index < dcf_fit_detail_index < dcf_finish_index
+    assert peer_operator_index < peer_fit_index < peer_fit_cards_index < peer_fit_detail_index < peer_source_review_index
+    assert "Status, blocker, next proof step, evidence, and stop rule before detailed DCF proof tables." in source
+    assert "Status, blocker, next proof step, evidence, and stop rule before detailed peer proof tables." in source
+
+
+def test_dcf_drawer_does_not_repeat_proof_outcome_compare_block():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert source.count('render_section_header("DCF Proof Outcome Compare"') == 1
+    assert source.count('render_section_header("DCF Proof Closeout"') == 1
+
+
+def test_data_health_detail_tables_are_collapsed_in_dcf_and_peer_drawers():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    dcf_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)')
+    dcf_fit_index = source.index('render_section_header("DCF Proof Loop Fit"', dcf_drawer_index)
+    dcf_checklist_index = source.index('render_collapsed_detail_frame(\n                "DCF proof checklist table"', dcf_fit_index)
+    dcf_source_loop_index = source.index('render_collapsed_detail_frame(\n                "DCF source loop checklist table"', dcf_checklist_index)
+    dcf_guard_index = source.index('render_collapsed_detail_frame(\n                "DCF source guard preview table"', dcf_source_loop_index)
+    dcf_raw_index = source.index('render_collapsed_detail_frame("Filtered DCF input proof rows"', dcf_guard_index)
+
+    peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)')
+    peer_fit_index = source.index('render_section_header("Peer Proof Loop Fit"', peer_drawer_index)
+    peer_planner_index = source.index('render_collapsed_detail_frame(\n                "Peer proof batch planner table"', peer_fit_index)
+    peer_checklist_index = source.index('render_collapsed_detail_frame(\n                "Peer proof checklist table"', peer_planner_index)
+    peer_matrix_index = source.index('render_collapsed_detail_frame("Peer readiness sub-state matrix table"', peer_checklist_index)
+
+    assert dcf_drawer_index < dcf_fit_index < dcf_checklist_index < dcf_source_loop_index < dcf_guard_index < dcf_raw_index
+    assert peer_drawer_index < peer_fit_index < peer_planner_index < peer_checklist_index < peer_matrix_index
+    assert "def render_collapsed_detail_frame(" in source
+    assert "DCF proof checklist table" in source
+    assert "Peer proof checklist table" in source
+    assert "Filtered DCF input proof rows" in source
+    assert "Peer readiness sub-state matrix table" in source
+
+
 def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_agent():
     frame = dashboard.first_fundamentals_unlock_frame(False, "META")
     rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
@@ -23901,7 +24023,7 @@ def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_nex
             "make readiness",
         ),
         batch_preflight=_reviewed_batch_preflight_fixture(),
-        metric_detail_status={"next_action": "Switch Metric detail level to Review details."},
+        metric_detail_status={"next_action": "Open Metrics review details."},
     )
     rendered = html.lower()
 
@@ -23914,7 +24036,7 @@ def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_nex
     assert "freshness" in rendered
     assert "current" in rendered
     assert "next safe action" in rendered
-    assert "switch batch execution detail level to review details" in rendered
+    assert "open batch execution review details" in rendered
     assert "copy-only" in rendered
     assert "research readiness" in rendered
     assert "buy" not in rendered
@@ -23963,7 +24085,7 @@ def test_data_health_current_mode_strip_uses_metric_proof_and_stale_modes():
     assert "review details" in metric_html
     assert "open the metrics evidence drawer" in metric_html
     assert "proof history" in proof_html
-    assert "switch proof detail level to review details" in proof_html
+    assert "open proof review details" in proof_html
     assert "stale" in stale_html
     assert "make readiness" in stale_html
     assert "buy" not in metric_html + proof_html + stale_html
@@ -24008,9 +24130,9 @@ def test_metric_detail_load_cards_keep_research_only_and_stale_counts_hidden():
     }
     unloaded = {
         "status": "needs_request",
-        "title": "Metric details are not loaded yet",
+        "title": "Metric details are deferred",
         "body": "The first metrics view is intentionally lightweight.",
-        "next_action": "Switch Metric detail level to Review details.",
+        "next_action": "Open Metrics review details.",
     }
     loaded = {
         "status": "ready_to_load",
@@ -24093,7 +24215,7 @@ def test_proof_detail_load_cards_keep_proof_states_clear_and_research_only():
             "status": "deferred",
             "title": "Proof details are deferred",
             "body": "The proof lane shell is loaded.",
-            "next_action": "Switch Proof detail level to Review details.",
+            "next_action": "Open Proof review details.",
         },
         {
             "status": "loading",
@@ -24893,11 +25015,13 @@ def test_data_health_queue_drilldown_places_route_strip_before_route_cards_and_t
     route_strip_index = source.index("data_health_readiness_queue_route_strip_cards(drilldown_row)", drilldown_cards_index)
     route_cards_index = source.index("data_health_readiness_queue_route_cards(drilldown_row)", route_strip_index)
     action_cards_index = source.index("data_health_readiness_queue_lane_action_cards(drilldown_row)", route_cards_index)
-    action_table_index = source.index("data_health_readiness_queue_lane_action_frame(drilldown_row)", action_cards_index)
+    action_table_index = source.index('render_collapsed_detail_frame(\n                    "Lane route action table"', action_cards_index)
+    raw_evidence_index = source.index('render_collapsed_detail_frame("Raw lane evidence row"', action_table_index)
 
     assert wrapper_index < drilldown_index
-    assert drilldown_cards_index < route_strip_index < route_cards_index < action_cards_index < action_table_index
+    assert drilldown_cards_index < route_strip_index < route_cards_index < action_cards_index < action_table_index < raw_evidence_index
     assert "build_readiness_queue_route_strip_cards" in source
+    assert "Raw lane evidence row" in source
 
 
 def test_data_health_dcf_source_loop_places_progress_strip_before_routes_and_table():

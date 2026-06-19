@@ -45,7 +45,7 @@ DEFAULT_BROWSER_QA_EVIDENCE: tuple[BrowserQaEvidence, ...] = (
         name="LinkedIn public dashboard thumbnail",
         path=Path("docs/assets/linkedin-public-dashboard.png"),
         route="http://localhost:8501/?mode=public",
-        expected_markers=("research-loop-strip", "Public visitor mode", "First 30 Seconds", "Data readiness first"),
+        expected_markers=("research-loop-strip", "Public visitor mode", "First 30 Seconds", "Where To Go Next"),
         min_width=1200,
         min_height=600,
         use="LinkedIn Featured and GitHub preview image.",
@@ -54,7 +54,7 @@ DEFAULT_BROWSER_QA_EVIDENCE: tuple[BrowserQaEvidence, ...] = (
         name="Public visitor home screenshot",
         path=Path("docs/assets/public-demo-home-real.jpg"),
         route="http://localhost:8501/?mode=public",
-        expected_markers=("First 30 Seconds", "Review one stock", "Improve data coverage", "Inspect proof"),
+        expected_markers=("First 30 Seconds", "Visitor Path", "Where To Go Next", "Review one stock"),
         min_width=1000,
         min_height=600,
         use="README first-screen product preview.",
@@ -76,7 +76,13 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
         name="Single-stock workflow fit screenshot",
         path=Path("docs/assets/single-stock-workflow-fit-real.jpg"),
         route="http://localhost:8501/?mode=public&page=single-stock",
-        first_view_markers=("research-loop-strip", "Single-Stock Report", "Current step", "Next safe action", "Stop rule"),
+        first_view_markers=(
+            "research-loop-strip",
+            "Single-Stock Report",
+            "Selected Ticker Readiness",
+            "REPORT HANDOFF",
+            "STOP RULE",
+        ),
         min_width=1000,
         min_height=600,
         use="GitHub/LinkedIn proof that one-stock review shows current state, review scope, blocked inputs, and Data Health handoff.",
@@ -106,7 +112,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Public visitor home",
         route="http://localhost:8501/?mode=public",
-        first_view_markers=("research-loop-strip", "Public visitor mode", "First 30 Seconds", "Review one stock"),
+        first_view_markers=("research-loop-strip", "Public visitor mode", "First 30 Seconds", "Where To Go Next"),
         details_boundary="Operator commands and proof tables stay out of the first public view.",
         qa_focus="Visitor understands readiness-first workflow and research-only boundary in under 30 seconds.",
         stop_rule="Stop if the first view shows raw CSV tables, command-heavy copy, traceback text, or stale generated-thumbnail proof.",
@@ -114,9 +120,15 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Single-stock workflow fit",
         route="http://localhost:8501/?mode=public&page=single-stock",
-        first_view_markers=("research-loop-strip", "Single-Stock Report", "Current step", "Next safe action", "Stop rule"),
-        details_boundary="Detailed report sections stay below the current-step, reviewable-now, blocked, and Data Health handoff cues.",
-        qa_focus="Reader sees selected ticker state, previous proof, next safe action, what is blocked or excluded, and where Data Health fits next.",
+        first_view_markers=(
+            "research-loop-strip",
+            "Single-Stock Report",
+            "Selected Ticker Readiness",
+            "REPORT HANDOFF",
+            "STOP RULE",
+        ),
+        details_boundary="Detailed report sections stay below the selected-ticker contract, report handoff, next action, and stop rule.",
+        qa_focus="Reader sees selected ticker state, what can be reviewed, what is blocked or excluded, and where Data Health fits next.",
         stop_rule="Stop if unavailable DCF, peer, earnings, estimate, or metric outputs are shown as conclusions.",
     ),
     BrowserQaRouteCheck(
@@ -293,11 +305,19 @@ def browser_qa_capture_checklist_rows(
     return rows
 
 
+def browser_qa_reviewed_asset_stage_command(
+    targets: Iterable[BrowserQaCaptureTarget] = DEFAULT_BROWSER_QA_CAPTURE_TARGETS,
+) -> str:
+    target_list = list(targets)
+    return "git add -- " + " ".join(item.path.as_posix() for item in target_list)
+
+
 def browser_qa_capture_session_rows(
     targets: Iterable[BrowserQaCaptureTarget] = DEFAULT_BROWSER_QA_CAPTURE_TARGETS,
 ) -> list[dict[str, object]]:
     target_list = list(targets)
     target_paths = ", ".join(item.path.as_posix() for item in target_list)
+    target_stage_command = browser_qa_reviewed_asset_stage_command(target_list)
     target_routes = ", ".join(item.route for item in target_list)
     return [
         {
@@ -332,7 +352,10 @@ def browser_qa_capture_session_rows(
         },
         {
             "Step": "6. Commit reviewed evidence only",
-            "Action": f"Stage only intentional product/docs/test files and reviewed assets: {target_paths}.",
+            "Action": (
+                f"Stage only intentional product/docs/test files and reviewed assets: {target_paths}. "
+                f"Reviewed asset command: `{target_stage_command}`."
+            ),
             "Proof": "`make staged-hygiene-check` reports no broad generated CSV/JSON/report churn.",
             "Stop Rule": "Do not stage broad data/reports/outputs CSV churn unless it is explicitly selected evidence.",
         },
@@ -424,6 +447,7 @@ def browser_qa_evidence_payload(root: Path) -> dict[str, object]:
         "public_share_recommendation": share_recommendation_rows,
         "committed_screenshot_assets": asset_rows,
         "manual_capture_targets": capture_rows,
+        "reviewed_asset_stage_command": browser_qa_reviewed_asset_stage_command(),
         "local_capture_checklist": capture_checklist_rows,
         "capture_session_plan": capture_session_rows,
         "route_qa_checklist": route_rows,

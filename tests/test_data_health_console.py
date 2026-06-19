@@ -42,7 +42,7 @@ def test_data_health_console_current_mode_strip_is_copy_only_and_research_safe()
     assert "prices" in html
     assert "fast view" in html
     assert "queue detail" in html
-    assert "switch batch execution detail level to review details" in html
+    assert "open batch execution review details" in html
     assert "copy-only" in html
     assert "research readiness" in html
     assert "buy" not in html
@@ -86,5 +86,5 @@ def test_data_health_console_stale_and_detail_modes_gate_next_action():
     )
 
     assert stale_action == "make readiness"
-    assert proof_action == "Switch Proof detail level to Review details."
+    assert proof_action == "Open Proof review details."
     assert batch_action == "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10"

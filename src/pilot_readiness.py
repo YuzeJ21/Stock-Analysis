@@ -33,6 +33,12 @@ from src.reviewed_batch import readiness_freshness_status
 VALID_STATUSES = {"green", "manual", "blocked"}
 DEFAULT_PACKET_PATH = Path("outputs/pilot_readiness_packet.md")
 REVIEWED_PACKET_PATH = DEFAULT_PACKET_PATH.as_posix()
+GENERATED_ARTIFACT_EXCLUSION_PATTERNS = (
+    "data/*.csv",
+    "data/reports/*.csv",
+    "outputs/*.csv",
+    "data/reports/ticker_readiness_report.previous.csv",
+)
 
 
 @dataclass(frozen=True)
@@ -117,6 +123,10 @@ def _git_add_command(entries: list[StatusEntry]) -> str:
     if not entries:
         return "# no product/code/docs/test files to stage"
     return "git add -- " + " ".join(quote(entry.path) for entry in entries)
+
+
+def _generated_exclusion_pattern_text() -> str:
+    return "; ".join(GENERATED_ARTIFACT_EXCLUSION_PATTERNS)
 
 
 def _sync_check(root: Path) -> PilotReadinessCheck:
@@ -380,6 +390,12 @@ def _browser_qa_evidence_check(root: Path) -> PilotReadinessCheck:
         stop_rule = "Stop before public sharing until at least the real public dashboard screenshot is committed."
 
     pending_names = ", ".join(str(row.get("Capture Target")) for row in pending) if pending else "none"
+    reviewed_asset_stage_command = str(payload.get("reviewed_asset_stage_command") or "").strip()
+    reviewed_asset_note = (
+        " Reviewed asset staging command is available from browser QA JSON and capture plan after visual review."
+        if reviewed_asset_stage_command
+        else ""
+    )
     return PilotReadinessCheck(
         area="Browser QA evidence",
         status=status,
@@ -388,6 +404,7 @@ def _browser_qa_evidence_check(root: Path) -> PilotReadinessCheck:
             f"{len(ready_assets)} committed screenshot asset(s) ready; "
             f"pending workflow capture(s): {pending_names}. "
             "Screenshots are product evidence only and do not refresh data or unlock blocked inputs."
+            f"{reviewed_asset_note}"
         ),
         command="make browser-qa-evidence",
         stop_rule=stop_rule,
@@ -503,6 +520,10 @@ def build_pilot_handoff_summary(
 
     churn_status = "manual" if artifacts else "green"
     churn_answer = f"{len(artifacts)} generated artifact(s) excluded by default" if artifacts else "No generated churn detected"
+    churn_boundary = (
+        "Keep these broad generated patterns out by default: "
+        f"{_generated_exclusion_pattern_text()}. Stage only a specific artifact if it is intentionally reviewed evidence."
+    )
 
     return [
         PilotHandoffItem(
@@ -531,7 +552,7 @@ def build_pilot_handoff_summary(
             status=churn_status,
             answer=churn_answer,
             next_safe_command="make diff-hygiene-summary",
-            boundary="Do not stage broad generated CSV/JSON/report churn unless a specific artifact is intentionally reviewed evidence.",
+            boundary=churn_boundary,
         ),
         PilotHandoffItem(
             question="What should the reviewer run next?",
@@ -603,6 +624,7 @@ def build_pilot_commit_package_handoff(root: Path | str = ".") -> list[PilotComm
             command="make diff-hygiene-summary",
             boundary=(
                 f"{len(generated_entries)} generated CSV/JSON/report artifact(s) remain excluded by default. "
+                f"Keep these patterns out by default: {_generated_exclusion_pattern_text()}. "
                 "Stage only a specific reviewed evidence artifact if intentionally selected."
             ),
         ),
@@ -819,6 +841,10 @@ def render_pilot_readiness_packet(
             "",
             "## Generated Artifacts Excluded From Staging",
             "",
+            "Default broad exclusion patterns:",
+            *[f"- `{pattern}`" for pattern in GENERATED_ARTIFACT_EXCLUSION_PATTERNS],
+            "",
+            "Currently dirty generated artifacts:",
         ]
     )
     if excluded_artifacts:

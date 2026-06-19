@@ -149,6 +149,10 @@ from src.data_health_proof_closeout_summary import (
     proof_closeout_summary_cards as data_health_proof_closeout_summary_cards,
     proof_closeout_summary_frame as data_health_proof_closeout_summary_frame,
 )
+from src.data_health_proof_loop_fit import (
+    proof_loop_fit_cards as data_health_proof_loop_fit_cards,
+    proof_loop_fit_frame as data_health_proof_loop_fit_frame,
+)
 from src.data_health_proof_outcome import proof_outcome_cards_from_frame
 from src.data_health_queue_outcome import (
     readiness_queue_outcome_summary_cards as data_health_readiness_queue_outcome_summary_cards,
@@ -214,6 +218,13 @@ from src.readiness_queue_dashboard import (
 from src.readiness_comparison import ReadinessComparison, compare_readiness_snapshots
 from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_batch_preflight
 from src.reviewed_batch import FreshnessStatus, readiness_freshness_status
+from src.research_loop import (
+    data_health_research_loop_action_href,
+    data_health_research_loop_context,
+    home_research_loop_context,
+    research_loop_strip_html,
+    single_stock_research_loop_context,
+)
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
     latest_reviewed_batch_proof,
@@ -4057,52 +4068,6 @@ def render_context_note(title: str, body: str, tone: str = "neutral") -> None:
     st.markdown(context_note_html(title, body, tone), unsafe_allow_html=True)
 
 
-def research_loop_strip_html(
-    *,
-    current_step: str,
-    previous_proof: str,
-    next_action: str,
-    stop_rule: str,
-    current_note: str = "",
-    proof_note: str = "",
-    action_note: str = "",
-    stop_note: str = "",
-    current_href: str = "",
-    proof_href: str = "",
-    action_href: str = "",
-    stop_href: str = "",
-) -> str:
-    """Compact cross-page orientation strip for the readiness-first research loop."""
-
-    items = [
-        ("Current step", current_step, current_note, "", current_href),
-        ("Previous proof", previous_proof, proof_note, "", proof_href),
-        ("Next safe action", next_action, action_note, "action", action_href),
-        ("Stop rule", stop_rule, stop_note, "stop", stop_href),
-    ]
-    item_html = []
-    for label, value, note, class_name, href in items:
-        note_html = f"<div class='research-loop-note'>{html.escape(note)}</div>" if note else ""
-        class_attr = f"research-loop-item {class_name}".strip()
-        if href:
-            safe_href = html.escape(href, quote=True)
-            value_html = (
-                "<div class='research-loop-value'>"
-                f"<a class='research-loop-link' href='{safe_href}'>{html.escape(value)}</a>"
-                "</div>"
-            )
-        else:
-            value_html = f"<div class='research-loop-value'>{html.escape(value)}</div>"
-        item_html.append(
-            f"<div class='{class_attr}'>"
-            f"<div class='research-loop-label'>{html.escape(label)}</div>"
-            f"{value_html}"
-            f"{note_html}"
-            "</div>"
-        )
-    return "<div class='research-loop-strip'>" + "".join(item_html) + "</div>"
-
-
 def render_research_loop_strip(
     *,
     current_step: str,
@@ -4135,130 +4100,6 @@ def render_research_loop_strip(
         ),
         unsafe_allow_html=True,
     )
-
-
-def home_research_loop_context(summary: dict[str, object], freshness: FreshnessStatus) -> dict[str, str]:
-    dcf_ready = int(summary.get("dcf_ready") or 0)
-    peer_ready = int(summary.get("peer_ready") or 0)
-    current_state = f"{int(summary.get('price_ready') or 0):,} price-ready / {dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready"
-    proof_state = "Saved readiness snapshot is current" if freshness.status == "current" else "Saved readiness snapshot needs refresh"
-    proof_note = "Use this snapshot before opening ticker pages." if freshness.status == "current" else freshness.refresh_command
-    next_action = "Open a Single-Stock Report"
-    if dcf_ready <= 0:
-        next_action = "Open Data Health source-proof lanes"
-    return {
-        "current_step": "Home readiness snapshot",
-        "current_note": current_state,
-        "current_href": "?mode=public",
-        "previous_proof": proof_state,
-        "proof_note": proof_note,
-        "proof_href": "?mode=public&page=data-health&drawer=proof",
-        "next_action": next_action,
-        "action_href": "?mode=public&page=single-stock",
-        "action_note": "Review one ticker, then route locked fields to Data Health.",
-        "stop_rule": "Do not infer missing inputs",
-        "stop_note": "Blocked, partial, and excluded states stay visible until source proof changes readiness.",
-        "stop_href": "?mode=public&page=data-health&drawer=proof",
-    }
-
-
-def single_stock_research_loop_context(ticker: str, report_payload: dict[str, object] | None = None) -> dict[str, str]:
-    ticker_label = format_missing(ticker, "selected ticker").upper()
-    if report_payload:
-        readiness = report_payload.get("valuation_readiness", {})
-        mode = first_meaningful_text(
-            report_payload.get("analysis_mode"),
-            report_payload.get("mode"),
-            report_payload.get("decision_subtype"),
-            fallback="local report",
-        )
-        dcf_state = format_missing(readiness.get("status") if isinstance(readiness, dict) else "", "")
-        next_action = f"Open Data Health if {ticker_label} has locked fields"
-        if dcf_state.lower() in {"ready", "excluded"}:
-            next_action = "Read Best Review Path before detailed tabs"
-        proof_note = "At A Glance and Reader Guide summarize ready, blocked, excluded, and monitor-only sections."
-        return {
-            "current_step": f"{ticker_label} report review",
-            "current_note": f"Mode: {format_missing(mode, 'local report')}",
-            "current_href": "?mode=public&page=single-stock",
-            "previous_proof": "Local readiness row and report payload",
-            "proof_note": proof_note,
-            "proof_href": "?mode=operator&page=data-health&lane=proof&drawer=proof",
-            "next_action": next_action,
-            "action_href": "?mode=operator&page=data-health&lane=fundamentals&drawer=queue"
-            if "Data Health" in next_action
-            else "",
-            "action_note": "If a field is locked, continue in Data Health before trusting deeper analysis.",
-            "stop_rule": "Do not read locked sections as conclusions",
-            "stop_note": "Valuation, peers, metrics, earnings, and estimates stay withheld until trusted inputs exist.",
-            "stop_href": "?mode=operator&page=data-health&lane=proof&drawer=proof",
-        }
-    return {
-        "current_step": "Single-Stock Report",
-        "current_note": f"Selected ticker: {ticker_label}",
-        "current_href": "?mode=public&page=single-stock",
-        "previous_proof": "Home readiness snapshot",
-        "proof_note": "Use saved readiness counts to understand whether this ticker can support deeper review.",
-        "proof_href": "?mode=public",
-        "next_action": "Show Local Report",
-        "action_href": "",
-        "action_note": "Read At A Glance first; then use Data Health for any locked input.",
-        "stop_rule": "No report, no interpretation",
-        "stop_note": "Do not use optional online lookup or missing local rows as proof.",
-        "stop_href": "?mode=public&page=data-health&drawer=proof",
-    }
-
-
-def data_health_research_loop_action_href(selected_lane_key: str, next_action: str, public_mode: bool) -> str:
-    if public_mode:
-        return "?mode=public&page=data-health&drawer=proof"
-    next_text = str(next_action or "").lower()
-    if next_text.startswith("make "):
-        return ""
-    if selected_lane_key == "metrics":
-        return "?mode=operator&page=data-health&lane=metrics&drawer=metrics"
-    if selected_lane_key == "proof":
-        return "?mode=operator&page=data-health&lane=proof&drawer=proof"
-    if selected_lane_key in DATA_HEALTH_OPERATOR_LANES:
-        return f"?mode=operator&page=data-health&lane={selected_lane_key}&drawer=batch"
-    return "?mode=operator&page=data-health"
-
-
-def data_health_research_loop_context(
-    *,
-    selected_lane_key: str,
-    readiness_freshness: FreshnessStatus,
-    next_action: str,
-    public_mode: bool,
-) -> dict[str, str]:
-    lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, DATA_HEALTH_OPERATOR_LANES["prices"])
-    if public_mode:
-        lane_label = "Public readiness summary"
-    proof_state = "Readiness snapshot is current" if readiness_freshness.status == "current" else "Readiness snapshot needs refresh"
-    current_href = (
-        "?mode=public&page=data-health"
-        if public_mode
-        else f"?mode=operator&page=data-health&lane={selected_lane_key}"
-    )
-    proof_href = (
-        "?mode=public&page=data-health&drawer=proof"
-        if public_mode
-        else "?mode=operator&page=data-health&lane=proof&drawer=proof"
-    )
-    return {
-        "current_step": "Data Health source-proof lane",
-        "current_note": lane_label,
-        "current_href": current_href,
-        "previous_proof": proof_state,
-        "proof_note": readiness_freshness.message,
-        "proof_href": proof_href,
-        "next_action": friendly_dashboard_card_copy(next_action),
-        "action_href": data_health_research_loop_action_href(selected_lane_key, next_action, public_mode),
-        "action_note": "Commands stay copy-only and collapsed; validate and preview before any reviewed apply step.",
-        "stop_rule": "Stop before apply without reviewed proof",
-        "stop_note": "Missing source rows, stale snapshots, rejected rows, or placeholder fields keep the lane blocked.",
-        "stop_href": proof_href,
-    }
 
 
 def chart_panel_title(title: str) -> str:
@@ -9194,8 +9035,8 @@ def data_health_dcf_proof_loop_outcome_frame(
     family = data_health_dcf_input_family_key(selection)
     compare_lane = "share_count" if family == "shares_outstanding" else "fundamentals"
     comparison_status = "deferred"
-    comparison_detail = "Switch Proof detail level to Review details before using changed counts in a DCF proof row."
-    comparison_command = "Switch Proof detail level to Review details."
+    comparison_detail = "Open Proof review details before using changed counts in a DCF proof row."
+    comparison_command = "Open Proof review details."
     if comparison is not None:
         comparison_command = f"make reviewed-batch-compare LANE={compare_lane}"
         if comparison.status != "ok":
@@ -12822,8 +12663,8 @@ def data_health_peer_proof_loop_outcome_frame(
             empty_detail=latest_detail,
         )
     comparison_status = "deferred"
-    comparison_detail = "Switch Proof detail level to Review details before using changed counts in a peer proof row."
-    comparison_command = "Switch Proof detail level to Review details."
+    comparison_detail = "Open Proof review details before using changed counts in a peer proof row."
+    comparison_command = "Open Proof review details."
     if comparison is not None:
         comparison_command = "make reviewed-batch-compare LANE=peers"
         if comparison.status != "ok":
@@ -21820,6 +21661,15 @@ def clean_display_frame(frame: pd.DataFrame) -> pd.DataFrame:
     return cleaned.rename(columns={column: display_column_label(str(column)) for column in cleaned.columns})
 
 
+def render_collapsed_detail_frame(label: str, frame: pd.DataFrame, *, table: bool = False) -> None:
+    with st.expander(label, expanded=False):
+        display = clean_display_frame(frame)
+        if table:
+            st.table(display)
+        else:
+            st.dataframe(display, width="stretch", hide_index=True)
+
+
 def display_column_label(column: str) -> str:
     if column in COLUMN_LABELS:
         return COLUMN_LABELS[column]
@@ -23826,6 +23676,8 @@ def render_home_page(
         analyst_readiness_frame,
         ticker_readiness_frame,
     )
+    generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
+    freshness = readiness_freshness_status(BASE_DIR)
 
     render_section_header(
         "Home",
@@ -23858,7 +23710,6 @@ def render_home_page(
     else:
         render_signal_cards(dashboard_page_reader_summary_cards("Home"))
         render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
-    generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
     if generated_stale_warning:
         render_notice_card(
             "Generated status may be stale",
@@ -23866,7 +23717,6 @@ def render_home_page(
             "make readiness",
             tone="warning",
         )
-    freshness = readiness_freshness_status(BASE_DIR)
     if freshness.status in {"missing", "stale"}:
         render_notice_card(
             "Readiness snapshot may be stale",
@@ -23874,19 +23724,28 @@ def render_home_page(
             freshness.refresh_command,
             tone="warning",
         )
-    render_section_header(
-        "Research Workflow",
-        "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states.",
-    )
-    if not public_mode:
+    if public_mode:
+        render_section_header("Where To Go Next", "Choose the next surface without reading operator tables first.")
+        render_action_cards(_plain_home_route_choice_cards(summary))
+        with st.expander("Optional: workflow and next-step details", expanded=False):
+            render_section_header(
+                "Research Workflow",
+                "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states.",
+            )
+            render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)
+            render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
+            render_signal_cards(_plain_home_next_step_cards(summary)[:4], show_commands=False)
+    else:
+        render_section_header(
+            "Research Workflow",
+            "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states.",
+        )
         render_research_loop_strip(**home_research_loop_context(summary, freshness))
-    render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)
-
-    render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
-    render_signal_cards(_plain_home_next_step_cards(summary)[:4] if public_mode else _plain_home_next_step_cards(summary), show_commands=False)
-
-    render_section_header("Where To Go", "Choose the page that matches what you want to review.")
-    render_action_cards(_plain_home_route_choice_cards(summary))
+        render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)
+        render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
+        render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)
+        render_section_header("Where To Go", "Choose the page that matches what you want to review.")
+        render_action_cards(_plain_home_route_choice_cards(summary))
 
     if public_mode:
         with st.expander("Example state walkthrough", expanded=False):
@@ -24398,11 +24257,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             "These fields come from the current local momentum and watchlist outputs. They summarize setup quality and trend context without implying an allocation action.",
         )
         render_signal_cards(stock_report_technical_context_cards(report_payload))
-        st.dataframe(
-            clean_display_frame(stock_report_technical_context_frame(report_payload)),
-            width="stretch",
-            hide_index=True,
-        )
+        render_collapsed_detail_frame("Setup and trend detail table", stock_report_technical_context_frame(report_payload))
 
         st.markdown("#### Company Fundamentals")
         render_signal_cards(stock_report_fundamentals_quality_cards(report_payload))
@@ -24418,11 +24273,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             ("debt", "Debt", "number"),
             ("shares_outstanding", "Shares Outstanding", "integer"),
         ]
-        st.dataframe(
-            clean_display_frame(stock_report_key_value_frame(financials, financial_fields)),
-            width="stretch",
-            hide_index=True,
-        )
+        render_collapsed_detail_frame("Company fundamentals detail table", stock_report_key_value_frame(financials, financial_fields))
 
         with st.expander("Price snapshot detail", expanded=False):
             st.dataframe(stock_report_detail_frame(price), width="stretch", hide_index=True)
@@ -25601,11 +25452,11 @@ def render_data_health(
         queue_deferred_command = (
             "Open the Price evidence drawer for short-history proof rows."
             if selected_lane_key == "prices" and queue_details_requested
-            else "Switch Readiness queue detail level to Review details."
+            else "Open Readiness queue review details."
         )
         render_signal_cards(
             data_health_deferred_detail_cards(
-                title="Queue details are not loaded yet",
+                title="Queue details are deferred",
                 body=queue_deferred_body,
                 command=queue_deferred_command,
                 badges=["fast first view", "row proof deferred"],
@@ -25638,20 +25489,36 @@ def render_data_health(
                 show_commands=True,
                 variant="queue",
             )
-            st.table(clean_display_frame(data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review)))
+            render_collapsed_detail_frame(
+                "Trusted fundamentals source-review command table",
+                data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review),
+                table=True,
+            )
             render_signal_cards(
                 data_health_trusted_fundamentals_evidence_writer_cards(trusted_fundamentals_source_review),
                 show_commands=True,
                 variant="queue",
             )
-            st.table(clean_display_frame(data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review)))
+            render_collapsed_detail_frame(
+                "Trusted fundamentals evidence-writer table",
+                data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review),
+                table=True,
+            )
             render_signal_cards(
                 data_health_trusted_fundamentals_apply_decision_gate_cards(trusted_fundamentals_source_review),
                 show_commands=True,
                 variant="queue",
             )
-            st.table(clean_display_frame(data_health_trusted_fundamentals_apply_decision_gate_frame(trusted_fundamentals_source_review)))
-            st.table(clean_display_frame(trusted_fundamentals_source_review))
+            render_collapsed_detail_frame(
+                "Trusted fundamentals apply-decision gate table",
+                data_health_trusted_fundamentals_apply_decision_gate_frame(trusted_fundamentals_source_review),
+                table=True,
+            )
+            render_collapsed_detail_frame(
+                "Trusted fundamentals raw source-review row",
+                trusted_fundamentals_source_review,
+                table=True,
+            )
         with st.expander("Data coverage proof queue detail", expanded=False):
             st.dataframe(clean_display_frame(data_coverage_proof_queues), width="stretch", hide_index=True)
     with st.expander("Queue outcome ledger summary", expanded=False):
@@ -25673,12 +25540,11 @@ def render_data_health(
                 render_signal_cards(data_health_readiness_queue_route_strip_cards(drilldown_row), show_commands=False, variant="queue")
                 render_signal_cards(data_health_readiness_queue_route_cards(drilldown_row), show_commands=False)
                 render_signal_cards(data_health_readiness_queue_lane_action_cards(drilldown_row), show_commands=True)
-                st.dataframe(
-                    clean_display_frame(data_health_readiness_queue_lane_action_frame(drilldown_row)),
-                    width="stretch",
-                    hide_index=True,
+                render_collapsed_detail_frame(
+                    "Lane route action table",
+                    data_health_readiness_queue_lane_action_frame(drilldown_row),
                 )
-                st.table(clean_display_frame(pd.DataFrame([drilldown_row.to_dict()])))
+                render_collapsed_detail_frame("Raw lane evidence row", pd.DataFrame([drilldown_row.to_dict()]), table=True)
 
     coverage_loop = (
         build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)
@@ -25706,9 +25572,9 @@ def render_data_health(
         elif not proof_details_requested and selected_lane_key == "proof":
             render_signal_cards(
                 data_health_deferred_detail_cards(
-                    title="Proof details are not loaded yet",
-                    body="Reviewed proof rows and snapshot comparison stay behind an explicit load gate.",
-                    command="Switch Proof detail level to Review details.",
+                    title="Proof details are deferred",
+                    body="Reviewed proof rows and snapshot comparison stay behind explicit review details.",
+                    command="Open Proof review details.",
                     badges=["proof deferred", "snapshot gate"],
                 ),
                 show_commands=False,
@@ -25763,9 +25629,9 @@ def render_data_health(
         if not batch_details_requested:
             render_signal_cards(
                 data_health_deferred_detail_cards(
-                    title="Batch execution detail is not loaded yet",
+                    title="Batch execution detail is deferred",
                     body="Reviewed batch planner, coverage loop, guard tables, and sequence rows are deferred.",
-                    command="Switch Batch execution detail level to Review details.",
+                    command="Open Batch execution review details.",
                     badges=["batch detail deferred", "dry-run first"],
                 ),
                 show_commands=False,
@@ -25775,9 +25641,9 @@ def render_data_health(
                 render_signal_cards(
                     data_health_deferred_detail_cards(
                         title="Batch review drawer is waiting",
-                        body="Open the load gate above before building detailed planner and proof tables.",
-                        command="Switch Batch execution detail level to Review details.",
-                        badges=["not loaded", "copy-only"],
+                        body="Open Batch execution review details before building detailed planner and proof tables.",
+                        command="Open Batch execution review details.",
+                        badges=["detail deferred", "copy-only"],
                     )
                 )
             else:
@@ -25898,10 +25764,9 @@ def render_data_health(
                 data_health_dcf_proof_batch_planner_cards(dcf_input_queue, dcf_family_selection),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_proof_batch_planner_frame(dcf_input_queue, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF proof batch planner table",
+                data_health_dcf_proof_batch_planner_frame(dcf_input_queue, dcf_family_selection),
             )
             render_signal_cards(data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered), show_commands=True)
             render_section_header("DCF Operator Summary", "Current source-review gate, missing proof, next safe action, and stop rule before detailed source drawers.")
@@ -25910,11 +25775,39 @@ def render_data_health(
                 show_commands=False,
                 variant="queue",
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_loop_operator_summary_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF operator summary table",
+                data_health_dcf_source_loop_operator_summary_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
+            dcf_proof_loop_fit = data_health_proof_loop_fit_frame(
+                lane="DCF",
+                operator_summary=data_health_dcf_source_loop_operator_summary_frame(dcf_input_queue_filtered, dcf_family_selection),
+                checklist=data_health_dcf_proof_source_review_checklist_frame(
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                    batch_proof_frame,
+                ),
+                outcome=data_health_dcf_proof_loop_outcome_frame(
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                    batch_proof_summary_frame,
+                    readiness_comparison,
+                ),
+                closeout=data_health_dcf_proof_closeout_frame(
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                    batch_proof_summary_frame,
+                    readiness_comparison,
+                ),
+            )
+            render_section_header("DCF Proof Loop Fit", "Status, blocker, next proof step, evidence, and stop rule before detailed DCF proof tables.")
+            render_signal_cards(
+                data_health_proof_loop_fit_cards(dcf_proof_loop_fit, lane="DCF"),
+                show_commands=False,
+                variant="queue",
+            )
+            with st.expander("DCF proof loop fit details", expanded=False):
+                st.dataframe(clean_display_frame(dcf_proof_loop_fit), width="stretch", hide_index=True)
             render_section_header("Finish This DCF Proof", "One compact checklist before source-review rows, import previews, or proof-record tables.")
             render_signal_cards(
                 data_health_dcf_proof_source_review_checklist_cards(
@@ -25924,14 +25817,14 @@ def render_data_health(
                 ),
                 show_commands=True,
             )
-            st.table(
-                clean_display_frame(
-                    data_health_dcf_proof_source_review_checklist_frame(
-                        dcf_input_queue_filtered,
-                        dcf_family_selection,
-                        batch_proof_frame,
-                    )
-                )
+            render_collapsed_detail_frame(
+                "DCF proof checklist table",
+                data_health_dcf_proof_source_review_checklist_frame(
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                    batch_proof_frame,
+                ),
+                table=True,
             )
             render_section_header("DCF Source Loop Checklist", "Source review through proof record in one compact gate sequence before detailed tables.")
             render_signal_cards(
@@ -25947,70 +25840,63 @@ def render_data_health(
                 data_health_dcf_source_loop_route_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=False,
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_loop_checklist_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF source loop checklist table",
+                data_health_dcf_source_loop_checklist_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_section_header("DCF Source Review Triage", "Blocked source fields, guard-ready steps, validation gates, and proof handoff status before command details.")
             render_signal_cards(
                 data_health_dcf_source_command_triage_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_command_triage_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF source review triage table",
+                data_health_dcf_source_command_triage_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_section_header("DCF Source Batch Selector", "Choose one capped source-review scope before opening command-plan or raw queue details.")
             render_signal_cards(
                 data_health_dcf_source_batch_selector_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_batch_selector_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF source batch selector table",
+                data_health_dcf_source_batch_selector_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_section_header("DCF Source Evidence Intake", "Reviewer evidence fields grouped before import-row scaffolds or proof-record outcomes.")
             render_signal_cards(
                 data_health_dcf_source_evidence_intake_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_evidence_intake_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF source evidence intake table",
+                data_health_dcf_source_evidence_intake_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_section_header("DCF Source Guard Readiness", "Whether selected evidence is ready for source guard, still missing fields, or stopped by source gaps.")
             render_signal_cards(
                 data_health_dcf_source_guard_readiness_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_guard_readiness_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF source guard readiness table",
+                data_health_dcf_source_guard_readiness_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_section_header("DCF Source Guard Preview", "Exact guard command, validation, preview, apply boundary, and post-guard proof before import-preview tables.")
             render_signal_cards(
                 data_health_dcf_source_guard_preview_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_guard_preview_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF source guard preview table",
+                data_health_dcf_source_guard_preview_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_section_header("DCF Source Proof Handoff", "Proof-record dry-run fields and stop rule after guard, validation, preview, and artifact review.")
             render_signal_cards(
                 data_health_dcf_source_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF source proof handoff table",
+                data_health_dcf_source_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_section_header("DCF Proof Outcome Compare", "Source proof, readiness comparison, and latest ledger outcome before lower source tables.")
             render_signal_cards(
@@ -26022,17 +25908,14 @@ def render_data_health(
                 ),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(
-                    data_health_dcf_proof_loop_outcome_frame(
-                        dcf_input_queue_filtered,
-                        dcf_family_selection,
-                        batch_proof_summary_frame,
-                        readiness_comparison,
-                    )
+            render_collapsed_detail_frame(
+                "DCF proof outcome compare table",
+                data_health_dcf_proof_loop_outcome_frame(
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                    batch_proof_summary_frame,
+                    readiness_comparison,
                 ),
-                width="stretch",
-                hide_index=True,
             )
             render_section_header("DCF Proof Closeout", "Final supported, still-blocked, skipped, or excluded proof state with remaining evidence gates.")
             render_signal_cards(
@@ -26044,88 +25927,56 @@ def render_data_health(
                 ),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(
-                    data_health_dcf_proof_closeout_frame(
-                        dcf_input_queue_filtered,
-                        dcf_family_selection,
-                        batch_proof_summary_frame,
-                        readiness_comparison,
-                    )
+            render_collapsed_detail_frame(
+                "DCF proof closeout table",
+                data_health_dcf_proof_closeout_frame(
+                    dcf_input_queue_filtered,
+                    dcf_family_selection,
+                    batch_proof_summary_frame,
+                    readiness_comparison,
                 ),
-                width="stretch",
-                hide_index=True,
             )
             render_section_header("DCF Source Command Plan", "Copy-only source-review, guard, validate, preview, and proof commands before detailed source tables.")
             render_signal_cards(
                 data_health_dcf_source_command_plan_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_command_plan_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF source command plan table",
+                data_health_dcf_source_command_plan_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_section_header("Trusted Fundamentals Source Packet", "Choose SEC-stageable or trusted-local source review before filling detailed import scaffolds.")
             render_signal_cards(data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
-            st.dataframe(
-                clean_display_frame(data_health_dcf_source_packet_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "Trusted fundamentals source packet table",
+                data_health_dcf_source_packet_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_section_header("Trusted Fundamentals Batch Review Queue", "Review capped source batches, rejected-row checks, and proof-record readiness before staging or imports.")
             render_signal_cards(
                 data_health_fundamentals_batch_review_queue_cards(dcf_input_queue_filtered, dcf_family_selection),
                 show_commands=True,
             )
-            st.dataframe(
-                clean_display_frame(
-                    data_health_fundamentals_batch_review_queue_frame(dcf_input_queue_filtered, dcf_family_selection)
-                ),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "Trusted fundamentals batch review queue table",
+                data_health_fundamentals_batch_review_queue_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_signal_cards(data_health_dcf_input_source_review_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
-            st.dataframe(
-                clean_display_frame(data_health_dcf_input_source_review_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF input source review table",
+                data_health_dcf_input_source_review_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_signal_cards(data_health_dcf_import_preview_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
-            st.dataframe(
-                clean_display_frame(data_health_dcf_import_preview_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF import preview table",
+                data_health_dcf_import_preview_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             render_signal_cards(data_health_dcf_input_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
-            st.dataframe(
-                clean_display_frame(data_health_dcf_input_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection)),
-                width="stretch",
-                hide_index=True,
-            )
-            render_signal_cards(
-                data_health_dcf_proof_loop_outcome_cards(
-                    dcf_input_queue_filtered,
-                    dcf_family_selection,
-                    batch_proof_summary_frame,
-                    readiness_comparison,
-                ),
-                show_commands=True,
-            )
-            st.dataframe(
-                clean_display_frame(
-                    data_health_dcf_proof_loop_outcome_frame(
-                        dcf_input_queue_filtered,
-                        dcf_family_selection,
-                        batch_proof_summary_frame,
-                        readiness_comparison,
-                    )
-                ),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "DCF input proof handoff table",
+                data_health_dcf_input_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection),
             )
             if not dcf_input_queue_filtered.empty:
-                st.dataframe(clean_display_frame(dcf_input_queue_filtered), width="stretch", hide_index=True)
+                render_collapsed_detail_frame("Filtered DCF input proof rows", dcf_input_queue_filtered)
             render_section_header("Fundamentals / DCF Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
             render_signal_cards(fundamentals_preview_cards, show_commands=False)
             render_context_note(
@@ -26163,47 +26014,58 @@ def render_data_health(
                 show_commands=False,
                 variant="queue",
             )
-            st.dataframe(
-                clean_display_frame(data_health_peer_operator_summary_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "Peer operator summary table",
+                data_health_peer_operator_summary_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
             )
+            peer_proof_loop_fit = data_health_proof_loop_fit_frame(
+                lane="Peer",
+                operator_summary=data_health_peer_operator_summary_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
+                checklist=data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_summary_frame),
+                outcome=data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
+                closeout=data_health_peer_proof_closeout_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
+            )
+            render_section_header("Peer Proof Loop Fit", "Status, blocker, next proof step, evidence, and stop rule before detailed peer proof tables.")
+            render_signal_cards(
+                data_health_proof_loop_fit_cards(peer_proof_loop_fit, lane="Peer"),
+                show_commands=False,
+                variant="queue",
+            )
+            with st.expander("Peer proof loop fit details", expanded=False):
+                st.dataframe(clean_display_frame(peer_proof_loop_fit), width="stretch", hide_index=True)
             render_section_header("Peer Source-Review Intake", "Fill source proof before editing peer import rows; peer valuation stays locked until rebuilt readiness proves inputs.")
             render_signal_cards(data_health_peer_source_review_cards(peer_source_review_packet))
             render_section_header("Peer Proof Batch Planner", "One capped peer proof plan before source-review rows, write-back guard details, or proof-record tables.")
             render_signal_cards(data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_summary_frame))
-            st.dataframe(
-                clean_display_frame(data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_summary_frame)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "Peer proof batch planner table",
+                data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_summary_frame),
             )
             render_section_header("Finish This Peer Proof", "One compact checklist before source-review rows, write-back guard, or peer proof tables.")
             render_signal_cards(data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_summary_frame))
-            st.table(
-                clean_display_frame(
-                    data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_summary_frame)
-                )
+            render_collapsed_detail_frame(
+                "Peer proof checklist table",
+                data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_summary_frame),
+                table=True,
             )
             render_section_header("Peer Proof-Loop Outcome", "Source-review, write-back guard, validation gates, comparison, and latest proof ledger outcome before raw peer rows.")
             render_signal_cards(data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison))
-            st.dataframe(
-                clean_display_frame(data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "Peer proof-loop outcome table",
+                data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
             )
             render_section_header("Peer Proof Closeout", "Final supported, still-blocked, skipped, or excluded proof state with remaining peer evidence gates.")
             render_signal_cards(data_health_peer_proof_closeout_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison))
-            st.dataframe(
-                clean_display_frame(data_health_peer_proof_closeout_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)),
-                width="stretch",
-                hide_index=True,
+            render_collapsed_detail_frame(
+                "Peer proof closeout table",
+                data_health_peer_proof_closeout_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
             )
-            st.dataframe(clean_display_frame(data_health_peer_source_review_frame(peer_source_review_packet)), width="stretch", hide_index=True)
+            render_collapsed_detail_frame("Peer source-review table", data_health_peer_source_review_frame(peer_source_review_packet))
             render_section_header("Peer Readiness Sub-State Matrix", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
-            st.dataframe(clean_display_frame(peer_v2_frame), width="stretch", hide_index=True)
+            render_collapsed_detail_frame("Peer readiness sub-state matrix table", peer_v2_frame)
             render_section_header("Lane-Group Evidence Summary", "Choose the proof lane first; prices stay dry-run-first and optional context stays locked/manual.")
             render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))
-            st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
+            render_collapsed_detail_frame("Lane-group evidence summary table", lane_board)
     elif selected_lane == "Metrics":
         render_data_health_metric_operator_console(metric_queue_frame, readiness_freshness)
         render_data_health_detail_selector(
@@ -26218,7 +26080,7 @@ def render_data_health(
             "This lane summarizes benchmark, risk, fundamentals trend, valuation, and peer-dispersion readiness only. Source fixes route back to prices, fundamentals, market cap, or peers before any metric value is shown.",
         )
         with st.expander("Metrics evidence drawer", expanded=False):
-            render_section_header("Metric Detail Load State", "Row-level metric readiness is progressive so the first viewport stays fast.")
+            render_section_header("Metric Detail Status", "Row-level metric readiness is progressive so the first viewport stays fast.")
             render_signal_cards(data_health_metric_detail_load_cards(metric_detail_status), show_commands=True)
             render_section_header("Metric Blocker Family Summary", "Compact SPY / QQQ blocker-family triage before row-level proof.")
             st.dataframe(
@@ -26275,9 +26137,9 @@ def render_data_health(
         if not proof_details_requested:
             render_signal_cards(
                 data_health_deferred_detail_cards(
-                    title="Proof history details are not loaded yet",
+                    title="Proof history details are deferred",
                     body="Reviewed proof rows, batch proof rows, packet scaffolds, and snapshot comparison are deferred.",
-                    command="Switch Proof detail level to Review details.",
+                    command="Open Proof review details.",
                     badges=["proof deferred", "snapshot gate"],
                 ),
                 show_commands=False,

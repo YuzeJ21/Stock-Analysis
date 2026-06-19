@@ -129,12 +129,12 @@ def metric_detail_load_status(
     if not requested:
         return {
             "status": "needs_request",
-            "title": "Metric details are not loaded yet",
+            "title": "Metric details are deferred",
             "body": (
-                "The first metrics view is intentionally lightweight. Load SPY/QQQ row-level details only when "
+                "The first metrics view is intentionally lightweight. Open SPY/QQQ row-level details only when "
                 "you need blocker-family proof."
             ),
-            "next_action": "Switch Metric detail level to Review details.",
+            "next_action": "Open Metrics review details.",
         }
     return {
         "status": "ready_to_load",
@@ -175,9 +175,9 @@ def metric_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, obje
     return [
         {
             "kicker": "METRIC DETAIL STATUS",
-            "title": load_status.get("title", "Metric details are not loaded yet"),
+            "title": load_status.get("title", "Metric details are deferred"),
             "body": (
-                f"{load_status.get('body', 'Load details only when needed.')} "
+                f"{load_status.get('body', 'Open details only when needed.')} "
                 "This keeps the Data Health first viewport fast and avoids opening raw metric rows by default."
             ),
             "badges": ["progressive loading", "collapsed detail"],
@@ -222,7 +222,7 @@ def proof_detail_load_status(
                 "The proof lane shell is loaded. Reviewed proof rows, batch packet scaffolds, and snapshot comparison "
                 "stay collapsed until Review details is opened."
             ),
-            "next_action": "Switch Proof detail level to Review details.",
+            "next_action": "Open Proof review details.",
         }
     decision_status = str(getattr(decision_queue_status, "status", "") or "")
     if not loaded:
@@ -308,7 +308,7 @@ def proof_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, objec
                 "This keeps the proof lane fast and prevents raw ledgers from looking like first-read status."
             ),
             "badges": ["progressive loading", "collapsed proof"],
-            "command": load_status.get("next_action", "Switch Proof detail level to Review details."),
+            "command": load_status.get("next_action", "Open Proof review details."),
         }
     ]
 

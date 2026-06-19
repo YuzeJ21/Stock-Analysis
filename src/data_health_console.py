@@ -115,12 +115,12 @@ def data_health_current_mode_next_action(
     if freshness_status in {"missing", "stale"}:
         return str(getattr(readiness_freshness, "refresh_command", "") or "make readiness")
     if selected_lane_key == "metrics":
-        return metric_detail_status.get("next_action") or "Switch Metric detail level to Review details."
+        return metric_detail_status.get("next_action") or "Open Metrics review details."
     if selected_lane_key == "proof":
-        return "Review proof ledgers and snapshot comparison." if proof_details_requested else "Switch Proof detail level to Review details."
+        return "Review proof ledgers and snapshot comparison." if proof_details_requested else "Open Proof review details."
     if selected_lane_key in DATA_HEALTH_BATCH_LANES:
         if not batch_details_requested:
-            return "Switch Batch execution detail level to Review details."
+            return "Open Batch execution review details."
         return str(getattr(batch_preflight, "packet_command", "") or "Build reviewed batch packet.")
     return "Choose a readiness lane."
 
