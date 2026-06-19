@@ -2358,7 +2358,7 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     assert "sell" not in rendered
 
 
-def test_home_route_choice_cards_warn_when_candidate_pages_should_stay_empty():
+def test_home_route_choice_cards_delegate_to_public_home_workflow_helper():
     cards = dashboard._plain_home_route_choice_cards(
         {
             "master_universe": 25,
@@ -2369,21 +2369,10 @@ def test_home_route_choice_cards_warn_when_candidate_pages_should_stay_empty():
             "analyst_estimates_ready": 0,
         }
     )
-    rendered = " ".join(str(value) for card in cards for value in card).lower()
 
     assert cards[0][0] == "Review one stock"
-    assert cards[1][0] == "Improve data coverage"
     assert cards[1][3] == "warning"
-    assert "choose any local ticker" in rendered
-    assert "ready, blocked, excluded, or monitor-only" in rendered
-    assert "open proof history first" in rendered
-    assert "candidate pages should stay empty when local data cannot support them" in rendered
-    assert "25 ticker(s) still need price coverage" in rendered
-    assert "broker" not in rendered
-    assert "order" not in rendered
-    assert "trading" not in rendered
-    assert "buy" not in rendered
-    assert "sell" not in rendered
+    assert cards[2][0] == "Inspect proof"
 
 
 def test_home_page_renders_evaluation_workflow_before_next_steps():

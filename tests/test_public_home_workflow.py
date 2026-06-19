@@ -2,6 +2,7 @@ from src.public_home_workflow import (
     public_home_first_30_second_cards,
     public_home_loop_cards,
     public_home_review_map_cards,
+    public_home_route_choice_cards,
     public_home_visitor_path_cards,
 )
 
@@ -123,6 +124,35 @@ def test_public_home_visitor_path_cards_show_four_step_public_loop_without_opera
     assert "without making visitors read raw csv tables first" in rendered
     assert "59 dcf-ready and 26 peer-ready" in rendered
     assert "changed states need rebuilt readiness and proof history before interpretation" in rendered
+    assert "make " not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_public_home_route_choice_cards_warn_when_candidate_pages_should_stay_empty():
+    cards = public_home_route_choice_cards(
+        {
+            "master_universe": 25,
+            "price_ready": 0,
+            "dcf_ready": 0,
+            "peer_ready": 0,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card).lower()
+
+    assert cards[0][0] == "Review one stock"
+    assert cards[1][0] == "Improve data coverage"
+    assert cards[1][3] == "warning"
+    assert "choose any local ticker" in rendered
+    assert "ready, blocked, excluded, or monitor-only" in rendered
+    assert "open proof history first" in rendered
+    assert "candidate pages should stay empty when local data cannot support them" in rendered
+    assert "25 ticker(s) still need price coverage" in rendered
     assert "make " not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

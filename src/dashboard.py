@@ -207,6 +207,7 @@ from src.public_home_workflow import (
     public_home_first_30_second_cards,
     public_home_loop_cards,
     public_home_review_map_cards,
+    public_home_route_choice_cards,
     public_home_visitor_path_cards,
 )
 from src.readiness_queue_dashboard import (
@@ -23207,66 +23208,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
 
 
 def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str, str, str, str]]:
-    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
-    price_ready = int(summary.get("price_ready") or 0)
-    dcf_ready = int(summary.get("dcf_ready") or 0)
-    peer_ready = int(summary.get("peer_ready") or 0)
-    earnings_ready = int(summary.get("earnings_ready") or 0)
-    estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
-
-    has_price_gap = bool(master and price_ready < master)
-    has_depth_gap = price_ready > dcf_ready or dcf_ready > peer_ready or earnings_ready == 0 or estimates_ready == 0
-    data_gap_count = max(master - price_ready, 0) if master else 0
-
-    review_body = "Start here for ticker-level review: choose any local ticker and read what is ready, blocked, excluded, or monitor-only."
-    if dcf_ready > 0:
-        review_body = (
-            f"Start here: {dcf_ready} ticker(s) have DCF-ready local inputs. Open a report, read supported sections first, then route locked fields to Data Health."
-        )
-    elif price_ready > 0:
-        review_body = (
-            f"Start here for ticker-level proof: {price_ready} ticker(s) can support setup review; valuation stays gated where trusted fundamentals are missing."
-        )
-
-    improve_body = (
-        "Use this when a section is locked. It shows the next trusted input, review path, validation boundary, and proof step."
-    )
-    improve_tone = "neutral"
-    if has_price_gap or has_depth_gap:
-        improve_tone = "warning"
-        gap_note = f"{data_gap_count:,} ticker(s) still need price coverage. " if data_gap_count else ""
-        improve_body = (
-            f"Best next for coverage: {gap_note}Open Data Health for the trusted-data pilot path; fundamentals, source-backed peers, earnings, and estimates remain gated until trusted local rows exist."
-        )
-
-    proof_body = (
-        "Check the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields before trusting a changed state."
-    )
-    if price_ready <= 0:
-        proof_body = "Open proof history first; candidate pages should stay empty when local data cannot support them."
-    elif has_depth_gap:
-        proof_body = "Use proof history to see why available price coverage does not automatically unlock fundamentals, peer valuation, earnings, or estimates."
-
-    return [
-        (
-            "Review one stock",
-            review_body,
-            "Single-Stock Report",
-            "neutral",
-        ),
-        (
-            "Improve data coverage",
-            improve_body,
-            "Data Health",
-            improve_tone,
-        ),
-        (
-            "Inspect proof",
-            proof_body,
-            "Data Health",
-            "neutral",
-        ),
-    ]
+    return public_home_route_choice_cards(summary)
 
 
 def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
