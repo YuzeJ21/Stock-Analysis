@@ -2087,7 +2087,7 @@ def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
     assert "sell" not in rendered
 
 
-def test_home_real_workflow_cards_connect_pages_without_demo_framing():
+def test_home_real_workflow_cards_delegate_to_public_home_workflow_helper():
     cards = dashboard._plain_home_real_workflow_cards(
         {
             "price_ready": 3538,
@@ -2097,23 +2097,10 @@ def test_home_real_workflow_cards_connect_pages_without_demo_framing():
             "analyst_estimates_ready": 0,
         }
     )
-    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["WORKFLOW 1", "WORKFLOW 2", "WORKFLOW 3", "WORKFLOW 4"]
-    assert "start with the live readiness snapshot" in rendered
-    assert "3,538 price-ready, 59 dcf-ready, and 26 peer-ready" in rendered
-    assert "review one ticker from the current state" in rendered
-    assert "workflow also works for any local ticker" in rendered
-    assert "route locked sections to data health" in rendered
-    assert "3,479 price-ready names still need trusted fundamentals" in rendered
-    assert "33 dcf-ready names still need peer inputs" in rendered
-    assert "record proof before trusting a changed state" in rendered
-    assert "demo" not in rendered
-    assert "broker" not in rendered
-    assert "order" not in rendered
-    assert "trading" not in rendered
-    assert "buy" not in rendered
-    assert "sell" not in rendered
+    assert cards[2]["title"] == "Route locked sections to Data Health"
+    assert cards[3]["title"] == "Record proof before trusting a changed state"
 
 
 def test_public_home_computes_freshness_before_loop_strip():

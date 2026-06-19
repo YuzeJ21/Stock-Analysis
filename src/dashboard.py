@@ -206,6 +206,7 @@ from src.pilot_readiness import (
 from src.public_home_workflow import (
     public_home_first_30_second_cards,
     public_home_loop_cards,
+    public_home_real_workflow_cards,
     public_home_review_map_cards,
     public_home_route_choice_cards,
     public_home_visitor_path_cards,
@@ -23013,57 +23014,7 @@ def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
 
 
 def _plain_home_real_workflow_cards(summary: dict[str, object]) -> list[dict[str, object]]:
-    price_ready = int(summary.get("price_ready") or 0)
-    dcf_ready = int(summary.get("dcf_ready") or 0)
-    peer_ready = int(summary.get("peer_ready") or 0)
-    earnings_ready = int(summary.get("earnings_ready") or 0)
-    estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
-    depth_locked = max(price_ready - dcf_ready, 0)
-    peer_locked = max(dcf_ready - peer_ready, 0)
-    optional_ready = earnings_ready + estimates_ready
-
-    return [
-        {
-            "kicker": "WORKFLOW 1",
-            "title": "Start with the live readiness snapshot",
-            "body": (
-                f"{price_ready:,} price-ready, {dcf_ready:,} DCF-ready, and {peer_ready:,} peer-ready names are available in the saved local snapshot. "
-                "Use this as the entry point before opening ticker pages or proof drawers."
-            ),
-            "badges": ["readiness first", "live local state"],
-            "command": "make status-check TOP_N=5",
-        },
-        {
-            "kicker": "WORKFLOW 2",
-            "title": "Review one ticker from the current state",
-            "body": (
-                "Open a Single-Stock Report to see ready, blocked, excluded, and monitor-only sections for one ticker. "
-                "Use example tickers only as state samples; the workflow also works for any local ticker."
-            ),
-            "badges": ["one ticker", "state-based"],
-            "command": "make stock-report-md TICKER=<ticker>",
-        },
-        {
-            "kicker": "WORKFLOW 3",
-            "title": "Route locked sections to Data Health",
-            "body": (
-                f"{depth_locked:,} price-ready names still need trusted fundamentals before deeper company review, and {peer_locked:,} DCF-ready names still need peer inputs. "
-                "Data Health shows the source-proof lane, stop rule, and copy-only next command."
-            ),
-            "badges": ["blocked stays visible", "source proof"],
-            "command": "make data-coverage-proof-queues TOP_N=10",
-        },
-        {
-            "kicker": "WORKFLOW 4",
-            "title": "Record proof before trusting a changed state",
-            "body": (
-                f"{optional_ready:,} optional earnings or estimate lanes have ready rows today; unavailable optional context stays locked. "
-                "After any reviewed data change, rebuild readiness and use proof history before reading the changed report."
-            ),
-            "badges": ["proof before interpretation", "research-only"],
-            "command": "make pilot-readiness-check TOP_N=10",
-        },
-    ]
+    return public_home_real_workflow_cards(summary)
 
 
 def _plain_home_first_run_path_cards() -> list[dict[str, object]]:

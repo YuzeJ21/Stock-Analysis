@@ -1,6 +1,7 @@
 from src.public_home_workflow import (
     public_home_first_30_second_cards,
     public_home_loop_cards,
+    public_home_real_workflow_cards,
     public_home_review_map_cards,
     public_home_route_choice_cards,
     public_home_visitor_path_cards,
@@ -56,6 +57,35 @@ def test_public_home_loop_cards_connect_public_workflow_without_commands_or_advi
     assert "blocked states remain visible" in rendered
     assert "blocked or excluded instead of filling the gap" in rendered
     assert "make " not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_public_home_real_workflow_cards_connect_pages_without_demo_framing():
+    cards = public_home_real_workflow_cards(
+        {
+            "price_ready": 3538,
+            "dcf_ready": 59,
+            "peer_ready": 26,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["WORKFLOW 1", "WORKFLOW 2", "WORKFLOW 3", "WORKFLOW 4"]
+    assert "start with the live readiness snapshot" in rendered
+    assert "3,538 price-ready, 59 dcf-ready, and 26 peer-ready" in rendered
+    assert "review one ticker from the current state" in rendered
+    assert "workflow also works for any local ticker" in rendered
+    assert "route locked sections to data health" in rendered
+    assert "3,479 price-ready names still need trusted fundamentals" in rendered
+    assert "33 dcf-ready names still need peer inputs" in rendered
+    assert "record proof before trusting a changed state" in rendered
+    assert "demo" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
