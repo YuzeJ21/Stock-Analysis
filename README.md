@@ -88,7 +88,7 @@ Start with the three paths the dashboard is built around:
 | Improve data coverage | You want to understand what trusted input is missing and how to add it safely. | `Data Health` |
 | Inspect proof | You want to see the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields. | `Data Health` |
 
-The dashboard starts in public visitor mode so people can follow the real workflow first: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public visitor mode in the sidebar when you want the internal operator views, detailed boards, and copy-only local commands. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
+The dashboard starts in public visitor mode so people can follow the real workflow first: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. A compact "Where am I in the research loop?" strip keeps the current step, previous proof, next safe action, and stop rule visible across the main workflow pages. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public visitor mode in the sidebar when you want the internal operator views, detailed boards, and copy-only local commands. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
 
 ## Quick Start
 

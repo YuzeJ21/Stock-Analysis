@@ -1217,6 +1217,95 @@ def test_dashboard_page_reader_summary_cards_keep_first_screen_compact():
     assert "sell" not in rendered
 
 
+def test_research_loop_strip_connects_current_proof_next_action_and_stop_rule():
+    rendered = dashboard.research_loop_strip_html(
+        current_step="Home readiness snapshot",
+        previous_proof="Saved readiness snapshot is current",
+        next_action="Open a Single-Stock Report",
+        stop_rule="Do not infer missing inputs",
+        current_note="3,538 price-ready / 59 DCF-ready / 26 peer-ready",
+        proof_note="Use this snapshot before opening ticker pages.",
+        action_note="Review one ticker, then route locked fields to Data Health.",
+        stop_note="Blocked and excluded states stay visible.",
+    ).lower()
+
+    assert "research-loop-strip" in rendered
+    assert "current step" in rendered
+    assert "previous proof" in rendered
+    assert "next safe action" in rendered
+    assert "stop rule" in rendered
+    assert "home readiness snapshot" in rendered
+    assert "saved readiness snapshot is current" in rendered
+    assert "open a single-stock report" in rendered
+    assert "do not infer missing inputs" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order routing" not in rendered
+
+
+def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
+    freshness = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
+    stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
+    summary = {"price_ready": 3538, "dcf_ready": 59, "peer_ready": 26}
+
+    home = dashboard.home_research_loop_context(summary, freshness)
+    home_stale = dashboard.home_research_loop_context(summary, stale)
+    pre_report = dashboard.single_stock_research_loop_context("NVDA")
+    loaded_report = dashboard.single_stock_research_loop_context(
+        "NVDA",
+        {
+            "analysis_mode": "DCF-ready review",
+            "valuation_readiness": {"status": "ready"},
+        },
+    )
+    data_health = dashboard.data_health_research_loop_context(
+        selected_lane_key="fundamentals",
+        readiness_freshness=stale,
+        next_action="make readiness",
+        public_mode=False,
+    )
+
+    assert home["current_step"] == "Home readiness snapshot"
+    assert "3,538 price-ready / 59 DCF-ready / 26 peer-ready" in home["current_note"]
+    assert home["next_action"] == "Open a Single-Stock Report"
+    assert home_stale["previous_proof"] == "Saved readiness snapshot needs refresh"
+    assert home_stale["proof_note"] == "make readiness"
+    assert pre_report["current_step"] == "Single-Stock Report"
+    assert "Selected ticker: NVDA" in pre_report["current_note"]
+    assert pre_report["next_action"] == "Show Local Report"
+    assert loaded_report["current_step"] == "NVDA report review"
+    assert loaded_report["next_action"] == "Read Best Review Path before detailed tabs"
+    assert data_health["current_step"] == "Data Health source-proof lane"
+    assert data_health["current_note"] == "Fundamentals / DCF"
+    assert data_health["previous_proof"] == "Readiness snapshot needs refresh"
+    assert data_health["next_action"] == "make readiness"
+    rendered = " ".join(" ".join(value.values()) for value in [home, pre_report, loaded_report, data_health]).lower()
+    assert "recommendation" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "render_research_loop_strip(**home_research_loop_context(summary, freshness))" in source
+    assert "render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))" in source
+    assert source.count("data_health_research_loop_context(") >= 2
+    home_loop_index = source.index("render_research_loop_strip(**home_research_loop_context(summary, freshness))")
+    home_workflow_index = source.index('render_section_header(\n        "Research Workflow"')
+    single_stock_button_index = source.index('if st.button("Show Local Report"')
+    single_stock_loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
+    data_health_nav_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
+    data_health_loop_index = source.index("render_research_loop_strip(\n        **data_health_research_loop_context(", data_health_nav_index)
+    data_health_mode_index = source.index("render_data_health_current_mode_strip(", data_health_nav_index)
+
+    assert home_loop_index < home_workflow_index
+    assert single_stock_button_index < single_stock_loop_index
+    assert data_health_nav_index < data_health_loop_index < data_health_mode_index
+
+
 def test_major_dashboard_pages_avoid_duplicate_reader_guides():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

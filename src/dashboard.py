@@ -3074,6 +3074,55 @@ def apply_dashboard_theme() -> None:
           background: #ecfdf5;
           border-color: rgba(15, 118, 110, 0.18);
         }
+        .research-loop-strip {
+          display: grid;
+          grid-template-columns: minmax(8rem, 0.72fr) minmax(9rem, 0.88fr) minmax(13rem, 1.35fr) minmax(10rem, 1fr);
+          gap: 0.42rem;
+          align-items: stretch;
+          margin: 0.45rem 0 0.82rem 0;
+          padding: 0.42rem;
+          border: 1px solid rgba(15, 118, 110, 0.16);
+          border-radius: var(--research-radius);
+          background: #ffffff;
+          box-shadow: var(--research-shadow-soft);
+        }
+        .research-loop-item {
+          min-width: 0;
+          border: 1px solid rgba(148, 163, 184, 0.20);
+          border-radius: var(--research-radius-sm);
+          background: #f8faf7;
+          padding: 0.5rem 0.58rem;
+        }
+        .research-loop-item.action {
+          background: #ecfdf5;
+          border-color: rgba(15, 118, 110, 0.18);
+        }
+        .research-loop-item.stop {
+          background: #fff7ed;
+          border-color: rgba(217, 119, 6, 0.20);
+        }
+        .research-loop-label {
+          color: #64748b;
+          font-size: 0.62rem;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .research-loop-value {
+          color: #10201d;
+          font-size: 0.84rem;
+          font-weight: 930;
+          line-height: 1.18;
+          margin-top: 0.14rem;
+          overflow-wrap: anywhere;
+        }
+        .research-loop-note {
+          color: #526071;
+          font-size: 0.72rem;
+          line-height: 1.28;
+          margin-top: 0.18rem;
+          overflow-wrap: anywhere;
+        }
         .pilot-flow {
           margin: 0.42rem 0 0.68rem 0;
           padding: 0.56rem;
@@ -3355,6 +3404,10 @@ def apply_dashboard_theme() -> None:
           .ops-mode-strip {
             grid-template-columns: 1fr;
             margin-top: -0.3rem;
+          }
+          .research-loop-strip {
+            grid-template-columns: 1fr;
+            margin-top: 0.35rem;
           }
           .pilot-flow {
             padding: 0.46rem;
@@ -3976,6 +4029,146 @@ def context_note_html(title: str, body: str, tone: str = "neutral") -> str:
 
 def render_context_note(title: str, body: str, tone: str = "neutral") -> None:
     st.markdown(context_note_html(title, body, tone), unsafe_allow_html=True)
+
+
+def research_loop_strip_html(
+    *,
+    current_step: str,
+    previous_proof: str,
+    next_action: str,
+    stop_rule: str,
+    current_note: str = "",
+    proof_note: str = "",
+    action_note: str = "",
+    stop_note: str = "",
+) -> str:
+    """Compact cross-page orientation strip for the readiness-first research loop."""
+
+    items = [
+        ("Current step", current_step, current_note, ""),
+        ("Previous proof", previous_proof, proof_note, ""),
+        ("Next safe action", next_action, action_note, "action"),
+        ("Stop rule", stop_rule, stop_note, "stop"),
+    ]
+    item_html = []
+    for label, value, note, class_name in items:
+        note_html = f"<div class='research-loop-note'>{html.escape(note)}</div>" if note else ""
+        class_attr = f"research-loop-item {class_name}".strip()
+        item_html.append(
+            f"<div class='{class_attr}'>"
+            f"<div class='research-loop-label'>{html.escape(label)}</div>"
+            f"<div class='research-loop-value'>{html.escape(value)}</div>"
+            f"{note_html}"
+            "</div>"
+        )
+    return "<div class='research-loop-strip'>" + "".join(item_html) + "</div>"
+
+
+def render_research_loop_strip(
+    *,
+    current_step: str,
+    previous_proof: str,
+    next_action: str,
+    stop_rule: str,
+    current_note: str = "",
+    proof_note: str = "",
+    action_note: str = "",
+    stop_note: str = "",
+) -> None:
+    st.markdown(
+        research_loop_strip_html(
+            current_step=current_step,
+            previous_proof=previous_proof,
+            next_action=next_action,
+            stop_rule=stop_rule,
+            current_note=current_note,
+            proof_note=proof_note,
+            action_note=action_note,
+            stop_note=stop_note,
+        ),
+        unsafe_allow_html=True,
+    )
+
+
+def home_research_loop_context(summary: dict[str, object], freshness: FreshnessStatus) -> dict[str, str]:
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    current_state = f"{int(summary.get('price_ready') or 0):,} price-ready / {dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready"
+    proof_state = "Saved readiness snapshot is current" if freshness.status == "current" else "Saved readiness snapshot needs refresh"
+    proof_note = "Use this snapshot before opening ticker pages." if freshness.status == "current" else freshness.refresh_command
+    next_action = "Open a Single-Stock Report"
+    if dcf_ready <= 0:
+        next_action = "Open Data Health source-proof lanes"
+    return {
+        "current_step": "Home readiness snapshot",
+        "current_note": current_state,
+        "previous_proof": proof_state,
+        "proof_note": proof_note,
+        "next_action": next_action,
+        "action_note": "Review one ticker, then route locked fields to Data Health.",
+        "stop_rule": "Do not infer missing inputs",
+        "stop_note": "Blocked, partial, and excluded states stay visible until source proof changes readiness.",
+    }
+
+
+def single_stock_research_loop_context(ticker: str, report_payload: dict[str, object] | None = None) -> dict[str, str]:
+    ticker_label = format_missing(ticker, "selected ticker").upper()
+    if report_payload:
+        readiness = report_payload.get("valuation_readiness", {})
+        mode = first_meaningful_text(
+            report_payload.get("analysis_mode"),
+            report_payload.get("mode"),
+            report_payload.get("decision_subtype"),
+            fallback="local report",
+        )
+        dcf_state = format_missing(readiness.get("status") if isinstance(readiness, dict) else "", "")
+        next_action = f"Open Data Health if {ticker_label} has locked fields"
+        if dcf_state.lower() in {"ready", "excluded"}:
+            next_action = "Read Best Review Path before detailed tabs"
+        proof_note = "At A Glance and Reader Guide summarize ready, blocked, excluded, and monitor-only sections."
+        return {
+            "current_step": f"{ticker_label} report review",
+            "current_note": f"Mode: {format_missing(mode, 'local report')}",
+            "previous_proof": "Local readiness row and report payload",
+            "proof_note": proof_note,
+            "next_action": next_action,
+            "action_note": "If a field is locked, continue in Data Health before trusting deeper analysis.",
+            "stop_rule": "Do not read locked sections as conclusions",
+            "stop_note": "Valuation, peers, metrics, earnings, and estimates stay withheld until trusted inputs exist.",
+        }
+    return {
+        "current_step": "Single-Stock Report",
+        "current_note": f"Selected ticker: {ticker_label}",
+        "previous_proof": "Home readiness snapshot",
+        "proof_note": "Use saved readiness counts to understand whether this ticker can support deeper review.",
+        "next_action": "Show Local Report",
+        "action_note": "Read At A Glance first; then use Data Health for any locked input.",
+        "stop_rule": "No report, no interpretation",
+        "stop_note": "Do not use optional online lookup or missing local rows as proof.",
+    }
+
+
+def data_health_research_loop_context(
+    *,
+    selected_lane_key: str,
+    readiness_freshness: FreshnessStatus,
+    next_action: str,
+    public_mode: bool,
+) -> dict[str, str]:
+    lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, DATA_HEALTH_OPERATOR_LANES["prices"])
+    if public_mode:
+        lane_label = "Public readiness summary"
+    proof_state = "Readiness snapshot is current" if readiness_freshness.status == "current" else "Readiness snapshot needs refresh"
+    return {
+        "current_step": "Data Health source-proof lane",
+        "current_note": lane_label,
+        "previous_proof": proof_state,
+        "proof_note": readiness_freshness.message,
+        "next_action": friendly_dashboard_card_copy(next_action),
+        "action_note": "Commands stay copy-only and collapsed; validate and preview before any reviewed apply step.",
+        "stop_rule": "Stop before apply without reviewed proof",
+        "stop_note": "Missing source rows, stale snapshots, rejected rows, or placeholder fields keep the lane blocked.",
+    }
 
 
 def chart_panel_title(title: str) -> str:
@@ -24521,6 +24714,7 @@ def render_home_page(
             freshness.refresh_command,
             tone="warning",
         )
+    render_research_loop_strip(**home_research_loop_context(summary, freshness))
 
     render_section_header(
         "Research Workflow",
@@ -24845,6 +25039,9 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     provider_name = "yfinance" if use_yfinance else "local"
     coverage = pd.DataFrame()
     peer_summary: dict[str, object] = {}
+    report_payload = st.session_state.get("single_stock_report_payload")
+    if st.session_state.get("single_stock_report_ticker") != ticker:
+        report_payload = None
 
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
@@ -24894,6 +25091,9 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                 st.warning(str(exc))
 
     report_payload = st.session_state.get("single_stock_report_payload")
+    if st.session_state.get("single_stock_report_ticker") != ticker:
+        report_payload = None
+    render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))
     if not report_payload:
         return
 
@@ -25883,6 +26083,14 @@ def render_data_health(
             "Start with the three visitor paths. Open the evidence drawer only when you want readiness proof; switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
             tone="success",
         )
+        render_research_loop_strip(
+            **data_health_research_loop_context(
+                selected_lane_key=selected_lane_key,
+                readiness_freshness=readiness_freshness,
+                next_action="Open the public evidence drawer",
+                public_mode=True,
+            )
+        )
         render_section_header("Visitor Paths", "Choose the clean public path before opening proof or operator details.")
         render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
         with st.expander("Public evidence drawer", expanded=False):
@@ -26020,6 +26228,21 @@ def render_data_health(
     render_data_health_operator_hero(operator_snapshot_cards)
     render_data_health_operator_queue_header()
     render_data_health_operator_lane_nav(selected_lane_key)
+    render_research_loop_strip(
+        **data_health_research_loop_context(
+            selected_lane_key=selected_lane_key,
+            readiness_freshness=readiness_freshness,
+            next_action=data_health_current_mode_next_action(
+                selected_lane_key,
+                batch_details_requested=batch_details_requested,
+                metric_detail_status=metric_detail_status,
+                proof_details_requested=proof_details_requested,
+                readiness_freshness=readiness_freshness,
+                batch_preflight=batch_preflight,
+            ),
+            public_mode=False,
+        )
+    )
     render_data_health_current_mode_strip(
         selected_lane_key=selected_lane_key,
         queue_details_requested=queue_details_requested,
