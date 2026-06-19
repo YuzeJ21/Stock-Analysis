@@ -80,6 +80,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Trusted Fundamentals Proof Loop UX V3 so DCF source review shows source fields -> guard -> validate/preview -> apply/skip -> proof-record route cards before source tables.
 - [x] Trusted Fundamentals Proof Loop UX V4 so the DCF evidence drawer starts with an operator summary of selected blocker family, current gate, guard/proof status, next safe action, and stop rule before lower source tables.
 - [x] Peer Proof Operator Summary V1 so the peer evidence drawer starts with selected scope, current source-review gate, latest ledger status, next safe action, and stop rule before lower peer source/proof tables.
+- [x] Peer Proof Operator Summary Extraction V1 so the peer first-read summary logic lives in a focused tested helper while Streamlit remains the rendering layer.
 - [x] Universe Scope Guide V1 so market-wide review starts with master vs active vs analysis-ready counts, safe row-limited filters, single-stock lookup boundaries, and the no broad-conclusions stop rule before the Readiness Explorer.
 - [x] Risk Context Workflow Extraction V1 so liquidity/correlation readiness and volatility-proxy approximation cards live in a focused tested helper while Data Health keeps raw risk tables collapsed.
 
