@@ -13953,6 +13953,118 @@ def data_health_peer_proof_completion_checklist_cards(
     ]
 
 
+def data_health_peer_operator_summary_frame(
+    packet: PeerMappingSourceReviewPacket | None,
+    batch_proof_frame: pd.DataFrame | None,
+    comparison: ReadinessComparison | None = None,
+) -> pd.DataFrame:
+    columns = ["Question", "Status", "Answer", "Next Safe Action", "Boundary"]
+    if packet is None:
+        return pd.DataFrame(
+            [
+                {
+                    "Question": "Where am I?",
+                    "Status": "missing_packet",
+                    "Answer": "Peer source-review packet is not loaded.",
+                    "Next Safe Action": "make readiness && make peer-mapping-source-review TOP_N=10",
+                    "Boundary": "Rebuild readiness and source-review rows before planning peer proof.",
+                }
+            ],
+            columns=columns,
+        )
+
+    checklist = data_health_peer_proof_completion_checklist_frame(packet, batch_proof_frame)
+    outcome = data_health_peer_proof_loop_outcome_frame(packet, batch_proof_frame, comparison)
+    blocking = checklist.loc[
+        ~checklist["Status"].astype(str).str.lower().isin(
+            {"current", "fresh", "ready_for_validate_preview", "copy_only_gate", "ready_for_review_fields", "supported"}
+        )
+    ]
+    current = blocking.iloc[0] if not blocking.empty else checklist.iloc[-1]
+    latest_rows = outcome.loc[outcome["Proof Loop Step"].eq("Latest peer ledger outcome")] if not outcome.empty else pd.DataFrame()
+    latest = latest_rows.iloc[0] if not latest_rows.empty else pd.Series(dtype=object)
+    tickers = ", ".join(packet.tickers[:10]) if packet.tickers else "no selected peer tickers"
+    source_rows = len(packet.rows)
+    return pd.DataFrame(
+        [
+            {
+                "Question": "What is selected?",
+                "Status": packet.freshness.status,
+                "Answer": f"{source_rows:,} peer source-review slot(s); tickers: {compact_card_fragment(tickers, max_chars=180)}.",
+                "Next Safe Action": f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}",
+                "Boundary": "Peer source review plans reviewed rows only; it does not infer comparable companies.",
+            },
+            {
+                "Question": "What is the current gate?",
+                "Status": format_missing(current.get("Status"), "blocked"),
+                "Answer": (
+                    f"{format_missing(current.get('Checklist Item'), 'Finish peer proof')}: "
+                    f"{compact_card_fragment(current.get('Need Before Proceeding'), max_chars=210)}"
+                ),
+                "Next Safe Action": format_missing(current.get("Next Safest Action"), "make peer-mapping-source-review TOP_N=10"),
+                "Boundary": format_missing(current.get("Stop Rule"), "Keep peer valuation blocked until source-backed proof is reviewed."),
+            },
+            {
+                "Question": "What proof exists?",
+                "Status": format_missing(latest.get("Status"), "not_recorded"),
+                "Answer": compact_card_fragment(latest.get("Detail"), fallback="No peer reviewed batch proof row recorded yet.", max_chars=220),
+                "Next Safe Action": format_missing(latest.get("Next Safe Action"), "make reviewed-batch-proof"),
+                "Boundary": "Latest ledger outcome is readiness proof only; it is not a ranking, recommendation, or trading instruction.",
+            },
+            {
+                "Question": "When must I stop?",
+                "Status": "stop_rule",
+                "Answer": "Stop if source proof, write-back guard, validation, preview, explicit apply/skip decision, rebuilt readiness, source files, changed counts, or generated-artifact review is missing.",
+                "Next Safe Action": "Keep peer mapping still_blocked or skipped until reviewed proof exists.",
+                "Boundary": "No peer-relative valuation unlock and no supported proof outcome without source-backed review.",
+            },
+        ],
+        columns=columns,
+    )
+
+
+def data_health_peer_operator_summary_cards(
+    packet: PeerMappingSourceReviewPacket | None,
+    batch_proof_frame: pd.DataFrame | None,
+    comparison: ReadinessComparison | None = None,
+) -> list[dict[str, object]]:
+    summary = data_health_peer_operator_summary_frame(packet, batch_proof_frame, comparison)
+    if summary.empty:
+        return [
+            {
+                "kicker": "PEER OPERATOR SUMMARY",
+                "title": "No peer proof summary loaded",
+                "body": "Build the peer source-review packet before opening source-review, guard, validation, proof-record, or ledger details.",
+                "badges": ["blocked visible", "no inferred peers"],
+                "command": "make peer-mapping-source-review TOP_N=10",
+            }
+        ]
+    current_rows = summary.loc[summary["Question"].astype(str).eq("What is the current gate?")]
+    stop_rows = summary.loc[summary["Question"].astype(str).eq("When must I stop?")]
+    current = current_rows.iloc[0] if not current_rows.empty else summary.iloc[0]
+    stop = stop_rows.iloc[0] if not stop_rows.empty else summary.iloc[-1]
+    return [
+        {
+            "kicker": "PEER OPERATOR SUMMARY",
+            "title": f"Current gate: {format_missing(current.get('Status'), 'blocked')}",
+            "body": (
+                f"{card_sentence('Need', compact_card_fragment(current.get('Answer'), max_chars=210))} "
+                f"{card_sentence('Boundary', compact_card_fragment(current.get('Boundary'), max_chars=190))} "
+                "Use this first-read summary before lower peer source tables."
+            ),
+            "badges": ["first read", "source-backed only"],
+            "command": format_missing(current.get("Next Safe Action"), "make peer-mapping-source-review TOP_N=10"),
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "Keep peer valuation locked",
+            "body": compact_card_fragment(stop.get("Answer"), max_chars=260),
+            "badges": ["no inferred peers", "research-only"],
+            "command": format_missing(stop.get("Next Safe Action"), "Keep peer mapping still_blocked until proof is reviewed."),
+        },
+    ]
+
+
 def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | None = None) -> pd.DataFrame:
     ticker = str(next_ticker or "").strip().upper()
     has_ticker = bool(ticker and ticker not in {"NOT AVAILABLE", "NONE", "NAN"})
@@ -27486,6 +27598,17 @@ def render_data_health(
             render_signal_cards(
                 data_health_peer_readiness_v2_cards(ops_center) + data_health_trusted_pilot_lane_cards(lane_board),
                 show_commands=False,
+            )
+            render_section_header("Peer Operator Summary", "Current peer source-review gate, latest proof status, next safe action, and stop rule before detailed peer proof drawers.")
+            render_signal_cards(
+                data_health_peer_operator_summary_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
+                show_commands=False,
+                variant="queue",
+            )
+            st.dataframe(
+                clean_display_frame(data_health_peer_operator_summary_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)),
+                width="stretch",
+                hide_index=True,
             )
             render_section_header("Peer Source-Review Intake", "Fill source proof before editing peer import rows; peer valuation stays locked until rebuilt readiness proves inputs.")
             render_signal_cards(data_health_peer_source_review_cards(peer_source_review_packet))

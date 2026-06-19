@@ -20922,6 +20922,62 @@ def test_peer_proof_completion_checklist_summarizes_missing_steps_before_tables(
     assert "sell now" not in rendered
 
 
+def test_peer_operator_summary_surfaces_current_gate_before_peer_tables(tmp_path: Path):
+    packet = dashboard.build_peer_mapping_source_review_packet(_peer_source_review_root(tmp_path), top_n=1)
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-PEERS",
+                "Review Date": "2026-06-17",
+                "Lane": "peer_mapping",
+                "Final Outcome": "still_blocked",
+                "Changed Readiness Counts": "none; source rows still need review",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=3538,
+        after_rows=3538,
+        changed_tickers=("META",),
+        changed_count=1,
+        changed_readiness_counts="peer_ready (not_ready: 1->0; ready: 0->1)",
+        freshness_status="current",
+        freshness_message="readiness artifacts are current",
+        blocking_message="",
+    )
+
+    summary = dashboard.data_health_peer_operator_summary_frame(packet, ledger, comparison)
+    cards = dashboard.data_health_peer_operator_summary_cards(packet, ledger, comparison)
+    rendered = " ".join(
+        summary.astype(str).to_numpy().flatten().tolist()
+        + [str(value) for card in cards for value in card.values()]
+    ).lower()
+
+    assert summary["Question"].tolist() == [
+        "What is selected?",
+        "What is the current gate?",
+        "What proof exists?",
+        "When must I stop?",
+    ]
+    assert summary.iloc[0]["Status"] == "current"
+    assert "2 peer source-review slot(s)" in summary.iloc[0]["Answer"]
+    assert "tickers: meta" in summary.iloc[0]["Answer"].lower()
+    assert summary.iloc[1]["Status"] == "needs_field_fills"
+    assert "fill peer source-review fields" in summary.iloc[1]["Answer"].lower()
+    assert "proposed_peer_ticker" in summary.iloc[1]["Answer"]
+    assert summary.iloc[2]["Status"] == "still_blocked"
+    assert "RB-PEERS" in summary.iloc[2]["Answer"]
+    assert cards[0]["title"] == "Current gate: needs_field_fills"
+    assert "use this first-read summary before lower peer source tables" in rendered
+    assert "keep peer valuation locked" in rendered
+    assert "no peer-relative valuation unlock" in rendered
+    assert "buy now" not in rendered
+    assert "sell now" not in rendered
+
+
 def test_peer_proof_loop_outcome_blocks_stale_readiness(tmp_path: Path):
     root = _peer_source_review_root(tmp_path)
     source = root / "data" / "peers.csv"
@@ -20944,6 +21000,9 @@ def test_peer_proof_loop_outcome_blocks_stale_readiness(tmp_path: Path):
 def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    operator_summary_index = source.index('render_section_header("Peer Operator Summary"')
+    operator_summary_cards_index = source.index("data_health_peer_operator_summary_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)", operator_summary_index)
+    operator_summary_frame_index = source.index("data_health_peer_operator_summary_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)", operator_summary_cards_index)
     source_review_index = source.index('render_section_header("Peer Source-Review Intake"')
     source_review_cards_index = source.index("data_health_peer_source_review_cards(peer_source_review_packet)")
     planner_index = source.index('render_section_header("Peer Proof Batch Planner"', source_review_cards_index)
@@ -20962,7 +21021,10 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
     matrix_index = source.index('render_section_header("Peer Readiness Sub-State Matrix"')
 
     assert (
-        source_review_index
+        operator_summary_index
+        < operator_summary_cards_index
+        < operator_summary_frame_index
+        < source_review_index
         < source_review_cards_index
         < planner_index
         < planner_cards_index
@@ -20980,6 +21042,9 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
         < matrix_index
     )
     assert "peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)" in source
+    assert "Peer Operator Summary" in source
+    assert "data_health_peer_operator_summary_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)" in source
+    assert "data_health_peer_operator_summary_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)" in source
     assert "Peer Proof Batch Planner" in source
     assert "data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_summary_frame)" in source
     assert "data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_summary_frame)" in source
