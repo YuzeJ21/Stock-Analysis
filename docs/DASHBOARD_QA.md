@@ -4,7 +4,7 @@ This file records lightweight browser QA evidence for public-facing dashboard po
 
 ## 2026-06-19 Browser QA Evidence V2
 
-Added a route-level manual QA checklist to `make browser-qa-evidence`.
+Added route-level manual QA and local capture checklists to `make browser-qa-evidence`.
 
 Use it after starting the dashboard locally:
 
@@ -13,19 +13,46 @@ make dashboard
 make browser-qa-evidence
 ```
 
-The command remains read-only. It checks committed screenshot assets and prints route checks for:
+The command remains read-only. It checks committed screenshot assets, prints exact
+local capture targets, and lists route checks for:
 
 - Public visitor home.
-- Single-stock public path.
+- Single-stock workflow fit.
 - Data Health operator fast view.
 - Data Health metrics review.
-- Data Health proof history.
+- Data Health proof lane progressive load.
+- Data Health proof history detail.
+- Data Health queue drawer routing.
+
+The command separates committed real screenshot assets from newer route
+screenshots that still need manual capture. A
+`ready_with_manual_capture_pending` verdict means the existing committed assets
+are usable, while the Single-Stock Workflow Fit, Data Health proof lane, and
+Data Health queue drawer screenshots should still be captured in a normal local
+browser before replacing GitHub or LinkedIn visuals. Do not use generated
+thumbnails as proof of product state.
+
+Local capture checklist:
+
+- Start the app with `make dashboard` in a normal local terminal.
+- Open each route printed under `Local Capture Checklist`.
+- Save only real app screenshots to the listed `docs/assets/...` path.
+- Keep the asset only if the first view shows the expected markers and no traceback, raw tables first, command-heavy public copy, or missing guardrails.
+- Re-run `make browser-qa-evidence`, `make public-check`, and `make diff-hygiene-summary`.
 
 Review boundary:
 
 - First view should show the workflow strip, current mode, readiness snapshot, and next safe action.
+- Single-stock should show selected ticker state, what can be reviewed now, what is blocked or excluded, the Data Health handoff, and a stop rule before detailed report sections.
+- Proof lane first view should show an intentional shell/loading boundary, not an empty page or expanded ledger.
+- Queue drawer routes should be navigation-only and should not run commands or imply generated churn belongs in a default staging set.
 - Raw tables, proof rows, generated-artifact lists, and command-heavy details should stay collapsed until the relevant review route or drawer is opened.
 - Missing source inputs stay blocked; browser evidence does not unlock fundamentals, peers, earnings, analyst estimates, valuation inputs, or metrics.
+
+Capture blocker:
+
+- In the restricted local QA environment, `make dashboard` could not bind the local Streamlit socket (`PermissionError: [Errno 1] Operation not permitted`), so new screenshot capture remains environment-limited for this pass.
+- Keep using the existing real committed assets until a normal local browser can recapture the Single-Stock Workflow Fit, proof-lane progressive-load, and queue-drawer-routing screenshots.
 
 ## 2026-06-19 Browser QA Evidence V1
 

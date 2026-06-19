@@ -741,7 +741,10 @@ def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
     assert "?mode=operator&page=data-health&lane=proof&drawer=proof-record" in rendered
     assert "navigation-only" in rendered
     assert "you do not need to open proof history first" in rendered_cards
-    assert "open the right review surface" in rendered_cards
+    assert "follow the lane route chain" in rendered_cards
+    assert "comparison drawer" in rendered_cards
+    assert "proof-record drawer" in rendered_cards
+    assert "artifact drawer" in rendered_cards
     assert "dashboard does not run commands or write data" in rendered_cards
     assert "research-only" in rendered_cards
     assert "buy" not in rendered
@@ -1832,14 +1835,24 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     drilldown_header_index = source.index('render_section_header("Single-Stock Drilldown"')
     ticker_note_index = source.index('render_context_note(\n        "One ticker at a time."', drilldown_header_index)
     snapshot_index = source.index("snapshot = single_stock_readiness_snapshot", drilldown_header_index)
+    workflow_fit_index = source.index('render_section_header(\n        "Where This Ticker Fits"', snapshot_index)
+    workflow_cards_index = source.index("render_signal_cards(single_stock_workflow_fit_cards(snapshot))", workflow_fit_index)
+    quick_read_index = source.index('render_section_header("Single-Stock Quick Read"', workflow_fit_index)
+    source_table_expander_index = source.index('st.expander("Single-stock source readiness table", expanded=False)', quick_read_index)
+    detail_expander_index = source.index('st.expander("Single-stock detailed fields", expanded=False)', source_table_expander_index)
 
     assert explorer_header_index < table_guide_index < filter_index
     assert drilldown_header_index < ticker_note_index < snapshot_index
+    assert snapshot_index < workflow_fit_index < workflow_cards_index < quick_read_index
+    assert quick_read_index < source_table_expander_index < detail_expander_index
     assert "missing rows are not analysis conclusions" in source
     assert "next copy-only command" in source
+    assert "Selected ticker, review-now scope, blocked or excluded inputs, Data Health handoff, and stop rule before raw details." in source
     assert "How The App Uses Trusted Data" in source
     assert "Source Vs Product Logic" not in source
     assert "full-table dumps" not in source
+    assert 'st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)' in source
+    assert 'st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)' in source
 
 
 def test_public_dashboard_quality_labels_avoid_internal_audit_language():
@@ -2055,6 +2068,35 @@ def test_home_real_workflow_cards_connect_pages_without_demo_framing():
     assert "sell" not in rendered
 
 
+def test_home_public_loop_cards_connect_first_scan_without_commands_or_demo_framing():
+    cards = dashboard._plain_home_public_loop_cards(
+        {
+            "master_universe": 3538,
+            "price_ready": 3538,
+            "dcf_ready": 59,
+            "peer_ready": 26,
+            "blocked_by_data": 3479,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["READ THIS FIRST", "CONNECTED PATH", "STOP RULE"]
+    assert "3,538/3,538 tracked names have price coverage" in rendered
+    assert "59 are dcf-ready and 26 are peer-ready" in rendered
+    assert "home -> one ticker -> data health -> proof history" in rendered
+    assert "single-stock report shows what can be reviewed now" in rendered
+    assert "proof history is checked before trusting a changed state" in rendered
+    assert "3,479 blocked states remain visible" in rendered
+    assert "keeps the section blocked or excluded instead of filling the gap" in rendered
+    assert "make " not in rendered
+    assert "demo" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_home_current_data_coverage_cards_show_public_snapshot_and_unlock_paths():
     cards = dashboard._plain_home_current_data_coverage_cards(
         {
@@ -2105,6 +2147,10 @@ def test_home_current_data_coverage_cards_show_public_snapshot_and_unlock_paths(
 def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
+    public_loop_index = source.index("render_signal_cards(_plain_home_public_loop_cards(summary), show_commands=False)")
+    visitor_path_index = source.index('render_section_header(\n            "Visitor Path"', public_loop_index)
+    visitor_path_cards_index = source.index("render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False)", visitor_path_index)
     workflow_spine_index = source.index('render_section_header(\n        "Research Workflow"')
     next_step_index = source.index('render_section_header("What To Do Next"')
     example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
@@ -2114,14 +2160,17 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
 
-    assert workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
+    assert proof_strip_index < public_loop_index < visitor_path_index < visitor_path_cards_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
+    assert "The same loop in four steps: current readiness, one ticker, source-proof lane, then proof history." in source
     assert "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)" in source
+    assert "render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False)" in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_public_loop_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4] if public_mode else _plain_home_next_step_cards(summary), show_commands=False)" in source
     assert "render_public_proof_strip(_public_home_snapshot_items(summary))" in source
 
@@ -9835,7 +9884,8 @@ def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_hando
     assert "peer-relative valuation remains withheld" in rendered
     assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
     assert "peers source-proof lane" in rendered
-    assert "copy-only next command: make focus-peers ticker=a" in rendered
+    assert "next command remains copy-only" in rendered
+    assert "make focus-peers ticker=a" in rendered
     assert "stop if peer mappings or peer valuation inputs lack source-backed rows" in rendered
     assert "navigation-only" in rendered
     assert "research-only" in rendered
@@ -9863,7 +9913,8 @@ def test_stock_report_workflow_fit_cards_route_price_setup_to_fundamentals_lane(
     assert "company valuation remains blocked" in rendered
     assert "?mode=operator&page=data-health&lane=fundamentals&drawer=source-proof" in rendered
     assert "fundamentals / dcf source-proof lane" in rendered
-    assert "copy-only next command: make focus-fundamentals ticker=meta" in rendered
+    assert "next command remains copy-only" in rendered
+    assert "make focus-fundamentals ticker=meta" in rendered
     assert "stop if fundamentals, shares, market cap, or dcf inputs would be inferred" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13158,8 +13209,13 @@ def test_dcf_proof_batch_planner_selects_top_family_and_keeps_stop_rule_visible(
     assert "dry_run=1 make reviewed-batch-proof-record" in rendered
     assert "changed counts, changed tickers, source files" in rendered
     assert "stop if shares_outstanding is unavailable" in rendered
-    assert cards[0]["title"] == "shares_outstanding: 2 selected row(s)"
-    assert cards[0]["command"] == "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META"
+    assert cards[0]["title"] == "Review source -> preview row -> decide -> record proof"
+    assert cards[0]["command"] == "make dcf-input-proof-queue TOP_N=10"
+    assert cards[1]["title"] == "shares_outstanding: 2 selected row(s)"
+    assert cards[1]["command"] == "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META"
+    assert "source review, evidence intake, source guard, validate, preview" in rendered
+    assert "apply/skip decision, rebuilt readiness, then proof-record dry run" in rendered
+    assert "do not write canonical fundamentals by default" in rendered
     assert "capped proof" in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered
@@ -13942,6 +13998,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_dcf_proof_batch_planner_cards(dcf_input_queue, dcf_family_selection)" in source
     assert "data_health_dcf_proof_batch_planner_frame(dcf_input_queue, dcf_family_selection)" in source
     assert "Trusted Fundamentals Source Packet" in source
+    assert "DCF Source Loop Checklist" in source
+    assert "data_health_dcf_source_loop_checklist_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
+    assert "data_health_dcf_source_loop_checklist_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "DCF Source Review Triage" in source
     assert "data_health_dcf_source_command_triage_cards(dcf_input_queue_filtered, dcf_family_selection)" in source
     assert "data_health_dcf_source_command_triage_frame(dcf_input_queue_filtered, dcf_family_selection)" in source
@@ -13991,7 +14050,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     dcf_checklist_index = source.index('render_section_header("Finish This DCF Proof"', dcf_queue_cards_index)
     dcf_checklist_cards_index = source.index("data_health_dcf_proof_source_review_checklist_cards(", dcf_checklist_index)
     dcf_checklist_frame_index = source.index("data_health_dcf_proof_source_review_checklist_frame(", dcf_checklist_cards_index)
-    dcf_triage_index = source.index('render_section_header("DCF Source Review Triage"', dcf_checklist_frame_index)
+    dcf_source_loop_index = source.index('render_section_header("DCF Source Loop Checklist"', dcf_checklist_frame_index)
+    dcf_source_loop_cards_index = source.index("data_health_dcf_source_loop_checklist_cards(", dcf_source_loop_index)
+    dcf_source_loop_frame_index = source.index("data_health_dcf_source_loop_checklist_frame(", dcf_source_loop_cards_index)
+    dcf_triage_index = source.index('render_section_header("DCF Source Review Triage"', dcf_source_loop_frame_index)
     dcf_triage_cards_index = source.index("data_health_dcf_source_command_triage_cards(", dcf_triage_index)
     dcf_triage_frame_index = source.index("data_health_dcf_source_command_triage_frame(", dcf_triage_cards_index)
     dcf_batch_selector_index = source.index('render_section_header("DCF Source Batch Selector"', dcf_triage_frame_index)
@@ -14027,6 +14089,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         < dcf_checklist_index
         < dcf_checklist_cards_index
         < dcf_checklist_frame_index
+        < dcf_source_loop_index
+        < dcf_source_loop_cards_index
+        < dcf_source_loop_frame_index
         < dcf_triage_index
         < dcf_triage_cards_index
         < dcf_triage_frame_index
@@ -14968,6 +15033,7 @@ def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance(
 
     workflow_fit_header_index = source.index('"Workflow Fit",\n        "Selected ticker state, what can be reviewed now')
     workflow_fit_cards_index = source.index("stock_report_workflow_fit_cards(report_payload")
+    workflow_fit_hidden_commands_index = source.index("show_commands=False", workflow_fit_cards_index)
     report_header_index = source.index('"At A Glance",\n        "Start here: mode, valuation state')
     at_glance_index = source.index("stock_report_at_a_glance_cards(report_payload")
     reader_guide_header_index = source.index('"Reader Guide",\n        "Plain-English report path before detailed tabs')
@@ -14988,6 +15054,7 @@ def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance(
     assert (
         workflow_fit_header_index
         < workflow_fit_cards_index
+        < workflow_fit_hidden_commands_index
         < report_header_index
         < at_glance_index
         < reader_guide_header_index
@@ -17910,6 +17977,20 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     assert "render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=False)" in source
     assert "Choose the clean public path before opening proof or operator details." in source
     assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
+
+
+def test_data_health_pilot_packaging_summary_renders_before_reviewer_walkthrough():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    packaging_frame_index = source.index("pilot_packaging_summary = data_health_pilot_packaging_summary_frame")
+    packaging_header_index = source.index('render_section_header(\n        "Pilot Packaging Summary"', packaging_frame_index)
+    packaging_cards_index = source.index("data_health_pilot_packaging_summary_cards(pilot_packaging_summary)", packaging_header_index)
+    packaging_detail_index = source.index('st.expander("Pilot packaging review detail"', packaging_cards_index)
+    walkthrough_header_index = source.index('render_section_header(\n        "Pilot Reviewer Walkthrough"', packaging_detail_index)
+    walkthrough_strip_index = source.index("data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough)", walkthrough_header_index)
+
+    assert packaging_frame_index < packaging_header_index < packaging_cards_index < packaging_detail_index < walkthrough_header_index < walkthrough_strip_index
+    assert "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary." in source
 
 
 def test_universe_layer_frame_gives_plain_language_next_steps():
@@ -22660,6 +22741,82 @@ def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
     assert "trading" not in etf_rendered + blocked_rendered
     assert "buy" not in etf_rendered + blocked_rendered
     assert "sell" not in etf_rendered + blocked_rendered
+
+
+def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_rule():
+    snapshot = {
+        "ticker": "NVDA",
+        "status": "partial",
+        "asset_type": "company",
+        "decision_bucket": "Research Now",
+        "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "missing_data": "peers: needs source-backed mappings",
+    }
+
+    cards = dashboard.single_stock_workflow_fit_cards(snapshot)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "WHERE AM I",
+        "REVIEW NOW",
+        "BLOCKED / EXCLUDED",
+        "NEXT SAFE STEP",
+        "STOP RULE",
+    ]
+    assert cards[0]["title"] == "NVDA - partial"
+    assert "previous proof comes from the saved readiness row and report payload" in rendered
+    assert "standalone dcf assumptions and source readiness can be reviewed" in rendered
+    assert "peer-relative valuation remains locked" in rendered
+    assert "open data health peer lane" in rendered
+    assert "copy-only" in rendered
+    assert "do not treat locked, partial, or excluded sections as conclusions" in rendered
+    assert "make focus-peers ticker=nvda" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_workflow_fit_cards_cover_missing_and_monitor_states():
+    missing = {
+        "ticker": "ZZZ",
+        "status": "missing",
+        "next_action": "Stage or refresh universe metadata, then run make universe-report and make readiness.",
+    }
+    monitor = {
+        "ticker": "QQQ",
+        "status": "partial",
+        "asset_type": "etf",
+        "decision_bucket": "Monitor",
+        "decision_subtype": "Monitor - ETF Market Proxy",
+        "price_ready": True,
+        "dcf_status": "excluded",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+    }
+
+    missing_rendered = " ".join(str(value) for card in dashboard.single_stock_workflow_fit_cards(missing) for value in card.values()).lower()
+    monitor_rendered = " ".join(str(value) for card in dashboard.single_stock_workflow_fit_cards(monitor) for value in card.values()).lower()
+
+    assert "no local row, no interpretation" in missing_rendered
+    assert "refresh universe and readiness outputs" in missing_rendered
+    assert "monitor context can be reviewed from local price, liquidity, and risk outputs" in monitor_rendered
+    assert "operating-company dcf and peer valuation are excluded" in monitor_rendered
+    assert "use data health only if source freshness or proof history needs review" in monitor_rendered
+    assert "make stock-report-md ticker=qqq" in monitor_rendered
+    rendered = missing_rendered + monitor_rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_single_stock_quick_read_cards_route_dcf_ready_peer_locked():

@@ -153,6 +153,102 @@ def dcf_source_command_triage_cards(triage: pd.DataFrame | None, family: str | N
     ]
 
 
+def dcf_source_loop_checklist_frame(
+    *,
+    selector: pd.DataFrame | None = None,
+    intake: pd.DataFrame | None = None,
+    readiness: pd.DataFrame | None = None,
+    preview: pd.DataFrame | None = None,
+    handoff: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = ["Step", "State", "Next Safe Action", "Missing Or Manual Gate", "Review Boundary"]
+    selected_count = _first_int(selector, "Selected Count")
+    intake_missing = _placeholder_count(intake, "Reviewer Fill")
+    guard_ready = _count_matching(readiness, "Guard Status", "ready_for_guard")
+    preview_ready = _count_matching(preview, "Guard Status", "ready_for_guard")
+    proof_ready = _count_matching(handoff, "Proof Handoff Status", "ready_after_validate_preview_review")
+    proof_missing = _first_text(handoff, "Missing Proof Fields", "validation_result, preview_result, apply_result")
+
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Select source-review batch",
+                "State": "ready" if selected_count else "blocked",
+                "Next Safe Action": _first_text(selector, "Command Plan", "make dcf-input-proof-queue TOP_N=10"),
+                "Missing Or Manual Gate": "-" if selected_count else "selected DCF blocker family and tickers",
+                "Review Boundary": "Use a capped source-review scope before opening raw DCF rows.",
+            },
+            {
+                "Step": "2. Fill reviewed source fields",
+                "State": "ready" if selected_count and intake_missing == 0 else "needs_field_fills",
+                "Next Safe Action": "Fill reviewed source fields; do not write canonical fundamentals.",
+                "Missing Or Manual Gate": f"{intake_missing} placeholder field(s)" if intake_missing else "-",
+                "Review Boundary": "Evidence fields must be reviewed source values, not placeholders or inferred inputs.",
+            },
+            {
+                "Step": "3. Run source guard",
+                "State": "ready" if guard_ready else "blocked",
+                "Next Safe Action": _first_text(readiness, "Guard Command", "Fill evidence fields before running dcf-input-source-guard."),
+                "Missing Or Manual Gate": "-" if guard_ready else _first_text(readiness, "Missing Evidence Fields", "reviewed source fields"),
+                "Review Boundary": "Run the guard only after every required source field is reviewed.",
+            },
+            {
+                "Step": "4. Validate and preview",
+                "State": "ready" if preview_ready else "blocked",
+                "Next Safe Action": "make imports-validate -> make imports-preview" if preview_ready else "Finish source guard before validate/preview.",
+                "Missing Or Manual Gate": "-" if preview_ready else "ready_for_guard source row",
+                "Review Boundary": "Validation, preview, and rejected-row reports must be reviewed before any apply decision.",
+            },
+            {
+                "Step": "5. Apply, skip, or keep blocked",
+                "State": "manual_gate" if preview_ready else "blocked",
+                "Next Safe Action": "Choose apply_reviewed, skip_reviewed, or still_blocked after preview review.",
+                "Missing Or Manual Gate": "explicit apply/skip/still-blocked decision",
+                "Review Boundary": "Canonical data changes require an explicit reviewed decision; no automatic apply from the dashboard.",
+            },
+            {
+                "Step": "6. Rebuild readiness and record proof",
+                "State": "needs_reviewed_results" if proof_ready else "blocked",
+                "Next Safe Action": _first_text(handoff, "Proof Record Dry Run", "Finish validate, preview, apply/skip, and readiness comparison first."),
+                "Missing Or Manual Gate": proof_missing,
+                "Review Boundary": "Record proof only after rebuilt readiness, changed counts, source files, and generated-artifact review.",
+            },
+        ],
+        columns=columns,
+    )
+
+
+def dcf_source_loop_checklist_cards(checklist: pd.DataFrame | None, family: str | None = None) -> list[dict[str, object]]:
+    family_label = str(family or "top family").strip() or "top family"
+    if checklist is None or checklist.empty:
+        return [
+            {
+                "kicker": "DCF SOURCE LOOP",
+                "title": "No DCF source loop loaded",
+                "body": "Build the DCF input proof queue before source review, guard, validate, preview, apply decision, and proof record work.",
+                "badges": ["blocked visible", "readiness first"],
+                "command": "make dcf-input-proof-queue TOP_N=10",
+            }
+        ]
+    blocked = checklist.loc[~checklist["State"].astype(str).isin(["ready"])]
+    focus = blocked.iloc[0] if not blocked.empty else checklist.iloc[-1]
+    ready_count = int(checklist["State"].astype(str).eq("ready").sum())
+    return [
+        {
+            "kicker": "DCF SOURCE LOOP",
+            "title": f"{family_label}: {ready_count}/{len(checklist)} step(s) ready",
+            "body": (
+                f"{card_sentence('Current gate', focus.get('Step'))} "
+                f"{card_sentence('Need', compact_card_fragment(focus.get('Missing Or Manual Gate'), max_chars=170))} "
+                f"{card_sentence('Boundary', compact_card_fragment(focus.get('Review Boundary'), max_chars=190))} "
+                "Use this checklist before reading the detailed source-review tables."
+            ),
+            "badges": ["source proof loop", "copy-only"],
+            "command": str(focus.get("Next Safe Action") or "make dcf-input-proof-queue TOP_N=10"),
+        }
+    ]
+
+
 def dcf_source_batch_selector_frame(
     rows: list[DcfInputProofRow],
     *,
@@ -593,6 +689,37 @@ def _first_command(frame: pd.DataFrame, mask: pd.Series) -> str:
     if matches.empty or "Command" not in matches.columns:
         return "make dcf-input-source-command-plan TOP_N=10"
     return str(matches.iloc[0].get("Command") or "make dcf-input-source-command-plan TOP_N=10")
+
+
+def _first_text(frame: pd.DataFrame | None, column: str, fallback: str) -> str:
+    if frame is None or frame.empty or column not in frame.columns:
+        return fallback
+    for value in frame[column].tolist():
+        text = str(value or "").strip()
+        if text:
+            return text
+    return fallback
+
+
+def _first_int(frame: pd.DataFrame | None, column: str) -> int:
+    if frame is None or frame.empty or column not in frame.columns:
+        return 0
+    try:
+        return int(frame.iloc[0].get(column, 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _count_matching(frame: pd.DataFrame | None, column: str, value: str) -> int:
+    if frame is None or frame.empty or column not in frame.columns:
+        return 0
+    return int(frame[column].fillna("").astype(str).eq(value).sum())
+
+
+def _placeholder_count(frame: pd.DataFrame | None, column: str) -> int:
+    if frame is None or frame.empty or column not in frame.columns:
+        return 1
+    return int(sum(1 for value in frame[column].tolist() if _is_placeholder(value)))
 
 
 def _field_summary(values: pd.Series) -> str:

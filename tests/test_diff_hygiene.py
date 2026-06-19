@@ -246,6 +246,10 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "data/reports/ticker_readiness_report.previous.csv" not in staging_block
     assert "make browser-qa-evidence" in report
     assert "make dashboard-smoke" in report
+    assert "If git staging is environment-blocked:" in report
+    assert "Do not stage generated churn as a workaround." in report
+    assert "make diff-hygiene-files" in report
+    assert "git add --pathspec-from-file=outputs/staging/product_plus_reports.txt" in report
     assert "git commit -m" in report
     assert "git push origin main" in report
     assert "source proof, validate, preview" in report

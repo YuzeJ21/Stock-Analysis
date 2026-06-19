@@ -4,6 +4,8 @@ from src.dashboard import (
     data_health_operator_next_action_summary_cards,
     data_health_operator_next_action_summary_frame,
     data_health_pilot_packet_cards,
+    data_health_pilot_packaging_summary_cards,
+    data_health_pilot_packaging_summary_frame,
     data_health_pilot_readiness_cards,
     data_health_pilot_reviewer_walkthrough_cards,
     data_health_pilot_reviewer_walkthrough_frame,
@@ -116,6 +118,45 @@ def test_data_health_pilot_reviewer_walkthrough_wraps_compact_path():
     assert "pilot-flow" in rendered_strip
     assert "trusted fundamentals proof queue" in rendered_strip
     assert "make dcf-input-source-command-plan" in rendered_strip
+
+
+def test_data_health_pilot_packaging_summary_answers_share_gate_and_churn_boundary():
+    pilot = pd.DataFrame(
+        [
+            {"Area": "GitHub sync", "Status": "green", "Detail": "main is synced.", "Command": "git status --short --branch", "Stop Rule": "Stop if branch diverges."},
+            {"Area": "Generated artifact hygiene", "Status": "blocked", "Detail": "Product files are dirty.", "Command": "make diff-hygiene-summary", "Stop Rule": "Commit product files and exclude generated churn."},
+        ]
+    )
+    queues = pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "partial",
+                "Blocked": 90,
+                "Top Blockers": "fundamentals_bundle_plus_shares: 90",
+                "Next Safe Command": "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10",
+            }
+        ]
+    )
+
+    frame = data_health_pilot_packaging_summary_frame(pilot, queues)
+    cards = data_health_pilot_packaging_summary_cards(frame)
+    rendered = " ".join(str(value) for value in frame.astype(str).to_numpy().ravel().tolist() + [str(card) for card in cards]).lower()
+
+    assert frame["Review Question"].tolist() == [
+        "Is this pilot shareable now?",
+        "What blocks packaging?",
+        "What blocks deeper analysis?",
+        "What artifact can be reviewed?",
+    ]
+    assert "blocked before pilot" in rendered
+    assert "generated artifact hygiene" in rendered
+    assert "trusted fundamentals proof queue" in rendered
+    assert "outputs/pilot_readiness_packet.md" in rendered
+    assert "broad generated csv/json/report churn stays excluded" in rendered
+    assert "copy-only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_data_health_operator_next_action_summary_wraps_first_screen_questions():

@@ -498,6 +498,13 @@ def build_public_release_package_report(entries: list[StatusEntry]) -> str:
             "  make staged-hygiene-check",
             "  git diff --cached --stat",
             "",
+            "If git staging is environment-blocked:",
+            "  # Do not stage generated churn as a workaround.",
+            "  make diff-hygiene-files",
+            "  # In a normal local terminal, run:",
+            "  git add --pathspec-from-file=outputs/staging/product_plus_reports.txt",
+            "  make staged-hygiene-check",
+            "",
             "Do not stage generated churn by default:",
         ]
     )

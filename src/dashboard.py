@@ -53,6 +53,8 @@ from src.data_health_dcf_source_commands import (
     dcf_source_command_plan_frame,
     dcf_source_command_triage_cards,
     dcf_source_command_triage_frame,
+    dcf_source_loop_checklist_cards,
+    dcf_source_loop_checklist_frame,
     dcf_source_evidence_intake_cards,
     dcf_source_evidence_intake_frame,
     dcf_source_guard_preview_cards,
@@ -123,6 +125,7 @@ from src.readiness_ops import (
     build_readiness_ops_lanes,
 )
 from src.pilot_readiness import DEFAULT_PACKET_PATH, build_pilot_readiness_checks, pilot_readiness_verdict
+from src.public_home_workflow import public_home_loop_cards, public_home_visitor_path_cards
 from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
@@ -150,6 +153,7 @@ from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
+from src.single_stock_workflow import single_stock_next_command, single_stock_workflow_fit_cards
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -7095,8 +7099,8 @@ def stock_report_workflow_fit_cards(
             "kicker": "DATA HEALTH HANDOFF",
             "title": f"{route_label}: {next_title}",
             "body": (
-                f"{next_review} Data Health route: {route}. "
-                f"Copy-only next command: {next_command}. Stop rule: {stop_rule}"
+                f"{next_review} Continue through {route_label} only if the locked fields matter for this ticker. "
+                f"The route is navigation-only, and the next command remains copy-only in the detailed controls. Stop rule: {stop_rule}"
             ),
             "badges": ["navigation-only", "copy-only"],
             "command": next_command,
@@ -8266,6 +8270,23 @@ def data_health_pilot_readiness_cards(frame: pd.DataFrame | None, *, limit: int 
 
 def data_health_pilot_packet_cards(frame: pd.DataFrame | None, *, output_path: Path = DEFAULT_PACKET_PATH) -> list[dict[str, object]]:
     return pilot_console.pilot_packet_cards(frame, output_path=output_path)
+
+
+def data_health_pilot_packaging_summary_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    return pilot_console.pilot_packaging_summary_frame(
+        pilot_frame,
+        proof_queue_frame,
+        output_path=output_path,
+    )
+
+
+def data_health_pilot_packaging_summary_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
+    return pilot_console.pilot_packaging_summary_cards(frame, limit=limit)
 
 
 def data_health_pilot_reviewer_walkthrough_frame(
@@ -9439,6 +9460,26 @@ def data_health_dcf_source_proof_handoff_cards(frame: pd.DataFrame | None, selec
     return dcf_source_proof_handoff_cards(handoff, data_health_dcf_input_family_key(selection) or None)
 
 
+def data_health_dcf_source_loop_checklist_frame(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> pd.DataFrame:
+    selector = data_health_dcf_source_batch_selector_frame(frame, selection, top_n=top_n)
+    intake = data_health_dcf_source_evidence_intake_frame(frame, selection, top_n=top_n)
+    readiness = data_health_dcf_source_guard_readiness_frame(frame, selection, top_n=top_n)
+    preview = data_health_dcf_source_guard_preview_frame(frame, selection, top_n=top_n)
+    handoff = data_health_dcf_source_proof_handoff_frame(frame, selection, top_n=top_n)
+    return dcf_source_loop_checklist_frame(
+        selector=selector,
+        intake=intake,
+        readiness=readiness,
+        preview=preview,
+        handoff=handoff,
+    )
+
+
+def data_health_dcf_source_loop_checklist_cards(frame: pd.DataFrame | None, selection: object, top_n: int = 5) -> list[dict[str, object]]:
+    checklist = data_health_dcf_source_loop_checklist_frame(frame, selection, top_n=top_n)
+    return dcf_source_loop_checklist_cards(checklist, data_health_dcf_input_family_key(selection) or None)
+
+
 def _data_health_dcf_source_route(row: pd.Series) -> str:
     family = format_missing(row.get("Missing Input Family"), "")
     mode = format_missing(row.get("Source Mode"), "").lower()
@@ -9799,6 +9840,16 @@ def data_health_dcf_proof_batch_planner_cards(
     packet = planner.iloc[2] if len(planner) > 2 else planner.iloc[0]
     stop = planner.iloc[-1]
     return [
+        {
+            "kicker": "SOURCE PROOF LOOP",
+            "title": "Review source -> preview row -> decide -> record proof",
+            "body": (
+                "Use this order: source review, evidence intake, source guard, validate, preview, rejected-row review, "
+                "apply/skip decision, rebuilt readiness, then proof-record dry run. Do not write canonical fundamentals by default."
+            ),
+            "badges": ["validate-preview-apply", "dry-run first"],
+            "command": format_missing(choose.get("Copy-Ready Action"), "make dcf-input-proof-queue TOP_N=10"),
+        },
         {
             "kicker": "DCF BATCH PLANNER",
             "title": format_missing(choose.get("Scope"), "DCF input family pending"),
@@ -10356,7 +10407,9 @@ def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, obj
     frame = data_health_readiness_queue_lane_action_frame(row)
     first = frame.iloc[0] if not frame.empty else pd.Series(dtype=object)
     gate_row = frame.iloc[1] if len(frame) > 1 else first
+    compare_row = frame.iloc[2] if len(frame) > 2 else first
     proof_row = frame.iloc[3] if len(frame) > 3 else first
+    artifact_row = frame.iloc[4] if len(frame) > 4 else first
     lane = format_missing(row.get("Lane") if isinstance(row, dict) else row.get("Lane"), "Readiness lane")
     return [
         {
@@ -10371,10 +10424,13 @@ def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, obj
         },
         {
             "kicker": "DRAWER ROUTE",
-            "title": "Open the right review surface",
+            "title": "Follow the lane route chain",
             "body": (
                 f"{card_sentence('Packet drawer', compact_card_fragment(first.get('Drawer Route'), max_chars=120))} "
                 f"{card_sentence('Source-proof drawer', compact_card_fragment(gate_row.get('Drawer Route'), max_chars=120))} "
+                f"{card_sentence('Comparison drawer', compact_card_fragment(compare_row.get('Drawer Route'), max_chars=120))} "
+                f"{card_sentence('Proof-record drawer', compact_card_fragment(proof_row.get('Drawer Route'), max_chars=120))} "
+                f"{card_sentence('Artifact drawer', compact_card_fragment(artifact_row.get('Drawer Route'), max_chars=120))} "
                 "Routes are navigation-only; the dashboard does not run commands or write data."
             ),
             "badges": ["navigation-only", "copy-only"],
@@ -17264,23 +17320,6 @@ def single_stock_one_minute_summary(snapshot: dict[str, object]) -> str:
     if next_action and next_action != "Not available":
         parts.append(f"Next: {next_action}")
     return " ".join(part for part in parts if part and part != "Not available")
-
-
-def single_stock_next_command(snapshot: dict[str, object]) -> str:
-    ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
-    asset_type = format_missing(snapshot.get("asset_type"), "").lower()
-    dcf_status = format_missing(snapshot.get("dcf_status"), "").lower()
-    if dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}:
-        return stock_report_md_command(ticker)
-    if not snapshot.get("price_ready"):
-        return f"make focus-price TICKER={ticker}"
-    if dcf_status == "blocked":
-        return f"make focus-fundamentals TICKER={ticker}"
-    if dcf_status == "ready" and not snapshot.get("peer_ready") and "peer" in format_missing(snapshot.get("missing_data"), "").lower():
-        return f"make focus-peers TICKER={ticker}"
-    if not snapshot.get("earnings_ready") or not snapshot.get("analyst_estimates_ready"):
-        return "make optional-context-worklist TOP_N=25"
-    return stock_report_md_command(ticker)
 
 
 def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame:
@@ -24362,6 +24401,10 @@ def _public_home_snapshot_items(summary: dict[str, object]) -> list[tuple[str, s
     ]
 
 
+def _plain_home_public_loop_cards(summary: dict[str, object]) -> list[dict[str, object]]:
+    return public_home_loop_cards(summary)
+
+
 def _plain_home_current_data_coverage_cards(summary: dict[str, object]) -> list[dict[str, object]]:
     master = int(summary.get("master_universe") or summary.get("master_count") or summary.get("universe_count") or 0)
     active = int(summary.get("active_universe") or summary.get("active_count") or 0)
@@ -25154,6 +25197,12 @@ def render_home_page(
         )
     if public_mode:
         render_public_proof_strip(_public_home_snapshot_items(summary))
+        render_signal_cards(_plain_home_public_loop_cards(summary), show_commands=False)
+        render_section_header(
+            "Visitor Path",
+            "The same loop in four steps: current readiness, one ticker, source-proof lane, then proof history.",
+        )
+        render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False)
     else:
         render_signal_cards(dashboard_page_reader_summary_cards("Home"))
         render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
@@ -25569,7 +25618,10 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         "Workflow Fit",
         "Selected ticker state, what can be reviewed now, what stays blocked, and where Data Health fits next.",
     )
-    render_signal_cards(stock_report_workflow_fit_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
+    render_signal_cards(
+        stock_report_workflow_fit_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None),
+        show_commands=False,
+    )
     render_section_header(
         "At A Glance",
         "Start here: mode, valuation state, withheld context, method boundary, and next local command.",
@@ -26422,6 +26474,11 @@ def render_market_command_center(
     metric_cols[3].metric("DCF", public_status_label(snapshot.get("dcf_status")))
     metric_cols[4].metric("Data Confidence", format_missing(snapshot.get("confidence")))
     render_signal_cards(single_stock_status_cards(snapshot))
+    render_section_header(
+        "Where This Ticker Fits",
+        "Selected ticker, review-now scope, blocked or excluded inputs, Data Health handoff, and stop rule before raw details.",
+    )
+    render_signal_cards(single_stock_workflow_fit_cards(snapshot))
     render_section_header("Single-Stock Quick Read", "The first interpretation path before tables: what this page can support, what stays locked, and the next copy-only command.")
     render_signal_cards(single_stock_quick_read_cards(snapshot))
     render_section_header("Single-Stock Reader Guide", "Plain-English answer for what is ready, what is locked, and the next copy-only step.")
@@ -26438,9 +26495,11 @@ def render_market_command_center(
         "Trusted local files, import status, credential state, and rejected-row reports for the selected ticker.",
     )
     render_signal_cards(single_stock_source_audit_cards(snapshot))
-    st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)
+    with st.expander("Single-stock source readiness table", expanded=False):
+        st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)
     detail_frame = single_stock_detail_frame(snapshot)
-    st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)
+    with st.expander("Single-stock detailed fields", expanded=False):
+        st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)
 
 
 def render_data_health(
@@ -26756,6 +26815,22 @@ def render_data_health(
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
+    pilot_packaging_summary = data_health_pilot_packaging_summary_frame(
+        pilot_readiness,
+        data_coverage_proof_queues,
+        output_path=DEFAULT_PACKET_PATH,
+    )
+    render_section_header(
+        "Pilot Packaging Summary",
+        "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary.",
+    )
+    render_signal_cards(
+        data_health_pilot_packaging_summary_cards(pilot_packaging_summary),
+        show_commands=True,
+        variant="queue",
+    )
+    with st.expander("Pilot packaging review detail", expanded=False):
+        st.dataframe(clean_display_frame(pilot_packaging_summary), width="stretch", hide_index=True)
     render_section_header(
         "Pilot Reviewer Walkthrough",
         "One compact path from gate status to source-proof focus, packet export, and public-check before raw tables.",
@@ -27131,6 +27206,16 @@ def render_data_health(
                         batch_proof_frame,
                     )
                 )
+            )
+            render_section_header("DCF Source Loop Checklist", "Source review through proof record in one compact gate sequence before detailed tables.")
+            render_signal_cards(
+                data_health_dcf_source_loop_checklist_cards(dcf_input_queue_filtered, dcf_family_selection),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_dcf_source_loop_checklist_frame(dcf_input_queue_filtered, dcf_family_selection)),
+                width="stretch",
+                hide_index=True,
             )
             render_section_header("DCF Source Review Triage", "Blocked source fields, guard-ready steps, validation gates, and proof handoff status before command details.")
             render_signal_cards(

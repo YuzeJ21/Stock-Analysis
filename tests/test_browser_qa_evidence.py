@@ -1,9 +1,13 @@
 from pathlib import Path
 
 from src.browser_qa_evidence import (
+    BrowserQaCaptureTarget,
     BrowserQaEvidence,
     BrowserQaRouteCheck,
+    browser_qa_capture_checklist_rows,
+    browser_qa_capture_target_rows,
     browser_qa_evidence_rows,
+    browser_qa_package_verdict,
     browser_qa_evidence_verdict,
     browser_qa_route_rows,
     image_size,
@@ -104,6 +108,103 @@ def test_browser_qa_evidence_verdict_blocks_missing_or_small_assets(tmp_path):
     assert browser_qa_evidence_verdict(rows) == "blocked"
 
 
+def test_browser_qa_capture_targets_show_manual_pending_without_fabricating_assets(tmp_path):
+    target = BrowserQaCaptureTarget(
+        name="Single-stock workflow fit screenshot",
+        path=Path("docs/assets/single-stock-workflow-fit-real.jpg"),
+        route="http://localhost:8501/?mode=public&page=single-stock",
+        first_view_markers=("Where This Ticker Fits", "Stop rule"),
+        min_width=1000,
+        min_height=600,
+        use="Workflow proof.",
+    )
+
+    rows = browser_qa_capture_target_rows(tmp_path, (target,))
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+
+    assert rows[0]["State"] == "manual_capture_pending"
+    assert "normal local browser" in rendered
+    assert "do not use generated thumbnails" in rendered
+    assert "where this ticker fits" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_browser_qa_capture_targets_become_ready_when_real_asset_exists(tmp_path):
+    asset = tmp_path / "docs" / "assets" / "single-stock-workflow-fit-real.jpg"
+    asset.parent.mkdir(parents=True)
+    _write_jpeg(asset, width=1280, height=720)
+    target = BrowserQaCaptureTarget(
+        name="Single-stock workflow fit screenshot",
+        path=Path("docs/assets/single-stock-workflow-fit-real.jpg"),
+        route="http://localhost:8501/?mode=public&page=single-stock",
+        first_view_markers=("Where This Ticker Fits", "Stop rule"),
+        min_width=1000,
+        min_height=600,
+        use="Workflow proof.",
+    )
+    asset_rows = [
+        {
+            "Asset": "Existing",
+            "State": "ready",
+            "Path": "docs/assets/public-demo-home-real.jpg",
+        }
+    ]
+
+    rows = browser_qa_capture_target_rows(tmp_path, (target,))
+
+    assert rows[0]["State"] == "ready"
+    assert rows[0]["Dimensions / Capture Note"].startswith("1280x720")
+    assert browser_qa_package_verdict(asset_rows, rows) == "ready"
+
+
+def test_browser_qa_capture_checklist_rows_give_exact_local_capture_steps():
+    target = BrowserQaCaptureTarget(
+        name="Data Health proof lane screenshot",
+        path=Path("docs/assets/operator-data-health-proof-real.jpg"),
+        route="http://localhost:8501/?mode=operator&page=data-health&lane=proof",
+        first_view_markers=("Proof lane shell", "Review details"),
+        min_width=1000,
+        min_height=600,
+        use="Proof lane evidence.",
+    )
+
+    rows = browser_qa_capture_checklist_rows((target,))
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+
+    assert rows[0]["Target"] == "Data Health proof lane screenshot"
+    assert rows[0]["Save As"] == "docs/assets/operator-data-health-proof-real.jpg"
+    assert rows[0]["Minimum Size"] == "1000x600"
+    assert "proof lane shell" in rendered
+    assert "do not replace the asset" in rendered
+    assert "traceback" in rendered
+    assert "raw tables first" in rendered
+    assert "missing guardrails" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_browser_qa_package_verdict_keeps_ready_assets_honest_when_capture_targets_pending():
+    asset_rows = [
+        {
+            "Asset": "Public home",
+            "State": "ready",
+            "Path": "docs/assets/public-demo-home-real.jpg",
+        }
+    ]
+    capture_rows = [
+        {
+            "Capture Target": "Data Health proof lane screenshot",
+            "State": "manual_capture_pending",
+            "Path": "docs/assets/operator-data-health-proof-real.jpg",
+        }
+    ]
+
+    assert browser_qa_package_verdict(asset_rows, capture_rows) == "ready_with_manual_capture_pending"
+
+
 def test_browser_qa_route_rows_keep_workflow_markers_and_stop_rules_visible():
     checks = (
         BrowserQaRouteCheck(
@@ -128,19 +229,50 @@ def test_browser_qa_route_rows_keep_workflow_markers_and_stop_rules_visible():
     assert "sell" not in rendered
 
 
+def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing():
+    rows = browser_qa_route_rows()
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+    route_names = {str(row["Route Check"]) for row in rows}
+
+    assert "Single-stock workflow fit" in route_names
+    assert "Data Health proof lane progressive load" in route_names
+    assert "Data Health queue drawer routing" in route_names
+    assert "workflow fit" in rendered
+    assert "proof lane shell" in rendered
+    assert "intentionally deferred" in rendered
+    assert "navigation-only" in rendered
+    assert "generated churn" in rendered
+    assert "execute commands" in rendered
+    assert "investment advice" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys):
-    asset = tmp_path / "docs" / "assets" / "linkedin-public-dashboard.png"
-    asset.parent.mkdir(parents=True)
-    _write_png(asset, width=1200, height=627)
+    asset_dir = tmp_path / "docs" / "assets"
+    asset_dir.mkdir(parents=True)
+    _write_png(asset_dir / "linkedin-public-dashboard.png", width=1200, height=627)
+    _write_jpeg(asset_dir / "public-demo-home-real.jpg", width=1200, height=720)
+    _write_jpeg(asset_dir / "operator-data-health-metrics-real.jpg", width=1280, height=720)
 
     exit_code = main(["--root", str(tmp_path)])
     output = capsys.readouterr().out.lower()
 
     assert exit_code == 0
     assert "read-only" in output
+    assert "ready_with_manual_capture_pending" in output
+    assert "manual capture targets" in output
+    assert "local capture checklist" in output
+    assert "save real app screenshots to the listed paths only after visual review" in output
+    assert "single-stock workflow fit screenshot" in output
+    assert "operator-data-health-proof-real.jpg" in output
+    assert "operator-data-health-queue-routing-real.jpg" in output
     assert "real streamlit screenshots" in output
     assert "route qa checklist" in output
     assert "manual browser review" in output
+    assert "single-stock workflow fit" in output
+    assert "data health proof lane progressive load" in output
+    assert "data health queue drawer routing" in output
     assert "next data-readiness action" in output
     assert "does not unlock fundamentals" in output
     assert "investment advice" in output
