@@ -56,7 +56,7 @@ Read the counts in three layers:
 | Active universe | The focused research list for demo and portfolio-style review. | Best place to inspect product flow and next trusted-data steps. |
 | Analysis-ready subset | Tickers whose required local inputs passed readiness for a feature. | Use this layer for DCF, peer context, or candidate review; blocked rows stay visibly locked. |
 
-Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, demo path, and public checks are working. Broad fundamentals, DCF, peers, earnings, and analyst estimates remain visibly blocked by missing trusted data until trusted rows exist, so those gaps should be read as source-proof work rather than broken analysis.
+Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, visitor path, and public checks are working. Broad fundamentals, DCF, peers, earnings, and analyst estimates remain visibly blocked by missing trusted data until trusted rows exist, so those gaps should be read as source-proof work rather than broken analysis.
 
 ## Data Coverage Strategy
 
@@ -88,7 +88,7 @@ Start with the three paths the dashboard is built around:
 | Improve data coverage | You want to understand what trusted input is missing and how to add it safely. | `Data Health` |
 | Inspect proof | You want to see the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields. | `Data Health` |
 
-The dashboard starts in public demo mode so visitors can read the product first. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public demo mode in the sidebar when you want the internal operator views, detailed boards, and copy-only local commands. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
+The dashboard starts in public visitor mode so people can follow the real workflow first: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public visitor mode in the sidebar when you want the internal operator views, detailed boards, and copy-only local commands. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
 
 ## Quick Start
 
@@ -105,10 +105,10 @@ make dashboard
 
 When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps.
 
-## Try This Demo Path
+## Try This Visitor Workflow
 
 ```bash
-make demo                       # prints the visitor demo path
+make demo                       # prints the visitor workflow path
 make dashboard                  # open http://localhost:8501/?mode=public and follow the three public paths
 make stock-report-md TICKER=NVDA # company report with DCF assumptions
 make stock-report-md TICKER=META # price/setup report with valuation still gated
@@ -128,7 +128,7 @@ make stock-report-md TICKER=SMH  # sector ETF monitor report
 make stock-report-md TICKER=APLD # price/setup report with fundamentals still locked
 ```
 
-The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> MU peer-limited example -> CRDO fundamentals-gated example -> trusted-data pilot. That shows the core idea quickly: the product can analyze ready data, explain blocked data, exclude methods that do not apply, show peer-limited DCF, and print the trusted-data proof path without pretending missing rows exist.
+The shortest public walkthrough is: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history, with NVDA, META, QQQ, MU, and CRDO available as optional state examples. That shows the core idea quickly: the product can analyze ready data, explain blocked data, exclude methods that do not apply, show peer-limited DCF, and print the trusted-data proof path without pretending missing rows exist.
 
 Example map:
 
@@ -142,7 +142,7 @@ Example map:
 
 In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what trusted input matters next, what evidence proves the current mode, what to read first, and which copy-only command or proof step comes next. They show `Copyable Proof Commands` only when local data gaps block analysis; use `make stock-report TICKER=NVDA` only when you also want optional local report data for inspection.
 
-For a share-ready walkthrough, use [Public Demo Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md). The pilot candidate command may rank a peer-input example such as `MU` first and also name a fundamentals/DCF example such as `CRDO`; both remain read-only proof packets until source review and rebuilt readiness prove a lane changed. The broader read-only checklist is still available as `make trusted-data-pilot TOP_N=10` when you want the general pilot sequence before choosing tickers. For deeper local missing-data details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md).
+For a share-ready walkthrough, use the [Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md). The pilot candidate command may rank a peer-input example such as `MU` first and also name a fundamentals/DCF example such as `CRDO`; both remain read-only proof packets until source review and rebuilt readiness prove a lane changed. The broader read-only checklist is still available as `make trusted-data-pilot TOP_N=10` when you want the general pilot sequence before choosing tickers. For deeper local missing-data details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md).
 
 ## Local Data Hygiene
 

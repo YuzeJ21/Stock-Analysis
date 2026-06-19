@@ -523,13 +523,14 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "| Active universe | The focused research list for demo and portfolio-style review. | Best place to inspect product flow and next trusted-data steps. |" in readme
     assert "| Analysis-ready subset | Tickers whose required local inputs passed readiness for a feature. | Use this layer for DCF, peer context, or candidate review; blocked rows stay visibly locked. |" in readme
     assert "## What Works Today" in readme
-    assert "## Try This Demo Path" in readme
+    assert "## Try This Visitor Workflow" in readme
     assert "Optional extra report states:" in readme
     assert "| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
     assert "| Inspect proof | You want to see the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields. | `Data Health` |" in readme
     assert "`Home`, then focused review pages" not in readme
-    assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> MU peer-limited example -> CRDO fundamentals-gated example -> trusted-data pilot." in readme
-    assert "[Public Demo Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
+    assert "The shortest public walkthrough is: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history" in readme
+    assert "with NVDA, META, QQQ, MU, and CRDO available as optional state examples" in readme
+    assert "[Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" not in readme
     assert "make trusted-data-pilot-candidates TOP_N=10" in public_demo
     assert "make trusted-data-pilot-packet TICKER=MU" in public_demo
@@ -548,7 +549,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
     assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
     assert readme.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list") < readme.index("Optional extra report states:")
-    demo_path = readme.split("## Try This Demo Path", 1)[1].split("Optional extra report states:", 1)[0]
+    demo_path = readme.split("## Try This Visitor Workflow", 1)[1].split("Optional extra report states:", 1)[0]
     assert demo_path.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list") < demo_path.index("make trusted-data-pilot-packet TICKER=MU")
     assert demo_path.index("make trusted-data-pilot-packet TICKER=MU") < demo_path.index("make trusted-data-pilot-packet TICKER=CRDO")
     assert "## Local Data Hygiene" in readme
@@ -639,14 +640,14 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Useful with limits",
         "Intentionally locked",
         "Not built to be",
-        "Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, demo path, and public checks are working",
+        "Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, visitor path, and public checks are working",
         "remain visibly blocked by missing trusted data until trusted rows exist",
         "source-proof work rather than broken analysis",
         "`undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context",
         "not automatic undervalued calls",
     ):
         assert phrase in readme
-    quick_start = readme.split("## Quick Start", 1)[1].split("## Try This Demo Path", 1)[0]
+    quick_start = readme.split("## Quick Start", 1)[1].split("## Try This Visitor Workflow", 1)[0]
     assert "make pipeline" not in quick_start
     assert "make readiness" not in quick_start
     assert quick_start.index("make demo") < quick_start.index("make status-check TOP_N=5")
@@ -1948,8 +1949,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert '@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."' in makefile
-    assert "@echo \"Visitor demo path:\"" in makefile
-    assert "@echo \"   Home -> NVDA ready -> META blocked -> QQQ excluded -> MU peer-limited -> CRDO fundamentals-gated -> trusted-data pilot\"" in makefile
+    assert "@echo \"Visitor workflow path:\"" in makefile
+    assert "@echo \"   Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history\"" in makefile
+    assert "@echo \"   Optional state examples: NVDA ready, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated\"" in makefile
     assert "@echo \"What this proves: ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced.\"" in makefile
     assert "@echo \"Data-confidence note: data confidence describes readiness and review routing, not investment conviction.\"" in makefile
     assert "@echo \"2. Open the clean dashboard path:\"" in makefile
@@ -1989,7 +1991,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   make diff-hygiene-files  # optional for large dirty trees\"" in makefile
     assert "@echo \"   make staged-hygiene-check # after staging, before commit\"" in makefile
     assert 'This target only prints a visitor path. If you later run stock-report-md commands, they write local Markdown reports under outputs/stock_reports/.' in makefile
-    assert "Share-safe story: show NVDA as ready, META as blocked, QQQ as excluded, MU as peer-limited, CRDO as fundamentals-gated, then the trusted-data pilot as the honest proof path." in makefile
+    assert "Share-safe story: start with the connected workflow, then use NVDA, META, QQQ, MU, and CRDO only as optional state examples." in makefile
     assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
     assert "data-release-decision:\n\t@python3 scripts/diff_hygiene.py --data-release-decision" in makefile
     assert "staged-hygiene-check:\n\t@python3 scripts/diff_hygiene.py --staged-check" in makefile

@@ -42,7 +42,7 @@ make trusted-data-pilot-packet TICKER=CRDO
 make dashboard
 ```
 
-The dashboard defaults to Public demo mode. Switch it off in the sidebar only when you want operator boards, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
+The dashboard defaults to Public visitor mode. The first path is the real workflow: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. Switch it off in the sidebar only when you want operator boards, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
 
 ## What To Say About Data Gaps
 

@@ -100,7 +100,7 @@ help-full:
 	@echo "  make public-check     Run before sharing the GitHub link"
 	@echo ""
 	@echo "Core:"
-	@echo "  make demo             Print a short visitor demo path without refreshing broad local data"
+	@echo "  make demo             Print a short visitor workflow path without refreshing broad local data"
 	@echo "  make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan"
 	@echo "  make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot"
 	@echo "  make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before-report/review/validate/rejected-row/rebuild evidence packet"
@@ -238,13 +238,14 @@ help-full:
 	@echo "  make universe-active  Ensure data/universe_active.csv exists"
 
 demo:
-	@echo "Stock Research Command Center visitor demo"
+	@echo "Stock Research Command Center visitor workflow"
 	@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."
 	@echo "Full share-ready walkthrough: docs/PUBLIC_DEMO_WALKTHROUGH.md"
 	@echo "Run these from the repository root so make can find the project targets."
 	@echo ""
-	@echo "Visitor demo path:"
-	@echo "   Home -> NVDA ready -> META blocked -> QQQ excluded -> MU peer-limited -> CRDO fundamentals-gated -> trusted-data pilot"
+	@echo "Visitor workflow path:"
+	@echo "   Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history"
+	@echo "   Optional state examples: NVDA ready, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated"
 	@echo "What this proves: ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced."
 	@echo "Data-confidence note: data confidence describes readiness and review routing, not investment conviction."
 	@echo ""
@@ -295,7 +296,7 @@ demo:
 	@echo "   make staged-hygiene-check # after staging, before commit"
 	@echo ""
 	@echo "This target only prints a visitor path. If you later run stock-report-md commands, they write local Markdown reports under outputs/stock_reports/."
-	@echo "Share-safe story: show NVDA as ready, META as blocked, QQQ as excluded, MU as peer-limited, CRDO as fundamentals-gated, then the trusted-data pilot as the honest proof path."
+	@echo "Share-safe story: start with the connected workflow, then use NVDA, META, QQQ, MU, and CRDO only as optional state examples."
 
 pilot-readiness-check:
 	@python3 -m src.pilot_readiness --top-n $(or $(TOP_N),10)
@@ -308,7 +309,7 @@ trusted-data-pilot:
 	@echo "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs."
 	@echo ""
 	@echo "Goal: improve 5-10 reviewed companies first, then prove readiness changed."
-	@echo "Scope: $(if $(TICKERS),$(TICKERS),choose 5-10 tickers from the active research list or public demo path)"
+	@echo "Scope: $(if $(TICKERS),$(TICKERS),choose 5-10 tickers from the active research list or visitor workflow examples)"
 	@echo "Suggested company pilot: $(if $(TICKERS),$(TICKERS),NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META)"
 	@echo "ETF/index examples such as QQQ and SMH are monitor-context demos, not operating-company DCF targets."
 	@echo "Ticker-scoped example: make trusted-data-pilot TICKERS=NVDA,AVGO,AMD,MU,CRDO TOP_N=10"

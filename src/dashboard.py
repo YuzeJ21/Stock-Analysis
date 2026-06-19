@@ -197,7 +197,7 @@ PUBLIC_PATH_LABELS = {
 PUBLIC_DEMO_MODE = "public"
 OPERATOR_DEMO_MODE = "operator"
 DEMO_MODE_LABELS = {
-    PUBLIC_DEMO_MODE: "Public demo mode",
+    PUBLIC_DEMO_MODE: "Public visitor mode",
     OPERATOR_DEMO_MODE: "Operator mode",
 }
 DATA_SOURCE_FILES = {
@@ -3936,10 +3936,10 @@ def render_sidebar_nav_header() -> None:
 def sidebar_product_intro_html() -> str:
     return """
     <div class="sidebar-product-card">
-      <div class="sidebar-product-label">Portfolio demo</div>
-      <div class="sidebar-product-title">Choose a research path, then inspect proof only when needed.</div>
+      <div class="sidebar-product-label">Research workflow</div>
+      <div class="sidebar-product-title">Start with readiness, review one ticker, then inspect proof only when needed.</div>
       <div class="sidebar-product-copy">
-        The dashboard is read-only: it surfaces readiness, blockers, and next proof steps without executing account actions or data imports.
+        The dashboard is read-only: it connects readiness, ticker review, source-proof gaps, and proof history without executing account actions or data imports.
       </div>
     </div>
     """
@@ -6970,8 +6970,8 @@ def single_stock_demo_ticker_cards() -> list[dict[str, object]]:
 
 def single_stock_demo_picker_note() -> tuple[str, str]:
     return (
-        "Pick a demo state.",
-        "Use these examples to review each stock-evaluation mode before choosing your own ticker.",
+        "Pick a report state.",
+        "Use these examples to understand ready, blocked, excluded, and proof-gated states before choosing your own ticker.",
     )
 
 
@@ -6979,11 +6979,11 @@ def single_stock_demo_picker_cards() -> list[dict[str, object]]:
     cards = single_stock_demo_ticker_cards()
     return [
         {
-            "kicker": "DEMO MAP",
+            "kicker": "STATE MAP",
             "title": f"{len(cards)} report states",
             "body": (
-                "Start with NVDA for the ready company case, then compare META blocked, QQQ excluded, MU peer-limited, "
-                "and CRDO fundamentals-gated before optional extra states. Each command is copy-only and writes a local Markdown report."
+                "Use NVDA, META, QQQ, MU, and CRDO as optional state examples after you understand the readiness-to-proof workflow. "
+                "Each command is copy-only and writes a local Markdown report."
             ),
             "badges": ["visitor path", "one ticker at a time"],
             "command": "make demo",
@@ -23825,13 +23825,67 @@ def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
     ]
 
 
+def _plain_home_real_workflow_cards(summary: dict[str, object]) -> list[dict[str, object]]:
+    price_ready = int(summary.get("price_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    earnings_ready = int(summary.get("earnings_ready") or 0)
+    estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
+    depth_locked = max(price_ready - dcf_ready, 0)
+    peer_locked = max(dcf_ready - peer_ready, 0)
+    optional_ready = earnings_ready + estimates_ready
+
+    return [
+        {
+            "kicker": "WORKFLOW 1",
+            "title": "Start with the live readiness snapshot",
+            "body": (
+                f"{price_ready:,} price-ready, {dcf_ready:,} DCF-ready, and {peer_ready:,} peer-ready names are available in the saved local snapshot. "
+                "Use this as the entry point before opening ticker pages or proof drawers."
+            ),
+            "badges": ["readiness first", "live local state"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "WORKFLOW 2",
+            "title": "Review one ticker from the current state",
+            "body": (
+                "Open a Single-Stock Report to see ready, blocked, excluded, and monitor-only sections for one ticker. "
+                "Use example tickers only as state samples; the workflow also works for any local ticker."
+            ),
+            "badges": ["one ticker", "state-based"],
+            "command": "make stock-report-md TICKER=<ticker>",
+        },
+        {
+            "kicker": "WORKFLOW 3",
+            "title": "Route locked sections to Data Health",
+            "body": (
+                f"{depth_locked:,} price-ready names still need trusted fundamentals before deeper company review, and {peer_locked:,} DCF-ready names still need peer inputs. "
+                "Data Health shows the source-proof lane, stop rule, and copy-only next command."
+            ),
+            "badges": ["blocked stays visible", "source proof"],
+            "command": "make data-coverage-proof-queues TOP_N=10",
+        },
+        {
+            "kicker": "WORKFLOW 4",
+            "title": "Record proof before trusting a changed state",
+            "body": (
+                f"{optional_ready:,} optional earnings or estimate lanes have ready rows today; unavailable optional context stays locked. "
+                "After any reviewed data change, rebuild readiness and use proof history before reading the changed report."
+            ),
+            "badges": ["proof before interpretation", "research-only"],
+            "command": "make pilot-readiness-check TOP_N=10",
+        },
+    ]
+
+
 def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "VISITOR STEP 1",
-            "title": "Print the demo walkthrough",
+            "title": "Print the visitor workflow",
             "body": (
-                "Use the share walkthrough when presenting the repo: it follows Home -> NVDA -> META -> QQQ -> MU -> CRDO -> trusted-data pilot without changing local files."
+                "Use the share walkthrough when presenting the repo: it follows Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history without changing local files."
             ),
             "badges": ["share path", "read-only"],
             "command": "make demo",
@@ -23977,16 +24031,14 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
     has_depth_gap = price_ready > dcf_ready or dcf_ready > peer_ready or earnings_ready == 0 or estimates_ready == 0
     data_gap_count = max(master - price_ready, 0) if master else 0
 
-    review_body = (
-        "Start here for the public demo: open NVDA for ready-data proof, then compare META blocked, QQQ excluded, and MU peer-limited states."
-    )
+    review_body = "Start here for ticker-level review: choose any local ticker and read what is ready, blocked, excluded, or monitor-only."
     if dcf_ready > 0:
         review_body = (
-            f"Start here: {dcf_ready} ticker(s) have DCF-ready local inputs. Use NVDA first for valuation proof, then compare META blocked, QQQ excluded, and MU peer-limited states."
+            f"Start here: {dcf_ready} ticker(s) have DCF-ready local inputs. Open a report, read supported sections first, then route locked fields to Data Health."
         )
     elif price_ready > 0:
         review_body = (
-            f"Start here for ticker-level proof: {price_ready} ticker(s) can support setup review; use META or APLD to see valuation stay gated."
+            f"Start here for ticker-level proof: {price_ready} ticker(s) can support setup review; valuation stays gated where trusted fundamentals are missing."
         )
 
     improve_body = (
@@ -24444,8 +24496,8 @@ def render_home_page(
     )
     if public_mode:
         render_context_note(
-            "Public demo mode.",
-            "Data readiness first. Analysis second. Research decision last. This view keeps the product story readable and keeps detailed operator commands behind Operator mode.",
+            "Public visitor mode.",
+            "Data readiness first. Analysis second. Research decision last. This view keeps the research workflow readable and keeps detailed operator commands behind Operator mode.",
             tone="success",
         )
     if public_mode:
@@ -24471,10 +24523,10 @@ def render_home_page(
         )
 
     render_section_header(
-        "Visitor Walkthrough",
-        "Minimum path for GitHub or LinkedIn visitors: NVDA ready-data example, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot.",
+        "Research Workflow",
+        "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states.",
     )
-    render_signal_cards(_plain_home_first_run_path_cards(), show_commands=not public_mode)
+    render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
     render_signal_cards(_plain_home_next_step_cards(summary)[:4] if public_mode else _plain_home_next_step_cards(summary), show_commands=False)
@@ -24483,11 +24535,16 @@ def render_home_page(
     render_action_cards(_plain_home_route_choice_cards(summary))
 
     if public_mode:
-        render_section_header("Example Reports", "Small examples that show ready, blocked, excluded, peer-limited, and fundamentals-gated states.")
-        st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
+        with st.expander("Example state walkthrough", expanded=False):
+            render_section_header(
+                "Example State Walkthrough",
+                "Real local examples for ready, blocked, excluded, peer-limited, and fundamentals-gated states.",
+            )
+            render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)
+            st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
         render_context_note(
             "Research-only boundary.",
-            "These examples are not recommendations. They show which analysis is supported, locked, or excluded by the current local data.",
+            "Examples are secondary evidence, not the main workflow and not recommendations. They show which analysis is supported, locked, or excluded by the current local data.",
             tone="success",
         )
 
@@ -27823,9 +27880,9 @@ def main() -> None:
         initial_page = dashboard_page_from_query(st.query_params.get("page"))
         initial_mode = dashboard_mode_from_query(st.query_params.get("mode"), initial_page)
         public_demo_mode = st.toggle(
-            "Public demo mode",
+            "Public visitor mode",
             value=initial_mode == PUBLIC_DEMO_MODE,
-            help="Keeps the dashboard focused on the visitor story. Turn off for operator workflows, detailed boards, and local command runbooks.",
+            help="Keeps the dashboard focused on the real visitor workflow. Turn off for operator workflows, detailed boards, and local command runbooks.",
         )
         mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
         st.caption(f"Mode: {dashboard_mode_label(mode)}")
@@ -27894,7 +27951,7 @@ def main() -> None:
                 render_sidebar_route_steps(dashboard_navigation_cards())
         elif public_demo_mode:
             render_context_note(
-                "Clean visitor path.",
+                "Clean visitor workflow.",
                 "Home -> Single-Stock Report -> Data Health. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
             )
         if show_sidebar_operator_guides:

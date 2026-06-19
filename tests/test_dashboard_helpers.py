@@ -1534,9 +1534,9 @@ def test_sidebar_product_intro_is_portfolio_safe_and_not_command_first():
     rendered = dashboard.sidebar_product_intro_html()
     lowered = rendered.lower()
 
-    assert "Portfolio demo" in rendered
-    assert "Choose a research path" in rendered
-    assert "surfaces readiness, blockers, and next proof steps" in rendered
+    assert "Research workflow" in rendered
+    assert "Start with readiness, review one ticker" in rendered
+    assert "connects readiness, ticker review, source-proof gaps, and proof history" in rendered
     assert "executing account actions or data imports" in rendered
     assert "make " not in lowered
     assert "buy" not in lowered
@@ -1810,9 +1810,9 @@ def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
         "VISITOR STEP 4",
         "VISITOR STEP 5",
     ]
-    assert "print the demo walkthrough" in rendered
+    assert "print the visitor workflow" in rendered
     assert "share walkthrough" in rendered
-    assert "follows home -> nvda -> meta -> qqq -> mu -> crdo -> trusted-data pilot" in rendered
+    assert "follows home readiness snapshot -> single-stock report -> data health source-proof lane -> proof history" in rendered
     assert "without changing local files" in rendered
     assert "demo command" not in visible_rendered
     assert "make " not in visible_rendered
@@ -1834,6 +1834,35 @@ def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=meta" in rendered
     assert "make trusted-data-pilot-packet ticker=crdo" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_home_real_workflow_cards_connect_pages_without_demo_framing():
+    cards = dashboard._plain_home_real_workflow_cards(
+        {
+            "price_ready": 3538,
+            "dcf_ready": 59,
+            "peer_ready": 26,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["WORKFLOW 1", "WORKFLOW 2", "WORKFLOW 3", "WORKFLOW 4"]
+    assert "start with the live readiness snapshot" in rendered
+    assert "3,538 price-ready, 59 dcf-ready, and 26 peer-ready" in rendered
+    assert "review one ticker from the current state" in rendered
+    assert "workflow also works for any local ticker" in rendered
+    assert "route locked sections to data health" in rendered
+    assert "3,479 price-ready names still need trusted fundamentals" in rendered
+    assert "33 dcf-ready names still need peer inputs" in rendered
+    assert "record proof before trusting a changed state" in rendered
+    assert "demo" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -1891,19 +1920,21 @@ def test_home_current_data_coverage_cards_show_public_snapshot_and_unlock_paths(
 def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    workflow_spine_index = source.index('render_section_header(\n        "Research Workflow"')
+    next_step_index = source.index('render_section_header("What To Do Next"')
+    example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
     details_gate_index = source.index("if show_details:")
-    demo_walkthrough_index = source.index('"Visitor Walkthrough"')
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
     coverage_index = source.index('render_section_header("Current Data Coverage"')
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
-    next_step_index = source.index('render_section_header("What To Do Next"')
 
-    assert demo_walkthrough_index < next_step_index < details_gate_index < coverage_expander_index < coverage_index
+    assert workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
-    assert "Minimum path for GitHub or LinkedIn visitors: NVDA ready-data example, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot." in source
+    assert "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
-    assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=not public_mode)" in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)" in source
+    assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)" in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4] if public_mode else _plain_home_next_step_cards(summary), show_commands=False)" in source
@@ -2001,10 +2032,8 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Data Health"]
     assert cards[1][3] == "warning"
     assert "23 ticker(s) have dcf-ready local inputs" in rendered
-    assert "use nvda first for valuation proof" in rendered
-    assert "meta blocked" in rendered
-    assert "qqq excluded" in rendered
-    assert "mu peer-limited" in rendered
+    assert "open a report, read supported sections first" in rendered
+    assert "route locked fields to data health" in rendered
     assert "raw tables" not in rendered
     assert "best next for coverage" in rendered
     assert "3,273 ticker(s) still need price coverage" in rendered
@@ -2035,10 +2064,8 @@ def test_home_route_choice_cards_warn_when_candidate_pages_should_stay_empty():
     assert cards[0][0] == "Review one stock"
     assert cards[1][0] == "Improve data coverage"
     assert cards[1][3] == "warning"
-    assert "open nvda for ready-data proof" in rendered
-    assert "meta blocked" in rendered
-    assert "qqq excluded" in rendered
-    assert "mu peer-limited" in rendered
+    assert "choose any local ticker" in rendered
+    assert "ready, blocked, excluded, or monitor-only" in rendered
     assert "open proof history first" in rendered
     assert "candidate pages should stay empty when local data cannot support them" in rendered
     assert "25 ticker(s) still need price coverage" in rendered
@@ -2052,8 +2079,10 @@ def test_home_route_choice_cards_warn_when_candidate_pages_should_stay_empty():
 def test_home_page_renders_evaluation_workflow_before_next_steps():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    workflow_spine_index = source.index('render_section_header(\n        "Research Workflow"')
     next_step_index = source.index('render_section_header("What To Do Next"')
     where_to_go_index = source.index('render_section_header("Where To Go"')
+    examples_public_expander_index = source.index('st.expander("Example state walkthrough", expanded=False)')
     details_gate_index = source.index("if show_details:")
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
@@ -2065,7 +2094,8 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
     commands_index = source.index('st.expander("Optional: local commands"')
 
-    assert next_step_index < where_to_go_index < details_gate_index < coverage_expander_index < workflow_index
+    assert workflow_spine_index < next_step_index < where_to_go_index < examples_public_expander_index < details_gate_index
+    assert details_gate_index < coverage_expander_index < workflow_index
     assert workflow_index < price_refresh_expander_index < price_refresh_index
     assert price_refresh_index < examples_expander_index < examples_index
     assert examples_index < learn_more_index < commands_index
@@ -2083,9 +2113,11 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])' in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])' not in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Import Review"])' not in source
+    assert 'st.expander("Example state walkthrough", expanded=False)' in source
     assert 'st.expander("Optional: example reports", expanded=False)' in source
     assert 'st.expander("Optional: methodology, roadmap, and transparency", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=not public_mode)" in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)" in source
     assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source
 
@@ -14602,8 +14634,8 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "make stock-report-md ticker=crdo" in rendered
     assert "make stock-report-md ticker=nvda" not in summary_rendered
     assert dashboard.single_stock_demo_picker_note() == (
-        "Pick a demo state.",
-        "Use these examples to review each stock-evaluation mode before choosing your own ticker.",
+        "Pick a report state.",
+        "Use these examples to understand ready, blocked, excluded, and proof-gated states before choosing your own ticker.",
     )
     assert [card["title"] for card in demo_cards] == ["NVDA", "META", "MU", "CRDO", "APLD", "QQQ", "SMH", "A"]
     assert [card["title"] for card in demo_picker_cards] == ["8 report states", "NVDA", "META", "MU", "CRDO", "APLD", "QQQ", "SMH", "A"]
@@ -14615,6 +14647,8 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "operating-company dcf and peer valuation are excluded rather than failed" in demo_rendered
     assert "sector etf monitor context" in demo_rendered
     assert "peer-relative valuation still stays locked" in demo_rendered
+    assert "use nvda, meta, qqq, mu, and crdo as optional state examples" in demo_picker_rendered
+    assert "after you understand the readiness-to-proof workflow" in demo_picker_rendered
     assert "each command is copy-only and writes a local markdown report" in demo_picker_rendered
     assert "make stock-report-md ticker=nvda" in demo_rendered
     assert "make stock-report-md ticker=meta" in demo_rendered
@@ -23751,7 +23785,7 @@ def test_dashboard_public_demo_mode_query_defaults_to_visitor_view():
     assert dashboard.dashboard_mode_from_query("operator") == dashboard.OPERATOR_DEMO_MODE
     assert dashboard.dashboard_mode_from_query("internal") == dashboard.OPERATOR_DEMO_MODE
     assert dashboard.dashboard_mode_from_query(None, "Value / Re-rating") == dashboard.OPERATOR_DEMO_MODE
-    assert dashboard.dashboard_mode_label(dashboard.PUBLIC_DEMO_MODE) == "Public demo mode"
+    assert dashboard.dashboard_mode_label(dashboard.PUBLIC_DEMO_MODE) == "Public visitor mode"
     assert dashboard.dashboard_mode_label(dashboard.OPERATOR_DEMO_MODE) == "Operator mode"
 
 
@@ -23803,7 +23837,7 @@ def test_data_health_freshness_status_marks_current_readiness_stale_when_status_
 def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert '"Public demo mode"' in source
+    assert '"Public visitor mode"' in source
     assert "public_demo_mode = st.toggle" in source
     assert "path_options = sidebar_path_options(\"Home\" if public_demo_mode else initial_page)" in source
     assert "show_reason_details = False" in source
