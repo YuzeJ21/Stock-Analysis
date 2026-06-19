@@ -4,11 +4,25 @@ from __future__ import annotations
 
 import argparse
 import csv
+import importlib.util
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from scripts.diff_hygiene import StatusEntry, group_entries, load_status
+try:
+    from scripts.diff_hygiene import StatusEntry, group_entries, load_status
+except ModuleNotFoundError:
+    _DIFF_HYGIENE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "diff_hygiene.py"
+    _DIFF_HYGIENE_SPEC = importlib.util.spec_from_file_location("stock_analysis_diff_hygiene", _DIFF_HYGIENE_PATH)
+    if _DIFF_HYGIENE_SPEC is None or _DIFF_HYGIENE_SPEC.loader is None:
+        raise
+    _DIFF_HYGIENE_MODULE = importlib.util.module_from_spec(_DIFF_HYGIENE_SPEC)
+    sys.modules[_DIFF_HYGIENE_SPEC.name] = _DIFF_HYGIENE_MODULE
+    _DIFF_HYGIENE_SPEC.loader.exec_module(_DIFF_HYGIENE_MODULE)
+    StatusEntry = _DIFF_HYGIENE_MODULE.StatusEntry
+    group_entries = _DIFF_HYGIENE_MODULE.group_entries
+    load_status = _DIFF_HYGIENE_MODULE.load_status
 
 from src.readiness_ops import build_data_coverage_proof_queues
 from src.reviewed_batch import readiness_freshness_status
