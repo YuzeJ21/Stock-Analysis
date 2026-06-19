@@ -2002,12 +2002,14 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
         'Public share check: whitespace',
         'Public share check: tests',
         'Public share check: dashboard smoke',
+        'Public share check: browser QA evidence',
         'Public share check: visitor demo',
         "@$(MAKE) --silent diff-hygiene-summary",
         "@$(MAKE) --silent staged-hygiene-check",
         "@git diff --check",
         "@$(MAKE) --silent test",
         "@$(MAKE) --silent dashboard-smoke",
+        "@$(MAKE) --silent browser-qa-evidence",
         "@$(MAKE) --silent demo",
     ):
         assert phrase in makefile

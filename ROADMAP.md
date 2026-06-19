@@ -46,6 +46,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Data Health Visual Density V2 with a compact pilot workflow strip, collapsed pilot gate details, tighter first-screen hierarchy, and preserved copy-only proof controls.
 - [x] Public Mode First-30-Seconds Polish V1 so visitors see ready coverage, blocked deeper-analysis inputs, and proof boundaries before operator paths or evidence drawers.
 - [x] Operator Next Action Summary V1 so Data Health answers pilot status, main manual gate, leading source-proof blocker, and hidden-detail boundary before raw tables.
+- [x] Browser QA Evidence V1 with `make browser-qa-evidence`, committed screenshot asset checks, route expectations, and environment-limited capture notes for GitHub/LinkedIn evidence.
 
 ## 2. Current Product State
 

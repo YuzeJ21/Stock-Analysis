@@ -520,6 +520,8 @@ public-check:
 	@$(MAKE) --silent test
 	@echo "Public share check: dashboard smoke"
 	@$(MAKE) --silent dashboard-smoke
+	@echo "Public share check: browser QA evidence"
+	@$(MAKE) --silent browser-qa-evidence
 	@echo "Public share check: visitor demo"
 	@$(MAKE) --silent demo
 
