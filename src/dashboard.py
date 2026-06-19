@@ -94,6 +94,7 @@ from src import data_health_batch_console as batch_console
 from src import data_health_coverage_console as coverage_console
 from src import data_health_command_console as command_console
 from src import data_health_overview_console as overview_console
+from src import data_health_pilot_console as pilot_console
 from src import data_health_trusted_pilot_console as trusted_pilot_console
 from src import overview_workflow_console as workflow_console
 from src.data_update import enrich_price_update_status_frame
@@ -7773,92 +7774,28 @@ def data_health_pilot_readiness_frame(root: Path | None = None, *, top_n: int = 
 
 
 def data_health_pilot_readiness_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
-    if frame is None or frame.empty:
-        return [
-            {
-                "kicker": "PILOT GATE",
-                "title": "Run pilot readiness check",
-                "body": (
-                    "The pilot gate needs sync, hygiene, freshness, source-proof, public-check, "
-                    "and research-only guardrail status before sharing."
-                ),
-                "badges": ["read-only", "pilot gate"],
-                "command": "make pilot-readiness-check TOP_N=10",
-            }
-        ]
-    statuses = [str(value).strip().lower() for value in frame.get("Status", pd.Series(dtype=str)).tolist()]
-    if "blocked" in statuses:
-        verdict = "Blocked before pilot"
-        badge = "blocked"
-    elif "manual" in statuses:
-        verdict = "Pilot-ready with manual gates"
-        badge = "manual gates"
-    else:
-        verdict = "Pilot-ready"
-        badge = "green"
-    manual_count = statuses.count("manual")
-    blocked_count = statuses.count("blocked")
-    green_count = statuses.count("green")
-    cards: list[dict[str, object]] = [
-        {
-            "kicker": "PILOT READINESS",
-            "title": verdict,
-            "body": (
-                f"{green_count} green gate(s), {manual_count} manual gate(s), and {blocked_count} blocked gate(s). "
-                "This is a packaging checklist, not an analysis unlock; missing trusted inputs stay visible."
-            ),
-            "badges": [badge, "research-only"],
-            "command": "make pilot-readiness-check TOP_N=10",
-        }
-    ]
-    priority = {"blocked": 0, "manual": 1, "green": 2}
-    work = frame.copy()
-    work["_rank"] = work["Status"].map(lambda value: priority.get(str(value).strip().lower(), 9))
-    for _, row in work.sort_values(["_rank", "Area"]).head(max(limit, 0)).iterrows():
-        area = format_missing(row.get("Area"), "Pilot gate")
-        status = public_status_label(row.get("Status"))
-        detail = compact_card_fragment(row.get("Detail"), max_chars=170)
-        stop_rule = compact_card_fragment(row.get("Stop Rule"), max_chars=150)
-        command = format_missing(row.get("Command"), "make pilot-readiness-check TOP_N=10")
-        cards.append(
-            {
-                "kicker": "PILOT CHECK",
-                "title": area,
-                "body": f"{card_sentence('Status', status)} {card_sentence('Detail', detail)} {card_sentence('Stop rule', stop_rule)}",
-                "badges": [status],
-                "command": command,
-            }
-        )
-    return cards
+    return pilot_console.pilot_readiness_cards(frame, limit=limit)
 
 
 def data_health_pilot_packet_cards(frame: pd.DataFrame | None, *, output_path: Path = DEFAULT_PACKET_PATH) -> list[dict[str, object]]:
-    if frame is None or frame.empty:
-        verdict = "Run pilot readiness first"
-        status_badge = "read-only"
-    else:
-        statuses = [str(value).strip().lower() for value in frame.get("Status", pd.Series(dtype=str)).tolist()]
-        if "blocked" in statuses:
-            verdict = "Packet will show blocked pilot gates"
-            status_badge = "blocked gates visible"
-        elif "manual" in statuses:
-            verdict = "Packet will show manual pilot gates"
-            status_badge = "manual gates visible"
-        else:
-            verdict = "Packet will show pilot-ready gates"
-            status_badge = "green gates"
-    return [
-        {
-            "kicker": "PILOT PACKET",
-            "title": verdict,
-            "body": (
-                f"Write `{output_path.as_posix()}` as a reviewer-ready summary of the pilot verdict, readiness snapshot, "
-                "source-proof queues, proof ledger, stop rules, and excluded generated artifacts. The command does not refresh data or apply rows."
-            ),
-            "badges": [status_badge, "reviewer packet"],
-            "command": f"make pilot-readiness-packet OUTPUT={output_path.as_posix()}",
-        }
-    ]
+    return pilot_console.pilot_packet_cards(frame, output_path=output_path)
+
+
+def data_health_pilot_reviewer_walkthrough_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    return pilot_console.pilot_reviewer_walkthrough_frame(
+        pilot_frame,
+        proof_queue_frame,
+        output_path=output_path,
+    )
+
+
+def data_health_pilot_reviewer_walkthrough_cards(frame: pd.DataFrame | None, *, limit: int = 5) -> list[dict[str, object]]:
+    return pilot_console.pilot_reviewer_walkthrough_cards(frame, limit=limit)
 
 
 def data_health_data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -25905,6 +25842,22 @@ def render_data_health(
         batch_proof_summary_frame=batch_proof_summary_frame,
         base_dir=BASE_DIR,
     )
+    pilot_reviewer_walkthrough = data_health_pilot_reviewer_walkthrough_frame(
+        pilot_readiness,
+        data_coverage_proof_queues,
+        output_path=DEFAULT_PACKET_PATH,
+    )
+    render_section_header(
+        "Pilot Reviewer Walkthrough",
+        "One compact path from gate status to source-proof focus, packet export, and public-check before raw tables.",
+    )
+    render_signal_cards(
+        data_health_pilot_reviewer_walkthrough_cards(pilot_reviewer_walkthrough),
+        show_commands=True,
+        variant="queue",
+    )
+    with st.expander("Pilot reviewer walkthrough detail", expanded=False):
+        st.dataframe(clean_display_frame(pilot_reviewer_walkthrough), width="stretch", hide_index=True)
     render_section_header(
         "Pilot Readiness Gate",
         "Sync, hygiene, freshness, source-proof, public-check, and research-only status before a pilot package.",

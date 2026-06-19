@@ -1,6 +1,11 @@
 import pandas as pd
 
-from src.dashboard import data_health_pilot_packet_cards, data_health_pilot_readiness_cards
+from src.dashboard import (
+    data_health_pilot_packet_cards,
+    data_health_pilot_readiness_cards,
+    data_health_pilot_reviewer_walkthrough_cards,
+    data_health_pilot_reviewer_walkthrough_frame,
+)
 
 
 def test_data_health_pilot_readiness_cards_surface_verdict_and_priority_gates():
@@ -72,3 +77,34 @@ def test_data_health_pilot_packet_cards_are_copy_only_and_show_packet_path():
     assert "manual gates visible" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_data_health_pilot_reviewer_walkthrough_wraps_compact_path():
+    pilot = pd.DataFrame(
+        [
+            {"Area": "GitHub sync", "Status": "green", "Detail": "main is synced.", "Command": "git status --short --branch", "Stop Rule": "Stop if branch diverges."},
+            {"Area": "Generated artifact hygiene", "Status": "manual", "Detail": "Generated churn is excluded.", "Command": "make diff-hygiene-summary", "Stop Rule": "Do not stage broad generated churn."},
+        ]
+    )
+    queues = pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "partial",
+                "Queued Rows": 100,
+                "Blocked": 90,
+                "Top Blockers": "fundamentals_bundle_plus_shares: 90",
+                "Next Safe Command": "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10",
+                "Stop Rule": "Stop if source proof is unavailable.",
+            }
+        ]
+    )
+
+    frame = data_health_pilot_reviewer_walkthrough_frame(pilot, queues)
+    cards = data_health_pilot_reviewer_walkthrough_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert "one compact path before raw tables" in rendered
+    assert "trusted fundamentals proof queue" in rendered
+    assert "make public-check" in rendered
+    assert "copy-only" in rendered

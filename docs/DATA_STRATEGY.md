@@ -101,6 +101,8 @@ If you want to choose the next pilot from current local blockers, run `make trus
 
 Before calling a run pilot-ready, use `make pilot-readiness-check TOP_N=10`. It checks GitHub sync, dirty-tree classification, generated CSV/report churn, readiness freshness, source-proof queues, reviewed proof-ledger status, the explicit `make public-check` gate, and research-only guardrails. Then use `make pilot-readiness-packet` to write `outputs/pilot_readiness_packet.md` as the compact reviewer packet. A `pilot-ready with manual gates` verdict is acceptable for a research pilot when generated churn is excluded, public-check still needs to be run, and source-proof lanes remain visibly blocked. A `blocked` verdict means fix sync, freshness, or uncommitted product files before sharing the pilot state.
 
+In Operator Data Health, start with the Pilot Reviewer Walkthrough before opening detailed tables. It compresses the pilot gate, leading manual gate, source-proof focus, packet command, and public-check boundary into one first-screen path so a reviewer can understand what is green, what remains manual, and why blocked source inputs stay blocked.
+
 The candidate list and one-company packet also print local file status, such as import CSV data-row counts, staged-folder file counts, and whether the rejected-row report path exists. Treat that as an inspection cue only. A file with rows is not automatically trusted coverage; it still needs source review, validation, preview, apply when appropriate, and rebuilt readiness before analysis is described as available.
 
 Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.
