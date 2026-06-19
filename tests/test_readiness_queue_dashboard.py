@@ -136,6 +136,11 @@ def test_readiness_queue_lane_action_routes_mutating_and_read_only_lanes():
     assert "do not run import/apply commands" in metric_gate["Operator Decision"].lower()
     assert peer_gate["Status"] == "validate_preview_apply"
     assert "make reviewed-batch-compare LANE=peers" in " ".join(str(value) for value in peer.to_numpy().ravel())
+    assert "?mode=operator&page=data-health&lane=metrics&drawer=queue" in rendered
+    assert "?mode=operator&page=data-health&lane=metrics&drawer=source-proof" in rendered
+    assert "?mode=operator&page=data-health&lane=proof&drawer=comparison" in rendered
+    assert "navigation-only" in rendered
+    assert "does not run commands or write data" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

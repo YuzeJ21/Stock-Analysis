@@ -7010,6 +7010,100 @@ def stock_report_next_step_cards(
     return cards
 
 
+def stock_report_workflow_fit_cards(
+    report_payload: dict[str, object],
+    coverage: pd.DataFrame | None = None,
+    peer_summary: dict[str, object] | None = None,
+) -> list[dict[str, object]]:
+    """Return the compact single-stock workflow handoff before report details."""
+
+    ticker = format_missing(report_payload.get("ticker"), "TICKER").upper()
+    readiness = _stock_report_payload_readiness(report_payload)
+    evaluation = stock_report_evaluation_summary_frame(report_payload)
+    answers = {
+        format_missing(row.get("Question"), ""): format_missing(row.get("Answer"), "")
+        for _, row in evaluation.iterrows()
+    }
+    mode = answers.get("Evaluation mode", "Not classified")
+    review_now = answers.get("What this report can support", "Read only sections backed by ready local inputs.")
+    withheld = answers.get("What remains withheld", "Unavailable inputs remain locked until trusted rows pass readiness.")
+    next_review = answers.get("Best next review step", "Review source readiness before interpreting the report.")
+    confidence = answers.get("Data-confidence note", "Readiness state is the confidence boundary.")
+
+    asset_type = stock_report_inferred_asset_type(report_payload)
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    valuation_status = format_missing(valuation.get("status"), "").lower()
+    price_ready = bool(readiness.get("price_ready"))
+    dcf_ready = bool(readiness.get("dcf_ready"))
+    peer_ready = bool(readiness.get("peer_ready"))
+    earnings_ready = bool(readiness.get("earnings_available") or readiness.get("earnings_ready"))
+    estimates_ready = bool(readiness.get("analyst_estimates_available") or readiness.get("analyst_estimates_ready"))
+    monitor_context = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status
+    next_cards = stock_report_next_step_cards(report_payload, coverage, peer_summary)
+    next_card = next_cards[0] if next_cards else {}
+    next_command = format_missing(next_card.get("command"), stock_report_md_command(ticker))
+    next_title = format_missing(next_card.get("title"), "Review local report")
+
+    if monitor_context:
+        route = "?mode=operator&page=data-health&lane=proof&drawer=proof"
+        route_label = "Proof History"
+        stop_rule = "Stop if monitor context is read as operating-company DCF or peer valuation."
+    elif not price_ready:
+        route = "?mode=operator&page=data-health&lane=prices&drawer=queue"
+        route_label = "Prices lane"
+        stop_rule = "Stop if price rows are missing, stale, rejected, or not tied to the selected ticker."
+    elif not dcf_ready:
+        route = "?mode=operator&page=data-health&lane=fundamentals&drawer=source-proof"
+        route_label = "Fundamentals / DCF source-proof lane"
+        stop_rule = "Stop if fundamentals, shares, market cap, or DCF inputs would be inferred or placeholder-backed."
+    elif not peer_ready:
+        route = "?mode=operator&page=data-health&lane=peers&drawer=source-proof"
+        route_label = "Peers source-proof lane"
+        stop_rule = "Stop if peer mappings or peer valuation inputs lack source-backed rows."
+    elif not earnings_ready or not estimates_ready:
+        route = "?mode=operator&page=data-health&lane=optional&drawer=queue"
+        route_label = "Optional context lane"
+        stop_rule = "Stop if earnings or analyst estimates are absent from trusted local rows."
+    else:
+        route = "?mode=operator&page=data-health&lane=proof&drawer=proof"
+        route_label = "Proof History"
+        stop_rule = "Stop if readiness changed since the report was generated; rebuild proof first."
+
+    return [
+        {
+            "kicker": "SELECTED TICKER",
+            "title": f"{ticker}: {mode}",
+            "body": f"{confidence} Current page state comes from the loaded report payload and saved local readiness gates.",
+            "badges": ["ticker state", "readiness gated"],
+            "command": stock_report_md_command(ticker),
+        },
+        {
+            "kicker": "REVIEW NOW",
+            "title": "What can be reviewed",
+            "body": review_now,
+            "badges": ["ready sections", "research-only"],
+            "command": stock_report_md_command(ticker),
+        },
+        {
+            "kicker": "STILL BLOCKED",
+            "title": "What stays locked or excluded",
+            "body": withheld,
+            "badges": ["blocked visible", "no inference"],
+            "command": route,
+        },
+        {
+            "kicker": "DATA HEALTH HANDOFF",
+            "title": f"{route_label}: {next_title}",
+            "body": (
+                f"{next_review} Data Health route: {route}. "
+                f"Copy-only next command: {next_command}. Stop rule: {stop_rule}"
+            ),
+            "badges": ["navigation-only", "copy-only"],
+            "command": next_command,
+        },
+    ]
+
+
 def stock_report_price_chart_frame(history: pd.DataFrame | None) -> pd.DataFrame:
     if history is None or history.empty or "date" not in history.columns or "close" not in history.columns:
         return pd.DataFrame(columns=["Close"])
@@ -10261,6 +10355,7 @@ def data_health_readiness_queue_lane_action_frame(row: pd.Series | dict[str, obj
 def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
     frame = data_health_readiness_queue_lane_action_frame(row)
     first = frame.iloc[0] if not frame.empty else pd.Series(dtype=object)
+    gate_row = frame.iloc[1] if len(frame) > 1 else first
     proof_row = frame.iloc[3] if len(frame) > 3 else first
     lane = format_missing(row.get("Lane") if isinstance(row, dict) else row.get("Lane"), "Readiness lane")
     return [
@@ -10275,11 +10370,23 @@ def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, obj
             "command": str(first.get("Copy-Only Command", "make readiness-queue TOP_N=10")),
         },
         {
+            "kicker": "DRAWER ROUTE",
+            "title": "Open the right review surface",
+            "body": (
+                f"{card_sentence('Packet drawer', compact_card_fragment(first.get('Drawer Route'), max_chars=120))} "
+                f"{card_sentence('Source-proof drawer', compact_card_fragment(gate_row.get('Drawer Route'), max_chars=120))} "
+                "Routes are navigation-only; the dashboard does not run commands or write data."
+            ),
+            "badges": ["navigation-only", "copy-only"],
+            "command": str(first.get("Drawer Route", "?mode=operator&page=data-health")),
+        },
+        {
             "kicker": "NEXT PROOF STEP",
             "title": str(first.get("Step", "Packet")),
             "body": (
                 f"{card_sentence('Decision', compact_card_fragment(first.get('Operator Decision'), max_chars=160))} "
-                f"{card_sentence('Stop if', compact_card_fragment(first.get('Stop If'), max_chars=160))}"
+                f"{card_sentence('Route boundary', compact_card_fragment(first.get('Route Boundary'), max_chars=150))} "
+                f"{card_sentence('Stop if', compact_card_fragment(first.get('Stop If'), max_chars=150))}"
             ),
             "badges": [str(first.get("Status", "copy-only")), "dry-run first"],
             "command": str(first.get("Copy-Only Command", "make readiness-queue TOP_N=10")),
@@ -10289,7 +10396,8 @@ def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, obj
             "title": str(proof_row.get("Status", "proof status unavailable")),
             "body": (
                 "The proof-record command remains a dry-run scaffold until validation, comparison, source files, "
-                "and generated artifacts are reviewed."
+                "and generated artifacts are reviewed. "
+                f"{card_sentence('Proof drawer', compact_card_fragment(proof_row.get('Drawer Route'), max_chars=120))}"
             ),
             "badges": ["review required", "research-only"],
             "command": str(proof_row.get("Copy-Only Command", "DRY_RUN=1 make reviewed-batch-proof-record")),
@@ -18700,6 +18808,128 @@ def data_health_metric_detail_load_cards(load_status: dict[str, str]) -> list[di
     ]
 
 
+def data_health_proof_detail_load_status(
+    selected_lane_key: str,
+    freshness_status: FreshnessStatus | None,
+    *,
+    requested: bool,
+    loaded: bool,
+    decision_queue_status: object | None = None,
+) -> dict[str, str]:
+    if selected_lane_key != "proof":
+        return {
+            "status": "not_selected",
+            "title": "Proof lane not selected",
+            "body": "Proof ledgers, packet scaffolds, and snapshot comparison stay unloaded until the operator opens Proof History.",
+            "next_action": "Open the Proof History lane.",
+        }
+    freshness_status = freshness_status or FreshnessStatus("unknown", "Readiness freshness has not been checked.", "make readiness")
+    if freshness_status.status in {"missing", "stale"}:
+        return {
+            "status": "blocked_by_snapshot_gate",
+            "title": "Refresh readiness before proof details",
+            "body": freshness_status.message or "Readiness artifacts are not current enough for proof-ledger review.",
+            "next_action": freshness_status.refresh_command or "make readiness",
+        }
+    if not requested:
+        return {
+            "status": "deferred",
+            "title": "Proof details are deferred",
+            "body": (
+                "The proof lane shell is loaded. Reviewed proof rows, batch packet scaffolds, and snapshot comparison "
+                "stay collapsed until Review details is opened."
+            ),
+            "next_action": "Switch Proof detail level to Review details.",
+        }
+    decision_status = str(getattr(decision_queue_status, "status", "") or "")
+    if not loaded:
+        return {
+            "status": "loading",
+            "title": "Proof details are loading",
+            "body": (
+                "The proof lane is building reviewed proof ledgers, packet scaffolds, and snapshot comparison. "
+                "Keep proof rows collapsed until the loaded state appears."
+            ),
+            "next_action": "Wait for proof detail cards, then open the reviewed proof drawers.",
+        }
+    if decision_status in {"missing", "stale"}:
+        return {
+            "status": "loaded_with_warning",
+            "title": "Proof details loaded with a source warning",
+            "body": (
+                "Reviewed batch proof and snapshot comparison are loaded, but the decision proof queue needs refresh "
+                "before decision-proof rows can be used."
+            ),
+            "next_action": getattr(decision_queue_status, "refresh_command", "") or "make decision-proof-queue",
+        }
+    return {
+        "status": "loaded",
+        "title": "Proof details loaded",
+        "body": "Reviewed proof ledgers, batch proof scaffolds, and snapshot comparison are available in collapsed proof drawers.",
+        "next_action": "Open reviewed batch proof drawer.",
+    }
+
+
+def data_health_proof_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, object]]:
+    status = load_status.get("status", "deferred")
+    if status == "blocked_by_snapshot_gate":
+        return [
+            {
+                "kicker": "PROOF DETAIL GATE",
+                "title": load_status.get("title", "Refresh readiness first"),
+                "body": (
+                    f"{load_status.get('body', 'Readiness artifacts need refresh.')} "
+                    "Proof details stay blocked so stale snapshot counts do not look reviewed."
+                ),
+                "badges": ["snapshot gate", "no stale proof"],
+                "command": load_status.get("next_action", "make readiness"),
+            }
+        ]
+    if status == "loading":
+        return [
+            {
+                "kicker": "PROOF DETAIL STATUS",
+                "title": load_status.get("title", "Proof details are loading"),
+                "body": (
+                    f"{load_status.get('body', 'Proof detail rows are loading.')} "
+                    "This is still read-only and does not record a proof row."
+                ),
+                "badges": ["loading", "collapsed proof"],
+                "command": "Review details is selected; wait for loaded proof state.",
+            }
+        ]
+    if status in {"loaded", "loaded_with_warning"}:
+        warning_suffix = (
+            " Resolve the source warning before using decision-proof rows."
+            if status == "loaded_with_warning"
+            else ""
+        )
+        return [
+            {
+                "kicker": "PROOF DETAIL STATUS",
+                "title": load_status.get("title", "Proof details loaded"),
+                "body": (
+                    f"{load_status.get('body', 'Proof detail rows are loaded.')}{warning_suffix} "
+                    "Record supported, still_blocked, skipped, or excluded only after reviewed evidence is complete."
+                ),
+                "badges": ["loaded", "proof ledger"],
+                "command": load_status.get("next_action", "Open reviewed batch proof drawer."),
+            }
+        ]
+    return [
+        {
+            "kicker": "PROOF DETAIL STATUS",
+            "title": load_status.get("title", "Proof details are deferred"),
+            "body": (
+                f"{load_status.get('body', 'Proof details load only when needed.')} "
+                "This keeps the proof lane fast and prevents raw ledgers from looking like first-read status."
+            ),
+            "badges": ["progressive loading", "collapsed proof"],
+            "command": load_status.get("next_action", "Switch Proof detail level to Review details."),
+        }
+    ]
+
+
 def data_health_metric_readiness_queue_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
     if frame is None or frame.empty:
         return [
@@ -24304,9 +24534,10 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "VISITOR STEP 1",
-            "title": "Print the visitor workflow",
+            "title": "Preview the visitor path",
             "body": (
-                "Use the share walkthrough when presenting the repo: it follows Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history without changing local files."
+                "Follow Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. "
+                "This is a read-only tour of the research loop before any local data changes."
             ),
             "badges": ["share path", "read-only"],
             "command": "make demo",
@@ -24322,27 +24553,27 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "VISITOR STEP 3",
-            "title": "Read the NVDA proof report",
+            "title": "Open a ready company report",
             "body": (
-                "Use the NVDA Markdown report as the strongest ready-data demo because it shows DCF assumptions, peer context, locked optional context, and source notes."
+                "Use the NVDA Markdown report as a ready-data example because it shows DCF assumptions, peer context, locked optional context, and source notes."
             ),
             "badges": ["one ticker", "proof report"],
             "command": "make stock-report-md TICKER=NVDA",
         },
         {
             "kicker": "VISITOR STEP 4",
-            "title": "Compare blocked, excluded, and peer-limited states",
+            "title": "Compare readiness states",
             "body": (
-                "Open META next to see valuation gated by trusted fundamentals, QQQ to see ETF/index DCF excluded rather than failed, and MU to see standalone DCF with peer valuation still locked."
+                "Open META for valuation gated by trusted fundamentals, QQQ for ETF/index DCF excluded rather than failed, and MU for standalone DCF with peer valuation still locked."
             ),
             "badges": ["blocked is useful", "excluded is not failed", "peer-limited"],
             "command": "make stock-report-md TICKER=META",
         },
         {
             "kicker": "VISITOR STEP 5",
-            "title": "Show the trusted-data proof path",
+            "title": "See how coverage improves",
             "body": (
-                "Open CRDO or the candidate list when a visitor asks how coverage improves. The one-company packet shows local file status, rejected-row checks, and the proof path without importing rows."
+                "Open CRDO or the candidate list when a visitor asks how coverage improves. The one-company packet shows local file status, rejected-row checks, and proof boundaries without importing rows."
             ),
             "badges": ["read-only", "trusted data", "CRDO"],
             "command": "make trusted-data-pilot-packet TICKER=CRDO",
@@ -25334,6 +25565,11 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
         "A readable view of local research inputs. This is context only, not execution guidance.",
     )
+    render_section_header(
+        "Workflow Fit",
+        "Selected ticker state, what can be reviewed now, what stays blocked, and where Data Health fits next.",
+    )
+    render_signal_cards(stock_report_workflow_fit_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     render_section_header(
         "At A Glance",
         "Start here: mode, valuation state, withheld context, method boundary, and next local command.",
@@ -27197,6 +27433,14 @@ def render_data_health(
             loaded=proof_details_requested,
             help_text="Fast view keeps proof history light. Review details loads proof ledgers, packet scaffolds, and snapshot comparison.",
         )
+        proof_detail_status = data_health_proof_detail_load_status(
+            selected_lane_key,
+            readiness_freshness,
+            requested=proof_details_requested,
+            loaded=proof_details_requested and readiness_comparison is not None,
+            decision_queue_status=decision_queue_freshness,
+        )
+        render_signal_cards(data_health_proof_detail_load_cards(proof_detail_status), show_commands=False)
         if not proof_details_requested:
             render_signal_cards(
                 data_health_deferred_detail_cards(

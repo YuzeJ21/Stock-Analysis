@@ -56,6 +56,10 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Data Coverage Proof Queue Performance V2 so broad proof queues reuse DCF blocker rows and avoid duplicate share-count readiness rebuilds.
 - [x] Local Price Provider Cache V1 so metric-readiness and single-stock review paths reuse prepared local price rows instead of repeatedly normalizing the full prices CSV.
 - [x] Readiness Queue Performance V3 so queue-specific CLI routes avoid prebuilding unrelated frontier views, share-count lanes reuse DCF blocker rows, and local provider lookups reuse ticker rows for financial and peer context.
+- [x] Proof Lane Progressive Load UX V2 so Proof History shows deferred, loading, stale, warning, and loaded states before proof ledgers, packet details, or command builders render.
+- [x] Data Health Drawer Routing V2 so readiness queue lanes expose navigation-only routes from lane drawer to source proof, comparison, proof record, and artifact hygiene without running commands.
+- [x] Public Visitor Workflow Polish V3 so the GitHub/LinkedIn path starts browser-first, keeps examples as readiness states, and moves terminal proof commands into optional local checks.
+- [x] Single-Stock Workflow Fit V3 so loaded ticker reports show selected state, reviewable sections, blocked/excluded lanes, Data Health handoff, and stop rule before detailed report sections.
 
 ## 2. Current Product State
 

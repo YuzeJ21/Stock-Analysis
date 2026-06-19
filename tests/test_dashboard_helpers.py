@@ -736,10 +736,18 @@ def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
     assert "make reviewed-batch-compare lane=peers" in rendered
     assert "dry_run=1 make reviewed-batch-proof-record" in rendered
     assert "make diff-hygiene" in rendered
+    assert "?mode=operator&page=data-health&lane=peers&drawer=queue" in rendered
+    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
+    assert "?mode=operator&page=data-health&lane=proof&drawer=proof-record" in rendered
+    assert "navigation-only" in rendered
     assert "you do not need to open proof history first" in rendered_cards
+    assert "open the right review surface" in rendered_cards
+    assert "dashboard does not run commands or write data" in rendered_cards
     assert "research-only" in rendered_cards
     assert "buy" not in rendered
     assert "sell" not in rendered
+    assert "broker" not in rendered_cards
+    assert "order routing" not in rendered_cards
 
 
 def test_data_health_readiness_queue_lane_action_keeps_metrics_read_only():
@@ -761,6 +769,9 @@ def test_data_health_readiness_queue_lane_action_keeps_metrics_read_only():
     assert "do not run import/apply commands" in gate_row["Operator Decision"].lower()
     assert "make metric-readiness-board top_n=10" in rendered
     assert "lane=metrics" in rendered
+    assert "?mode=operator&page=data-health&lane=metrics&drawer=queue" in rendered
+    assert "?mode=operator&page=data-health&lane=metrics&drawer=source-proof" in rendered
+    assert "navigation-only" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -1983,24 +1994,25 @@ def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
         "VISITOR STEP 4",
         "VISITOR STEP 5",
     ]
-    assert "print the visitor workflow" in rendered
-    assert "share walkthrough" in rendered
-    assert "follows home readiness snapshot -> single-stock report -> data health source-proof lane -> proof history" in rendered
-    assert "without changing local files" in rendered
+    assert "preview the visitor path" in rendered
+    assert "home readiness snapshot -> single-stock report -> data health source-proof lane -> proof history" in rendered
+    assert "read-only tour of the research loop" in rendered
     assert "demo command" not in visible_rendered
+    assert "ready-data demo" not in rendered
+    assert "print the visitor workflow" not in rendered
     assert "make " not in visible_rendered
     assert "open the clean product view" in rendered
     assert "three clear paths" in rendered
-    assert "read the nvda proof report" in rendered
-    assert "ready-data demo" in rendered
+    assert "open a ready company report" in rendered
+    assert "ready-data example" in rendered
     assert "dcf assumptions" in rendered
-    assert "compare blocked, excluded, and peer-limited states" in rendered
-    assert "open meta next" in rendered
-    assert "qqq to see etf/index dcf excluded rather than failed" in rendered
-    assert "mu to see standalone dcf with peer valuation still locked" in rendered
+    assert "compare readiness states" in rendered
+    assert "open meta for valuation gated" in rendered
+    assert "qqq for etf/index dcf excluded rather than failed" in rendered
+    assert "mu for standalone dcf with peer valuation still locked" in rendered
     assert "etf/index dcf excluded rather than failed" in rendered
-    assert "trusted-data proof path" in rendered
-    assert "local file status, rejected-row checks, and the proof path" in rendered
+    assert "see how coverage improves" in rendered
+    assert "local file status, rejected-row checks, and proof boundaries" in rendered
     assert "without importing rows" in rendered
     assert "make demo" in rendered
     assert "make dashboard" in rendered
@@ -9799,6 +9811,67 @@ def test_stock_report_best_review_path_cards_route_by_readiness_mode():
     assert "sell" not in rendered
 
 
+def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_handoff():
+    cards = dashboard.stock_report_workflow_fit_cards(
+        {
+            "ticker": "A",
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": False},
+            "missing_data_warnings": ["Peer valuation inputs missing"],
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "SELECTED TICKER",
+        "REVIEW NOW",
+        "STILL BLOCKED",
+        "DATA HEALTH HANDOFF",
+    ]
+    assert "a: standalone dcf review" in rendered
+    assert "what can be reviewed" in rendered
+    assert "standalone dcf assumptions" in rendered
+    assert "peer-relative valuation remains withheld" in rendered
+    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
+    assert "peers source-proof lane" in rendered
+    assert "copy-only next command: make focus-peers ticker=a" in rendered
+    assert "stop if peer mappings or peer valuation inputs lack source-backed rows" in rendered
+    assert "navigation-only" in rendered
+    assert "research-only" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_workflow_fit_cards_route_price_setup_to_fundamentals_lane():
+    cards = dashboard.stock_report_workflow_fit_cards(
+        {
+            "ticker": "META",
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "insufficient_data"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["Fundamentals missing"],
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "meta: price/setup review only" in rendered
+    assert "price/setup review and missing-data diagnosis" in rendered
+    assert "company valuation remains blocked" in rendered
+    assert "?mode=operator&page=data-health&lane=fundamentals&drawer=source-proof" in rendered
+    assert "fundamentals / dcf source-proof lane" in rendered
+    assert "copy-only next command: make focus-fundamentals ticker=meta" in rendered
+    assert "stop if fundamentals, shares, market cap, or dcf inputs would be inferred" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_at_a_glance_cards_match_markdown_report_flow():
     payload = {
         "ticker": "META",
@@ -13748,7 +13821,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     metrics_drawer_index = source.index('st.expander("Metrics evidence drawer", expanded=False)', peer_drawer_index)
     optional_console_index = source.index("render_data_health_optional_operator_console(", metrics_drawer_index)
     optional_drawer_index = source.index('st.expander("Optional context evidence drawer", expanded=False)', optional_console_index)
-    proof_console_index = source.index("render_data_health_proof_history_operator_console(", optional_drawer_index)
+    proof_lane_index = source.index('elif selected_lane == "Proof History":', optional_drawer_index)
+    proof_detail_status_index = source.index("proof_detail_status = data_health_proof_detail_load_status(", proof_lane_index)
+    proof_detail_cards_index = source.index("data_health_proof_detail_load_cards(proof_detail_status)", proof_detail_status_index)
+    proof_console_index = source.index("render_data_health_proof_history_operator_console(", proof_detail_cards_index)
     batch_proof_drawer_index = source.index('st.expander("Reviewed batch proof drawer", expanded=True)', proof_console_index)
     proof_snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', batch_proof_drawer_index)
     proof_apply_gate_index = source.index('render_section_header("Apply Guard"', proof_snapshot_gate_index)
@@ -13761,7 +13837,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
 
     assert public_return_index < prior_snapshot_load_index < top_summary_block_index
     assert queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < proof_closeout_summary_index < proof_closeout_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < top_summary_block_index < lane_snapshot_index < readiness_queue_cards_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_drawer_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < top_summary_block_index < lane_snapshot_index < readiness_queue_cards_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_drawer_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_lane_index < proof_detail_status_index < proof_detail_cards_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -13836,6 +13912,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "Decision proof queue drawer" in source
     assert "decision_queue_drawer_expanded = selected_lane_key == \"proof\" and proof_details_requested" in source
     assert "data_health_deferred_detail_cards(" in source
+    assert "data_health_proof_detail_load_status(" in source
+    assert "data_health_proof_detail_load_cards(proof_detail_status)" in source
     assert "decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)" in source
     assert "decision_proof_queue_operator_flow_cards(decision_queue_frame, decision_queue_freshness)" in source
     assert "Decision Proof Detail" in source
@@ -14888,6 +14966,8 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
 def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    workflow_fit_header_index = source.index('"Workflow Fit",\n        "Selected ticker state, what can be reviewed now')
+    workflow_fit_cards_index = source.index("stock_report_workflow_fit_cards(report_payload")
     report_header_index = source.index('"At A Glance",\n        "Start here: mode, valuation state')
     at_glance_index = source.index("stock_report_at_a_glance_cards(report_payload")
     reader_guide_header_index = source.index('"Reader Guide",\n        "Plain-English report path before detailed tabs')
@@ -14906,7 +14986,9 @@ def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance(
     tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]')
 
     assert (
-        report_header_index
+        workflow_fit_header_index
+        < workflow_fit_cards_index
+        < report_header_index
         < at_glance_index
         < reader_guide_header_index
         < summary_cards_index
@@ -23505,6 +23587,106 @@ def test_metric_detail_load_cards_keep_research_only_and_stale_counts_hidden():
     assert "no stale counts" in rendered
     assert "progressive loading" in rendered
     assert "review metrics only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order routing" not in rendered
+
+
+def test_proof_detail_load_status_tracks_deferred_loading_loaded_and_stale_states():
+    current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
+    stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
+
+    not_selected = dashboard.data_health_proof_detail_load_status(
+        "metrics",
+        current,
+        requested=True,
+        loaded=True,
+    )
+    deferred = dashboard.data_health_proof_detail_load_status(
+        "proof",
+        current,
+        requested=False,
+        loaded=False,
+    )
+    loading = dashboard.data_health_proof_detail_load_status(
+        "proof",
+        current,
+        requested=True,
+        loaded=False,
+    )
+    blocked = dashboard.data_health_proof_detail_load_status(
+        "proof",
+        stale,
+        requested=True,
+        loaded=False,
+    )
+    loaded = dashboard.data_health_proof_detail_load_status(
+        "proof",
+        current,
+        requested=True,
+        loaded=True,
+    )
+
+    assert not_selected["status"] == "not_selected"
+    assert deferred["status"] == "deferred"
+    assert "proof lane shell is loaded" in deferred["body"].lower()
+    assert loading["status"] == "loading"
+    assert "building reviewed proof ledgers" in loading["body"].lower()
+    assert blocked["status"] == "blocked_by_snapshot_gate"
+    assert blocked["next_action"] == "make readiness"
+    assert loaded["status"] == "loaded"
+    assert "collapsed proof drawers" in loaded["body"].lower()
+
+
+def test_proof_detail_load_cards_keep_proof_states_clear_and_research_only():
+    statuses = [
+        {
+            "status": "blocked_by_snapshot_gate",
+            "title": "Refresh readiness first",
+            "body": "Generated readiness artifacts are stale.",
+            "next_action": "make readiness",
+        },
+        {
+            "status": "deferred",
+            "title": "Proof details are deferred",
+            "body": "The proof lane shell is loaded.",
+            "next_action": "Switch Proof detail level to Review details.",
+        },
+        {
+            "status": "loading",
+            "title": "Proof details are loading",
+            "body": "The proof lane is building reviewed proof ledgers.",
+            "next_action": "Wait for proof detail cards.",
+        },
+        {
+            "status": "loaded",
+            "title": "Proof details loaded",
+            "body": "Reviewed proof ledgers are available.",
+            "next_action": "Open reviewed batch proof drawer.",
+        },
+        {
+            "status": "loaded_with_warning",
+            "title": "Proof details loaded with a source warning",
+            "body": "Reviewed proof ledgers are available.",
+            "next_action": "make decision-proof-queue",
+        },
+    ]
+
+    rendered = " ".join(
+        str(value)
+        for status in statuses
+        for card in dashboard.data_health_proof_detail_load_cards(status)
+        for value in card.values()
+    ).lower()
+
+    assert "no stale proof" in rendered
+    assert "progressive loading" in rendered
+    assert "loading" in rendered
+    assert "loaded" in rendered
+    assert "source warning" in rendered
+    assert "reviewed evidence is complete" in rendered
+    assert "supported, still_blocked, skipped, or excluded" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered

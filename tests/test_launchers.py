@@ -527,7 +527,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "| Analysis-ready subset | Tickers whose required local inputs passed readiness for a feature. | Use this layer for DCF, peer context, or candidate review; blocked rows stay visibly locked. |" in readme
     assert "## What Works Today" in readme
     assert "## Try This Visitor Workflow" in readme
-    assert "Optional extra report states:" in readme
+    assert "Open the product first: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history." in readme
+    assert "Use terminal commands only when you want to inspect the same proof artifacts locally." in readme
+    assert "Optional local proof checks:" in readme
     assert "| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
     assert "| Inspect proof | You want to see the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields. | `Data Health` |" in readme
     assert "`Home`, then focused review pages" not in readme
@@ -549,12 +551,13 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "`Still blocked` means validation failed, rejected rows appeared, or the report stayed locked" in public_demo
     assert "`Skip` means source proof is unavailable, so no placeholder rows are applied" not in readme
     assert "`Skip` means source proof is unavailable, so no placeholder rows are applied" in public_demo
-    assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
-    assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
-    assert readme.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list") < readme.index("Optional extra report states:")
-    demo_path = readme.split("## Try This Visitor Workflow", 1)[1].split("Optional extra report states:", 1)[0]
-    assert demo_path.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list") < demo_path.index("make trusted-data-pilot-packet TICKER=MU")
-    assert demo_path.index("make trusted-data-pilot-packet TICKER=MU") < demo_path.index("make trusted-data-pilot-packet TICKER=CRDO")
+    assert readme.index("make stock-report-md TICKER=NVDA") < readme.index("make stock-report-md TICKER=META")
+    assert readme.index("make stock-report-md TICKER=META") < readme.index("make stock-report-md TICKER=QQQ")
+    main_path = readme.split("## Try This Visitor Workflow", 1)[1].split("Optional local proof checks:", 1)[0]
+    proof_checks = readme.split("Optional local proof checks:", 1)[1].split("The shortest public walkthrough", 1)[0]
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in main_path
+    assert proof_checks.index("make trusted-data-pilot-candidates TOP_N=10") < proof_checks.index("make trusted-data-pilot-packet TICKER=MU")
+    assert proof_checks.index("make trusted-data-pilot-packet TICKER=MU") < proof_checks.index("make trusted-data-pilot-packet TICKER=CRDO")
     assert "## Local Data Hygiene" in readme
     assert "## License" in readme
     assert "## Analysis Methodology" in readme
@@ -576,7 +579,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make stock-report-md TICKER=QQQ",
         "make stock-report-md TICKER=SMH",
         "make stock-report-md TICKER=APLD",
-        "price/setup report with fundamentals still locked",
+        "price/setup report with valuation still gated",
         "make stock-report TICKER=NVDA",
         "make dashboard",
         "make status-check TOP_N=5",

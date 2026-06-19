@@ -404,6 +404,29 @@ def _queue_lane_batch_lane(lane: object) -> str:
     }.get(lane_key, "prices")
 
 
+def _queue_lane_operator_lane(lane: object) -> str:
+    lane_key = readiness_queue_lane_key(lane)
+    return {
+        "fundamentals": "fundamentals",
+        "peer_mapping": "peers",
+        "peer_valuation_inputs": "peers",
+        "metrics": "metrics",
+        "earnings": "optional",
+        "analyst_estimates": "optional",
+    }.get(lane_key, "prices")
+
+
+def _queue_lane_drawer_route(lane: object, drawer: str) -> str:
+    operator_lane = _queue_lane_operator_lane(lane)
+    clean_drawer = re.sub(r"[^a-z0-9-]+", "-", str(drawer or "queue").strip().lower()).strip("-") or "queue"
+    return f"?mode=operator&page=data-health&lane={operator_lane}&drawer={clean_drawer}"
+
+
+def _proof_lane_drawer_route(drawer: str) -> str:
+    clean_drawer = re.sub(r"[^a-z0-9-]+", "-", str(drawer or "proof").strip().lower()).strip("-") or "proof"
+    return f"?mode=operator&page=data-health&lane=proof&drawer={clean_drawer}"
+
+
 def _queue_lane_gate_action(lane: object) -> tuple[str, str, str]:
     lane_key = readiness_queue_lane_key(lane)
     if lane_key == "metrics":
@@ -458,6 +481,8 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
                 "Step": "1. Packet",
                 "Status": "copy-only",
                 "Operator Decision": f"Preview the capped {lane} scope before any row-level review.",
+                "Drawer Route": _queue_lane_drawer_route(lane, "queue"),
+                "Route Boundary": "navigation-only; dashboard does not run commands or write data",
                 "Copy-Only Command": packet_command,
                 "Stop If": source_warning,
             },
@@ -465,6 +490,8 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
                 "Step": "2. Validate / preview gate",
                 "Status": gate_status,
                 "Operator Decision": gate_decision,
+                "Drawer Route": _queue_lane_drawer_route(lane, "source-proof"),
+                "Route Boundary": "navigation-only; keep validate, preview, and apply as explicit reviewed commands",
                 "Copy-Only Command": gate_command,
                 "Stop If": "validation fails, preview shows unexpected rows, source proof is missing, or the lane is read-only",
             },
@@ -472,6 +499,8 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
                 "Step": "3. Compare readiness",
                 "Status": "after reviewed packet/run",
                 "Operator Decision": "Use changed readiness counts and changed tickers as proof; no inferred unlocks.",
+                "Drawer Route": _proof_lane_drawer_route("comparison"),
+                "Route Boundary": "navigation-only; compare snapshots before recording any outcome",
                 "Copy-Only Command": compare_command,
                 "Stop If": "baseline snapshot or current readiness report is missing",
             },
@@ -479,6 +508,8 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
                 "Step": "4. Proof-record command",
                 "Status": proof_status,
                 "Operator Decision": "Record only supported, still_blocked, skipped, or excluded after final review.",
+                "Drawer Route": _proof_lane_drawer_route("proof-record"),
+                "Route Boundary": "navigation-only; proof rows stay dry-run-first until required fields are reviewed",
                 "Copy-Only Command": proof_command,
                 "Stop If": "required fields still contain placeholders",
             },
@@ -486,6 +517,8 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
                 "Step": "5. Artifact hygiene",
                 "Status": "required before staging",
                 "Operator Decision": "Classify generated CSV/JSON churn before any commit recommendation.",
+                "Drawer Route": _proof_lane_drawer_route("artifacts"),
+                "Route Boundary": "navigation-only; generated churn stays excluded unless intentionally reviewed evidence",
                 "Copy-Only Command": "make diff-hygiene",
                 "Stop If": "generated artifacts are dirty and not intentionally reviewed evidence",
             },

@@ -107,25 +107,24 @@ When you want to rebuild local outputs after changing data, use the deeper [Loca
 
 ## Try This Visitor Workflow
 
+Open the product first: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. Use terminal commands only when you want to inspect the same proof artifacts locally.
+
 ```bash
-make demo                       # prints the visitor workflow path
-make dashboard                  # open http://localhost:8501/?mode=public and follow the three public paths
-make stock-report-md TICKER=NVDA # company report with DCF assumptions
-make stock-report-md TICKER=META # price/setup report with valuation still gated
-make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded
-make stock-report-md TICKER=MU   # standalone DCF report with peer valuation still locked
-make stock-report-md TICKER=CRDO # fundamentals/DCF proof packet example
-make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list
-make trusted-data-pilot-packet TICKER=MU   # first ranked peer-input proof packet
-make trusted-data-pilot-packet TICKER=CRDO # fundamentals/DCF proof packet
-make metric-readiness TOP_N=5 BENCHMARK=SPY # capped readiness-gated metric queue
+make demo                         # print the visitor path without changing local data
+make dashboard                    # open http://localhost:8501/?mode=public
+make stock-report-md TICKER=NVDA  # ready company report with DCF assumptions
+make stock-report-md TICKER=META  # price/setup report with valuation still gated
+make stock-report-md TICKER=QQQ   # ETF/index report with DCF excluded
+make stock-report-md TICKER=MU    # standalone DCF report with peer valuation still locked
+make stock-report-md TICKER=CRDO  # fundamentals/DCF proof example
 ```
 
-Optional extra report states:
+Optional local proof checks:
 
 ```bash
-make stock-report-md TICKER=SMH  # sector ETF monitor report
-make stock-report-md TICKER=APLD # price/setup report with fundamentals still locked
+make trusted-data-pilot-candidates TOP_N=10 && make metric-readiness TOP_N=5 BENCHMARK=SPY
+make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKER=CRDO
+make stock-report-md TICKER=SMH && make stock-report-md TICKER=APLD
 ```
 
 The shortest public walkthrough is: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history, with NVDA, META, QQQ, MU, and CRDO available as optional state examples. That shows the core idea quickly: the product can analyze ready data, explain blocked data, exclude methods that do not apply, show peer-limited DCF, and print the trusted-data proof path without pretending missing rows exist.
