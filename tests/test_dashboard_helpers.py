@@ -22957,6 +22957,8 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
     assert "standalone dcf assumptions and source readiness can be reviewed" in rendered
     assert "peer-relative valuation remains locked" in rendered
     assert "open data health peer lane" in rendered
+    assert "data health handoff: peers source-proof lane" in rendered
+    assert "stop if peer mappings or peer valuation inputs lack source-backed rows" in rendered
     assert "copy-only" in rendered
     assert "do not treat locked, partial, or excluded sections as conclusions" in rendered
     assert "make focus-peers ticker=nvda" in rendered

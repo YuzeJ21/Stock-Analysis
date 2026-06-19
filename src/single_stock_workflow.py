@@ -259,6 +259,17 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     command = single_stock_next_command(snapshot)
+    route_decision = single_stock_report_data_health_route(
+        asset_type=asset_type,
+        valuation_status=dcf_status,
+        price_ready=price_ready,
+        dcf_ready=dcf_status == "ready",
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
+    route_label = route_decision["route_label"]
+    route_stop_rule = route_decision["stop_rule"]
 
     if not snapshot or snapshot.get("status") == "missing":
         return [
@@ -328,7 +339,10 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
         {
             "kicker": "NEXT SAFE STEP",
             "title": "Where Data Health fits",
-            "body": f"{handoff} The next command is copy-only; the dashboard does not run imports or refreshes.",
+            "body": (
+                f"{handoff} Data Health handoff: {route_label}. "
+                f"{route_stop_rule} The next command is copy-only; the dashboard does not run imports or refreshes."
+            ),
             "badges": ["copy only", "manual gate"],
             "command": command,
         },
