@@ -43,6 +43,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Pilot Readiness Checklist V1 with `make pilot-readiness-check`, Data Health pilot-gate cards, GitHub sync status, generated-artifact hygiene, readiness freshness, source-proof gates, proof-ledger status, public-check boundary, and research-only guardrails.
 - [x] Pilot Packet Export V1 with `make pilot-readiness-packet`, `outputs/pilot_readiness_packet.md`, Data Health packet card, source-proof queue summary, latest proof outcome, manual gates, stop rules, and excluded generated-artifact list.
 - [x] Pilot Reviewer Walkthrough V1 in Data Health so the operator sees pilot status, the leading manual gate, source-proof focus, packet export, and public-check boundary before raw tables.
+- [x] Data Health Visual Density V2 with a compact pilot workflow strip, collapsed pilot gate details, tighter first-screen hierarchy, and preserved copy-only proof controls.
 
 ## 2. Current Product State
 

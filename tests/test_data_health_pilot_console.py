@@ -114,3 +114,18 @@ def test_pilot_reviewer_walkthrough_promotes_largest_source_proof_blocker():
     assert "trusted fundamentals proof queue" in rendered
     assert "public-check" in rendered
     assert "broad generated churn stays excluded" in rendered
+
+
+def test_pilot_reviewer_walkthrough_strip_is_compact_and_safe():
+    frame = pilot_console.pilot_reviewer_walkthrough_frame(_pilot_frame(), _proof_queue_frame())
+    html = pilot_console.pilot_reviewer_walkthrough_strip_html(frame)
+    rendered = html.lower()
+
+    assert "pilot-flow" in rendered
+    assert "pilot workflow" in rendered
+    assert "gate, proof focus, packet, and public-check before raw tables" in rendered
+    assert "trusted fundamentals proof queue" in rendered
+    assert "make pilot-readiness-packet" in rendered
+    assert "make public-check" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered

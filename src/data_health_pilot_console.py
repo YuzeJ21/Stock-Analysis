@@ -7,6 +7,7 @@ read-only module that never refreshes data or writes canonical CSV rows.
 
 from __future__ import annotations
 
+import html
 from pathlib import Path
 
 import pandas as pd
@@ -285,3 +286,45 @@ def pilot_reviewer_walkthrough_cards(frame: pd.DataFrame | None, *, limit: int =
             }
         )
     return cards
+
+
+def pilot_reviewer_walkthrough_strip_html(frame: pd.DataFrame | None, *, limit: int = 5) -> str:
+    if frame is None or frame.empty:
+        frame = pilot_reviewer_walkthrough_frame(pd.DataFrame(), pd.DataFrame())
+    steps: list[str] = []
+    for index, (_, row) in enumerate(frame.head(max(limit, 0)).iterrows(), start=1):
+        stage = _format_missing(row.get("Stage"), "Pilot step")
+        status = _public_status_label(row.get("Status"))
+        title = _compact_fragment(row.get("What Reviewer Sees"), max_chars=72)
+        action = _compact_fragment(row.get("Next Safe Action"), max_chars=92)
+        status_key = str(row.get("Status", "")).strip().lower().replace("_", "-").replace(" ", "-")
+        status_class = {
+            "green": "ready",
+            "manual": "manual",
+            "manual-gates": "manual",
+            "blocked": "blocked",
+            "deferred": "manual",
+            "copy-only": "copy",
+        }.get(status_key, "copy")
+        steps.append(
+            "<div class='pilot-flow-step'>"
+            "<div class='pilot-flow-top'>"
+            f"<span class='pilot-flow-index'>{index}</span>"
+            f"<span class='pilot-flow-status {html.escape(status_class)}'>{html.escape(status)}</span>"
+            "</div>"
+            f"<div class='pilot-flow-stage'>{html.escape(stage)}</div>"
+            f"<div class='pilot-flow-title'>{html.escape(title)}</div>"
+            f"<div class='pilot-flow-action'>{html.escape(action)}</div>"
+            "</div>"
+        )
+    return (
+        "<div class='pilot-flow'>"
+        "<div class='pilot-flow-head'>"
+        "<div class='pilot-flow-kicker'>Pilot workflow</div>"
+        "<div class='pilot-flow-summary'>Gate, proof focus, packet, and public-check before raw tables.</div>"
+        "</div>"
+        "<div class='pilot-flow-grid'>"
+        + "".join(steps)
+        + "</div>"
+        "</div>"
+    )

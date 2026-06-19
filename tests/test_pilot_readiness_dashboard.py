@@ -5,6 +5,7 @@ from src.dashboard import (
     data_health_pilot_readiness_cards,
     data_health_pilot_reviewer_walkthrough_cards,
     data_health_pilot_reviewer_walkthrough_frame,
+    data_health_pilot_reviewer_walkthrough_strip_html,
 )
 
 
@@ -102,9 +103,14 @@ def test_data_health_pilot_reviewer_walkthrough_wraps_compact_path():
 
     frame = data_health_pilot_reviewer_walkthrough_frame(pilot, queues)
     cards = data_health_pilot_reviewer_walkthrough_cards(frame)
+    strip = data_health_pilot_reviewer_walkthrough_strip_html(frame)
     rendered = " ".join(str(card) for card in cards).lower()
+    rendered_strip = strip.lower()
 
     assert "one compact path before raw tables" in rendered
     assert "trusted fundamentals proof queue" in rendered
     assert "make public-check" in rendered
     assert "copy-only" in rendered
+    assert "pilot-flow" in rendered_strip
+    assert "trusted fundamentals proof queue" in rendered_strip
+    assert "make dcf-input-source-command-plan" in rendered_strip

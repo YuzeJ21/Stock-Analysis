@@ -3074,6 +3074,108 @@ def apply_dashboard_theme() -> None:
           background: #ecfdf5;
           border-color: rgba(15, 118, 110, 0.18);
         }
+        .pilot-flow {
+          margin: 0.42rem 0 0.68rem 0;
+          padding: 0.56rem;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.96);
+        }
+        .pilot-flow-head {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 0.75rem;
+          margin-bottom: 0.44rem;
+        }
+        .pilot-flow-kicker {
+          color: #0f766e;
+          font-size: 0.68rem;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .pilot-flow-summary {
+          color: #64748b;
+          font-size: 0.76rem;
+          line-height: 1.25;
+          text-align: right;
+        }
+        .pilot-flow-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 0.38rem;
+        }
+        .pilot-flow-step {
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          border-radius: 8px;
+          background: #f8faf7;
+          padding: 0.48rem 0.52rem;
+          min-width: 0;
+        }
+        .pilot-flow-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.4rem;
+        }
+        .pilot-flow-index {
+          color: #64748b;
+          font-size: 0.66rem;
+          font-weight: 900;
+        }
+        .pilot-flow-status {
+          border-radius: 999px;
+          padding: 0.12rem 0.36rem;
+          border: 1px solid rgba(148, 163, 184, 0.24);
+          background: #ffffff;
+          color: #475569;
+          font-size: 0.64rem;
+          font-weight: 850;
+          line-height: 1.1;
+        }
+        .pilot-flow-status.ready {
+          background: #ecfdf5;
+          border-color: rgba(15, 118, 110, 0.22);
+          color: #0f766e;
+        }
+        .pilot-flow-status.manual {
+          background: #fff7ed;
+          border-color: rgba(217, 119, 6, 0.22);
+          color: #a16207;
+        }
+        .pilot-flow-status.blocked {
+          background: #fef2f2;
+          border-color: rgba(220, 38, 38, 0.22);
+          color: #b91c1c;
+        }
+        .pilot-flow-status.copy {
+          background: #eff6ff;
+          border-color: rgba(37, 99, 235, 0.2);
+          color: #1d4ed8;
+        }
+        .pilot-flow-stage {
+          color: #64748b;
+          font-size: 0.64rem;
+          font-weight: 900;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          margin-top: 0.34rem;
+        }
+        .pilot-flow-title {
+          color: #111827;
+          font-size: 0.84rem;
+          font-weight: 930;
+          line-height: 1.16;
+          margin-top: 0.12rem;
+        }
+        .pilot-flow-action {
+          color: #526071;
+          font-size: 0.72rem;
+          line-height: 1.22;
+          margin-top: 0.24rem;
+          overflow-wrap: anywhere;
+        }
         .metric-console {
           display: grid;
           grid-template-columns: minmax(0, 1fr);
@@ -3253,6 +3355,20 @@ def apply_dashboard_theme() -> None:
           .ops-mode-strip {
             grid-template-columns: 1fr;
             margin-top: -0.3rem;
+          }
+          .pilot-flow {
+            padding: 0.46rem;
+          }
+          .pilot-flow-head {
+            display: block;
+            margin-bottom: 0.38rem;
+          }
+          .pilot-flow-summary {
+            text-align: left;
+            margin-top: 0.16rem;
+          }
+          .pilot-flow-grid {
+            grid-template-columns: 1fr;
           }
           .metric-console {
             grid-template-columns: 1fr;
@@ -7796,6 +7912,10 @@ def data_health_pilot_reviewer_walkthrough_frame(
 
 def data_health_pilot_reviewer_walkthrough_cards(frame: pd.DataFrame | None, *, limit: int = 5) -> list[dict[str, object]]:
     return pilot_console.pilot_reviewer_walkthrough_cards(frame, limit=limit)
+
+
+def data_health_pilot_reviewer_walkthrough_strip_html(frame: pd.DataFrame | None, *, limit: int = 5) -> str:
+    return pilot_console.pilot_reviewer_walkthrough_strip_html(frame, limit=limit)
 
 
 def data_health_data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -25851,20 +25971,21 @@ def render_data_health(
         "Pilot Reviewer Walkthrough",
         "One compact path from gate status to source-proof focus, packet export, and public-check before raw tables.",
     )
-    render_signal_cards(
-        data_health_pilot_reviewer_walkthrough_cards(pilot_reviewer_walkthrough),
-        show_commands=True,
-        variant="queue",
-    )
-    with st.expander("Pilot reviewer walkthrough detail", expanded=False):
+    st.markdown(data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough), unsafe_allow_html=True)
+    with st.expander("Pilot reviewer workflow detail", expanded=False):
+        render_signal_cards(
+            data_health_pilot_reviewer_walkthrough_cards(pilot_reviewer_walkthrough),
+            show_commands=True,
+            variant="queue",
+        )
         st.dataframe(clean_display_frame(pilot_reviewer_walkthrough), width="stretch", hide_index=True)
-    render_section_header(
-        "Pilot Readiness Gate",
-        "Sync, hygiene, freshness, source-proof, public-check, and research-only status before a pilot package.",
-    )
-    render_signal_cards(data_health_pilot_readiness_cards(pilot_readiness), show_commands=True, variant="queue")
-    render_signal_cards(data_health_pilot_packet_cards(pilot_readiness), show_commands=True, variant="queue")
-    with st.expander("Pilot packet drawer", expanded=False):
+    with st.expander("Pilot gate and packet details", expanded=False):
+        render_section_header(
+            "Pilot Readiness Gate",
+            "Sync, hygiene, freshness, source-proof, public-check, and research-only status before a pilot package.",
+        )
+        render_signal_cards(data_health_pilot_readiness_cards(pilot_readiness), show_commands=True, variant="queue")
+        render_signal_cards(data_health_pilot_packet_cards(pilot_readiness), show_commands=True, variant="queue")
         render_context_note(
             "Reviewer packet boundary.",
             "The packet command writes one Markdown summary artifact from saved local status and proof files. It does not refresh data, apply imports, record proof, stage files, commit, push, or change canonical source CSVs.",
@@ -25882,7 +26003,6 @@ def render_data_health(
                 )
             )
         )
-    with st.expander("Pilot readiness checklist detail", expanded=False):
         st.dataframe(clean_display_frame(pilot_readiness), width="stretch", hide_index=True)
     render_section_header(
         "Readiness Lane Snapshot",

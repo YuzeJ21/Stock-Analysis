@@ -1305,6 +1305,9 @@ def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
     assert '[data-testid="stTabs"] [role="tab"][aria-selected="true"]' in css
     assert ".ops-copy.secondary" in css
     assert ".ops-stat.evidence-stat" in css
+    assert ".pilot-flow" in css
+    assert ".pilot-flow-grid" in css
+    assert ".pilot-flow-status.manual" in css
     assert "min-height: 1.75rem !important;" in css
     assert ".signal-grid.queue-grid .signal-card" in css
     assert "box-shadow: none;" in css
