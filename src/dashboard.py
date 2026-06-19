@@ -26448,8 +26448,27 @@ def render_market_command_center(
         "Where This Ticker Fits",
         "Selected ticker, review-now scope, blocked or excluded inputs, Data Health handoff, and stop rule before raw details.",
     )
+    workflow_fit_cards = single_stock_workflow_fit_cards(snapshot)
     render_signal_cards(single_stock_workflow_loop_cards(snapshot), show_commands=False)
-    render_signal_cards(single_stock_workflow_fit_cards(snapshot))
+    render_signal_cards(workflow_fit_cards, show_commands=False)
+    with st.expander("Single-stock copy-only commands", expanded=False):
+        st.dataframe(
+            clean_display_frame(
+                pd.DataFrame(
+                    [
+                        {
+                            "Step": format_missing(card.get("kicker")),
+                            "Command": format_missing(card.get("command")),
+                            "Boundary": "Copy-only; the dashboard does not run imports, refreshes, or proof writes.",
+                        }
+                        for card in workflow_fit_cards
+                        if format_missing(card.get("command"), "") != ""
+                    ]
+                )
+            ),
+            width="stretch",
+            hide_index=True,
+        )
     render_section_header("Single-Stock Quick Read", "The first interpretation path before tables: what this page can support, what stays locked, and the next copy-only command.")
     render_signal_cards(single_stock_quick_read_cards(snapshot))
     render_section_header("Single-Stock Reader Guide", "Plain-English answer for what is ready, what is locked, and the next copy-only step.")

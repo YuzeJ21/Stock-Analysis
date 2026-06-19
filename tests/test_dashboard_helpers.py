@@ -1846,8 +1846,10 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     ticker_note_index = source.index('render_context_note(\n        "One ticker at a time."', drilldown_header_index)
     snapshot_index = source.index("snapshot = single_stock_readiness_snapshot", drilldown_header_index)
     workflow_fit_index = source.index('render_section_header(\n        "Where This Ticker Fits"', snapshot_index)
+    workflow_fit_cards_assignment_index = source.index("workflow_fit_cards = single_stock_workflow_fit_cards(snapshot)", workflow_fit_index)
     workflow_loop_index = source.index("render_signal_cards(single_stock_workflow_loop_cards(snapshot), show_commands=False)", workflow_fit_index)
-    workflow_cards_index = source.index("render_signal_cards(single_stock_workflow_fit_cards(snapshot))", workflow_loop_index)
+    workflow_cards_index = source.index("render_signal_cards(workflow_fit_cards, show_commands=False)", workflow_loop_index)
+    command_expander_index = source.index('st.expander("Single-stock copy-only commands", expanded=False)', workflow_cards_index)
     quick_read_index = source.index('render_section_header("Single-Stock Quick Read"', workflow_fit_index)
     source_table_expander_index = source.index('st.expander("Single-stock source readiness table", expanded=False)', quick_read_index)
     detail_expander_index = source.index('st.expander("Single-stock detailed fields", expanded=False)', source_table_expander_index)
@@ -1855,12 +1857,13 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     assert universe_scope_index < scope_cards_index < explorer_header_index < table_guide_index < filter_index
     assert "Choose active, ready, missing-data, sector/theme, or ticker-scoped review before widening the table." in source
     assert drilldown_header_index < ticker_note_index < snapshot_index
-    assert snapshot_index < workflow_fit_index < workflow_loop_index < workflow_cards_index < quick_read_index
+    assert snapshot_index < workflow_fit_index < workflow_fit_cards_assignment_index < workflow_loop_index < workflow_cards_index < command_expander_index < quick_read_index
     assert quick_read_index < source_table_expander_index < detail_expander_index
     assert "missing rows are not analysis conclusions" in source
     assert "next copy-only command" in source
     assert "Selected ticker, review-now scope, blocked or excluded inputs, Data Health handoff, and stop rule before raw details." in source
     assert "single_stock_workflow_loop_cards(snapshot)" in source
+    assert "Copy-only; the dashboard does not run imports, refreshes, or proof writes." in source
     assert "How The App Uses Trusted Data" in source
     assert "Source Vs Product Logic" not in source
     assert "full-table dumps" not in source
