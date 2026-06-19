@@ -742,9 +742,12 @@ def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
     assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
     assert "?mode=operator&page=data-health&lane=proof&drawer=proof-record" in rendered
     assert "navigation-only" in rendered
-    assert [card["kicker"] for card in route_cards] == ["ROUTE 1", "ROUTE 2", "ROUTE 3", "STOP RULE"]
+    assert [card["kicker"] for card in route_cards] == ["ROUTE 1", "ROUTE 2", "ROUTE 3", "ROUTE 4", "STOP RULE"]
     assert "peer mapping proof: open queue packet" in rendered_routes
     assert "compare readiness before proof record" in rendered_routes
+    assert "review generated artifacts before staging" in rendered_routes
+    assert "broad generated churn stays excluded" in rendered_routes
+    assert "?mode=operator&page=data-health&lane=proof&drawer=artifacts" in rendered_routes
     assert "do not treat a route as an unlock" in rendered_routes
     assert "missing source inputs stay blocked" in rendered_routes
     assert "you do not need to open proof history first" in rendered_cards

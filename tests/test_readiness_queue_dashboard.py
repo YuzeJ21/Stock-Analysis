@@ -158,7 +158,7 @@ def test_readiness_queue_route_cards_summarize_navigation_without_unlocking_data
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["ROUTE 1", "ROUTE 2", "ROUTE 3", "STOP RULE"]
+    assert [card["kicker"] for card in cards] == ["ROUTE 1", "ROUTE 2", "ROUTE 3", "ROUTE 4", "STOP RULE"]
     assert "fundamentals / dcf proof: open queue packet" in rendered
     assert "?mode=operator&page=data-health&lane=fundamentals&drawer=queue" in rendered
     assert "navigation-only" in rendered
@@ -166,6 +166,9 @@ def test_readiness_queue_route_cards_summarize_navigation_without_unlocking_data
     assert "keep validate, preview, rejected-row review, and apply/skip as explicit reviewed steps" in rendered
     assert "?mode=operator&page=data-health&lane=proof&drawer=comparison" in rendered
     assert "?mode=operator&page=data-health&lane=proof&drawer=proof-record" in rendered
+    assert "?mode=operator&page=data-health&lane=proof&drawer=artifacts" in rendered
+    assert "review generated artifacts before staging" in rendered
+    assert "broad generated churn stays excluded" in rendered
     assert "do not treat a route as an unlock" in rendered
     assert "missing source inputs stay blocked" in rendered
     assert "buy" not in rendered

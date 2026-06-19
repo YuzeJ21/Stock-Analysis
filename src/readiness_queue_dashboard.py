@@ -578,6 +578,16 @@ def build_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> lis
             "command": f"make reviewed-batch-compare LANE={batch_lane} BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
         },
         {
+            "kicker": "ROUTE 4",
+            "title": "Review generated artifacts before staging",
+            "body": (
+                f"Use {_proof_lane_drawer_route('artifacts')} to classify generated CSV/JSON/report churn before any commit package. "
+                "Broad generated churn stays excluded unless it is intentionally reviewed evidence."
+            ),
+            "badges": ["artifact hygiene", "exclude churn"],
+            "command": "make diff-hygiene",
+        },
+        {
             "kicker": "STOP RULE",
             "title": "Do not treat a route as an unlock",
             "body": (
