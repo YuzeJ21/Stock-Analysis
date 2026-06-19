@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from scripts.diff_hygiene import StatusEntry
 
 from src import pilot_readiness
@@ -14,6 +16,26 @@ from src.pilot_readiness import (
     render_pilot_readiness_checks,
     write_pilot_readiness_packet,
 )
+
+
+@pytest.fixture(autouse=True)
+def _stable_browser_qa_payload(monkeypatch):
+    monkeypatch.setattr(
+        pilot_readiness,
+        "browser_qa_evidence_payload",
+        lambda _root: {
+            "verdict": "ready_with_manual_capture_pending",
+            "committed_screenshot_assets": [
+                {"Asset": "LinkedIn public dashboard thumbnail", "State": "ready"},
+                {"Asset": "Public visitor home screenshot", "State": "ready"},
+                {"Asset": "Operator metrics lane screenshot", "State": "ready"},
+            ],
+            "manual_capture_targets": [
+                {"Capture Target": "Single-stock workflow fit screenshot", "State": "manual_capture_pending"},
+                {"Capture Target": "Data Health proof lane screenshot", "State": "manual_capture_pending"},
+            ],
+        },
+    )
 
 
 def _write(path: Path, text: str) -> None:
@@ -90,12 +112,18 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert by_area["Generated artifact hygiene"].status == "manual"
     assert by_area["Readiness freshness"].status == "green"
     assert by_area["Source proof gates"].status == "manual"
+    assert by_area["Browser QA evidence"].status == "manual"
+    assert by_area["Browser QA evidence"].command == "make browser-qa-evidence"
+    assert "3 committed screenshot asset" in by_area["Browser QA evidence"].detail
+    assert "Single-stock workflow fit screenshot" in by_area["Browser QA evidence"].detail
     assert by_area["Public safety"].command == "make public-check"
     assert pilot_readiness_verdict(checks) == "pilot-ready with manual gates"
     assert "does not refresh data, apply imports, stage files, commit, push, or rewrite CSVs" in rendered
     assert "Trusted Fundamentals Proof Queue" in rendered
     assert "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10" in rendered
     assert "Commit Package Handoff" in rendered
+    assert "Browser QA evidence" in rendered
+    assert "make browser-qa-evidence" in rendered
     assert "Stage reviewed product package" in rendered
     assert "git add --" not in rendered
     assert "# no product/code/docs/test files to stage" in rendered
@@ -329,6 +357,8 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md" in body
     assert "GitHub sync" in body
     assert "Generated artifact hygiene" in body
+    assert "Browser QA evidence" in body
+    assert "pending workflow capture" in body.lower()
     assert "Readiness Snapshot" in body
     assert "Source-Proof Queue Summary" in body
     assert "Latest Reviewed Batch Proof" in body

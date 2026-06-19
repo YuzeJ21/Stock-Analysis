@@ -26,6 +26,7 @@ except ModuleNotFoundError:
     load_status = _DIFF_HYGIENE_MODULE.load_status
 
 from src.readiness_ops import build_data_coverage_proof_queues
+from src.browser_qa_evidence import browser_qa_evidence_payload
 from src.reviewed_batch import readiness_freshness_status
 
 
@@ -340,6 +341,59 @@ def _public_check_gate() -> PilotReadinessCheck:
     )
 
 
+def _browser_qa_evidence_check(root: Path) -> PilotReadinessCheck:
+    try:
+        payload = browser_qa_evidence_payload(root)
+    except Exception as exc:
+        return PilotReadinessCheck(
+            area="Browser QA evidence",
+            status="blocked",
+            title="Screenshot evidence unavailable",
+            detail=f"Could not inspect committed real screenshot evidence: {exc}",
+            command="make browser-qa-evidence",
+            stop_rule="Stop before using screenshots publicly until real app evidence can be inspected.",
+        )
+
+    verdict = str(payload.get("verdict") or "blocked")
+    assets = list(payload.get("committed_screenshot_assets") or [])
+    pending = [
+        row
+        for row in list(payload.get("manual_capture_targets") or [])
+        if str(row.get("State") or "").strip().lower() == "manual_capture_pending"
+    ]
+    ready_assets = [
+        row
+        for row in assets
+        if str(row.get("State") or "").strip().lower() == "ready"
+    ]
+    if verdict == "ready":
+        status = "green"
+        title = "Real screenshot evidence is ready"
+        stop_rule = "Stop if later screenshots are generated thumbnails, tracebacks, or stale proof substitutes."
+    elif verdict == "ready_with_manual_capture_pending":
+        status = "manual"
+        title = "Public screenshot ready; workflow captures pending"
+        stop_rule = "Use committed real public screenshots now; capture pending workflow views in a normal browser before claiming full workflow evidence."
+    else:
+        status = "blocked"
+        title = "Real public screenshot evidence is blocked"
+        stop_rule = "Stop before public sharing until at least the real public dashboard screenshot is committed."
+
+    pending_names = ", ".join(str(row.get("Capture Target")) for row in pending) if pending else "none"
+    return PilotReadinessCheck(
+        area="Browser QA evidence",
+        status=status,
+        title=title,
+        detail=(
+            f"{len(ready_assets)} committed screenshot asset(s) ready; "
+            f"pending workflow capture(s): {pending_names}. "
+            "Screenshots are product evidence only and do not refresh data or unlock blocked inputs."
+        ),
+        command="make browser-qa-evidence",
+        stop_rule=stop_rule,
+    )
+
+
 def _guardrail_check() -> PilotReadinessCheck:
     return PilotReadinessCheck(
         area="Research guardrails",
@@ -367,6 +421,7 @@ def build_pilot_readiness_checks(
         _freshness_check(root),
         _source_gate_check(root, top_n=top_n, source_queues=source_queues),
         _proof_ledger_check(root),
+        _browser_qa_evidence_check(root),
         _public_check_gate(),
         _guardrail_check(),
     ]
