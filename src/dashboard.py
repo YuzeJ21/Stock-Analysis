@@ -190,6 +190,7 @@ from src.single_stock_workflow import (
     single_stock_workflow_fit_cards,
     single_stock_workflow_loop_cards,
 )
+from src.universe_scope_workflow import universe_scope_workflow_cards
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26374,6 +26375,11 @@ def render_market_command_center(
         )
         return
 
+    render_section_header(
+        "Universe Scope Guide",
+        "Choose active, ready, missing-data, sector/theme, or ticker-scoped review before widening the table.",
+    )
+    render_signal_cards(universe_scope_workflow_cards(summary, ticker_readiness_frame), show_commands=False)
     render_section_header("Readiness Explorer", "Filter thousands of tickers without rendering the full market table by default.")
     render_context_note(
         "Review guide.",

@@ -1837,7 +1837,9 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
 def test_data_health_market_tables_have_plain_language_reader_guidance():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    explorer_header_index = source.index('render_section_header("Readiness Explorer"')
+    universe_scope_index = source.index('render_section_header(\n        "Universe Scope Guide"')
+    scope_cards_index = source.index("render_signal_cards(universe_scope_workflow_cards(summary, ticker_readiness_frame), show_commands=False)", universe_scope_index)
+    explorer_header_index = source.index('render_section_header("Readiness Explorer"', scope_cards_index)
     table_guide_index = source.index('render_context_note(\n        "Review guide."', explorer_header_index)
     filter_index = source.index("filter_cols = st.columns", explorer_header_index)
     drilldown_header_index = source.index('render_section_header("Single-Stock Drilldown"')
@@ -1850,7 +1852,8 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     source_table_expander_index = source.index('st.expander("Single-stock source readiness table", expanded=False)', quick_read_index)
     detail_expander_index = source.index('st.expander("Single-stock detailed fields", expanded=False)', source_table_expander_index)
 
-    assert explorer_header_index < table_guide_index < filter_index
+    assert universe_scope_index < scope_cards_index < explorer_header_index < table_guide_index < filter_index
+    assert "Choose active, ready, missing-data, sector/theme, or ticker-scoped review before widening the table." in source
     assert drilldown_header_index < ticker_note_index < snapshot_index
     assert snapshot_index < workflow_fit_index < workflow_loop_index < workflow_cards_index < quick_read_index
     assert quick_read_index < source_table_expander_index < detail_expander_index

@@ -74,6 +74,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Single-Stock Workflow Fit V4 so both the drilldown and loaded report show current step, previous proof, next safe action, and stop rule before dense details.
 - [x] Data Health Drawer Routing V3 so queue lane drawers summarize queue -> source proof -> comparison -> proof record routes before detailed action tables.
 - [x] Trusted Fundamentals Proof Loop UX V3 so DCF source review shows source fields -> guard -> validate/preview -> apply/skip -> proof-record route cards before source tables.
+- [x] Universe Scope Guide V1 so market-wide review starts with master vs active vs analysis-ready counts, safe row-limited filters, single-stock lookup boundaries, and the no broad-conclusions stop rule before the Readiness Explorer.
 
 ## 2. Current Product State
 
