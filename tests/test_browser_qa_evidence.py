@@ -12,6 +12,7 @@ from src.browser_qa_evidence import (
     browser_qa_evidence_payload,
     browser_qa_package_verdict,
     browser_qa_evidence_verdict,
+    browser_qa_pending_capture_closeout_rows,
     browser_qa_reviewed_asset_stage_command,
     browser_qa_route_rows,
     browser_qa_share_recommendation_rows,
@@ -191,6 +192,64 @@ def test_browser_qa_capture_checklist_rows_give_exact_local_capture_steps():
     assert "broker" not in rendered
 
 
+def test_browser_qa_pending_capture_closeout_rows_focus_only_missing_real_assets():
+    capture_rows = [
+        {
+            "Capture Target": "Single-stock workflow fit screenshot",
+            "State": "manual_capture_pending",
+            "Path": "docs/assets/single-stock-workflow-fit-real.jpg",
+            "Route": "http://localhost:8501/?mode=public&page=single-stock",
+            "First View Markers": "research-loop-strip, Single-Stock Report, Data Health Handoff",
+        },
+        {
+            "Capture Target": "Operator metrics lane screenshot",
+            "State": "ready",
+            "Path": "docs/assets/operator-data-health-metrics-real.jpg",
+            "Route": "http://localhost:8501/?mode=operator&page=data-health&lane=metrics",
+            "First View Markers": "Operator Queue",
+        },
+    ]
+
+    rows = browser_qa_pending_capture_closeout_rows(capture_rows)
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+
+    assert len(rows) == 1
+    assert rows[0]["Target"] == "Single-stock workflow fit screenshot"
+    assert rows[0]["Open Route"] == "http://localhost:8501/?mode=public&page=single-stock"
+    assert rows[0]["Save As"] == "docs/assets/single-stock-workflow-fit-real.jpg"
+    assert rows[0]["Verify"] == "make browser-qa-evidence"
+    assert rows[0]["Stage If Reviewed"] == "git add -- docs/assets/single-stock-workflow-fit-real.jpg"
+    assert "real app screenshot only after visual review" in rendered
+    assert "generated thumbnails" in rendered
+    assert "research-only guardrails" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_browser_qa_pending_capture_closeout_rows_mark_ready_when_none_pending():
+    rows = browser_qa_pending_capture_closeout_rows(
+        [
+            {
+                "Capture Target": "Public home",
+                "State": "ready",
+                "Path": "docs/assets/public-demo-home-real.jpg",
+                "Route": "http://localhost:8501/?mode=public",
+                "First View Markers": "First 30 Seconds",
+            }
+        ]
+    )
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+
+    assert rows[0]["Target"] == "All capture targets"
+    assert rows[0]["State"] == "ready"
+    assert "no screenshot-only staging needed" in rendered
+    assert "do not refresh data or unlock blocked inputs" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_browser_qa_capture_session_rows_keep_reviewer_sequence_copy_ready():
     target = BrowserQaCaptureTarget(
         name="Data Health queue drawer routing screenshot",
@@ -313,6 +372,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert len(payload["public_share_recommendation"]) == 3
     assert len(payload["committed_screenshot_assets"]) == 3
     assert len(payload["manual_capture_targets"]) == 3
+    assert len(payload["pending_capture_closeout"]) == 3
     assert payload["reviewed_asset_stage_command"] == (
         "git add -- docs/assets/single-stock-workflow-fit-real.jpg "
         "docs/assets/operator-data-health-proof-real.jpg "
@@ -333,6 +393,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "artifact hygiene" in rendered
     assert "commit reviewed evidence only" in rendered
     assert "public_share_recommendation" in rendered
+    assert "pending_capture_closeout" in rendered
     assert "linkedin-public-dashboard.png" in rendered
     assert "use make status-check top_n=5 for current counts" in rendered
     assert "make staged-hygiene-check" in rendered
@@ -410,6 +471,8 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "linkedin-public-dashboard.png" in output
     assert "use make status-check top_n=5 for current counts" in output
     assert "manual capture targets" in output
+    assert "pending capture closeout" in output
+    assert "stage if reviewed" in output
     assert "local capture checklist" in output
     assert "capture session plan" in output
     assert "commit reviewed evidence only" in output
@@ -449,6 +512,7 @@ def test_browser_qa_evidence_cli_json_mode_prints_payload(tmp_path, capsys):
     assert payload["verdict"] == "ready_with_manual_capture_pending"
     assert "local_capture_checklist" in payload
     assert "public_share_recommendation" in payload
+    assert "pending_capture_closeout" in payload
     assert "capture_session_plan" in payload
     assert "route_qa_checklist" in payload
     assert payload["reviewed_asset_stage_command"].startswith("git add -- docs/assets/")

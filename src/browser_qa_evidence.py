@@ -311,6 +311,44 @@ def browser_qa_capture_checklist_rows(
     return rows
 
 
+def browser_qa_pending_capture_closeout_rows(capture_rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Return one compact closeout row per pending real-app screenshot capture."""
+
+    pending_rows = [row for row in capture_rows if row.get("State") == "manual_capture_pending"]
+    if not pending_rows:
+        return [
+            {
+                "Target": "All capture targets",
+                "State": "ready",
+                "Open Route": "-",
+                "Confirm First View": "All listed real-app screenshots exist and meet minimum dimensions.",
+                "Save As": "-",
+                "Verify": "make browser-qa-evidence",
+                "Stage If Reviewed": "No screenshot-only staging needed.",
+                "Boundary": "Screenshots remain product evidence only; they do not refresh data or unlock blocked inputs.",
+            }
+        ]
+    rows: list[dict[str, object]] = []
+    for row in pending_rows:
+        path = str(row.get("Path") or "")
+        rows.append(
+            {
+                "Target": row.get("Capture Target", "Pending screenshot"),
+                "State": row.get("State", "manual_capture_pending"),
+                "Open Route": row.get("Route", ""),
+                "Confirm First View": row.get("First View Markers", "workflow strip, next action, stop rule"),
+                "Save As": path,
+                "Verify": "make browser-qa-evidence",
+                "Stage If Reviewed": f"git add -- {path}" if path else "Stage only the reviewed screenshot asset.",
+                "Boundary": (
+                    "Use a real app screenshot only after visual review; do not use generated thumbnails, "
+                    "traceback views, raw-table-first views, or screenshots missing research-only guardrails."
+                ),
+            }
+        )
+    return rows
+
+
 def browser_qa_reviewed_asset_stage_command(
     targets: Iterable[BrowserQaCaptureTarget] = DEFAULT_BROWSER_QA_CAPTURE_TARGETS,
 ) -> str:
@@ -444,6 +482,7 @@ def browser_qa_evidence_payload(root: Path) -> dict[str, object]:
     capture_session_rows = browser_qa_capture_session_rows()
     route_rows = browser_qa_route_rows()
     share_recommendation_rows = browser_qa_share_recommendation_rows(asset_rows, capture_rows)
+    pending_capture_closeout_rows = browser_qa_pending_capture_closeout_rows(capture_rows)
     return {
         "verdict": browser_qa_package_verdict(asset_rows, capture_rows),
         "research_only_boundary": (
@@ -453,6 +492,7 @@ def browser_qa_evidence_payload(root: Path) -> dict[str, object]:
         "public_share_recommendation": share_recommendation_rows,
         "committed_screenshot_assets": asset_rows,
         "manual_capture_targets": capture_rows,
+        "pending_capture_closeout": pending_capture_closeout_rows,
         "reviewed_asset_stage_command": browser_qa_reviewed_asset_stage_command(),
         "local_capture_checklist": capture_checklist_rows,
         "capture_session_plan": capture_session_rows,
@@ -490,6 +530,7 @@ def main(argv: list[str] | None = None) -> int:
     capture_rows = list(payload["manual_capture_targets"])
     share_recommendation_rows = list(payload["public_share_recommendation"])
     capture_checklist_rows = list(payload["local_capture_checklist"])
+    pending_capture_closeout_rows = list(payload["pending_capture_closeout"])
     capture_session_rows = list(payload["capture_session_plan"])
     route_rows = list(payload["route_qa_checklist"])
     verdict = browser_qa_package_verdict(rows, capture_rows)
@@ -516,6 +557,10 @@ def main(argv: list[str] | None = None) -> int:
     print("Manual Capture Targets")
     print("These are real-app screenshot targets that should be captured in a normal local browser when socket/screenshot access is available.")
     print(_markdown_table(capture_rows, ["Capture Target", "State", "Path", "Route", "Dimensions / Capture Note", "First View Markers", "Use"]))
+    print()
+    print("Pending Capture Closeout")
+    print("Use this compact list to finish only the missing real-app screenshots; keep generated thumbnails out.")
+    print(_markdown_table(pending_capture_closeout_rows, ["Target", "State", "Open Route", "Confirm First View", "Save As", "Verify", "Stage If Reviewed", "Boundary"]))
     print()
     print("Local Capture Checklist")
     print("Use this after `make dashboard` in a normal local terminal; save real app screenshots to the listed paths only after visual review.")

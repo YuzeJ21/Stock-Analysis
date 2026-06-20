@@ -356,6 +356,100 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
     ]
 
 
+def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    """Return a compact route-focused handoff from one ticker back to Data Health."""
+
+    ticker = _format_missing(snapshot.get("ticker"), "TICKER").upper()
+    state = _public_status_label(snapshot.get("status"))
+    dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
+    price_ready = bool(snapshot.get("price_ready"))
+    peer_ready = bool(snapshot.get("peer_ready"))
+    earnings_ready = bool(snapshot.get("earnings_ready"))
+    estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
+    monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    command = single_stock_next_command(snapshot)
+    route_decision = single_stock_report_data_health_route(
+        asset_type=asset_type,
+        valuation_status=dcf_status,
+        price_ready=price_ready,
+        dcf_ready=dcf_status == "ready",
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
+    route_label = route_decision["route_label"]
+    route = route_decision["route"]
+    stop_rule = route_decision["stop_rule"]
+
+    if not snapshot or snapshot.get("status") == "missing":
+        route_label = "Universe and readiness refresh"
+        route = "?mode=operator&page=data-health&drawer=queue"
+        command = _format_missing(snapshot.get("next_action") if snapshot else "", "make universe-report")
+        current_read = "No local readiness row is available for this ticker yet."
+        blocked_state = "All ticker-level interpretation stays blocked until local readiness outputs include the ticker."
+        stop_rule = "Stop until the ticker appears in local readiness outputs."
+        badges = ["missing row", "readiness first"]
+    elif not price_ready:
+        current_read = "Only ticker identity and local row status can be checked."
+        blocked_state = "Setup, trend, DCF, peer context, optional context, and metrics stay blocked until trusted price history exists."
+        badges = ["prices lane", "first proof"]
+    elif monitor_context:
+        current_read = "Monitor context can be read from local price, liquidity, and risk rows."
+        blocked_state = "Operating-company DCF and peer valuation are excluded for this asset type."
+        badges = ["monitor context", "excluded visible"]
+    elif dcf_status == "blocked":
+        current_read = "Price/setup context can be read, but valuation and fundamentals trend panels stay locked."
+        blocked_state = "Fundamentals, shares, market cap, FCF, or DCF inputs need reviewed source proof before interpretation."
+        badges = ["fundamentals lane", "source proof"]
+    elif dcf_status == "ready" and not peer_ready:
+        current_read = "Standalone DCF context can be reviewed from trusted local inputs."
+        blocked_state = "Peer-relative context stays blocked until mappings and peer valuation inputs are source-backed."
+        badges = ["peers lane", "peer proof"]
+    elif not earnings_ready or not estimates_ready:
+        current_read = "Core price, fundamentals, DCF, and peer context can be reviewed."
+        blocked_state = "Optional earnings and analyst-estimate context remains locked unless trusted local rows exist."
+        badges = ["optional lane", "locked context"]
+    else:
+        current_read = "Supported single-stock sections can be reviewed from current trusted local inputs."
+        blocked_state = "If any readiness artifact changed, rebuild proof before interpreting refreshed output."
+        badges = ["proof lane", "freshness"]
+
+    return [
+        {
+            "kicker": "CURRENT REPORT",
+            "title": f"{ticker}: {state}",
+            "body": f"What can be reviewed now: {current_read}",
+            "badges": ["selected ticker", "review scope"],
+            "command": _stock_report_md_command(ticker),
+        },
+        {
+            "kicker": "LOCKED INPUTS",
+            "title": "Keep blocked sections visible",
+            "body": blocked_state,
+            "badges": ["blocked visible", "no inference"],
+            "command": command,
+        },
+        {
+            "kicker": "OPEN DATA HEALTH",
+            "title": route_label,
+            "body": (
+                f"Use {route} to continue the readiness loop in the matching lane or drawer. "
+                "This is navigation and copy-only command context; the dashboard does not write canonical data."
+            ),
+            "badges": badges,
+            "command": command,
+        },
+        {
+            "kicker": "STOP RULE",
+            "title": "Return only after proof changes",
+            "body": f"{stop_rule} Do not turn missing, partial, locked, or excluded inputs into conclusions.",
+            "badges": ["research only", "proof first"],
+            "command": "make readiness",
+        },
+    ]
+
+
 def single_stock_workflow_command_rows(cards: list[dict[str, object]]) -> list[dict[str, str]]:
     """Return collapsed command rows for the single-stock workflow drawer."""
 

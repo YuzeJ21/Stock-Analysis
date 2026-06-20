@@ -253,6 +253,7 @@ from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_repor
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 from src.single_stock_workflow import (
+    single_stock_data_health_handoff_cards,
     single_stock_report_data_health_route,
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
@@ -8190,6 +8191,44 @@ def data_health_pilot_packaging_summary_frame(
 
 def data_health_pilot_packaging_summary_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
     return pilot_console.pilot_packaging_summary_cards(frame, limit=limit)
+
+
+def data_health_pilot_evidence_review_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    return pilot_console.pilot_evidence_review_frame(pilot_frame, proof_queue_frame, output_path=output_path)
+
+
+def data_health_pilot_evidence_review_cards(frame: pd.DataFrame | None, *, limit: int = 6) -> list[dict[str, object]]:
+    return pilot_console.pilot_evidence_review_cards(frame, limit=limit)
+
+
+def data_health_public_share_final_gate_frame(
+    pilot_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    return pilot_console.public_share_final_gate_frame(pilot_frame, output_path=output_path)
+
+
+def data_health_public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 6) -> list[dict[str, object]]:
+    return pilot_console.public_share_final_gate_cards(frame, limit=limit)
+
+
+def data_health_workflow_continuity_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    return pilot_console.data_health_workflow_continuity_frame(pilot_frame, proof_queue_frame, output_path=output_path)
+
+
+def data_health_workflow_continuity_cards(frame: pd.DataFrame | None, *, limit: int = 7) -> list[dict[str, object]]:
+    return pilot_console.data_health_workflow_continuity_cards(frame, limit=limit)
 
 
 def data_health_pilot_reviewer_walkthrough_frame(
@@ -24740,11 +24779,17 @@ def render_market_command_center(
         "Selected ticker, review-now scope, blocked or excluded inputs, Data Health handoff, and stop rule before raw details.",
     )
     workflow_fit_cards = single_stock_workflow_fit_cards(snapshot)
+    handoff_cards = single_stock_data_health_handoff_cards(snapshot)
     render_signal_cards(single_stock_workflow_loop_cards(snapshot), show_commands=False)
     render_signal_cards(workflow_fit_cards, show_commands=False)
+    render_section_header(
+        "Data Health Handoff",
+        "Route this ticker's locked inputs back to the right readiness lane before opening raw proof details.",
+    )
+    render_signal_cards(handoff_cards, show_commands=False)
     with st.expander("Single-stock copy-only commands", expanded=False):
         st.dataframe(
-            clean_display_frame(pd.DataFrame(single_stock_workflow_command_rows(workflow_fit_cards))),
+            clean_display_frame(pd.DataFrame(single_stock_workflow_command_rows(workflow_fit_cards + handoff_cards))),
             width="stretch",
             hide_index=True,
         )
@@ -25110,6 +25155,53 @@ def render_data_health(
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
+    pilot_evidence_review = data_health_pilot_evidence_review_frame(
+        pilot_readiness,
+        data_coverage_proof_queues,
+        output_path=DEFAULT_PACKET_PATH,
+    )
+    render_section_header(
+        "Pilot Evidence Review",
+        "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables.",
+    )
+    render_signal_cards(
+        data_health_pilot_evidence_review_cards(pilot_evidence_review),
+        show_commands=True,
+        variant="queue",
+    )
+    with st.expander("Pilot evidence review detail", expanded=False):
+        st.dataframe(clean_display_frame(pilot_evidence_review), width="stretch", hide_index=True)
+    public_share_final_gate = data_health_public_share_final_gate_frame(
+        pilot_readiness,
+        output_path=DEFAULT_PACKET_PATH,
+    )
+    render_section_header(
+        "Public Share Final Gate",
+        "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing.",
+    )
+    render_signal_cards(
+        data_health_public_share_final_gate_cards(public_share_final_gate),
+        show_commands=True,
+        variant="queue",
+    )
+    with st.expander("Public share final gate detail", expanded=False):
+        st.dataframe(clean_display_frame(public_share_final_gate), width="stretch", hide_index=True)
+    workflow_continuity = data_health_workflow_continuity_frame(
+        pilot_readiness,
+        data_coverage_proof_queues,
+        output_path=DEFAULT_PACKET_PATH,
+    )
+    render_section_header(
+        "Data Health Workflow Continuity",
+        "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables.",
+    )
+    render_signal_cards(
+        data_health_workflow_continuity_cards(workflow_continuity),
+        show_commands=True,
+        variant="queue",
+    )
+    with st.expander("Data Health workflow continuity detail", expanded=False):
+        st.dataframe(clean_display_frame(workflow_continuity), width="stretch", hide_index=True)
     render_section_header(
         "Pilot Handoff Summary",
         "Verdict, manual gate, source-proof blocker, generated-churn boundary, and reviewer packet before detailed pilot tables.",

@@ -166,3 +166,206 @@ def test_operator_next_action_summary_deferred_state_stays_copy_only():
     assert "make data-coverage-proof-queues top_n=10" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_pilot_evidence_review_combines_screenshots_packet_public_gate_and_churn():
+    pilot_frame = pd.concat(
+        [
+            _pilot_frame(),
+            pd.DataFrame(
+                [
+                    {
+                        "Area": "Browser QA evidence",
+                        "Status": "manual",
+                        "Gate": "Public screenshot ready; workflow captures pending",
+                        "Detail": "3 committed screenshot assets ready; pending workflow captures remain.",
+                        "Command": "make browser-qa-evidence",
+                        "Stop Rule": "Use real app screenshots only; do not use generated thumbnails.",
+                    },
+                    {
+                        "Area": "Public safety",
+                        "Status": "manual",
+                        "Gate": "Run public-check",
+                        "Detail": "Public-check remains the final share gate.",
+                        "Command": "make public-check",
+                        "Stop Rule": "Stop before public sharing if public-check fails.",
+                    },
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+
+    frame = pilot_console.pilot_evidence_review_frame(
+        pilot_frame,
+        _proof_queue_frame(),
+        output_path=Path("outputs/pilot_readiness_packet.md"),
+    )
+    cards = pilot_console.pilot_evidence_review_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert list(frame["Evidence Area"]) == [
+        "Pilot verdict",
+        "Screenshot evidence",
+        "Pilot packet",
+        "Public release gate",
+        "Generated churn boundary",
+        "Source-proof blocker",
+    ]
+    assert frame.iloc[1]["Next Safe Action"] == "make browser-qa-evidence"
+    assert frame.iloc[2]["Review State"] == "outputs/pilot_readiness_packet.md"
+    assert frame.iloc[3]["Next Safe Action"] == "make public-check"
+    assert frame.iloc[4]["Next Safe Action"] == "make diff-hygiene-summary"
+    assert frame.iloc[5]["Review State"] == "Trusted Fundamentals Proof Queue"
+    assert "screenshots, packet, public gate, churn, and source proof in one place" in rendered
+    assert "does not refresh data, apply imports" in rendered
+    assert "generated thumbnails" in rendered
+    assert "fundamentals_bundle_plus_shares" in rendered
+    assert "blocked fundamentals, shares, market cap, peers" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_pilot_evidence_review_deferred_state_still_names_safe_commands():
+    frame = pilot_console.pilot_evidence_review_frame(pd.DataFrame(), pd.DataFrame())
+    cards = pilot_console.pilot_evidence_review_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert frame.iloc[0]["Review State"] == "Run pilot readiness check"
+    assert frame.iloc[1]["Next Safe Action"] == "make browser-qa-evidence"
+    assert frame.iloc[2]["Next Safe Action"] == "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md"
+    assert frame.iloc[5]["Next Safe Action"] == "make data-coverage-proof-queues TOP_N=10"
+    assert "run browser qa evidence" in rendered
+    assert "generated csv/json/report churn stays excluded" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_public_share_final_gate_combines_release_checks_without_data_writes():
+    pilot_frame = pd.concat(
+        [
+            _pilot_frame(),
+            pd.DataFrame(
+                [
+                    {
+                        "Area": "Browser QA evidence",
+                        "Status": "manual",
+                        "Detail": "3 committed screenshot assets ready; pending workflow captures remain.",
+                        "Command": "make browser-qa-evidence",
+                        "Stop Rule": "Use real app screenshots only.",
+                    },
+                    {
+                        "Area": "Public safety",
+                        "Status": "manual",
+                        "Detail": "Public-check remains the explicit release gate.",
+                        "Command": "make public-check",
+                        "Stop Rule": "Stop if public-check fails.",
+                    },
+                    {
+                        "Area": "Research guardrails",
+                        "Status": "green",
+                        "Detail": "Research-only boundary remains required.",
+                        "Command": "make public-wording-check",
+                        "Stop Rule": "Stop if wording becomes trade instructions.",
+                    },
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+
+    frame = pilot_console.public_share_final_gate_frame(
+        pilot_frame,
+        output_path=Path("outputs/pilot_readiness_packet.md"),
+    )
+    cards = pilot_console.public_share_final_gate_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert list(frame["Gate"]) == [
+        "GitHub sync",
+        "Public-check",
+        "Browser QA evidence",
+        "Generated churn exclusion",
+        "Pilot packet",
+        "Research-only boundary",
+    ]
+    assert frame.iloc[1]["Command"] == "make public-check"
+    assert frame.iloc[2]["Command"] == "make browser-qa-evidence"
+    assert frame.iloc[3]["Command"] == "make diff-hygiene-summary"
+    assert frame.iloc[4]["Command"] == "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md"
+    assert frame.iloc[5]["Command"] == "make public-wording-check"
+    assert "one final review before github or linkedin" in rendered
+    assert "real screenshots" in rendered
+    assert "generated-churn exclusion" in rendered
+    assert "packet generation is read-only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_public_share_final_gate_deferred_state_names_all_release_gates():
+    frame = pilot_console.public_share_final_gate_frame(pd.DataFrame())
+    cards = pilot_console.public_share_final_gate_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert frame["Gate"].tolist() == [
+        "GitHub sync",
+        "Public-check",
+        "Browser QA evidence",
+        "Generated churn exclusion",
+        "Pilot packet",
+        "Research-only boundary",
+    ]
+    assert "git status --short --branch" in rendered
+    assert "make public-check" in rendered
+    assert "make browser-qa-evidence" in rendered
+    assert "make diff-hygiene-summary" in rendered
+    assert "make public-wording-check" in rendered
+    assert "trade instructions" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_workflow_continuity_connects_evidence_queue_proof_and_artifacts():
+    frame = pilot_console.data_health_workflow_continuity_frame(
+        _pilot_frame(),
+        _proof_queue_frame(),
+        output_path=Path("outputs/pilot_readiness_packet.md"),
+    )
+    cards = pilot_console.data_health_workflow_continuity_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert list(frame["Step"]) == [
+        "1. Evidence review",
+        "2. Final share gate",
+        "3. Next safe action",
+        "4. Queue route map",
+        "5. Proof lane",
+        "6. Artifact hygiene",
+        "7. Reviewer packet",
+    ]
+    assert frame.iloc[3]["Primary View"] == "Readiness queue review details"
+    assert frame.iloc[3]["Next Safe Action"] == "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10"
+    assert frame.iloc[4]["Route"] == "?mode=operator&page=data-health&lane=proof"
+    assert frame.iloc[5]["Next Safe Action"] == "make diff-hygiene-summary"
+    assert "one operator path, then drawers" in rendered
+    assert "evidence review -> final share gate -> next action -> queue route map -> proof lane" in rendered
+    assert "commands remain copy-only" in rendered
+    assert "do not stage broad generated csv/json/report churn" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_data_health_workflow_continuity_deferred_state_keeps_safe_routes():
+    frame = pilot_console.data_health_workflow_continuity_frame(pd.DataFrame(), pd.DataFrame())
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+
+    assert "make pilot-readiness-check top_n=10" in rendered
+    assert "make data-coverage-proof-queues top_n=10" in rendered
+    assert "?mode=operator&page=data-health&lane=proof" in rendered
+    assert "outputs/pilot_readiness_packet.md" in rendered
+    assert "do not edit source rows" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered

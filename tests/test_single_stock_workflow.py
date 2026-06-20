@@ -1,4 +1,5 @@
 from src.single_stock_workflow import (
+    single_stock_data_health_handoff_cards,
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
     single_stock_report_data_health_route,
@@ -49,6 +50,87 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
     assert "copy-only" in rendered
     assert "do not treat locked, partial, or excluded sections as conclusions" in rendered
     assert "make focus-peers ticker=nvda" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_data_health_handoff_cards_route_locked_inputs_to_matching_lane():
+    snapshot = {
+        "ticker": "MU",
+        "status": "partial",
+        "asset_type": "company",
+        "decision_bucket": "Research Now",
+        "decision_subtype": "Standalone DCF ready; peers gated",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "missing_data": "peer valuation inputs",
+    }
+
+    cards = single_stock_data_health_handoff_cards(snapshot)
+    rendered = _render(cards)
+
+    assert [card["kicker"] for card in cards] == [
+        "CURRENT REPORT",
+        "LOCKED INPUTS",
+        "OPEN DATA HEALTH",
+        "STOP RULE",
+    ]
+    assert cards[0]["title"] == "MU: partial"
+    assert "what can be reviewed now: standalone dcf context can be reviewed" in rendered
+    assert "peer-relative context stays blocked" in rendered
+    assert "peers source-proof lane" in rendered
+    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
+    assert "navigation and copy-only command context" in rendered
+    assert "dashboard does not write canonical data" in rendered
+    assert "make focus-peers ticker=mu" in rendered
+    assert "do not turn missing, partial, locked, or excluded inputs into conclusions" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_data_health_handoff_cards_cover_missing_price_and_monitor_states():
+    missing = {
+        "ticker": "ZZZ",
+        "status": "missing",
+        "next_action": "Stage or refresh universe metadata, then run make universe-report and make readiness.",
+    }
+    price_blocked = {
+        "ticker": "APLD",
+        "status": "blocked",
+        "asset_type": "company",
+        "price_ready": False,
+        "dcf_status": "blocked",
+    }
+    monitor = {
+        "ticker": "QQQ",
+        "status": "partial",
+        "asset_type": "etf",
+        "price_ready": True,
+        "dcf_status": "excluded",
+    }
+
+    missing_rendered = _render(single_stock_data_health_handoff_cards(missing))
+    price_rendered = _render(single_stock_data_health_handoff_cards(price_blocked))
+    monitor_rendered = _render(single_stock_data_health_handoff_cards(monitor))
+    rendered = missing_rendered + price_rendered + monitor_rendered
+
+    assert "universe and readiness refresh" in missing_rendered
+    assert "stop until the ticker appears in local readiness outputs" in missing_rendered
+    assert "prices lane" in price_rendered
+    assert "?mode=operator&page=data-health&lane=prices&drawer=queue" in price_rendered
+    assert "trusted price history exists" in price_rendered
+    assert "monitor context can be read" in monitor_rendered
+    assert "operating-company dcf and peer valuation are excluded" in monitor_rendered
+    assert "proof history" in monitor_rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

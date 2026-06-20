@@ -1856,9 +1856,12 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     snapshot_index = source.index("snapshot = single_stock_readiness_snapshot", drilldown_header_index)
     workflow_fit_index = source.index('render_section_header(\n        "Where This Ticker Fits"', snapshot_index)
     workflow_fit_cards_assignment_index = source.index("workflow_fit_cards = single_stock_workflow_fit_cards(snapshot)", workflow_fit_index)
+    handoff_cards_assignment_index = source.index("handoff_cards = single_stock_data_health_handoff_cards(snapshot)", workflow_fit_index)
     workflow_loop_index = source.index("render_signal_cards(single_stock_workflow_loop_cards(snapshot), show_commands=False)", workflow_fit_index)
     workflow_cards_index = source.index("render_signal_cards(workflow_fit_cards, show_commands=False)", workflow_loop_index)
-    command_expander_index = source.index('st.expander("Single-stock copy-only commands", expanded=False)', workflow_cards_index)
+    handoff_header_index = source.index('render_section_header(\n        "Data Health Handoff"', workflow_cards_index)
+    handoff_render_index = source.index("render_signal_cards(handoff_cards, show_commands=False)", handoff_header_index)
+    command_expander_index = source.index('st.expander("Single-stock copy-only commands", expanded=False)', handoff_render_index)
     quick_read_index = source.index('render_section_header("Single-Stock Quick Read"', workflow_fit_index)
     source_table_expander_index = source.index('st.expander("Single-stock source readiness table", expanded=False)', quick_read_index)
     detail_expander_index = source.index('st.expander("Single-stock detailed fields", expanded=False)', source_table_expander_index)
@@ -1866,13 +1869,26 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     assert universe_scope_index < scope_cards_index < explorer_header_index < table_guide_index < filter_index
     assert "Choose active, ready, missing-data, sector/theme, or ticker-scoped review before widening the table." in source
     assert drilldown_header_index < ticker_note_index < snapshot_index
-    assert snapshot_index < workflow_fit_index < workflow_fit_cards_assignment_index < workflow_loop_index < workflow_cards_index < command_expander_index < quick_read_index
+    assert (
+        snapshot_index
+        < workflow_fit_index
+        < workflow_fit_cards_assignment_index
+        < handoff_cards_assignment_index
+        < workflow_loop_index
+        < workflow_cards_index
+        < handoff_header_index
+        < handoff_render_index
+        < command_expander_index
+        < quick_read_index
+    )
     assert quick_read_index < source_table_expander_index < detail_expander_index
     assert "missing rows are not analysis conclusions" in source
     assert "next copy-only command" in source
     assert "Selected ticker, review-now scope, blocked or excluded inputs, Data Health handoff, and stop rule before raw details." in source
     assert "single_stock_workflow_loop_cards(snapshot)" in source
-    assert "single_stock_workflow_command_rows(workflow_fit_cards)" in source
+    assert "single_stock_data_health_handoff_cards(snapshot)" in source
+    assert "single_stock_workflow_command_rows(workflow_fit_cards + handoff_cards)" in source
+    assert "Route this ticker's locked inputs back to the right readiness lane before opening raw proof details." in source
     assert "How The App Uses Trusted Data" in source
     assert "Source Vs Product Logic" not in source
     assert "full-table dumps" not in source
@@ -18134,6 +18150,18 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
 def test_data_health_pilot_handoff_summary_renders_before_packaging_and_walkthrough():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    evidence_frame_index = source.index("pilot_evidence_review = data_health_pilot_evidence_review_frame")
+    evidence_header_index = source.index('render_section_header(\n        "Pilot Evidence Review"', evidence_frame_index)
+    evidence_cards_index = source.index("data_health_pilot_evidence_review_cards(pilot_evidence_review)", evidence_header_index)
+    evidence_detail_index = source.index('st.expander("Pilot evidence review detail"', evidence_cards_index)
+    share_gate_frame_index = source.index("public_share_final_gate = data_health_public_share_final_gate_frame")
+    share_gate_header_index = source.index('render_section_header(\n        "Public Share Final Gate"', share_gate_frame_index)
+    share_gate_cards_index = source.index("data_health_public_share_final_gate_cards(public_share_final_gate)", share_gate_header_index)
+    share_gate_detail_index = source.index('st.expander("Public share final gate detail"', share_gate_cards_index)
+    workflow_frame_index = source.index("workflow_continuity = data_health_workflow_continuity_frame")
+    workflow_header_index = source.index('render_section_header(\n        "Data Health Workflow Continuity"', workflow_frame_index)
+    workflow_cards_index = source.index("data_health_workflow_continuity_cards(workflow_continuity)", workflow_header_index)
+    workflow_detail_index = source.index('st.expander("Data Health workflow continuity detail"', workflow_cards_index)
     handoff_frame_index = source.index("pilot_handoff_summary = data_health_pilot_handoff_summary_frame")
     handoff_header_index = source.index('render_section_header(\n        "Pilot Handoff Summary"', handoff_frame_index)
     handoff_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", handoff_header_index)
@@ -18149,9 +18177,18 @@ def test_data_health_pilot_handoff_summary_renders_before_packaging_and_walkthro
     walkthrough_header_index = source.index('render_section_header(\n        "Pilot Reviewer Walkthrough"', packaging_detail_index)
     walkthrough_strip_index = source.index("data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough)", walkthrough_header_index)
 
-    assert handoff_frame_index < packaging_frame_index
+    assert handoff_frame_index < packaging_frame_index < evidence_frame_index < share_gate_frame_index < workflow_frame_index
     assert (
-        handoff_header_index
+        evidence_header_index
+        < evidence_cards_index
+        < evidence_detail_index
+        < share_gate_header_index
+        < share_gate_cards_index
+        < share_gate_detail_index
+        < workflow_header_index
+        < workflow_cards_index
+        < workflow_detail_index
+        < handoff_header_index
         < handoff_cards_index
         < handoff_detail_index
         < commit_header_index
@@ -18163,6 +18200,9 @@ def test_data_health_pilot_handoff_summary_renders_before_packaging_and_walkthro
         < walkthrough_header_index
         < walkthrough_strip_index
     )
+    assert "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables." in source
+    assert "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing." in source
+    assert "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables." in source
     assert "Verdict, manual gate, source-proof blocker, generated-churn boundary, and reviewer packet before detailed pilot tables." in source
     assert "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing." in source
     assert "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary." in source
@@ -23071,6 +23111,40 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
     assert "copy-only" in rendered
     assert "do not treat locked, partial, or excluded sections as conclusions" in rendered
     assert "make focus-peers ticker=nvda" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_data_health_handoff_cards_connect_report_to_lane_route():
+    snapshot = {
+        "ticker": "MU",
+        "status": "partial",
+        "asset_type": "company",
+        "decision_bucket": "Research Now",
+        "decision_subtype": "Standalone DCF ready; peers gated",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "missing_data": "peer valuation inputs",
+    }
+
+    cards = dashboard.single_stock_data_health_handoff_cards(snapshot)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["CURRENT REPORT", "LOCKED INPUTS", "OPEN DATA HEALTH", "STOP RULE"]
+    assert "mu: partial" in rendered
+    assert "standalone dcf context can be reviewed" in rendered
+    assert "peer-relative context stays blocked" in rendered
+    assert "peers source-proof lane" in rendered
+    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
+    assert "navigation and copy-only command context" in rendered
+    assert "do not turn missing, partial, locked, or excluded inputs into conclusions" in rendered
+    assert "make focus-peers ticker=mu" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
