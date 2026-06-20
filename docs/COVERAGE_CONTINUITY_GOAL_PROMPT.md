@@ -28,15 +28,15 @@ Non-blocking rule:
 - The overall goal must not stop because one source path fails.
 - Do not mark the overall goal blocked while any executable lane, candidate, fallback research path, workflow improvement, or read-only verification path still exists in the current session.
 - Ticker-level `still_blocked`, `skipped`, or `excluded` outcomes are valid slice outcomes and must not by themselves turn the whole goal into blocked status.
-- Run make session-source-preflight once per session.
 - Run one session preflight at the start:
   - git status --short --branch
   - make diff-hygiene
   - make status-check TOP_N=5
   - make readiness-ops-center
   - make coverage-frontier TOP_N=10
-  - verify SEC access with explicit SEC_USER_AGENT
-  - verify whether `python3 -c "import yfinance"` works
+  - make session-source-preflight SEC_USER_AGENT='Name email@example.com'
+- Treat the latest `make session-source-preflight` output as the session truth for lane selection.
+- Commands that choose the next lane or candidate should reuse that session truth instead of retrying unavailable SEC/Yahoo-backed fundamentals paths in the same session.
 - If SEC access fails, record session_sec_unavailable and do not retry SEC-backed fundamentals/share-count candidates again in that session.
 - If yfinance fails, mark session_yfinance_unavailable and do not retry Yahoo-backed fundamentals again in that session.
 - If both SEC and yfinance are unavailable, pivot immediately to another executable lane instead of blocking the goal.
@@ -69,7 +69,7 @@ Peer workflow rule:
   - current repo sector/industry context
   - SIC / NAICS / exchange / company-profile context
   - public company descriptions, filings, investor-relations pages, and other public research context
-  - Codex/ChatGPT synthesis from public information when stronger direct competitor evidence is not feasible in the current session
+  - model-assisted synthesis from public information when stronger direct competitor evidence is not feasible in the current session
 - Candidate peer alignment must stay explicitly labeled as one of:
   - candidate
   - fallback_context

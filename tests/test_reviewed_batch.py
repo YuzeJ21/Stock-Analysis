@@ -203,6 +203,56 @@ def test_reviewed_batch_fundamentals_lane_prefers_local_dcf_queue_when_session_s
     assert "place only reviewed trusted fundamentals rows in data/imports/fundamentals.csv" in action.capped_execution_command
 
 
+def test_reviewed_batch_fundamentals_candidates_follow_local_dcf_queue_order(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write(
+        root / "data" / "universe.csv",
+        "\n".join(
+            [
+                "ticker,asset_type,default_purpose,market_cap_bucket",
+                "AACB,company,Research Candidate,Small",
+                "ABAT,company,Research Candidate,Small",
+            ]
+        )
+        + "\n",
+    )
+    _write(
+        root / "data" / "prices.csv",
+        "ticker,date,close\nAACB,2026-01-01,10\nABAT,2026-01-01,2\n",
+    )
+    _write(
+        root / "data" / "fundamentals.csv",
+        "\n".join(
+            [
+                "ticker,source,revenue,free_cash_flow,fcf_margin,shares_outstanding,cash,debt",
+                "AACB,sec_companyfacts,,,,,20298,",
+                "ABAT,sec_companyfacts,0,-35661851,,136414409,37700000,9413088",
+            ]
+        )
+        + "\n",
+    )
+    _write(
+        root / "data" / "reports" / "fundamentals_coverage_report.csv",
+        "ticker,fundamentals_ready,missing_fundamentals_fields\nAACB,false,revenue free_cash_flow fcf_margin shares_outstanding\nABAT,false,fcf_margin\n",
+    )
+    _write(
+        root / "outputs" / "session_source_preflight.json",
+        """{
+  "sources": {
+    "sec": {"status": "unavailable"},
+    "local_fundamentals": {"fundamentals_fixable_ticker_count": 2, "share_count_fixable_ticker_count": 0}
+  }
+}
+""",
+    )
+    _mark_readiness_current(root)
+
+    packet = build_reviewed_batch_packet(root, lane="fundamentals", top_n=1)
+
+    assert packet.actions[0].proposed_ticker == "ABAT"
+    assert packet.actions[0].dry_run_command == "make dcf-input-proof-queue TOP_N=1"
+
+
 def test_reviewed_batch_supports_ticker_scope_and_optional_context(tmp_path: Path):
     packet = build_reviewed_batch_packet(_sample_root(tmp_path), lane="optional_context", tickers="BBB,CCC", top_n=5)
     rendered = render_packet_markdown(packet)

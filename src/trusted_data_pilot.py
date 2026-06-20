@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.session_source_preflight import load_session_source_preflight
+
 
 DEFAULT_TOP_N = 10
 MONITOR_EXAMPLE_TICKERS = {"QQQ", "SMH"}
@@ -178,6 +180,131 @@ def _readiness_lookup(rows: Iterable[dict[str, str]]) -> dict[str, dict[str, str
     return {_clean(row.get("ticker"), "").upper(): row for row in rows if _clean(row.get("ticker"), "")}
 
 
+def _csv_ticker_set(path: Path) -> set[str]:
+    rows = _read_csv(path)
+    return {
+        _clean(row.get("ticker"), "").upper()
+        for row in rows
+        if _clean(row.get("ticker"), "")
+    }
+
+
+def _local_fundamentals_ticker_set(root: Path) -> set[str]:
+    return _csv_ticker_set(root / "data" / "fundamentals.csv") | _csv_ticker_set(root / "data" / "imports" / "fundamentals.csv")
+
+
+def _local_optional_ticker_set(root: Path) -> set[str]:
+    return (
+        _csv_ticker_set(root / "data" / "earnings.csv")
+        | _csv_ticker_set(root / "data" / "imports" / "earnings.csv")
+        | _csv_ticker_set(root / "data" / "analyst_estimates.csv")
+        | _csv_ticker_set(root / "data" / "imports" / "analyst_estimates.csv")
+    )
+
+
+def _candidate_session_path(
+    candidate: PilotCandidate,
+    *,
+    root: Path,
+    preflight: dict[str, object] | None,
+) -> tuple[str, str]:
+    if preflight is None:
+        return (
+            "unknown",
+            "Session source availability is not recorded yet; run make session-source-preflight first.",
+        )
+
+    sources = preflight.get("sources", {}) if isinstance(preflight, dict) else {}
+    sec_status = str(((sources.get("sec") or {}) if isinstance(sources, dict) else {}).get("status", "")).strip().lower()
+    yfinance_status = str(((sources.get("yfinance_stage") or {}) if isinstance(sources, dict) else {}).get("status", "")).strip().lower()
+    local_fundamentals = _local_fundamentals_ticker_set(root)
+    local_optional = _local_optional_ticker_set(root)
+
+    if candidate.lane == "fundamentals_dcf":
+        if sec_status == "available":
+            return ("executable_remote", "SEC-backed fundamentals/share-count proof is available in this session.")
+        if yfinance_status == "available":
+            return ("executable_remote", "Yahoo-backed research-grade fundamentals are available in this session.")
+        if candidate.ticker in local_fundamentals:
+            return ("executable_local", "A reviewed local fundamentals row already exists for this ticker in this session.")
+        return (
+            "session_blocked",
+            "SEC and Yahoo-backed fundamentals are unavailable in this session, and no reviewed local fundamentals row exists for this ticker.",
+        )
+
+    if candidate.lane == "peer_mapping":
+        return (
+            "review_only",
+            "Peer mapping can keep moving through source review and local reviewed peer rows in this session.",
+        )
+
+    if candidate.lane == "peer_valuation_inputs":
+        return (
+            "review_only",
+            "Peer valuation input proof can continue only through reviewed local peer and mapped-peer input evidence in this session.",
+        )
+
+    if candidate.lane == "optional_context_locked":
+        if candidate.ticker in local_optional:
+            return ("executable_local", "Trusted local optional-context rows already exist for this ticker.")
+        return (
+            "manual_locked",
+            "Optional-context rows are still manual-only in this session; keep the lane locked unless trusted local rows already exist.",
+        )
+
+    if candidate.lane == "price_coverage":
+        return (
+            "review_only",
+            "Price coverage remains a dry-run-first lane in this session; verify provider scope before any real refresh.",
+        )
+
+    return ("review_only", "Continue only through reviewed local proof in this session.")
+
+
+def _candidate_session_rank(status: str) -> int:
+    return {
+        "executable_local": 0,
+        "executable_remote": 0,
+        "review_only": 1,
+        "manual_locked": 2,
+        "session_blocked": 3,
+        "unknown": 4,
+    }.get(status, 5)
+
+
+def _session_sorted_candidates(candidates: list[PilotCandidate], *, root: Path) -> list[PilotCandidate]:
+    preflight = load_session_source_preflight(root)
+    if preflight is None:
+        return candidates
+    return sorted(
+        candidates,
+        key=lambda candidate: (
+            _candidate_session_rank(_candidate_session_path(candidate, root=root, preflight=preflight)[0]),
+            _candidate_sort_key(candidate),
+        ),
+    )
+
+
+def _session_source_summary_lines(root: Path) -> list[str]:
+    preflight = load_session_source_preflight(root)
+    if preflight is None:
+        return []
+    lines = [
+        "Session source availability:",
+        f"- session_flags: {', '.join(preflight.get('session_flags', [])) or '-'}",
+        f"- preferred_lane_order: {', '.join(preflight.get('preferred_lane_order', [])) or '-'}",
+    ]
+    sources = preflight.get("sources", {})
+    if isinstance(sources, dict):
+        for key in ("sec", "yfinance_stage", "local_fundamentals"):
+            source = sources.get(key) or {}
+            lines.append(
+                f"- {key}: {source.get('status', 'unknown')} - {source.get('detail', '')}".rstrip()
+            )
+    lines.append("Run make session-source-preflight again if the environment changed during this session.")
+    return lines
+
+
 def _is_company_candidate(ticker: str, readiness_row: dict[str, str] | None) -> bool:
     if ticker in MONITOR_EXAMPLE_TICKERS:
         return False
@@ -267,6 +394,31 @@ def pilot_review_path(validation_path: str) -> str:
         }
     ]
     return " -> ".join(review_steps or steps) or "make trusted-data-pilot-candidates TOP_N=10"
+
+
+def _session_sec_unavailable(preflight: dict[str, object] | None) -> bool:
+    if not isinstance(preflight, dict):
+        return False
+    sources = preflight.get("sources", {})
+    if not isinstance(sources, dict):
+        return False
+    sec = sources.get("sec", {})
+    if not isinstance(sec, dict):
+        return False
+    return sec.get("status") == "unavailable"
+
+
+def pilot_session_review_path(
+    candidate: PilotCandidate,
+    *,
+    preflight: dict[str, object] | None = None,
+) -> str:
+    """Return a review path that respects the current session source state."""
+
+    path = pilot_review_path(candidate.validation_path)
+    if candidate.lane == "fundamentals_dcf" and _session_sec_unavailable(preflight):
+        return path.replace("make sec-stage-queue TOP_N=25 -> ", "make dcf-input-proof-queue TOP_N=25 -> ")
+    return path
 
 
 def pilot_trusted_row_path(candidate: PilotCandidate) -> str:
@@ -582,7 +734,11 @@ def pilot_selection_brief(candidates: list[PilotCandidate]) -> list[str]:
     ]
 
 
-def pilot_quick_path_lines(candidates: list[PilotCandidate]) -> list[str]:
+def pilot_quick_path_lines(
+    candidates: list[PilotCandidate],
+    *,
+    preflight: dict[str, object] | None = None,
+) -> list[str]:
     """Return the shortest visitor-facing path before detailed evidence rows."""
 
     if not candidates:
@@ -599,7 +755,7 @@ def pilot_quick_path_lines(candidates: list[PilotCandidate]) -> list[str]:
     lines = [
         f"Shortlist: {', '.join(candidate.ticker for candidate in shortlist)}.",
         f"Start with one packet: make trusted-data-pilot-packet TICKER={first.ticker}",
-        f"Review its lane: {pilot_review_path(first.validation_path)}",
+        f"Review its lane: {pilot_session_review_path(first, preflight=preflight)}",
         f"Trusted input target: {pilot_trusted_row_path(first)}",
         f"Stop if source proof is unavailable: keep {first.ticker} visibly blocked and move to the next shortlisted company.",
     ]
@@ -842,13 +998,14 @@ def load_trusted_data_pilot_candidates(
     tickers: str | Iterable[str] | None = None,
     top_n: int = DEFAULT_TOP_N,
 ) -> list[PilotCandidate]:
-    return build_trusted_data_pilot_candidates(
+    candidates = build_trusted_data_pilot_candidates(
         _read_csv(root / "outputs" / "fundamentals_peer_worklist.csv"),
         _read_csv(root / "outputs" / "peer_unlock_worklist.csv"),
         _read_csv(root / "data" / "reports" / "ticker_readiness_report.csv"),
         tickers=tickers,
         top_n=top_n,
     )
+    return _session_sorted_candidates(candidates, root=root)
 
 
 def load_trusted_data_pilot_evidence_candidates(
@@ -920,7 +1077,8 @@ def load_trusted_data_pilot_evidence_candidates(
             demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
         )
 
-    return sorted(by_ticker.values(), key=_candidate_sort_key)[: max(top_n, 0)]
+    candidates = sorted(by_ticker.values(), key=_candidate_sort_key)[: max(top_n, 0)]
+    return _session_sorted_candidates(candidates, root=root)
 
 
 def render_trusted_data_pilot_candidates(
@@ -930,6 +1088,9 @@ def render_trusted_data_pilot_candidates(
     root: Path | None = None,
     verbose: bool = False,
 ) -> str:
+    preflight = load_session_source_preflight(root) if root is not None else None
+    if root is not None:
+        candidates = _session_sorted_candidates(candidates, root=root)
     lines = [
         "Trusted Data Pilot Candidates",
         "Read-only: this command ranks current local blockers and does not refresh, import, edit CSVs, or change readiness outputs.",
@@ -945,6 +1106,12 @@ def render_trusted_data_pilot_candidates(
         )
         return "\n".join(lines)
 
+    if root is not None:
+        session_lines = _session_source_summary_lines(root)
+        if session_lines:
+            lines.extend(session_lines)
+            lines.append("")
+
     lines.extend(
         [
             f"Top {min(top_n, len(candidates))} operating-company candidates:",
@@ -955,7 +1122,7 @@ def render_trusted_data_pilot_candidates(
             *[f"- {line}" for line in pilot_selection_brief(candidates)],
             "",
             "Quick path:",
-            *[f"- {line}" for line in pilot_quick_path_lines(candidates)],
+            *[f"- {line}" for line in pilot_quick_path_lines(candidates, preflight=preflight)],
             "",
             "What the proof loop proves:",
             *[f"- {line}" for line in pilot_proof_story_lines(candidates[0])],
@@ -988,8 +1155,16 @@ def render_trusted_data_pilot_candidates(
                     f"   {pilot_decision_gate(candidate)}",
                     f"   Packet command: make trusted-data-pilot-packet TICKER={candidate.ticker}",
                     f"   Lane check: {candidate.next_command}",
-                    f"   Review path: {pilot_review_path(candidate.validation_path)}",
+                    f"   Review path: {pilot_session_review_path(candidate, preflight=preflight)}",
                     f"   Trusted row target: {pilot_trusted_row_path(candidate)}",
+                    *(
+                        [
+                            "   Session path: "
+                            + _candidate_session_path(candidate, root=root, preflight=preflight)[1]
+                        ]
+                        if root is not None and preflight is not None
+                        else []
+                    ),
                     f"   {pilot_local_file_status(candidate, root=root) if root is not None else 'Local file status: not checked in this render.'}",
                     f"   Skip if: {pilot_skip_condition(candidate)}",
                     "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
@@ -1017,7 +1192,7 @@ def render_trusted_data_pilot_candidates(
             "Suggested safe loop:",
             "1. make readiness-snapshot",
             f"2. make trusted-data-pilot-packet TICKER={first}",
-            f"3. Review the lane blocker: {pilot_review_path(candidates[0].validation_path)}",
+            f"3. Review the lane blocker: {pilot_session_review_path(candidates[0], preflight=preflight)}",
             f"4. Prepare trusted rows only if the source review passes: {pilot_trusted_row_path(candidates[0])}",
             "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
             f"6. Check rejected-row report: {pilot_rejected_report_path(candidates[0])}",
@@ -1052,14 +1227,23 @@ def render_trusted_data_pilot_packet(
         )
         return "\n".join(lines)
 
+    preflight = load_session_source_preflight(root) if root is not None else None
     scope = "active universe" if candidate.active_universe else "master universe"
     secondary_context = pilot_secondary_locked_context(candidate)
+    session_note = (
+        _candidate_session_path(candidate, root=root, preflight=preflight)[1]
+        if root is not None and preflight is not None
+        else ""
+    )
+    session_status_lines = _session_source_summary_lines(root) if root is not None else []
     lines.extend(
         [
             f"Ticker: {candidate.ticker}",
             f"Pilot lane: {pilot_lane_label(candidate.lane)}",
             f"Scope: {scope}",
             f"Priority: {candidate.priority}",
+            *session_status_lines,
+            *(["Session boundary: " + session_note] if session_note else []),
             f"Rank reason: {pilot_rank_reason(candidate)}",
             f"Why this candidate matters: {candidate.why_it_matters}",
             f"Primary lane input: {pilot_primary_missing_input(candidate)}",

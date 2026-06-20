@@ -1334,6 +1334,34 @@ def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Pa
     assert "make imports-apply" in peer_bundle["safe_next_step"]
 
 
+def test_command_bundles_use_manual_fundamentals_route_when_session_sec_unavailable(tmp_path: Path):
+    _write_fixture(tmp_path)
+    (tmp_path / "outputs" / "session_source_preflight.json").write_text(
+        """{
+  "sources": {
+    "sec": {"status": "unavailable"},
+    "local_fundamentals": {"fundamentals_fixable_ticker_count": 1}
+  }
+}
+""",
+        encoding="utf-8",
+    )
+
+    payload = build_onboarding_payload(tmp_path)
+    fundamentals_bundle = next(row for row in payload["command_bundles"] if row["lane"] == "fundamentals")
+    fundamentals_detail = next(row for row in payload["command_bundle_details"] if row["lane"] == "fundamentals")
+    fundamentals_runbook = [
+        row for row in payload["command_bundle_runbook"] if row["lane"] == "fundamentals" and row["step_order"] == 1
+    ][0]
+
+    assert fundamentals_bundle["bundle_name"].startswith("Trusted Fundamentals Review Bundle")
+    assert fundamentals_bundle["primary_command"].startswith("make focus-fundamentals TICKER=")
+    assert "make sec-stage" not in fundamentals_bundle["primary_command"]
+    assert "Session preflight marks SEC unavailable" in fundamentals_bundle["safe_next_step"]
+    assert "do not retry sec staging" in fundamentals_detail["recommended_action"].lower()
+    assert fundamentals_runbook["command"].startswith("make focus-fundamentals TICKER=")
+
+
 def test_data_onboarding_cli_command_bundle_details_json(tmp_path: Path, capsys):
     _write_fixture(tmp_path)
     previous_argv = sys.argv[:]

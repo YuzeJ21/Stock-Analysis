@@ -101,6 +101,36 @@ def test_coverage_expansion_loop_prints_ready_copy_only_sequence(tmp_path: Path)
     assert "generated-artifact" in rendered
 
 
+def test_coverage_expansion_loop_uses_local_fundamentals_gate_when_sec_unavailable(tmp_path: Path):
+    session_preflight = {
+        "session_flags": ["session_sec_unavailable"],
+        "preferred_lane_order": ["local_reviewed_fundamentals_share_count"],
+        "sources": {
+            "sec": {"status": "unavailable", "detail": "dns failed"},
+            "local_fundamentals": {
+                "status": "available",
+                "fundamentals_fixable_ticker_count": 2,
+                "share_count_fixable_ticker_count": 0,
+            },
+        },
+    }
+
+    loop = build_coverage_expansion_loop(
+        _sample_root(tmp_path, prior_snapshot=True),
+        lane="fundamentals",
+        top_n=5,
+        session_preflight=session_preflight,
+    )
+    rendered = render_coverage_expansion_loop(loop)
+
+    assert loop.source_proof_gate is not None
+    assert "make dcf-input-proof-queue TOP_N=5" in rendered
+    assert "SEC is unavailable in this session" in rendered
+    assert "do not retry SEC in this session" in rendered
+    assert "make sec-stage-queue TOP_N=5" not in rendered
+    assert "stop if SEC staging is not configured" not in rendered
+
+
 def test_coverage_expansion_loop_reports_unknown_lane_without_fake_plan(tmp_path: Path):
     loop = build_coverage_expansion_loop(_sample_root(tmp_path), lane="not_a_lane", top_n=10)
     rendered = render_coverage_expansion_loop(loop)

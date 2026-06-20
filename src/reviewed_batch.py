@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.readiness_ops import ReadinessLane, build_readiness_ops_lanes
 from src.session_source_preflight import load_session_source_preflight
 from src.share_count_proof_queue import build_share_count_proof_queue_from_files
@@ -286,6 +287,17 @@ def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tupl
             if not _truthy(row.get("price_ready"))
         ]
     elif lane == "fundamentals_dcf":
+        session_state = _session_source_state(root)
+        if not session_state["sec_available"] and int(session_state["local_fundamentals_fixable"]) > 0:
+            queue_limit = max(top_n * 5, top_n + 25, 0)
+            local_queue = build_dcf_input_proof_queue_from_files(root, top_n=queue_limit)
+            local_tickers = [
+                row.ticker
+                for row in local_queue
+                if row.missing_input_family != "price"
+            ]
+            if local_tickers:
+                return tuple(local_tickers[: max(top_n, 0)])
         rows = [
             row
             for row in _read_csv(reports / "fundamentals_coverage_report.csv")

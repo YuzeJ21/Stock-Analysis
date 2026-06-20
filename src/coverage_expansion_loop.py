@@ -141,6 +141,18 @@ def _preferred_auto_lanes_from_session(preflight: dict[str, Any] | None) -> list
     return ordered
 
 
+def _session_sec_unavailable(preflight: dict[str, Any] | None) -> bool:
+    if not isinstance(preflight, dict):
+        return False
+    sources = preflight.get("sources", {})
+    if not isinstance(sources, dict):
+        return False
+    sec = sources.get("sec", {})
+    if not isinstance(sec, dict):
+        return False
+    return sec.get("status") == "unavailable"
+
+
 def _lane_proceed_boundary(lane: ReadinessLane) -> str:
     if lane.workflow_mode == "dry_run_first":
         return "dry-run and reviewed scope before any capped provider refresh"
@@ -199,7 +211,12 @@ def build_coverage_expansion_lane_board(
     return tuple(board)
 
 
-def build_source_proof_gate(lane: str, *, top_n: int = 10) -> CoverageExpansionSourceProofGate:
+def build_source_proof_gate(
+    lane: str,
+    *,
+    top_n: int = 10,
+    session_preflight: dict[str, Any] | None = None,
+) -> CoverageExpansionSourceProofGate:
     normalized = _normalize_planner_lane(lane)
     if normalized == "price_coverage":
         return CoverageExpansionSourceProofGate(
@@ -228,32 +245,51 @@ def build_source_proof_gate(lane: str, *, top_n: int = 10) -> CoverageExpansionS
             proof_ready_when="dry-run scope is reviewed, local price rows validate, readiness is rebuilt, and changed artifacts are classified.",
         )
     if normalized in {"fundamentals_dcf", "share_count_proof"}:
+        sec_unavailable = _session_sec_unavailable(session_preflight)
         required = (
             "trusted revenue/free-cash-flow/free-cash-flow margin rows"
             if normalized == "fundamentals_dcf"
             else "trusted shares_outstanding row"
         )
+        if sec_unavailable:
+            first_review_command = (
+                f"make {'share-count-proof-queue' if normalized == 'share_count_proof' else 'dcf-input-proof-queue'} "
+                f"TOP_N={top_n}"
+            )
+            source_evidence = "trusted local/manual source evidence; SEC is unavailable in this session"
+            accepted_sources = (
+                "existing trusted local fundamentals rows",
+                "trusted manual fundamentals import rows with source",
+                "previously reviewed SEC company facts rows already present locally",
+            )
+        else:
+            first_review_command = (
+                f"make {'share-count-proof-queue' if normalized == 'share_count_proof' else 'sec-stage-queue'} "
+                f"TOP_N={top_n}"
+            )
+            source_evidence = "source file or SEC staging evidence"
+            accepted_sources = (
+                "SEC company facts staging reviewed by the operator",
+                "trusted manual fundamentals import rows with source",
+                "existing trusted local fundamentals rows",
+            )
         return CoverageExpansionSourceProofGate(
             lane=normalized,
             status="source_required",
             evidence_to_collect=(
                 required,
-                "source file or SEC staging evidence",
+                source_evidence,
                 "validate/preview result and rejected-row status",
                 "before and after DCF readiness output",
             ),
-            accepted_sources=(
-                "SEC company facts staging reviewed by the operator",
-                "trusted manual fundamentals import rows with source",
-                "existing trusted local fundamentals rows",
-            ),
+            accepted_sources=accepted_sources,
             rejected_shortcuts=(
                 "placeholder fundamentals",
                 "shares inferred from price, market cap, or peers",
                 "DCF unlock claimed before rebuilt readiness and report proof",
             ),
             review_commands=(
-                f"make {'share-count-proof-queue' if normalized == 'share_count_proof' else 'sec-stage-queue'} TOP_N={top_n}",
+                first_review_command,
                 "make imports-validate && make imports-preview",
                 "make dcf-readiness && make readiness",
             ),
@@ -344,7 +380,7 @@ def build_coverage_expansion_loop(
         selected = _select_step(steps, lane)
     selected_lane = selected.lane if selected is not None else _normalize_planner_lane(lane)
     lane_board = build_coverage_expansion_lane_board(lanes, selected_lane=selected_lane, top_n=top_n)
-    source_gate = build_source_proof_gate(selected_lane, top_n=top_n)
+    source_gate = build_source_proof_gate(selected_lane, top_n=top_n, session_preflight=session_preflight)
     if selected is None:
         return CoverageExpansionLoop(
             status="blocked_missing_lane",
@@ -368,6 +404,7 @@ def build_coverage_expansion_loop(
         top_n=top_n,
         max_candidates=max_candidates,
         provider=provider,
+        session_preflight=session_preflight,
     )
     status = "ready_for_reviewed_dry_run" if preflight.status == "ready_for_dry_run" else "blocked_by_preflight"
     if preflight.status != "ready_for_dry_run":
@@ -447,12 +484,28 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
             )
         lines.append("")
     if loop.planner_step is not None:
+        batch_scope = loop.planner_step.batch_scope
+        review_gate = loop.planner_step.review_gate
+        stop_condition = loop.planner_step.stop_condition
+        if _session_sec_unavailable(loop.session_source_preflight) and loop.selected_lane in {"fundamentals_dcf", "share_count_proof"}:
+            batch_scope = (
+                "trusted-local or trusted-manual fundamentals rows for a capped reviewed company set; "
+                "SEC staging is unavailable in this session"
+            )
+            review_gate = (
+                "use trusted local/manual source proof, then require imports-validate, imports-preview, "
+                "rejected-row review, and reviewed apply decision"
+            )
+            stop_condition = (
+                "do not retry SEC in this session; if source proof is missing, mark the ticker still_blocked, "
+                "skipped, or excluded with evidence and continue to the next executable lane"
+            )
         lines.extend(
             [
                 "Planner gate:",
-                f"- batch_scope: {loop.planner_step.batch_scope}",
-                f"- review_gate: {loop.planner_step.review_gate}",
-                f"- stop_condition: {loop.planner_step.stop_condition}",
+                f"- batch_scope: {batch_scope}",
+                f"- review_gate: {review_gate}",
+                f"- stop_condition: {stop_condition}",
                 f"- outcome_boundary: {loop.planner_step.outcome_boundary}",
                 f"- generated_churn_policy: {loop.planner_step.generated_churn_policy}",
                 "",

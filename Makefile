@@ -1,4 +1,4 @@
-.PHONY: help help-full demo browser-qa-evidence browser-qa-capture-plan pilot-readiness-check pilot-readiness-packet trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo browser-qa-evidence browser-qa-capture-plan pilot-readiness-check pilot-readiness-packet trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff session-source-preflight yfinance-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -75,6 +75,8 @@ help-full:
 	@echo "                        Print exact product staging, generated exclusion, final checks, commit, and push steps"
 	@echo "  make public-release-handoff"
 	@echo "                        Print the copy-ready terminal handoff for verify, stage, commit, and push"
+	@echo "  make session-source-preflight [SEC_USER_AGENT='Name email@example.com']"
+	@echo "                        Check one session's SEC/yfinance/local-fundamentals path before retrying source-backed coverage work"
 	@echo "  make public-demo-readiness-pack"
 	@echo "                        Print the small shareable public demo proof set"
 	@echo "  make browser-qa-evidence"
@@ -236,6 +238,7 @@ help-full:
 	@echo "Preview-first fundamentals and universe imports:"
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
 	@echo "  make sec-stage TICKERS=NVDA,MSFT"
+	@echo "  make yfinance-stage TICKERS=NVDA"
 	@echo "  make dcf-readiness   Write data/dcf_readiness.csv"
 	@echo "  make import-fundamentals Import verified CSVs from data/staged/fundamentals/ into data/imports/fundamentals.csv"
 	@echo "  make import-earnings Import verified CSVs from data/staged/earnings/ into data/imports/earnings.csv"
@@ -825,6 +828,15 @@ dashboard:
 
 dashboard-smoke:
 	scripts/smoke_dashboard.sh
+
+session-source-preflight:
+	@python3 -m src.session_source_preflight --root . --write-output $(if $(SEC_USER_AGENT),--sec-user-agent "$(SEC_USER_AGENT)",)
+
+yfinance-stage:
+ifndef TICKERS
+	$(error TICKERS is required, for example: make yfinance-stage TICKERS=NVDA)
+endif
+	python3 -m src.stock_report --yfinance-stage-fundamentals --tickers $(TICKERS)
 
 sec-stage:
 ifdef TICKERS

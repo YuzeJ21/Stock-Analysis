@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Iterable
 
 import pandas as pd
 
@@ -14,6 +14,7 @@ from src.providers.market_data import (
     QuoteSnapshot,
     make_source_metadata,
 )
+from src.providers.local_schemas import LOCAL_DATASET_SCHEMAS
 
 
 class YFinanceProvider(MarketDataProvider):
@@ -271,3 +272,99 @@ class YFinanceProvider(MarketDataProvider):
             notes=notes,
             source=self._source("current options chain snapshot", notes),
         )
+
+
+def build_yfinance_fundamentals_rows(tickers: Iterable[str]) -> dict[str, Any]:
+    requested_tickers = sorted({ticker.upper().strip() for ticker in tickers if ticker and ticker.strip()})
+    if not requested_tickers:
+        return {
+            "requested_tickers": [],
+            "resolved_tickers": [],
+            "unresolved_tickers": [],
+            "rows": [],
+            "row_summaries": [],
+            "warnings": ["No tickers were provided for yfinance staging workflow."],
+        }
+
+    provider = YFinanceProvider()
+    schema = LOCAL_DATASET_SCHEMAS["fundamentals"]
+    allowed_columns = {"ticker", *schema.optional_columns}
+    updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    rows: list[dict[str, Any]] = []
+    unresolved_tickers: list[str] = []
+    warnings: list[str] = []
+    row_summaries: list[dict[str, Any]] = []
+
+    for ticker in requested_tickers:
+        try:
+            asset = provider._ticker(ticker)
+            info = getattr(asset, "info", {}) or {}
+            financials = provider.get_financials(ticker)
+        except Exception as exc:  # pragma: no cover - upstream/network dependent
+            unresolved_tickers.append(ticker)
+            warnings.append(f"{ticker}: {exc}")
+            continue
+
+        row = {
+            "ticker": ticker,
+            "sector": provider._clean_str(info.get("sector")),
+            "revenue": financials.revenue,
+            "revenue_growth": financials.revenue_growth,
+            "net_income": provider._clean_float(info.get("netIncomeToCommon")),
+            "eps": financials.eps,
+            "free_cash_flow": financials.free_cash_flow,
+            "fcf": financials.free_cash_flow,
+            "fcf_margin": financials.fcf_margin,
+            "profit_margin": financials.profit_margin,
+            "operating_margin": financials.operating_margin,
+            "gross_margin": financials.gross_margin,
+            "ebitda": financials.ebitda,
+            "cash": financials.cash,
+            "debt": financials.debt,
+            "net_debt": financials.net_debt,
+            "shares_outstanding": financials.shares_outstanding,
+            "pe_ratio": financials.trailing_pe,
+            "trailing_pe": financials.trailing_pe,
+            "forward_pe": financials.forward_pe,
+            "price_to_book": financials.price_to_book,
+            "market_cap": financials.market_cap,
+            "enterprise_value": financials.enterprise_value,
+            "debt_to_equity": financials.debt_to_equity,
+            "source": "yfinance_research_grade",
+            "as_of_date": financials.as_of_date,
+            "updated_at": updated_at,
+            "sec_cik": "",
+            "sec_form": "",
+            "sec_filed_date": "",
+            "sec_accession": "",
+            "sec_fact_warnings": "",
+            "sec_entity_name": "",
+        }
+        row = {key: value for key, value in row.items() if key in allowed_columns}
+        rows.append(row)
+
+        populated_fields = sorted(
+            key for key, value in row.items() if key not in {"ticker", "source"} and value not in (None, "")
+        )
+        missing_fields = sorted(
+            key for key, value in row.items() if key not in {"ticker", "source"} and value in (None, "")
+        )
+        row_summaries.append(
+            {
+                "ticker": ticker,
+                "source": "yfinance_research_grade",
+                "populated_fields": populated_fields,
+                "missing_fields": missing_fields,
+                "warnings": [],
+            }
+        )
+
+    return {
+        "requested_tickers": requested_tickers,
+        "resolved_tickers": [row["ticker"] for row in rows],
+        "unresolved_tickers": unresolved_tickers,
+        "rows": rows,
+        "row_summaries": row_summaries,
+        "warnings": sorted(set(warnings)),
+    }

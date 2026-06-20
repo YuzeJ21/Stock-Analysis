@@ -239,6 +239,9 @@ def test_makefile_help_documents_key_workflows():
         "Print read-only product staging, generated exclusion, final checks, commit, and push guidance",
         "make public-release-handoff",
         "Print the copy-ready terminal handoff for verify, stage, commit, and push",
+        "make session-source-preflight [SEC_USER_AGENT='Name email@example.com']",
+        "Check one session's SEC/yfinance/local-fundamentals path before retrying source-backed coverage work",
+        "make yfinance-stage TICKERS=NVDA",
         "make staged-hygiene-check",
         "Fail if staged files include unreviewed local data/report changes",
         "make public-wording-check",
@@ -1981,6 +1984,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "data-sources:\n\tpython3 -m src.data_sources --write-output" in makefile
     assert "research-health-check:\n\tpython3 -m src.research_health --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert 'session-source-preflight:\n\t@python3 -m src.session_source_preflight --root . --write-output $(if $(SEC_USER_AGENT),--sec-user-agent "$(SEC_USER_AGENT)",)' in makefile
+    assert "yfinance-stage:\nifndef TICKERS\n\t$(error TICKERS is required, for example: make yfinance-stage TICKERS=NVDA)\nendif\n\tpython3 -m src.stock_report --yfinance-stage-fundamentals --tickers $(TICKERS)" in makefile
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert '@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."' in makefile
     assert "@echo \"Visitor workflow path:\"" in makefile

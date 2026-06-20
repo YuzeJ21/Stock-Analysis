@@ -1,6 +1,9 @@
+import json
+
 from src.trusted_data_pilot import (
     build_trusted_data_pilot_evidence_rows,
     build_trusted_data_pilot_candidates,
+    load_trusted_data_pilot_candidates,
     load_trusted_data_pilot_evidence_candidates,
     normalize_pilot_lane,
     pilot_evidence_row_template,
@@ -1338,6 +1341,121 @@ def test_render_trusted_data_pilot_packet_handles_non_candidate_without_inventin
     assert "No operating-company pilot candidate matched QQQ." in rendered
     assert "make trusted-data-pilot-candidates TOP_N=10" in rendered
     assert "QQQ and SMH are not operating-company DCF pilot targets" in rendered
+
+
+def test_load_trusted_data_pilot_candidates_prefers_session_executable_paths(tmp_path):
+    _write_text(
+        tmp_path / "outputs" / "fundamentals_peer_worklist.csv",
+        "ticker,priority,dcf_ready,missing_required_for_dcf,focus_command\n"
+        "META,1,False,shares_outstanding,make focus-fundamentals TICKER=META\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "peer_unlock_worklist.csv",
+        "ticker,priority,peer_blocker_type,missing_peer_reason,focus_command\n"
+        "MU,2,missing_peer_mapping,needs source-backed peer mappings,make focus-peers TICKER=MU\n",
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        "ticker,asset_type,in_active_universe,peer_ready\n"
+        "META,company,True,False\n"
+        "MU,company,True,False\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "session_source_preflight.json",
+        json.dumps(
+            {
+                "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],
+                "preferred_lane_order": ["peer_mapping_proof", "local_reviewed_fundamentals_share_count"],
+                "sources": {
+                    "sec": {"status": "unavailable", "detail": "dns failed"},
+                    "yfinance_stage": {"status": "unavailable", "detail": "host resolution failed"},
+                    "local_fundamentals": {"status": "missing_file", "detail": "Canonical local fundamentals file is not present."},
+                },
+            },
+            indent=2,
+        ),
+    )
+
+    candidates = load_trusted_data_pilot_candidates(root=tmp_path, top_n=10)
+
+    assert [candidate.ticker for candidate in candidates[:2]] == ["MU", "META"]
+
+
+def test_render_trusted_data_pilot_candidates_uses_local_review_path_when_sec_unavailable(tmp_path):
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            }
+        ],
+        [],
+        [{"ticker": "META", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )[0]
+    _write_text(tmp_path / "data" / "fundamentals.csv", "ticker,source\nMETA,manual\n")
+    _write_text(
+        tmp_path / "outputs" / "session_source_preflight.json",
+        json.dumps(
+            {
+                "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],
+                "preferred_lane_order": ["local_reviewed_fundamentals_share_count"],
+                "sources": {
+                    "sec": {"status": "unavailable", "detail": "dns failed"},
+                    "yfinance_stage": {"status": "unavailable", "detail": "host resolution failed"},
+                    "local_fundamentals": {"status": "available", "detail": "Found 1 local fundamentals row."},
+                },
+            },
+            indent=2,
+        ),
+    )
+
+    rendered = render_trusted_data_pilot_candidates([candidate], root=tmp_path)
+
+    assert "Review its lane: make dcf-input-proof-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
+    assert "3. Review the lane blocker: make dcf-input-proof-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
+    assert "make sec-stage-queue" not in rendered
+
+
+def test_render_trusted_data_pilot_packet_surfaces_session_boundary_for_blocked_fundamentals(tmp_path):
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            }
+        ],
+        [],
+        [{"ticker": "META", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )[0]
+    _write_text(
+        tmp_path / "outputs" / "session_source_preflight.json",
+        json.dumps(
+            {
+                "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],
+                "preferred_lane_order": ["peer_mapping_proof", "local_reviewed_fundamentals_share_count"],
+                "sources": {
+                    "sec": {"status": "unavailable", "detail": "dns failed"},
+                    "yfinance_stage": {"status": "unavailable", "detail": "host resolution failed"},
+                    "local_fundamentals": {"status": "missing_file", "detail": "Canonical local fundamentals file is not present."},
+                },
+            },
+            indent=2,
+        ),
+    )
+
+    rendered = render_trusted_data_pilot_packet(candidate, requested_ticker="META", root=tmp_path)
+
+    assert "Session source availability:" in rendered
+    assert "session_sec_unavailable, session_yfinance_unavailable" in rendered
+    assert "Session boundary: SEC and Yahoo-backed fundamentals are unavailable in this session" in rendered
 
 
 def test_render_trusted_data_pilot_board_summarizes_batch_without_writing_files(tmp_path):

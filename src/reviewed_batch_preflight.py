@@ -62,8 +62,16 @@ def _batch_id() -> str:
     return datetime.now(timezone.utc).strftime("RB-%Y%m%dT%H%M%SZ")
 
 
-def _lane_plan(lane: str, *, root: Path, top_n: int, max_candidates: int, provider: str) -> tuple[str, str, tuple[str, ...]]:
-    preflight = load_session_source_preflight(root) or {}
+def _lane_plan(
+    lane: str,
+    *,
+    root: Path,
+    top_n: int,
+    max_candidates: int,
+    provider: str,
+    session_preflight: dict[str, object] | None = None,
+) -> tuple[str, str, tuple[str, ...]]:
+    preflight = session_preflight if session_preflight is not None else load_session_source_preflight(root) or {}
     sources = preflight.get("sources", {}) if isinstance(preflight, dict) else {}
     local = sources.get("local_fundamentals", {}) if isinstance(sources, dict) else {}
     sec_available = (sources.get("sec", {}) if isinstance(sources, dict) else {}).get("status") == "available"
@@ -141,6 +149,7 @@ def build_reviewed_batch_preflight(
     provider: str = "yahoo",
     batch_id: str | None = None,
     review_date: str | None = None,
+    session_preflight: dict[str, object] | None = None,
 ) -> ReviewedBatchPreflight:
     root = Path(root)
     lane_codes = normalize_batch_lane(lane)
@@ -171,6 +180,7 @@ def build_reviewed_batch_preflight(
         top_n=top_n,
         max_candidates=max_candidates,
         provider=provider,
+        session_preflight=session_preflight,
     )
     status = "ready_for_dry_run" if current_report_exists and prior_snapshot_exists and freshness.status == "current" else "needs_preflight_fix"
     lane_scope = ", ".join(LANE_LABELS.get(code, code) for code in lane_codes)

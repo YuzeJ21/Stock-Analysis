@@ -14,6 +14,7 @@ import pandas as pd
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_schemas import LOCAL_DATASET_SCHEMAS
+from src.session_source_preflight import load_session_source_preflight
 from src.universe_model import infer_asset_type
 
 
@@ -833,7 +834,27 @@ def _price_action_text(ticker: str) -> str:
     )
 
 
-def _fundamentals_action_text(ticker: str) -> str:
+def _session_sec_available(project_root: Path | str | None = None) -> bool | None:
+    preflight = load_session_source_preflight(resolve_project_root(project_root))
+    if not isinstance(preflight, dict):
+        return None
+    sources = preflight.get("sources", {})
+    if not isinstance(sources, dict):
+        return None
+    sec = sources.get("sec", {})
+    if not isinstance(sec, dict):
+        return None
+    return sec.get("status") == "available"
+
+
+def _fundamentals_action_text(ticker: str, *, sec_available: bool | None = None) -> str:
+    if sec_available is False:
+        return (
+            f"Run make focus-fundamentals TICKER={ticker}. Session preflight marks SEC unavailable, so do not retry "
+            "SEC staging in this session; prepare trusted manual fundamentals import file rows in "
+            "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
+            "and make imports-apply."
+        )
     return (
         f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
         f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import file rows in "
@@ -2272,6 +2293,7 @@ def build_command_bundles(
     sec_stage_queue: list[SecStageQueueRow] | None = None,
     peer_mapping_queue: list[PeerMappingQueueRow] | None = None,
 ) -> list[CommandBundleRow]:
+    sec_available = _session_sec_available(project_root)
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
     price_worklist = price_worklist or build_price_import_worklist(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
     sec_queue = sec_stage_queue or build_sec_stage_queue(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
@@ -2355,9 +2377,24 @@ def build_command_bundles(
             if scope == "holdings_first"
             else "These broader-queue tickers are the best next candidates for explicit local DCF inputs once price coverage is sufficient."
         )
+        if sec_available is False:
+            bundle_name = bundle_name_for_scope("Trusted Fundamentals Review Bundle", scope, include_scope_variant)
+            primary_command = f"make focus-fundamentals TICKER={tickers}"
+            safe_next_step = (
+                "Session preflight marks SEC unavailable. Do not retry SEC staging in this session; inspect focused "
+                "fundamentals blockers, then prepare trusted manual rows before make imports-validate, "
+                "make imports-preview, and make imports-apply."
+            )
+        else:
+            bundle_name = bundle_name_for_scope("SEC Fundamentals Bundle", scope, include_scope_variant)
+            primary_command = f"make sec-stage TICKERS={tickers}"
+            safe_next_step = (
+                "Keep SEC enrichment import file rows review-only until make imports-validate, "
+                "make imports-preview, and make imports-apply confirm the merge."
+            )
         bundles.append(
             CommandBundleRow(
-                bundle_name=bundle_name_for_scope("SEC Fundamentals Bundle", scope, include_scope_variant),
+                bundle_name=bundle_name,
                 lane="fundamentals",
                 scope=scope,
                 ticker_count=len(sec_targets),
@@ -2368,14 +2405,11 @@ def build_command_bundles(
                 bundle_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "bundle"),
                 detail_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "detail"),
                 runbook_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "runbook"),
-                primary_command=f"make sec-stage TICKERS={tickers}",
+                primary_command=primary_command,
                 follow_up_command="make imports-validate",
                 target_file="data/imports/fundamentals.csv",
                 why_it_matters=why_it_matters,
-                safe_next_step=(
-                    "Keep SEC enrichment import file rows review-only until make imports-validate, "
-                    "make imports-preview, and make imports-apply confirm the merge."
-                ),
+                safe_next_step=safe_next_step,
             )
         )
 
@@ -2438,6 +2472,7 @@ def build_command_bundle_details(
     ticker_unlock_ladder: list[TickerUnlockLadderRow] | None = None,
     price_worklist: list[PriceWorklistRow] | None = None,
 ) -> list[CommandBundleDetailRow]:
+    sec_available = _session_sec_available(project_root)
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
     coverage_map = {row.ticker: row for row in coverage_rows}
     bundles = command_bundles or build_command_bundles(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
@@ -2474,7 +2509,7 @@ def build_command_bundle_details(
                         target_history_rows = 0
                         suggested_start_date = ""
                 elif bundle.lane == "fundamentals":
-                    recommended_action = _fundamentals_action_text(ticker)
+                    recommended_action = _fundamentals_action_text(ticker, sec_available=sec_available)
                     target_goal = "Unlock DCF"
                     target_history_rows = 0
                     suggested_start_date = ""
@@ -2592,7 +2627,7 @@ def build_command_bundle_runbook(
                 (
                     "Validate fundamentals import file",
                     "make imports-validate",
-                    "Validate SEC fundamentals import file before preview so import issues surface before merge.",
+                    "Validate fundamentals import file rows before preview so import issues surface before merge.",
                 ),
                 (
                     "Preview fundamentals merge",
