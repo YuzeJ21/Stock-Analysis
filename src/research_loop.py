@@ -188,6 +188,8 @@ def data_health_research_loop_context(
     lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, DATA_HEALTH_OPERATOR_LANES["prices"])
     if public_mode:
         lane_label = "Public readiness summary"
+    elif selected_lane_key != "proof":
+        lane_label = f"{lane_label} ROUTE MAP; artifact hygiene before staging"
     freshness_status = getattr(readiness_freshness, "status", "")
     proof_state = "Readiness snapshot is current" if freshness_status == "current" else "Readiness snapshot needs refresh"
     current_href = (
@@ -200,8 +202,9 @@ def data_health_research_loop_context(
         if public_mode
         else "?mode=operator&page=data-health&lane=proof&drawer=proof"
     )
+    current_step = "Proof lane shell" if selected_lane_key == "proof" else "Data Health source-proof lane"
     return {
-        "current_step": "Data Health source-proof lane",
+        "current_step": current_step,
         "current_note": lane_label,
         "current_href": current_href,
         "previous_proof": proof_state,

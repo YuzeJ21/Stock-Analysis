@@ -45,6 +45,12 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
         next_action="Review fundamentals import draft",
         public_mode=False,
     )
+    proof_lane = research_loop.data_health_research_loop_context(
+        selected_lane_key="proof",
+        readiness_freshness=current,
+        next_action="Open Proof review details.",
+        public_mode=False,
+    )
 
     assert home["current_step"] == "Home readiness snapshot"
     assert home["current_note"] == "3,538 price-ready / 59 DCF-ready / 26 peer-ready"
@@ -54,7 +60,9 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
     assert pre_report["next_action"] == "Show Local Report"
     assert loaded_report["current_step"] == "NVDA report review"
     assert loaded_report["next_action"] == "Read Best Review Path before detailed tabs"
-    assert data_health["current_note"] == "Fundamentals / DCF"
+    assert proof_lane["current_step"] == "Proof lane shell"
+    assert proof_lane["next_action"] == "Open Proof review details."
+    assert data_health["current_note"] == "Fundamentals / DCF ROUTE MAP; artifact hygiene before staging"
     assert data_health["next_action"] == "Review fundamentals import file"
     assert data_health["action_href"] == "?mode=operator&page=data-health&lane=fundamentals&drawer=batch"
     rendered = " ".join(" ".join(value.values()) for value in [home, pre_report, loaded_report, data_health]).lower()

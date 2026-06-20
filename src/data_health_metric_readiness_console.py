@@ -322,25 +322,25 @@ def proof_lane_shell_cards(load_status: dict[str, str]) -> list[dict[str, object
     next_action = load_status.get("next_action", "Open Proof review details.")
 
     if status == "blocked_by_snapshot_gate":
-        visible_title = "Snapshot gate is visible"
+        visible_title = "Proof lane shell: snapshot gate is visible"
         visible_body = "The proof lane is intentionally stopped at freshness status until readiness artifacts are current."
         deferred_title = "Proof drawers stay blocked"
         deferred_body = "Reviewed proof rows, packet scaffolds, and before/after comparison stay hidden so stale counts do not look reviewed."
         badges = ["snapshot gate", "no stale proof"]
     elif status == "loading":
-        visible_title = "Proof shell is active"
+        visible_title = "Proof lane shell is active"
         visible_body = "The lane is building proof ledgers and comparison state; keep the operator on the shell while rows load."
         deferred_title = "Drawers are preparing"
         deferred_body = "Reviewed batch proof, command-builder fields, and evidence tables remain collapsed until the loaded state appears."
         badges = ["loading", "progressive proof"]
     elif status in {"loaded", "loaded_with_warning"}:
-        visible_title = "Proof summary is ready"
+        visible_title = "Proof lane shell: proof summary is ready"
         visible_body = "The lane can show the operator console, latest proof status, and review boundaries without opening raw rows first."
         deferred_title = "Evidence drawers are available"
         deferred_body = "Snapshot gate, apply guard, command builder, ledger preview, and proof history stay in collapsed review drawers."
         badges = ["loaded", "collapsed drawers"]
     else:
-        visible_title = "Proof shell is loaded"
+        visible_title = "Proof lane shell is loaded"
         visible_body = "Fast view shows the proof lane purpose, freshness state, and next action before any ledger rows are loaded."
         deferred_title = "Evidence stays deferred"
         deferred_body = "Reviewed proof rows, batch packet scaffolds, command fields, and snapshot comparison wait for Review details."
