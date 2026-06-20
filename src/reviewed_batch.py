@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Iterable
 
 from src.readiness_ops import ReadinessLane, build_readiness_ops_lanes
+from src.session_source_preflight import load_session_source_preflight
 from src.share_count_proof_queue import build_share_count_proof_queue_from_files
 
 
@@ -349,8 +350,24 @@ def reviewed_batch_next_safe_action(packet: ReviewedBatchPacket) -> str:
     return first_action.dry_run_command
 
 
-def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str, str]:
+def _session_source_state(root: Path) -> dict[str, object]:
+    preflight = load_session_source_preflight(root) or {}
+    sources = preflight.get("sources", {}) if isinstance(preflight, dict) else {}
+    local = sources.get("local_fundamentals", {}) if isinstance(sources, dict) else {}
+    sec_available = (sources.get("sec", {}) if isinstance(sources, dict) else {}).get("status") == "available"
+    return {
+        "sec_available": sec_available,
+        "local_fundamentals_fixable": int(local.get("fundamentals_fixable_ticker_count", 0) or 0),
+        "local_share_fixable": int(local.get("share_count_fixable_ticker_count", 0) or 0),
+    }
+
+
+def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Path) -> dict[str, str]:
     ticker_arg = _join_ticker_arg(tickers)
+    session_state = _session_source_state(root)
+    sec_available = bool(session_state["sec_available"])
+    local_fundamentals_fixable = int(session_state["local_fundamentals_fixable"])
+    local_share_fixable = int(session_state["local_share_fixable"])
     if lane == "price_coverage":
         return {
             "dry_run": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=yahoo",
@@ -364,9 +381,18 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
             "rollback": "If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.",
         }
     if lane == "fundamentals_dcf":
+        if not sec_available and local_fundamentals_fixable > 0:
+            execute = (
+                f"make focus-fundamentals TICKER={tickers[0] if tickers else '<ticker>'}, "
+                "then place only reviewed trusted fundamentals rows in data/imports/fundamentals.csv"
+            )
+            dry_run = f"make dcf-input-proof-queue TOP_N={top_n}"
+        else:
+            execute = f"make sec-stage TICKERS={ticker_arg} only if SEC_USER_AGENT is configured, or place reviewed trusted rows in data/imports/fundamentals.csv"
+            dry_run = f"make sec-stage-queue TOP_N={top_n}"
         return {
-            "dry_run": f"make sec-stage-queue TOP_N={top_n}",
-            "execute": f"make sec-stage TICKERS={ticker_arg} only if SEC_USER_AGENT is configured, or place reviewed trusted rows in data/imports/fundamentals.csv",
+            "dry_run": dry_run,
+            "execute": execute,
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed trusted fundamentals rows pass preview",
@@ -376,9 +402,16 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
             "rollback": "If preview/rejected rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun make readiness.",
         }
     if lane == "share_count_proof":
+        if not sec_available and local_share_fixable == 0:
+            execute = (
+                f"make focus-fundamentals TICKER={tickers[0] if tickers else '<ticker>'}, "
+                "then use only reviewed manual shares_outstanding rows if source proof exists"
+            )
+        else:
+            execute = f"make sec-stage TICKERS={ticker_arg} only if SEC/manual source proof includes shares_outstanding, or place reviewed trusted share-count rows in data/imports/fundamentals.csv"
         return {
             "dry_run": f"make share-count-proof-queue TOP_N={top_n}",
-            "execute": f"make sec-stage TICKERS={ticker_arg} only if SEC/manual source proof includes shares_outstanding, or place reviewed trusted share-count rows in data/imports/fundamentals.csv",
+            "execute": execute,
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed trusted shares_outstanding rows pass preview",
@@ -628,7 +661,7 @@ def build_reviewed_batch_packet(
         if lane_row is None:
             continue
         action_tickers = _candidate_tickers(root, lane_code, top_n, selected_tickers)
-        commands = _lane_commands(lane_code, action_tickers, top_n)
+        commands = _lane_commands(lane_code, action_tickers, top_n, root=root)
         action_scope = _join_ticker_arg(action_tickers)
         for proposed in action_tickers or ("<lane_scope>",):
             actions.append(

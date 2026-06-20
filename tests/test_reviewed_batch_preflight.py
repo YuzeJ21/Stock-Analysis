@@ -110,3 +110,31 @@ def test_reviewed_batch_preflight_handles_peer_lane_scope(tmp_path: Path):
     assert preflight.lane_scope == "Peer Mapping, Peer Valuation Inputs"
     assert preflight.dry_run_command == "make peer-mapping-queue TOP_N=10"
     assert "data/reports/peer_unlock_worklist.csv" in preflight.expected_artifacts
+
+
+def test_reviewed_batch_preflight_prefers_dcf_input_queue_when_sec_unavailable_and_local_fundamentals_can_progress(tmp_path: Path):
+    _write_current_reports(tmp_path)
+    _write(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.previous.csv",
+        "ticker,overall_readiness_state\nAAA,blocked\n",
+    )
+    _write(
+        tmp_path / "outputs" / "session_source_preflight.json",
+        """{
+  "sources": {
+    "sec": {"status": "unavailable"},
+    "local_fundamentals": {"fundamentals_fixable_ticker_count": 3}
+  }
+}
+""",
+    )
+
+    preflight = build_reviewed_batch_preflight(
+        tmp_path,
+        lane="fundamentals",
+        top_n=10,
+        batch_id="RB-LOCAL",
+        review_date="2026-06-20",
+    )
+
+    assert preflight.dry_run_command == "make dcf-input-proof-queue TOP_N=10"

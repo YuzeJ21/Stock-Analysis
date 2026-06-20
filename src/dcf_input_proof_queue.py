@@ -18,6 +18,7 @@ from src.dcf_readiness import build_dcf_readiness_frame
 from src.loader import normalize_columns
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.reviewed_batch_command_builder import shell_assignment
+from src.session_source_preflight import load_session_source_preflight
 
 
 QUEUE_COLUMNS = [
@@ -358,9 +359,41 @@ def _dcf_input_status(fields: list[str], ready_fields: list[str]) -> str:
     return f"input bundle blocker: {_display_fields(fields)}; ready inputs: {_display_fields(ready_fields)}"
 
 
-def _source_mode(family: str, *, sec_configured: bool) -> str:
+def _session_sec_available(root: Path | None) -> bool | None:
+    if root is None:
+        return None
+    preflight = load_session_source_preflight(root)
+    if not isinstance(preflight, dict):
+        return None
+    sources = preflight.get("sources", {})
+    if not isinstance(sources, dict):
+        return None
+    sec = sources.get("sec", {})
+    if not isinstance(sec, dict):
+        return None
+    return sec.get("status") == "available"
+
+
+def _session_local_share_fixable_count(root: Path | None) -> int | None:
+    if root is None:
+        return None
+    preflight = load_session_source_preflight(root)
+    if not isinstance(preflight, dict):
+        return None
+    sources = preflight.get("sources", {})
+    if not isinstance(sources, dict):
+        return None
+    local = sources.get("local_fundamentals", {})
+    if not isinstance(local, dict):
+        return None
+    return int(local.get("share_count_fixable_ticker_count", 0) or 0)
+
+
+def _source_mode(family: str, *, sec_configured: bool, sec_available: bool | None) -> str:
     if family == "price":
         return "price dry-run first"
+    if sec_available is False:
+        return "trusted-local/manual in this session; SEC unavailable"
     if sec_configured:
         return "SEC-stageable or trusted-local"
     return "trusted-local/manual; configure SEC_USER_AGENT for SEC staging"
@@ -582,17 +615,29 @@ def _source_note(fields: list[str], family: str, *, sec_configured: bool) -> str
     return f"{source}; review the exact DCF fields before validate/preview/apply: {_display_fields(fields)}."
 
 
-def _rank(row: pd.Series, scope_lookup: dict[str, str]) -> tuple[int, int, int, str]:
+def _rank(
+    row: pd.Series,
+    scope_lookup: dict[str, str],
+    *,
+    sec_available: bool | None = None,
+    local_share_fixable_count: int | None = None,
+) -> tuple[int, int, int, int, str]:
     ticker = str(row.get("ticker", "")).upper()
     scope_rank = 0 if scope_lookup.get(ticker, "master universe") == "active universe" else 1
     fields = _split_fields(row.get("missing_dcf_fields"))
     single_input_rank = 0 if len(fields) == 1 else 1
     family_rank = min((FIELD_PRIORITY.get(field, 99) for field in fields), default=99)
-    return scope_rank, single_input_rank, family_rank, ticker
+    family = _missing_input_family(fields)
+    executable_rank = 0
+    if sec_available is False and (local_share_fixable_count or 0) == 0:
+        if family in {"shares_outstanding", "fundamentals_bundle_plus_shares"}:
+            executable_rank = 1
+    return scope_rank, executable_rank, single_input_rank, family_rank, ticker
 
 
 def build_dcf_input_proof_queue_from_dcf_frame(
     *,
+    root: Path | None = None,
     universe: pd.DataFrame,
     dcf: pd.DataFrame,
     top_n: int = 10,
@@ -608,8 +653,18 @@ def build_dcf_input_proof_queue_from_dcf_frame(
         queue = queue.loc[queue["ticker"].astype(str).str.upper().isin(wanted)]
     if queue.empty:
         return []
+    sec_available = _session_sec_available(root)
+    local_share_fixable_count = _session_local_share_fixable_count(root)
     scope_lookup = _universe_scope_lookup(universe)
-    ranked = sorted((row for _, row in queue.iterrows()), key=lambda row: _rank(row, scope_lookup))
+    ranked = sorted(
+        (row for _, row in queue.iterrows()),
+        key=lambda row: _rank(
+            row,
+            scope_lookup,
+            sec_available=sec_available,
+            local_share_fixable_count=local_share_fixable_count,
+        ),
+    )
     rows: list[DcfInputProofRow] = []
     for row in ranked[: max(top_n, 0)]:
         ticker = str(row.get("ticker", "")).upper().strip()
@@ -626,7 +681,7 @@ def build_dcf_input_proof_queue_from_dcf_frame(
                 missing_dcf_fields=_display_fields(fields),
                 ready_dcf_inputs=_display_fields(ready),
                 dcf_input_status=_dcf_input_status(fields, ready),
-                source_mode=_source_mode(family, sec_configured=sec_configured),
+                source_mode=_source_mode(family, sec_configured=sec_configured, sec_available=sec_available),
                 next_safe_command=_next_safe_command(ticker, family),
                 proof_packet_command=_proof_packet_command(ticker, family),
                 validation_sequence=_validation_sequence(family),
@@ -640,6 +695,7 @@ def build_dcf_input_proof_queue_from_dcf_frame(
 
 def build_dcf_input_proof_queue(
     *,
+    root: Path | str | None = None,
     universe: pd.DataFrame,
     fundamentals: pd.DataFrame,
     prices: pd.DataFrame,
@@ -648,6 +704,7 @@ def build_dcf_input_proof_queue(
 ) -> list[DcfInputProofRow]:
     dcf = build_dcf_readiness_frame(universe=universe, fundamentals=fundamentals, prices=prices)
     return build_dcf_input_proof_queue_from_dcf_frame(
+        root=Path(root) if root is not None else None,
         universe=universe,
         dcf=dcf,
         top_n=top_n,
@@ -664,6 +721,7 @@ def build_dcf_input_proof_queue_from_files(
 ) -> list[DcfInputProofRow]:
     data_path = resolve_data_dir(data_dir, root)
     return build_dcf_input_proof_queue(
+        root=root,
         universe=_read_csv(data_path / "universe.csv"),
         fundamentals=_read_csv(data_path / "fundamentals.csv"),
         prices=_read_csv(data_path / "prices.csv"),

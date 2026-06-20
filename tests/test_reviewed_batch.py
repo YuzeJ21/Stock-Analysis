@@ -181,6 +181,28 @@ def test_reviewed_batch_share_count_lane_uses_first_class_proof_queue(tmp_path: 
     assert "does not provide direct buy/sell instructions" in rendered
 
 
+def test_reviewed_batch_fundamentals_lane_prefers_local_dcf_queue_when_session_sec_is_unavailable(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+    _write(
+        root / "outputs" / "session_source_preflight.json",
+        """{
+  "sources": {
+    "sec": {"status": "unavailable"},
+    "local_fundamentals": {"fundamentals_fixable_ticker_count": 2}
+  }
+}
+""",
+    )
+
+    packet = build_reviewed_batch_packet(root, lane="fundamentals", top_n=1)
+    action = packet.actions[0]
+
+    assert reviewed_batch_next_safe_action(packet) == "make dcf-input-proof-queue TOP_N=1"
+    assert action.dry_run_command == "make dcf-input-proof-queue TOP_N=1"
+    assert "place only reviewed trusted fundamentals rows in data/imports/fundamentals.csv" in action.capped_execution_command
+
+
 def test_reviewed_batch_supports_ticker_scope_and_optional_context(tmp_path: Path):
     packet = build_reviewed_batch_packet(_sample_root(tmp_path), lane="optional_context", tickers="BBB,CCC", top_n=5)
     rendered = render_packet_markdown(packet)

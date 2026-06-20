@@ -14,6 +14,7 @@ from pathlib import Path
 
 from src.readiness_comparison import DEFAULT_AFTER, DEFAULT_BEFORE
 from src.reviewed_batch import normalize_batch_lane, readiness_freshness_status
+from src.session_source_preflight import load_session_source_preflight
 
 
 LANE_LABELS = {
@@ -61,7 +62,12 @@ def _batch_id() -> str:
     return datetime.now(timezone.utc).strftime("RB-%Y%m%dT%H%M%SZ")
 
 
-def _lane_plan(lane: str, *, top_n: int, max_candidates: int, provider: str) -> tuple[str, str, tuple[str, ...]]:
+def _lane_plan(lane: str, *, root: Path, top_n: int, max_candidates: int, provider: str) -> tuple[str, str, tuple[str, ...]]:
+    preflight = load_session_source_preflight(root) or {}
+    sources = preflight.get("sources", {}) if isinstance(preflight, dict) else {}
+    local = sources.get("local_fundamentals", {}) if isinstance(sources, dict) else {}
+    sec_available = (sources.get("sec", {}) if isinstance(sources, dict) else {}).get("status") == "available"
+    local_fundamentals_fixable = int(local.get("fundamentals_fixable_ticker_count", 0) or 0)
     if lane == "price_coverage":
         return (
             f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={max_candidates} TOP_N={top_n} PROVIDER={provider}",
@@ -73,6 +79,16 @@ def _lane_plan(lane: str, *, top_n: int, max_candidates: int, provider: str) -> 
             ),
         )
     if lane == "fundamentals_dcf":
+        if not sec_available and local_fundamentals_fixable > 0:
+            return (
+                f"make dcf-input-proof-queue TOP_N={top_n}",
+                "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
+                (
+                    "data/imports/fundamentals.csv",
+                    "data/fundamentals.csv",
+                    "data/reports/dcf_readiness_report.csv",
+                ),
+            )
         return (
             f"make sec-stage-queue TOP_N={top_n}",
             "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
@@ -151,6 +167,7 @@ def build_reviewed_batch_preflight(
     )
     dry_run, capped_execution, artifacts = _lane_plan(
         primary_lane,
+        root=root,
         top_n=top_n,
         max_candidates=max_candidates,
         provider=provider,

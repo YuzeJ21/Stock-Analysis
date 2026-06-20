@@ -204,6 +204,57 @@ def test_dcf_input_queue_respects_top_n_and_ticker_scope(monkeypatch):
     assert "trusted-local/manual" in rows[0].source_mode
 
 
+def test_dcf_input_queue_uses_session_preflight_to_mark_sec_unavailable(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    (tmp_path / "outputs").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "outputs" / "session_source_preflight.json").write_text(
+        """{
+  "sources": {
+    "sec": {"status": "unavailable"}
+  }
+}
+""",
+        encoding="utf-8",
+    )
+
+    rows = build_dcf_input_proof_queue(
+        root=tmp_path,
+        universe=_sample_universe(),
+        fundamentals=_sample_fundamentals(),
+        prices=_sample_prices(),
+        top_n=10,
+    )
+    by_ticker = {row.ticker: row for row in rows}
+
+    assert by_ticker["AMD"].source_mode == "trusted-local/manual in this session; SEC unavailable"
+
+
+def test_dcf_input_queue_deprioritizes_share_blockers_when_session_cannot_fix_shares(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    (tmp_path / "outputs").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "outputs" / "session_source_preflight.json").write_text(
+        """{
+  "sources": {
+    "sec": {"status": "unavailable"},
+    "local_fundamentals": {"share_count_fixable_ticker_count": 0}
+  }
+}
+""",
+        encoding="utf-8",
+    )
+
+    rows = build_dcf_input_proof_queue(
+        root=tmp_path,
+        universe=_sample_universe(),
+        fundamentals=_sample_fundamentals(),
+        prices=_sample_prices(),
+        top_n=10,
+    )
+
+    assert rows[0].ticker == "HOOD"
+    assert rows[0].missing_input_family == "fundamentals_bundle"
+
+
 def test_dcf_input_queue_family_summary_counts_rows(monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
 
