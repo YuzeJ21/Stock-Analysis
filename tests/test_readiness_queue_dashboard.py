@@ -9,6 +9,7 @@ from src.readiness_queue_dashboard import (
     build_readiness_queue_lane_action_frame,
     build_readiness_queue_outcome_summary_frame,
     build_readiness_queue_route_cards,
+    build_readiness_queue_route_overview_cards,
     build_readiness_queue_route_strip_cards,
     queue_proof_packet_command,
     readiness_queue_lane_key,
@@ -206,6 +207,62 @@ def test_readiness_queue_route_strip_cards_show_lane_context_before_detail():
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
+
+
+def test_readiness_queue_route_overview_cards_connect_lane_to_proof_and_artifacts():
+    frame = pd.DataFrame(
+        [
+            {
+                "Lane": "Trusted Fundamentals Proof Queue",
+                "State": "partial",
+                "Next Safe Action": "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10",
+                "Proof Record Status": "No reviewed batch proof row recorded for this lane yet.",
+                "Stale / Source Warning": "Source mode: SEC-stageable. Validate before preview.",
+            },
+            {
+                "Lane": "Peer Mapping Proof",
+                "State": "partial",
+                "Next Safe Action": "DRY_RUN=1 make peer-mapping-source-review TOP_N=10",
+                "Proof Record Status": "still_blocked on 2026-06-15; batch RB-PEER.",
+                "Stale / Source Warning": "Source mode: source-backed peer rows only.",
+            },
+        ]
+    )
+
+    cards = build_readiness_queue_route_overview_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "ROUTE MAP",
+        "LEADING LANE",
+        "PROOF BOUNDARY",
+        "ARTIFACT BOUNDARY",
+    ]
+    assert "queue -> source proof -> comparison -> proof record -> artifact hygiene" in rendered
+    assert "2 readiness lane(s) are available below" in rendered
+    assert "trusted fundamentals proof queue: partial" in rendered
+    assert "make dcf-input-source-command-plan family=fundamentals_bundle_plus_shares top_n=10" in rendered
+    assert "?mode=operator&page=data-health&lane=proof&drawer=comparison" in rendered
+    assert "?mode=operator&page=data-health&lane=proof&drawer=proof-record" in rendered
+    assert "?mode=operator&page=data-health&lane=proof&drawer=artifacts" in rendered
+    assert "broad csv/json/report churn is not part of the default product package" in rendered
+    assert "navigation-only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_readiness_queue_route_overview_cards_block_when_queue_rows_missing():
+    cards = build_readiness_queue_route_overview_cards(pd.DataFrame())
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["ROUTE MAP", "STOP RULE"]
+    assert "queue routing is waiting for readiness rows" in rendered
+    assert "does not infer fundamentals, peers, metrics, or proof outcomes" in rendered
+    assert "make readiness-queue top_n=10" in rendered
+    assert "source proof, validation, preview, comparison, and artifact review pass" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_readiness_queue_outcome_summary_reads_latest_batch_outcomes():

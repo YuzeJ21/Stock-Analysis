@@ -24909,7 +24909,9 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
 
 def test_data_health_queue_drilldown_places_route_strip_before_route_cards_and_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    overview_wrapper_index = source.index("def data_health_readiness_queue_route_overview_cards")
     wrapper_index = source.index("def data_health_readiness_queue_route_strip_cards")
+    overview_render_index = source.index("data_health_readiness_queue_route_overview_cards(queue_drilldown)")
     drilldown_index = source.index('render_section_header(\n            "Lane Drilldowns"')
     drilldown_cards_index = source.index("data_health_readiness_queue_drilldown_cards(drilldown_row)", drilldown_index)
     route_strip_index = source.index("data_health_readiness_queue_route_strip_cards(drilldown_row)", drilldown_cards_index)
@@ -24918,8 +24920,9 @@ def test_data_health_queue_drilldown_places_route_strip_before_route_cards_and_t
     action_table_index = source.index('render_collapsed_detail_frame(\n                    "Lane route action table"', action_cards_index)
     raw_evidence_index = source.index('render_collapsed_detail_frame("Raw lane evidence row"', action_table_index)
 
-    assert wrapper_index < drilldown_index
+    assert overview_wrapper_index < wrapper_index < overview_render_index < drilldown_index
     assert drilldown_cards_index < route_strip_index < route_cards_index < action_cards_index < action_table_index < raw_evidence_index
+    assert "build_readiness_queue_route_overview_cards" in source
     assert "build_readiness_queue_route_strip_cards" in source
     assert "Raw lane evidence row" in source
 

@@ -601,6 +601,86 @@ def build_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> lis
     ]
 
 
+def build_readiness_queue_route_overview_cards(drilldown_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    """Return a compact queue routing overview before per-lane drawers."""
+
+    if drilldown_frame is None or drilldown_frame.empty:
+        return [
+            {
+                "kicker": "ROUTE MAP",
+                "title": "Queue routing is waiting for readiness rows",
+                "body": (
+                    "Run the readiness queue before choosing a source-proof lane. The dashboard does not infer "
+                    "fundamentals, peers, metrics, or proof outcomes when queue rows are missing."
+                ),
+                "badges": ["blocked", "no inferred unlocks"],
+                "command": "make readiness-queue TOP_N=10",
+            },
+            {
+                "kicker": "STOP RULE",
+                "title": "Keep missing inputs blocked",
+                "body": "Do not record supported outcomes until source proof, validation, preview, comparison, and artifact review pass.",
+                "badges": ["research-only", "blocked stays blocked"],
+            },
+        ]
+
+    leading = drilldown_frame.iloc[0]
+    lane = _format_missing(leading.get("Lane"), "Readiness lane")
+    lane_key = readiness_queue_lane_key(lane)
+    state = _label(leading.get("State"))
+    next_action = _format_missing(leading.get("Next Safe Action"), queue_proof_packet_command(lane_key))
+    proof_status = _compact_fragment(
+        leading.get("Proof Record Status"),
+        fallback="No reviewed batch proof row recorded yet.",
+        max_chars=150,
+    )
+    source_warning = _compact_fragment(
+        leading.get("Stale / Source Warning"),
+        fallback="Review source readiness before proceeding.",
+        max_chars=160,
+    )
+    lane_count = len(drilldown_frame)
+
+    return [
+        {
+            "kicker": "ROUTE MAP",
+            "title": "Queue -> source proof -> comparison -> proof record -> artifact hygiene",
+            "body": (
+                f"{lane_count} readiness lane(s) are available below. Start with one lane, keep commands copy-only, "
+                "and use the proof lane only after source review and snapshot comparison."
+            ),
+            "badges": ["one loop", "navigation-only"],
+        },
+        {
+            "kicker": "LEADING LANE",
+            "title": f"{lane}: {state}",
+            "body": f"Next safe action: {next_action}. Source/freshness note: {source_warning}.",
+            "badges": ["selected first", "source gate"],
+            "command": next_action,
+        },
+        {
+            "kicker": "PROOF BOUNDARY",
+            "title": proof_status,
+            "body": (
+                f"Open {_proof_lane_drawer_route('comparison')} before {_proof_lane_drawer_route('proof-record')}. "
+                "Record supported, still_blocked, skipped, or excluded only after reviewed fields are complete."
+            ),
+            "badges": ["compare first", "dry-run proof"],
+            "command": f"make reviewed-batch-compare LANE={_queue_lane_batch_lane(lane)} BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        },
+        {
+            "kicker": "ARTIFACT BOUNDARY",
+            "title": "Generated churn stays excluded by default",
+            "body": (
+                f"Use {_proof_lane_drawer_route('artifacts')} and make diff-hygiene before staging. "
+                "Broad CSV/JSON/report churn is not part of the default product package."
+            ),
+            "badges": ["exclude churn", "reviewed evidence only"],
+            "command": "make diff-hygiene-summary",
+        },
+    ]
+
+
 def build_readiness_queue_route_strip_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
     """Return a compact selected-lane workflow strip before queue drawer details."""
 

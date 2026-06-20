@@ -100,10 +100,16 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
         name="Data Health queue drawer routing screenshot",
         path=Path("docs/assets/operator-data-health-queue-routing-real.jpg"),
         route="http://localhost:8501/?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
-        first_view_markers=("research-loop-strip", "ops-mode-strip", "Operator Queue", "ROUTE 1", "proof record"),
+        first_view_markers=(
+            "research-loop-strip",
+            "ops-mode-strip",
+            "Operator Queue",
+            "ROUTE MAP",
+            "artifact hygiene",
+        ),
         min_width=1000,
         min_height=600,
-        use="Operator proof that queue lane routing leads to source proof and proof-record context without executing commands.",
+        use="Operator proof that queue routing leads from source proof to comparison, proof record, and artifact hygiene without executing commands.",
     ),
 )
 
@@ -166,8 +172,8 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Data Health queue drawer routing",
         route="http://localhost:8501/?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
-        first_view_markers=("research-loop-strip", "ops-mode-strip", "Operator Queue", "ROUTE 1", "proof record"),
-        details_boundary="Navigation-only queue lane route cards appear before detailed action tables; source proof, packet, comparison, proof record, and artifact hygiene stay collapsed.",
+        first_view_markers=("research-loop-strip", "ops-mode-strip", "Operator Queue", "ROUTE MAP", "artifact hygiene"),
+        details_boundary="Navigation-only route map appears before per-lane drawers and detailed action tables; source proof, packet, comparison, proof record, and artifact hygiene stay collapsed.",
         qa_focus="Operator can move from readiness queue to source proof, comparison, and proof record without hunting across disconnected sections.",
         stop_rule="Stop if route links execute commands, expose raw tables first, or imply generated churn belongs in the default staging set.",
     ),

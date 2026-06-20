@@ -218,6 +218,7 @@ from src.readiness_queue_dashboard import (
     build_readiness_queue_drilldown_frame,
     build_readiness_queue_lane_action_frame,
     build_readiness_queue_route_cards,
+    build_readiness_queue_route_overview_cards,
     build_readiness_queue_route_strip_cards,
 )
 from src.readiness_comparison import ReadinessComparison, compare_readiness_snapshots
@@ -9431,6 +9432,10 @@ def data_health_readiness_queue_lane_action_frame(row: pd.Series | dict[str, obj
 
 def data_health_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
     return build_readiness_queue_route_cards(row)
+
+
+def data_health_readiness_queue_route_overview_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    return build_readiness_queue_route_overview_cards(frame)
 
 
 def data_health_readiness_queue_route_strip_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
@@ -25273,6 +25278,11 @@ def render_data_health(
         )
         st.dataframe(clean_display_frame(readiness_queue), width="stretch", hide_index=True)
     if queue_details_loaded:
+        render_signal_cards(
+            data_health_readiness_queue_route_overview_cards(queue_drilldown),
+            show_commands=True,
+            variant="queue",
+        )
         render_section_header(
             "Lane Drilldowns",
             "Each lane keeps examples, proof packet command, stale/source warning, and proof-record status together.",

@@ -196,7 +196,7 @@ def test_browser_qa_capture_session_rows_keep_reviewer_sequence_copy_ready():
         name="Data Health queue drawer routing screenshot",
         path=Path("docs/assets/operator-data-health-queue-routing-real.jpg"),
         route="http://localhost:8501/?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
-        first_view_markers=("Operator Queue", "ROUTE 1", "proof record"),
+        first_view_markers=("Operator Queue", "ROUTE MAP", "artifact hygiene"),
         min_width=1000,
         min_height=600,
         use="Queue routing evidence.",
@@ -234,7 +234,7 @@ def test_browser_qa_reviewed_asset_stage_command_names_only_reviewed_screenshot_
         name="Data Health queue drawer routing screenshot",
         path=Path("docs/assets/operator-data-health-queue-routing-real.jpg"),
         route="http://localhost:8501/?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
-        first_view_markers=("Operator Queue", "ROUTE 1", "proof record"),
+        first_view_markers=("Operator Queue", "ROUTE MAP", "artifact hygiene"),
         min_width=1000,
         min_height=600,
         use="Queue routing evidence.",
@@ -328,8 +328,9 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "report handoff" in rendered
     assert "stop rule" in rendered
     assert "operator-data-health-proof-real.jpg" in rendered
-    assert "route 1" in rendered
-    assert "proof record" in rendered
+    assert "route map" in rendered
+    assert "artifact hygiene" in rendered
+    assert "artifact hygiene" in rendered
     assert "commit reviewed evidence only" in rendered
     assert "public_share_recommendation" in rendered
     assert "linkedin-public-dashboard.png" in rendered
@@ -383,7 +384,8 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "proof lane shell" in rendered
     assert "intentionally deferred" in rendered
     assert "navigation-only" in rendered
-    assert "route cards appear before detailed action tables" in rendered
+    assert "route map appears before per-lane drawers" in rendered
+    assert "artifact hygiene" in rendered
     assert "generated churn" in rendered
     assert "execute commands" in rendered
     assert "investment advice" not in rendered

@@ -22,7 +22,7 @@ Checked by tests and local read-only commands:
 - Public Home: added a First 30 Seconds view before visitor path examples so a new viewer sees what the product does, how to read readiness, and when to stop.
 - Public Home later moved the route choice to a visible `Where To Go Next` block before optional workflow detail, so screenshot review should confirm the first path reads as product navigation rather than a command-heavy demo.
 - Single-Stock Report: added a compact current-step / next-safe-action / stop-rule loop before dense ticker details and added the same report-step cue to loaded reports.
-- Data Health queue drawers: added navigation-only route cards before the detailed lane action table so operators see queue -> source proof -> comparison -> proof record without jumping across sections.
+- Data Health queue drawers: added a navigation-only route map before the detailed lane drawers and action tables so operators see queue -> source proof -> comparison -> proof record -> artifact hygiene without jumping across sections.
 - Trusted Fundamentals / DCF source loop: added source-review route cards before the checklist table so source fields, guard, validate/preview, apply/skip, and proof-record boundaries stay in sequence.
 
 Boundary checked:
@@ -94,7 +94,7 @@ Review boundary:
 - First view should show the workflow strip, current mode, readiness snapshot, and next safe action.
 - Single-stock should show selected ticker state, what can be reviewed now, what is blocked or excluded, the Data Health handoff, and a stop rule before detailed report sections.
 - Proof lane first view should show an intentional shell/loading boundary, not an empty page or expanded ledger.
-- Queue drawer routes should be navigation-only and should not run commands or imply generated churn belongs in a default staging set.
+- Queue drawer routes should show the route map and artifact-hygiene boundary, stay navigation-only, and should not run commands or imply generated churn belongs in a default staging set.
 - Raw tables, proof rows, generated-artifact lists, and command-heavy details should stay collapsed until the relevant review route or drawer is opened.
 - Missing source inputs stay blocked; browser evidence does not unlock fundamentals, peers, earnings, analyst estimates, valuation inputs, or metrics.
 
