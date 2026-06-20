@@ -6467,6 +6467,36 @@ def stock_report_peer_relative_display_ready(report_payload: dict[str, object]) 
     return bool(status not in blocked_statuses and peer_count > 0)
 
 
+def _peer_candidate_count_from_obj(peer_like: dict[str, object] | None) -> int:
+    peer_like = peer_like or {}
+    raw = format_missing(peer_like.get("candidate_peer_count"), "0").replace(",", "")
+    try:
+        return int(float(raw))
+    except ValueError:
+        return 0
+
+
+def _peer_candidate_states_from_obj(peer_like: dict[str, object] | None) -> str:
+    peer_like = peer_like or {}
+    text = format_missing(peer_like.get("candidate_states"), "")
+    return "" if text == "Not available" else text
+
+
+def _peer_candidate_note(peer_like: dict[str, object] | None) -> str:
+    peer_like = peer_like or {}
+    count = _peer_candidate_count_from_obj(peer_like)
+    if count <= 0:
+        return "No candidate peer layer is recorded yet."
+    states = _peer_candidate_states_from_obj(peer_like)
+    sample = format_missing(peer_like.get("candidate_sample_peers"), "")
+    parts = [f"{count} candidate peer{'s' if count != 1 else ''} in `data/peer_candidates.csv`"]
+    if states:
+        parts.append(states)
+    if sample and sample != "Not available":
+        parts.append(f"sample {sample}")
+    return "; ".join(parts) + "."
+
+
 def stock_report_peer_relative_comparison_frame(report_payload: dict[str, object]) -> pd.DataFrame:
     columns = ["Metric", "Subject", "Peer Median", "Discount / Premium"]
     if not stock_report_peer_relative_display_ready(report_payload):
@@ -6495,8 +6525,14 @@ def stock_report_peer_relative_comparison_frame(report_payload: dict[str, object
 def stock_report_peer_relative_empty_message(report_payload: dict[str, object]) -> str:
     readiness = _stock_report_payload_readiness(report_payload)
     asset_type = format_missing(report_payload.get("asset_type") or readiness.get("asset_type"), "").lower()
+    peer_summary = (readiness.get("peer_summary") or {}) if isinstance(readiness.get("peer_summary"), dict) else {}
     if asset_type in {"etf", "index_proxy", "fund"}:
         return "Operating-company peer valuation is excluded for ETF/index/fund monitor context."
+    if _peer_candidate_count_from_obj(peer_summary) > 0:
+        return (
+            "Trusted peer-relative multiples are still withheld, but a candidate peer layer is available in "
+            "`data/peer_candidates.csv` and can guide the next reviewed promotion step."
+        )
     if bool(readiness.get("dcf_ready")):
         return "Peer-relative multiples are withheld until trusted peer mappings and peer valuation inputs pass readiness."
     return "Peer-relative multiples wait until trusted fundamentals, DCF readiness, peer mappings, and peer valuation inputs are ready."
@@ -6505,13 +6541,15 @@ def stock_report_peer_relative_empty_message(report_payload: dict[str, object]) 
 def stock_report_peer_relative_summary(report_payload: dict[str, object]) -> dict[str, object]:
     valuation = report_payload.get("valuation_snapshot", {}) or {}
     relative = valuation.get("relative_valuation", {}) or {}
+    readiness = _stock_report_payload_readiness(report_payload)
+    peer_summary = (readiness.get("peer_summary") or {}) if isinstance(readiness.get("peer_summary"), dict) else {}
     if not stock_report_peer_relative_display_ready(report_payload):
         return {
-            "peer_status": "Withheld",
+            "peer_status": "Candidate only" if _peer_candidate_count_from_obj(peer_summary) > 0 else "Withheld",
             "peer_group": "Not reader-ready",
             "peer_count": report_display_value(relative.get("peer_count"), "integer"),
             "relative_score": "Locked",
-            "note": stock_report_peer_relative_empty_message(report_payload),
+            "note": stock_report_peer_relative_empty_message(report_payload) + " " + _peer_candidate_note(peer_summary),
         }
     return {
         "peer_status": public_status_label(relative.get("status")),
@@ -6646,6 +6684,7 @@ def stock_report_local_context_cards(
     if not coverage.empty and "validation_status" in coverage.columns:
         validation_warnings = int(coverage["validation_status"].astype(str).eq("valid_with_warnings").sum())
     peer_count = int(peer_summary.get("peer_count") or 0)
+    candidate_peer_count = int(peer_summary.get("candidate_peer_count") or 0)
     peer_target_file = format_missing(peer_row.get("target_file"), "") if peer_row is not None else ""
     peer_fallback_command = (
         "make imports-validate"
@@ -6678,6 +6717,12 @@ def stock_report_local_context_cards(
             ),
             "badges": ["manual research", "import file" if staged_peer_import else "csv-first"],
             "command": peer_focus_command,
+        },
+        {
+            "kicker": "PEER CANDIDATES",
+            "title": format_missing(candidate_peer_count, "0"),
+            "body": _peer_candidate_note(peer_summary),
+            "badges": ["candidate layer", "not trusted yet"],
         },
         {
             "kicker": "PEER FUNDAMENTALS",
@@ -16456,11 +16501,15 @@ def single_stock_readiness_snapshot(
         "peer_blocker_type": peer_blocker_type,
         "peer_mapping_status": peer_mapping_status,
         "peer_count": peer_row.get("peer_count", ""),
+        "candidate_peer_count": peer_row.get("candidate_peer_count", ""),
+        "candidate_mapping_status": peer_row.get("candidate_mapping_status", ""),
+        "candidate_states": peer_row.get("candidate_states", ""),
         "ready_peer_count": peer_row.get("ready_peer_count", ""),
         "peer_trend_comparison_ready": peer_row.get("peer_trend_comparison_ready", ""),
         "peer_valuation_comparison_ready": peer_row.get("peer_valuation_comparison_ready", ""),
         "peer_dcf_comparison_ready": peer_row.get("peer_dcf_comparison_ready", ""),
         "sample_peers": peer_row.get("sample_peers", ""),
+        "candidate_sample_peers": peer_row.get("candidate_sample_peers", ""),
         "next_peer_action": next_peer_action,
         "earnings_ready": bool(bool_series(pd.DataFrame([readiness_row]), "earnings_ready").any()),
         "analyst_estimates_ready": bool(bool_series(pd.DataFrame([readiness_row]), "analyst_estimates_ready").any()),
@@ -16535,6 +16584,7 @@ def single_stock_one_minute_summary(snapshot: dict[str, object]) -> str:
     blocker = format_missing(snapshot.get("primary_blocker"), "")
     dcf_status = format_missing(snapshot.get("dcf_status"), "unknown")
     peer_blocker = format_missing(snapshot.get("peer_blocker_type"), "")
+    candidate_peer_count = _peer_candidate_count_from_obj(snapshot)
     next_action = format_missing(snapshot.get("next_action"), "")
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     monitor_proxy = dcf_status.lower() == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
@@ -16550,6 +16600,8 @@ def single_stock_one_minute_summary(snapshot: dict[str, object]) -> str:
         parts.append("DCF inputs are ready, but peer and optional context may still be partial.")
     if peer_blocker and peer_blocker.lower() not in {"not available", "nan", "none", ""} and not monitor_proxy:
         parts.append(f"Peer workflow: {peer_blocker}.")
+        if candidate_peer_count > 0:
+            parts.append(f"Candidate peers recorded: {candidate_peer_count}; trusted peer proof is still pending.")
     if not snapshot.get("earnings_ready") or not snapshot.get("analyst_estimates_ready"):
         parts.append("Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.")
     if next_action and next_action != "Not available":
@@ -16565,6 +16617,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     peer_ready = bool(snapshot.get("peer_ready"))
+    candidate_peer_count = _peer_candidate_count_from_obj(snapshot)
     peer_blocker = format_missing(snapshot.get("peer_blocker_type"), "Not available")
     sec_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
     stooq_present = bool(os.environ.get("STOOQ_API_KEY", "").strip() or os.environ.get("STOQ_API_KEY", "").strip())
@@ -16589,8 +16642,12 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
         peer_freshness = "Peer-relative valuation should wait until trusted fundamentals and DCF inputs are ready."
         peer_command = dcf_command
     else:
-        peer_status = peer_blocker
-        peer_freshness = compact_reason(snapshot.get("next_peer_action"), max_sentences=1, max_chars=140)
+        peer_status = "candidate only" if candidate_peer_count > 0 else peer_blocker
+        peer_freshness = (
+            compact_reason(snapshot.get("next_peer_action"), max_sentences=1, max_chars=140)
+            + " "
+            + _peer_candidate_note(snapshot)
+        ).strip()
         peer_command = f"make focus-peers TICKER={ticker}"
 
     rows = [
@@ -16616,8 +16673,8 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
             "Area": "Peers",
             "Status": peer_status,
             "Source Readiness": peer_freshness,
-            "Local source": "data/peers.csv",
-            "Manual path": "data/imports/peers.csv",
+            "Local source": "data/peers.csv plus data/peer_candidates.csv",
+            "Manual path": "data/imports/peer_candidates.csv for candidate research; data/imports/peers.csv for trusted promotion",
             "Rejected rows": "data/rejected/peers_import_rejected.csv",
             "Next command": peer_command,
         },
@@ -17031,13 +17088,17 @@ def single_stock_detail_frame(snapshot: dict[str, object]) -> pd.DataFrame:
             {"Field": "DCF reason", "Value": snapshot.get("dcf_reason")},
             {"Field": "Peer blocker type", "Value": snapshot.get("peer_blocker_type")},
             {"Field": "Peer mapping status", "Value": snapshot.get("peer_mapping_status")},
+            {"Field": "Candidate peer status", "Value": snapshot.get("candidate_mapping_status")},
             {
                 "Field": "Peer count / ready peers",
                 "Value": f"{format_missing(snapshot.get('peer_count'))} / {format_missing(snapshot.get('ready_peer_count'))}",
             },
+            {"Field": "Candidate peer count", "Value": snapshot.get("candidate_peer_count")},
+            {"Field": "Candidate peer states", "Value": snapshot.get("candidate_states")},
             {"Field": "Peer trend comparison ready", "Value": snapshot.get("peer_trend_comparison_ready")},
             {"Field": "Peer valuation comparison ready", "Value": snapshot.get("peer_valuation_comparison_ready")},
             {"Field": "Sample peers", "Value": snapshot.get("sample_peers")},
+            {"Field": "Candidate sample peers", "Value": snapshot.get("candidate_sample_peers")},
             {"Field": "Next peer action", "Value": snapshot.get("next_peer_action")},
             {"Field": "Earnings ready", "Value": snapshot.get("earnings_ready")},
             {"Field": "Analyst estimates ready", "Value": snapshot.get("analyst_estimates_ready")},
@@ -17074,6 +17135,7 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "").lower()
     peer_ready = bool(snapshot.get("peer_ready"))
+    candidate_peer_count = _peer_candidate_count_from_obj(snapshot)
     peer_title = "Peer ready" if peer_ready else format_missing(snapshot.get("peer_blocker_type"), "missing_peer_mapping")
     peer_body = (
         "Peer context is available or not required for this view."
@@ -17088,6 +17150,10 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
     elif dcf_status and dcf_status != "ready":
         peer_title = "blocked until fundamentals / DCF"
         peer_body = "Peer-relative valuation should wait until trusted fundamentals and DCF inputs are ready."
+        peer_command = stock_report_md_command(ticker)
+    elif candidate_peer_count > 0:
+        peer_title = "candidate peers available"
+        peer_body = f"{peer_body} {_peer_candidate_note(snapshot)}"
         peer_command = stock_report_md_command(ticker)
     next_command = single_stock_next_command(snapshot)
     data_confidence = first_meaningful_text(
@@ -24004,11 +24070,12 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
             with st.expander("More coverage details", expanded=False):
                 st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
-            readiness_cols = st.columns(4)
+            readiness_cols = st.columns(5)
             readiness_cols[0].metric("Peer File", "Present" if peer_summary["peer_dataset_present"] else "Missing")
             readiness_cols[1].metric("Peer Count", peer_summary["peer_count"])
-            readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
-            readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
+            readiness_cols[2].metric("Candidate Peers", peer_summary.get("candidate_peer_count", 0))
+            readiness_cols[3].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
+            readiness_cols[4].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
     render_signal_cards(single_stock_report_intro_summary_cards())
     render_context_note(

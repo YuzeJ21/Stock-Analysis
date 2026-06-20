@@ -355,6 +355,47 @@ def test_local_provider_peer_summary_reports_group_and_availability(tmp_path: Pa
     assert summary["peer_fundamentals_available"] == 2
 
 
+def test_local_provider_peer_summary_distinguishes_candidate_and_trusted_layers(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-05-01,ALFA,150,1000\n"
+        "2026-05-01,BETA,90,1000\n"
+        "2026-05-01,GAMMA,80,1000\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "fundamentals.csv").write_text(
+        "ticker,revenue,free_cash_flow,fcf_margin,shares_outstanding,source\n"
+        "ALFA,1000,100,0.1,10,fixture\n"
+        "BETA,800,90,0.11,12,fixture\n"
+        "GAMMA,700,80,0.09,11,fixture\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group,source\n"
+        "ALFA,BETA,trusted_group,fixture\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "peer_candidates.csv").write_text(
+        "ticker,peer_ticker,candidate_state,peer_group,source\n"
+        "ALFA,BETA,candidate,candidate_group,fixture\n"
+        "ALFA,GAMMA,research_only,candidate_group,fixture\n",
+        encoding="utf-8",
+    )
+    provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
+
+    summary = provider.get_peer_summary("ALFA")
+
+    assert summary["peer_count"] == 1
+    assert summary["peer_group"] == "trusted_group"
+    assert summary["candidate_dataset_present"] is True
+    assert summary["candidate_peer_count"] == 2
+    assert summary["candidate_peer_group"] == "candidate_group"
+    assert summary["candidate_mapping_status"] == "candidate_available"
+    assert summary["candidate_states"] == ["candidate", "research_only"]
+    assert summary["candidate_peer_tickers"] == ["BETA", "GAMMA"]
+
+
 def test_local_provider_ignores_self_peers_and_duplicate_rows(tmp_path: Path):
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "prices.csv").write_text(

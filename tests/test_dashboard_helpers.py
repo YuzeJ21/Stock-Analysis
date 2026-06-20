@@ -9542,6 +9542,35 @@ def test_stock_report_peer_relative_comparison_frame_is_readiness_gated():
     assert "sell" not in rendered
 
 
+def test_stock_report_peer_relative_summary_surfaces_candidate_only_state():
+    relative = {
+        "status": "calculated",
+        "peer_count": 2,
+        "subject_multiples": {"pe": 20.0},
+        "peer_median_multiples": {"pe": 25.0},
+    }
+    candidate_payload = {
+        "asset_type": "company",
+        "valuation_readiness": {
+            "dcf_ready": True,
+            "peer_ready": False,
+            "peer_summary": {
+                "candidate_peer_count": 2,
+                "candidate_states": "candidate, research_only",
+            },
+        },
+        "valuation_snapshot": {"relative_valuation": relative},
+    }
+
+    summary = dashboard.stock_report_peer_relative_summary(candidate_payload)
+    message = dashboard.stock_report_peer_relative_empty_message(candidate_payload).lower()
+
+    assert summary["peer_status"] == "Candidate only"
+    assert "data/peer_candidates.csv" in str(summary["note"])
+    assert "candidate, research_only" in str(summary["note"])
+    assert "candidate peer layer" in message
+
+
 def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     ready_cards = dashboard.stock_report_fundamentals_quality_cards(
         {
@@ -14603,9 +14632,10 @@ def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
     cards = dashboard.stock_report_local_context_cards(coverage, peer_summary)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert len(cards) == 4
+    assert len(cards) == 5
     assert "2 available" in rendered
     assert "missing" in rendered
+    assert "candidate layer" in rendered
     assert "no fabrication" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

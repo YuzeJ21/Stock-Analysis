@@ -17,6 +17,7 @@ IMPORT_FILE_SPECS: dict[str, dict[str, Any]] = {
     "analyst_estimates.csv": {"dataset_name": "analyst_estimates", "merge_keys": ("ticker",)},
     "estimates.csv": {"dataset_name": "analyst_estimates", "merge_keys": ("ticker",)},
     "peers.csv": {"dataset_name": "peers", "merge_keys": ("ticker", "peer_ticker")},
+    "peer_candidates.csv": {"dataset_name": "peer_candidates", "merge_keys": ("ticker", "peer_ticker")},
 }
 
 

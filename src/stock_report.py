@@ -24,6 +24,7 @@ from src.providers.local_importer import apply_import_merge, preview_import_merg
 from src.providers.local_templates import write_import_staging_files, write_local_data_templates
 from src.providers.mock_market_data import MockMarketDataProvider
 from src.providers.sec_companyfacts import build_sec_fundamentals_rows, write_sec_fundamentals_import
+from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.review_metrics import build_review_metrics, configured_risk_free_rate
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
@@ -1819,6 +1820,41 @@ def _stock_report_peer_lane(peer: dict[str, Any] | None, peer_ready: Any) -> str
     return "peer_mapping"
 
 
+def _peer_candidate_count(peer: dict[str, Any] | None) -> int:
+    peer = peer or {}
+    raw = _display_value(peer.get("candidate_peer_count"), "0").replace(",", "")
+    try:
+        return int(float(raw))
+    except ValueError:
+        return 0
+
+
+def _peer_candidate_states(peer: dict[str, Any] | None) -> str:
+    peer = peer or {}
+    text = _display_report_list(peer.get("candidate_states"), "none")
+    return "" if text == "none" else text
+
+
+def _peer_candidate_sample(peer: dict[str, Any] | None) -> str:
+    peer = peer or {}
+    text = _display_report_list(peer.get("candidate_sample_peers"), "none")
+    return "" if text == "none" else text
+
+
+def _peer_candidate_summary(peer: dict[str, Any] | None) -> str:
+    count = _peer_candidate_count(peer)
+    if count <= 0:
+        return "No candidate peer layer is recorded yet."
+    states = _peer_candidate_states(peer)
+    sample = _peer_candidate_sample(peer)
+    parts = [f"{count} candidate peer{'s' if count != 1 else ''} recorded in `data/peer_candidates.csv`"]
+    if states:
+        parts.append(f"states={states}")
+    if sample:
+        parts.append(f"sample={sample}")
+    return "; ".join(parts) + "."
+
+
 def _stock_report_data_health_handoff_line(
     *,
     ticker: str,
@@ -2191,6 +2227,7 @@ def _stock_report_source_audit_lines(
     else:
         peer_status = _display_report_status(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "ready")
         peer_action = _sentence_value(peer.get("next_peer_action") or peer.get("missing_peer_reason"))
+    candidate_summary = _peer_candidate_summary(peer)
     peer_lane = _stock_report_peer_lane(peer, readiness.get("peer_ready"))
     peer_import_target = (
         "verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals in `data/imports/fundamentals.csv`; use `data/imports/peers.csv` only if mappings change"
@@ -2202,7 +2239,8 @@ def _stock_report_source_audit_lines(
     return [
         f"- Prices: {_display_report_status(readiness.get('price_ready'))}; local source `data/prices.csv`; coverage {price_window}; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.",
         f"- Fundamentals / DCF: {_display_report_status(dcf_status_text)}; local source `data/fundamentals.csv`{dcf_reason_clause}; SEC_USER_AGENT {sec_status}; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.",
-        f"- Peers: {peer_status}; local source `data/peers.csv`; import target {peer_import_target}; next peer action {peer_action}.",
+        f"- Peers: {peer_status}; trusted local source `data/peers.csv`; candidate layer `data/peer_candidates.csv`; import target {peer_import_target}; next peer action {peer_action}.",
+        f"- Peer candidate layer: {candidate_summary}",
         f"- Earnings: {_display_report_status(earnings_ready)}; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.",
         f"- Analyst estimates: {_display_report_status(estimates_ready)}; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.",
         f"- Credentials: SEC_USER_AGENT {sec_status}; STOOQ_API_KEY {stooq_status}; missing remote credentials should not break local CSV reports or preview-first local import workflows.",
@@ -2271,6 +2309,7 @@ def _stock_report_data_unlock_lines(
     elif dcf_status_text != "ready":
         peer_line = "Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready."
     else:
+        candidate_summary = _peer_candidate_summary(peer)
         if _stock_report_peer_lane(peer, peer_ready) == "peer_valuation_inputs":
             peer_suffix = (
                 " Review mapped-peer price history in `data/imports/prices.csv`, fundamentals, market cap, or valuation inputs; "
@@ -2278,7 +2317,7 @@ def _stock_report_data_unlock_lines(
             )
         else:
             peer_suffix = "" if "data/imports/peers.csv" in peer_reason else " Add source-backed mappings in `data/imports/peers.csv`."
-        peer_line = f"Peer context is the next proof path after DCF: {peer_reason}.{peer_suffix}"
+        peer_line = f"Peer context is the next proof path after DCF: {peer_reason}.{peer_suffix} {candidate_summary}"
 
     if optional_ready:
         optional_line = "Earnings and analyst-estimate context is available from trusted local rows; treat it as context, not a recommendation."
@@ -2310,11 +2349,16 @@ def _stock_report_peer_unlock_lines(
     trend_ready = _is_ready_flag(peer.get("peer_trend_comparison_ready"))
     valuation_ready = any(
         _is_ready_flag(value)
-        for value in (peer.get("peer_valuation_comparison_ready"), peer.get("peer_dcf_comparison_ready"), peer_ready)
+        for value in (
+            peer.get("peer_valuation_ready"),
+            peer.get("peer_valuation_comparison_ready"),
+            peer.get("peer_dcf_comparison_ready"),
+        )
     )
     peer_count = _display_value(peer.get("peer_count"), "0")
     mapping_status = _display_report_status(peer.get("mapping_status"), "not ready")
     blocker = _display_report_status(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "not ready")
+    candidate_summary = _peer_candidate_summary(peer)
     if monitor_context:
         return [
             "- What this means: peer-relative company valuation is excluded for ETF/index/fund monitor context.",
@@ -2357,6 +2401,7 @@ def _stock_report_peer_unlock_lines(
     return [
         f"- What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by {blocker}.",
         f"- What can be reviewed now: DCF assumptions and sensitivity; {reviewable_peer_context} Mapped peer count={peer_count}.",
+        f"- Candidate layer: {candidate_summary}",
         "- What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison until source-backed peer mappings and peer valuation inputs pass readiness.",
         trusted_input_path,
         f"- Next peer action: {_sentence_value(next_peer_action, f'Run make focus-peers TICKER={ticker}')}.",
@@ -2375,11 +2420,16 @@ def _stock_report_peer_evidence_ladder_lines(
     trend_ready = _is_ready_flag(peer.get("peer_trend_comparison_ready"))
     valuation_ready = any(
         _is_ready_flag(value)
-        for value in (peer.get("peer_valuation_comparison_ready"), peer.get("peer_dcf_comparison_ready"), peer_ready)
+        for value in (
+            peer.get("peer_valuation_ready"),
+            peer.get("peer_valuation_comparison_ready"),
+            peer.get("peer_dcf_comparison_ready"),
+        )
     )
     peer_count = _display_value(peer.get("peer_count"), "0")
     mapping_status = _display_report_status(peer.get("mapping_status"), "not ready")
     blocker = _display_report_status(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "not ready")
+    candidate_summary = _peer_candidate_summary(peer)
     if monitor_context:
         return [
             "- Peer ladder: monitor context; operating-company peer valuation is excluded rather than repaired.",
@@ -2422,6 +2472,7 @@ def _stock_report_peer_evidence_ladder_lines(
     return [
         "- Peer ladder: standalone DCF can be reviewed before peer valuation is ready.",
         f"- Mapping evidence: mapping status={mapping_status}; peer count={peer_count}; blocker={blocker}.",
+        f"- Candidate evidence: {candidate_summary}",
         f"- Trend evidence: {trend_line}.",
         "- Valuation evidence: locked; do not show peer-relative premium/discount, peer valuation comparison, or peer DCF comparison.",
         trusted_peer_path,
@@ -2659,6 +2710,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     else:
         one_minute_parts.append(f"Primary blocker: {_display_report_status(decision.get('primary_blocker'))}.")
     peer_blocker = peer.get("peer_blocker_type") or peer.get("missing_peer_reason")
+    candidate_count = _peer_candidate_count(peer)
     core_data_before_peers = not monitor_context and dcf_status_text != "ready"
     if core_data_before_peers:
         one_minute_parts.append("Peer workflow: waits for trusted price, fundamentals, and DCF inputs first.")
@@ -2666,6 +2718,10 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         one_minute_parts.append("Peer workflow: ready for source-backed peer context.")
     elif peer_blocker and not monitor_context and _display_value(peer_blocker) != "Not available":
         one_minute_parts.append(f"Peer workflow: {_display_report_status(peer_blocker)}.")
+        if candidate_count > 0:
+            one_minute_parts.append(
+                f"Candidate peers recorded: {candidate_count}; trusted peer proof is still pending."
+            )
     if optional_locked:
         one_minute_parts.append("Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.")
     one_minute_next = _humanize_schema_terms(_stock_report_next_action(
@@ -3067,6 +3123,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
         f"- Peer count: {_display_value(peer.get('peer_count'))}",
+        f"- Candidate peer count: {_display_value(peer.get('candidate_peer_count'), '0')}",
+        f"- Candidate states: {_display_report_list(peer.get('candidate_states'), 'none recorded')}",
+        f"- Candidate sample peers: {_display_report_list(peer.get('candidate_sample_peers'), 'none recorded')}",
         f"- Trend comparison ready: {_display_report_status(peer.get('peer_trend_comparison_ready'))}",
         f"- Valuation comparison ready: {_display_report_status(peer.get('peer_valuation_comparison_ready'))}",
         f"- DCF peer comparison ready: {_display_report_status(peer.get('peer_dcf_comparison_ready'))}",
@@ -3127,6 +3186,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
     operator_summary = _stock_report_operator_summary(ticker=symbol, readiness=readiness, decision=purpose_decision)
     decision_primary_blocker = "monitor context" if monitor_context else _display_report_status(decision.get("primary_blocker"))
     core_data_before_peers = not monitor_context and dcf_status_text != "ready"
+    candidate_count = _peer_candidate_count(peer)
     if monitor_context:
         peer_blocker_display = "monitor context"
         mapping_status_display = "monitor context"
@@ -3160,6 +3220,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
             else "Peer workflow: waits for trusted price, fundamentals, and DCF inputs first."
             if core_data_before_peers
             else f"Peer workflow: {_display_report_status(peer.get('peer_blocker_type') or peer.get('missing_peer_reason'))}.",
+            ""
+            if monitor_context or core_data_before_peers or bool(peer.get("peer_ready") or readiness.get("peer_ready")) or candidate_count <= 0
+            else f"Candidate peers recorded: {candidate_count}; trusted peer proof is still pending.",
             "Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.",
             f"Next: {_sentence_value(next_action)}.",
         ]
@@ -3494,6 +3557,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
         f"- Peer count: {_display_value(peer.get('peer_count'))}",
+        f"- Candidate peer count: {_display_value(peer.get('candidate_peer_count'), '0')}",
+        f"- Candidate states: {_display_report_list(peer.get('candidate_states'), 'none recorded')}",
+        f"- Candidate sample peers: {_display_report_list(peer.get('candidate_sample_peers'), 'none recorded')}",
         f"- Trend comparison ready: {_display_report_status(peer.get('peer_trend_comparison_ready'))}",
         f"- Valuation comparison ready: {_display_report_status(peer.get('peer_valuation_comparison_ready'))}",
         f"- Next peer action: {peer_next_action_display}",
@@ -3661,6 +3727,19 @@ def _sec_staging_failure_message(exc: Exception) -> str:
     )
 
 
+def _yfinance_staging_failure_message(exc: Exception) -> str:
+    return (
+        "YFinance staging workflow failed before any fundamentals rows were applied. "
+        f"Reason: {exc}. "
+        "Next safe action: verify that the optional research dependency is installed with "
+        "`pip install -e '.[research]'`, confirm network access, then rerun the targeted yfinance stage command; "
+        "if yfinance is unavailable, inspect the blocker with make focus-fundamentals TICKER=<ticker>, prepare only "
+        "trusted or reviewed provider-assisted rows in data/imports/fundamentals.csv, and run make imports-validate "
+        "followed by make imports-preview before any apply. Research-only guardrail: do not infer or fabricate revenue, "
+        "free cash flow, shares outstanding, market cap, valuation inputs, or recommendations."
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a readable local single-stock research report.")
     parser.add_argument("--ticker", help="Ticker symbol to analyze")
@@ -3680,6 +3759,7 @@ def main() -> None:
     parser.add_argument("--preview-import-merge", action="store_true", help="Preview local import CSV merge effects without changing canonical data files.")
     parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge local import CSV files into canonical local data files.")
     parser.add_argument("--sec-stage-fundamentals", action="store_true", help="Fetch official SEC Companyfacts data and stage candidate fundamentals under data/imports/fundamentals.csv.")
+    parser.add_argument("--yfinance-stage-fundamentals", action="store_true", help="Fetch research-grade Yahoo/yfinance fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
     parser.add_argument("--tickers", help="Comma-separated tickers for the SEC staging workflow.")
     parser.add_argument("--from-local-tickers", action="store_true", help="Use locally discoverable tickers for the SEC staging workflow.")
     parser.add_argument("--from-universe", action="store_true", help="Use tickers from data/universe.csv for the SEC staging workflow.")
@@ -3855,6 +3935,55 @@ def main() -> None:
             for row in payload["row_summaries"]:
                 print(
                     f"{row['ticker']}: populated={','.join(row['populated_fields']) or '-'} "
+                    f"missing={','.join(row['missing_fields']) or '-'} "
+                    f"warnings={'; '.join(row['warnings']) or '-'}"
+                )
+            print("next:")
+            for command in payload["recommended_next_commands"]:
+                print(f"- {command}")
+        return
+
+    if args.yfinance_stage_fundamentals:
+        requested_tickers = _resolve_sec_tickers(args, cli_base_dir, cli_data_dir, cli_output_dir)
+        if not requested_tickers:
+            raise SystemExit(
+                "YFinance staging workflow requires at least one ticker source. Use --tickers, --from-local-tickers, "
+                "--from-universe, or --from-holdings."
+            )
+        try:
+            result = build_yfinance_fundamentals_rows(requested_tickers)
+            write_result = write_sec_fundamentals_import(
+                result["rows"],
+                output_path=cli_data_dir / "imports" / "fundamentals.csv",
+                overwrite=args.overwrite,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise SystemExit(_yfinance_staging_failure_message(exc)) from exc
+        payload = {
+            **result,
+            **write_result,
+            "recommended_next_commands": [
+                "make imports-validate",
+                "make imports-preview",
+                "make imports-apply",
+            ],
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print_paths()
+            print(f"requested_tickers: {', '.join(payload['requested_tickers']) or '-'}")
+            print(f"resolved_tickers: {', '.join(payload['resolved_tickers']) or '-'}")
+            print(f"unresolved_tickers: {', '.join(payload['unresolved_tickers']) or '-'}")
+            print(f"rows_written: {payload['rows_written']}")
+            print(f"staged_row_count: {payload.get('staged_row_count', 0)}")
+            print(f"output_path: {payload['output_path']}")
+            if payload["warnings"]:
+                print(f"warnings: {'; '.join(payload['warnings'])}")
+            for row in payload["row_summaries"]:
+                print(
+                    f"{row['ticker']}: source={row['source']} "
+                    f"populated={','.join(row['populated_fields']) or '-'} "
                     f"missing={','.join(row['missing_fields']) or '-'} "
                     f"warnings={'; '.join(row['warnings']) or '-'}"
                 )

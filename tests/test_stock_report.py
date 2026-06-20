@@ -1447,6 +1447,117 @@ def test_stock_report_distinguishes_local_inputs_from_allowed_analysis_when_dcf_
     assert "sell" not in markdown.lower()
 
 
+def test_stock_report_candidate_peers_are_visible_but_not_treated_as_trusted_peer_proof():
+    markdown = build_readiness_only_markdown(
+        "CRDO",
+        {
+            "readiness": {
+                "overall_readiness_state": "partial",
+                "asset_type": "company",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "ready_features": "price, momentum, fundamentals",
+                "blocked_features": "peer, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "peers: trusted peer proof still pending",
+                "next_action": "Review candidate peers before promoting trusted peer mappings for CRDO.",
+            },
+            "decision": {
+                "decision_bucket": "Research Candidate - DCF Ready But Peer Blocked",
+                "decision_subtype": "Peer Blocked",
+                "primary_blocker": "peers",
+                "main_reason": "Standalone DCF can be reviewed, but trusted peer proof is still pending.",
+                "next_best_action": "Review candidate peers before promoting trusted peer mappings for CRDO.",
+                "supported_analysis": "Supported analysis: price history, fundamentals, standalone DCF.",
+                "unsupported_analysis": "Unsupported analysis: peer-relative valuation until trusted peer mappings are reviewed.",
+                "confidence_explanation": "Data confidence is medium: candidate peers exist, but trusted peer proof is still pending.",
+            },
+            "dcf": {
+                "dcf_ready": True,
+                "reason_not_ready": "",
+                "missing_dcf_fields": "",
+            },
+            "peer": {
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "candidate_peer_count": 2,
+                "candidate_states": "candidate, research_only",
+                "candidate_sample_peers": "ALAB, MRVL",
+                "next_peer_action": "Review 2 candidate peer(s) for CRDO in data/peer_candidates.csv, then promote reviewed rows into data/imports/peers.csv.",
+            },
+        },
+        "Trusted peer mappings are still pending for CRDO.",
+    )
+
+    assert "Candidate peers recorded: 2; trusted peer proof is still pending." in markdown
+    assert "Candidate peer count: 2" in markdown
+    assert "Candidate states: candidate, research_only" in markdown
+    assert "Candidate sample peers: ALAB, MRVL" in markdown
+    assert "Candidate evidence: 2 candidate peers recorded in `data/peer_candidates.csv`" in markdown
+    assert "trusted local source `data/peers.csv`; candidate layer `data/peer_candidates.csv`" in markdown
+    assert "peer-relative valuation until trusted peer mappings are reviewed" in markdown
+    assert "calculated from trusted peer inputs" not in markdown
+
+
+def test_stock_report_keeps_peer_valuation_blocked_when_trend_is_ready_but_peer_fundamentals_are_missing():
+    markdown = build_readiness_only_markdown(
+        "AAL",
+        {
+            "readiness": {
+                "overall_readiness_state": "partial",
+                "asset_type": "company",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "blocked_features": "peer, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "peers: needs trusted fundamentals for mapped peers LUV, UAL",
+                "next_action": "Import trusted fundamentals for mapped peers: LUV, UAL.",
+            },
+            "decision": {
+                "decision_bucket": "Research Candidate - DCF Ready But Peer Blocked",
+                "decision_subtype": "Peer Blocked",
+                "primary_blocker": "peers",
+                "main_reason": "Standalone DCF can be reviewed, but peer-relative valuation still needs mapped-peer fundamentals.",
+                "next_best_action": "Import trusted fundamentals for mapped peers: LUV, UAL.",
+                "supported_analysis": "Supported analysis: local price context, fundamentals, standalone DCF, and peer trend comparison.",
+                "unsupported_analysis": "Unsupported analysis: peer-relative valuation while mapped-peer fundamentals remain missing.",
+                "confidence_explanation": "Data confidence is medium: mapped peers exist, but peer valuation inputs are incomplete.",
+            },
+            "dcf": {
+                "dcf_ready": True,
+                "reason_not_ready": "",
+                "missing_dcf_fields": "",
+            },
+            "peer": {
+                "peer_ready": True,
+                "mapping_status": "mapped",
+                "peer_count": 3,
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "peer_missing_fundamentals_tickers": "LUV, UAL",
+                "peer_missing_valuation_tickers": "LUV, UAL",
+                "next_peer_action": "Import trusted fundamentals for mapped peers: LUV, UAL.",
+            },
+        },
+        "Peer-relative valuation stays blocked until mapped-peer fundamentals are reviewed.",
+    )
+
+    assert "peer trend comparison can be reviewed from mapped peer price history" in markdown
+    assert "peer-relative valuation, premium/discount, and peer DCF comparison stay withheld" in markdown
+    assert "peer valuation status=ready" not in markdown
+    assert "What this means: peer context is ready from source-backed peer inputs" not in markdown
+    assert "Import trusted fundamentals for mapped peers: LUV, UAL." in markdown
+
+
 def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available(tmp_path: Path):
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "prices.csv").write_text(
@@ -1832,6 +1943,81 @@ def test_stock_report_cli_sec_stage_failure_shows_safe_manual_fallback(monkeypat
     message = str(exc_info.value)
     assert "SEC staging workflow failed before any fundamentals rows were applied" in message
     assert "verify network access and SEC_USER_AGENT" in message
+    assert "make focus-fundamentals TICKER=<ticker>" in message
+
+
+def test_stock_report_cli_yfinance_stage_json_surfaces_make_based_follow_up(monkeypatch, tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    monkeypatch.setattr(
+        "src.stock_report.build_yfinance_fundamentals_rows",
+        lambda requested_tickers: {
+            "requested_tickers": requested_tickers,
+            "resolved_tickers": requested_tickers,
+            "unresolved_tickers": [],
+            "rows": [{"ticker": requested_tickers[0], "revenue": 1000, "source": "yfinance_research_grade"}],
+            "warnings": [],
+            "row_summaries": [
+                {"ticker": requested_tickers[0], "source": "yfinance_research_grade", "populated_fields": ["revenue"], "missing_fields": [], "warnings": []}
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        "src.stock_report.write_sec_fundamentals_import",
+        lambda rows, output_path, overwrite: {
+            "rows_written": len(rows),
+            "staged_row_count": len(rows),
+            "output_path": str(output_path),
+        },
+    )
+
+    sys.argv = ["python", "--project-root", str(tmp_path), "--yfinance-stage-fundamentals", "--tickers", "NVDA", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["recommended_next_commands"] == [
+            "make imports-validate",
+            "make imports-preview",
+            "make imports-apply",
+        ]
+        assert payload["resolved_tickers"] == ["NVDA"]
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_yfinance_stage_failure_shows_dependency_and_network_fallback(monkeypatch, tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    def fake_build(*_args, **_kwargs):
+        raise RuntimeError("yfinance is not installed. Add it to the environment before using YFinanceProvider.")
+
+    monkeypatch.setattr("src.stock_report.build_yfinance_fundamentals_rows", fake_build)
+
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--yfinance-stage-fundamentals",
+        "--tickers",
+        "NVDA",
+    ]
+    try:
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+    message = str(exc_info.value)
+    assert "YFinance staging workflow failed before any fundamentals rows were applied" in message
+    assert "pip install -e '.[research]'" in message
     assert "make focus-fundamentals TICKER=<ticker>" in message
     assert "make imports-validate" in message
     assert "make imports-preview" in message

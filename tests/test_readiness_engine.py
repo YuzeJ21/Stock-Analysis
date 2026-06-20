@@ -225,6 +225,81 @@ def test_partial_peer_mapping_next_action_prioritizes_peer_unlock(tmp_path: Path
     assert "Optional context" not in readiness.loc["COHR", "next_action"]
 
 
+def test_candidate_peer_layer_guides_next_action_without_unlocking_trusted_peer_readiness(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "CRDO", "name": "Credo", "asset_type": "company", "source": "fixture"},
+            {"ticker": "ALAB", "name": "Astera", "asset_type": "company", "source": "fixture"},
+            {"ticker": "MRVL", "name": "Marvell", "asset_type": "company", "source": "fixture"},
+        ]
+    ).to_csv(
+        data_dir / "universe_master.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "CRDO", "scope": "active_research", "theme": "Connectivity"}]).to_csv(
+        data_dir / "universe_active.csv",
+        index=False,
+    )
+    pd.DataFrame(_price_rows("CRDO", 60) + _price_rows("ALAB", 60) + _price_rows("MRVL", 60)).to_csv(
+        data_dir / "prices.csv",
+        index=False,
+    )
+    pd.DataFrame(
+        [
+            {"ticker": "CRDO", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10, "source": "fixture"},
+            {"ticker": "ALAB", "revenue": 80, "free_cash_flow": 10, "fcf_margin": 0.125, "shares_outstanding": 8, "source": "fixture"},
+            {"ticker": "MRVL", "revenue": 90, "free_cash_flow": 12, "fcf_margin": 0.13, "shares_outstanding": 9, "source": "fixture"},
+        ]
+    ).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(columns=["ticker", "peer_ticker", "peer_group", "source"]).to_csv(data_dir / "peers.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "ticker": "CRDO",
+                "peer_ticker": "ALAB",
+                "candidate_state": "candidate",
+                "peer_group": "connectivity",
+                "source": "fixture",
+            },
+            {
+                "ticker": "CRDO",
+                "peer_ticker": "MRVL",
+                "candidate_state": "research_only",
+                "peer_group": "connectivity",
+                "source": "fixture",
+            },
+        ]
+    ).to_csv(data_dir / "peer_candidates.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
+
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    readiness = reports["ticker_readiness_report"].set_index("ticker")
+    peers = reports["peer_readiness_report"].set_index("ticker")
+    source_status = reports["data_source_status"].set_index("source_name")
+    worklist = reports["peer_unlock_worklist"].set_index("ticker")
+
+    assert bool(readiness.loc["CRDO", "dcf_ready"]) is True
+    assert bool(readiness.loc["CRDO", "peer_ready"]) is False
+    assert int(peers.loc["CRDO", "peer_count"]) == 0
+    assert int(peers.loc["CRDO", "candidate_peer_count"]) == 2
+    assert peers.loc["CRDO", "candidate_mapping_status"] == "candidate_available"
+    assert peers.loc["CRDO", "candidate_states"] == "candidate, research_only"
+    assert "data/peer_candidates.csv" in peers.loc["CRDO", "next_peer_action"]
+    assert "data/imports/peers.csv" in peers.loc["CRDO", "next_peer_action"]
+    assert source_status.loc["local_peer_candidates", "status"] == "available"
+    assert "data/imports/peer_candidates.csv" == source_status.loc["local_peer_candidates", "manual_import_path"]
+    assert "data/peer_candidates.csv" in worklist.loc["CRDO", "next_action_summary"]
+    assert worklist.loc["CRDO", "next_input_file"] == "data/imports/peers.csv"
+
+
 def test_readiness_requires_source_and_minimum_ready_peer_metrics(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)

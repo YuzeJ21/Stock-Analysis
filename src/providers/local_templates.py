@@ -6,7 +6,7 @@ from typing import Any
 from src.providers.local_schemas import LOCAL_DATASET_SCHEMAS
 
 
-TEMPLATE_DATASETS = ("fundamentals", "earnings", "analyst_estimates", "peers")
+TEMPLATE_DATASETS = ("fundamentals", "earnings", "analyst_estimates", "peers", "peer_candidates")
 
 
 def template_columns(dataset_name: str) -> list[str]:

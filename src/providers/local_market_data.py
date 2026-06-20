@@ -16,6 +16,8 @@ from src.providers.market_data import (
     make_source_metadata,
 )
 
+ALLOWED_CANDIDATE_STATES = {"candidate", "fallback_context", "research_only"}
+
 
 class LocalCSVMarketDataProvider(MarketDataProvider):
     """Research provider backed by local project CSVs.
@@ -35,6 +37,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         self._price_rows_by_ticker: dict[str, pd.DataFrame] = {}
         self._dataset_rows_by_ticker: dict[str, dict[str, pd.Series]] = {}
         self._peer_rows_by_ticker: dict[str, tuple[pd.DataFrame, list[str]]] = {}
+        self._peer_candidate_rows_by_ticker: dict[str, tuple[pd.DataFrame, list[str]]] = {}
 
     def _source(self, file_path: Path, freshness: str, notes: list[str]) -> object:
         retrieved_at = (
@@ -167,7 +170,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
 
     def list_local_tickers(self) -> list[str]:
         return self.catalog.list_tickers(
-            ["prices", "fundamentals", "earnings", "analyst_estimates", "peers", "universe", "holdings"]
+            ["prices", "fundamentals", "earnings", "analyst_estimates", "peers", "peer_candidates", "universe", "holdings"]
         )
 
     def get_local_data_validation(self) -> list[dict[str, Any]]:
@@ -182,6 +185,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
                 "earnings",
                 "analyst_estimates",
                 "peers",
+                "peer_candidates",
                 "purpose_classification",
                 "momentum_leaders",
                 "portfolio_review",
@@ -191,36 +195,70 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         )
         return [row.to_dict() for row in coverage]
 
-    def _peer_rows_for_ticker(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+    def _mapping_rows_for_ticker(
+        self,
+        dataset_name: str,
+        ticker: str,
+        cache: dict[str, tuple[pd.DataFrame, list[str]]],
+        *,
+        warning_label: str,
+    ) -> tuple[pd.DataFrame, list[str]]:
         ticker = ticker.upper().strip()
-        if ticker in self._peer_rows_by_ticker:
-            selected, warnings = self._peer_rows_by_ticker[ticker]
+        if ticker in cache:
+            selected, warnings = cache[ticker]
             return selected.copy(), list(warnings)
-        peers = self._load_optional_dataset("peers")
+        peers = self._load_optional_dataset(dataset_name)
         if peers.empty or "ticker" not in peers.columns or "peer_ticker" not in peers.columns:
             return pd.DataFrame(), []
         tickers = peers["ticker"].astype(str).str.upper().str.strip()
         selected = peers.loc[tickers == ticker].copy()
         if selected.empty:
-            self._peer_rows_by_ticker[ticker] = (selected, [])
+            cache[ticker] = (selected, [])
             return selected, []
 
         warnings: list[str] = []
         selected["peer_ticker"] = selected["peer_ticker"].astype(str).str.upper().str.strip()
         self_rows = selected.loc[selected["peer_ticker"] == ticker]
         if not self_rows.empty:
-            warnings.append(f"Ignored {len(self_rows)} self-peer row(s) for {ticker}.")
+            warnings.append(f"Ignored {len(self_rows)} self-{warning_label} row(s) for {ticker}.")
             selected = selected.loc[selected["peer_ticker"] != ticker].copy()
 
         duplicate_mask = selected.duplicated(subset=["ticker", "peer_ticker"], keep="last")
         duplicate_count = int(duplicate_mask.sum())
         if duplicate_count:
-            warnings.append(f"Ignored {duplicate_count} duplicate peer mapping row(s) for {ticker}.")
+            warnings.append(f"Ignored {duplicate_count} duplicate {warning_label} row(s) for {ticker}.")
             selected = selected.loc[~duplicate_mask].copy()
 
         selected = selected.sort_values(["ticker", "peer_ticker"]).reset_index(drop=True)
-        self._peer_rows_by_ticker[ticker] = (selected, warnings)
+        cache[ticker] = (selected, warnings)
         return selected.copy(), list(warnings)
+
+    def _peer_rows_for_ticker(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        return self._mapping_rows_for_ticker(
+            "peers",
+            ticker,
+            self._peer_rows_by_ticker,
+            warning_label="peer mapping row",
+        )
+
+    def _peer_candidate_rows_for_ticker(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        rows, warnings = self._mapping_rows_for_ticker(
+            "peer_candidates",
+            ticker,
+            self._peer_candidate_rows_by_ticker,
+            warning_label="peer-candidate row",
+        )
+        if rows.empty:
+            return rows, warnings
+        candidate_states = (
+            rows.get("candidate_state", pd.Series(dtype=object))
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.lower()
+        )
+        rows = rows.assign(candidate_state=candidate_states)
+        return rows, warnings
 
     def get_peer_tickers(self, ticker: str) -> list[str]:
         peer_rows, _warnings = self._peer_rows_for_ticker(ticker)
@@ -231,9 +269,31 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
     def get_peer_summary(self, ticker: str) -> dict[str, Any]:
         ticker = ticker.upper()
         peer_rows, warnings = self._peer_rows_for_ticker(ticker)
+        candidate_rows, candidate_warnings = self._peer_candidate_rows_for_ticker(ticker)
         metadata = self.catalog.dataset_metadata("peers")
+        candidate_metadata = self.catalog.dataset_metadata("peer_candidates")
         peer_tickers = peer_rows["peer_ticker"].dropna().astype(str).str.upper().str.strip().tolist() if not peer_rows.empty else []
         peer_groups = sorted({str(value) for value in peer_rows.get("peer_group", pd.Series(dtype=object)).dropna().astype(str)} )
+        candidate_tickers = (
+            candidate_rows["peer_ticker"].dropna().astype(str).str.upper().str.strip().tolist()
+            if not candidate_rows.empty
+            else []
+        )
+        candidate_groups = sorted(
+            {
+                str(value)
+                for value in candidate_rows.get("peer_group", pd.Series(dtype=object)).dropna().astype(str)
+            }
+        )
+        candidate_states = sorted(
+            {
+                str(value).strip().lower()
+                for value in candidate_rows.get("candidate_state", pd.Series(dtype=object)).dropna().astype(str)
+                if str(value).strip()
+            }
+        )
+        valid_candidate_states = sorted(state for state in candidate_states if state in ALLOWED_CANDIDATE_STATES)
+        invalid_candidate_states = sorted(state for state in candidate_states if state not in ALLOWED_CANDIDATE_STATES)
         peers_with_fundamentals: list[str] = []
         peers_with_quote_or_market_cap: list[str] = []
         for peer_ticker in peer_tickers:
@@ -271,6 +331,25 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             "peer_market_context_available": len(peers_with_quote_or_market_cap),
             "warnings": warnings,
             "source_metadata": metadata.source,
+            "candidate_dataset_present": candidate_metadata.validation_status != "missing_file",
+            "candidate_dataset_status": candidate_metadata.validation_status,
+            "candidate_peer_group": candidate_groups[0] if len(candidate_groups) == 1 else None,
+            "candidate_peer_groups": candidate_groups,
+            "candidate_peer_tickers": candidate_tickers,
+            "candidate_peer_count": len(candidate_tickers),
+            "candidate_states": valid_candidate_states,
+            "invalid_candidate_states": invalid_candidate_states,
+            "candidate_mapping_status": (
+                "candidate_available"
+                if len(candidate_tickers) >= 2 and valid_candidate_states
+                else "candidate_unlabeled"
+                if len(candidate_tickers) >= 1 and not valid_candidate_states
+                else "candidate_insufficient"
+                if len(candidate_tickers) == 1
+                else "candidate_missing"
+            ),
+            "candidate_warnings": candidate_warnings,
+            "candidate_source_metadata": candidate_metadata.source,
         }
 
     def get_peer_valuation_inputs(self, ticker: str) -> list[dict[str, Any]]:

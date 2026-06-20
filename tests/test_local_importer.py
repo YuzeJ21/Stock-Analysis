@@ -114,6 +114,27 @@ def test_preview_import_merge_handles_peers_by_ticker_and_peer_ticker(tmp_path: 
     assert preview["new_rows"] == 1
 
 
+def test_preview_import_merge_handles_peer_candidates_by_ticker_and_peer_ticker(tmp_path: Path):
+    data_dir, imports_dir = _setup_dirs(tmp_path)
+    (data_dir / "peer_candidates.csv").write_text(
+        "ticker,peer_ticker,candidate_state,peer_group\n"
+        "NVDA,AMD,candidate,semis\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "peer_candidates.csv").write_text(
+        "ticker,peer_ticker,candidate_state,peer_group\n"
+        "NVDA,AMD,research_only,semis\n"
+        "NVDA,AVGO,candidate,semis\n",
+        encoding="utf-8",
+    )
+
+    result = preview_import_merge(base_dir=tmp_path)
+    preview = next(item for item in result["preview"] if item["dataset_name"] == "peer_candidates")
+
+    assert preview["updated_rows"] == 1
+    assert preview["new_rows"] == 1
+
+
 def test_apply_import_merge_creates_backup_and_updates_and_appends_rows(tmp_path: Path):
     data_dir, imports_dir = _setup_dirs(tmp_path)
     (data_dir / "fundamentals.csv").write_text(
@@ -230,6 +251,31 @@ def test_apply_import_merge_handles_peer_composite_keys(tmp_path: Path):
     assert set(zip(merged["ticker"], merged["peer_ticker"])) == {("NVDA", "AMD"), ("NVDA", "AVGO")}
     amd = merged.loc[merged["peer_ticker"] == "AMD"].iloc[0]
     assert amd["peer_group"] == "ai_semis"
+    assert amd["source"] == "new"
+
+
+def test_apply_import_merge_handles_peer_candidate_composite_keys(tmp_path: Path):
+    data_dir, imports_dir = _setup_dirs(tmp_path)
+    (data_dir / "peer_candidates.csv").write_text(
+        "ticker,peer_ticker,candidate_state,peer_group,source,as_of_date\n"
+        "NVDA,AMD,candidate,semis,old,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "peer_candidates.csv").write_text(
+        "ticker,peer_ticker,candidate_state,peer_group,source,as_of_date\n"
+        "NVDA,AMD,research_only,semis,new,2026-05-01\n"
+        "NVDA,AVGO,candidate,semis,new,2026-05-01\n",
+        encoding="utf-8",
+    )
+
+    result = apply_import_merge(base_dir=tmp_path)
+    merged = pd.read_csv(data_dir / "peer_candidates.csv")
+
+    assert result["status"] == "applied"
+    assert len(merged) == 2
+    assert set(zip(merged["ticker"], merged["peer_ticker"])) == {("NVDA", "AMD"), ("NVDA", "AVGO")}
+    amd = merged.loc[merged["peer_ticker"] == "AMD"].iloc[0]
+    assert amd["candidate_state"] == "research_only"
     assert amd["source"] == "new"
 
 

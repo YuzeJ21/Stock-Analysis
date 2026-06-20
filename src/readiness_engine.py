@@ -17,6 +17,8 @@ from src.loader import normalize_columns
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.universe_model import ASSET_TYPES, build_universe_coverage_report, ensure_universe_files, infer_asset_type
 
+ALLOWED_CANDIDATE_STATES = {"candidate", "fallback_context", "research_only"}
+
 
 TICKER_READINESS_COLUMNS = [
     "ticker",
@@ -92,6 +94,11 @@ PEER_READINESS_COLUMNS = [
     "peer_count",
     "sample_peers",
     "mapping_status",
+    "candidate_peer_group",
+    "candidate_peer_count",
+    "candidate_sample_peers",
+    "candidate_mapping_status",
+    "candidate_states",
     "peer_blocker_type",
     "peer_price_ready",
     "peer_momentum_ready",
@@ -453,6 +460,7 @@ def build_fundamentals_coverage_report(root: Path, data_path: Path, master: pd.D
 
 def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFrame, thresholds: dict[str, Any]) -> pd.DataFrame:
     peers = _read_csv(data_path / "peers.csv")
+    peer_candidates = _read_csv(data_path / "peer_candidates.csv")
     fundamentals = _read_csv(data_path / "fundamentals.csv")
     prices = _read_csv(data_path / "prices.csv")
     universe_tickers = _ticker_set(master)
@@ -467,6 +475,32 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
             valid_peers = sorted(set(ticker_peers["peer_ticker"]) & universe_tickers - {ticker})
         else:
             valid_peers = []
+        ticker_candidate_peers = (
+            peer_candidates.loc[peer_candidates["ticker"] == ticker].copy()
+            if not peer_candidates.empty and "ticker" in peer_candidates.columns
+            else pd.DataFrame()
+        )
+        if not ticker_candidate_peers.empty and "peer_ticker" in ticker_candidate_peers.columns:
+            ticker_candidate_peers["peer_ticker"] = ticker_candidate_peers["peer_ticker"].astype(str).str.upper().str.strip()
+            candidate_states = (
+                ticker_candidate_peers.get("candidate_state", pd.Series(dtype=object))
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.lower()
+            )
+            ticker_candidate_peers["candidate_state"] = candidate_states
+            valid_candidate_peers = sorted(set(ticker_candidate_peers["peer_ticker"]) & universe_tickers - {ticker})
+            valid_candidate_states = sorted(
+                {
+                    state
+                    for state in candidate_states.tolist()
+                    if state in ALLOWED_CANDIDATE_STATES
+                }
+            )
+        else:
+            valid_candidate_peers = []
+            valid_candidate_states = []
         price_ready_peers = []
         momentum_ready_peers = []
         fundamentals_ready_peers = []
@@ -506,6 +540,18 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
         if not ticker_peers.empty and "peer_group" in ticker_peers.columns:
             values = ticker_peers["peer_group"].dropna().astype(str).str.strip()
             group = values.iloc[-1] if not values.empty else ""
+        candidate_group = ""
+        if not ticker_candidate_peers.empty and "peer_group" in ticker_candidate_peers.columns:
+            values = ticker_candidate_peers["peer_group"].dropna().astype(str).str.strip()
+            candidate_group = values.iloc[-1] if not values.empty else ""
+        if len(valid_candidate_peers) >= min_peers and valid_candidate_states:
+            candidate_mapping_status = "candidate_available"
+        elif len(valid_candidate_peers) and not valid_candidate_states:
+            candidate_mapping_status = "candidate_unlabeled"
+        elif len(valid_candidate_peers):
+            candidate_mapping_status = "candidate_insufficient"
+        else:
+            candidate_mapping_status = "candidate_missing"
         if peer_ready:
             reason = "peer trend comparison ready; peer valuation still requires peer_valuation_ready" if not peer_valuation_ready else ""
         elif len(valid_peers) < min_peers:
@@ -515,7 +561,26 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
         else:
             reason = f"needs at least {min_peers} valid peers with local metrics"
         if blocker_type == "missing_peer_mapping":
-            next_peer_action = f"Add at least {min_peers} source-backed peer mappings for {ticker} in data/imports/peers.csv."
+            if len(valid_candidate_peers) >= min_peers and valid_candidate_states:
+                reason = (
+                    f"{reason}; {len(valid_candidate_peers)} candidate peer(s) are available in data/peer_candidates.csv "
+                    f"with states {', '.join(valid_candidate_states)}"
+                )
+                next_peer_action = (
+                    f"Review {len(valid_candidate_peers)} candidate peer(s) for {ticker} in data/peer_candidates.csv, "
+                    f"then promote at least {min_peers} reviewed rows into data/imports/peers.csv."
+                )
+            elif len(valid_candidate_peers):
+                reason = (
+                    f"{reason}; {len(valid_candidate_peers)} candidate peer(s) exist in data/peer_candidates.csv but need explicit "
+                    "candidate_state labels before they can guide promotion"
+                )
+                next_peer_action = (
+                    f"Label candidate rows for {ticker} in data/peer_candidates.csv as candidate, fallback_context, or research_only, "
+                    f"then promote reviewed peers into data/imports/peers.csv."
+                )
+            else:
+                next_peer_action = f"Add at least {min_peers} source-backed peer mappings for {ticker} in data/imports/peers.csv."
         elif blocker_type == "peer_price_missing":
             next_peer_action = f"Add trusted price history for mapped peers: {', '.join(missing_price_peers[:5])}."
         elif blocker_type == "peer_momentum_missing":
@@ -533,6 +598,11 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
                 "peer_count": len(valid_peers),
                 "sample_peers": ", ".join(valid_peers[:5]),
                 "mapping_status": mapping_status,
+                "candidate_peer_group": candidate_group,
+                "candidate_peer_count": len(valid_candidate_peers),
+                "candidate_sample_peers": ", ".join(valid_candidate_peers[:5]),
+                "candidate_mapping_status": candidate_mapping_status,
+                "candidate_states": ", ".join(valid_candidate_states),
                 "peer_blocker_type": blocker_type,
                 "peer_price_ready": peer_price_ready,
                 "peer_momentum_ready": peer_momentum_ready,
@@ -579,6 +649,7 @@ def build_data_source_status(root: Path, data_path: Path) -> pd.DataFrame:
         ("local_analyst_estimates", "local_csv", data_path / "analyst_estimates.csv", "", "data/staged/analyst_estimates/"),
         ("staged_analyst_estimates", "manual_staged_csv", data_path / "staged" / "analyst_estimates", "", "data/staged/analyst_estimates/"),
         ("local_peers", "local_csv", data_path / "peers.csv", "", "data/imports/peers.csv"),
+        ("local_peer_candidates", "local_csv", data_path / "peer_candidates.csv", "", "data/imports/peer_candidates.csv"),
         ("universe_master", "local_csv", data_path / "universe_master.csv", "", "data/staged/universe/"),
         ("universe_active", "local_csv", data_path / "universe_active.csv", "", "data/universe_active.csv"),
     ]
@@ -762,7 +833,16 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
         if blocker_type == "missing_peer_mapping":
             unlock_stage = "add_source_backed_peer_mappings"
             workflow_group = "dcf_ready_peer_mapping" if dcf_ready else "price_ready_peer_mapping" if price_ready else "peer_mapping_after_price"
-            next_action_summary = "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data."
+            candidate_count = int(peer_row.get("candidate_peer_count") or 0)
+            candidate_states = _text_value(peer_row.get("candidate_states"))
+            if candidate_count:
+                next_action_summary = (
+                    f"Review {candidate_count} candidate peer row(s) in data/peer_candidates.csv"
+                    + (f" ({candidate_states})" if candidate_states else "")
+                    + "; then promote only reviewed source-backed peers into data/imports/peers.csv."
+                )
+            else:
+                next_action_summary = "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data."
             next_input_file = "data/imports/peers.csv"
             validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
         elif blocker_type in {"peer_price_missing", "peer_momentum_missing"}:
