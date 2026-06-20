@@ -472,6 +472,17 @@ def single_stock_pre_report_contract_cards(
 
     return [
         {
+            "kicker": "RESEARCH LOOP",
+            "title": f"{ticker_text}: pre-report contract",
+            "body": (
+                "Previous proof: Home readiness snapshot plus selected-ticker local coverage rows. "
+                "Current step: decide what the selected ticker can support before opening the report. "
+                f"Next safe action: {next_lane}. Stop rule: {stop_rule}"
+            ),
+            "badges": ["where am I", "proof first"],
+            "command": next_command,
+        },
+        {
             "kicker": "SELECTED TICKER",
             "title": f"{ticker_text}: {state_title}",
             "body": f"{available_datasets} local dataset row(s) are present before the report loads. Peer mappings: {peer_count}.",

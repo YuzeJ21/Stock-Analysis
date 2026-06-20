@@ -9900,6 +9900,7 @@ def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_r
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
+        "RESEARCH LOOP",
         "SELECTED TICKER",
         "REVIEW NOW",
         "BLOCKED / EXCLUDED",
@@ -9907,6 +9908,10 @@ def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_r
         "NEXT SAFE ACTION",
         "STOP RULE",
     ]
+    assert "meta: pre-report contract" in rendered
+    assert "previous proof: home readiness snapshot plus selected-ticker local coverage rows" in rendered
+    assert "current step: decide what the selected ticker can support before opening the report" in rendered
+    assert "next safe action: data health fundamentals lane" in rendered
     assert "meta: price context ready; fundamentals gated" in rendered
     assert "local price context can be reviewed" in rendered
     assert "trusted fundamentals, shares, fcf, market cap, and valuation inputs remain source-proof work" in rendered
@@ -9969,12 +9974,15 @@ def test_single_stock_pre_report_contract_cards_route_price_and_peer_gates():
     assert "setup, trend, dcf, peer, optional context, and review metrics stay locked" in price_rendered
     assert "price rows are missing, stale, rejected, or not tied to the selected ticker" in price_rendered
     assert "open the report, then follow the locks" in price_rendered
+    assert "next safe action: data health price lane" in price_rendered
     assert "nvda: core inputs present; peer context gated" in peer_rendered
     assert "data health peers lane" in peer_rendered
+    assert "next safe action: data health peers lane" in peer_rendered
     assert "make focus-peers ticker=nvda" in peer_rendered
     assert "peer mappings or peer valuation inputs lack source-backed rows" in peer_rendered
     assert "open the report, then follow the locks" in peer_rendered
     assert "crdo: ready to open the local report" in ready_rendered
+    assert "next safe action: single-stock report" in ready_rendered
     assert "make stock-report-md ticker=crdo" in ready_rendered
     assert "readiness changed after a local import, refresh, or proof update" in ready_rendered
     assert "open the report, then follow the locks" in ready_rendered
