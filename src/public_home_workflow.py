@@ -1,6 +1,15 @@
 from __future__ import annotations
 
 
+def _format_optional_text(value: object, fallback: str) -> str:
+    if value is None:
+        return fallback
+    text = str(value).strip()
+    if not text or text.lower() in {"nan", "none", "null", "<na>"}:
+        return fallback
+    return text
+
+
 def public_home_first_30_second_cards(summary: dict[str, object]) -> list[dict[str, object]]:
     """Return a compact public explanation before workflow details."""
 
@@ -36,6 +45,79 @@ def public_home_first_30_second_cards(summary: dict[str, object]) -> list[dict[s
                 "the product stops at the data gap and keeps the conclusion unavailable."
             ),
             "badges": ["no data, no conclusion", "blocked stays blocked"],
+        },
+    ]
+
+
+def public_home_current_data_coverage_cards(summary: dict[str, object]) -> list[dict[str, object]]:
+    """Return the public Home coverage snapshot cards without renderer dependencies."""
+
+    master = int(summary.get("master_universe") or summary.get("master_count") or summary.get("universe_count") or 0)
+    active = int(summary.get("active_universe") or summary.get("active_count") or 0)
+    blocked = int(summary.get("blocked_by_data") or summary.get("blocked") or 0)
+    partial = int(summary.get("partial") or 0)
+    updated_at = _format_optional_text(summary.get("updated_at"), "Run make readiness for the latest timestamp")
+
+    def _coverage_line(label: str, key: str, *, blocked_key: str | None = None) -> str:
+        ready = int(summary.get(key) or 0)
+        denominator = master or 0
+        pct = (ready / denominator * 100) if denominator else 0.0
+        blocked_count = int(summary.get(blocked_key) or max(denominator - ready, 0)) if blocked_key else max(denominator - ready, 0)
+        return f"{label}: {ready:,}/{denominator:,} ready ({pct:.1f}%); {blocked_count:,} still locked."
+
+    return [
+        {
+            "kicker": "CURRENT SNAPSHOT",
+            "title": f"{master:,} tracked / {active:,} active",
+            "body": (
+                f"{partial:,} tickers have partial coverage and {blocked:,} are blocked by data. "
+                f"Snapshot timestamp: {updated_at}."
+            ),
+            "badges": ["public snapshot", "row-limited"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "BREADTH",
+            "title": "Price and setup coverage",
+            "body": (
+                f"{_coverage_line('Price', 'price_ready')} "
+                f"{_coverage_line('Momentum', 'momentum_ready')} "
+                "Use the capped dry run before changing local CSVs."
+            ),
+            "badges": ["biggest unlock", "dry-run first"],
+            "command": "make price-refresh-loop DRY_RUN=1",
+        },
+        {
+            "kicker": "DEPTH",
+            "title": "Fundamentals and DCF coverage",
+            "body": (
+                f"{_coverage_line('Fundamentals', 'fundamentals_ready')} "
+                f"{_coverage_line('DCF', 'dcf_ready')} "
+                "DCF-ready means scenario math can be reviewed; blocked does not mean negative."
+            ),
+            "badges": ["valuation gated", "trusted rows only"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "RELATIVE CONTEXT",
+            "title": "Peer coverage",
+            "body": (
+                f"{_coverage_line('Peers', 'peer_ready')} "
+                "Peer trend and peer valuation remain separate; missing mappings are not inferred from sector labels."
+            ),
+            "badges": ["source-backed peers", "no fallback as fact"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": "Earnings and analyst estimates",
+            "body": (
+                f"{_coverage_line('Earnings', 'earnings_ready')} "
+                f"{_coverage_line('Analyst estimates', 'analyst_estimates_ready')} "
+                "Zero ready rows means intentionally locked until trusted local inputs exist."
+            ),
+            "badges": ["schema first", "not inferred"],
+            "command": "make optional-context-worklist TOP_N=25",
         },
     ]
 
@@ -295,5 +377,97 @@ def public_home_real_workflow_cards(summary: dict[str, object]) -> list[dict[str
             ),
             "badges": ["proof before interpretation", "research-only"],
             "command": "make pilot-readiness-check TOP_N=10",
+        },
+    ]
+
+
+def public_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, object]]:
+    """Return copy-ready public Home next-step cards gated by readiness state."""
+
+    price_ready = int(summary.get("price_ready") or 0)
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    earnings_ready = int(summary.get("earnings_ready") or 0)
+    estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
+
+    if price_ready < master:
+        primary = {
+            "kicker": "BEST NEXT STEP",
+            "title": "Expand price coverage",
+            "body": (
+                "More tickers need daily price history before momentum, liquidity, and market-context views become useful. "
+                "Start with the scalable dry run so you can review a capped batch plan instead of repeating 25-ticker refreshes manually."
+            ),
+            "badges": ["biggest blocker", "dry run first"],
+            "command": "make price-refresh-loop DRY_RUN=1",
+        }
+    elif dcf_ready <= peer_ready:
+        primary = {
+            "kicker": "BEST NEXT STEP",
+            "title": "Add trusted fundamentals",
+            "body": "Fundamentals unlock DCF and better company-level research. Use trusted SEC or local CSV inputs only.",
+            "badges": ["deep research"],
+            "command": "make sec-stage-queue TOP_N=25",
+        }
+    else:
+        primary = {
+            "kicker": "BEST NEXT STEP",
+            "title": "Add source-backed peers",
+            "body": "Peer mappings unlock peer comparison for DCF-ready companies. Do not use guessed peer relationships.",
+            "badges": ["peer research"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        }
+
+    optional_title = "Optional context is locked"
+    optional_body = "Earnings and analyst estimates are not broken; they are waiting for trusted inputs."
+    if earnings_ready or estimates_ready:
+        optional_title = "Optional context is available"
+        optional_body = "Some earnings or estimate data is available. Review it as context, not as a recommendation."
+
+    return [
+        primary,
+        {
+            "kicker": "START HERE",
+            "title": "Read the ready sections first",
+            "body": "Start with names that have enough local data for the view you opened. Blocked rows are useful, but they are a missing-data list, not a conclusion list.",
+            "badges": ["visitor friendly"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "WHAT STAYS LOCKED",
+            "title": "No data, no conclusion",
+            "body": "If valuation, peers, earnings, or estimates are missing, the app keeps that analysis unavailable until trusted local rows exist.",
+            "badges": ["research-only"],
+            "command": "make data-wizard TOP_N=10",
+        },
+        {
+            "kicker": "OPTIONAL DATA",
+            "title": optional_title,
+            "body": optional_body,
+            "badges": ["not required"],
+            "command": "make optional-context-worklist TOP_N=25",
+        },
+        {
+            "kicker": "PROOF PATH",
+            "title": "Prove the new state before reading conclusions",
+            "body": (
+                "After a refresh or import, rerun readiness before interpreting changed cards. "
+                "Then review the local status snapshot and reopen Home so ready and locked counts are current."
+            ),
+            "badges": ["proof first", "copy-only"],
+            "command": "make readiness && make status-check TOP_N=5",
+        },
+        {
+            "kicker": "PILOT PATH",
+            "title": "Improve 5-10 companies first",
+            "body": (
+                "Do not try to make the full universe analysis-ready at once. Start with the read-only candidate list for a small "
+                "trusted-data pilot, then improve prices, fundamentals, DCF fields, and peers only where source proof exists. "
+                "Inspect one company packet before applying rows; if source proof is missing, keep the ticker visibly blocked "
+                "and move to the next candidate."
+            ),
+            "badges": ["trusted data", "pilot"],
+            "command": "make trusted-data-pilot-candidates TOP_N=10",
         },
     ]
