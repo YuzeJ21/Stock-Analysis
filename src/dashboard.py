@@ -7522,6 +7522,144 @@ def data_health_public_visitor_path_cards(readiness_summary: dict[str, object]) 
     return overview_console.public_visitor_path_cards(readiness_summary)
 
 
+def _coverage_summary_fraction(ready: int, total: int) -> str:
+    if total <= 0:
+        return "Not available"
+    return f"{ready:,} / {total:,} ({ready / total * 100:.1f}%)"
+
+
+def _coverage_lane_state(ready: int, total: int, *, locked_when_empty: bool = False) -> str:
+    if locked_when_empty and ready <= 0:
+        return "blocked"
+    if total <= 0:
+        return "blocked"
+    if ready >= total:
+        return "ready"
+    if ready > 0:
+        return "partial"
+    return "blocked"
+
+
+def data_health_coverage_summary_frame(
+    readiness_summary: dict[str, object],
+    peer_readiness_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    momentum_ready = int(readiness_summary.get("momentum_ready") or 0)
+    liquidity_ready = int(readiness_summary.get("liquidity_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    blocked_or_partial = max(master - dcf_ready, 0) if master else 0
+    peer_valuation_ready = (
+        int(bool_series(peer_readiness_frame, "peer_valuation_comparison_ready").sum())
+        if peer_readiness_frame is not None and not peer_readiness_frame.empty
+        else 0
+    )
+
+    rows = [
+        {
+            "lane": "Price / setup",
+            "state": _coverage_lane_state(price_ready, master),
+            "one_clear_answer": "Use now for market setup, trend, liquidity, and risk context where local history is ready.",
+            "ready_coverage": _coverage_summary_fraction(price_ready, master),
+            "supporting_coverage": f"Momentum {momentum_ready:,}; liquidity {liquidity_ready:,}",
+            "blocked_or_limited": f"{max(master - price_ready, 0):,} without ready price coverage",
+            "operator_step": "make status-check TOP_N=5",
+        },
+        {
+            "lane": "Fundamentals / DCF",
+            "state": _coverage_lane_state(dcf_ready, master, locked_when_empty=True),
+            "one_clear_answer": "Use only on DCF-ready companies; missing trusted fundamentals keep valuation inputs locked.",
+            "ready_coverage": _coverage_summary_fraction(dcf_ready, master),
+            "supporting_coverage": f"Trusted fundamentals {fundamentals_ready:,}",
+            "blocked_or_limited": f"{blocked_or_partial:,} still need reviewed fundamentals or DCF inputs",
+            "operator_step": "make trusted-data-pilot-candidates TOP_N=10",
+        },
+        {
+            "lane": "Peers",
+            "state": _coverage_lane_state(peer_ready, master, locked_when_empty=True),
+            "one_clear_answer": "Use only where source-backed peer mappings and required peer data exist.",
+            "ready_coverage": _coverage_summary_fraction(peer_ready, master),
+            "supporting_coverage": f"Peer valuation comparisons {peer_valuation_ready:,}",
+            "blocked_or_limited": f"{max(master - peer_ready, 0):,} still need peer mapping or peer inputs",
+            "operator_step": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "lane": "Earnings",
+            "state": _coverage_lane_state(earnings_ready, master, locked_when_empty=True),
+            "one_clear_answer": "Do not use yet unless trusted local earnings rows exist; empty optional files are expected.",
+            "ready_coverage": _coverage_summary_fraction(earnings_ready, master),
+            "supporting_coverage": "Optional context lane",
+            "blocked_or_limited": f"{max(master - earnings_ready, 0):,} without trusted local earnings rows",
+            "operator_step": "make optional-context-worklist TOP_N=10",
+        },
+        {
+            "lane": "Analyst estimates",
+            "state": _coverage_lane_state(estimates_ready, master, locked_when_empty=True),
+            "one_clear_answer": "Do not use yet unless trusted local estimate rows exist; no estimates are inferred.",
+            "ready_coverage": _coverage_summary_fraction(estimates_ready, master),
+            "supporting_coverage": "Optional context lane",
+            "blocked_or_limited": f"{max(master - estimates_ready, 0):,} without trusted local estimate rows",
+            "operator_step": "make optional-context-worklist TOP_N=10",
+        },
+        {
+            "lane": "Proof / demo evidence",
+            "state": "supported",
+            "one_clear_answer": "Use screenshots and reviewed proof to explain product behavior only, not data freshness.",
+            "ready_coverage": "Product evidence only",
+            "supporting_coverage": "Commands and raw tables stay collapsed by default",
+            "blocked_or_limited": "Does not unlock blocked input lanes",
+            "operator_step": "make browser-qa-evidence",
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def data_health_coverage_summary_cards(
+    readiness_summary: dict[str, object],
+    peer_readiness_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    frame = data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame)
+    cards: list[dict[str, object]] = []
+    for row in frame.to_dict("records"):
+        state = format_missing(row.get("state"), "blocked")
+        cards.append(
+            {
+                "kicker": state.upper(),
+                "title": format_missing(row.get("lane")),
+                "body": f"{format_missing(row.get('one_clear_answer'))} Coverage: {format_missing(row.get('ready_coverage'))}.",
+                "badges": [state, format_missing(row.get("supporting_coverage"))],
+                "command": format_missing(row.get("operator_step"), ""),
+            }
+        )
+    return cards
+
+
+def render_data_health_coverage_summary(
+    readiness_summary: dict[str, object],
+    peer_readiness_frame: pd.DataFrame | None = None,
+) -> None:
+    render_section_header(
+        "Coverage Summary / What Can I Use?",
+        "One clear answer per lane before operations, proof commands, raw tables, or research conclusions.",
+    )
+    render_signal_cards(
+        data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame),
+        show_commands=False,
+        variant="queue",
+    )
+    with st.expander("Coverage lane details", expanded=False):
+        st.dataframe(
+            clean_display_frame(data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame)),
+            width="stretch",
+            hide_index=True,
+        )
+
+
 def _trusted_ready_count(frame: pd.DataFrame | None, column: str) -> int:
     if frame is None or frame.empty or column not in frame.columns:
         return 0
@@ -24917,6 +25055,7 @@ def render_data_health(
             "Data Quality / Readiness",
             "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
         )
+        render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
         render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
         render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
         render_context_note(
@@ -24988,6 +25127,7 @@ def render_data_health(
         readiness_freshness,
         metric_details_requested,
     )
+    render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
     render_data_health_operator_hero(operator_snapshot_cards)
     render_data_health_operator_queue_header()
     render_data_health_operator_lane_nav(selected_lane_key)

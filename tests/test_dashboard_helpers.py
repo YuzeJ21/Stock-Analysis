@@ -18106,6 +18106,74 @@ def test_market_wide_readiness_summary_prefers_central_dcf_count(monkeypatch):
     assert readiness_only_summary["peer_ready"] == 0
 
 
+def test_data_health_coverage_summary_answers_each_lane_without_recommendations():
+    summary = {
+        "master_universe": 100,
+        "price_ready": 100,
+        "momentum_ready": 97,
+        "liquidity_ready": 92,
+        "fundamentals_ready": 12,
+        "dcf_ready": 9,
+        "peer_ready": 4,
+        "earnings_ready": 0,
+        "analyst_estimates_ready": 0,
+    }
+    peer_readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB"],
+            "peer_valuation_comparison_ready": [True, False],
+        }
+    )
+
+    frame = dashboard.data_health_coverage_summary_frame(summary, peer_readiness)
+    cards = dashboard.data_health_coverage_summary_cards(summary, peer_readiness)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert list(frame["lane"]) == [
+        "Price / setup",
+        "Fundamentals / DCF",
+        "Peers",
+        "Earnings",
+        "Analyst estimates",
+        "Proof / demo evidence",
+    ]
+    assert list(frame["state"]) == ["ready", "partial", "partial", "blocked", "blocked", "supported"]
+    assert "use now for market setup" in rendered
+    assert "use only on dcf-ready companies" in rendered
+    assert "do not use yet unless trusted local earnings rows exist" in rendered
+    assert "not data freshness" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order routing" not in rendered
+
+
+def test_data_health_coverage_summary_renders_before_public_and_operator_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    public_index = source.index("if public_mode:", source.index("def render_data_health("))
+    public_coverage_index = source.index(
+        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
+        public_index,
+    )
+    first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_coverage_index)
+    visitor_paths_index = source.index('render_section_header("Visitor Paths"', first_30_index)
+    public_return_index = source.index("return", source.index("Operator details are hidden."))
+    operator_coverage_index = source.index(
+        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
+        public_return_index,
+    )
+    ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", operator_coverage_index)
+
+    assert public_index < public_coverage_index < first_30_index < visitor_paths_index
+    assert public_return_index < operator_coverage_index < ops_index
+    assert '"Coverage Summary / What Can I Use?"' in source
+    assert 'st.expander("Coverage lane details", expanded=False)' in source
+    assert "show_commands=False" in source[
+        source.index("def render_data_health_coverage_summary(") : source.index("def _trusted_ready_count(")
+    ]
+
+
 def test_universe_layer_cards_separate_scope_from_analysis_readiness():
     summary = {
         "master_universe": 3538,
