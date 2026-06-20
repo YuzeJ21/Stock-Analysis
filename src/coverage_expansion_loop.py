@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from src.readiness_ops import (
     DataCoverageExpansionStep,
@@ -18,6 +19,7 @@ from src.readiness_ops import (
     build_readiness_ops_lanes,
 )
 from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_batch_preflight
+from src.session_source_preflight import load_session_source_preflight
 
 
 LANE_TO_REVIEWED_BATCH = {
@@ -69,6 +71,7 @@ class CoverageExpansionLoop:
     do_not_proceed_if: tuple[str, ...]
     lane_board: tuple[CoverageExpansionLaneStatus, ...] = ()
     source_proof_gate: CoverageExpansionSourceProofGate | None = None
+    session_source_preflight: dict[str, Any] | None = None
 
 
 def _normalize_planner_lane(value: str) -> str:
@@ -102,6 +105,40 @@ def _select_step(steps: list[DataCoverageExpansionStep], lane: str) -> DataCover
         if step.lane == normalized:
             return step
     return None
+
+
+def _preferred_auto_lanes_from_session(preflight: dict[str, Any] | None) -> list[str]:
+    if preflight is None:
+        return []
+    local_fundamentals = (preflight.get("sources") or {}).get("local_fundamentals", {})
+    local_share_fixable = int(local_fundamentals.get("share_count_fixable_ticker_count", 0))
+    local_fundamentals_fixable = int(local_fundamentals.get("fundamentals_fixable_ticker_count", 0))
+    lane_map = {
+        "sec_fundamentals_share_count": ["share_count_proof", "fundamentals_dcf"],
+        "local_reviewed_fundamentals_share_count": (
+            ["fundamentals_dcf", "share_count_proof"]
+            if local_share_fixable == 0 and local_fundamentals_fixable > 0
+            else ["share_count_proof", "fundamentals_dcf"]
+        ),
+        "yfinance_fundamentals_share_count": ["share_count_proof", "fundamentals_dcf"],
+        "peer_mapping_proof": ["peer_mapping"],
+        "peer_valuation_local_reviewed": ["peer_valuation_inputs"],
+        "earnings_optional_manual": ["earnings_locked"],
+        "analyst_estimates_optional_manual": ["analyst_estimates_locked"],
+        "coverage_workflow_evidence": [],
+    }
+    preferred: list[str] = []
+    for item in preflight.get("preferred_lane_order", []):
+        preferred.extend(lane_map.get(str(item), []))
+    preferred.append("price_coverage")
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for item in preferred:
+        if item in seen:
+            continue
+        seen.add(item)
+        ordered.append(item)
+    return ordered
 
 
 def _lane_proceed_boundary(lane: ReadinessLane) -> str:
@@ -283,11 +320,28 @@ def build_coverage_expansion_loop(
     top_n: int = 10,
     max_candidates: int = 3500,
     provider: str = "yahoo",
+    session_preflight: dict[str, Any] | None = None,
 ) -> CoverageExpansionLoop:
     root = Path(root)
     lanes = build_readiness_ops_lanes(root)
     steps = build_data_coverage_expansion_plan(lanes, top_n=top_n)
-    selected = _select_step(steps, lane)
+    if session_preflight is None and _normalize_planner_lane(lane) == "auto":
+        session_preflight = load_session_source_preflight(root)
+    if _normalize_planner_lane(lane) == "auto" and session_preflight is not None:
+        preferred_auto_lanes = _preferred_auto_lanes_from_session(session_preflight)
+        if preferred_auto_lanes:
+            ordered_steps = sorted(
+                steps,
+                key=lambda step: (
+                    preferred_auto_lanes.index(step.lane) if step.lane in preferred_auto_lanes else len(preferred_auto_lanes),
+                    steps.index(step),
+                ),
+            )
+            selected = ordered_steps[0] if ordered_steps else None
+        else:
+            selected = _select_step(steps, lane)
+    else:
+        selected = _select_step(steps, lane)
     selected_lane = selected.lane if selected is not None else _normalize_planner_lane(lane)
     lane_board = build_coverage_expansion_lane_board(lanes, selected_lane=selected_lane, top_n=top_n)
     source_gate = build_source_proof_gate(selected_lane, top_n=top_n)
@@ -304,6 +358,7 @@ def build_coverage_expansion_loop(
             copy_only_sequence=("make readiness", f"make data-coverage-planner TOP_N={top_n}", "make coverage-frontier TOP_N=10"),
             do_not_proceed_if=("no planner lane exists for the requested scope",),
             source_proof_gate=source_gate,
+            session_source_preflight=session_preflight,
         )
 
     reviewed_lane = LANE_TO_REVIEWED_BATCH.get(selected.lane, selected.lane)
@@ -347,6 +402,7 @@ def build_coverage_expansion_loop(
         copy_only_sequence=sequence,
         do_not_proceed_if=preflight.do_not_proceed_if,
         source_proof_gate=source_gate,
+        session_source_preflight=session_preflight,
     )
 
 
@@ -362,6 +418,20 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
         f"Next safe action: {loop.next_safe_action}",
         "",
     ]
+    if loop.session_source_preflight is not None:
+        lines.extend(
+            [
+                "Session source availability:",
+                f"- session_flags: {', '.join(loop.session_source_preflight.get('session_flags', [])) or '-'}",
+                f"- preferred_lane_order: {', '.join(loop.session_source_preflight.get('preferred_lane_order', [])) or '-'}",
+            ]
+        )
+        sources = loop.session_source_preflight.get("sources", {})
+        if isinstance(sources, dict):
+            for key in ("sec", "yfinance_stage", "local_fundamentals"):
+                source = sources.get(key) or {}
+                lines.append(f"- {key}: {source.get('status', 'unknown')} - {source.get('detail', '')}".rstrip())
+        lines.append("")
     if loop.lane_board:
         lines.append("Lane readiness board:")
         for index, row in enumerate(loop.lane_board, start=1):

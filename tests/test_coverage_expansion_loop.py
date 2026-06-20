@@ -167,3 +167,55 @@ def test_source_proof_gate_for_optional_context_keeps_locked_outcome_valid():
     assert "empty optional rows treated as analysis" in rendered
     assert "make optional-context-worklist top_n=6" in rendered
     assert "locked/skipped/excluded" in gate.proof_ready_when
+
+
+def test_coverage_expansion_loop_auto_lane_can_follow_session_preflight(tmp_path: Path):
+    session_preflight = {
+        "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],
+        "preferred_lane_order": ["peer_mapping_proof", "local_reviewed_fundamentals_share_count"],
+        "sources": {
+            "sec": {"status": "unavailable", "detail": "dns failed"},
+            "yfinance_stage": {"status": "unavailable", "detail": "host resolution failed"},
+            "local_fundamentals": {"status": "available", "detail": "Found 2 local fundamentals rows."},
+        },
+    }
+
+    loop = build_coverage_expansion_loop(
+        _sample_root(tmp_path, prior_snapshot=True),
+        lane="auto",
+        top_n=10,
+        session_preflight=session_preflight,
+    )
+    rendered = render_coverage_expansion_loop(loop)
+
+    assert loop.selected_lane == "peer_mapping"
+    assert loop.session_source_preflight == session_preflight
+    assert "Session source availability:" in rendered
+    assert "session_sec_unavailable, session_yfinance_unavailable" in rendered
+    assert "peer_mapping_proof, local_reviewed_fundamentals_share_count" in rendered
+
+
+def test_coverage_expansion_loop_prefers_fundamentals_before_share_count_when_local_share_fixable_is_zero(tmp_path: Path):
+    session_preflight = {
+        "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],
+        "preferred_lane_order": ["local_reviewed_fundamentals_share_count", "peer_mapping_proof"],
+        "sources": {
+            "sec": {"status": "unavailable", "detail": "dns failed"},
+            "yfinance_stage": {"status": "unavailable", "detail": "host resolution failed"},
+            "local_fundamentals": {
+                "status": "available",
+                "detail": "Found 6 local fundamentals rows.",
+                "share_count_fixable_ticker_count": 0,
+                "fundamentals_fixable_ticker_count": 3,
+            },
+        },
+    }
+
+    loop = build_coverage_expansion_loop(
+        _sample_root(tmp_path, prior_snapshot=True),
+        lane="auto",
+        top_n=10,
+        session_preflight=session_preflight,
+    )
+
+    assert loop.selected_lane == "fundamentals_dcf"
