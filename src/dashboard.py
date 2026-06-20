@@ -114,6 +114,7 @@ from src.data_health_metric_readiness_console import (
     progressive_details_requested as data_health_progressive_details_requested,
     proof_detail_load_cards as data_health_proof_detail_load_cards,
     proof_detail_load_status as data_health_proof_detail_load_status,
+    proof_lane_shell_cards as data_health_proof_lane_shell_cards,
 )
 from src.dashboard_navigation import (
     DEMO_MODE_LABELS,
@@ -25876,6 +25877,7 @@ def render_data_health(
             decision_queue_status=decision_queue_freshness,
         )
         render_signal_cards(data_health_proof_detail_load_cards(proof_detail_status), show_commands=False)
+        render_signal_cards(data_health_proof_lane_shell_cards(proof_detail_status), show_commands=False, variant="queue")
         if not proof_details_requested:
             render_signal_cards(
                 data_health_deferred_detail_cards(
@@ -25888,7 +25890,7 @@ def render_data_health(
             )
         else:
             render_data_health_proof_history_operator_console(proof_timeline, batch_proof_frame, readiness_comparison)
-            with st.expander("Reviewed batch proof drawer", expanded=True):
+            with st.expander("Reviewed batch proof drawer", expanded=False):
                 render_section_header("Snapshot Gate", "Confirm the saved baseline before recording changed readiness counts.")
                 render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight))
                 st.dataframe(clean_display_frame(data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)), width="stretch", hide_index=True)

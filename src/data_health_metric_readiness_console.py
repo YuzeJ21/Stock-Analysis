@@ -313,6 +313,67 @@ def proof_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, objec
     ]
 
 
+def proof_lane_shell_cards(load_status: dict[str, str]) -> list[dict[str, object]]:
+    """Return the proof-lane shell so fast view does not look empty."""
+
+    status = load_status.get("status", "deferred")
+    title = load_status.get("title", "Proof details are deferred")
+    body = load_status.get("body", "Proof detail rows load only when needed.")
+    next_action = load_status.get("next_action", "Open Proof review details.")
+
+    if status == "blocked_by_snapshot_gate":
+        visible_title = "Snapshot gate is visible"
+        visible_body = "The proof lane is intentionally stopped at freshness status until readiness artifacts are current."
+        deferred_title = "Proof drawers stay blocked"
+        deferred_body = "Reviewed proof rows, packet scaffolds, and before/after comparison stay hidden so stale counts do not look reviewed."
+        badges = ["snapshot gate", "no stale proof"]
+    elif status == "loading":
+        visible_title = "Proof shell is active"
+        visible_body = "The lane is building proof ledgers and comparison state; keep the operator on the shell while rows load."
+        deferred_title = "Drawers are preparing"
+        deferred_body = "Reviewed batch proof, command-builder fields, and evidence tables remain collapsed until the loaded state appears."
+        badges = ["loading", "progressive proof"]
+    elif status in {"loaded", "loaded_with_warning"}:
+        visible_title = "Proof summary is ready"
+        visible_body = "The lane can show the operator console, latest proof status, and review boundaries without opening raw rows first."
+        deferred_title = "Evidence drawers are available"
+        deferred_body = "Snapshot gate, apply guard, command builder, ledger preview, and proof history stay in collapsed review drawers."
+        badges = ["loaded", "collapsed drawers"]
+    else:
+        visible_title = "Proof shell is loaded"
+        visible_body = "Fast view shows the proof lane purpose, freshness state, and next action before any ledger rows are loaded."
+        deferred_title = "Evidence stays deferred"
+        deferred_body = "Reviewed proof rows, batch packet scaffolds, command fields, and snapshot comparison wait for Review details."
+        badges = ["fast view", "deferred evidence"]
+
+    return [
+        {
+            "kicker": "VISIBLE NOW",
+            "title": visible_title,
+            "body": f"{visible_body} Current state: {title}.",
+            "badges": badges,
+            "command": next_action,
+        },
+        {
+            "kicker": "DEFERRED UNTIL REVIEW",
+            "title": deferred_title,
+            "body": f"{deferred_body} {body}",
+            "badges": ["collapsed by default", "copy-only"],
+            "command": next_action,
+        },
+        {
+            "kicker": "NEXT SAFE ACTION",
+            "title": next_action,
+            "body": (
+                "Use this as a navigation or copy-only review cue. It does not refresh data, apply imports, "
+                "record proof rows, stage files, or change canonical CSVs."
+            ),
+            "badges": ["research-only", "manual gate"],
+            "command": next_action,
+        },
+    ]
+
+
 def metric_readiness_queue_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
     if frame is None or frame.empty:
         return [

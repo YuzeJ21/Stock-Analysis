@@ -11,6 +11,7 @@ from src.data_health_metric_readiness_console import (
     metric_readiness_queue_cards,
     proof_detail_load_cards,
     proof_detail_load_status,
+    proof_lane_shell_cards,
 )
 
 
@@ -122,6 +123,50 @@ def test_metric_and_proof_detail_cards_are_research_only():
     assert "no stale counts" in rendered
     assert "no stale proof" in rendered
     assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_proof_lane_shell_cards_make_deferred_loaded_and_stale_states_explicit():
+    statuses = [
+        {
+            "status": "blocked_by_snapshot_gate",
+            "title": "Refresh readiness first",
+            "body": "Generated readiness artifacts are stale.",
+            "next_action": "make readiness",
+        },
+        {
+            "status": "deferred",
+            "title": "Proof details are deferred",
+            "body": "The proof lane shell is loaded.",
+            "next_action": "Open Proof review details.",
+        },
+        {
+            "status": "loading",
+            "title": "Proof details are loading",
+            "body": "The proof lane is building reviewed proof ledgers.",
+            "next_action": "Wait for proof detail cards.",
+        },
+        {
+            "status": "loaded",
+            "title": "Proof details loaded",
+            "body": "Reviewed proof ledgers are available.",
+            "next_action": "Open reviewed batch proof drawer.",
+        },
+    ]
+    cards = [card for status in statuses for card in proof_lane_shell_cards(status)]
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 12
+    assert "visible now" in rendered
+    assert "deferred until review" in rendered
+    assert "fast view shows the proof lane purpose" in rendered
+    assert "reviewed proof rows, batch packet scaffolds, command fields, and snapshot comparison wait" in rendered
+    assert "snapshot gate is visible" in rendered
+    assert "drawers are preparing" in rendered
+    assert "proof summary is ready" in rendered
+    assert "does not refresh data, apply imports, record proof rows, stage files, or change canonical csvs" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
