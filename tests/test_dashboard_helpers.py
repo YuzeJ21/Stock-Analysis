@@ -11519,7 +11519,7 @@ def test_data_health_readiness_ops_center_frame_groups_broad_lanes():
     assert "earnings locked lane" in rendered
     assert "analyst estimates locked lane" in rendered
     assert "excluded / not applicable" in rendered
-    assert "make price-worklist top_n=25" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
     assert "trusted local rows" in rendered
 
 
