@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Stock Research Command Center dashboard preview</title>
-  <desc id="desc">A stylized preview of the readiness-first stock research dashboard with readiness cards, three visitor paths, public demo walkthrough cue, At A Glance single-stock status, Evaluation Snapshot, data-confidence cue, Proof Checklist, Best Review Path, MU peer-input and CRDO fundamentals-gated proof paths, Supported / Still blocked / Skip pilot outcomes, project DCF method notes, copy-only proof commands, and plain-language stock analysis modes.</desc>
+  <desc id="desc">A stylized preview of the readiness-first stock research dashboard with readiness cards, public research paths, public demo walkthrough cue, At A Glance single-stock status, Evaluation Snapshot, data-confidence cue, Proof Checklist, Best Review Path, MU peer-input and CRDO fundamentals-gated proof paths, Supported / Still blocked / Skip pilot outcomes, project DCF method notes, copy-only proof commands, and plain-language stock analysis modes.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#f7efe1"/>
@@ -53,7 +53,7 @@
 
   <g font-family="Verdana, sans-serif">
     <rect x="112" y="326" width="506" height="264" rx="22" fill="#ffffff" stroke="#d8dfd2"/>
-    <text x="136" y="363" fill="#172820" font-size="21" font-weight="700">Three Visitor Paths</text>
+    <text x="136" y="363" fill="#172820" font-size="21" font-weight="700">Public Research Paths</text>
     <text x="136" y="390" fill="#68796f" font-size="14">Start simple, then open deeper proof only when needed.</text>
 
     <rect x="136" y="421" width="454" height="44" rx="12" fill="#f5f1e8"/>

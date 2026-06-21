@@ -156,7 +156,7 @@ def public_home_review_map_cards(summary: dict[str, object]) -> list[dict[str, o
                 f"{blocked:,} blocked states remain source-proof work. "
                 "Data Health keeps the source lane, manual gate, proof packet, and stop rule together."
             ),
-            "badges": ["source proof", "no raw tables first"],
+            "badges": ["source proof", "visitor first"],
         },
         {
             "kicker": "STOP RULE",
@@ -190,10 +190,11 @@ def public_home_loop_cards(summary: dict[str, object]) -> list[dict[str, object]
         },
         {
             "kicker": "CONNECTED PATH",
-            "title": "Home -> one ticker -> Data Health -> proof history",
+            "title": "Home -> Stock Selector -> one ticker -> Data Health -> Proof History",
             "body": (
-                "Home shows coverage. Single-Stock Report shows what can be reviewed now. "
-                "Data Health explains missing source inputs. Proof history is checked before trusting a changed state."
+                "Home shows coverage. Stock Selector filters readiness-backed candidates. "
+                "Single-Stock Report shows what can be reviewed now. Data Health explains missing source inputs. "
+                "Proof History is checked before trusting a changed state."
             ),
             "badges": ["one loop", "real workflow"],
         },
@@ -229,12 +230,12 @@ def public_home_visitor_path_cards(summary: dict[str, object]) -> list[dict[str,
         },
         {
             "kicker": "STEP 2",
-            "title": "Open one ticker",
+            "title": "Choose a candidate, then open one ticker",
             "body": (
-                "Single-Stock Report shows the selected ticker, what can be reviewed now, "
-                "what is blocked or excluded, and where Data Health fits next."
+                "Stock Selector narrows readiness-backed candidates before Single-Stock Report shows the selected ticker, "
+                "what can be reviewed now, what is blocked or excluded, and where Data Health fits next."
             ),
-            "badges": ["one ticker", "plain English"],
+            "badges": ["selector", "one ticker"],
         },
         {
             "kicker": "STEP 3",
@@ -243,7 +244,7 @@ def public_home_visitor_path_cards(summary: dict[str, object]) -> list[dict[str,
                 f"{blocked:,} blocked states stay visible. Data Health names the source-proof lane, manual gate, and stop rule "
                 "without making visitors read raw CSV tables first."
             ),
-            "badges": ["source proof", "no raw tables first"],
+            "badges": ["source proof", "evidence collapsed"],
         },
         {
             "kicker": "STEP 4",
@@ -303,12 +304,28 @@ def public_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
     elif has_depth_gap:
         proof_body = "Use proof history to see why available price coverage does not automatically unlock fundamentals, peer valuation, earnings, or estimates."
 
+    selector_body = (
+        "Filter readiness-backed research candidates before choosing the next ticker review path."
+    )
+    selector_tone = "neutral"
+    if price_ready <= 0:
+        selector_body = (
+            "Candidate pages should stay empty when local data cannot support them; use Data Health and proof history first."
+        )
+        selector_tone = "warning"
+
     return [
         (
             "Review one stock",
             review_body,
             "Single-Stock Report",
             "neutral",
+        ),
+        (
+            "Explore ready names",
+            selector_body,
+            "Stock Selector",
+            selector_tone,
         ),
         (
             "Improve data coverage",
@@ -319,7 +336,7 @@ def public_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
         (
             "Inspect proof",
             proof_body,
-            "Data Health",
+            "Proof History",
             "neutral",
         ),
     ]

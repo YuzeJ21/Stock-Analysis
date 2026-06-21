@@ -11,9 +11,10 @@ This project turns a broad stock universe into a readiness-first research dashbo
 
 ```mermaid
 flowchart LR
-    Home["Home: ready vs blocked"] --> Report["Single-stock report"]
+    Home["Home: ready vs blocked"] --> Selector["Stock Selector: readiness-backed queue"]
+    Selector --> Report["Single-Stock Report: one ticker"]
     Report --> Health["Data Health: missing input"]
-    Health --> Pilot["Trusted-data pilot"]
+    Health --> Proof["Proof History: source-proof trail"]
 ```
 
 ## LinkedIn Visitor Snapshot
@@ -73,15 +74,17 @@ Useful with limits: price/momentum, fundamentals/DCF, peer review, and final dec
 
 ## Product Tour
 
-Start with the three paths the dashboard is built around:
+Start with the five public paths the dashboard is built around:
 
 | Path | Use it when | First place to open |
 | --- | --- | --- |
+| Start at Home | You want the current local readiness snapshot, next safe action, and stop rule before choosing a route. | `Home` |
+| Explore ready names | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |
 | Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |
 | Improve data coverage | You want to understand what trusted input is missing and how to add it safely. | `Data Health` |
-| Inspect proof | You want to see the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields. | `Data Health` |
+| Inspect proof | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |
 
-The dashboard starts in public visitor mode so people can follow the real workflow first: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. Home now opens with the "Where am I in the research loop?" strip, a compact First 30 Seconds view, a Connected Workflow map, a four-step Visitor Path, and a visible Where To Go Next route choice before optional workflow detail or examples. The strip keeps the current step, previous proof, next safe action, and stop rule visible across the main workflow pages. Single-Stock Report shows selected-ticker readiness before the report button, then repeats the loop locally for the loaded ticker before detailed report sections; a focused Data Health Handoff card names the matching lane or drawer for locked inputs, while copy-only commands stay in a collapsed drawer. Data Health lane drawers now start with a compact lane route strip before navigation-only queue -> source proof -> comparison -> proof-record -> artifact-hygiene routes and raw tables; the trusted fundamentals source loop also shows current gate, reviewed evidence status, next safe action, and proof-record stop rule before source tables. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public visitor mode in the sidebar when you want the internal operator views, detailed boards, and copy-only local commands. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
+The dashboard starts in public visitor mode so people can follow the real workflow first: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History. Home now opens with the command-center shell, current readiness snapshot, research loop, next safe action, and stop rule. Stock Selector is the primary public stock-selection surface: it filters readiness-backed candidates, keeps blockers and proof steps visible, and links rows to `?mode=public&page=single-stock-report&ticker=NVDA` or the matching proof route without framing the queue as advice. Single-Stock Report shows selected-ticker readiness before the report button, then repeats the loop locally for the loaded ticker before detailed report sections; a focused Data Health handoff card names the matching lane or drawer for locked inputs, while copy-only commands stay in collapsed proof detail. Data Health keeps source-proof lanes and raw tables behind the same V1 shell, and Proof History is the public proof-inspection surface before trusting a changed state. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public visitor mode in the sidebar when you want internal operator views, detailed boards, and copy-only local commands. Focused public pages now cover Home, Stock Selector, Single-Stock Report, Data Health, and Proof History; advanced pages remain secondary, and watchlist-style outputs stay readiness-state output, not an action list.
 
 ## Quick Start
 
@@ -100,7 +103,7 @@ When you want to rebuild local outputs after changing data, use the deeper [Loca
 
 ## Try This Visitor Workflow
 
-Open the product first: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. Use terminal commands only when you want to inspect the same proof artifacts locally.
+Open the product first: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History. Use terminal commands only when you want to inspect the same proof artifacts locally.
 
 ```bash
 make demo                         # print the visitor path without changing local data
@@ -120,7 +123,7 @@ make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKE
 make stock-report-md TICKER=SMH && make stock-report-md TICKER=APLD
 ```
 
-The shortest public walkthrough is: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history, with NVDA, META, QQQ, MU, and CRDO available as optional state examples. That shows the core idea quickly: the product can analyze ready data, explain blocked data, exclude methods that do not apply, show peer-limited DCF, and print the trusted-data proof path without pretending missing rows exist.
+The shortest public walkthrough is: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History, with NVDA, META, QQQ, MU, and CRDO available as optional state examples. That shows the core idea quickly: the product can filter candidates by readiness, analyze ready data, explain blocked data, exclude methods that do not apply, show peer-limited DCF, and print the trusted-data proof path without pretending missing rows exist.
 
 Example map:
 
@@ -132,7 +135,7 @@ Example map:
 | [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Reader Guide plus Operating-company DCF is excluded, not failed. |
 | [APLD](outputs/stock_reports/apld.md) / [CRDO](outputs/stock_reports/crdo.md) | Price/setup review with valuation still locked, plus fundamentals-gated proof workflow. | Reader Guide, supported setup context, one-company pilot packet, and the next trusted fundamentals proof step. |
 
-In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what trusted input matters next, what evidence proves the current mode, what to read first, and which copy-only command or proof step comes next. They show `Copyable Proof Commands` only when local data gaps block analysis; use `make stock-report TICKER=NVDA` only when you also want optional local report data for inspection.
+In the dashboard, start on `Home`, open `Stock Selector` to narrow the next readiness-backed candidate, then open `Single-Stock Report` for one ticker or `Data Health` when the selected row says analysis is blocked. Check `Proof History` before trusting a changed readiness state. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what trusted input matters next, what evidence proves the current mode, what to read first, and which copy-only command or proof step comes next. They show `Copyable Proof Commands` only when local data gaps block analysis; use `make stock-report TICKER=NVDA` only when you also want optional local report data for inspection.
 
 For a share-ready walkthrough, use the [Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md). The pilot candidate command may rank a peer-input example such as `MU` first and also name a fundamentals/DCF example such as `CRDO`; both remain read-only proof packets until source review and rebuilt readiness prove a lane changed. The broader read-only checklist is still available as `make trusted-data-pilot TOP_N=10` when you want the general pilot sequence before choosing tickers. For deeper local missing-data details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md).
 

@@ -124,6 +124,7 @@ from src.dashboard_navigation import (
     PUBLIC_DEMO_MODE,
     PUBLIC_PATH_LABELS,
     PUBLIC_PATH_PAGE_TITLES,
+    STOCK_SELECTOR_PATH_TITLE,
     advanced_page_titles as _advanced_page_titles,
     dashboard_mode_from_query as _dashboard_mode_from_query,
     dashboard_mode_label,
@@ -294,7 +295,7 @@ DASHBOARD_TAB_TITLES = [
     "Data Health",
     "Universe Manager",
 ]
-USER_PAGE_TITLES = ["Home"] + DASHBOARD_TAB_TITLES
+USER_PAGE_TITLES = ["Home", STOCK_SELECTOR_PATH_TITLE] + DASHBOARD_TAB_TITLES
 ADVANCED_PAGE_TITLES = _advanced_page_titles(USER_PAGE_TITLES)
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
@@ -368,6 +369,11 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
             "Review one stock.",
             "Use this page to review one ticker's ready analysis, locked inputs, source notes, and next local proof step.",
         )
+    if selected_page == STOCK_SELECTOR_PATH_TITLE:
+        return (
+            "Explore ready names.",
+            "Filter readiness-backed research candidates by coverage, blockers, and proof freshness without turning the queue into recommendations.",
+        )
     if selected_page == "Value / Re-rating":
         return (
             "Check valuation readiness.",
@@ -377,6 +383,11 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
         return (
             "Improve data coverage.",
             "Use this page to see which trusted inputs are missing and which proof path should be checked next.",
+        )
+    if selected_page == PROOF_HISTORY_PATH_TITLE:
+        return (
+            "Inspect proof.",
+            "Review durable proof rows and batch outcomes before trusting changed readiness states.",
         )
     if selected_page == "Monthly Picks":
         return (
@@ -439,6 +450,15 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "review_route": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact missing-input path if anything is still locked.",
             "review_area": "Single-Stock Review",
             "command": "make stock-report-md TICKER=NVDA",
+        },
+        STOCK_SELECTOR_PATH_TITLE: {
+            "analyze": "A readiness-backed research queue for deciding which tickers deserve one-stock review next.",
+            "locked": "Names with missing trusted inputs stay visibly blocked, excluded, or partial instead of being promoted by rank alone.",
+            "read": "Start with readiness state, then filter by sector/theme, DCF-ready, peer-ready, price-ready, blocker, and proof freshness.",
+            "proof": "After data changes, rebuild readiness and decisions before using the queue for research planning.",
+            "review_route": "Use Stock Selector after Home to find ready or nearly ready names, then open Single-Stock Report for the ticker and Data Health for blockers.",
+            "review_area": "Stock Selector research queue",
+            "command": "make status-check TOP_N=5",
         },
         "Value / Re-rating": {
             "analyze": "Company rows with complete valuation inputs can support assumption, scenario, sensitivity, and source-readiness review.",
@@ -1875,8 +1895,10 @@ def apply_dashboard_theme() -> None:
           height: 0 !important;
         }
         [data-testid="stMainBlockContainer"] {
-          max-width: 1180px !important;
+          max-width: none !important;
           padding-top: 1.05rem !important;
+          padding-left: 1.35rem !important;
+          padding-right: 1.35rem !important;
           padding-bottom: 2.8rem !important;
         }
         [data-testid="stVerticalBlock"] {
@@ -1902,72 +1924,79 @@ def apply_dashboard_theme() -> None:
           visibility: hidden !important;
         }
         [data-testid="stSidebar"] {
-          background: #f8faf5 !important;
-          border-right: 1px solid var(--research-border);
+          background: #07111d !important;
+          border-right: 1px solid rgba(255,255,255,0.08);
+          width: 10.1rem !important;
+          min-width: 10.1rem !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+          background: linear-gradient(180deg, #070d16 0%, #0a1724 100%) !important;
+          padding: 0.85rem 0.62rem !important;
         }
         [data-testid="stSidebar"] * {
-          color: var(--research-text) !important;
+          color: rgba(255,255,255,0.86) !important;
         }
         [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-          gap: 0.42rem;
+          gap: 0.38rem;
         }
         .sidebar-nav-header {
-          border-radius: 10px;
-          border: 1px solid rgba(15, 118, 110, 0.18);
-          background: linear-gradient(180deg, #ffffff 0%, #f1faf7 100%);
-          padding: 0.78rem 0.82rem;
-          margin: 0.1rem 0 0.56rem 0;
+          border-radius: 0;
+          border: 0;
+          background: transparent;
+          padding: 0.35rem 0.34rem 0.65rem 0.34rem;
+          margin: 0 0 0.46rem 0;
         }
         .sidebar-nav-kicker {
-          color: #0f766e !important;
+          color: #22c55e !important;
           font-size: 0.66rem;
           font-weight: 950;
           letter-spacing: 0.1em;
           text-transform: uppercase;
         }
         .sidebar-nav-title {
-          color: #111827 !important;
-          font-size: 1rem;
+          color: #ffffff !important;
+          font-size: 1.24rem;
           font-weight: 950;
-          line-height: 1.12;
+          line-height: 1.02;
           margin-top: 0.22rem;
         }
         .sidebar-nav-copy {
-          color: #526071 !important;
-          font-size: 0.76rem;
-          line-height: 1.34;
+          color: rgba(226,232,240,0.72) !important;
+          font-size: 0.66rem;
+          line-height: 1.28;
           margin-top: 0.32rem;
         }
         [data-testid="stSidebar"] [data-testid="stRadio"] > label {
-          color: #526071 !important;
-          font-size: 0.72rem !important;
+          color: rgba(226,232,240,0.72) !important;
+          font-size: 0.62rem !important;
           font-weight: 900 !important;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          margin-bottom: 0.2rem;
+          margin: 0.4rem 0 0.14rem 0;
         }
         [data-testid="stSidebar"] [role="radiogroup"] {
           display: grid;
-          gap: 0.28rem;
+          gap: 0.22rem;
         }
         [data-testid="stSidebar"] [role="radiogroup"] label {
           display: flex !important;
           align-items: center !important;
           width: 100%;
-          min-height: 2.05rem;
-          border: 1px solid rgba(148, 163, 184, 0.24);
+          min-height: 3.1rem;
+          border: 1px solid transparent;
           border-radius: 8px;
-          background: rgba(255, 255, 255, 0.84);
-          padding: 0.34rem 0.55rem;
+          background: transparent;
+          padding: 0.46rem 0.52rem;
           box-shadow: none;
         }
         [data-testid="stSidebar"] [role="radiogroup"] label:hover {
-          background: #eef8f4;
-          border-color: rgba(15, 118, 110, 0.24);
+          background: rgba(255,255,255,0.06);
+          border-color: rgba(255,255,255,0.08);
         }
         [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
-          background: #0b3b36;
-          border-color: #0b3b36;
+          background: linear-gradient(180deg, #0f7a3f 0%, #0d5f34 100%);
+          border-color: rgba(34,197,94,0.55);
+          box-shadow: inset 4px 0 0 #22c55e, 0 10px 24px rgba(0,0,0,0.20);
         }
         [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p,
         [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) span,
@@ -1983,10 +2012,530 @@ def apply_dashboard_theme() -> None:
           display: none !important;
         }
         [data-testid="stSidebar"] [role="radiogroup"] label p {
-          font-size: 0.82rem !important;
+          font-size: 0.76rem !important;
           font-weight: 850 !important;
-          line-height: 1.15 !important;
+          line-height: 1.16 !important;
           margin: 0 !important;
+          word-break: normal !important;
+          overflow-wrap: normal !important;
+          hyphens: none !important;
+        }
+        [data-testid="stSidebar"] label[data-baseweb="checkbox"] {
+          display: none !important;
+          visibility: hidden !important;
+          height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+        }
+        [data-testid="stSidebar"] .stToggle label p,
+        [data-testid="stSidebar"] .stCaption,
+        [data-testid="stSidebar"] .context-note,
+        [data-testid="stSidebar"] .sidebar-product-card,
+        [data-testid="stSidebar"] hr {
+          display: none !important;
+          visibility: hidden !important;
+          height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+        }
+        [data-testid="stSidebar"] .stToggle {
+          min-height: 1.25rem !important;
+          margin: 0.2rem 0 0.2rem 0 !important;
+        }
+        .command-topbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          flex-wrap: wrap;
+          min-height: 2.55rem;
+          padding: 0.52rem 0.9rem;
+          margin: -0.2rem 0 0.65rem 0;
+          border: 1px solid rgba(15, 23, 42, 0.10);
+          border-radius: 8px;
+          background: #ffffff;
+          box-shadow: 0 10px 26px rgba(15,23,42,0.045);
+        }
+        .command-top-left,
+        .command-top-right {
+          display: flex;
+          align-items: center;
+          gap: 0.72rem;
+          flex-wrap: wrap;
+        }
+        .command-status-item {
+          color: #111827;
+          font-size: 0.78rem;
+          font-weight: 750;
+          white-space: nowrap;
+        }
+        .command-status-dot {
+          display: inline-block;
+          width: 0.45rem;
+          height: 0.45rem;
+          margin-left: 0.24rem;
+          border-radius: 999px;
+          background: #047857;
+          vertical-align: 0.08rem;
+        }
+        .command-top-link {
+          color: #0f766e !important;
+          font-size: 0.78rem;
+          font-weight: 850;
+          text-decoration: none;
+          border: 1px solid rgba(15,118,110,0.22);
+          border-radius: 8px;
+          padding: 0.36rem 0.62rem;
+          background: #f0fdf4;
+        }
+        .command-hero-v2 {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(420px, 0.96fr);
+          gap: 1.4rem;
+          align-items: stretch;
+          margin: 0 0 0.72rem 0;
+        }
+        .command-hero-copy {
+          padding: 1.35rem 0.25rem 1.15rem 0.05rem;
+        }
+        .command-title-v2 {
+          color: #070b13;
+          font-size: 2.05rem;
+          line-height: 1.04;
+          font-weight: 950;
+          letter-spacing: 0;
+          margin: 0 0 0.46rem 0;
+        }
+        .command-subtitle-v2 {
+          color: #0f7a3f;
+          font-size: 1.05rem;
+          line-height: 1.35;
+          font-weight: 900;
+          margin-bottom: 1rem;
+        }
+        .command-subtitle-v2 span {
+          color: #111827;
+          font-weight: 850;
+        }
+        .command-body-v2 {
+          color: #5b6474;
+          font-size: 0.95rem;
+          line-height: 1.46;
+          max-width: 34rem;
+        }
+        .command-kpi-panel {
+          border: 1px solid rgba(15, 23, 42, 0.12);
+          border-radius: 8px;
+          background: #ffffff;
+          padding: 1rem 1.05rem;
+          box-shadow: 0 14px 34px rgba(15,23,42,0.055);
+        }
+        .command-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.65rem;
+        }
+        .command-kpi {
+          border-right: 1px solid rgba(148, 163, 184, 0.28);
+          padding: 0.35rem 0.7rem 0.35rem 0.35rem;
+          min-height: 4.8rem;
+        }
+        .command-kpi:last-child {
+          border-right: 0;
+        }
+        .command-kpi-label {
+          color: #334155;
+          font-size: 0.76rem;
+          font-weight: 850;
+        }
+        .command-kpi-value {
+          color: #047857;
+          font-size: 1.12rem;
+          font-weight: 950;
+          margin-top: 0.18rem;
+          white-space: nowrap;
+        }
+        .command-kpi.blocked .command-kpi-value,
+        .command-kpi.warn .command-kpi-value {
+          color: #b45309;
+        }
+        .command-kpi-note {
+          color: #64748b;
+          font-size: 0.72rem;
+          margin-top: 0.16rem;
+        }
+        .command-kpi-proof {
+          border-top: 1px solid rgba(148, 163, 184, 0.22);
+          margin-top: 0.7rem;
+          padding-top: 0.55rem;
+          color: #64748b;
+          font-size: 0.78rem;
+        }
+        .research-loop-v2 {
+          border: 1px solid rgba(15, 23, 42, 0.12);
+          border-radius: 8px;
+          background: #ffffff;
+          padding: 0.92rem 1rem 1rem 1rem;
+          box-shadow: 0 12px 30px rgba(15,23,42,0.045);
+          margin: 0.72rem 0;
+        }
+        .research-loop-title {
+          color: #111827;
+          font-weight: 950;
+          margin-bottom: 0.7rem;
+        }
+        .research-loop-steps {
+          display: grid;
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+          gap: 0.75rem;
+          position: relative;
+        }
+        .research-loop-connector {
+          position: absolute;
+          left: 1rem;
+          right: 1rem;
+          top: 1.02rem;
+          border-top: 1px dashed rgba(100, 116, 139, 0.34);
+          pointer-events: none;
+        }
+        .research-loop-step {
+          min-width: 0;
+          position: relative;
+          z-index: 1;
+        }
+        .research-loop-node {
+          display: flex;
+          align-items: center;
+          gap: 0.48rem;
+          margin-bottom: 0.52rem;
+        }
+        .research-loop-number {
+          width: 2rem;
+          height: 2rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          background: #e5e7eb;
+          color: #111827;
+          font-weight: 950;
+          box-shadow: 0 0 0 0.42rem #ffffff;
+        }
+        .research-loop-glyph {
+          width: 1.45rem;
+          height: 1.45rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          background: #f1f5f9;
+          color: #64748b;
+          font-size: 0.58rem;
+          font-weight: 950;
+          letter-spacing: 0.03em;
+        }
+        .research-loop-step.active .research-loop-number {
+          background: #07823f;
+          color: #ffffff !important;
+        }
+        .research-loop-step.active .research-loop-glyph {
+          background: #dcfce7;
+          color: #047857;
+        }
+        .research-loop-name {
+          color: #111827;
+          font-size: 0.86rem;
+          font-weight: 900;
+          line-height: 1.24;
+        }
+        .research-loop-desc {
+          color: #526071;
+          font-size: 0.75rem;
+          line-height: 1.35;
+          margin-top: 0.36rem;
+        }
+        .command-action-strip {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+          margin: 0.8rem 0 0.85rem 0;
+        }
+        .command-action-block {
+          display: grid;
+          grid-template-columns: 3.2rem minmax(0, 1fr);
+          gap: 0.85rem;
+          border: 1px solid rgba(15, 118, 110, 0.20);
+          border-radius: 8px;
+          background: linear-gradient(90deg, #f0fdf4, #ffffff);
+          padding: 0.95rem 1rem;
+        }
+        .command-action-block.stop {
+          border-color: rgba(217, 119, 6, 0.24);
+          background: linear-gradient(90deg, #fff7ed, #ffffff);
+        }
+        .command-action-icon {
+          width: 3rem;
+          height: 3rem;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #dff7e9;
+          color: #047857;
+          font-weight: 950;
+          font-size: 1.1rem;
+        }
+        .command-action-block.stop .command-action-icon {
+          background: #ffedd5;
+          color: #b45309;
+        }
+        .command-action-kicker {
+          color: #047857;
+          font-weight: 950;
+          font-size: 0.88rem;
+        }
+        .command-action-block.stop .command-action-kicker {
+          color: #b45309;
+        }
+        .command-action-title {
+          color: #111827;
+          font-size: 0.88rem;
+          font-weight: 950;
+          margin-top: 0.18rem;
+        }
+        .command-action-body {
+          color: #526071;
+          font-size: 0.78rem;
+          line-height: 1.36;
+          margin-top: 0.24rem;
+        }
+        .command-workbench-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1.35fr;
+          gap: 1rem;
+          margin: 0.86rem 0 1rem 0;
+        }
+        .command-workbench-card {
+          border: 1px solid rgba(15, 23, 42, 0.12);
+          border-radius: 8px;
+          background: #ffffff;
+          padding: 0.95rem 1rem;
+          min-height: 14.5rem;
+          box-shadow: 0 12px 30px rgba(15,23,42,0.045);
+        }
+        .command-workbench-title {
+          color: #111827;
+          font-size: 1rem;
+          font-weight: 950;
+          margin-bottom: 0.35rem;
+        }
+        .command-workbench-body {
+          color: #526071;
+          font-size: 0.78rem;
+          line-height: 1.38;
+          margin-bottom: 0.7rem;
+        }
+        .command-mini-list {
+          display: grid;
+          gap: 0.45rem;
+          margin-top: 0.65rem;
+        }
+        .command-mini-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 0.65rem;
+          border-top: 1px solid rgba(148, 163, 184, 0.22);
+          padding-top: 0.45rem;
+          color: #334155;
+          font-size: 0.78rem;
+        }
+        .command-footer-note {
+          display: flex;
+          justify-content: space-between;
+          gap: 0.8rem;
+          flex-wrap: wrap;
+          color: #64748b;
+          font-size: 0.75rem;
+          margin: 0.6rem 0 0.2rem 0;
+        }
+        .selector-filter-shell {
+          border: 1px solid rgba(15, 23, 42, 0.10);
+          border-radius: 8px;
+          background: rgba(255,255,255,0.84);
+          padding: 0.68rem 0.78rem 0.18rem 0.78rem;
+          box-shadow: 0 12px 28px rgba(15,23,42,0.045);
+        }
+        .selector-result-table {
+          border: 1px solid rgba(15, 23, 42, 0.12);
+          border-radius: 8px;
+          overflow: hidden;
+          background: #ffffff;
+          box-shadow: 0 14px 34px rgba(15,23,42,0.055);
+          margin: 0.58rem 0 0.88rem 0;
+        }
+        .selector-result-head,
+        .selector-result-row {
+          display: grid;
+          grid-template-columns: minmax(7rem, 0.74fr) minmax(11rem, 1fr) minmax(13rem, 1.25fr) minmax(17rem, 1.65fr) minmax(13rem, 1.2fr) minmax(11rem, 0.9fr);
+          gap: 0.72rem;
+          align-items: stretch;
+        }
+        .selector-result-head {
+          color: #475569;
+          background: #f8fafc;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+          padding: 0.66rem 0.78rem;
+          font-size: 0.7rem;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .selector-result-row {
+          padding: 0.78rem;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+        }
+        .selector-result-row:last-child {
+          border-bottom: 0;
+        }
+        .selector-result-ticker {
+          color: #07111d;
+          font-size: 1rem;
+          font-weight: 950;
+          line-height: 1.08;
+        }
+        .selector-result-state {
+          color: #475569;
+          font-size: 0.76rem;
+          line-height: 1.35;
+          margin-top: 0.25rem;
+        }
+        .selector-result-title {
+          color: #111827;
+          font-size: 0.84rem;
+          font-weight: 900;
+          line-height: 1.28;
+        }
+        .selector-result-body {
+          color: #536174;
+          font-size: 0.74rem;
+          line-height: 1.34;
+          margin-top: 0.25rem;
+        }
+        .selector-readiness-pill {
+          display: inline-flex;
+          align-items: center;
+          width: fit-content;
+          max-width: 100%;
+          border-radius: 999px;
+          padding: 0.18rem 0.46rem;
+          font-size: 0.68rem;
+          font-weight: 950;
+          line-height: 1.1;
+          border: 1px solid rgba(148, 163, 184, 0.24);
+          color: #475569;
+          background: #f8fafc;
+        }
+        .selector-readiness-pill.ready,
+        .selector-readiness-pill.research-now {
+          color: #047857;
+          background: #ecfdf5;
+          border-color: rgba(4,120,87,0.20);
+        }
+        .selector-readiness-pill.partial,
+        .selector-readiness-pill.monitor {
+          color: #b45309;
+          background: #fff7ed;
+          border-color: rgba(180,83,9,0.20);
+        }
+        .selector-readiness-pill.blocked,
+        .selector-readiness-pill.missing {
+          color: #b42318;
+          background: #fff1f2;
+          border-color: rgba(180,35,24,0.20);
+        }
+        .selector-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.38rem;
+          align-content: flex-start;
+        }
+        .selector-action-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 1.9rem;
+          border-radius: 8px;
+          border: 1px solid rgba(15, 118, 110, 0.24);
+          background: #f0fdf4;
+          color: #0f766e !important;
+          padding: 0.28rem 0.55rem;
+          font-size: 0.73rem;
+          font-weight: 900;
+          text-decoration: none !important;
+        }
+        .selector-action-link.secondary {
+          border-color: rgba(37,99,235,0.22);
+          background: #eff6ff;
+          color: #1d4ed8 !important;
+        }
+        .public-proof-history {
+          display: grid;
+          grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+          gap: 1rem;
+          margin: 0.6rem 0 0.9rem 0;
+        }
+        .public-proof-summary-card {
+          border: 1px solid rgba(15, 23, 42, 0.12);
+          border-radius: 8px;
+          background: #ffffff;
+          padding: 0.95rem 1rem;
+          box-shadow: 0 12px 30px rgba(15,23,42,0.045);
+        }
+        .public-proof-kicker {
+          color: #0f766e;
+          font-size: 0.68rem;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .public-proof-title {
+          color: #111827;
+          font-size: 1rem;
+          font-weight: 950;
+          margin-top: 0.18rem;
+        }
+        .public-proof-body {
+          color: #526071;
+          font-size: 0.78rem;
+          line-height: 1.38;
+          margin-top: 0.34rem;
+        }
+        @media (max-width: 980px) {
+          [data-testid="stSidebar"] {
+            width: 9rem !important;
+            min-width: 9rem !important;
+          }
+          .command-hero-v2,
+          .command-action-strip,
+          .command-workbench-grid,
+          .public-proof-history {
+            grid-template-columns: 1fr;
+          }
+          .command-kpi-grid,
+          .research-loop-steps {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .research-loop-connector {
+            display: none;
+          }
+          .selector-result-head {
+            display: none;
+          }
+          .selector-result-row {
+            grid-template-columns: 1fr;
+          }
         }
         h1, h2, h3, h4, h5, h6, p, label, span, div {
           color: var(--research-text);
@@ -2003,8 +2552,8 @@ def apply_dashboard_theme() -> None:
           position: relative;
           overflow: hidden;
           border-radius: 8px;
-          padding: 1.1rem 1.2rem;
-          margin: 0 0 0.72rem 0;
+          padding: 0.92rem 1.05rem;
+          margin: 0 0 0.58rem 0;
           background: #0b3b36;
           border: 1px solid rgba(11, 59, 54, 0.30);
           box-shadow: none;
@@ -2043,23 +2592,23 @@ def apply_dashboard_theme() -> None:
         }
         .hero-title {
           color: #ffffff;
-          font-size: 2.7rem;
-          line-height: 1.02;
+          font-size: 2.05rem;
+          line-height: 1.08;
           font-weight: 900;
           letter-spacing: 0;
-          margin: 0.38rem 0 0.55rem 0;
+          margin: 0.24rem 0 0.34rem 0;
         }
         .hero-subtitle {
           color: rgba(255, 255, 255, 0.84);
           max-width: 56rem;
-          font-size: 1.02rem;
-          line-height: 1.55;
+          font-size: 0.94rem;
+          line-height: 1.42;
         }
         .hero-pills {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.55rem;
-          margin-top: 1.05rem;
+          gap: 0.42rem;
+          margin-top: 0.68rem;
         }
         .hero-pill {
           color: #ecfdf5;
@@ -2119,7 +2668,7 @@ def apply_dashboard_theme() -> None:
         .metric-card {
           background: rgba(255, 254, 250, 0.92);
           border: 1px solid var(--research-border);
-          border-radius: 12px;
+          border-radius: 8px;
           padding: 0.95rem 1rem;
           box-shadow: 0 10px 28px rgba(17, 24, 39, 0.06);
         }
@@ -2152,7 +2701,7 @@ def apply_dashboard_theme() -> None:
           background: #fffefa;
           border: 1px solid var(--research-border);
           border-left: 6px solid var(--research-accent);
-          border-radius: 12px;
+          border-radius: 8px;
           padding: 0.95rem 1rem;
           box-shadow: 0 12px 32px rgba(17, 24, 39, 0.07);
         }
@@ -2185,7 +2734,7 @@ def apply_dashboard_theme() -> None:
         .notice-card {
           margin: 0.75rem 0 1rem 0;
           padding: 1rem 1.05rem;
-          border-radius: 12px;
+          border-radius: 8px;
           border: 1px solid #bfdbfe;
           border-left: 6px solid #2563eb;
           background: linear-gradient(180deg, #eff6ff, #ffffff);
@@ -2236,6 +2785,10 @@ def apply_dashboard_theme() -> None:
           padding: 0.58rem 0.64rem;
           box-shadow: none;
           border-color: rgba(148, 163, 184, 0.24);
+        }
+        .signal-grid.queue-grid .signal-card:first-child {
+          border-color: rgba(15, 118, 110, 0.34);
+          background: #f0fdfa;
         }
         .signal-kicker {
           color: #0f766e;
@@ -2871,13 +3424,13 @@ def apply_dashboard_theme() -> None:
         }
         @media (max-width: 650px) {
           .hero-title {
-            font-size: 2rem;
+            font-size: 1.55rem;
           }
           .hero-subtitle {
-            font-size: 0.94rem;
+            font-size: 0.86rem;
           }
           .app-hero {
-            padding: 1.05rem 1rem;
+            padding: 0.78rem 0.82rem;
           }
         }
         [data-testid="stMetric"] {
@@ -4019,9 +4572,9 @@ def render_sidebar_route_steps(cards: list[tuple[str, str, str, str]]) -> None:
 def sidebar_nav_header_html() -> str:
     return """
     <div class="sidebar-nav-header">
-      <div class="sidebar-nav-kicker">Readiness-first</div>
-      <div class="sidebar-nav-title">Research paths</div>
-      <div class="sidebar-nav-copy">Choose one path. Open proof only when a section is locked or needs source review.</div>
+      <div class="sidebar-nav-kicker">SRC</div>
+      <div class="sidebar-nav-title">SRC<br/>Center</div>
+      <div class="sidebar-nav-copy">Readiness-first research paths. Choose one path; open proof only when a section is locked.</div>
     </div>
     """
 
@@ -4034,9 +4587,9 @@ def sidebar_product_intro_html() -> str:
     return """
     <div class="sidebar-product-card">
       <div class="sidebar-product-label">Research workflow</div>
-      <div class="sidebar-product-title">Start with readiness, review one ticker, then inspect proof only when needed.</div>
+      <div class="sidebar-product-title">Start with readiness, explore ready names, then review one ticker or inspect proof.</div>
       <div class="sidebar-product-copy">
-        The dashboard is read-only: it connects readiness, ticker review, source-proof gaps, and proof history without executing account actions or data imports.
+        The dashboard is read-only: it connects selection, ticker review, source-proof gaps, and proof history without executing account actions or data imports.
       </div>
     </div>
     """
@@ -4297,6 +4850,253 @@ def monthly_ideas_hero_label(monthly_count: int) -> str:
     return f"{monthly_count} monthly ideas ready"
 
 
+def _readiness_total(summary: dict[str, object] | None, fallback: int = 0) -> int:
+    return max(_summary_count(summary, "master_universe", "master_count", "universe_count") or fallback, 0)
+
+
+def _readiness_count_label(count: int, total: int) -> str:
+    return f"{count:,} / {total:,}" if total else f"{count:,}"
+
+
+def _readiness_percent_label(count: int, total: int) -> str:
+    if total <= 0:
+        return "Not ready"
+    return f"{round((count / total) * 100):.0f}%"
+
+
+def command_center_header_html(
+    summary: dict[str, object] | None,
+    *,
+    tickers: int,
+    final_count: int,
+    latest_price: str,
+    compact: bool = False,
+) -> str:
+    summary = summary or {}
+    total = _readiness_total(summary, tickers)
+    price_ready = _summary_count(summary, "price_ready")
+    dcf_ready = _summary_count(summary, "dcf_ready")
+    peer_ready = _summary_count(summary, "peer_ready")
+    blocked = max(total - price_ready, 0) if total else 0
+    kpis = [
+        ("Price-ready", _readiness_count_label(price_ready, total), "Price coverage ready", ""),
+        ("DCF-ready", f"{dcf_ready:,} DCF-ready", _readiness_count_label(dcf_ready, total), "warn" if total and dcf_ready / total < 0.2 else ""),
+        ("Peer-ready", f"{peer_ready:,} peer-ready", _readiness_count_label(peer_ready, total), "warn" if total and peer_ready / total < 0.2 else ""),
+        ("Blocked by data", f"{blocked:,} blocked", "Needs source proof", "blocked"),
+    ]
+    kpi_html = "".join(
+        "<div class='command-kpi {tone}'>"
+        f"<div class='command-kpi-label'>{html.escape(label)}</div>"
+        f"<div class='command-kpi-value'>{html.escape(value)}</div>"
+        f"<div class='command-kpi-note'>{html.escape(note)}</div>"
+        "</div>"
+        for label, value, note, tone in kpis
+    )
+    compact_class = " compact" if compact else ""
+    return (
+        f"<div class='command-topbar{compact_class}'>"
+        "<div class='command-top-left'>"
+        f"<span class='command-status-item'>Data snapshot: {html.escape(str(latest_price))}</span>"
+        "<span class='command-status-item'>Prices: ON <span class='command-status-dot'></span></span>"
+        "<span class='command-status-item'>Fundamentals: ON <span class='command-status-dot'></span></span>"
+        "<span class='command-status-item'>DCF: ON <span class='command-status-dot'></span></span>"
+        "<span class='command-status-item'>Peers: readiness-gated <span class='command-status-dot'></span></span>"
+        "</div>"
+        "<div class='command-top-right'>"
+        "<a class='command-top-link' href='?mode=public&page=data-health'>Data Health</a>"
+        "<span class='command-status-item'>About this center</span>"
+        "</div>"
+        "</div>"
+        f"<div class='command-hero-v2{compact_class}'>"
+        "<div class='command-hero-copy'>"
+        "<div class='command-title-v2'>Stock Research Command Center</div>"
+        "<div class='command-subtitle-v2'>Data readiness first <span>&bull;</span> Research-only</div>"
+        "<div class='command-body-v2'>A local, explainable research cockpit for selecting what to review next, opening one ticker, and proving missing data before analysis. Research-only review; no external account actions.</div>"
+        "</div>"
+        "<div class='command-kpi-panel'>"
+        f"<div class='command-kpi-grid'>{kpi_html}</div>"
+        f"<div class='command-kpi-proof'>Readiness reflects current local outputs. {final_count:,} saved names are available for review. See Data Health for details and proof.</div>"
+        "</div>"
+        "</div>"
+    )
+
+
+def command_center_loop_steps() -> list[dict[str, str]]:
+    return [
+        {
+            "name": "Explore ready names",
+            "body": "Filter readiness-backed candidates before opening a report.",
+            "glyph": "01",
+        },
+        {
+            "name": "One-Ticker Review",
+            "body": "Start with a single company research report.",
+            "glyph": "02",
+        },
+        {
+            "name": "Data Health (source-proof)",
+            "body": "Check readiness, routing, and source coverage.",
+            "glyph": "03",
+        },
+        {
+            "name": "Value / Re-rating",
+            "body": "Run DCF, sensitivity, and scenario analysis only when ready.",
+            "glyph": "04",
+        },
+        {
+            "name": "Method Guardrails",
+            "body": "Confirm rules, limits, and quality discipline.",
+            "glyph": "05",
+        },
+        {
+            "name": "Proof History",
+            "body": "Review actions and source-proof trail.",
+            "glyph": "06",
+        },
+    ]
+
+
+def command_center_loop_html(active_step: str = "Explore ready names") -> str:
+    active = str(active_step or "").strip().lower()
+    steps = command_center_loop_steps()
+    step_html = "".join(
+        "<div class='research-loop-step {active_class}'>"
+        "<div class='research-loop-node'>"
+        f"<div class='research-loop-number'>{index}</div>"
+        f"<div class='research-loop-glyph'>{html.escape(step['glyph'])}</div>"
+        "</div>"
+        f"<div class='research-loop-name'>{html.escape(step['name'])}</div>"
+        f"<div class='research-loop-desc'>{html.escape(step['body'])}</div>"
+        "</div>"
+        for index, step in enumerate(steps, start=1)
+        for active_class in ["active" if active in step["name"].lower() else ""]
+    )
+    return (
+        "<div class='research-loop-v2'>"
+        "<div class='research-loop-title'>The research loop</div>"
+        f"<div class='research-loop-steps'><div class='research-loop-connector'></div>{step_html}</div>"
+        "</div>"
+    )
+
+
+def command_center_action_strip_html(summary: dict[str, object] | None, active_step: str = "Explore ready names") -> str:
+    summary = summary or {}
+    dcf_ready = _summary_count(summary, "dcf_ready")
+    peer_ready = _summary_count(summary, "peer_ready")
+    total = _readiness_total(summary)
+    blocker = "Do not proceed if key data is blocked"
+    if total and dcf_ready:
+        blocker = f"Do not proceed if data is not DCF-ready; only {dcf_ready:,} of {total:,} rows currently pass."
+    return (
+        "<div class='command-action-strip'>"
+        "<div class='command-action-block'>"
+        "<div class='command-action-icon'>1</div>"
+        "<div>"
+        "<div class='command-action-kicker'>Next safe action</div>"
+        f"<div class='command-action-title'>{html.escape(active_step)}</div>"
+        "<div class='command-action-body'>Use the selector or one-ticker report to understand the company before deeper analysis.</div>"
+        "</div>"
+        "</div>"
+        "<div class='command-action-block stop'>"
+        "<div class='command-action-icon'>!</div>"
+        "<div>"
+        "<div class='command-action-kicker'>Stop rule</div>"
+        f"<div class='command-action-title'>{html.escape(blocker)}</div>"
+        f"<div class='command-action-body'>Peer-ready rows: {peer_ready:,}. If a required signal is blocked, route it to Data Health first.</div>"
+        "</div>"
+        "</div>"
+        "</div>"
+    )
+
+
+def command_center_workbench_html(summary: dict[str, object] | None) -> str:
+    summary = summary or {}
+    total = _readiness_total(summary)
+    price_ready = _summary_count(summary, "price_ready")
+    dcf_ready = _summary_count(summary, "dcf_ready")
+    peer_ready = _summary_count(summary, "peer_ready")
+    blocked = max(total - price_ready, 0) if total else 0
+    recent_reports = ["NVDA", "AAPL", "MSFT", "AVGO", "TSLA"]
+    report_rows = "".join(
+        f"<div class='command-mini-row'><span>{html.escape(ticker)}</span><span>Local report</span></div>"
+        for ticker in recent_reports
+    )
+    proof_rows = "".join(
+        "<div class='command-mini-row'>"
+        f"<span>{html.escape(label)}</span><span>{html.escape(value)}</span>"
+        "</div>"
+        for label, value in [
+            ("Price-ready", _readiness_count_label(price_ready, total)),
+            ("DCF-ready", _readiness_count_label(dcf_ready, total)),
+            ("Peer-ready", _readiness_count_label(peer_ready, total)),
+            ("Blocked by data", str(blocked)),
+        ]
+    )
+    history_rows = "".join(
+        "<div class='command-mini-row'>"
+        f"<span>{html.escape(label)}</span><span>{html.escape(status)}</span>"
+        "</div>"
+        for label, status in [
+            ("Readiness snapshot", "Current"),
+            ("Selector queue", "Sorted by readiness"),
+            ("Proof drawer", "Open in Data Health"),
+            ("Report path", "Copy-only"),
+        ]
+    )
+    return (
+        "<div class='command-workbench-grid'>"
+        "<div class='command-workbench-card'>"
+        "<div class='command-workbench-title'>One-Ticker Review</div>"
+        "<div class='command-workbench-body'>Generate a local research report for a single company.</div>"
+        f"<div class='command-mini-list'>{report_rows}</div>"
+        "</div>"
+        "<div class='command-workbench-card'>"
+        "<div class='command-workbench-title'>Data Health (source-proof)</div>"
+        "<div class='command-workbench-body'>Check what is ready, what is blocked, and why.</div>"
+        f"<div class='command-mini-list'>{proof_rows}</div>"
+        "</div>"
+        "<div class='command-workbench-card'>"
+        "<div class='command-workbench-title'>Proof History</div>"
+        "<div class='command-workbench-body'>Recent actions and source-proof trail stay visible before changed readiness is trusted.</div>"
+        f"<div class='command-mini-list'>{history_rows}</div>"
+        "</div>"
+        "</div>"
+        "<div class='command-footer-note'><span>Research-only workspace</span><span>Not investment advice</span><span>No forward-looking guarantees</span></div>"
+    )
+
+
+def command_center_overview_html(
+    summary: dict[str, object] | None,
+    *,
+    active_step: str = "Explore ready names",
+) -> str:
+    return (
+        command_center_loop_html(active_step)
+        + command_center_action_strip_html(summary, active_step)
+        + command_center_workbench_html(summary)
+    )
+
+
+def render_command_center_overview(summary: dict[str, object] | None, *, active_step: str = "Explore ready names") -> None:
+    st.markdown(command_center_overview_html(summary, active_step=active_step), unsafe_allow_html=True)
+
+
+def _header_readiness_summary() -> dict[str, object]:
+    coverage_frame, _ = load_output(OUTPUTS_DIR / "ticker_data_coverage.csv")
+    dcf_readiness_frame, _ = load_dcf_readiness()
+    optional_tables = load_optional_context_readiness()
+    earnings_readiness_frame, _ = optional_tables["earnings_readiness"]
+    analyst_readiness_frame, _ = optional_tables["analyst_estimates_readiness"]
+    ticker_readiness_frame, _ = load_ticker_readiness_report()
+    return dashboard_readiness_summary(
+        coverage_frame,
+        dcf_readiness_frame,
+        earnings_readiness_frame,
+        analyst_readiness_frame,
+        ticker_readiness_frame,
+    )
+
+
 def render_app_header(
     catalog: LocalDataCatalog,
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
@@ -4310,36 +5110,16 @@ def render_app_header(
     monthly_frame, _ = monthly_tables["monthly_research_picks.csv"]
     final_count = 0 if final_frame is None else len(final_frame)
     monthly_count = 0 if monthly_frame is None else len(monthly_frame)
-    monthly_label = monthly_ideas_hero_label(monthly_count)
     latest_price = _latest_local_price_date(catalog)
-    hero_class = "app-hero compact" if compact else "app-hero"
-    subtitle = (
-        "Readiness-first local research. Data Health shows what is ready, blocked, or excluded before analysis."
-        if compact
-        else (
-            "A local, explainable research dashboard for market direction, momentum leadership, portfolio review, "
-            "valuation context, monthly research candidates, and data readiness. Research-only review; no external account actions."
-        )
-    )
-    pill_items = (
-        [f"{tickers} tickers tracked", f"Latest price: {latest_price}"]
-        if compact
-        else [f"{tickers} tickers tracked", f"{final_count} names checked", monthly_label, f"Latest price: {latest_price}"]
-    )
-    pill_html = "".join(f'<span class="hero-pill">{html.escape(str(item))}</span>' for item in pill_items)
+    readiness_summary = _header_readiness_summary()
     st.markdown(
-        f"""
-        <div class="{hero_class}">
-          <div class="hero-kicker">Local stock research dashboard</div>
-          <div class="hero-title">Stock Research Command Center</div>
-          <div class="hero-subtitle">
-            {html.escape(subtitle)}
-          </div>
-          <div class="hero-pills">
-            {pill_html}
-          </div>
-        </div>
-        """,
+        command_center_header_html(
+            readiness_summary,
+            tickers=tickers,
+            final_count=final_count,
+            latest_price=latest_price,
+            compact=compact,
+        ),
         unsafe_allow_html=True,
     )
 
@@ -7656,7 +8436,7 @@ def data_health_coverage_summary_frame(
             "state": "supported",
             "one_clear_answer": "Use screenshots and reviewed proof to explain product behavior only, not data freshness.",
             "ready_coverage": "Product evidence only",
-            "supporting_coverage": "Commands and raw tables stay collapsed by default",
+            "supporting_coverage": "Evidence details stay collapsed by default",
             "blocked_or_limited": "Does not unlock blocked input lanes",
             "operator_step": "make browser-qa-evidence",
         },
@@ -7690,7 +8470,7 @@ def render_data_health_coverage_summary(
 ) -> None:
     render_section_header(
         "Coverage Summary / What Can I Use?",
-        "One clear answer per lane before operations, proof commands, raw tables, or research conclusions.",
+        "One clear answer per lane before operations, proof details, or research conclusions.",
     )
     render_signal_cards(
         data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame),
@@ -10079,6 +10859,80 @@ def data_health_reviewed_batch_proof_cards(ledger_path: Path | None = None) -> l
             "command": "make reviewed-batch-proof",
         }
     ]
+
+
+def _proof_history_first_text(frame: pd.DataFrame | None, *columns: str, fallback: str = "Not recorded") -> str:
+    if frame is None or frame.empty:
+        return fallback
+    row = frame.iloc[0]
+    for column in columns:
+        if column in row.index:
+            text = format_missing(row.get(column), "")
+            if text:
+                return text
+    return fallback
+
+
+def proof_history_public_summary_html(proof_timeline: pd.DataFrame | None, batch_proof_frame: pd.DataFrame | None) -> str:
+    proof_count = 0 if proof_timeline is None else len(proof_timeline)
+    batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
+    latest_proof_lane = _proof_history_first_text(proof_timeline, "Lane", fallback="No lane proof yet")
+    latest_proof_outcome = _proof_history_first_text(proof_timeline, "Final Outcome", "Reviewer Outcome", fallback="not_recorded")
+    latest_proof_change = _proof_history_first_text(proof_timeline, "What Changed", "Still Blocked", fallback="No reviewed lane change recorded yet.")
+    latest_batch_lane = _proof_history_first_text(batch_proof_frame, "Lane", fallback="No batch proof yet")
+    latest_batch_outcome = _proof_history_first_text(batch_proof_frame, "Final Outcome", fallback="not_recorded")
+    latest_batch_change = _proof_history_first_text(
+        batch_proof_frame,
+        "Changed Readiness Counts",
+        "Changed Tickers",
+        fallback="No reviewed batch change recorded yet.",
+    )
+    return (
+        "<div class='public-proof-history'>"
+        "<div class='public-proof-summary-card'>"
+        "<div class='public-proof-kicker'>Proof History</div>"
+        "<div class='public-proof-title'>Latest source-proof trail</div>"
+        f"<div class='public-proof-body'>{html.escape(str(proof_count))} reviewed lane proof row(s). Latest lane: {html.escape(latest_proof_lane)}. Outcome: {html.escape(latest_proof_outcome)}. {html.escape(latest_proof_change)}</div>"
+        "</div>"
+        "<div class='public-proof-summary-card'>"
+        "<div class='public-proof-kicker'>Reviewed Batch Proof</div>"
+        "<div class='public-proof-title'>Changed readiness needs durable proof</div>"
+        f"<div class='public-proof-body'>{html.escape(str(batch_count))} reviewed batch proof row(s). Latest lane: {html.escape(latest_batch_lane)}. Outcome: {html.escape(latest_batch_outcome)}. {html.escape(latest_batch_change)}</div>"
+        "</div>"
+        "</div>"
+    )
+
+
+def render_proof_history(*, public_mode: bool = True) -> None:
+    if public_mode:
+        render_command_center_overview(_header_readiness_summary(), active_step="Proof History")
+    render_section_header(
+        PROOF_HISTORY_PATH_TITLE,
+        "Review source-proof trail and durable batch proof before trusting changed readiness states.",
+    )
+    proof_timeline = data_health_reviewed_proof_timeline_frame()
+    batch_proof_frame = data_health_reviewed_batch_proof_frame()
+    st.markdown(
+        proof_history_public_summary_html(proof_timeline, batch_proof_frame),
+        unsafe_allow_html=True,
+    )
+    render_context_note(
+        "Evidence only.",
+        "Proof History records data-readiness evidence. It is not performance reporting, investment advice, or an account-action surface.",
+        tone="success",
+    )
+    render_signal_cards(data_health_reviewed_proof_cards() + data_health_reviewed_batch_proof_cards(), show_commands=False)
+    with st.expander("Proof ledger details", expanded=False):
+        render_section_header("Reviewed Data Proof Ledger", "Durable lane proof rows, not generated CSV churn.")
+        if proof_timeline.empty:
+            st.caption("No reviewed proof rows are recorded yet.")
+        else:
+            st.dataframe(clean_display_frame(proof_timeline), width="stretch", hide_index=True)
+        render_section_header("Reviewed Batch Proof Rows", "Supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
+        if batch_proof_frame.empty:
+            st.caption("No reviewed batch proof rows are recorded yet.")
+        else:
+            st.dataframe(clean_display_frame(batch_proof_frame), width="stretch", hide_index=True)
 
 
 def data_health_latest_reviewed_batch_packet_frame(packet_csv_path: Path | None = None, *, limit: int = 10) -> pd.DataFrame:
@@ -19305,6 +20159,12 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
             "neutral",
         ),
         (
+            "Explore ready names",
+            "Filter readiness-backed candidates before choosing the next one-ticker review path.",
+            "Stock Selector",
+            "neutral",
+        ),
+        (
             "Improve data coverage",
             "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
             "Data Health",
@@ -19313,7 +20173,7 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
         (
             "Inspect proof",
             "Open readiness snapshots, reviewed batch packets, proof ledgers, and still-blocked fields before trusting a result.",
-            "Data Health",
+            "Proof History",
             "neutral",
         ),
     ]
@@ -23207,7 +24067,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "kicker": "VISITOR STEP 1",
             "title": "Preview the visitor path",
             "body": (
-                "Follow Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. "
+                "Follow Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History. "
                 "This is a read-only tour of the research loop before any local data changes."
             ),
             "badges": ["share path", "read-only"],
@@ -23217,7 +24077,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "kicker": "VISITOR STEP 2",
             "title": "Open the clean product view",
             "body": (
-                "Start on Home for the coverage snapshot and three clear paths: review one stock, improve data coverage, or explore ready names."
+                "Start on Home for the coverage snapshot and five public paths: start at Home, explore ready names, review one stock, improve data coverage, or inspect proof."
             ),
             "badges": ["start here", "plain English"],
             "command": "make dashboard",
@@ -23256,8 +24116,528 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
     return public_home_next_step_cards(summary)
 
 
+def _summary_count(summary: dict[str, object] | None, *keys: str) -> int:
+    summary = summary or {}
+    for key in keys:
+        try:
+            return int(summary.get(key) or 0)
+        except (TypeError, ValueError):
+            continue
+    return 0
+
+
+def research_cockpit_summary_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
+    summary = summary or {}
+    universe = _summary_count(summary, "master_universe", "master_count", "universe_count")
+    dcf_ready = _summary_count(summary, "dcf_ready")
+    peer_ready = _summary_count(summary, "peer_ready")
+    price_ready = _summary_count(summary, "price_ready")
+    blocked = max(universe - max(dcf_ready, peer_ready, price_ready), 0) if universe else 0
+    return [
+        {
+            "kicker": "ONE-STOCK REVIEW",
+            "title": "Review one stock",
+            "body": "Open a ticker only after readiness first tells you which analysis is supported, locked, or excluded.",
+            "badges": ["one ticker", "readiness first"],
+        },
+        {
+            "kicker": "STOCK SELECTOR",
+            "title": "Explore ready names",
+            "body": f"Stock Selector can filter readiness-backed candidates before single-stock review. Current saved view has {price_ready:,} price-ready rows and {dcf_ready:,} DCF-ready rows.",
+            "badges": ["research queue", "filter readiness-backed candidates"],
+        },
+        {
+            "kicker": "DATA HEALTH",
+            "title": "Improve data coverage",
+            "body": f"Use Data Health when {blocked:,} row(s) still need proof before analysis or when a queue item explains a missing input.",
+            "badges": ["proof before analysis", "trusted inputs"],
+        },
+        {
+            "kicker": "EVIDENCE",
+            "title": "Inspect proof",
+            "body": "Check latest proof before analysis changes become part of the research workflow.",
+            "badges": ["proof before analysis", "source notes"],
+        },
+    ]
+
+
+def stock_selector_cockpit_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
+    summary = summary or {}
+    universe = _summary_count(summary, "master_universe", "master_count", "universe_count")
+    price_ready = _summary_count(summary, "price_ready")
+    dcf_ready = _summary_count(summary, "dcf_ready")
+    peer_ready = _summary_count(summary, "peer_ready")
+    return [
+        {
+            "kicker": "SELECTOR PURPOSE",
+            "title": "Research queue, not a recommendation list",
+            "body": "Use this as a research queue, not a recommendation list. It helps choose which ticker to review next after readiness gates are visible.",
+            "badges": ["research-only", f"{universe:,} tracked rows" if universe else "saved universe"],
+        },
+        {
+            "kicker": "FILTERS",
+            "title": "Filter by readiness and proof",
+            "body": "Expected filters: readiness, sector/theme, DCF-ready, peer-ready, price-ready, blocked reason, and proof freshness.",
+            "badges": [f"{price_ready:,} price-ready", f"{dcf_ready:,} DCF-ready", f"{peer_ready:,} peer-ready"],
+        },
+        {
+            "kicker": "RESULT STATES",
+            "title": "Show why each row appears",
+            "body": "Rows should separate research now, partial, blocked by data, and excluded states with why included and next proof step.",
+            "badges": ["why included", "next proof step"],
+        },
+        {
+            "kicker": "GUARDRAIL",
+            "title": "Keep selection data-gated",
+            "body": "Rank means review priority only. Missing trusted inputs must stay visible before any deeper report is opened.",
+            "badges": ["readiness gate", "copy-only"],
+        },
+    ]
+
+
 def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str, str, str, str]]:
     return public_home_route_choice_cards(summary)
+
+
+def _selector_column(frame: pd.DataFrame, *names: str) -> str | None:
+    lowered = {str(column).lower(): str(column) for column in frame.columns}
+    for name in names:
+        if name in frame.columns:
+            return name
+        found = lowered.get(name.lower())
+        if found:
+            return found
+    return None
+
+
+def _selector_text(row: pd.Series, *columns: str | None, fallback: str = "Not available") -> str:
+    for column in columns:
+        if column and column in row.index:
+            value = row.get(column)
+            text = format_missing(value, "")
+            if text:
+                return text
+    return fallback
+
+
+def single_stock_query_ticker(value: object, local_tickers: list[str] | tuple[str, ...] | None = None) -> str:
+    raw = value[0] if isinstance(value, list) and value else value
+    text = str(raw or "").strip().upper()
+    if not text:
+        return ""
+    cleaned = re.sub(r"[^A-Z0-9.\-]", "", text)
+    if not cleaned:
+        return ""
+    local_lookup = {str(ticker).strip().upper() for ticker in (local_tickers or []) if str(ticker).strip()}
+    return cleaned if not local_lookup or cleaned in local_lookup else cleaned
+
+
+def _stock_selector_sorted_source_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    sorted_frame = frame.copy()
+    state_col = _selector_column(sorted_frame, "decision_bucket", "ReviewState", "FinalState")
+    rank_col = _selector_column(sorted_frame, "WatchlistRank", "Rank")
+    score_col = _selector_column(sorted_frame, "decision_score", "WatchlistScore", "readiness_score", "data_readiness_score")
+    readiness_score_col = _selector_column(sorted_frame, "readiness_score", "data_readiness_score")
+    ticker_col = _selector_column(sorted_frame, "ticker", "Ticker")
+
+    def state_priority(value: object) -> int:
+        text = str(value or "").strip().lower()
+        if "research now" in text or text == "keep" or "ready" in text:
+            return 0
+        if "monitor" in text or "setup" in text:
+            return 1
+        if "blocked" in text:
+            return 2
+        if "excluded" in text:
+            return 3
+        return 4
+
+    sorted_frame["__selector_priority"] = (
+        sorted_frame[state_col].map(state_priority) if state_col else 4
+    )
+    sorted_frame["__selector_rank"] = (
+        pd.to_numeric(sorted_frame[rank_col], errors="coerce").fillna(999999) if rank_col else 999999
+    )
+    sorted_frame["__selector_score"] = (
+        pd.to_numeric(sorted_frame[score_col], errors="coerce").fillna(-1) if score_col else -1
+    )
+    sorted_frame["__selector_readiness_score"] = (
+        pd.to_numeric(sorted_frame[readiness_score_col], errors="coerce").fillna(-1)
+        if readiness_score_col
+        else -1
+    )
+    sorted_frame["__selector_ticker"] = (
+        sorted_frame[ticker_col].astype(str).str.upper() if ticker_col else ""
+    )
+    sorted_frame = sorted_frame.sort_values(
+        [
+            "__selector_priority",
+            "__selector_rank",
+            "__selector_score",
+            "__selector_readiness_score",
+            "__selector_ticker",
+        ],
+        ascending=[True, True, False, False, True],
+        kind="mergesort",
+    )
+    return sorted_frame.drop(
+        columns=[
+            "__selector_priority",
+            "__selector_rank",
+            "__selector_score",
+            "__selector_readiness_score",
+            "__selector_ticker",
+        ],
+        errors="ignore",
+    )
+
+
+def stock_selector_queue_frame(
+    decisions_frame: pd.DataFrame | None,
+    final_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None,
+    *,
+    limit: int = 80,
+) -> pd.DataFrame:
+    source = decisions_frame if decisions_frame is not None and not decisions_frame.empty else final_frame
+    if source is None or source.empty:
+        return pd.DataFrame()
+    frame = _stock_selector_sorted_source_frame(source.copy()).head(max(limit, 1))
+    ticker_col = _selector_column(frame, "ticker", "Ticker")
+    if not ticker_col:
+        return pd.DataFrame()
+
+    readiness_lookup: dict[str, pd.Series] = {}
+    if ticker_readiness_frame is not None and not ticker_readiness_frame.empty:
+        readiness_ticker = _selector_column(ticker_readiness_frame, "ticker", "Ticker")
+        if readiness_ticker:
+            readiness_lookup = {
+                str(row.get(readiness_ticker, "")).strip().upper(): row
+                for _, row in ticker_readiness_frame.iterrows()
+                if str(row.get(readiness_ticker, "")).strip()
+            }
+
+    final_lookup: dict[str, pd.Series] = {}
+    final_sector_col = final_theme_col = final_reason_col = None
+    if final_frame is not None and not final_frame.empty:
+        final_ticker = _selector_column(final_frame, "Ticker", "ticker")
+        final_sector_col = _selector_column(final_frame, "SectorETF", "sector")
+        final_theme_col = _selector_column(final_frame, "Theme", "theme", "PrimaryPurpose")
+        final_reason_col = _selector_column(final_frame, "RankReason", "Reason")
+        if final_ticker:
+            final_lookup = {
+                str(row.get(final_ticker, "")).strip().upper(): row
+                for _, row in final_frame.iterrows()
+                if str(row.get(final_ticker, "")).strip()
+            }
+
+    decision_col = _selector_column(frame, "decision_bucket", "ReviewState", "FinalState")
+    subtype_col = _selector_column(frame, "decision_subtype", "SetupStatus", "ValuationStatus")
+    sector_col = _selector_column(frame, "sector", "SectorETF", "theme", "Theme")
+    theme_col = _selector_column(frame, "theme", "Theme", "industry", "PrimaryPurpose")
+    reason_col = _selector_column(
+        frame,
+        "review_priority_reason",
+        "main_reason",
+        "Reason",
+        "RankReason",
+        "purpose_fit",
+    )
+    supported_col = _selector_column(frame, "supported_analysis", "supporting_features", "feature_summary")
+    blocker_col = _selector_column(frame, "primary_blocker", "missing_data_summary", "missing_data", "blocked_features")
+    next_col = _selector_column(frame, "next_best_action", "next_action", "next_research_step")
+    freshness_col = _selector_column(frame, "source_freshness_summary", "updated_at")
+
+    rows: list[dict[str, object]] = []
+    for _, row in frame.iterrows():
+        ticker = str(row.get(ticker_col, "")).strip().upper()
+        readiness_row = readiness_lookup.get(ticker)
+        final_row = final_lookup.get(ticker)
+        readiness_state = _selector_text(
+            readiness_row if readiness_row is not None else row,
+            _selector_column(ticker_readiness_frame, "overall_readiness_state") if ticker_readiness_frame is not None else None,
+            decision_col,
+            fallback="Needs readiness check",
+        )
+        sector_text = _selector_text(row, sector_col, fallback="")
+        theme_text = _selector_text(row, theme_col, fallback="")
+        if final_row is not None:
+            sector_text = sector_text or _selector_text(final_row, final_sector_col, fallback="")
+            theme_text = theme_text or _selector_text(final_row, final_theme_col, fallback="")
+        reason_text = _selector_text(row, reason_col, fallback="")
+        if final_row is not None:
+            reason_text = reason_text or _selector_text(final_row, final_reason_col, fallback="")
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Research State": _selector_text(row, decision_col, fallback="Research state unavailable"),
+                "Readiness": readiness_state,
+                "Review Detail": _selector_text(row, subtype_col, fallback="Review detail unavailable"),
+                "Sector / Theme": " / ".join(
+                    part
+                    for part in [sector_text, theme_text]
+                    if part
+                )
+                or "Not available",
+                "Why Included": reason_text or "Saved research output includes this row.",
+                "Supported Now": _selector_text(row, supported_col, fallback="Supported analysis not listed."),
+                "Blocked / Missing": _selector_text(
+                    readiness_row if readiness_row is not None else row,
+                    _selector_column(ticker_readiness_frame, "missing_data") if ticker_readiness_frame is not None else None,
+                    blocker_col,
+                    fallback="No missing input listed.",
+                ),
+                "Next Proof Step": _selector_text(
+                    readiness_row if readiness_row is not None else row,
+                    _selector_column(ticker_readiness_frame, "next_action") if ticker_readiness_frame is not None else None,
+                    next_col,
+                    fallback="Run readiness before deeper review.",
+                ),
+                "Proof Freshness": _selector_text(row, freshness_col, fallback="Use Data Health freshness before relying on exact state."),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _selector_readiness_class(value: object) -> str:
+    text = str(value or "").strip().lower()
+    if "ready" in text and "not" not in text and "blocked" not in text:
+        return "ready"
+    if "research now" in text:
+        return "research-now"
+    if "partial" in text or "monitor" in text:
+        return "partial"
+    if "blocked" in text or "missing" in text or "needs" in text:
+        return "blocked"
+    if "excluded" in text:
+        return "blocked"
+    return "unknown"
+
+
+def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, limit: int = 30) -> str:
+    """Render public selector rows as product UI instead of a raw dataframe."""
+
+    if frame is None or frame.empty:
+        return (
+            "<div class='selector-result-table'>"
+            "<div class='selector-result-row'>"
+            "<div class='selector-result-title'>No selector rows match the current filters.</div>"
+            "<div class='selector-result-body'>Change filters or use Data Health to check blocked readiness inputs.</div>"
+            "</div>"
+            "</div>"
+        )
+    visible = frame.head(max(limit, 1))
+    head = (
+        "<div class='selector-result-head'>"
+        "<div>Ticker</div>"
+        "<div>Readiness</div>"
+        "<div>Review detail</div>"
+        "<div>Why included</div>"
+        "<div>Proof step</div>"
+        "<div>Actions</div>"
+        "</div>"
+    )
+    rows: list[str] = []
+    for _, row in visible.iterrows():
+        ticker = str(row.get("Ticker", "")).strip().upper() or "TICKER"
+        readiness = str(row.get("Readiness", "Needs readiness check")).strip() or "Needs readiness check"
+        state = str(row.get("Research State", "Research state unavailable")).strip() or "Research state unavailable"
+        detail = compact_card_fragment(row.get("Review Detail", "Review detail unavailable"), max_chars=98)
+        theme = compact_card_fragment(row.get("Sector / Theme", "Not available"), max_chars=76)
+        why = compact_card_fragment(row.get("Why Included", "Saved research output includes this row."), max_chars=170)
+        supported = compact_card_fragment(row.get("Supported Now", "Supported analysis not listed."), max_chars=110)
+        blocked = compact_card_fragment(row.get("Blocked / Missing", "No missing input listed."), max_chars=120)
+        proof_step = compact_card_fragment(row.get("Next Proof Step", "Run readiness before deeper review."), max_chars=118)
+        freshness = compact_card_fragment(row.get("Proof Freshness", "Use Data Health freshness before relying on exact state."), max_chars=82)
+        report_href = html.escape(f"?mode=public&page=single-stock-report&ticker={ticker}")
+        proof_href = html.escape("?mode=public&page=data-health&drawer=proof")
+        readiness_class = _selector_readiness_class(readiness)
+        rows.append(
+            "<div class='selector-result-row'>"
+            "<div>"
+            f"<div class='selector-result-ticker'>{html.escape(ticker)}</div>"
+            f"<div class='selector-result-state'>{html.escape(state)}</div>"
+            "</div>"
+            "<div>"
+            f"<span class='selector-readiness-pill {html.escape(readiness_class)}'>{html.escape(readiness)}</span>"
+            f"<div class='selector-result-body'>{html.escape(theme)}</div>"
+            "</div>"
+            "<div>"
+            f"<div class='selector-result-title'>{html.escape(detail)}</div>"
+            f"<div class='selector-result-body'>{html.escape(supported)}</div>"
+            "</div>"
+            "<div>"
+            f"<div class='selector-result-title'>{html.escape(why)}</div>"
+            f"<div class='selector-result-body'>{html.escape(blocked)}</div>"
+            "</div>"
+            "<div>"
+            f"<div class='selector-result-title'>{html.escape(proof_step)}</div>"
+            f"<div class='selector-result-body'>{html.escape(freshness)}</div>"
+            "</div>"
+            "<div class='selector-actions'>"
+            f"<a class='selector-action-link' href='{report_href}'>Open report</a>"
+            f"<a class='selector-action-link secondary' href='{proof_href}'>Check proof</a>"
+            "</div>"
+            "</div>"
+        )
+    footer = ""
+    if len(frame) > len(visible):
+        footer = (
+            "<div class='selector-result-row'>"
+            f"<div class='selector-result-body'>{len(visible):,} of {len(frame):,} matching row(s) shown; {total_count:,} saved row(s) are available before filtering.</div>"
+            "</div>"
+        )
+    return "<div class='selector-result-table'>" + head + "".join(rows) + footer + "</div>"
+
+
+def _stock_selector_filter_options(frame: pd.DataFrame, column: str, limit: int = 24) -> list[str]:
+    if frame.empty or column not in frame.columns:
+        return ["All"]
+    values = [
+        str(value).strip()
+        for value in frame[column].dropna().astype(str).tolist()
+        if str(value).strip() and str(value).strip().lower() != "not available"
+    ]
+    return ["All"] + list(dict.fromkeys(values))[:limit]
+
+
+def render_stock_selector(
+    output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
+    *,
+    public_mode: bool = True,
+) -> None:
+    ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
+    dcf_readiness_frame, _ = load_dcf_readiness()
+    optional_tables = load_optional_context_readiness()
+    earnings_readiness_frame, _ = optional_tables["earnings_readiness"]
+    analyst_readiness_frame, _ = optional_tables["analyst_estimates_readiness"]
+    decisions_frame, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
+    final_frame, final_message = output_frames.get("final_watchlist.csv", (None, None))
+    coverage_frame, _ = load_output(OUTPUTS_DIR / "ticker_data_coverage.csv")
+    summary = dashboard_readiness_summary(
+        coverage_frame,
+        dcf_readiness_frame,
+        earnings_readiness_frame,
+        analyst_readiness_frame,
+        ticker_readiness_frame,
+    )
+    selector_frame = stock_selector_queue_frame(decisions_frame, final_frame, ticker_readiness_frame, limit=120)
+
+    if public_mode:
+        render_command_center_overview(summary, active_step="Explore ready names")
+    render_section_header(
+        STOCK_SELECTOR_PATH_TITLE,
+        "Filter readiness-backed research candidates before opening a single-stock report.",
+    )
+    render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
+    render_context_note(
+        "Research-only selector.",
+        "This page helps choose what to review next. It keeps blockers, excluded states, and proof freshness visible before deeper analysis.",
+        tone="success",
+    )
+
+    if ticker_readiness_message or decisions_message or final_message:
+        render_notice_card(
+            "Saved selector data may need refresh",
+            ticker_readiness_message or decisions_message or final_message or "Refresh readiness before relying on exact counts.",
+            "make status-check TOP_N=5",
+            tone="warning",
+        )
+
+    if selector_frame.empty:
+        render_notice_card(
+            "Selector queue is empty",
+            "Build saved research decisions or the final watchlist before using the selector surface.",
+            "make status-check TOP_N=5",
+            tone="warning",
+        )
+        return
+
+    render_section_header("Research Queue", "Use filters to narrow the next one-ticker review candidate.")
+    filter_cols = st.columns([1.05, 1.05, 1.15, 1.2, 1.65])
+    state_filter = filter_cols[0].selectbox(
+        "Research state",
+        _stock_selector_filter_options(selector_frame, "Research State"),
+        key="stock-selector-state",
+    )
+    readiness_filter = filter_cols[1].selectbox(
+        "Readiness",
+        _stock_selector_filter_options(selector_frame, "Readiness"),
+        key="stock-selector-readiness",
+    )
+    detail_filter = filter_cols[2].selectbox(
+        "Review detail",
+        _stock_selector_filter_options(selector_frame, "Review Detail"),
+        key="stock-selector-detail",
+    )
+    theme_filter = filter_cols[3].selectbox(
+        "Sector / theme",
+        _stock_selector_filter_options(selector_frame, "Sector / Theme"),
+        key="stock-selector-theme",
+    )
+    search = filter_cols[4].text_input(
+        "Search ticker, theme, blocker, or proof step",
+        value="",
+        key="stock-selector-search",
+    ).strip()
+
+    filtered = selector_frame.copy()
+    if state_filter != "All":
+        filtered = filtered[filtered["Research State"].astype(str) == state_filter]
+    if readiness_filter != "All":
+        filtered = filtered[filtered["Readiness"].astype(str) == readiness_filter]
+    if detail_filter != "All":
+        filtered = filtered[filtered["Review Detail"].astype(str) == detail_filter]
+    if theme_filter != "All":
+        filtered = filtered[filtered["Sector / Theme"].astype(str) == theme_filter]
+    if search:
+        lowered = search.lower()
+        filtered = filtered[
+            filtered.astype(str).apply(lambda row: row.str.lower().str.contains(lowered, regex=False, na=False).any(), axis=1)
+        ]
+
+    count_label = f"{len(filtered):,} of {len(selector_frame):,} saved row(s)"
+    render_context_note(
+        "Filtered result set.",
+        f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
+    )
+    st.markdown(
+        stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=30),
+        unsafe_allow_html=True,
+    )
+    with st.expander("Full filtered selector rows", expanded=False):
+        render_context_note(
+            "Detailed selector evidence.",
+            "The full filtered table stays available for audit, but the public first-read view uses readiness rows and explicit actions.",
+        )
+        st.dataframe(clean_display_frame(filtered.head(120)), width="stretch", hide_index=True)
+
+    if public_mode:
+        render_section_header("Next Reading Path", "Move from selection to proof without turning the queue into a conclusion.")
+        render_action_cards(
+            [
+                (
+                    "Open one report",
+                    "Use the selected ticker action above to open Single-Stock Report with a prefilled ticker.",
+                    "?mode=public&page=single-stock-report&ticker=NVDA",
+                    "neutral",
+                ),
+                (
+                    "Check data proof",
+                    "Use Data Health when the selector row is partial, blocked, or stale.",
+                    "?mode=public&page=data-health&drawer=proof",
+                    "neutral",
+                ),
+                (
+                    "Inspect proof history",
+                    "Review durable proof rows before trusting changed readiness states.",
+                    "?mode=public&page=proof-history",
+                    "neutral",
+                ),
+            ]
+        )
 
 
 def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
@@ -23670,17 +25050,16 @@ def render_home_page(
     generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
     freshness = readiness_freshness_status(BASE_DIR)
 
-    render_section_header(
-        "Home",
-        "A plain-language view of what is ready, what is blocked, and what to review next.",
-    )
     if public_mode:
-        render_context_note(
-            "Public visitor mode.",
-            "Data readiness first. Analysis second. Research decision last. This view keeps the research workflow readable and keeps detailed operator commands behind Operator mode.",
-            tone="success",
+        render_command_center_overview(summary, active_step="Explore ready names")
+    else:
+        render_section_header(
+            "Home",
+            "A readiness-first research cockpit for choosing what to review next.",
         )
-        render_research_loop_strip(**home_research_loop_context(summary, freshness))
+        render_signal_cards(dashboard_page_reader_summary_cards("Home"))
+        render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
+
     if public_mode:
         render_public_proof_strip(_public_home_snapshot_items(summary))
         render_section_header(
@@ -23698,9 +25077,6 @@ def render_home_page(
             "A simple four-step path for reading the project without opening operator tables.",
         )
         render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")
-    else:
-        render_signal_cards(dashboard_page_reader_summary_cards("Home"))
-        render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
     if generated_stale_warning:
         render_notice_card(
             "Generated status may be stale",
@@ -23721,7 +25097,7 @@ def render_home_page(
         with st.expander("Optional: workflow and next-step details", expanded=False):
             render_section_header(
                 "Research Workflow",
-                "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states.",
+                "One connected loop: readiness snapshot, selector queue, one-ticker report, source-proof lane, then proof history before trusting changed states.",
             )
             render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)
             render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
@@ -23729,7 +25105,7 @@ def render_home_page(
     else:
         render_section_header(
             "Research Workflow",
-            "One connected loop: readiness snapshot, one-ticker report, source-proof lane, then proof history before trusting changed states.",
+            "One connected loop: readiness snapshot, selector queue, one-ticker report, source-proof lane, then proof history before trusting changed states.",
         )
         render_research_loop_strip(**home_research_loop_context(summary, freshness))
         render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)
@@ -24023,20 +25399,30 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     render_table(frame, title.lower().replace(" ", "-"), show_reason_details)
 
 
-def render_single_stock_report(provider, show_source_details: bool) -> None:
+def render_single_stock_report(provider, show_source_details: bool, *, public_mode: bool = True) -> None:
+    if public_mode:
+        render_command_center_overview(_header_readiness_summary(), active_step="One-Ticker Review")
     render_section_header(
         "Single-Stock Report",
         "One-ticker research review. Start with the saved local report; optional online lookup stays off by default.",
     )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
+    query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
+    ticker_options = ["Custom"] + local_tickers if local_tickers else ["Custom"]
+    default_selection_index = preferred_single_stock_default(local_tickers)
+    if query_ticker and query_ticker in ticker_options:
+        default_selection_index = ticker_options.index(query_ticker)
+    elif query_ticker:
+        default_selection_index = 0
     selection_cols = st.columns([2, 2, 1])
     selected = selection_cols[0].selectbox(
         "Choose ticker",
-        ["Custom"] + local_tickers if local_tickers else ["Custom"],
-        index=preferred_single_stock_default(local_tickers),
+        ticker_options,
+        index=default_selection_index,
         help="Defaults to NVDA when it exists in local data because it is a richer demo report.",
     )
-    manual_ticker = selection_cols[1].text_input("Enter ticker", value="" if selected != "Custom" else "AAPL")
+    manual_default = query_ticker if selected == "Custom" and query_ticker else "" if selected != "Custom" else "AAPL"
+    manual_ticker = selection_cols[1].text_input("Enter ticker", value=manual_default)
     use_yfinance = selection_cols[2].checkbox(
         "Online lookup (off by default)",
         value=False,
@@ -24056,11 +25442,19 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         peer_summary = provider.get_peer_summary(ticker)
-        render_section_header(
-            "Selected Ticker Readiness",
-            "What this ticker can support before opening the generated report.",
-        )
-        render_signal_cards(single_stock_pre_report_contract_cards(ticker, coverage, peer_summary), show_commands=False, variant="queue")
+        pre_report_cards = single_stock_pre_report_contract_cards(ticker, coverage, peer_summary)
+        if report_payload:
+            render_section_header(
+                "Selected Ticker Readiness",
+                "Compact readiness state for the loaded report.",
+            )
+            render_signal_cards(pre_report_cards[:3], show_commands=False, variant="queue")
+        else:
+            render_section_header(
+                "Selected Ticker Readiness",
+                "What this ticker can support before opening the generated report.",
+            )
+            render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
         with st.expander("Coverage and peer readiness", expanded=False):
             render_context_note(
                 "Local coverage.",
@@ -24123,6 +25517,11 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         "A readable view of local research inputs. This is context only, not execution guidance.",
     )
     render_section_header(
+        "At A Glance",
+        "Start here: mode, valuation state, withheld context, method boundary, and next local command.",
+    )
+    render_signal_cards(stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
+    render_section_header(
         "Workflow Fit",
         "Selected ticker state, what can be reviewed now, what stays blocked, and where Data Health fits next.",
     )
@@ -24130,11 +25529,6 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         stock_report_workflow_fit_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None),
         show_commands=False,
     )
-    render_section_header(
-        "At A Glance",
-        "Start here: mode, valuation state, withheld context, method boundary, and next local command.",
-    )
-    render_signal_cards(stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     render_section_header(
         "Reader Guide",
         "Plain-English report path before detailed tabs: what can be analyzed, what stays locked, and which boundary matters.",
@@ -25035,13 +26429,6 @@ def render_data_health(
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
-    if public_mode and project_status_payload is None:
-        with st.expander("Refresh status note", expanded=False):
-            render_notice_card(
-                "Saved coverage view",
-                "Data Health opens with the latest saved coverage view so the page stays fast. Copy `make project-status` when you want to refresh the next-step summary.",
-                "make project-status",
-            )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
     action_queue_frame, action_queue_message = load_action_queue()
     health_tables = load_research_health_tables()
@@ -25118,6 +26505,7 @@ def render_data_health(
     )
     readiness_freshness = data_health_freshness_status(BASE_DIR)
     if public_mode:
+        render_command_center_overview(readiness_summary, active_step="Data Health (source-proof)")
         render_section_header(
             "Data Quality / Readiness",
             "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
@@ -25125,9 +26513,16 @@ def render_data_health(
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
         render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
         render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
+        if public_mode and project_status_payload is None:
+            with st.expander("Refresh status note", expanded=False):
+                render_notice_card(
+                    "Saved coverage view",
+                    "Data Health opens with the latest saved coverage view so the page stays fast. Copy `make project-status` when you want to refresh the next-step summary.",
+                    "make project-status",
+                )
         render_context_note(
             "Public Data Health summary.",
-            "Start with the three visitor paths. Open the evidence drawer only when you want readiness proof; switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
+            "Start with the five public paths. Open the evidence drawer only when you want readiness proof; switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
             tone="success",
         )
         render_research_loop_strip(
@@ -27390,7 +28785,8 @@ def main() -> None:
         if has_explicit_mode_query:
             public_demo_mode = initial_mode == PUBLIC_DEMO_MODE
         mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
-        st.caption(f"Mode: {dashboard_mode_label(mode)}")
+        if not public_demo_mode:
+            st.caption(f"Mode: {dashboard_mode_label(mode)}")
         path_options = sidebar_path_options(initial_page)
         default_path = "Home" if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES else initial_page
         route_signature = f"{mode}:{initial_page}"
@@ -27401,14 +28797,12 @@ def main() -> None:
             path_options,
             index=sidebar_path_index(default_path, path_options),
             format_func=public_path_label,
-            help="Most visitors only need these paths: review one stock, improve data coverage, or inspect proof.",
+            help="Most visitors only need these paths: review one stock, explore ready names, improve data coverage, or inspect proof.",
             key=path_widget_key,
         )
         path_selection = page_title_from_public_path(path_selection)
         if path_selection == DETAILED_PAGE_PATH_TITLE:
             selected_page = initial_page
-        elif path_selection == PROOF_HISTORY_PATH_TITLE:
-            selected_page = "Data Health"
         else:
             selected_page = path_selection
         if has_explicit_page_query:
@@ -27458,13 +28852,13 @@ def main() -> None:
             with st.expander("Best beginner path", expanded=False):
                 render_context_note(
                     "Start simple.",
-                    "Home -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
+                    "Home -> Stock Selector -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
                 )
                 render_sidebar_route_steps(dashboard_navigation_cards())
         elif public_demo_mode:
             render_context_note(
                 "Clean visitor workflow.",
-                "Home -> Single-Stock Report -> Data Health. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
+                "Home -> Stock Selector -> Single-Stock Report -> Data Health. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
             )
         if show_sidebar_operator_guides:
             with st.expander("Copy-only local commands", expanded=False):
@@ -27478,6 +28872,7 @@ def main() -> None:
                 )
 
     render_app_header(catalog, output_frames, compact=selected_page == "Data Health" and not public_demo_mode)
+    st.caption("Local stock research dashboard. Data readiness first; analysis only when source-backed inputs are ready.")
 
     project_status_payload = None
 
@@ -27487,6 +28882,8 @@ def main() -> None:
 
     if selected_page == "Home":
         render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)
+    elif selected_page == STOCK_SELECTOR_PATH_TITLE:
+        render_stock_selector(output_frames, public_mode=public_demo_mode)
     elif selected_page == "Overview":
         render_overview(output_frames, catalog, universe_summary or summarize_universe_manager(BASE_DIR), project_status_payload)
     elif selected_page == "Monthly Picks":
@@ -27494,9 +28891,11 @@ def main() -> None:
     elif selected_page in {"Market Direction", "Momentum Leaders", "Portfolio Review", "Value / Re-rating", "Final Watchlist"}:
         render_output_tab(selected_page, output_frames, show_reason_details)
     elif selected_page == "Single-Stock Report":
-        render_single_stock_report(provider, show_source_details)
+        render_single_stock_report(provider, show_source_details, public_mode=public_demo_mode)
     elif selected_page == "Data Health":
         render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)
+    elif selected_page == PROOF_HISTORY_PATH_TITLE:
+        render_proof_history(public_mode=public_demo_mode)
     elif selected_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
 

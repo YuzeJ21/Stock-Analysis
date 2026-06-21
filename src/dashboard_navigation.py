@@ -6,10 +6,18 @@ from urllib.parse import unquote
 
 DETAILED_PAGE_PATH_TITLE = "More research views"
 PROOF_HISTORY_PATH_TITLE = "Proof History"
-PUBLIC_PATH_PAGE_TITLES = ["Home", "Single-Stock Report", "Data Health", PROOF_HISTORY_PATH_TITLE]
+STOCK_SELECTOR_PATH_TITLE = "Stock Selector"
+PUBLIC_PATH_PAGE_TITLES = [
+    "Home",
+    "Single-Stock Report",
+    STOCK_SELECTOR_PATH_TITLE,
+    "Data Health",
+    PROOF_HISTORY_PATH_TITLE,
+]
 PUBLIC_PATH_LABELS = {
     "Home": "Start at Home",
     "Single-Stock Report": "Review one stock",
+    STOCK_SELECTOR_PATH_TITLE: "Explore ready names",
     "Data Health": "Improve data coverage",
     PROOF_HISTORY_PATH_TITLE: "Inspect proof",
     DETAILED_PAGE_PATH_TITLE: "More research views",
@@ -46,9 +54,19 @@ def dashboard_page_from_query(value: object, user_page_titles: list[str]) -> str
         "monthly-picks": "Monthly Picks",
         "portfolio": "Portfolio Review",
         "portfolio-review": "Portfolio Review",
+        "proof": PROOF_HISTORY_PATH_TITLE,
+        "proof-history": PROOF_HISTORY_PATH_TITLE,
+        "proof-ledger": PROOF_HISTORY_PATH_TITLE,
+        "proof-history-lane": PROOF_HISTORY_PATH_TITLE,
+        "explore-ready-names": STOCK_SELECTOR_PATH_TITLE,
+        "ready-names": STOCK_SELECTOR_PATH_TITLE,
+        "research-queue": STOCK_SELECTOR_PATH_TITLE,
+        "selector": STOCK_SELECTOR_PATH_TITLE,
         "single": "Single-Stock Report",
         "single-stock": "Single-Stock Report",
         "single-stock-report": "Single-Stock Report",
+        "stock-filter": STOCK_SELECTOR_PATH_TITLE,
+        "stock-selector": STOCK_SELECTOR_PATH_TITLE,
         "stock-report": "Single-Stock Report",
         "universe": "Universe Manager",
         "universe-manager": "Universe Manager",

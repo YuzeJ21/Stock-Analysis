@@ -15,6 +15,36 @@ This file records lightweight browser QA evidence for public-facing dashboard po
 
 Screenshot evidence is product evidence only. It does not refresh data, apply imports, unlock blocked fundamentals, peers, earnings, analyst estimates, valuation inputs, or prove current readiness counts.
 
+## V1 Public UI Replacement QA
+
+This is the current replacement-readiness browser QA contract for the public
+workflow. Older dated sections below remain historical evidence for prior
+iterations.
+
+Checked public routes:
+
+- Home: `?mode=public&page=home`.
+- Stock Selector: `?mode=public&page=stock-selector`.
+- Single-Stock Report with ticker query: `?mode=public&page=single-stock-report&ticker=NVDA`.
+- Data Health: `?mode=public&page=data-health`.
+- Proof History: `?mode=public&page=proof-history`.
+
+Current replacement criteria:
+
+- V1 header, route rail, research loop, action strip, and workbench cards render consistently across desktop and mobile.
+- Stock Selector shows readiness-backed rows with row actions for opening a report or checking proof.
+- Single-Stock Report accepts the ticker query and keeps one-ticker review separate from selection.
+- Data Health stays source-proof first instead of operator-table first.
+- Proof History is an independent public route for proof inspection.
+- Public first views have no visible first-viewport raw dataframe, no clipped table text, no incoherent overlap, and no route mismatch.
+
+Boundary checked:
+
+- Browser QA does not refresh data, apply imports, record proof rows, stage files,
+  commit, push, or unlock missing fundamentals, peers, earnings, analyst
+  estimates, valuation inputs, or metrics.
+- The selector is a research queue, not a recommendation list.
+
 ## 2026-06-19 Workflow Continuity And Route Card Pass
 
 Checked by tests and local read-only commands:

@@ -11,12 +11,15 @@ Best visitor path:
 1. Open the README and dashboard preview.
 2. Run `make demo` to print the safe walkthrough.
 3. Run `make dashboard` and open `http://localhost:8501/?mode=public` for the clean visitor view.
-4. Run `make status-check TOP_N=5` to show current coverage and blockers.
-5. Open `outputs/stock_reports/nvda.md` for a DCF-ready company example.
-6. Open `outputs/stock_reports/mu.md` for standalone DCF with mapped-peer valuation inputs still locked.
-7. Open `outputs/stock_reports/qqq.md` for ETF/index monitor context where operating-company DCF is excluded.
-8. Run `make trusted-data-pilot-candidates TOP_N=10` to show the next honest coverage-improvement path.
-9. If the shortlist starts with peer inputs, open `make trusted-data-pilot-packet TICKER=MU`; for fundamentals/DCF proof, open `make trusted-data-pilot-packet TICKER=CRDO`.
+4. Open Stock Selector at `?mode=public&page=stock-selector` to show the readiness-backed queue before one-ticker analysis.
+5. Open `?mode=public&page=single-stock-report&ticker=NVDA` for a DCF-ready company example.
+6. Open Data Health at `?mode=public&page=data-health` when a selector row or report section is blocked by source data.
+7. Check Proof History at `?mode=public&page=proof-history` before trusting changed readiness.
+8. Run `make status-check TOP_N=5` only when you want terminal proof of current coverage and blockers.
+9. Open `outputs/stock_reports/mu.md` for standalone DCF with mapped-peer valuation inputs still locked.
+10. Open `outputs/stock_reports/qqq.md` for ETF/index monitor context where operating-company DCF is excluded.
+11. Run `make trusted-data-pilot-candidates TOP_N=10` to show the next honest coverage-improvement path.
+12. If the shortlist starts with peer inputs, open `make trusted-data-pilot-packet TICKER=MU`; for fundamentals/DCF proof, open `make trusted-data-pilot-packet TICKER=CRDO`.
 
 ## Demo Examples
 
@@ -42,7 +45,7 @@ make trusted-data-pilot-packet TICKER=CRDO
 make dashboard
 ```
 
-The dashboard defaults to Public visitor mode. The first path is the real workflow: Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history. Switch it off in the sidebar only when you want operator boards, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
+The dashboard defaults to Public visitor mode. The first path is the real workflow: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History. Stock Selector is the public stock-selection surface; Single-Stock Report stays one ticker at a time; Data Health explains blocked source inputs; Proof History records source-proof changes before a changed state is trusted. Switch Public visitor mode off in the sidebar only when you want operator boards, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
 
 ## What To Say About Data Gaps
 

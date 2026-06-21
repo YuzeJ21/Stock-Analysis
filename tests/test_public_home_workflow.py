@@ -54,7 +54,8 @@ def test_public_home_loop_cards_connect_public_workflow_without_commands_or_advi
     assert [card["kicker"] for card in cards] == ["READ THIS FIRST", "CONNECTED PATH", "STOP RULE"]
     assert "3,538/3,538 tracked names have price coverage" in rendered
     assert "59 are dcf-ready and 26 are peer-ready" in rendered
-    assert "home -> one ticker -> data health -> proof history" in rendered
+    assert "home -> stock selector -> one ticker -> data health -> proof history" in rendered
+    assert "stock selector filters readiness-backed candidates" in rendered
     assert "proof history is checked before trusting a changed state" in rendered
     assert "blocked states remain visible" in rendered
     assert "blocked or excluded instead of filling the gap" in rendered
@@ -272,12 +273,13 @@ def test_public_home_visitor_path_cards_show_four_step_public_loop_without_opera
     assert [card["kicker"] for card in cards] == ["STEP 1", "STEP 2", "STEP 3", "STEP 4"]
     assert [card["title"] for card in cards] == [
         "Start with readiness",
-        "Open one ticker",
+        "Choose a candidate, then open one ticker",
         "Route locks to Data Health",
         "Trust only after proof",
     ]
     assert "3,538/3,538 tracked names have price coverage" in rendered
     assert "what the local data can support today" in rendered
+    assert "stock selector narrows readiness-backed candidates" in rendered
     assert "selected ticker" in rendered
     assert "where data health fits next" in rendered
     assert "3,479 blocked states stay visible" in rendered
@@ -306,8 +308,10 @@ def test_public_home_route_choice_cards_warn_when_candidate_pages_should_stay_em
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
     assert cards[0][0] == "Review one stock"
-    assert cards[1][0] == "Improve data coverage"
+    assert cards[1][0] == "Explore ready names"
     assert cards[1][3] == "warning"
+    assert cards[2][0] == "Improve data coverage"
+    assert cards[2][3] == "warning"
     assert "choose any local ticker" in rendered
     assert "ready, blocked, excluded, or monitor-only" in rendered
     assert "open proof history first" in rendered

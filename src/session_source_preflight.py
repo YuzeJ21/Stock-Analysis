@@ -478,6 +478,8 @@ def main() -> None:
         root,
         data_dir=data_path,
         sec_user_agent=args.sec_user_agent,
+        sec_probe=probe_sec_access,
+        yfinance_import_probe=probe_yfinance_import,
         sample_ticker=args.sample_ticker,
     )
     if args.write_output:
