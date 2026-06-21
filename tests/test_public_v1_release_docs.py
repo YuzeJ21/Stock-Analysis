@@ -43,7 +43,7 @@ def test_public_release_checklist_names_v1_routes_and_primary_surfaces():
     for route in (
         "?mode=public&page=home",
         "?mode=public&page=stock-selector",
-        "?mode=public&page=single-stock-report&ticker=NVDA",
+        "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         "?mode=public&page=data-health",
         "?mode=public&page=proof-history",
     ):
@@ -58,7 +58,7 @@ def test_dashboard_qa_tracks_v1_replacement_browser_checks():
 
     assert "V1 Public UI Replacement QA" in qa
     assert "stock-selector" in qa
-    assert "single-stock-report&ticker=NVDA" in qa
+    assert "single-stock-report&ticker=NVDA&open=1" in qa
     assert "proof-history" in qa
     assert "no visible first-viewport raw dataframe" in qa
 

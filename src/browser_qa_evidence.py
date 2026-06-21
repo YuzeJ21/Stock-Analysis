@@ -78,8 +78,8 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
         route="http://localhost:8501/?mode=public&page=single-stock",
         first_view_markers=(
             "research-loop-strip",
-            "Single-Stock Report",
-            "Selected Ticker Readiness",
+            "One-Stock Review",
+            "Before You Open The Review",
             "REPORT HANDOFF",
             "STOP RULE",
         ),
@@ -128,8 +128,8 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public&page=single-stock",
         first_view_markers=(
             "research-loop-strip",
-            "Single-Stock Report",
-            "Selected Ticker Readiness",
+            "One-Stock Review",
+            "Before You Open The Review",
             "REPORT HANDOFF",
             "STOP RULE",
         ),

@@ -318,7 +318,7 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
         {
             "kicker": "WHERE AM I",
             "title": f"{ticker} - {state}",
-            "body": f"Decision context: {decision}. Previous proof comes from the saved readiness row and report payload.",
+            "body": f"Decision context: {decision}. Previous proof comes from the saved readiness checks.",
             "badges": ["selected ticker", "local proof"],
             "command": _stock_report_md_command(ticker),
         },
@@ -341,9 +341,9 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
             "title": "Where Data Health fits",
             "body": (
                 f"{handoff} Data Health handoff: {route_label}. "
-                f"{route_stop_rule} The next command is copy-only; the dashboard does not run imports or refreshes."
+                f"{route_stop_rule} The next proof step stays manual; the dashboard does not run imports or refreshes."
             ),
-            "badges": ["copy only", "manual gate"],
+            "badges": ["manual proof", "manual gate"],
             "command": command,
         },
         {
@@ -435,7 +435,7 @@ def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[
             "title": route_label,
             "body": (
                 f"Use {route} to continue the readiness loop in the matching lane or drawer. "
-                "This is navigation and copy-only command context; the dashboard does not write canonical data."
+                "This is a manual proof path; the dashboard does not write canonical data."
             ),
             "badges": badges,
             "command": command,
@@ -542,7 +542,7 @@ def single_stock_pre_report_contract_cards(
         badges = ["price ready", "fundamentals gated"]
     elif not peer_ready:
         state_title = "Core inputs present; peer context gated"
-        review_now = "Local price and fundamentals context can be reviewed before opening the generated report."
+        review_now = "Price and fundamentals context can be reviewed before opening the full review."
         blocked = "Peer-relative context stays unavailable until source-backed mappings and peer inputs exist."
         stop_rule = "Stop if peer mappings or peer valuation inputs lack source-backed rows."
         next_command = (
@@ -556,8 +556,8 @@ def single_stock_pre_report_contract_cards(
         next_lane = "Data Health peers lane"
         badges = ["core review", "peer gated"]
     else:
-        state_title = "Ready to open the local report"
-        review_now = "The selected ticker has local price, fundamentals, and peer setup context available for the report shell."
+        state_title = "Ready to open the review"
+        review_now = "The selected ticker has price, fundamentals, and peer setup context available for the review."
         blocked = "Optional earnings, analyst estimates, or metric families may still be locked inside the report."
         stop_rule = "Stop if readiness changed after a local import, refresh, or proof update; rebuild the report first."
         next_command = _stock_report_md_command(ticker_text)
@@ -567,10 +567,10 @@ def single_stock_pre_report_contract_cards(
     return [
         {
             "kicker": "RESEARCH LOOP",
-            "title": f"{ticker_text}: pre-report contract",
+            "title": f"{ticker_text}: review starting point",
             "body": (
-                "Previous proof: Home readiness snapshot plus selected-ticker local coverage rows. "
-                "Current step: decide what the selected ticker can support before opening the report. "
+                "Previous proof: Home readiness snapshot plus selected-ticker data coverage. "
+                "Current step: decide what the selected ticker can support before opening the review. "
                 f"Next safe action: {next_lane}. Stop rule: {stop_rule}"
             ),
             "badges": ["where am I", "proof first"],
@@ -579,15 +579,15 @@ def single_stock_pre_report_contract_cards(
         {
             "kicker": "SELECTED TICKER",
             "title": f"{ticker_text}: {state_title}",
-            "body": f"{available_datasets} local dataset row(s) are present before the report loads. Peer mappings: {peer_count}.",
-            "badges": ["selected ticker", "local coverage"],
+            "body": f"{available_datasets} data source row(s) are present before the review opens. Peer mappings: {peer_count}.",
+            "badges": ["selected ticker", "data coverage"],
             "command": _stock_report_md_command(ticker_text),
         },
         {
             "kicker": "REVIEW NOW",
-            "title": "What can be read before opening details",
+            "title": "What can be reviewed before opening details",
             "body": review_now,
-            "badges": ["pre-report", "readiness-gated"],
+            "badges": ["before review", "readiness-gated"],
         },
         {
             "kicker": "BLOCKED / EXCLUDED",
@@ -597,18 +597,18 @@ def single_stock_pre_report_contract_cards(
         },
         {
             "kicker": "REPORT HANDOFF",
-            "title": "Open the report, then follow the locks",
+            "title": "Open the review, then follow the locks",
             "body": (
-                "Loop: select ticker, show the local report, review supported sections, then route any locked input "
+                "Loop: select ticker, open the review, read supported sections, then route any locked input "
                 f"to {next_lane} before returning after proof."
             ),
-            "badges": ["one loop", "report first"],
+            "badges": ["one loop", "review first"],
             "command": _stock_report_md_command(ticker_text),
         },
         {
             "kicker": "NEXT SAFE ACTION",
             "title": next_lane,
-            "body": "Use this as navigation or copy-only command context. The dashboard does not run imports, refreshes, or proof writes.",
+            "body": "Use this as the next manual proof path. The dashboard does not run imports, refreshes, or proof writes.",
             "badges": badges,
             "command": next_command,
         },

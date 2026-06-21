@@ -1588,7 +1588,7 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert dry_run_index < refresh_index
     assert "Inspect broad refresh changes before committing or sharing them publicly" in dashboard
     assert "broad refresh churn should be inspected before it is committed or shared publicly" not in dashboard
-    assert "Show Local Report" in dashboard
+    assert "Open Review" in dashboard
     assert "Build Local Report Preview" not in dashboard
     assert "Show Report Preview" not in dashboard
     assert "Generate Local Stock Report" not in dashboard
@@ -1598,7 +1598,7 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "Show data source details" in dashboard
     assert "Show source readiness details" not in dashboard
     assert "Show report source details" not in dashboard
-    assert "Download Local Report Data" in dashboard
+    assert "Download Audit Data" in dashboard
     assert "Download Structured Report" not in dashboard
     assert "Download Report Data" not in dashboard
     assert "Download Report Data (JSON)" not in dashboard

@@ -10,7 +10,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
 - Keep the dashboard `Data Health` page visible as the safe freshness guide: read-only routine first, capped price dry-run before real refreshes, and review-required lanes for fundamentals, peers, earnings, and analyst estimates.
-- Confirm the V1 public route set works before replacing the current design in use: `?mode=public&page=home`, `?mode=public&page=stock-selector`, `?mode=public&page=single-stock-report&ticker=NVDA`, `?mode=public&page=data-health`, and `?mode=public&page=proof-history`.
+- Confirm the V1 public route set works before replacing the current design in use: `?mode=public&page=home`, `?mode=public&page=stock-selector`, `?mode=public&page=single-stock-report&ticker=NVDA&open=1`, `?mode=public&page=data-health`, and `?mode=public&page=proof-history`.
 - Stock Selector is the primary public stock-selection surface. It should show readiness-backed candidates, blockers, next proof steps, and row actions without presenting the queue as a recommendation list.
 - Proof History is the public proof-inspection surface. `Inspect proof` should land there rather than shortcutting visitors into a generic Data Health table.
 - Confirm visitors are not told to manually refresh all 3,538 tickers every day; the public workflow should explain lane-specific freshness and generated-data hygiene instead.

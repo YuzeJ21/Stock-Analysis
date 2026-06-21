@@ -129,23 +129,23 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
         dcf_state = _format_missing(readiness.get("status") if isinstance(readiness, dict) else "", "")
         next_action = f"Open Data Health if {ticker_label} has locked fields"
         if dcf_state.lower() in {"ready", "excluded"}:
-            next_action = "Read Best Review Path before detailed tabs"
+            next_action = "Read Suggested Reading Path before detailed tabs"
         proof_note = "At A Glance and Reader Guide summarize ready, blocked, excluded, and monitor-only sections."
         return {
             "current_step": f"{ticker_label} report review",
             "current_note": f"Mode: {_format_missing(mode, 'local report')}",
             "current_href": "?mode=public&page=single-stock",
-            "previous_proof": "Local readiness row and report payload",
+            "previous_proof": "Saved readiness checks",
             "proof_note": proof_note,
-            "proof_href": "?mode=operator&page=data-health&lane=proof&drawer=proof",
+            "proof_href": "?mode=public&page=data-health&drawer=proof",
             "next_action": next_action,
-            "action_href": "?mode=operator&page=data-health&lane=fundamentals&drawer=queue"
+            "action_href": "?mode=public&page=data-health&drawer=proof"
             if "Data Health" in next_action
             else "",
             "action_note": "If a field is locked, continue in Data Health before trusting deeper analysis.",
             "stop_rule": "Do not read locked sections as conclusions",
             "stop_note": "Valuation, peers, metrics, earnings, and estimates stay withheld until trusted inputs exist.",
-            "stop_href": "?mode=operator&page=data-health&lane=proof&drawer=proof",
+            "stop_href": "?mode=public&page=data-health&drawer=proof",
         }
     return {
         "current_step": "Single-Stock Report",
@@ -154,7 +154,7 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
         "previous_proof": "Home readiness snapshot",
         "proof_note": "Use saved readiness counts to understand whether this ticker can support deeper review.",
         "proof_href": "?mode=public",
-        "next_action": "Show Local Report",
+        "next_action": "Open Review",
         "action_href": "",
         "action_note": "Read At A Glance first; then use Data Health for any locked input.",
         "stop_rule": "No report, no interpretation",

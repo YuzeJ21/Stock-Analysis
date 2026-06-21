@@ -2378,9 +2378,14 @@ def apply_dashboard_theme() -> None:
         .selector-result-head,
         .selector-result-row {
           display: grid;
-          grid-template-columns: minmax(7rem, 0.74fr) minmax(11rem, 1fr) minmax(13rem, 1.25fr) minmax(17rem, 1.65fr) minmax(13rem, 1.2fr) minmax(11rem, 0.9fr);
+          grid-template-columns: minmax(5.25rem, 0.62fr) minmax(7.25rem, 0.78fr) minmax(9rem, 1fr) minmax(12rem, 1.35fr) minmax(9rem, 1fr) minmax(8rem, 0.78fr);
           gap: 0.72rem;
           align-items: stretch;
+        }
+        .selector-result-head > div,
+        .selector-result-row > div {
+          min-width: 0;
+          overflow-wrap: anywhere;
         }
         .selector-result-head {
           color: #475569;
@@ -2730,6 +2735,23 @@ def apply_dashboard_theme() -> None:
           font-size: 0.76rem;
           font-weight: 800;
           letter-spacing: 0;
+        }
+        .action-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 0.65rem;
+          min-height: 2rem;
+          padding: 0.34rem 0.72rem;
+          border-radius: 7px;
+          background: #0f766e;
+          color: #ffffff !important;
+          font-size: 0.78rem;
+          font-weight: 900;
+          text-decoration: none !important;
+        }
+        .action-link:hover {
+          background: #0b5f59;
         }
         .notice-card {
           margin: 0.75rem 0 1rem 0;
@@ -4531,7 +4553,11 @@ def render_public_proof_strip(items: list[tuple[str, str, str]]) -> None:
 
 def action_card_html(title: str, body: str, command: str = "", tone: str = "neutral") -> str:
     tone_class = "warning" if tone == "warning" else "danger" if tone == "danger" else ""
-    command_html = f"<div class='command-chip'>{html.escape(command)}</div>" if command else ""
+    command_text = str(command or "").strip()
+    if command_text.startswith("?") or command_text.startswith("http://") or command_text.startswith("https://"):
+        command_html = f"<a class='action-link' href='{html.escape(command_text, quote=True)}'>Open</a>"
+    else:
+        command_html = f"<div class='command-chip'>{html.escape(command_text)}</div>" if command_text else ""
     return (
         f"<div class='action-card {tone_class}'>"
         f"<div class='action-title'>{html.escape(title)}</div>"
@@ -6804,10 +6830,10 @@ def stock_report_at_a_glance_cards(
             "badges": ["method visible", "local inputs"],
         },
         {
-            "kicker": "NEXT LOCAL STEP",
+            "kicker": "NEXT REVIEW STEP",
             "title": next_title,
-            "body": "Copy the command if you want to inspect or prove the next local input; the dashboard does not run it.",
-            "badges": ["copy-only", "local"],
+            "body": "Use this path only when you want to inspect or prove the next missing input; the dashboard keeps review steps manual.",
+            "badges": ["manual review", "proof first"],
             "command": next_command,
         },
     ]
@@ -7482,10 +7508,10 @@ def stock_report_local_context_cards(
     staged_peer_import = peer_target_file == "data/imports/peers.csv"
     return [
         {
-            "kicker": "LOCAL DATASETS",
+            "kicker": "DATA COVERAGE",
             "title": f"{available_datasets} available",
-            "body": f"{validation_warnings} dataset warning{'s' if validation_warnings != 1 else ''} remain for this ticker's local coverage view.",
-            "badges": ["csv-first"],
+            "body": f"{validation_warnings} data warning{'s' if validation_warnings != 1 else ''} remain before every section can be trusted.",
+            "badges": ["source-backed"],
         },
         {
             "kicker": "PEER MAPPING",
@@ -7493,7 +7519,7 @@ def stock_report_local_context_cards(
             "body": (
                 f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} in the peer import file; run make imports-validate, make imports-preview, and make imports-apply before trusting peer-relative context."
                 if staged_peer_import
-                else f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for local peer-relative context."
+                else f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for peer-relative review."
             ),
             "badges": ["manual research", "import file" if staged_peer_import else "csv-first"],
             "command": peer_focus_command,
@@ -7513,7 +7539,7 @@ def stock_report_local_context_cards(
         {
             "kicker": "PEER MARKET",
             "title": format_missing(peer_summary.get("peer_market_context_available"), "0"),
-            "body": "Price and peer readiness remain explicit instead of being inferred from missing local files.",
+            "body": "Price and peer readiness remain explicit instead of being inferred from missing source rows.",
             "badges": ["research only"],
         },
     ]
@@ -7742,9 +7768,9 @@ def stock_report_workflow_fit_cards(
     return [
         {
             "kicker": "RESEARCH LOOP",
-            "title": f"{ticker}: report step before source-proof follow-up",
+            "title": f"{ticker}: review step before source-proof follow-up",
             "body": (
-                "Previous proof: loaded report payload plus saved local readiness gates. "
+                "Previous proof: available data plus saved readiness checks. "
                 f"Current step: read supported sections first. Next safe action: {route_label}. "
                 f"Stop rule: {stop_rule}"
             ),
@@ -7754,7 +7780,7 @@ def stock_report_workflow_fit_cards(
         {
             "kicker": "SELECTED TICKER",
             "title": f"{ticker}: {mode}",
-            "body": f"{confidence} Current page state comes from the loaded report payload and saved local readiness gates.",
+            "body": f"{confidence} Current page state comes from available data and saved readiness checks.",
             "badges": ["ticker state", "readiness gated"],
             "command": stock_report_md_command(ticker),
         },
@@ -7777,9 +7803,9 @@ def stock_report_workflow_fit_cards(
             "title": f"{route_label}: {next_title}",
             "body": (
                 f"{next_review} Continue through {route_label} only if the locked fields matter for this ticker. "
-                f"The route is navigation-only, and the next command remains copy-only in the detailed controls. Stop rule: {stop_rule}"
+                f"The route is a manual proof path in the detailed controls. Stop rule: {stop_rule}"
             ),
-            "badges": ["navigation-only", "copy-only"],
+            "badges": ["manual proof", "research-only"],
             "command": next_command,
         },
     ]
@@ -7931,8 +7957,8 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "kicker": "COPY NEXT",
             "title": "Start with a demo or one selected ticker",
             "body": (
-                "For a visitor demo, copy the Markdown report command. For your own ticker, select a local ticker above, "
-                "show the local report, then read the visitor scan cue, At A Glance, and the reader guide before opening detailed sections."
+                "For a visitor demo, use one example ticker. For your own ticker, select a saved name above, "
+                "open the review, then read At A Glance and the reader guide before opening detailed sections."
             ),
             "badges": ["visitor path", "one ticker"],
             "command": "make stock-report-md TICKER=NVDA",
@@ -7944,12 +7970,12 @@ def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "ONE-TICKER REVIEW",
-            "title": "Show one local report",
+            "title": "Open one ticker review",
             "body": (
-                "Select a ticker, show the local read-only report, then read the visitor scan cue and At A Glance first. "
-                "The report separates ready analysis, locked inputs, excluded company valuation, and the next local proof step."
+                "Select a ticker, open the read-only review, then read At A Glance first. "
+                "The page separates ready analysis, locked inputs, excluded company valuation, and the next proof step."
             ),
-            "badges": ["plain English", "readiness first", "copy-only"],
+            "badges": ["plain English", "readiness first", "manual review"],
             "command": "",
         }
     ]
@@ -8031,7 +8057,7 @@ def single_stock_demo_picker_cards() -> list[dict[str, object]]:
             "title": f"{len(cards)} report states",
             "body": (
                 "Use NVDA, META, QQQ, MU, and CRDO as optional state examples after you understand the readiness-to-proof workflow. "
-                "Each command is copy-only and writes a local Markdown report."
+                "Each example stays read-only and keeps the proof path visible."
             ),
             "badges": ["visitor path", "one ticker at a time"],
             "command": "make demo",
@@ -8204,7 +8230,7 @@ def stock_report_source_detail_summary_frame(report_payload: dict[str, object]) 
             {"Detail": "Missing-input warnings", "Value": report_display_value(len(missing_warnings), "integer")},
             {
                 "Detail": "Optional report data download",
-                "Value": "Use Download Local Report Data only if you need the optional saved data file; most readers can use this page or the Markdown report.",
+                "Value": "Use Download Audit Data only if you need the optional saved evidence file; most readers can use this page.",
             },
         ]
     )
@@ -24232,6 +24258,11 @@ def single_stock_query_ticker(value: object, local_tickers: list[str] | tuple[st
     return cleaned if not local_lookup or cleaned in local_lookup else cleaned
 
 
+def single_stock_query_open(value: object) -> bool:
+    raw = value[0] if isinstance(value, list) and value else value
+    return str(raw or "").strip().lower() in {"1", "true", "yes", "open", "review"}
+
+
 def _stock_selector_sorted_source_frame(frame: pd.DataFrame) -> pd.DataFrame:
     if frame.empty:
         return frame
@@ -24451,7 +24482,7 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
         blocked = compact_card_fragment(row.get("Blocked / Missing", "No missing input listed."), max_chars=120)
         proof_step = compact_card_fragment(row.get("Next Proof Step", "Run readiness before deeper review."), max_chars=118)
         freshness = compact_card_fragment(row.get("Proof Freshness", "Use Data Health freshness before relying on exact state."), max_chars=82)
-        report_href = html.escape(f"?mode=public&page=single-stock-report&ticker={ticker}")
+        report_href = html.escape(f"?mode=public&page=single-stock-report&ticker={ticker}&open=1")
         proof_href = html.escape("?mode=public&page=data-health&drawer=proof")
         readiness_class = _selector_readiness_class(readiness)
         rows.append(
@@ -24477,7 +24508,7 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
             f"<div class='selector-result-body'>{html.escape(freshness)}</div>"
             "</div>"
             "<div class='selector-actions'>"
-            f"<a class='selector-action-link' href='{report_href}'>Open report</a>"
+            f"<a class='selector-action-link' href='{report_href}'>Open review</a>"
             f"<a class='selector-action-link secondary' href='{proof_href}'>Check proof</a>"
             "</div>"
             "</div>"
@@ -24501,6 +24532,41 @@ def _stock_selector_filter_options(frame: pd.DataFrame, column: str, limit: int 
         if str(value).strip() and str(value).strip().lower() != "not available"
     ]
     return ["All"] + list(dict.fromkeys(values))[:limit]
+
+
+def stock_selector_apply_filters(
+    frame: pd.DataFrame,
+    *,
+    state_filter: str = "All",
+    readiness_filter: str = "All",
+    detail_filter: str = "All",
+    theme_filter: str = "All",
+    search: str = "",
+) -> pd.DataFrame:
+    """Return selector rows matching visible public filters."""
+
+    if frame is None or frame.empty:
+        return pd.DataFrame() if frame is None else frame.copy()
+    filtered = frame.copy()
+    filter_pairs = [
+        ("Research State", state_filter),
+        ("Readiness", readiness_filter),
+        ("Review Detail", detail_filter),
+        ("Sector / Theme", theme_filter),
+    ]
+    for column, selected in filter_pairs:
+        selected_text = str(selected or "All").strip()
+        if selected_text != "All" and column in filtered.columns:
+            filtered = filtered[filtered[column].astype(str) == selected_text]
+    search_text = str(search or "").strip().lower()
+    if search_text:
+        filtered = filtered[
+            filtered.astype(str).apply(
+                lambda row: row.str.lower().str.contains(search_text, regex=False, na=False).any(),
+                axis=1,
+            )
+        ]
+    return filtered
 
 
 def render_stock_selector(
@@ -24556,47 +24622,43 @@ def render_stock_selector(
         return
 
     render_section_header("Research Queue", "Use filters to narrow the next one-ticker review candidate.")
-    filter_cols = st.columns([1.05, 1.05, 1.15, 1.2, 1.65])
-    state_filter = filter_cols[0].selectbox(
-        "Research state",
-        _stock_selector_filter_options(selector_frame, "Research State"),
-        key="stock-selector-state",
-    )
-    readiness_filter = filter_cols[1].selectbox(
-        "Readiness",
-        _stock_selector_filter_options(selector_frame, "Readiness"),
-        key="stock-selector-readiness",
-    )
-    detail_filter = filter_cols[2].selectbox(
-        "Review detail",
-        _stock_selector_filter_options(selector_frame, "Review Detail"),
-        key="stock-selector-detail",
-    )
-    theme_filter = filter_cols[3].selectbox(
-        "Sector / theme",
-        _stock_selector_filter_options(selector_frame, "Sector / Theme"),
-        key="stock-selector-theme",
-    )
-    search = filter_cols[4].text_input(
-        "Search ticker, theme, blocker, or proof step",
-        value="",
-        key="stock-selector-search",
-    ).strip()
+    with st.form("stock-selector-filter-form"):
+        filter_cols = st.columns([1.05, 1.05, 1.15, 1.2, 1.65])
+        state_filter = filter_cols[0].selectbox(
+            "Research state",
+            _stock_selector_filter_options(selector_frame, "Research State"),
+            key="stock-selector-state",
+        )
+        readiness_filter = filter_cols[1].selectbox(
+            "Readiness",
+            _stock_selector_filter_options(selector_frame, "Readiness"),
+            key="stock-selector-readiness",
+        )
+        detail_filter = filter_cols[2].selectbox(
+            "Review detail",
+            _stock_selector_filter_options(selector_frame, "Review Detail"),
+            key="stock-selector-detail",
+        )
+        theme_filter = filter_cols[3].selectbox(
+            "Sector / theme",
+            _stock_selector_filter_options(selector_frame, "Sector / Theme"),
+            key="stock-selector-theme",
+        )
+        search = filter_cols[4].text_input(
+            "Search ticker, theme, blocker, or proof step",
+            value="",
+            key="stock-selector-search",
+        ).strip()
+        st.form_submit_button("Apply filters")
 
-    filtered = selector_frame.copy()
-    if state_filter != "All":
-        filtered = filtered[filtered["Research State"].astype(str) == state_filter]
-    if readiness_filter != "All":
-        filtered = filtered[filtered["Readiness"].astype(str) == readiness_filter]
-    if detail_filter != "All":
-        filtered = filtered[filtered["Review Detail"].astype(str) == detail_filter]
-    if theme_filter != "All":
-        filtered = filtered[filtered["Sector / Theme"].astype(str) == theme_filter]
-    if search:
-        lowered = search.lower()
-        filtered = filtered[
-            filtered.astype(str).apply(lambda row: row.str.lower().str.contains(lowered, regex=False, na=False).any(), axis=1)
-        ]
+    filtered = stock_selector_apply_filters(
+        selector_frame,
+        state_filter=state_filter,
+        readiness_filter=readiness_filter,
+        detail_filter=detail_filter,
+        theme_filter=theme_filter,
+        search=search,
+    )
 
     count_label = f"{len(filtered):,} of {len(selector_frame):,} saved row(s)"
     render_context_note(
@@ -24619,9 +24681,9 @@ def render_stock_selector(
         render_action_cards(
             [
                 (
-                    "Open one report",
-                    "Use the selected ticker action above to open Single-Stock Report with a prefilled ticker.",
-                    "?mode=public&page=single-stock-report&ticker=NVDA",
+                    "Open one review",
+                    "Use the selected ticker action above to open the one-stock review.",
+                    "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
                     "neutral",
                 ),
                 (
@@ -25403,11 +25465,12 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     if public_mode:
         render_command_center_overview(_header_readiness_summary(), active_step="One-Ticker Review")
     render_section_header(
-        "Single-Stock Report",
-        "One-ticker research review. Start with the saved local report; optional online lookup stays off by default.",
+        "One-Stock Review",
+        "Choose a ticker to see what can be reviewed now, what stays locked, and which proof path comes next.",
     )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
+    query_open_review = single_stock_query_open(st.query_params.get("open"))
     ticker_options = ["Custom"] + local_tickers if local_tickers else ["Custom"]
     default_selection_index = preferred_single_stock_default(local_tickers)
     if query_ticker and query_ticker in ticker_options:
@@ -25445,24 +25508,24 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         pre_report_cards = single_stock_pre_report_contract_cards(ticker, coverage, peer_summary)
         if report_payload:
             render_section_header(
-                "Selected Ticker Readiness",
-                "Compact readiness state for the loaded report.",
+                "Before You Open The Review",
+                "Compact readiness state for the selected ticker.",
             )
             render_signal_cards(pre_report_cards[:3], show_commands=False, variant="queue")
         else:
             render_section_header(
-                "Selected Ticker Readiness",
-                "What this ticker can support before opening the generated report.",
+                "Before You Open The Review",
+                "A quick check of available data, locked analysis, and the next safe path.",
             )
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
-        with st.expander("Coverage and peer readiness", expanded=False):
+        with st.expander("Data Coverage For This Ticker", expanded=False):
             render_context_note(
-                "Local coverage.",
-                "Dataset readiness for the selected ticker based on local CSV availability and schema validation.",
+                "Coverage check.",
+                "Shows which inputs are available before deeper analysis. Missing rows keep sections locked.",
             )
             render_signal_cards(stock_report_local_context_cards(coverage, peer_summary))
             st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
-            with st.expander("More coverage details", expanded=False):
+            with st.expander("Data availability details", expanded=False):
                 st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
             readiness_cols = st.columns(5)
             readiness_cols[0].metric("Peer File", "Present" if peer_summary["peer_dataset_present"] else "Missing")
@@ -25473,10 +25536,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
 
     render_signal_cards(single_stock_report_intro_summary_cards())
     render_context_note(
-        "What happens when you open a report.",
-        "Show Local Report displays the selected local ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
+        "What happens next.",
+        "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
     )
-    if st.button("Show Local Report", key="single-stock-report-button"):
+    open_review_clicked = st.button("Open Review", key="single-stock-report-button")
+    if (query_open_review and not report_payload) or open_review_clicked:
         if not ticker:
             st.warning("Enter a ticker to show a local report.")
         else:
@@ -25518,11 +25582,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     )
     render_section_header(
         "At A Glance",
-        "Start here: mode, valuation state, withheld context, method boundary, and next local command.",
+        "Start here: what is supported, what is withheld, and what to read next.",
     )
     render_signal_cards(stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     render_section_header(
-        "Workflow Fit",
+        "How To Read This Review",
         "Selected ticker state, what can be reviewed now, what stays blocked, and where Data Health fits next.",
     )
     render_signal_cards(
@@ -25535,12 +25599,12 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     )
     render_signal_cards(stock_report_summary_cards(report_payload))
     render_section_header(
-        "Evaluation Snapshot",
+        "Review Summary",
         "Supported evaluation, data-confidence cue, valuation boundary, and next proof before deeper methodology.",
     )
     render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
     render_section_header(
-        "Best Review Path",
+        "Suggested Reading Path",
         "The shortest safe reading path for this ticker before detailed review.",
     )
     render_signal_cards(stock_report_best_review_path_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
@@ -25637,13 +25701,13 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                     hide_index=True,
                 )
 
-        st.markdown("#### Setup And Trend Context")
+        st.markdown("#### Price And Trend Context")
         render_context_note(
-            "Setup and trend context.",
-            "These fields come from the current local momentum and watchlist outputs. They summarize setup quality and trend context without implying an allocation action.",
+            "Price and trend context.",
+            "These fields summarize setup quality and trend context without implying an allocation action.",
         )
         render_signal_cards(stock_report_technical_context_cards(report_payload))
-        render_collapsed_detail_frame("Setup and trend detail table", stock_report_technical_context_frame(report_payload))
+        render_collapsed_detail_frame("Price and trend details", stock_report_technical_context_frame(report_payload))
 
         st.markdown("#### Company Fundamentals")
         render_signal_cards(stock_report_fundamentals_quality_cards(report_payload))
@@ -25833,7 +25897,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 )
 
     st.download_button(
-        "Download Local Report Data",
+        "Download Audit Data",
         data=st.session_state.get("single_stock_report_download", "{}"),
         file_name=f"{st.session_state.get('single_stock_report_ticker', 'stock').lower()}_stock_report.json",
         mime="application/json",

@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 import src.dashboard as dashboard
@@ -1316,6 +1317,57 @@ def test_stock_selector_queue_sorts_ready_research_candidates_before_alphabetica
     assert frame.loc[0, "Sector / Theme"] == "SMH / AI Semiconductors"
 
 
+def test_stock_selector_apply_filters_searches_visible_proof_context():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Research State": "Research Now",
+                "Readiness": "partial",
+                "Review Detail": "Research Candidate - DCF Ready But Peer Blocked",
+                "Sector / Theme": "SMH / AI Semiconductors",
+                "Why Included": "Core company data is ready.",
+                "Supported Now": "price history",
+                "Blocked / Missing": "peer mapping needs proof",
+                "Next Proof Step": "Open Data Health proof lane.",
+                "Proof Freshness": "Current snapshot",
+            },
+            {
+                "Ticker": "AAPL",
+                "Research State": "Monitor",
+                "Readiness": "partial",
+                "Review Detail": "Monitor - Watchlist Context",
+                "Sector / Theme": "Mega Cap / Consumer Hardware",
+                "Why Included": "Monitor row.",
+                "Supported Now": "price history",
+                "Blocked / Missing": "no blocker",
+                "Next Proof Step": "Review later.",
+                "Proof Freshness": "Current snapshot",
+            },
+        ]
+    )
+
+    filtered = dashboard.stock_selector_apply_filters(
+        frame,
+        state_filter="All",
+        readiness_filter="All",
+        detail_filter="All",
+        theme_filter="All",
+        search="NVDA",
+    )
+
+    assert filtered["Ticker"].tolist() == ["NVDA"]
+
+
+def test_stock_selector_filters_have_explicit_apply_action():
+    source = Path(dashboard.__file__).read_text()
+    form_index = source.index('with st.form("stock-selector-filter-form")')
+    apply_index = source.index('st.form_submit_button("Apply filters")')
+    filter_index = source.index("filtered = stock_selector_apply_filters(")
+
+    assert form_index < apply_index < filter_index
+
+
 def test_stock_selector_public_rows_render_actions_without_raw_table_first():
     frame = pd.DataFrame(
         [
@@ -1340,14 +1392,50 @@ def test_stock_selector_public_rows_render_actions_without_raw_table_first():
     assert "selector-result-table" in rendered
     assert "selector-readiness-pill partial" in rendered
     assert "NVDA" in rendered
-    assert "Open report" in rendered
-    assert "?mode=public&amp;page=single-stock-report&amp;ticker=NVDA" in rendered
+    assert "Open review" in rendered
+    assert "?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1" in rendered
     assert "Check proof" in rendered
     assert "?mode=public&amp;page=data-health&amp;drawer=proof" in rendered
     assert "<table" not in lowered
     assert "buy" not in lowered
     assert "sell" not in lowered
     assert "broker" not in lowered
+
+
+def test_public_action_cards_render_query_routes_as_clickable_links():
+    rendered = dashboard.action_card_html(
+        "Open one review",
+        "Open the selected ticker review.",
+        "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
+        "neutral",
+    )
+
+    assert "<a " in rendered
+    assert "href='?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1'" in rendered
+    assert "Open ?mode=public" not in rendered
+    assert "command-chip" not in rendered
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
+
+
+def test_stock_selector_result_grid_keeps_actions_inside_public_viewport():
+    source = Path(dashboard.__file__).read_text()
+    selector_block = source[
+        source.index(".selector-result-table {") : source.index(".selector-result-ticker {")
+    ]
+    grid_line = next(
+        line.strip()
+        for line in selector_block.splitlines()
+        if line.strip().startswith("grid-template-columns:")
+    )
+    min_widths = [
+        float(value)
+        for value in re.findall(r"minmax\(([0-9.]+)rem,", grid_line)
+    ]
+
+    assert len(min_widths) == 6
+    assert sum(min_widths) <= 56.0
+    assert "min-width: 0;" in selector_block
 
 
 def test_research_cockpit_summary_cards_prioritize_future_selector_path():
@@ -1550,12 +1638,12 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     assert "Selected ticker: NVDA" in pre_report["current_note"]
     assert pre_report["current_href"] == "?mode=public&page=single-stock"
     assert pre_report["proof_href"] == "?mode=public"
-    assert pre_report["next_action"] == "Show Local Report"
+    assert pre_report["next_action"] == "Open Review"
     assert loaded_report["current_step"] == "NVDA report review"
-    assert loaded_report["next_action"] == "Read Best Review Path before detailed tabs"
+    assert loaded_report["next_action"] == "Read Suggested Reading Path before detailed tabs"
     assert loaded_report["action_href"] == ""
-    assert loaded_report["proof_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
-    assert loaded_report["stop_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
+    assert loaded_report["proof_href"] == "?mode=public&page=data-health&drawer=proof"
+    assert loaded_report["stop_href"] == "?mode=public&page=data-health&drawer=proof"
     assert data_health["current_step"] == "Data Health source-proof lane"
     assert data_health["current_note"] == "Fundamentals / DCF ROUTE MAP; artifact hygiene before staging"
     assert data_health["current_href"] == "?mode=operator&page=data-health&lane=fundamentals"
@@ -1625,7 +1713,7 @@ def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages(
         public_first_scan_index,
     )
     home_workflow_index = source.index('render_section_header(\n                "Research Workflow"', home_optional_workflow_index)
-    single_stock_button_index = source.index('if st.button("Show Local Report"')
+    single_stock_button_index = source.index('open_review_clicked = st.button("Open Review"')
     single_stock_loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
     data_health_nav_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
     data_health_loop_index = source.index("render_research_loop_strip(\n        **data_health_research_loop_context(", data_health_nav_index)
@@ -1811,15 +1899,17 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Advanced source audit (JSON)" not in source
     assert "Developer detail: raw report JSON" not in source
     assert "st.json(report_payload" not in source
-    assert "One-ticker research review" in source
+    assert "One-Stock Review" in source
+    assert "Choose a ticker to see what can be reviewed now" in source
+    assert "One-ticker research review" not in source
     assert "One-ticker research workflow" not in source
     assert "Structured research workflow for one ticker" not in source
     assert "A readable view of local research inputs" in source
     assert "A structured view of local research inputs" not in source
-    assert "Download Local Report Data" in source
+    assert "Download Audit Data" in source
     assert "Download Structured Report" not in source
-    assert "Start with the saved local report" in source
-    assert "Start with the saved local report; optional online lookup stays off by default" in source
+    assert "Start with the saved local report" not in source
+    assert "Start with the saved local report; optional online lookup stays off by default" not in source
     assert "Optional online research mode stays off by default" not in source
     assert "Local CSV-backed data is the default" not in source
     assert "Optional yfinance mode stays off by default" not in source
@@ -2133,11 +2223,11 @@ def test_loaded_single_stock_detail_tables_are_collapsed_after_workflow_fit():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     at_a_glance_index = source.index('render_section_header(\n        "At A Glance"')
-    workflow_fit_index = source.index('render_section_header(\n        "Workflow Fit"', at_a_glance_index)
-    setup_index = source.index('st.markdown("#### Setup And Trend Context")', at_a_glance_index)
+    workflow_fit_index = source.index('render_section_header(\n        "How To Read This Review"', at_a_glance_index)
+    setup_index = source.index('st.markdown("#### Price And Trend Context")', at_a_glance_index)
     setup_cards_index = source.index("stock_report_technical_context_cards(report_payload)", setup_index)
     setup_detail_index = source.index(
-        'render_collapsed_detail_frame("Setup and trend detail table", stock_report_technical_context_frame(report_payload))',
+        'render_collapsed_detail_frame("Price and trend details", stock_report_technical_context_frame(report_payload))',
         setup_cards_index,
     )
     fundamentals_index = source.index('st.markdown("#### Company Fundamentals")', setup_detail_index)
@@ -10135,8 +10225,8 @@ def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_hando
         "STILL BLOCKED",
         "DATA HEALTH HANDOFF",
     ]
-    assert "a: report step before source-proof follow-up" in rendered
-    assert "previous proof: loaded report payload plus saved local readiness gates" in rendered
+    assert "a: review step before source-proof follow-up" in rendered
+    assert "previous proof: available data plus saved readiness checks" in rendered
     assert "current step: read supported sections first" in rendered
     assert "a: standalone dcf review" in rendered
     assert "what can be reviewed" in rendered
@@ -10146,10 +10236,10 @@ def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_hando
     assert "do not infer missing inputs from nearby ready sections" in rendered
     assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
     assert "peers source-proof lane" in rendered
-    assert "next command remains copy-only" in rendered
+    assert "the route is a manual proof path" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "stop if peer mappings or peer valuation inputs lack source-backed rows" in rendered
-    assert "navigation-only" in rendered
+    assert "manual proof" in rendered
     assert "research-only" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -10194,15 +10284,15 @@ def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_r
         "NEXT SAFE ACTION",
         "STOP RULE",
     ]
-    assert "meta: pre-report contract" in rendered
-    assert "previous proof: home readiness snapshot plus selected-ticker local coverage rows" in rendered
-    assert "current step: decide what the selected ticker can support before opening the report" in rendered
+    assert "meta: review starting point" in rendered
+    assert "previous proof: home readiness snapshot plus selected-ticker data coverage" in rendered
+    assert "current step: decide what the selected ticker can support before opening the review" in rendered
     assert "next safe action: data health fundamentals lane" in rendered
     assert "meta: price context ready; fundamentals gated" in rendered
     assert "local price context can be reviewed" in rendered
     assert "trusted fundamentals, shares, fcf, market cap, and valuation inputs remain source-proof work" in rendered
-    assert "open the report, then follow the locks" in rendered
-    assert "loop: select ticker, show the local report, review supported sections" in rendered
+    assert "open the review, then follow the locks" in rendered
+    assert "loop: select ticker, open the review, read supported sections" in rendered
     assert "route any locked input to data health fundamentals lane" in rendered
     assert "data health fundamentals lane" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
@@ -10259,19 +10349,19 @@ def test_single_stock_pre_report_contract_cards_route_price_and_peer_gates():
     assert "make focus-price ticker=apld" in price_rendered
     assert "setup, trend, dcf, peer, optional context, and review metrics stay locked" in price_rendered
     assert "price rows are missing, stale, rejected, or not tied to the selected ticker" in price_rendered
-    assert "open the report, then follow the locks" in price_rendered
+    assert "open the review, then follow the locks" in price_rendered
     assert "next safe action: data health price lane" in price_rendered
     assert "nvda: core inputs present; peer context gated" in peer_rendered
     assert "data health peers lane" in peer_rendered
     assert "next safe action: data health peers lane" in peer_rendered
     assert "make focus-peers ticker=nvda" in peer_rendered
     assert "peer mappings or peer valuation inputs lack source-backed rows" in peer_rendered
-    assert "open the report, then follow the locks" in peer_rendered
-    assert "crdo: ready to open the local report" in ready_rendered
+    assert "open the review, then follow the locks" in peer_rendered
+    assert "crdo: ready to open the review" in ready_rendered
     assert "next safe action: single-stock report" in ready_rendered
     assert "make stock-report-md ticker=crdo" in ready_rendered
     assert "readiness changed after a local import, refresh, or proof update" in ready_rendered
-    assert "open the report, then follow the locks" in ready_rendered
+    assert "open the review, then follow the locks" in ready_rendered
 
 
 def test_stock_report_workflow_fit_cards_route_price_setup_to_fundamentals_lane():
@@ -10291,7 +10381,7 @@ def test_stock_report_workflow_fit_cards_route_price_setup_to_fundamentals_lane(
     assert "company valuation remains blocked" in rendered
     assert "?mode=operator&page=data-health&lane=fundamentals&drawer=source-proof" in rendered
     assert "fundamentals / dcf source-proof lane" in rendered
-    assert "next command remains copy-only" in rendered
+    assert "the route is a manual proof path" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "stop if fundamentals, shares, market cap, or dcf inputs would be inferred" in rendered
     assert "broker" not in rendered
@@ -10331,7 +10421,7 @@ def test_stock_report_at_a_glance_cards_match_markdown_report_flow():
         "VALUATION STATE",
         "WITHHELD",
         "METHOD",
-        "NEXT LOCAL STEP",
+        "NEXT REVIEW STEP",
     ]
     assert cards[0]["title"] == "Price/setup review only"
     assert "price/setup review and missing-data diagnosis" in rendered
@@ -10349,8 +10439,9 @@ def test_stock_report_at_a_glance_cards_match_markdown_report_flow():
     assert "fair value per share" in rendered
     assert "stays locked instead of becoming a weak conclusion" in rendered
     assert cards[-1]["command"] == "make focus-fundamentals TICKER=META"
-    assert "copy the command" in rendered
-    assert "copy-only" in rendered
+    assert "dashboard keeps review steps manual" in rendered
+    assert "manual review" in rendered
+    assert "proof first" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -15418,15 +15509,15 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "source inputs, product calculations, blocked sections" in rendered
     assert "does not convert partial data into a portfolio action" in rendered
     assert "start with a demo or one selected ticker" in rendered
-    assert "for a visitor demo, copy the markdown report command" in rendered
-    assert "read the visitor scan cue, at a glance, and the reader guide before opening detailed sections" in rendered
+    assert "for a visitor demo, use one example ticker" in rendered
+    assert "open the review, then read at a glance and the reader guide before opening detailed sections" in rendered
     assert len(summary_cards) == 1
     assert summary_cards[0]["kicker"] == "ONE-TICKER REVIEW"
-    assert "show one local report" in summary_rendered
-    assert "select a ticker, show the local read-only report, then read the visitor scan cue and at a glance first" in summary_rendered
+    assert "open one ticker review" in summary_rendered
+    assert "select a ticker, open the read-only review, then read at a glance first" in summary_rendered
     assert "locked inputs" in summary_rendered
     assert "excluded company valuation" in summary_rendered
-    assert "next local proof step" in summary_rendered
+    assert "next proof step" in summary_rendered
     assert "copy-only local step" not in summary_rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=crdo" in rendered
@@ -15447,7 +15538,7 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "peer-relative valuation still stays locked" in demo_rendered
     assert "use nvda, meta, qqq, mu, and crdo as optional state examples" in demo_picker_rendered
     assert "after you understand the readiness-to-proof workflow" in demo_picker_rendered
-    assert "each command is copy-only and writes a local markdown report" in demo_picker_rendered
+    assert "each example stays read-only and keeps the proof path visible" in demo_picker_rendered
     assert "make stock-report-md ticker=nvda" in demo_rendered
     assert "make stock-report-md ticker=meta" in demo_rendered
     assert "make stock-report-md ticker=mu" in demo_rendered
@@ -15482,8 +15573,8 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())")
-    preview_note_index = source.index('render_context_note(\n        "What happens when you open a report."')
-    build_button_index = source.index('st.button("Show Local Report"')
+    preview_note_index = source.index('render_context_note(\n        "What happens next."')
+    build_button_index = source.index('st.button("Open Review"')
     loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
     state_expander_index = source.index('st.expander("Example report states", expanded=False)')
     note_index = source.index("demo_note_title, demo_note_body = single_stock_demo_picker_note()", state_expander_index)
@@ -15495,8 +15586,8 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     assert state_expander_index < note_index < demo_index < expander_index < full_intro_index
     assert 'st.expander("Example report states", expanded=False)' in source
     assert 'st.expander("How single-stock reports work", expanded=False)' in source
-    assert 'st.expander("Coverage and peer readiness", expanded=False)' in source
-    assert 'st.expander("More coverage details", expanded=False)' in source
+    assert 'st.expander("Data Coverage For This Ticker", expanded=False)' in source
+    assert 'st.expander("Data availability details", expanded=False)' in source
     assert 'st.expander("Ticker coverage and peer context"' not in source
     assert 'st.expander("Complete local coverage details"' not in source
     assert 'metric("Peer File"' in source
@@ -15505,19 +15596,55 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     assert "It does not refresh prices, import files, or contact external accounts." in source
 
 
+def test_single_stock_public_page_uses_product_language_not_engineering_terms():
+    dashboard_source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    workflow_source = Path("src/single_stock_workflow.py").read_text(encoding="utf-8")
+    source = dashboard_source + "\n" + workflow_source
+
+    for phrase in [
+        "One-Stock Review",
+        "Before You Open The Review",
+        "Data Coverage For This Ticker",
+        "Data availability details",
+        "Open Review",
+        "How To Read This Review",
+        "Review Summary",
+        "Suggested Reading Path",
+        "Price And Trend Context",
+        "Download Audit Data",
+    ]:
+        assert phrase in source
+
+    for phrase in [
+        "saved local report",
+        "generated report",
+        "report payload",
+        "Selected Ticker Readiness",
+        "Local coverage.",
+        "Dataset readiness",
+        "Show Local Report",
+        "Next local step",
+        "next local command",
+        "Setup And Trend Context",
+        "Setup and trend detail table",
+        "Download Local Report Data",
+    ]:
+        assert phrase not in source
+
+
 def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    report_header_index = source.index('"At A Glance",\n        "Start here: mode, valuation state')
+    report_header_index = source.index('"At A Glance",\n        "Start here: what is supported')
     at_glance_index = source.index("stock_report_at_a_glance_cards(report_payload")
-    workflow_fit_header_index = source.index('"Workflow Fit",\n        "Selected ticker state, what can be reviewed now', at_glance_index)
+    workflow_fit_header_index = source.index('"How To Read This Review",\n        "Selected ticker state, what can be reviewed now', at_glance_index)
     workflow_fit_cards_index = source.index("stock_report_workflow_fit_cards(report_payload", workflow_fit_header_index)
     workflow_fit_hidden_commands_index = source.index("show_commands=False", workflow_fit_cards_index)
     reader_guide_header_index = source.index('"Reader Guide",\n        "Plain-English report path before detailed tabs')
     summary_cards_index = source.index("stock_report_summary_cards(report_payload)")
-    evaluation_snapshot_header_index = source.index('"Evaluation Snapshot",\n        "Supported evaluation, data-confidence cue, valuation boundary')
+    evaluation_snapshot_header_index = source.index('"Review Summary",\n        "Supported evaluation, data-confidence cue, valuation boundary')
     evaluation_cards_index = source.index("stock_report_evaluation_summary_cards(report_payload)")
-    best_path_header_index = source.index('"Best Review Path",\n        "The shortest safe reading path for this ticker before detailed review."')
+    best_path_header_index = source.index('"Suggested Reading Path",\n        "The shortest safe reading path for this ticker before detailed review."')
     best_path_cards_index = source.index("stock_report_best_review_path_cards(report_payload")
     quick_read_expander_index = source.index('st.expander("More quick-read cards"')
     quality_cards_index = source.index("stock_report_analysis_quality_cards(report_payload)")
@@ -15606,9 +15733,9 @@ def test_stock_report_source_detail_summary_frame_replaces_raw_json_dump():
     assert "source records" in rendered
     assert "missing-input warnings" in rendered
     assert "optional report data download" in rendered
-    assert "download local report data" in rendered
-    assert "optional saved data file" in rendered
-    assert "most readers can use this page or the markdown report" in rendered
+    assert "download audit data" in rendered
+    assert "optional saved evidence file" in rendered
+    assert "most readers can use this page" in rendered
     assert "feature flags" not in rendered
     assert "download structured report" not in rendered
     assert "generated" not in rendered
@@ -23479,13 +23606,13 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
         "STOP RULE",
     ]
     assert cards[0]["title"] == "NVDA - partial"
-    assert "previous proof comes from the saved readiness row and report payload" in rendered
+    assert "previous proof comes from the saved readiness checks" in rendered
     assert "standalone dcf assumptions and source readiness can be reviewed" in rendered
     assert "peer-relative valuation remains locked" in rendered
     assert "open data health peer lane" in rendered
     assert "data health handoff: peers source-proof lane" in rendered
     assert "stop if peer mappings or peer valuation inputs lack source-backed rows" in rendered
-    assert "copy-only" in rendered
+    assert "manual proof" in rendered
     assert "do not treat locked, partial, or excluded sections as conclusions" in rendered
     assert "make focus-peers ticker=nvda" in rendered
     assert "broker" not in rendered
@@ -23519,7 +23646,7 @@ def test_single_stock_data_health_handoff_cards_connect_report_to_lane_route():
     assert "peer-relative context stays blocked" in rendered
     assert "peers source-proof lane" in rendered
     assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
-    assert "navigation and copy-only command context" in rendered
+    assert "manual proof path" in rendered
     assert "do not turn missing, partial, locked, or excluded inputs into conclusions" in rendered
     assert "make focus-peers ticker=mu" in rendered
     assert "broker" not in rendered
@@ -25326,12 +25453,12 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     render_index = source.index("def render_single_stock_report(")
 
     overview_index = source.index('render_command_center_overview(_header_readiness_summary(), active_step="One-Ticker Review")', render_index)
-    section_index = source.index('"Single-Stock Report"', overview_index)
-    selected_readiness_index = source.index('"Selected Ticker Readiness"', section_index)
+    section_index = source.index('"One-Stock Review"', overview_index)
+    selected_readiness_index = source.index('"Before You Open The Review"', section_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", selected_readiness_index)
-    coverage_expander_index = source.index('st.expander("Coverage and peer readiness"', contract_cards_index)
+    coverage_expander_index = source.index('st.expander("Data Coverage For This Ticker"', contract_cards_index)
     intro_cards_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())", coverage_expander_index)
-    report_button_index = source.index('st.button("Show Local Report"', intro_cards_index)
+    report_button_index = source.index('st.button("Open Review"', intro_cards_index)
 
     assert (
         overview_index
@@ -25345,7 +25472,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     assert "def render_single_stock_report(provider, show_source_details: bool, *, public_mode: bool = True) -> None:" in source
     assert 'if public_mode:\n        render_command_center_overview(_header_readiness_summary(), active_step="One-Ticker Review")' in source
     assert "render_single_stock_report(provider, show_source_details, public_mode=public_demo_mode)" in source
-    assert "What this ticker can support before opening the generated report." in source
+    assert "A quick check of available data, locked analysis, and the next safe path." in source
     assert "raw" not in source[selected_readiness_index:coverage_expander_index].lower()
 
 
@@ -25356,6 +25483,20 @@ def test_single_stock_query_ticker_prefills_known_or_custom_ticker():
     assert "single_stock_query_ticker(st.query_params.get(\"ticker\"), local_tickers)" in Path("src/dashboard.py").read_text(
         encoding="utf-8"
     )
+
+
+def test_single_stock_query_open_flag_controls_deep_link_review_opening():
+    assert dashboard.single_stock_query_open("1") is True
+    assert dashboard.single_stock_query_open("true") is True
+    assert dashboard.single_stock_query_open(["yes"]) is True
+    assert dashboard.single_stock_query_open("0") is False
+    assert dashboard.single_stock_query_open("") is False
+
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "query_open_review = single_stock_query_open(st.query_params.get(\"open\"))" in source
+    assert "open_review_clicked = st.button(\"Open Review\"" in source
+    assert "if (query_open_review and not report_payload) or open_review_clicked:" in source
 
 
 def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():

@@ -25,7 +25,7 @@ Checked public routes:
 
 - Home: `?mode=public&page=home`.
 - Stock Selector: `?mode=public&page=stock-selector`.
-- Single-Stock Report with ticker query: `?mode=public&page=single-stock-report&ticker=NVDA`.
+- Single-Stock Report with ticker query: `?mode=public&page=single-stock-report&ticker=NVDA&open=1`.
 - Data Health: `?mode=public&page=data-health`.
 - Proof History: `?mode=public&page=proof-history`.
 

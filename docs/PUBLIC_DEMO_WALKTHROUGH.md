@@ -12,7 +12,7 @@ Best visitor path:
 2. Run `make demo` to print the safe walkthrough.
 3. Run `make dashboard` and open `http://localhost:8501/?mode=public` for the clean visitor view.
 4. Open Stock Selector at `?mode=public&page=stock-selector` to show the readiness-backed queue before one-ticker analysis.
-5. Open `?mode=public&page=single-stock-report&ticker=NVDA` for a DCF-ready company example.
+5. Open `?mode=public&page=single-stock-report&ticker=NVDA&open=1` for a DCF-ready company example.
 6. Open Data Health at `?mode=public&page=data-health` when a selector row or report section is blocked by source data.
 7. Check Proof History at `?mode=public&page=proof-history` before trusting changed readiness.
 8. Run `make status-check TOP_N=5` only when you want terminal proof of current coverage and blockers.

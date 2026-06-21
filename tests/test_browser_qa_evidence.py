@@ -384,7 +384,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "browser qa evidence is product evidence only" in rendered
     assert "first 30 seconds" in rendered
     assert "single-stock workflow fit screenshot" in rendered
-    assert "selected ticker readiness" in rendered
+    assert "before you open the review" in rendered
     assert "report handoff" in rendered
     assert "stop rule" in rendered
     assert "operator-data-health-proof-real.jpg" in rendered
@@ -439,7 +439,7 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Data Health queue drawer routing" in route_names
     assert "first 30 seconds" in rendered
     assert "where to go next" in rendered
-    assert "selected ticker readiness" in rendered
+    assert "before you open the review" in rendered
     assert "report handoff" in rendered
     assert "stop rule" in rendered
     assert "proof lane shell" in rendered
@@ -487,7 +487,7 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "data health proof lane progressive load" in output
     assert "data health queue drawer routing" in output
     assert "first 30 seconds" in output
-    assert "selected ticker readiness" in output
+    assert "before you open the review" in output
     assert "report handoff" in output
     assert "next data-readiness action" in output
     assert "does not unlock fundamentals" in output
