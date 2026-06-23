@@ -1049,10 +1049,12 @@ def test_monthly_ideas_hero_label_explains_locked_zero_state():
 def test_dashboard_hero_uses_public_product_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "A local, explainable research cockpit" in source
+    assert "A local, explainable command center" in source
+    assert "Start with readiness" in source
     assert "Research-only review; no external account actions." in source
     assert ".hero-kicker {\n          color: #b8f5e8;" in source
     assert ".hero-kicker {\n          color: #b8f5e8;\n          font-size: 0.78rem;\n          font-weight: 850;\n          letter-spacing: 0.14em;\n        }" in source
+    assert "A local, explainable research cockpit" not in source
     assert "A local, explainable workflow" not in source
     assert "Research workflow only." not in source
 
@@ -1074,8 +1076,12 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
 
     assert "command-topbar" in html
     assert "Stock Research Command Center" in html
+    assert "What can I use now?" in html
     assert "Data readiness first" in html
+    assert "Readiness-gated coverage" in html
     assert "Research-only" in html
+    assert "No account actions" in html
+    assert "Start with readiness" in html
     assert "Price-ready" in html
     assert "DCF-ready" in html
     assert "Peer-ready" in html
@@ -1086,6 +1092,9 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
     assert "3,043 peer-ready" in html
     assert "88 blocked" in html
     assert "98%" not in html
+    assert "Prices: ON" not in html
+    assert "Fundamentals: ON" not in html
+    assert "DCF: ON" not in html
     assert "Data Health" in html
     assert "broker" not in lowered
     assert "buy" not in lowered

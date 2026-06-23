@@ -2048,28 +2048,32 @@ def apply_dashboard_theme() -> None:
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 1rem;
+          gap: 0.74rem;
           flex-wrap: wrap;
-          min-height: 2.55rem;
-          padding: 0.52rem 0.9rem;
-          margin: -0.2rem 0 0.65rem 0;
+          min-height: 2.18rem;
+          padding: 0.42rem 0.72rem;
+          margin: -0.14rem 0 0.5rem 0;
           border: 1px solid rgba(15, 23, 42, 0.10);
           border-radius: 8px;
           background: #ffffff;
-          box-shadow: 0 10px 26px rgba(15,23,42,0.045);
+          box-shadow: none;
         }
         .command-top-left,
         .command-top-right {
           display: flex;
           align-items: center;
-          gap: 0.72rem;
+          gap: 0.5rem;
           flex-wrap: wrap;
         }
         .command-status-item {
           color: #111827;
-          font-size: 0.78rem;
+          font-size: 0.74rem;
           font-weight: 750;
           white-space: nowrap;
+        }
+        .command-status-item.primary {
+          color: #0f766e;
+          font-weight: 950;
         }
         .command-status-dot {
           display: inline-block;
@@ -2082,38 +2086,38 @@ def apply_dashboard_theme() -> None:
         }
         .command-top-link {
           color: #0f766e !important;
-          font-size: 0.78rem;
+          font-size: 0.74rem;
           font-weight: 850;
           text-decoration: none;
           border: 1px solid rgba(15,118,110,0.22);
           border-radius: 8px;
-          padding: 0.36rem 0.62rem;
+          padding: 0.28rem 0.52rem;
           background: #f0fdf4;
         }
         .command-hero-v2 {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(420px, 0.96fr);
-          gap: 1.4rem;
+          grid-template-columns: minmax(0, 1fr) minmax(390px, 0.94fr);
+          gap: 1rem;
           align-items: stretch;
-          margin: 0 0 0.72rem 0;
+          margin: 0 0 0.54rem 0;
         }
         .command-hero-copy {
-          padding: 1.35rem 0.25rem 1.15rem 0.05rem;
+          padding: 0.9rem 0.2rem 0.82rem 0.04rem;
         }
         .command-title-v2 {
           color: #070b13;
-          font-size: 2.05rem;
+          font-size: 1.72rem;
           line-height: 1.04;
           font-weight: 950;
           letter-spacing: 0;
-          margin: 0 0 0.46rem 0;
+          margin: 0 0 0.34rem 0;
         }
         .command-subtitle-v2 {
           color: #0f7a3f;
-          font-size: 1.05rem;
+          font-size: 0.92rem;
           line-height: 1.35;
           font-weight: 900;
-          margin-bottom: 1rem;
+          margin-bottom: 0.66rem;
         }
         .command-subtitle-v2 span {
           color: #111827;
@@ -2121,26 +2125,26 @@ def apply_dashboard_theme() -> None:
         }
         .command-body-v2 {
           color: #5b6474;
-          font-size: 0.95rem;
+          font-size: 0.86rem;
           line-height: 1.46;
-          max-width: 34rem;
+          max-width: 37rem;
         }
         .command-kpi-panel {
           border: 1px solid rgba(15, 23, 42, 0.12);
           border-radius: 8px;
           background: #ffffff;
-          padding: 1rem 1.05rem;
-          box-shadow: 0 14px 34px rgba(15,23,42,0.055);
+          padding: 0.82rem 0.88rem;
+          box-shadow: 0 10px 24px rgba(15,23,42,0.045);
         }
         .command-kpi-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 0.65rem;
+          gap: 0.5rem;
         }
         .command-kpi {
           border-right: 1px solid rgba(148, 163, 184, 0.28);
-          padding: 0.35rem 0.7rem 0.35rem 0.35rem;
-          min-height: 4.8rem;
+          padding: 0.28rem 0.56rem 0.28rem 0.28rem;
+          min-height: 4.1rem;
         }
         .command-kpi:last-child {
           border-right: 0;
@@ -4922,11 +4926,10 @@ def command_center_header_html(
     return (
         f"<div class='command-topbar{compact_class}'>"
         "<div class='command-top-left'>"
+        "<span class='command-status-item primary'>What can I use now?</span>"
         f"<span class='command-status-item'>Data snapshot: {html.escape(str(latest_price))}</span>"
-        "<span class='command-status-item'>Prices: ON <span class='command-status-dot'></span></span>"
-        "<span class='command-status-item'>Fundamentals: ON <span class='command-status-dot'></span></span>"
-        "<span class='command-status-item'>DCF: ON <span class='command-status-dot'></span></span>"
-        "<span class='command-status-item'>Peers: readiness-gated <span class='command-status-dot'></span></span>"
+        "<span class='command-status-item'>Readiness-gated coverage <span class='command-status-dot'></span></span>"
+        "<span class='command-status-item'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
         "<a class='command-top-link' href='?mode=public&page=data-health'>Data Health</a>"
@@ -4937,7 +4940,7 @@ def command_center_header_html(
         "<div class='command-hero-copy'>"
         "<div class='command-title-v2'>Stock Research Command Center</div>"
         "<div class='command-subtitle-v2'>Data readiness first <span>&bull;</span> Research-only</div>"
-        "<div class='command-body-v2'>A local, explainable research cockpit for selecting what to review next, opening one ticker, and proving missing data before analysis. Research-only review; no external account actions.</div>"
+        "<div class='command-body-v2'>A local, explainable command center for deciding what can be used now. Start with readiness, open one ticker, and inspect proof only when a lane is blocked. Research-only review; no external account actions.</div>"
         "</div>"
         "<div class='command-kpi-panel'>"
         f"<div class='command-kpi-grid'>{kpi_html}</div>"
