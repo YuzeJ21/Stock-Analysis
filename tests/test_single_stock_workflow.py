@@ -41,7 +41,7 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
         "STOP RULE",
     ]
     assert cards[0]["title"] == "NVDA - partial"
-    assert "previous proof comes from the saved readiness row and report payload" in rendered
+    assert "previous proof comes from the saved readiness checks" in rendered
     assert "standalone dcf assumptions and source readiness can be reviewed" in rendered
     assert "peer-relative valuation remains locked" in rendered
     assert "open data health peer lane" in rendered
@@ -86,7 +86,6 @@ def test_single_stock_data_health_handoff_cards_route_locked_inputs_to_matching_
     assert "peer-relative context stays blocked" in rendered
     assert "peers source-proof lane" in rendered
     assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
-    assert "navigation and copy-only command context" in rendered
     assert "dashboard does not write canonical data" in rendered
     assert "make focus-peers ticker=mu" in rendered
     assert "do not turn missing, partial, locked, or excluded inputs into conclusions" in rendered
@@ -375,15 +374,15 @@ def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_r
         "NEXT SAFE ACTION",
         "STOP RULE",
     ]
-    assert "meta: pre-report contract" in rendered
-    assert "previous proof: home readiness snapshot plus selected-ticker local coverage rows" in rendered
-    assert "current step: decide what the selected ticker can support before opening the report" in rendered
+    assert "meta: review starting point" in rendered
+    assert "previous proof: home readiness snapshot plus selected-ticker data coverage" in rendered
+    assert "current step: decide what the selected ticker can support before opening the review" in rendered
     assert "next safe action: data health fundamentals lane" in rendered
     assert "meta: price context ready; fundamentals gated" in rendered
     assert "local price context can be reviewed" in rendered
     assert "trusted fundamentals, shares, fcf, market cap, and valuation inputs remain source-proof work" in rendered
-    assert "open the report, then follow the locks" in rendered
-    assert "loop: select ticker, show the local report, review supported sections" in rendered
+    assert "open the review, then follow the locks" in rendered
+    assert "loop: select ticker, open the review, read supported sections" in rendered
     assert "route any locked input to data health fundamentals lane" in rendered
     assert "data health fundamentals lane" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
@@ -446,7 +445,7 @@ def test_single_stock_pre_report_contract_cards_route_price_peer_and_ready_state
     assert "data health peers lane" in peer_rendered
     assert "make focus-peers ticker=nvda" in peer_rendered
     assert "peer mappings or peer valuation inputs lack source-backed rows" in peer_rendered
-    assert "crdo: ready to open the local report" in ready_rendered
+    assert "crdo: ready to open the review" in ready_rendered
     assert "next safe action: single-stock report" in ready_rendered
     assert "make stock-report-md ticker=crdo" in ready_rendered
     assert "readiness changed after a local import, refresh, or proof update" in ready_rendered

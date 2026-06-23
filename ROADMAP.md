@@ -128,6 +128,50 @@ Use `make status-check TOP_N=5`, `make readiness`, or the dashboard Home page fo
 
 The product correctly withholds unavailable conclusions. The next improvement is product-page workflow clarity plus trusted data ingestion, not more indicators.
 
+### Controlled Pilot Stage Gate
+
+Current stage verdict: trusted-data pilot, ready to enter a controlled external pilot with manual gates.
+
+Pilot entry criteria:
+
+- `make pilot-readiness-check TOP_N=10` returns `pilot-ready with manual gates` or better.
+- `make public-check`, `make browser-qa-evidence`, `make public-wording-check`, `make diff-hygiene`, and `git diff --check` pass in the target environment.
+- The pilot operator follows `docs/PILOT_RUNBOOK.md`.
+- Generated CSV/JSON/report churn is excluded unless the exact artifact is reviewed pilot evidence.
+- Source-proof lanes keep `ready`, `partial`, `blocked`, `excluded`, `supported`, `still_blocked`, and `skipped` states visible.
+
+Pilot exit criteria:
+
+- 5 to 10 selected operating-company packets have recorded outcomes: `supported`, `still_blocked`, `skipped`, or `excluded`.
+- Any supported lane has source proof, validation, preview, rejected-row review, apply or skip decision, rebuilt readiness, regenerated report, and proof-ledger evidence.
+- Operators can complete one full reviewed source-proof slice from dashboard, runbook, CLI packet, proof comparison, and proof ledger without guessing the next gate.
+- Remaining blockers are trusted-source, provider, licensing, or owner-decision constraints rather than product-code or documentation gaps.
+
+Immediate pilot priorities:
+
+1. Run the controlled pilot on a small company set from `make trusted-data-pilot-candidates TOP_N=10`.
+2. Close one reviewed source-proof lane at a time, starting with the top executable DCF/share-count/peer blocker.
+3. Keep the pilot package clean: reviewed docs/code/evidence only, broad generated churn excluded by default.
+
+Post-pilot priorities:
+
+- Increase trusted fundamentals, share-count, and source-backed peer coverage.
+- Improve optional earnings and analyst-estimate lanes only after trusted local rows exist.
+- Continue extracting dashboard logic into tested helpers where it reduces operator risk.
+
+Launch-readiness priorities:
+
+- Choose a license before describing the repository as open source.
+- Confirm dashboard smoke and public checks in a normal local shell.
+- Publish only reviewed data/evidence artifacts, not broad generated refresh churn.
+
+Do not build before pilot:
+
+- Broker connections, order routing, auto-trading, or account actions.
+- AI-generated recommendations or unsupported rankings.
+- Placeholder fundamentals, peers, earnings, estimates, valuation inputs, or metrics.
+- More indicators that do not improve data readiness, evidence, or operator clarity.
+
 ## 3. Product-Page Roadmap
 
 Goal: turn the Streamlit page into a research command center instead of a collection of CSV tables.

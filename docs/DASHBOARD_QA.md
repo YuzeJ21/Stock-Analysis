@@ -9,9 +9,9 @@ This file records lightweight browser QA evidence for public-facing dashboard po
 | `docs/assets/linkedin-public-dashboard.png` | Ready | GitHub/LinkedIn thumbnail from the real public dashboard. |
 | `docs/assets/public-demo-home-real.jpg` | Ready | README first-screen product preview. |
 | `docs/assets/operator-data-health-metrics-real.jpg` | Ready | Operator metrics lane proof that Data Health is readiness-gated and copy-only. |
-| Single-stock workflow fit screenshot | Manual capture pending | Capture in a normal local browser before claiming full one-stock workflow screenshot coverage. |
-| Data Health proof lane screenshot | Manual capture pending | Capture in a normal local browser before claiming proof-lane progressive-load screenshot coverage. |
-| Data Health queue drawer routing screenshot | Manual capture pending | Capture in a normal local browser before claiming queue-to-proof routing screenshot coverage. |
+| `docs/assets/single-stock-workflow-fit-real.jpg` | Ready | Public single-stock workflow proof with selected-ticker readiness, report handoff, and stop rule. |
+| `docs/assets/operator-data-health-proof-real.jpg` | Ready | Operator proof-lane screenshot showing progressive proof detail rather than raw tables first. |
+| `docs/assets/operator-data-health-queue-routing-real.jpg` | Ready | Operator queue drawer routing proof from source proof to comparison, proof record, and artifact hygiene. |
 
 Screenshot evidence is product evidence only. It does not refresh data, apply imports, unlock blocked fundamentals, peers, earnings, analyst estimates, valuation inputs, or prove current readiness counts.
 
@@ -87,13 +87,12 @@ checks for:
 - Data Health proof history detail.
 - Data Health queue drawer routing.
 
-The command separates committed real screenshot assets from newer route
-screenshots that still need manual capture. A
-`ready_with_manual_capture_pending` verdict means the existing committed assets
-are usable, while the Single-Stock Workflow Fit, Data Health proof lane, and
-Data Health queue drawer screenshots should still be captured in a normal local
-browser before replacing GitHub or LinkedIn visuals. Do not use generated
-thumbnails as proof of product state.
+The command separates committed real screenshot assets from route screenshots
+that still need manual capture. A `ready` verdict means the committed assets are
+present, large enough, and matched to the expected first-view markers. If future
+routes return `ready_with_manual_capture_pending`, capture the named targets in
+a normal local browser before replacing GitHub or LinkedIn visuals. Do not use
+generated thumbnails as proof of product state.
 
 Local capture checklist:
 

@@ -341,7 +341,7 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
             "title": "Where Data Health fits",
             "body": (
                 f"{handoff} Data Health handoff: {route_label}. "
-                f"{route_stop_rule} The next proof step stays manual; the dashboard does not run imports or refreshes."
+                f"{route_stop_rule} The next proof step stays manual and copy-only; the dashboard does not run imports or refreshes."
             ),
             "badges": ["manual proof", "manual gate"],
             "command": command,
