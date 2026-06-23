@@ -1370,7 +1370,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "2026-06-11 Public Route Alignment Pass",
         "main navigation control reads `Choose your path`",
         "`Review one stock`, `Check data coverage`, and `Inspect proof`",
-        "detailed pages remain available under `More pages`",
+        "detailed pages remain available under `Optional research views`",
         "Automation Boundary table separates repeatable checks from human-reviewed source judgment",
         "demo walkthrough now points visitors to `make trusted-data-pilot-candidates TOP_N=10`",
         "candidate list as read-only",
