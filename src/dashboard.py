@@ -28940,7 +28940,7 @@ def main() -> None:
             note_title, note_body = sidebar_navigation_note(selected_page)
             render_context_note(note_title, note_body, tone="success")
         if show_sidebar_operator_guides:
-            with st.expander("Best beginner path", expanded=False):
+            with st.expander("Recommended path", expanded=False):
                 render_context_note(
                     "Start simple.",
                     "Home -> Stock Selector -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",

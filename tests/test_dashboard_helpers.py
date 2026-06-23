@@ -1950,7 +1950,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Turn on reader tips only when you want more review context" in source
     assert "Turn on page tips only when you want extra review context" not in source
     assert "Turn on guided help only when you want extra review routes" not in source
-    assert 'st.expander("Best beginner path", expanded=False)' in source
+    assert 'st.expander("Recommended path", expanded=False)' in source
+    assert 'st.expander("Best beginner path"' not in source
     assert '"Start simple."' in source
     assert 'render_context_note(\n            "Recommended route."' not in source
     assert 'st.expander("How to use the path", expanded=False)' not in source
