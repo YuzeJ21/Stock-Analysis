@@ -1990,6 +1990,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert '"Page to review"' not in source
     assert "Start with Home, then open one focused page" not in source
     assert "Copy only." in source
+    assert "check data coverage" in source.lower()
+    assert "improve data coverage" not in source.lower()
     assert "Start with Home for the coverage snapshot." in source
     assert "Review one stock when you want a ticker-level report." in source
     assert "Check data coverage when you want to see the missing trusted input." in source
@@ -2418,6 +2420,8 @@ def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
     assert "make " not in visible_rendered
     assert "open the clean product view" in rendered
     assert "five public paths" in rendered
+    assert "check data coverage" in rendered
+    assert "improve data coverage" not in rendered
     assert "open a ready company report" in rendered
     assert "ready-data example" in rendered
     assert "dcf assumptions" in rendered
@@ -9292,6 +9296,8 @@ def test_monthly_picks_quality_cards_explain_candidate_boundary_without_recommen
     assert partial_cards[0]["title"] == "Partial candidate set"
     assert full_cards[0]["title"] == "Candidate set is filled"
     assert "monthly picks has no supported local candidates yet" in rendered
+    assert "check data coverage before interpreting the page" in rendered
+    assert "improve data coverage before interpreting the page" not in rendered
     assert "2 of 5 conservative slots are filled" in rendered
     assert "weaker names are not forced into the list" in rendered
     assert "no allocation conclusion" in rendered

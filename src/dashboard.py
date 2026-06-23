@@ -22562,7 +22562,7 @@ def monthly_picks_quality_cards(
         gap_count = non_empty_count(picks_frame, ["MissingDataFields"])
     if not has_candidates:
         support_title = "Candidate review is locked"
-        support_body = "Monthly Picks has no supported local candidates yet; improve data coverage before interpreting the page."
+        support_body = "Monthly Picks has no supported local candidates yet; check data coverage before interpreting the page."
         support_badges = ["coverage first"]
     elif candidate_count < top_n:
         support_title = "Partial candidate set"
@@ -24130,7 +24130,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "kicker": "VISITOR STEP 2",
             "title": "Open the clean product view",
             "body": (
-                "Start on Home for the coverage snapshot and five public paths: start at Home, explore ready names, review one stock, improve data coverage, or inspect proof."
+                "Start on Home for the coverage snapshot and five public paths: start at Home, explore ready names, review one stock, check data coverage, or inspect proof."
             ),
             "badges": ["start here", "plain English"],
             "command": "make dashboard",
@@ -28888,7 +28888,7 @@ def main() -> None:
             path_options,
             index=sidebar_path_index(default_path, path_options),
             format_func=public_path_label,
-            help="Most visitors only need these paths: review one stock, explore ready names, improve data coverage, or inspect proof.",
+            help="Most visitors only need these paths: review one stock, explore ready names, check data coverage, or inspect proof.",
             key=path_widget_key,
         )
         path_selection = page_title_from_public_path(path_selection)
