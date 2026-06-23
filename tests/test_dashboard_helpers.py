@@ -2085,10 +2085,14 @@ def test_sidebar_nav_header_is_readiness_first_and_not_command_first():
     lowered = rendered.lower()
 
     assert "sidebar-nav-header" in rendered
+    assert "READINESS-FIRST" in rendered
+    assert "Research paths" in rendered
     assert "readiness-first" in lowered
     assert "research paths" in lowered
     assert "choose one path" in lowered
     assert "open proof only" in lowered
+    assert "SRC" not in rendered
+    assert "SRC<br/>Center" not in rendered
     assert "make " not in lowered
     assert "buy" not in lowered
     assert "sell" not in lowered

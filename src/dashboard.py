@@ -4602,8 +4602,8 @@ def render_sidebar_route_steps(cards: list[tuple[str, str, str, str]]) -> None:
 def sidebar_nav_header_html() -> str:
     return """
     <div class="sidebar-nav-header">
-      <div class="sidebar-nav-kicker">SRC</div>
-      <div class="sidebar-nav-title">SRC<br/>Center</div>
+      <div class="sidebar-nav-kicker">READINESS-FIRST</div>
+      <div class="sidebar-nav-title">Research paths</div>
       <div class="sidebar-nav-copy">Readiness-first research paths. Choose one path; open proof only when a section is locked.</div>
     </div>
     """
