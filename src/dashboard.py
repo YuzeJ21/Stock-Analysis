@@ -8419,6 +8419,9 @@ def data_health_coverage_summary_frame(
             "ready_coverage": _coverage_summary_fraction(price_ready, master),
             "supporting_coverage": f"Momentum {momentum_ready:,}; liquidity {liquidity_ready:,}",
             "blocked_or_limited": f"{max(master - price_ready, 0):,} without ready price coverage",
+            "why_blocked_or_limited": "Some tickers still lack enough verified local price history.",
+            "proof_to_unlock": "Reviewed price rows or a capped dry-run refresh prove price coverage.",
+            "stop_rule": "Stop if price rows are missing, too short, stale, or unreviewed.",
             "operator_step": "make status-check TOP_N=5",
         },
         {
@@ -8428,6 +8431,9 @@ def data_health_coverage_summary_frame(
             "ready_coverage": _coverage_summary_fraction(dcf_ready, master),
             "supporting_coverage": f"Trusted fundamentals {fundamentals_ready:,}",
             "blocked_or_limited": f"{blocked_or_partial:,} still need reviewed fundamentals or DCF inputs",
+            "why_blocked_or_limited": "Missing trusted fundamentals, shares, or DCF inputs keep valuation withheld.",
+            "proof_to_unlock": "Validated fundamentals imports, preview, rejected-row review, apply decision, and rebuilt readiness.",
+            "stop_rule": "Stop if any required DCF input is missing or not source-backed.",
             "operator_step": "make trusted-data-pilot-candidates TOP_N=10",
         },
         {
@@ -8437,6 +8443,9 @@ def data_health_coverage_summary_frame(
             "ready_coverage": _coverage_summary_fraction(peer_ready, master),
             "supporting_coverage": f"Peer valuation comparisons {peer_valuation_ready:,}",
             "blocked_or_limited": f"{max(master - peer_ready, 0):,} still need peer mapping or peer inputs",
+            "why_blocked_or_limited": "Peer context needs source-backed mappings plus trusted peer inputs.",
+            "proof_to_unlock": "Reviewed peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
+            "stop_rule": "Stop if peers are inferred from sector similarity or missing mapped-peer inputs.",
             "operator_step": "make peer-mapping-queue TOP_N=25",
         },
         {
@@ -8446,6 +8455,9 @@ def data_health_coverage_summary_frame(
             "ready_coverage": _coverage_summary_fraction(earnings_ready, master),
             "supporting_coverage": "Optional context lane",
             "blocked_or_limited": f"{max(master - earnings_ready, 0):,} without trusted local earnings rows",
+            "why_blocked_or_limited": "Trusted local earnings rows have not been reviewed for most tickers.",
+            "proof_to_unlock": "Trusted earnings CSV rows that pass validation, preview, and optional-context readiness.",
+            "stop_rule": "Stop if rows are empty, stale, or not trusted local evidence.",
             "operator_step": "make optional-context-worklist TOP_N=10",
         },
         {
@@ -8455,6 +8467,9 @@ def data_health_coverage_summary_frame(
             "ready_coverage": _coverage_summary_fraction(estimates_ready, master),
             "supporting_coverage": "Optional context lane",
             "blocked_or_limited": f"{max(master - estimates_ready, 0):,} without trusted local estimate rows",
+            "why_blocked_or_limited": "Trusted local analyst-estimate rows have not been reviewed for most tickers.",
+            "proof_to_unlock": "Trusted analyst-estimate CSV rows that pass validation, preview, and optional-context readiness.",
+            "stop_rule": "Stop if estimates are absent, scraped without review, or treated as a recommendation.",
             "operator_step": "make optional-context-worklist TOP_N=10",
         },
         {
@@ -8464,6 +8479,9 @@ def data_health_coverage_summary_frame(
             "ready_coverage": "Product evidence only",
             "supporting_coverage": "Evidence details stay collapsed by default",
             "blocked_or_limited": "Does not unlock blocked input lanes",
+            "why_blocked_or_limited": "Screenshots and proof artifacts do not prove current market data.",
+            "proof_to_unlock": "Current app screenshot evidence plus public-check; data freshness still comes from readiness commands.",
+            "stop_rule": "Stop if screenshots are used as proof of data freshness or source-input coverage.",
             "operator_step": "make browser-qa-evidence",
         },
     ]
@@ -8482,7 +8500,13 @@ def data_health_coverage_summary_cards(
             {
                 "kicker": state.upper(),
                 "title": format_missing(row.get("lane")),
-                "body": f"{format_missing(row.get('one_clear_answer'))} Coverage: {format_missing(row.get('ready_coverage'))}.",
+                "body": (
+                    f"{format_missing(row.get('one_clear_answer'))} "
+                    f"Coverage: {format_missing(row.get('ready_coverage'))}. "
+                    f"Why limited: {format_missing(row.get('why_blocked_or_limited'))} "
+                    f"Proof to unlock: {format_missing(row.get('proof_to_unlock'))} "
+                    f"Stop rule: {format_missing(row.get('stop_rule'))}"
+                ),
                 "badges": [state, format_missing(row.get("supporting_coverage"))],
                 "command": format_missing(row.get("operator_step"), ""),
             }

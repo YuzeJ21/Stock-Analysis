@@ -18574,8 +18574,35 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
         "Proof / demo evidence",
     ]
     assert list(frame["state"]) == ["ready", "partial", "partial", "blocked", "blocked", "supported"]
+    assert list(frame["why_blocked_or_limited"]) == [
+        "Some tickers still lack enough verified local price history.",
+        "Missing trusted fundamentals, shares, or DCF inputs keep valuation withheld.",
+        "Peer context needs source-backed mappings plus trusted peer inputs.",
+        "Trusted local earnings rows have not been reviewed for most tickers.",
+        "Trusted local analyst-estimate rows have not been reviewed for most tickers.",
+        "Screenshots and proof artifacts do not prove current market data.",
+    ]
+    assert list(frame["proof_to_unlock"]) == [
+        "Reviewed price rows or a capped dry-run refresh prove price coverage.",
+        "Validated fundamentals imports, preview, rejected-row review, apply decision, and rebuilt readiness.",
+        "Reviewed peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
+        "Trusted earnings CSV rows that pass validation, preview, and optional-context readiness.",
+        "Trusted analyst-estimate CSV rows that pass validation, preview, and optional-context readiness.",
+        "Current app screenshot evidence plus public-check; data freshness still comes from readiness commands.",
+    ]
+    assert list(frame["stop_rule"]) == [
+        "Stop if price rows are missing, too short, stale, or unreviewed.",
+        "Stop if any required DCF input is missing or not source-backed.",
+        "Stop if peers are inferred from sector similarity or missing mapped-peer inputs.",
+        "Stop if rows are empty, stale, or not trusted local evidence.",
+        "Stop if estimates are absent, scraped without review, or treated as a recommendation.",
+        "Stop if screenshots are used as proof of data freshness or source-input coverage.",
+    ]
     assert "use now for market setup" in rendered
     assert "use only on dcf-ready companies" in rendered
+    assert "why limited:" in rendered
+    assert "proof to unlock:" in rendered
+    assert "stop if peers are inferred from sector similarity" in rendered
     assert "do not use yet unless trusted local earnings rows exist" in rendered
     assert "not data freshness" in rendered
     assert "buy" not in rendered
