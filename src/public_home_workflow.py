@@ -328,7 +328,7 @@ def public_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
             selector_tone,
         ),
         (
-            "Improve data coverage",
+            "Check data coverage",
             improve_body,
             "Data Health",
             improve_tone,

@@ -192,7 +192,7 @@ def public_visitor_path_cards(readiness_summary: dict[str, object]) -> list[tupl
     return [
         ("Review one stock", review_body, "Single-Stock Report", "neutral"),
         (
-            "Improve data coverage",
+            "Check data coverage",
             "You are here. Read Quick Read first; the public page shows what is ready, what is blocked, and which trusted-data lane needs attention next.",
             "Data Health",
             "warning",

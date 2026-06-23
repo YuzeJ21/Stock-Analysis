@@ -18,7 +18,7 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "| Start at Home |" in readme
     assert "| Explore ready names |" in readme
     assert "| Review one stock |" in readme
-    assert "| Improve data coverage |" in readme
+    assert "| Check data coverage |" in readme
     assert "| Inspect proof |" in readme
     assert "| Explore ready names | You want to filter readiness-backed candidates" in readme
     assert "| Inspect proof | You want to see the proof ledger" in readme
@@ -71,3 +71,4 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert PUBLIC_V1_ROUTE in brief
     assert "readiness-backed selection comes first" in makefile
     assert "Review one stock, Improve data coverage, and Inspect proof" not in makefile
+    assert "Check data coverage:     make readiness-ops-center" in makefile

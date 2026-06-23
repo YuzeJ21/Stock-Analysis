@@ -18,7 +18,7 @@ PUBLIC_PATH_LABELS = {
     "Home": "Start at Home",
     "Single-Stock Report": "Review one stock",
     STOCK_SELECTOR_PATH_TITLE: "Explore ready names",
-    "Data Health": "Improve data coverage",
+    "Data Health": "Check data coverage",
     PROOF_HISTORY_PATH_TITLE: "Inspect proof",
     DETAILED_PAGE_PATH_TITLE: "More research views",
 }

@@ -381,7 +381,7 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
         )
     if selected_page == "Data Health":
         return (
-            "Improve data coverage.",
+            "Check data coverage.",
             "Use this page to see which trusted inputs are missing and which proof path should be checked next.",
         )
     if selected_page == PROOF_HISTORY_PATH_TITLE:
@@ -20218,7 +20218,7 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
             "neutral",
         ),
         (
-            "Improve data coverage",
+            "Check data coverage",
             "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
             "Data Health",
             "warning",
@@ -20236,7 +20236,7 @@ def sidebar_quick_help_lines() -> list[str]:
     return [
         "Start with Home for the coverage snapshot.",
         "Review one stock when you want a ticker-level report.",
-        "Improve data coverage when you want to see the missing trusted input.",
+        "Check data coverage when you want to see the missing trusted input.",
         "Inspect proof before treating a changed readiness state as supported.",
         "Operator commands stay copy-only and hidden from the public path.",
     ]
@@ -24201,7 +24201,7 @@ def research_cockpit_summary_cards(summary: dict[str, object] | None = None) -> 
         },
         {
             "kicker": "DATA HEALTH",
-            "title": "Improve data coverage",
+            "title": "Check data coverage",
             "body": f"Use Data Health when {blocked:,} row(s) still need proof before analysis or when a queue item explains a missing input.",
             "badges": ["proof before analysis", "trusted inputs"],
         },

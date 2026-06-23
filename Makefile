@@ -25,7 +25,7 @@ help:
 	@echo ""
 	@echo "Useful next paths:"
 	@echo "  Review one stock:        make stock-report-md TICKER=NVDA"
-	@echo "  Improve data coverage:   make readiness-ops-center"
+	@echo "  Check data coverage:     make readiness-ops-center"
 	@echo "  Check price freshness:   make price-refresh-loop DRY_RUN=1"
 	@echo "  Verify public hygiene:   make diff-hygiene && make staged-hygiene-check"
 	@echo ""
