@@ -109,18 +109,24 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     assert readiness.loc["AMD", "overall_readiness_state"] == "blocked"
     assert "price" in readiness.loc["AMD", "blocked_features"]
     assert "dcf" in readiness.loc["QQQ", "excluded_features"]
+    assert "peer" in readiness.loc["QQQ", "excluded_features"]
+    assert "peer" not in readiness.loc["QQQ", "blocked_features"]
+    assert "peer mappings" not in readiness.loc["QQQ", "next_action"].lower()
     assert bool(readiness.loc["QQQ", "dcf_ready"]) is False
     assert source_status.loc["remote_price_provider", "status"] == "credential_missing"
     assert source_status.loc["remote_price_provider", "manual_import_path"] == "data/staged/prices/"
-    assert source_status.loc["yahoo_price_provider", "status"] == "available"
-    assert source_status.loc["yahoo_price_provider", "manual_import_path"] == "make price-refresh PROVIDER=yahoo"
+    assert source_status.loc["auto_price_ladder", "status"] == "available"
+    assert source_status.loc["auto_price_ladder", "manual_import_path"] == "make price-refresh PROVIDER=auto"
     assert int(feature_summary.loc["price", "ready_count"]) == 2
     assert int(feature_summary.loc["price", "blocked_count"]) == 1
     assert int(feature_summary.loc["dcf", "ready_count"]) == 1
     assert int(feature_summary.loc["dcf", "excluded_count"]) == 1
+    assert int(feature_summary.loc["peer", "excluded_count"]) == 1
     assert "AMD" in feature_summary.loc["price", "sample_blocked_tickers"]
     assert "NVDA" in feature_summary.loc["dcf", "sample_ready_tickers"]
     assert feature_summary.loc["dcf", "unlock_command"] == "make dcf-readiness"
+    assert feature_summary.loc["fundamentals", "next_action"] == "make fundamentals-source-ladder-queue TOP_N=25"
+    assert feature_summary.loc["fundamentals", "unlock_command"] == "make fundamentals-source-ladder-queue TOP_N=25"
     assert feature_summary.loc["price", "next_action"] == "make price-refresh-loop DRY_RUN=1"
     assert feature_summary.loc["momentum", "next_action"] == "make price-refresh-loop DRY_RUN=1"
     assert feature_summary.loc["market_direction", "next_action"] == "make price-refresh-loop DRY_RUN=1"

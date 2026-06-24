@@ -115,7 +115,7 @@ Prices:
 ```bash
 make price-refresh-loop DRY_RUN=1
 make readiness-snapshot
-make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
+make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30
 make readiness
 make status-check TOP_N=5
 make diff-hygiene

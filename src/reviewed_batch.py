@@ -382,8 +382,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
     local_share_fixable = int(session_state["local_share_fixable"])
     if lane == "price_coverage":
         return {
-            "dry_run": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=yahoo",
-            "execute": f"make price-refresh-loop MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=yahoo SLEEP_SECONDS=30",
+            "dry_run": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=auto",
+            "execute": f"make price-refresh-loop MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=auto SLEEP_SECONDS=30",
             "validate": "make price-validate",
             "preview": "make price-preview",
             "apply": "make price-apply only for reviewed trusted rows",

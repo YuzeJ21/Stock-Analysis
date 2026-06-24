@@ -191,16 +191,15 @@ def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
     if dataset == "prices" and ticker:
         return (
             f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-            f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker}; "
-            "if the free refresh path fails, normalize verified downloaded OHLCV files into "
-            "data/imports/prices.csv."
+            f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Yahoo, Stooq, "
+            "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
+            "normalize verified downloaded OHLCV files into data/imports/prices.csv."
         )
     if dataset == "fundamentals" and ticker:
         return (
-            f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
-            f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import file rows in "
-            "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
-            "and make imports-apply."
+            f"Run make focus-fundamentals TICKER={ticker}, then make fundamentals-source-ladder TICKERS={ticker}. "
+            "The ladder tries SEC, yfinance, configured FMP/Alpha Vantage/Finnhub, then leaves unresolved rows "
+            "still_blocked unless a reviewed local import row exists."
         )
     return ""
 
@@ -262,7 +261,7 @@ def _staged_import_follow_up(dataset: str) -> str:
 DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
     DataSourceRegistryEntry(
         dataset="prices",
-        source_name="Local prices CSV / optional free daily updater",
+        source_name="Local prices CSV / PROVIDER=auto price ladder",
         source_type="local_csv",
         required_for="momentum, market direction, stock reports, track record",
         is_required=True,

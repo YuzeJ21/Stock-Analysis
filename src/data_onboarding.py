@@ -165,6 +165,10 @@ PEER_MAPPING_QUEUE_COLUMNS = [
     "workflow_group",
     "workflow_scope",
     "next_action_summary",
+    "candidate_context_state",
+    "candidate_context_source",
+    "candidate_context_count",
+    "candidate_context_peers",
     "peer_mapping_min_rows",
     "trusted_source_requirement",
     "fallback_context_note",
@@ -580,6 +584,10 @@ class PeerMappingQueueRow:
     workflow_group: str
     workflow_scope: str
     next_action_summary: str
+    candidate_context_state: str
+    candidate_context_source: str
+    candidate_context_count: int
+    candidate_context_peers: str
     peer_mapping_min_rows: int
     trusted_source_requirement: str
     fallback_context_note: str
@@ -829,8 +837,9 @@ def _missing_join(items: list[str]) -> str:
 def _price_action_text(ticker: str) -> str:
     return (
         f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker}; "
-        "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Yahoo, Stooq, "
+        "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
+        "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
 
 
@@ -847,19 +856,60 @@ def _session_sec_available(project_root: Path | str | None = None) -> bool | Non
     return sec.get("status") == "available"
 
 
+def _fundamentals_session_source_context(project_root: Path | str | None = None) -> tuple[str, bool, bool]:
+    preflight = load_session_source_preflight(resolve_project_root(project_root))
+    if not isinstance(preflight, dict):
+        return "", False, False
+    sources = preflight.get("sources", {})
+    if not isinstance(sources, dict):
+        return "", False, False
+
+    labels = {
+        "sec": "SEC",
+        "yfinance_stage": "Yahoo/yfinance",
+        "fmp": "FMP",
+        "alpha_vantage": "Alpha Vantage",
+        "finnhub": "Finnhub",
+    }
+    pieces: list[str] = []
+    ladder_available = False
+    sec_unavailable = False
+    for key, label in labels.items():
+        source = sources.get(key, {})
+        if not isinstance(source, dict):
+            continue
+        status = str(source.get("status") or "").strip()
+        reason = str(source.get("reason_code") or "").strip()
+        if status == "available":
+            ladder_available = True
+            pieces.append(f"{label} available")
+        elif key == "sec":
+            sec_unavailable = True
+            pieces.append(f"Session preflight marks SEC unavailable{f' ({reason})' if reason else ''}")
+        elif reason == "provider_key_missing":
+            if key == "fmp":
+                pieces.append("FMP_API_KEY missing")
+            elif key == "alpha_vantage":
+                pieces.append("ALPHA_VANTAGE_API_KEY missing")
+            elif key == "finnhub":
+                pieces.append("FINNHUB_API_KEY missing")
+        elif status:
+            pieces.append(f"{label} unavailable{f' ({reason})' if reason else ''}")
+    return "; ".join(pieces), ladder_available, sec_unavailable
+
+
 def _fundamentals_action_text(ticker: str, *, sec_available: bool | None = None) -> str:
     if sec_available is False:
         return (
             f"Run make focus-fundamentals TICKER={ticker}. Session preflight marks SEC unavailable, so do not retry "
-            "SEC staging in this session; prepare trusted manual fundamentals import file rows in "
-            "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
-            "and make imports-apply."
+            f"SEC staging in this session; run make fundamentals-source-ladder TICKERS={ticker} so yfinance and "
+            "configured FMP/Alpha Vantage/Finnhub paths are tried automatically. If no source-backed row is staged, "
+            "record still_blocked evidence and only then use reviewed local import rows."
         )
     return (
-        f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
-        f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import file rows in "
-        "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
-        "and make imports-apply."
+        f"Run make focus-fundamentals TICKER={ticker}, then make fundamentals-source-ladder TICKERS={ticker}. "
+        "The ladder tries SEC, yfinance, configured FMP/Alpha Vantage/Finnhub, then leaves unresolved rows "
+        "still_blocked unless a reviewed local import row exists."
     )
 
 
@@ -1005,6 +1055,7 @@ def _peer_support_follow_through(
     peers: pd.DataFrame,
     fundamentals: pd.DataFrame,
     prices: pd.DataFrame,
+    project_root: Path | str | None = None,
 ) -> tuple[str, str, str, str]:
     if peers.empty or "ticker" not in peers.columns or "peer_ticker" not in peers.columns:
         return (
@@ -1022,6 +1073,25 @@ def _peer_support_follow_through(
     for peer in peer_tickers:
         peer_row = _select_row(fundamentals, peer)
         if peer not in fundamental_tickers:
+            source_context, ladder_available, sec_unavailable = _fundamentals_session_source_context(project_root)
+            if ladder_available and sec_unavailable:
+                return (
+                    f"Run make focus-fundamentals TICKER={peer} to inspect missing peer fundamentals needed for "
+                    f"{ticker}'s peer-relative context, then run make fundamentals-source-ladder TICKERS={peer}. "
+                    f"Session source availability: {source_context}.",
+                    "data/imports/fundamentals.csv",
+                    focus_command_for_ticker("fundamentals", peer),
+                    f"make fundamentals-source-ladder TICKERS={peer}",
+                )
+            if sec_unavailable:
+                return (
+                    f"Run make focus-fundamentals TICKER={peer} to inspect missing peer fundamentals needed for "
+                    f"{ticker}'s peer-relative context. {source_context}. Keep this peer input still_blocked until "
+                    "a source-backed provider row or reviewed local import row exists; do not retry SEC staging in this session.",
+                    "data/imports/fundamentals.csv",
+                    focus_command_for_ticker("fundamentals", peer),
+                    focus_command_for_ticker("fundamentals", peer),
+                )
             return (
                 f"Run make focus-fundamentals TICKER={peer} to inspect missing peer fundamentals needed for "
                 f"{ticker}'s peer-relative context. If SEC_USER_AGENT is configured, run "
@@ -1035,10 +1105,13 @@ def _peer_support_follow_through(
         has_peer_market_context = peer in price_tickers or _has_number(peer_row, "market_cap")
         if not has_peer_market_context:
             return (
-                f"Run make focus-price TICKER={peer} to add missing peer price history needed for {ticker}'s peer-relative context.",
-                "data/imports/prices.csv",
+                f"Run make focus-price TICKER={peer} to inspect missing peer price history needed for "
+                f"{ticker}'s peer-relative context, then run make price-refresh TICKERS={peer} PROVIDER=auto. "
+                "The auto price source ladder tries Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub; only if every "
+                "provider path fails, use verified local OHLCV import rows as the last manual fallback.",
+                "data/prices.csv; data/imports/prices.csv if all remote price sources fail",
                 focus_command_for_ticker("prices", peer),
-                f"make price-normalize INPUT=data/raw/prices/{peer}.csv TICKER={peer} SOURCE=yahoo_manual",
+                f"make price-refresh TICKERS={peer} PROVIDER=auto",
             )
 
     return (
@@ -1147,6 +1220,9 @@ def _ticker_context_lookup(
     universe_ticker_col = universe_lookup.get("ticker")
     theme_col = universe_lookup.get("theme")
     sector_col = universe_lookup.get("sectoretf") or universe_lookup.get("sector_etf")
+    default_purpose_col = universe_lookup.get("defaultpurpose") or universe_lookup.get("default_purpose")
+    market_cap_bucket_col = universe_lookup.get("marketcapbucket") or universe_lookup.get("market_cap_bucket")
+    is_etf_col = universe_lookup.get("is_etf")
     holding_tickers = _ticker_set(holdings, holdings_ticker_col) if (holdings_ticker_col := holdings_lookup.get("ticker")) else set()
 
     context: dict[str, dict[str, Any]] = {}
@@ -1159,6 +1235,9 @@ def _ticker_context_lookup(
                 "is_holding": ticker in holding_tickers,
                 "theme": str(row.get(theme_col, "")).strip() if theme_col else "",
                 "sector_etf": str(row.get(sector_col, "")).strip() if sector_col else "",
+                "default_purpose": str(row.get(default_purpose_col, "")).strip() if default_purpose_col else "",
+                "market_cap_bucket": str(row.get(market_cap_bucket_col, "")).strip() if market_cap_bucket_col else "",
+                "is_etf": row.get(is_etf_col, "") if is_etf_col else "",
             }
 
     for ticker in holding_tickers:
@@ -1168,11 +1247,82 @@ def _ticker_context_lookup(
                 "is_holding": True,
                 "theme": "",
                 "sector_etf": "",
+                "default_purpose": "",
+                "market_cap_bucket": "",
+                "is_etf": "",
             },
         )
         context[ticker]["is_holding"] = True
 
     return context
+
+
+def _monitor_context_from_peer_context(context: dict[str, Any]) -> bool:
+    is_etf = str(context.get("is_etf", "") or "").strip().lower()
+    if is_etf in {"1", "true", "yes", "y"}:
+        return True
+    text = " ".join(
+        str(context.get(column, "") or "").strip().lower()
+        for column in ("theme", "sector_etf", "default_purpose", "market_cap_bucket")
+    )
+    return any(token in text for token in (" etf", "etf ", "index", "fund"))
+
+
+def _meaningful_peer_context_value(value: object) -> str:
+    text = str(value or "").strip().lower()
+    if text in {"", "nan", "none", "n/a", "na", "not available", "unavailable", "unclassified", "unknown"}:
+        return ""
+    return text
+
+
+def _peer_candidate_context(
+    ticker: str,
+    context_lookup: dict[str, dict[str, Any]],
+    coverage_by_ticker: dict[str, TickerCoverage],
+    *,
+    limit: int = 5,
+) -> tuple[str, str, int, str]:
+    context = context_lookup.get(ticker, {})
+    if _monitor_context_from_peer_context(context):
+        return "excluded", "asset_type_scope", 0, ""
+    theme = _meaningful_peer_context_value(context.get("theme", ""))
+    sector_etf = _meaningful_peer_context_value(context.get("sector_etf", ""))
+    if not theme and not sector_etf:
+        return "still_blocked", "none", 0, ""
+
+    candidates: list[tuple[int, int, str]] = []
+    for peer_ticker, peer_context in context_lookup.items():
+        peer = str(peer_ticker or "").upper().strip()
+        if not peer or peer == ticker:
+            continue
+        peer_theme = _meaningful_peer_context_value(peer_context.get("theme", ""))
+        peer_sector = _meaningful_peer_context_value(peer_context.get("sector_etf", ""))
+        exact_theme = bool(theme and peer_theme == theme)
+        exact_sector = bool(sector_etf and peer_sector == sector_etf)
+        if exact_theme and exact_sector:
+            source_rank = 0
+        elif exact_sector:
+            source_rank = 1
+        elif exact_theme:
+            source_rank = 2
+        else:
+            continue
+        peer_coverage = coverage_by_ticker.get(peer)
+        readiness_rank = 0 if peer_coverage and peer_coverage.dcf_ready else 1 if peer_coverage and peer_coverage.has_prices else 2
+        candidates.append((source_rank, readiness_rank, peer))
+
+    if not candidates:
+        return "still_blocked", "none", 0, ""
+
+    candidates = sorted(set(candidates))
+    best_source_rank = candidates[0][0]
+    source = {
+        0: "sector_theme_fallback",
+        1: "sector_fallback",
+        2: "theme_fallback",
+    }.get(best_source_rank, "fallback_context")
+    peer_names = [peer for source_rank, _readiness_rank, peer in candidates if source_rank == best_source_rank]
+    return "candidate_context_only", source, len(peer_names), ", ".join(peer_names[:limit])
 
 
 def build_ticker_coverage(
@@ -1328,7 +1478,7 @@ def build_ticker_coverage(
                     provisional.target_file,
                     provisional.focus_command,
                     provisional.example_command,
-                ) = _peer_support_follow_through(provisional.ticker, peers, fundamentals, prices)
+                ) = _peer_support_follow_through(provisional.ticker, peers, fundamentals, prices, root)
         elif not provisional.has_earnings:
             provisional.target_file = "data/imports/earnings.csv"
             provisional.focus_command = "make templates"
@@ -1940,6 +2090,7 @@ def build_peer_mapping_queue(
     active_universe = pd.read_csv(active_path) if active_path.exists() else pd.DataFrame()
     active_tickers = _ticker_set(active_universe)
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
+    coverage_by_ticker = {coverage.ticker.upper(): coverage for coverage in coverage_rows}
     rows: list[PeerMappingQueueRow] = []
     for coverage in coverage_rows:
         if coverage.peer_ready:
@@ -1959,17 +2110,52 @@ def build_peer_mapping_queue(
             priority = 4
         if not coverage.has_peer_mapping:
             workflow_group = "dcf_ready_peer_mapping" if coverage.dcf_ready else "price_ready_peer_mapping" if coverage.has_prices else "peer_mapping_after_price"
-            next_action_summary = "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data."
-            next_input_file = "data/imports/peers.csv"
-            validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
-            trusted_source_requirement = (
-                "Each row needs ticker, peer_ticker, peer_group, source, and as_of_date from a trusted research source; "
-                "do not use sector/theme fallback as trusted manual peer data."
-            )
-            fallback_context_note = "Sector/theme fallback can guide research only; it is not peer valuation input."
+            (
+                candidate_context_state,
+                candidate_context_source,
+                candidate_context_count,
+                candidate_context_peers,
+            ) = _peer_candidate_context(coverage.ticker, context_lookup, coverage_by_ticker)
+            if candidate_context_state == "candidate_context_only":
+                next_action_summary = (
+                    "Candidate context only: review sector/theme fallback names as research leads; "
+                    "not trusted peer proof until source-backed rows are promoted."
+                )
+                fallback_context_note = (
+                    "Candidate context only from sector/theme fallback; not trusted peer proof and not peer valuation input."
+                )
+                next_input_file = "data/imports/peers.csv"
+                validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
+                trusted_source_requirement = (
+                    "Each row needs ticker, peer_ticker, peer_group, source, and as_of_date from a trusted research source; "
+                    "do not use sector/theme fallback as trusted manual peer data."
+                )
+            elif candidate_context_state == "excluded":
+                next_action_summary = (
+                    "Excluded / not applicable: ETF, index, or fund monitor context does not need operating-company peer mapping."
+                )
+                fallback_context_note = (
+                    "Excluded monitor context; do not create candidate or trusted operating-company peer rows for this ticker."
+                )
+                next_input_file = "not_applicable"
+                validation_sequence = f"make stock-report-md TICKER={coverage.ticker} -> confirm excluded monitor context"
+                trusted_source_requirement = "Operating-company peer mapping is excluded for this monitor-context row."
+            else:
+                next_action_summary = "Add at least two trusted, source-backed peer rows; no candidate context is available yet."
+                fallback_context_note = "No candidate context is available; add only source-backed peer mappings."
+                next_input_file = "data/imports/peers.csv"
+                validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
+                trusted_source_requirement = (
+                    "Each row needs ticker, peer_ticker, peer_group, source, and as_of_date from a trusted research source; "
+                    "do not use sector/theme fallback as trusted manual peer data."
+                )
         else:
             workflow_group = "peer_valuation_unlock" if coverage.dcf_ready else "peer_metric_follow_through"
             next_action_summary = "Complete trusted peer fundamentals or peer price history before treating peer-relative context as ready."
+            candidate_context_state = "trusted_peer_mapping_present"
+            candidate_context_source = "trusted_peers_csv"
+            candidate_context_count = 0
+            candidate_context_peers = ""
             next_input_file = "data/imports/fundamentals.csv, data/imports/prices.csv"
             validation_sequence = f"make focus-peers TICKER={coverage.ticker} -> add verified peer metrics -> make imports-validate -> make imports-preview -> make imports-apply"
             trusted_source_requirement = (
@@ -1984,6 +2170,15 @@ def build_peer_mapping_queue(
             "Run make templates, fill only manually researched peers in data/imports/peers.csv, then run "
             "make imports-validate, make imports-preview, and make imports-apply before make status refreshes readiness."
         )
+        if not coverage.has_peer_mapping and candidate_context_state == "excluded":
+            recommended_action = (
+                f"No peer import is required for {coverage.ticker}; generate make stock-report-md TICKER={coverage.ticker} "
+                "to confirm ETF/index/fund monitor context remains excluded from operating-company peer valuation."
+            )
+            target_file = "not_applicable"
+            focus_command = f"make stock-report-md TICKER={coverage.ticker}"
+            example_command = f"make stock-report-md TICKER={coverage.ticker}"
+            safe_next_step = "Keep this row excluded unless the asset type is corrected to an operating company with source-backed peer proof."
         if coverage.has_peer_mapping:
             if _has_staged_peer_follow_through(coverage):
                 recommended_action = coverage.next_best_action
@@ -1999,8 +2194,16 @@ def build_peer_mapping_queue(
                     peers,
                     fundamentals,
                     prices,
+                    root,
                 )
-                safe_next_step = "Add only verified peer metrics; do not infer peer-relative context from incomplete data."
+                if example_command == focus_command and "Session preflight marks SEC unavailable" in recommended_action:
+                    safe_next_step = (
+                        "Session source availability blocks automated peer-fundamentals staging for this row; "
+                        "FMP_API_KEY missing, ALPHA_VANTAGE_API_KEY missing, and FINNHUB_API_KEY missing paths remain still_blocked until "
+                        "a configured provider or reviewed local import row exists."
+                    )
+                else:
+                    safe_next_step = "Add only verified peer metrics; do not infer peer-relative context from incomplete data."
                 next_input_file = target_file
         rows.append(
             PeerMappingQueueRow(
@@ -2016,6 +2219,10 @@ def build_peer_mapping_queue(
                 workflow_group=workflow_group,
                 workflow_scope=workflow_scope,
                 next_action_summary=next_action_summary,
+                candidate_context_state=candidate_context_state,
+                candidate_context_source=candidate_context_source,
+                candidate_context_count=candidate_context_count,
+                candidate_context_peers=candidate_context_peers,
                 peer_mapping_min_rows=DEFAULT_MIN_READY_PEERS,
                 trusted_source_requirement=trusted_source_requirement,
                 fallback_context_note=fallback_context_note,
@@ -2584,6 +2791,17 @@ def build_command_bundle_runbook(
                 if candidate:
                     fallback_command = candidate
                     break
+        peer_input_command = ""
+        if bundle.lane == "peers":
+            for detail in details_for_bundle:
+                candidate = str(detail.exact_next_command or "").strip()
+                if not candidate:
+                    continue
+                peer_focus_command = focus_command_for_ticker("peers", detail.ticker)
+                if candidate in {peer_focus_command, "make templates", "data/imports/peers.csv"}:
+                    continue
+                peer_input_command = candidate
+                break
 
         step_specs: list[tuple[str, str, str]]
         if bundle.lane == "prices":
@@ -2646,34 +2864,63 @@ def build_command_bundle_runbook(
                 ),
             ]
         elif bundle.lane == "peers":
-            step_specs = [
-                ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
-                (
-                    "Fill peer mappings manually",
-                    "data/imports/peers.csv",
-                    "Fill only manually researched peer mappings for the listed tickers and keep missing peer context explicit when you do not have a trusted comparison set.",
-                ),
-                (
-                    "Validate peer mapping import files",
-                    "make imports-validate",
-                    "Validate peer mapping import file rows before preview so schema and duplicate-key issues surface before merge.",
-                ),
-                (
-                    "Preview peer mapping merge",
-                    "make imports-preview",
-                    "Preview the peer mapping import file merge and confirm the composite ticker and peer_ticker keys before apply.",
-                ),
-                (
-                    "Apply peer mapping merge",
-                    "make imports-apply",
-                    "Apply the peer mapping import file merge only after validation and preview are clean.",
-                ),
-                (
-                    "Refresh status outputs",
-                    "make status",
-                    "After the bundle flow finishes, refresh the local status outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
-                ),
-            ]
+            if peer_input_command:
+                step_specs = [
+                    (
+                        "Inspect mapped-peer input blocker",
+                        peer_input_command,
+                        "Peer mappings already exist for this bundle; inspect the missing mapped-peer price or fundamentals input before editing peer rows.",
+                    ),
+                    (
+                        "Validate import files if rows were prepared",
+                        "make imports-validate",
+                        "Validate any prepared source-backed peer, price, or fundamentals import rows before preview.",
+                    ),
+                    (
+                        "Preview import merge if rows were prepared",
+                        "make imports-preview",
+                        "Preview the import merge and confirm the affected ticker keys before apply.",
+                    ),
+                    (
+                        "Apply only reviewed source-backed rows",
+                        "make imports-apply",
+                        "Apply only after validation and preview confirm reviewed source-backed rows; otherwise keep the lane still_blocked.",
+                    ),
+                    (
+                        "Refresh status outputs",
+                        "make status",
+                        "After the bundle flow finishes, refresh the local status outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
+                    ),
+                ]
+            else:
+                step_specs = [
+                    ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
+                    (
+                        "Fill peer mappings manually",
+                        "data/imports/peers.csv",
+                        "Fill only manually researched peer mappings for the listed tickers and keep missing peer context explicit when you do not have a trusted comparison set.",
+                    ),
+                    (
+                        "Validate peer mapping import files",
+                        "make imports-validate",
+                        "Validate peer mapping import file rows before preview so schema and duplicate-key issues surface before merge.",
+                    ),
+                    (
+                        "Preview peer mapping merge",
+                        "make imports-preview",
+                        "Preview the peer mapping import file merge and confirm the composite ticker and peer_ticker keys before apply.",
+                    ),
+                    (
+                        "Apply peer mapping merge",
+                        "make imports-apply",
+                        "Apply the peer mapping import file merge only after validation and preview are clean.",
+                    ),
+                    (
+                        "Refresh status outputs",
+                        "make status",
+                        "After the bundle flow finishes, refresh the local status outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
+                    ),
+                ]
         else:
             step_specs = [
                 ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
@@ -3088,7 +3335,12 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         priority_counts[priority] = priority_counts.get(priority, 0) + 1
     active_count = sum(1 for row in rows if str(row.get("workflow_scope") or "").lower() == "active_universe")
     dcf_ready_count = sum(1 for row in rows if bool(row.get("dcf_ready")))
-    missing_mapping_count = sum(1 for row in rows if not bool(row.get("has_peer_mapping")))
+    excluded_context_count = sum(1 for row in rows if str(row.get("candidate_context_state") or "") == "excluded")
+    missing_mapping_count = sum(
+        1
+        for row in rows
+        if not bool(row.get("has_peer_mapping")) and str(row.get("candidate_context_state") or "") != "excluded"
+    )
     valuation_follow_through_count = sum(
         1 for row in rows if str(row.get("workflow_group") or "").lower() == "peer_valuation_unlock"
     )
@@ -3103,6 +3355,7 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         "Queue focus: "
         f"{active_count} active-universe row(s), {dcf_ready_count} DCF-ready row(s), "
         f"{missing_mapping_count} missing source-backed mapping row(s), "
+        f"{excluded_context_count} excluded/not-applicable row(s), "
         f"{valuation_follow_through_count} mapped row(s) still waiting on peer valuation inputs."
     )
     print(
@@ -3124,6 +3377,13 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         )
         if row.get("next_action_summary"):
             print(f"  action summary: {row['next_action_summary']}")
+        if row.get("candidate_context_state"):
+            candidate_text = row.get("candidate_context_peers") or "-"
+            print(
+                "  candidate context: "
+                f"{row.get('candidate_context_state')} via {row.get('candidate_context_source') or '-'}; "
+                f"count={row.get('candidate_context_count', 0)}; peers={candidate_text}"
+            )
         if row.get("validation_sequence"):
             print(f"  validation: {row['validation_sequence']}")
         print(f"  guidance: {_plain_action_text(row['recommended_action'])}")

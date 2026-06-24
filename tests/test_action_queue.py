@@ -157,7 +157,8 @@ def test_action_queue_cli_check_uses_read_only_summary_wording(tmp_path: Path, c
     assert "outputs: outputs" in output
     assert str(tmp_path).lower() not in output
     assert "suggested check:" in output
-    assert "next local command:" in output
+    assert "last manual fallback:" in output
+    assert "next local command:" not in output
     assert "\n  focus:" not in output
     assert "\n  command:" not in output
 
@@ -1496,5 +1497,8 @@ def test_action_queue_rows_normalize_stale_onboarding_example_commands():
     meta_row = next(row for row in rows if row.ticker == "META")
 
     assert amd_row.example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+    assert "make price-refresh TICKERS=AMD PROVIDER=auto" in amd_row.recommended_action
+    assert "configured FMP/Alpha Vantage/Finnhub" in amd_row.recommended_action
+    assert "free refresh path fails" not in amd_row.recommended_action
     assert nvda_row.example_command == "make sec-stage TICKERS=NVDA"
     assert meta_row.example_command == "make templates"

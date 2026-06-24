@@ -183,8 +183,8 @@ def test_dcf_input_queue_classifies_exact_missing_input_families(monkeypatch):
     assert by_ticker["HOOD"].missing_input_family == "fundamentals_bundle"
     assert by_ticker["PAYC"].missing_input_family == "fcf_margin"
     assert by_ticker["META"].missing_input_family == "price"
-    assert by_ticker["META"].source_mode == "price dry-run first"
-    assert "make price-worklist TICKERS=META" == by_ticker["META"].next_safe_command
+    assert by_ticker["META"].source_mode == "price dry-run first; PROVIDER=auto tries Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub"
+    assert "make price-refresh TICKERS=META PROVIDER=auto" == by_ticker["META"].next_safe_command
     assert "NVDA" not in by_ticker
     assert "QQQ" not in by_ticker
 
@@ -226,7 +226,10 @@ def test_dcf_input_queue_uses_session_preflight_to_mark_sec_unavailable(tmp_path
     )
     by_ticker = {row.ticker: row for row in rows}
 
-    assert by_ticker["AMD"].source_mode == "trusted-local/manual in this session; SEC unavailable"
+    assert by_ticker["AMD"].source_mode == (
+        "fundamentals source ladder without SEC in this session; yfinance status unknown; "
+        "FMP status unknown; Alpha Vantage status unknown; Finnhub status unknown"
+    )
 
 
 def test_dcf_input_queue_deprioritizes_share_blockers_when_session_cannot_fix_shares(tmp_path, monkeypatch):
@@ -236,6 +239,9 @@ def test_dcf_input_queue_deprioritizes_share_blockers_when_session_cannot_fix_sh
         """{
   "sources": {
     "sec": {"status": "unavailable"},
+    "yfinance_stage": {"status": "unavailable", "reason_code": "probe_failed"},
+    "fmp": {"status": "unavailable", "reason_code": "provider_key_missing"},
+    "alpha_vantage": {"status": "unavailable", "reason_code": "provider_key_missing"},
     "local_fundamentals": {"share_count_fixable_ticker_count": 0}
   }
 }

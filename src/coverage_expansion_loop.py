@@ -238,7 +238,7 @@ def build_source_proof_gate(
                 "committing broad generated CSV churn by default",
             ),
             review_commands=(
-                f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=yahoo",
+                f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=auto",
                 "make price-validate && make price-preview",
                 "make readiness && make status-check TOP_N=5",
             ),
@@ -252,24 +252,20 @@ def build_source_proof_gate(
             else "trusted shares_outstanding row"
         )
         if sec_unavailable:
-            first_review_command = (
-                f"make {'share-count-proof-queue' if normalized == 'share_count_proof' else 'dcf-input-proof-queue'} "
-                f"TOP_N={top_n}"
-            )
+            first_review_command = f"make fundamentals-source-ladder-queue TOP_N={top_n}"
             source_evidence = "trusted local/manual source evidence; SEC is unavailable in this session"
             accepted_sources = (
                 "existing trusted local fundamentals rows",
+                "configured Yahoo/yfinance, FMP, Alpha Vantage, or Finnhub ladder rows that pass validation",
                 "trusted manual fundamentals import rows with source",
                 "previously reviewed SEC company facts rows already present locally",
             )
         else:
-            first_review_command = (
-                f"make {'share-count-proof-queue' if normalized == 'share_count_proof' else 'sec-stage-queue'} "
-                f"TOP_N={top_n}"
-            )
-            source_evidence = "source file or SEC staging evidence"
+            first_review_command = f"make fundamentals-source-ladder-queue TOP_N={top_n}"
+            source_evidence = "source file or fundamentals source-ladder staging evidence"
             accepted_sources = (
                 "SEC company facts staging reviewed by the operator",
+                "configured Yahoo/yfinance, FMP, Alpha Vantage, or Finnhub ladder rows that pass validation",
                 "trusted manual fundamentals import rows with source",
                 "existing trusted local fundamentals rows",
             )

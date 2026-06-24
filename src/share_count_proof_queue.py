@@ -17,6 +17,7 @@ import pandas as pd
 from src.dcf_readiness import build_dcf_readiness_frame
 from src.loader import normalize_columns
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.session_source_preflight import load_session_source_preflight
 
 
 QUEUE_COLUMNS = [
@@ -133,6 +134,47 @@ def _rank(row: pd.Series, scope_lookup: dict[str, str]) -> tuple[int, int, str]:
     return active_rank, other_inputs_rank, ticker
 
 
+def _source_action_for_share_count(
+    ticker: str,
+    missing: list[str],
+    session_preflight: dict[str, Any] | None,
+) -> tuple[str, str]:
+    default_note = (
+        "SEC Companyfacts may not expose the needed share-count fact. Use a reviewed 10-K/10-Q/annual report "
+        f"or trusted local row only; remaining missing fields: {', '.join(missing)}."
+    )
+    if not isinstance(session_preflight, dict):
+        return f"make sec-stage TICKERS={ticker}", default_note
+    sources = session_preflight.get("sources", {})
+    if not isinstance(sources, dict):
+        return f"make sec-stage TICKERS={ticker}", default_note
+    sec = sources.get("sec", {})
+    if not isinstance(sec, dict) or sec.get("status") != "unavailable":
+        return f"make sec-stage TICKERS={ticker}", default_note
+
+    reason = str(sec.get("reason_code") or "").strip()
+    source_context = f"Session preflight marks SEC unavailable{f' ({reason})' if reason else ''}"
+    ladder_available = any(
+        isinstance(sources.get(key), dict) and sources[key].get("status") == "available"
+        for key in ("yfinance_stage", "fmp", "alpha_vantage")
+    )
+    if ladder_available:
+        return (
+            f"make fundamentals-source-ladder TICKERS={ticker}",
+            (
+                f"{source_context}. Use the fundamentals source ladder or reviewed local fundamentals rows for "
+                f"shares_outstanding; do not retry SEC in this session. Remaining missing fields: {', '.join(missing)}."
+            ),
+        )
+    return (
+        f"make focus-fundamentals TICKER={ticker}",
+        (
+            f"{source_context}. Use reviewed local fundamentals rows in data/imports/fundamentals.csv for "
+            f"shares_outstanding; do not retry SEC in this session. Remaining missing fields: {', '.join(missing)}."
+        ),
+    )
+
+
 def build_share_count_proof_queue(
     *,
     universe: pd.DataFrame,
@@ -140,6 +182,7 @@ def build_share_count_proof_queue(
     prices: pd.DataFrame,
     top_n: int = 10,
     tickers: list[str] | None = None,
+    session_preflight: dict[str, Any] | None = None,
 ) -> list[ShareCountProofRow]:
     dcf = build_dcf_readiness_frame(universe=universe, fundamentals=fundamentals, prices=prices)
     if dcf.empty:
@@ -162,6 +205,7 @@ def build_share_count_proof_queue(
         ticker = str(row.get("ticker", "")).upper().strip()
         missing = _missing_fields(row.get("missing_dcf_fields"))
         row_status = _dcf_input_status(row)
+        source_command, source_note = _source_action_for_share_count(ticker, missing, session_preflight)
         rows.append(
             ShareCountProofRow(
                 priority=len(rows) + 1,
@@ -169,7 +213,7 @@ def build_share_count_proof_queue(
                 scope=scope_lookup.get(ticker, "master universe"),
                 missing_field="shares_outstanding",
                 dcf_input_status=row_status,
-                sec_stage_command=f"make sec-stage TICKERS={ticker}",
+                sec_stage_command=source_command,
                 manual_source_path="data/imports/fundamentals.csv",
                 validation_sequence="make imports-validate -> make imports-preview -> make imports-apply",
                 proof_after_update=f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}",
@@ -177,10 +221,7 @@ def build_share_count_proof_queue(
                     "Stop if SEC/manual source proof cannot verify shares_outstanding; keep DCF blocked and do not infer "
                     "share count from price, market cap, or placeholder rows."
                 ),
-                source_note=(
-                    "SEC Companyfacts may not expose the needed share-count fact. Use a reviewed 10-K/10-Q/annual report "
-                    f"or trusted local row only; remaining missing fields: {', '.join(missing)}."
-                ),
+                source_note=source_note,
             )
         )
     return rows
@@ -200,6 +241,7 @@ def build_share_count_proof_queue_from_files(
         prices=_read_csv(data_path / "prices.csv"),
         top_n=top_n,
         tickers=tickers,
+        session_preflight=load_session_source_preflight(root),
     )
 
 
@@ -215,7 +257,14 @@ def render_share_count_proof_queue(rows: list[ShareCountProofRow]) -> str:
         return "\n".join(lines)
     share_only = sum(1 for row in rows if row.dcf_input_status.startswith("share-count-only"))
     lines.append(f"Rows shown: {len(rows)}; share-count-only blockers: {share_only}")
-    lines.append(f"Next safest action: {rows[0].sec_stage_command}, then review whether SEC/manual source proof includes shares_outstanding.")
+    if rows[0].sec_stage_command.startswith("make sec-stage"):
+        lines.append(
+            f"Next safest action: {rows[0].sec_stage_command}, then review whether SEC/manual source proof includes shares_outstanding."
+        )
+    else:
+        lines.append(
+            f"Next safest action: {rows[0].sec_stage_command}, then validate and preview any reviewed source-backed share-count row."
+        )
     lines.append("")
     lines.append("Priority | Ticker | Scope | DCF input status | Source path | Proof after update")
     lines.append("---: | --- | --- | --- | --- | ---")
@@ -234,7 +283,10 @@ def render_share_count_proof_queue(rows: list[ShareCountProofRow]) -> str:
         )
     lines.append("")
     lines.append("Review checklist:")
-    lines.append("- Stage SEC rows first when configured, but keep shares_outstanding blocked if SEC does not expose it.")
+    if any(row.sec_stage_command.startswith("make sec-stage") for row in rows):
+        lines.append("- Stage SEC rows first when configured, but keep shares_outstanding blocked if SEC does not expose it.")
+    else:
+        lines.append("- Do not retry SEC in this session; use source-ladder output or reviewed local rows only.")
     lines.append("- For manual source rows, record the source document and date before validate / preview / apply.")
     lines.append("- Rebuild DCF readiness and the single-stock report before calling a lane supported.")
     return "\n".join(lines)

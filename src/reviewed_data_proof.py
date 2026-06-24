@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -42,6 +43,10 @@ PROOF_LEDGER_COLUMNS = (
     "artifact_paths",
     "generated_churn_policy",
 )
+
+
+def _env_status(*names: str) -> str:
+    return "present" if any(os.environ.get(name, "").strip() for name in names) else "missing"
 
 
 @dataclass(frozen=True)
@@ -231,7 +236,7 @@ def render_price_reviewed_run_plan(
     *,
     max_candidates: int = 3500,
     top_n: int = 100,
-    provider: str = "yahoo",
+    provider: str = "auto",
     sleep_seconds: int = 30,
 ) -> str:
     loop_command = (
@@ -242,10 +247,19 @@ def render_price_reviewed_run_plan(
         f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={max_candidates} TOP_N={top_n} "
         f"PROVIDER={provider}"
     )
+    stooq_status = _env_status("STOOQ_API_KEY", "STOQ_API_KEY")
+    fmp_status = _env_status("FMP_API_KEY")
+    alpha_status = _env_status("ALPHA_VANTAGE_API_KEY")
+    finnhub_status = _env_status("FINNHUB_API_KEY")
     return "\n".join(
         [
             "Reviewed Price Coverage Run",
             "Copy-only: this command prints a controlled execution plan; it does not refresh prices by itself.",
+            (
+                "Provider credential visibility: "
+                f"STOOQ_API_KEY {stooq_status}; FMP_API_KEY {fmp_status}; "
+                f"ALPHA_VANTAGE_API_KEY {alpha_status}; FINNHUB_API_KEY {finnhub_status}."
+            ),
             "",
             "Before the run:",
             "1. make status-check TOP_N=5",
@@ -262,6 +276,7 @@ def render_price_reviewed_run_plan(
             "8. make status-check TOP_N=5",
             "9. make diff-hygiene",
             "10. Record a reviewed proof row with final outcome supported/still_blocked/skipped/excluded.",
+            "If no reviewed price rows are fetched or merged, record FINAL_OUTCOME=still_blocked with provider output as evidence and pivot to the next executable lane.",
             "",
             "Rollback notes:",
             "- If provider output is incomplete or suspicious, do not stage generated CSV churn.",
@@ -346,7 +361,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--record", action="store_true")
     parser.add_argument("--max-candidates", type=int, default=3500)
     parser.add_argument("--top-n", type=int, default=100)
-    parser.add_argument("--provider", default="yahoo")
+    parser.add_argument("--provider", default="auto")
     parser.add_argument("--sleep-seconds", type=int, default=30)
     for column in PROOF_LEDGER_COLUMNS:
         parser.add_argument(f"--{column.replace('_', '-')}", default="")

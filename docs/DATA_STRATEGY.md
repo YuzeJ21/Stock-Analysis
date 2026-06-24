@@ -20,9 +20,9 @@ Use this guide before changing local data:
 
 | If the gap is... | Do this first | Do not do this |
 | --- | --- | --- |
-| Missing or stale prices | Run `make price-refresh-loop DRY_RUN=1`, then snapshot readiness before any capped refresh. | Do not refresh the full universe blindly or commit broad CSV churn by default. |
-| Missing fundamentals or DCF fields | Run `make dcf-input-proof-queue TOP_N=25`, then `make dcf-input-source-review FAMILY=<family> TOP_N=10` and `make dcf-input-source-guard ...` before `make dcf-input-proof-handoff FAMILY=<family> TOP_N=10`, SEC staging, or trusted manual imports. | Do not fill placeholder fundamentals to make valuation appear ready. |
-| Missing `shares_outstanding` | Run `make share-count-proof-queue TOP_N=10`, then review SEC/manual source proof for the named tickers. | Do not infer share count from price, market cap, peers, or placeholder rows. |
+| Missing or stale prices | Run `make price-refresh-loop DRY_RUN=1 ... PROVIDER=auto`, then snapshot readiness before any capped refresh; the automatic ladder tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub before the last manual import path. | Do not refresh the full universe blindly or commit broad CSV churn by default. |
+| Missing fundamentals or DCF fields | Run `make dcf-input-proof-queue TOP_N=25`, then use `make fundamentals-source-ladder TICKERS=<ticker>` or `make fundamentals-source-ladder-queue TOP_N=25` so SEC, yfinance, configured FMP, configured Alpha Vantage, and configured Finnhub are tried before trusted local imports. | Do not fill placeholder fundamentals to make valuation appear ready. |
+| Missing `shares_outstanding` | Run `make share-count-proof-queue TOP_N=10`, then use the fundamentals source ladder or reviewed local rows for the named tickers. | Do not infer share count from price, market cap, peers, or placeholder rows. |
 | Missing peers | Run `make peer-mapping-queue TOP_N=25`, then `DRY_RUN=1 make peer-mapping-source-review TOP_N=10` before adding source-backed mappings or mapped-peer price/fundamental inputs. | Do not turn sector or industry similarity, memory, popularity, or row-count convenience into trusted peer valuation. |
 | Missing earnings or estimates | Keep the section locked until trusted local rows pass validate, preview, and apply. | Do not render empty optional context as analysis. |
 
@@ -30,8 +30,8 @@ Use this guide before changing local data:
 
 | Lane | Current strategy | Can be automated now? | Product boundary |
 | --- | --- | --- | --- |
-| Prices | Use local OHLCV CSVs, capped refresh loops, or reviewed manual imports. | Yes, with dry-run-first capped loops. | Missing prices block setup, momentum, liquidity, DCF, and peer context. |
-| Fundamentals | Use trusted SEC staging when configured or reviewed manual fundamentals imports. | Partly. SEC staging can prepare rows, but apply remains reviewable. | Missing fundamentals block company-quality and DCF interpretation. |
+| Prices | Use `PROVIDER=auto` capped refresh loops, then local OHLCV CSV/manual imports only if every configured provider path fails. | Yes, with dry-run-first capped loops and provider fallbacks. | Missing prices block setup, momentum, liquidity, DCF, and peer context. |
+| Fundamentals | Use the session-aware source ladder: SEC, yfinance, configured FMP, configured Alpha Vantage, configured Finnhub, then reviewed local fundamentals imports. | Partly. Source staging can prepare rows, but apply remains reviewable. | Missing fundamentals block company-quality and DCF interpretation. |
 | Peer mappings and mapped-peer inputs | Use source-backed manual peer mappings first, then mapped-peer price, fundamentals, market cap, or valuation inputs. | Not broadly yet. Human source judgment is still required. | Sector or industry fallback is not trusted peer valuation. |
 | Earnings | Use trusted local earnings CSV rows only. | Not yet. | Empty earnings data stays intentionally locked. |
 | Analyst estimates | Use trusted local analyst-estimate CSV rows only. | Not yet. | Consensus context is optional and must not become a recommendation. |

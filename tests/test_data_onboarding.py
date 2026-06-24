@@ -100,8 +100,9 @@ def test_data_onboarding_coverage_works_with_local_fixtures(tmp_path: Path):
     assert coverage["AMD"]["usable_for_momentum"] is False
     assert coverage["AMD"]["next_best_action"] == (
         "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; "
-        "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
+        "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD PROVIDER=auto so Yahoo, Stooq, "
+        "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
+        "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
     assert "make focus-fundamentals TICKER=AMD" in coverage["NVDA"]["next_best_action"]
     assert "peer-relative context" in coverage["NVDA"]["next_best_action"]
@@ -129,8 +130,9 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
         row["dataset"] == "prices"
         and row["recommended_action"] == (
             "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-            "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; "
-            "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
+            "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD PROVIDER=auto so Yahoo, Stooq, "
+            "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
+            "normalize verified downloaded OHLCV files into data/imports/prices.csv."
         )
         for row in amd_actions
     )
@@ -509,7 +511,8 @@ def test_data_coverage_wizard_normalizes_stale_action_text():
     amd_row = next(row for row in rows if row.ticker == "AMD")
     tsla_row = next(row for row in rows if row.ticker == "TSLA")
 
-    assert "make sec-stage TICKERS=NVDA" in nvda_row.recommended_action
+    assert "make fundamentals-source-ladder TICKERS=NVDA" in nvda_row.recommended_action
+    assert "configured FMP/Alpha Vantage/Finnhub" in nvda_row.recommended_action
     assert "make price-refresh TICKERS=AMD" in amd_row.recommended_action
     assert "python3 -m src.data_update --tickers AMD" not in amd_row.recommended_action
     assert "run make templates" in tsla_row.recommended_action
@@ -1040,6 +1043,125 @@ def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
     assert "make imports-apply" in queue["AMD"]["safe_next_step"]
 
 
+def test_peer_mapping_queue_labels_sector_theme_matches_as_candidate_context_only(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    queue = {row["ticker"]: row for row in payload["peer_mapping_queue"]}
+    amd = queue["AMD"]
+
+    assert amd["has_peer_mapping"] is False
+    assert amd["candidate_context_state"] == "candidate_context_only"
+    assert amd["candidate_context_source"] == "sector_theme_fallback"
+    assert amd["candidate_context_count"] == 1
+    assert amd["candidate_context_peers"] == "NVDA"
+    assert "candidate context only" in amd["fallback_context_note"].lower()
+    assert "not trusted peer proof" in amd["next_action_summary"].lower()
+
+
+def test_peer_mapping_queue_excludes_etf_monitor_context_from_candidate_peers(tmp_path: Path):
+    _write_fixture(tmp_path)
+    with (tmp_path / "data" / "universe.csv").open("a", encoding="utf-8") as handle:
+        handle.write("QQQ,Nasdaq 100 ETF,QQQ,ETF / Defensive / Hedge,ETF,fixture\n")
+
+    payload = build_onboarding_payload(tmp_path)
+    queue = {row["ticker"]: row for row in payload["peer_mapping_queue"]}
+    qqq = queue["QQQ"]
+
+    assert qqq["candidate_context_state"] == "excluded"
+    assert qqq["candidate_context_source"] == "asset_type_scope"
+    assert qqq["candidate_context_count"] == 0
+    assert qqq["candidate_context_peers"] == ""
+    assert qqq["target_file"] == "not_applicable"
+    assert "not applicable" in qqq["next_action_summary"].lower()
+    assert "no peer import" in qqq["recommended_action"].lower()
+
+
+def test_peer_mapping_queue_text_counts_excluded_monitor_rows_separately(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    with (tmp_path / "data" / "universe.csv").open("a", encoding="utf-8") as handle:
+        handle.write("QQQ,Nasdaq 100 ETF,QQQ,ETF / Defensive / Hedge,ETF,fixture\n")
+
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--peer-mapping-queue", "--tickers", "QQQ,AMD"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "1 missing source-backed mapping row(s)" in output
+    assert "1 excluded/not-applicable row(s)" in output
+
+
+def test_peer_mapping_queue_does_not_treat_unclassified_context_as_candidate_peers(tmp_path: Path):
+    _write_fixture(tmp_path)
+    with (tmp_path / "data" / "universe.csv").open("a", encoding="utf-8") as handle:
+        handle.write("ARCT,Unclassified,Unclassified,General,Small,fixture\n")
+        handle.write("BETA,Unclassified,Unclassified,General,Small,fixture\n")
+
+    payload = build_onboarding_payload(tmp_path)
+    queue = {row["ticker"]: row for row in payload["peer_mapping_queue"]}
+    arct = queue["ARCT"]
+
+    assert arct["candidate_context_state"] == "still_blocked"
+    assert arct["candidate_context_source"] == "none"
+    assert arct["candidate_context_count"] == 0
+    assert arct["candidate_context_peers"] == ""
+    assert "no candidate context" in arct["next_action_summary"].lower()
+
+
+def test_peer_mapping_queue_respects_session_source_preflight_for_peer_fundamentals(tmp_path: Path):
+    _write_fixture(tmp_path)
+    (tmp_path / "outputs" / "session_source_preflight.json").write_text(
+        """{
+  "sources": {
+    "sec": {"status": "unavailable", "reason_code": "network_error"},
+    "yfinance_stage": {"status": "unavailable", "reason_code": "probe_failed"},
+    "fmp": {"status": "unavailable", "reason_code": "provider_key_missing"},
+    "alpha_vantage": {"status": "unavailable", "reason_code": "provider_key_missing"},
+    "finnhub": {"status": "unavailable", "reason_code": "provider_key_missing"},
+    "local_fundamentals": {"status": "available", "fundamentals_fixable_ticker_count": 0}
+  }
+}
+""",
+        encoding="utf-8",
+    )
+
+    payload = build_onboarding_payload(tmp_path)
+    queue = {row["ticker"]: row for row in payload["peer_mapping_queue"]}
+    nvda = queue["NVDA"]
+
+    assert nvda["focus_command"] == "make focus-fundamentals TICKER=AMD"
+    assert nvda["example_command"] == "make focus-fundamentals TICKER=AMD"
+    assert "make sec-stage" not in nvda["recommended_action"]
+    assert "Session preflight marks SEC unavailable" in nvda["recommended_action"]
+    assert "FMP_API_KEY missing" in nvda["recommended_action"]
+    assert "ALPHA_VANTAGE_API_KEY missing" in nvda["safe_next_step"]
+    assert "FINNHUB_API_KEY missing" in nvda["safe_next_step"]
+
+
+def test_peer_mapping_queue_uses_auto_price_ladder_for_missing_peer_price(tmp_path: Path):
+    _write_fixture(tmp_path)
+    prices_path = tmp_path / "data" / "prices.csv"
+    prices_path.write_text(
+        "\n".join(line for line in prices_path.read_text(encoding="utf-8").splitlines() if ",AMD," not in line)
+        + "\n",
+        encoding="utf-8",
+    )
+    with (tmp_path / "data" / "fundamentals.csv").open("a", encoding="utf-8") as handle:
+        handle.write("AMD,800,0.15,20,1.5,120,fixture,2026-01-01\n")
+
+    payload = build_onboarding_payload(tmp_path)
+    nvda = next(row for row in payload["peer_mapping_queue"] if row["ticker"] == "NVDA")
+
+    assert nvda["focus_command"] == "make focus-price TICKER=AMD"
+    assert nvda["example_command"] == "make price-refresh TICKERS=AMD PROVIDER=auto"
+    assert "auto price source ladder" in nvda["recommended_action"]
+    assert "configured FMP/Alpha Vantage/Finnhub" in nvda["recommended_action"]
+    assert "manual" in nvda["recommended_action"].lower()
+
+
 def test_optional_context_worklist_keeps_optional_gaps_lower_priority(tmp_path: Path):
     _write_fixture(tmp_path)
 
@@ -1498,6 +1620,7 @@ def test_data_onboarding_cli_command_bundle_runbook_text_surfaces_goal_summary(t
 
 def test_data_onboarding_cli_peer_runbook_text_surfaces_manual_peer_step(tmp_path: Path, capsys):
     _write_fixture(tmp_path)
+    (tmp_path / "data" / "peers.csv").unlink()
     previous_argv = sys.argv[:]
     sys.argv = ["python", "--project-root", str(tmp_path), "--command-bundle-runbook", "--lane", "peers"]
     try:
@@ -1586,17 +1709,34 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
         for row in runbook
         if row["lane"] == "peers" and row["scope"] == "holdings_first"
     ]
-    assert [row["step_order"] for row in peer_steps] == [1, 2, 3, 4, 5, 6]
-    assert peer_steps[1]["step_label"] == "Fill peer mappings manually"
-    assert peer_steps[1]["command"] == "data/imports/peers.csv"
-    assert peer_steps[2]["step_label"] == "Validate peer mapping import files"
-    assert peer_steps[2]["command"] == "make imports-validate"
-    assert peer_steps[3]["step_label"] == "Preview peer mapping merge"
-    assert peer_steps[3]["command"] == "make imports-preview"
-    assert peer_steps[4]["step_label"] == "Apply peer mapping merge"
-    assert peer_steps[4]["command"] == "make imports-apply"
-    assert peer_steps[5]["step_label"] == "Refresh status outputs"
-    assert peer_steps[5]["command"] == "make status"
+    assert [row["step_order"] for row in peer_steps] == [1, 2, 3, 4, 5]
+    assert peer_steps[0]["step_label"] == "Inspect mapped-peer input blocker"
+    assert peer_steps[0]["command"] == "make focus-fundamentals TICKER=AMD"
+    assert peer_steps[1]["step_label"] == "Validate import files if rows were prepared"
+    assert peer_steps[1]["command"] == "make imports-validate"
+    assert peer_steps[2]["step_label"] == "Preview import merge if rows were prepared"
+    assert peer_steps[2]["command"] == "make imports-preview"
+    assert peer_steps[3]["step_label"] == "Apply only reviewed source-backed rows"
+    assert peer_steps[3]["command"] == "make imports-apply"
+    assert peer_steps[4]["step_label"] == "Refresh status outputs"
+    assert peer_steps[4]["command"] == "make status"
+
+
+def test_command_bundle_runbook_routes_mapped_peer_input_blockers_to_focus_command(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    runbook = payload["command_bundle_runbook"]
+    peer_steps = [
+        row
+        for row in runbook
+        if row["lane"] == "peers" and row["scope"] == "holdings_first"
+    ]
+
+    assert peer_steps[0]["step_label"] == "Inspect mapped-peer input blocker"
+    assert peer_steps[0]["command"] == "make focus-fundamentals TICKER=AMD"
+    assert all(row["step_label"] != "Fill peer mappings manually" for row in peer_steps)
+    assert all(row["command"] != "data/imports/peers.csv" for row in peer_steps)
 
 
 def test_build_data_coverage_wizard_accepts_empty_coverage():

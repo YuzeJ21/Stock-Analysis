@@ -96,7 +96,7 @@ def public_home_current_data_coverage_cards(summary: dict[str, object]) -> list[
                 "DCF-ready means scenario math can be reviewed; blocked does not mean negative."
             ),
             "badges": ["valuation gated", "trusted rows only"],
-            "command": "make sec-stage-queue TOP_N=25",
+            "command": "make fundamentals-source-ladder-queue TOP_N=25",
         },
         {
             "kicker": "RELATIVE CONTEXT",
@@ -423,9 +423,12 @@ def public_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
         primary = {
             "kicker": "BEST NEXT STEP",
             "title": "Add trusted fundamentals",
-            "body": "Fundamentals unlock DCF and better company-level research. Use trusted SEC or local CSV inputs only.",
+            "body": (
+                "Fundamentals unlock DCF and better company-level research. Use the source ladder so SEC, "
+                "Yahoo/yfinance, and configured API fallbacks are tried before any blocker is recorded."
+            ),
             "badges": ["deep research"],
-            "command": "make sec-stage-queue TOP_N=25",
+            "command": "make fundamentals-source-ladder-queue TOP_N=25",
         }
     else:
         primary = {

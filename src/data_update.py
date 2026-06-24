@@ -19,6 +19,7 @@ import pandas as pd
 
 from src.config import AppConfig
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FMP_API_KEY_ENV, FINNHUB_API_KEY_ENV
 
 
 PRICE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
@@ -249,12 +250,322 @@ class YahooChartDailyPriceSource:
         ]
 
 
+class FMPDailyPriceSource:
+    """Research-grade daily OHLCV fallback using FMP's historical price endpoint."""
+
+    def __init__(
+        self,
+        base_url: str = "https://financialmodelingprep.com/api/v3/historical-price-full",
+        api_key: str | None = None,
+        range_days: int = 900,
+        opener: Callable[..., Any] = urlopen,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key if api_key is not None else os.environ.get(FMP_API_KEY_ENV, "")
+        self.range_days = range_days
+        self.opener = opener
+
+    def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        ticker = ticker.upper().strip()
+        resolved_key = str(self.api_key or "").strip()
+        if not resolved_key:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: {FMP_API_KEY_ENV} is not configured for FMP price fallback."]
+
+        symbol = _yahoo_chart_symbol(ticker)
+        params = {"timeseries": max(self.range_days, 1), "apikey": resolved_key}
+        url = f"{self.base_url}/{symbol}?{urlencode(params)}"
+        request = Request(url, headers={"Accept": "application/json", "User-Agent": "stock-research-command-center/1.0"})
+        try:
+            with self.opener(request, timeout=20) as response:
+                payload = response.read().decode("utf-8")
+        except (HTTPError, URLError) as exc:
+            suffix = f" for {symbol}" if symbol != ticker else ""
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: update failed from FMP historical price endpoint{suffix} ({exc})"]
+
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: FMP historical price response could not be parsed as JSON ({exc})"]
+
+        historical = parsed.get("historical") if isinstance(parsed, dict) else None
+        if not isinstance(historical, list) or not historical:
+            suffix = f" for {symbol}" if symbol != ticker else ""
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: FMP historical price endpoint returned no rows{suffix}."]
+
+        frame = pd.DataFrame(historical)
+        frame.columns = _normalize_columns(list(frame.columns))
+        if "adjclose" in frame.columns and "adj_close" not in frame.columns:
+            frame["adj_close"] = frame["adjclose"]
+        frame = _ensure_price_aliases(frame)
+        required = {"date", "open", "high", "low", "close", "volume"}
+        missing = required - set(frame.columns)
+        if missing:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: FMP historical price response is missing columns {sorted(missing)}."]
+
+        frame["date"] = pd.to_datetime(frame["date"], errors="coerce", format="mixed")
+        for numeric_column in ("open", "high", "low", "close", "adj_close", "volume"):
+            frame[numeric_column] = pd.to_numeric(frame[numeric_column], errors="coerce")
+        frame = frame.loc[
+            frame["date"].notna()
+            & frame["close"].notna()
+            & frame["close"].gt(0)
+            & frame["volume"].notna()
+            & frame["volume"].ge(0)
+        ].copy()
+        if frame.empty:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: FMP historical price rows were invalid after normalization."]
+
+        frame["ticker"] = ticker
+        frame = frame.sort_values("date")
+        return frame[PRICE_COLUMNS].copy(), [
+            f"{ticker}: prices refreshed from FMP historical price endpoint; treat as research-grade and verify if used for decisions."
+        ]
+
+
+class AlphaVantageDailyPriceSource:
+    """Research-grade daily OHLCV fallback using Alpha Vantage daily adjusted prices."""
+
+    def __init__(
+        self,
+        base_url: str = "https://www.alphavantage.co/query",
+        api_key: str | None = None,
+        opener: Callable[..., Any] = urlopen,
+    ) -> None:
+        self.base_url = base_url
+        self.api_key = api_key if api_key is not None else os.environ.get(ALPHA_VANTAGE_API_KEY_ENV, "")
+        self.opener = opener
+
+    def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        ticker = ticker.upper().strip()
+        resolved_key = str(self.api_key or "").strip()
+        if not resolved_key:
+            return (
+                pd.DataFrame(columns=PRICE_COLUMNS),
+                [f"{ticker}: {ALPHA_VANTAGE_API_KEY_ENV} is not configured for Alpha Vantage price fallback."],
+            )
+
+        symbol = _yahoo_chart_symbol(ticker)
+        params = {
+            "function": "TIME_SERIES_DAILY_ADJUSTED",
+            "symbol": symbol,
+            "outputsize": "compact",
+            "apikey": resolved_key,
+        }
+        url = f"{self.base_url}?{urlencode(params)}"
+        request = Request(url, headers={"Accept": "application/json", "User-Agent": "stock-research-command-center/1.0"})
+        try:
+            with self.opener(request, timeout=20) as response:
+                payload = response.read().decode("utf-8")
+        except (HTTPError, URLError) as exc:
+            suffix = f" for {symbol}" if symbol != ticker else ""
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: update failed from Alpha Vantage daily adjusted endpoint{suffix} ({exc})"]
+
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Alpha Vantage daily adjusted response could not be parsed as JSON ({exc})"]
+
+        if not isinstance(parsed, dict) or "Note" in parsed or "Information" in parsed:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Alpha Vantage daily adjusted endpoint returned no usable rows."]
+        series = parsed.get("Time Series (Daily)")
+        if not isinstance(series, dict) or not series:
+            suffix = f" for {symbol}" if symbol != ticker else ""
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Alpha Vantage daily adjusted endpoint returned no rows{suffix}."]
+
+        rows = []
+        for date_text, values in series.items():
+            if not isinstance(values, dict):
+                continue
+            rows.append(
+                {
+                    "date": date_text,
+                    "ticker": ticker,
+                    "open": values.get("1. open"),
+                    "high": values.get("2. high"),
+                    "low": values.get("3. low"),
+                    "close": values.get("4. close"),
+                    "adj_close": values.get("5. adjusted close") or values.get("4. close"),
+                    "volume": values.get("6. volume"),
+                }
+            )
+        frame = pd.DataFrame(rows, columns=PRICE_COLUMNS)
+        frame["date"] = pd.to_datetime(frame["date"], errors="coerce", format="mixed")
+        for numeric_column in ("open", "high", "low", "close", "adj_close", "volume"):
+            frame[numeric_column] = pd.to_numeric(frame[numeric_column], errors="coerce")
+        frame = frame.loc[
+            frame["date"].notna()
+            & frame["close"].notna()
+            & frame["close"].gt(0)
+            & frame["volume"].notna()
+            & frame["volume"].ge(0)
+        ].copy()
+        if frame.empty:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Alpha Vantage daily adjusted rows were invalid after normalization."]
+
+        frame = frame.sort_values("date")
+        return frame[PRICE_COLUMNS].copy(), [
+            f"{ticker}: prices refreshed from Alpha Vantage daily adjusted endpoint; treat as research-grade and verify if used for decisions."
+        ]
+
+
+class FinnhubDailyPriceSource:
+    """Research-grade daily OHLCV fallback using Finnhub's stock candle endpoint."""
+
+    def __init__(
+        self,
+        base_url: str = "https://finnhub.io/api/v1/stock/candle",
+        api_key: str | None = None,
+        range_days: int = 900,
+        opener: Callable[..., Any] = urlopen,
+    ) -> None:
+        self.base_url = base_url
+        self.api_key = api_key if api_key is not None else os.environ.get(FINNHUB_API_KEY_ENV, "")
+        self.range_days = range_days
+        self.opener = opener
+
+    def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        ticker = ticker.upper().strip()
+        resolved_key = str(self.api_key or "").strip()
+        if not resolved_key:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: {FINNHUB_API_KEY_ENV} is not configured for Finnhub price fallback."]
+
+        period2 = int(time.time())
+        period1 = period2 - max(self.range_days, 1) * 86_400
+        params = {
+            "symbol": ticker,
+            "resolution": "D",
+            "from": period1,
+            "to": period2,
+            "token": resolved_key,
+        }
+        url = f"{self.base_url}?{urlencode(params)}"
+        request = Request(url, headers={"Accept": "application/json", "User-Agent": "stock-research-command-center/1.0"})
+        try:
+            with self.opener(request, timeout=20) as response:
+                payload = response.read().decode("utf-8")
+        except (HTTPError, URLError) as exc:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: update failed from Finnhub daily candle endpoint ({exc})"]
+
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Finnhub daily candle response could not be parsed as JSON ({exc})"]
+
+        if not isinstance(parsed, dict):
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Finnhub daily candle endpoint returned an invalid payload."]
+        status = str(parsed.get("s", "")).strip().lower()
+        if status != "ok":
+            detail = str(parsed.get("error") or parsed.get("s") or "no rows").strip()
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Finnhub daily candle endpoint returned no rows ({detail})."]
+
+        timestamps = parsed.get("t") or []
+        columns = {
+            "open": parsed.get("o") or [],
+            "high": parsed.get("h") or [],
+            "low": parsed.get("l") or [],
+            "close": parsed.get("c") or [],
+            "volume": parsed.get("v") or [],
+        }
+        expected_length = len(timestamps)
+        if not expected_length or any(len(values) != expected_length for values in columns.values()):
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Finnhub daily candle endpoint returned incomplete OHLCV rows."]
+
+        dates = pd.to_datetime(timestamps, unit="s", utc=True, errors="coerce").tz_convert(None).normalize()
+        frame = pd.DataFrame(
+            {
+                "date": dates,
+                "ticker": ticker,
+                "open": columns["open"],
+                "high": columns["high"],
+                "low": columns["low"],
+                "close": columns["close"],
+                "adj_close": columns["close"],
+                "volume": columns["volume"],
+            }
+        )
+        for numeric_column in ("open", "high", "low", "close", "adj_close", "volume"):
+            frame[numeric_column] = pd.to_numeric(frame[numeric_column], errors="coerce")
+        frame = frame.loc[
+            frame["date"].notna()
+            & frame["close"].notna()
+            & frame["close"].gt(0)
+            & frame["volume"].notna()
+            & frame["volume"].ge(0)
+        ].copy()
+        if frame.empty:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Finnhub daily candle rows were invalid after normalization."]
+        frame = frame.sort_values("date")
+        return frame[PRICE_COLUMNS].copy(), [
+            f"{ticker}: prices refreshed from Finnhub daily candle endpoint; treat as research-grade and verify if used for decisions."
+        ]
+
+
+class PriceSourceLadder:
+    def __init__(self, sources: list[tuple[str, PriceHistorySource]]) -> None:
+        if not sources:
+            raise ValueError("PriceSourceLadder requires at least one source.")
+        self.sources = sources
+        self.provider_names = [name for name, _source in sources]
+        self.provider_name = "auto"
+        self.last_provider_name = self.provider_name
+
+    def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        warnings: list[str] = []
+        self.last_provider_name = f"auto:{','.join(self.provider_names)}"
+        for index, (provider_name, source) in enumerate(self.sources):
+            try:
+                frame, provider_warnings = source.fetch_history(ticker)
+            except Exception as exc:  # pragma: no cover - defensive provider boundary
+                frame = pd.DataFrame(columns=PRICE_COLUMNS)
+                provider_warnings = [f"{ticker}: update failed from {provider_name} ({exc})"]
+            warnings.extend(provider_warnings)
+            if not frame.empty:
+                self.last_provider_name = provider_name
+                if index > 0:
+                    warnings.append(
+                        f"{ticker}: source ladder resolved price rows from {provider_name} after "
+                        f"{', '.join(self.provider_names[:index])} failed."
+                    )
+                return frame, warnings
+        return pd.DataFrame(columns=PRICE_COLUMNS), warnings
+
+
+def _price_source_status_name(source: PriceHistorySource) -> str:
+    last_provider = str(getattr(source, "last_provider_name", "") or "").strip()
+    if last_provider:
+        return last_provider
+    provider_name = str(getattr(source, "provider_name", "") or "").strip()
+    if provider_name:
+        return provider_name
+    return source.__class__.__name__
+
+
 def make_price_source(provider: str) -> PriceHistorySource:
-    normalized = str(provider or "stooq").strip().lower()
+    normalized = str(provider or "auto").strip().lower()
+    if normalized in {"auto", "ladder", "source_ladder"}:
+        sources: list[tuple[str, PriceHistorySource]] = [
+            ("yahoo", YahooChartDailyPriceSource()),
+            ("stooq", StooqDailyPriceSource()),
+        ]
+        if os.environ.get(FMP_API_KEY_ENV, "").strip():
+            sources.append(("fmp", FMPDailyPriceSource()))
+        if os.environ.get(ALPHA_VANTAGE_API_KEY_ENV, "").strip():
+            sources.append(("alpha_vantage", AlphaVantageDailyPriceSource()))
+        if os.environ.get(FINNHUB_API_KEY_ENV, "").strip():
+            sources.append(("finnhub", FinnhubDailyPriceSource()))
+        return PriceSourceLadder(
+            sources
+        )
     if normalized == "stooq":
         return StooqDailyPriceSource()
     if normalized == "yahoo":
         return YahooChartDailyPriceSource()
+    if normalized in {"fmp", "financial_modeling_prep"}:
+        return FMPDailyPriceSource()
+    if normalized in {"alpha_vantage", "alphavantage"}:
+        return AlphaVantageDailyPriceSource()
+    if normalized == "finnhub":
+        return FinnhubDailyPriceSource()
     raise ValueError(f"Unsupported price provider: {provider}")
 
 
@@ -430,8 +741,9 @@ def _normalized_error_message(status: str, ticker: str, error_message: object) -
 def _price_recommended_action(status: str, ticker: str, has_local_data: bool) -> str:
     normalize_action = (
         f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker}; "
-        "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Yahoo, "
+        "Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path "
+        "fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
     if status == "fetched":
         return "No action needed; remote rows were merged into local prices."
@@ -446,7 +758,10 @@ def _price_recommended_action(status: str, ticker: str, has_local_data: bool) ->
     if status == "source_unavailable":
         return normalize_action
     if has_local_data:
-        return "Leave unchanged because local data exists; use the manual price import file workflow if you need fresher rows."
+        return (
+            f"Leave unchanged because local data exists; for fresher rows, run make price-refresh TICKERS={ticker} "
+            "PROVIDER=auto before using the manual price import file workflow."
+        )
     return normalize_action
 
 
@@ -485,9 +800,17 @@ def _recommended_action_needs_refresh(status: str, recommended_action: str, tick
         return True
     if "ohlcv rows into data/imports/prices.csv" in normalized_action:
         return True
+    if "free refresh path fails" in normalized_action:
+        return True
     if ticker and "make focus-price" not in normalized_action:
         return True
     if ticker and f"make price-refresh tickers={ticker.lower()}" not in normalized_action:
+        return True
+    if ticker and "provider=auto" not in normalized_action:
+        return True
+    if "configured fmp/alpha vantage" not in normalized_action:
+        return True
+    if "every provider path fails" not in normalized_action:
         return True
     return False
 
@@ -637,8 +960,8 @@ def update_local_price_data(
     output_dir = resolve_outputs_dir(output_dir, base_dir)
     config = AppConfig.load(base_dir / "config.yaml")
     prices_path = data_dir / "prices.csv"
-    source = source or StooqDailyPriceSource()
-    provider_name = source.__class__.__name__
+    source = source or make_price_source("auto")
+    provider_name = _price_source_status_name(source)
     run_timestamp = datetime.now(timezone.utc).isoformat()
     requested_end = pd.Timestamp.now(tz="UTC").date().isoformat()
     tickers = tickers or load_update_tickers(base_dir, config, universe_file=universe_file, data_dir=data_dir)
@@ -721,6 +1044,7 @@ def update_local_price_data(
                     continue
                 warnings.extend(fetch_warnings)
                 break
+            provider_name = _price_source_status_name(source)
             if frame.empty:
                 missing.append(ticker)
                 status, message = _categorize_price_error(fetch_warnings)
@@ -742,6 +1066,7 @@ def update_local_price_data(
                 continue
             fetched_frames.append(frame)
             updated.append(ticker)
+            provider_name = _price_source_status_name(source)
             status_rows.append(
                 _price_status_row(
                     run_timestamp=run_timestamp,
@@ -1165,7 +1490,15 @@ def main() -> None:
     parser.add_argument("--missing-only", action="store_true", help="For broad refreshes, select tickers without local price coverage before applying --max-tickers.")
     parser.add_argument("--freshness-days", type=int, default=1, help="Skip tickers updated within this many days unless --refresh is used.")
     parser.add_argument("--universe-file", help="Alternate universe file to derive tickers from.")
-    parser.add_argument("--provider", choices=["stooq", "yahoo"], default="stooq", help="Remote price provider. Yahoo is unofficial/research-grade.")
+    parser.add_argument(
+        "--provider",
+        choices=["auto", "stooq", "yahoo", "fmp", "alpha_vantage", "finnhub"],
+        default="auto",
+        help=(
+            "Remote price provider. Auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub fallbacks; "
+            "remote providers are research-grade and should be reviewed."
+        ),
+    )
     parser.add_argument("--validate-price-imports", action="store_true", help="Validate data/imports/prices.csv without mutating data/prices.csv.")
     parser.add_argument("--preview-price-import-merge", action="store_true", help="Preview price import file changes without mutating data/prices.csv.")
     parser.add_argument("--apply-price-import-merge", action="store_true", help="Apply price import file rows into data/prices.csv with a backup.")

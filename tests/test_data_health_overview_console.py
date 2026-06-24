@@ -45,7 +45,7 @@ def test_overview_quick_read_cards_prioritize_first_unlocked_lane():
 
     assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED"]
     assert cards[0]["title"] == "Prove fundamentals before valuation"
-    assert cards[0]["command"] == "make sec-stage-queue TOP_N=25"
+    assert cards[0]["command"] == "make fundamentals-source-ladder-queue TOP_N=25"
     assert "217 price-ready row(s) still need trusted fundamentals" in rendered
     assert "not a negative company signal" in rendered
     assert "do not read locked sections as weak conclusions" in rendered
@@ -110,7 +110,7 @@ def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible(
                 "Lane": "Price coverage",
                 "Unlock Impact": 3273,
                 "Possible State Move": "blocked -> partial after verified local price rows",
-                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
             }
         ]
     )
@@ -141,7 +141,7 @@ def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible(
         "PROOF HYGIENE",
     ]
     assert cards[0]["title"] == "Stale"
-    assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     assert "top data-lane opportunity has unlock impact 3273" in rendered
     assert "treat stale or missing readiness artifacts as a stop sign" in rendered
     assert "validate, preview, apply" in rendered
@@ -158,7 +158,7 @@ def test_overview_freshness_routine_cards_are_dry_run_first():
         "PRICE FRESHNESS",
         "REVIEW-REQUIRED LANES",
     ]
-    assert cards[1]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3300 TOP_N=100 PROVIDER=yahoo"
+    assert cards[1]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3300 TOP_N=100 PROVIDER=auto"
     assert "without changing files" in rendered
     assert "run a real loop only after reviewing the dry-run plan" in rendered
     assert "validation, preview, rejected-row checks, and readiness rebuilds" in rendered

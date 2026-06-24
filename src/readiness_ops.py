@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Iterable
 
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_queue_from_files, summarize_missing_input_families
+from src.session_source_preflight import load_session_source_preflight
 
 
 LANE_ORDER = (
@@ -21,6 +22,7 @@ LANE_ORDER = (
     "analyst_estimates_locked",
     "excluded_not_applicable",
 )
+COMPANY_PEER_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
 
 
 @dataclass(frozen=True)
@@ -176,6 +178,16 @@ def _count_contains(rows: Iterable[dict[str, str]], field: str, text: str) -> in
     return sum(1 for row in rows if needle in str(row.get(field) or "").lower())
 
 
+def _feature_list_contains(row: dict[str, str], field: str, feature: str) -> bool:
+    values = [part.strip().lower() for part in str(row.get(field) or "").split(",")]
+    return feature.lower() in values
+
+
+def _row_excludes_company_peer_context(row: dict[str, str]) -> bool:
+    asset_type = str(row.get("asset_type") or "").strip().lower()
+    return asset_type in COMPANY_PEER_EXCLUDED_ASSET_TYPES or _feature_list_contains(row, "excluded_features", "peer")
+
+
 def _feature_row(feature_rows: list[dict[str, str]], feature: str) -> dict[str, str] | None:
     for row in feature_rows:
         if str(row.get("feature") or "").strip().lower() == feature:
@@ -241,6 +253,79 @@ def _feature_counts(
     blocked = _int_value((row or {}).get("blocked_count"), max(total - ready - partial, 0))
     excluded = _int_value((row or {}).get("excluded_count"))
     return total, ready, partial, blocked, excluded
+
+
+def _source_status(sources: dict[str, object], key: str) -> dict[str, object]:
+    value = sources.get(key, {})
+    return value if isinstance(value, dict) else {}
+
+
+def _fundamentals_source_ladder_context(root: Path) -> tuple[str, bool]:
+    preflight = load_session_source_preflight(root)
+    if not preflight:
+        return (
+            "Session source availability is not recorded; run make session-source-preflight before retrying source-backed coverage work.",
+            False,
+        )
+    sources = preflight.get("sources", {})
+    if not isinstance(sources, dict):
+        return (
+            "Session source availability is unreadable; rerun make session-source-preflight before retrying source-backed coverage work.",
+            False,
+        )
+
+    pieces: list[str] = []
+    ladder_available = False
+    provider_labels = {
+        "sec": "SEC",
+        "yfinance_stage": "Yahoo/yfinance",
+        "fmp": "FMP",
+        "alpha_vantage": "Alpha Vantage",
+        "finnhub": "Finnhub",
+    }
+    for key, label in provider_labels.items():
+        source = _source_status(sources, key)
+        status = str(source.get("status") or "").strip()
+        reason = str(source.get("reason_code") or "").strip()
+        if status == "available":
+            ladder_available = True
+            if key == "fmp":
+                pieces.append("FMP configured")
+            elif key == "alpha_vantage":
+                pieces.append("Alpha Vantage configured")
+            elif key == "finnhub":
+                pieces.append("Finnhub configured")
+            else:
+                pieces.append(f"{label} available")
+        elif reason == "provider_key_missing":
+            if key == "fmp":
+                pieces.append("FMP_API_KEY missing")
+            elif key == "alpha_vantage":
+                pieces.append("ALPHA_VANTAGE_API_KEY missing")
+            elif key == "finnhub":
+                pieces.append("FINNHUB_API_KEY missing")
+        elif status:
+            pieces.append(f"{label} unavailable ({reason or status})")
+
+    local = _source_status(sources, "local_fundamentals")
+    if str(local.get("status") or "").strip() == "available":
+        row_count = _int_value(local.get("ticker_count") or local.get("row_count"))
+        fixable = _int_value(local.get("fundamentals_fixable_ticker_count")) + _int_value(
+            local.get("share_count_fixable_ticker_count")
+        )
+        if fixable:
+            pieces.append(f"local reviewed rows available ({fixable} current blocker match{'es' if fixable != 1 else ''})")
+        elif row_count:
+            pieces.append(f"local reviewed rows available ({row_count} ticker{'s' if row_count != 1 else ''})")
+        else:
+            pieces.append("local reviewed rows available")
+
+    if not pieces:
+        return (
+            "Session source availability has no executable fundamentals/share-count source recorded.",
+            False,
+        )
+    return "Session source availability: " + "; ".join(pieces) + ".", ladder_available
 
 
 def build_peer_readiness_summary(root: Path | str = ".") -> PeerReadinessSummary:
@@ -314,7 +399,13 @@ def build_readiness_ops_lanes(
     )
     dcf_ready = _count_true(readiness_rows, "dcf_ready")
     peer_ready = _count_true(readiness_rows, "peer_ready")
-    peer_mapping_blocked = _count_contains(readiness_rows, "missing_data", "source-backed peer mappings")
+    peer_mapping_excluded = sum(1 for row in readiness_rows if _row_excludes_company_peer_context(row))
+    peer_mapping_blocked = sum(
+        1
+        for row in readiness_rows
+        if "source-backed peer mappings" in str(row.get("missing_data") or "").lower()
+        and not _row_excludes_company_peer_context(row)
+    )
     peer_valuation_worklist_blocked = sum(
         1 for row in peer_unlock_rows if str(row.get("workflow_group") or "").strip() == "peer_valuation_unlock"
     )
@@ -330,6 +421,9 @@ def build_readiness_ops_lanes(
     earnings_blocked = max(total - earnings_ready, 0)
     analyst_blocked = max(total - analyst_ready, 0)
     excluded_dcf = _count_contains(readiness_rows, "excluded_features", "dcf")
+    fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(root)
+    fundamentals_next_command = "make fundamentals-source-ladder-queue TOP_N=25"
+    share_count_next_command = "make fundamentals-source-ladder-queue TOP_N=10"
 
     return [
         ReadinessLane(
@@ -344,8 +438,11 @@ def build_readiness_ops_lanes(
             excluded_count=price_excluded,
             unlock_impact=price_blocked + price_partial,
             source_lane="prices",
-            source_readiness="Provider-assisted price rows can be planned at scale; dry-run and capped review come first.",
-            next_safe_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+            source_readiness=(
+                "Provider-assisted price rows can be planned at scale; PROVIDER=auto tries Yahoo, Stooq, "
+                "then configured FMP/Alpha Vantage/Finnhub fallbacks; dry-run and capped review come first."
+            ),
+            next_safe_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
             proof_command="make readiness && make price-coverage TOP_N=25 && make status-check TOP_N=5",
             generated_churn_policy="Price refreshes can create broad CSV churn; keep refreshed data local unless intentionally reviewed.",
             stale_proof_warning=stale_warning,
@@ -368,8 +465,12 @@ def build_readiness_ops_lanes(
             excluded_count=fundamentals_excluded,
             unlock_impact=fundamentals_blocked + max(fundamentals_ready - dcf_ready, 0),
             source_lane="fundamentals",
-            source_readiness="SEC staging or trusted manual rows must pass validation, preview, rejected-row review, and readiness proof.",
-            next_safe_command="make dcf-input-proof-queue TOP_N=25",
+            source_readiness=(
+                "source ladder tries SEC, yfinance, FMP, Alpha Vantage, then Finnhub when those session paths are available; "
+                "trusted local rows can still be reviewed through validate/preview. "
+                f"{fundamentals_source_context}"
+            ),
+            next_safe_command=fundamentals_next_command,
             proof_command="make imports-validate && make imports-preview && make readiness && make dcf-readiness",
             generated_churn_policy="Stage/apply only reviewed trusted fundamentals rows; avoid broad generated report churn by default.",
             stale_proof_warning=stale_warning,
@@ -391,10 +492,11 @@ def build_readiness_ops_lanes(
             unlock_impact=len(share_count_rows),
             source_lane="shares_outstanding",
             source_readiness=(
-                "shares_outstanding proof must come from SEC/manual source proof or trusted local fundamentals rows; "
-                "do not infer it from price, market cap, or peers."
+                "shares_outstanding proof must come from SEC/source-ladder proof or trusted local fundamentals rows; "
+                "do not infer it from price, market cap, or peers. "
+                f"{fundamentals_source_context}"
             ),
-            next_safe_command="make share-count-proof-queue TOP_N=10",
+            next_safe_command=share_count_next_command,
             proof_command="make imports-validate && make imports-preview && make dcf-readiness && make readiness",
             generated_churn_policy=(
                 "Apply only reviewed trusted share-count rows; broad readiness/report CSV churn stays local unless intentionally reviewed."
@@ -408,13 +510,13 @@ def build_readiness_ops_lanes(
         ReadinessLane(
             lane="peer_mapping",
             label="Peer Mapping Proof",
-            readiness_state=_lane_state(ready=peer_ready, blocked=peer_mapping_blocked),
+            readiness_state=_lane_state(ready=peer_ready, blocked=peer_mapping_blocked, excluded=peer_mapping_excluded),
             workflow_mode="preview_first_reviewed_apply",
             total_count=total,
             ready_count=peer_ready,
             partial_count=max(peer_valuation_blocked - peer_mapping_blocked, 0),
             blocked_count=peer_mapping_blocked,
-            excluded_count=0,
+            excluded_count=peer_mapping_excluded,
             unlock_impact=peer_mapping_blocked,
             source_lane="peers",
             source_readiness="Peer relationships must be source-backed or clearly labeled fallback context only.",

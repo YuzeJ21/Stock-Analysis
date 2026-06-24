@@ -163,7 +163,7 @@ def test_pilot_lane_runbook_keeps_price_dry_run_separate_from_trusted_rows():
     optional = pilot_lane_runbook("earnings")
 
     assert price.status == "safe_to_batch_dry_run"
-    assert price.next_safe_command == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert price.next_safe_command == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     assert "Run make price-refresh-loop DRY_RUN=1" in " ".join(price.ordered_steps)
     assert "imports-apply" not in price.next_safe_command
     assert optional.status == "locked"
@@ -1585,4 +1585,4 @@ def test_pilot_lane_summary_rows_include_locked_and_price_lanes():
     assert by_lane["optional_context_locked"]["status"] == "locked"
     assert "earnings and analyst estimates remain locked" in by_lane["optional_context_locked"]["blocker_theme"]
     assert by_lane["price_coverage"]["status"] == "safe_to_batch_dry_run"
-    assert by_lane["price_coverage"]["next_safe_command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert by_lane["price_coverage"]["next_safe_command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"

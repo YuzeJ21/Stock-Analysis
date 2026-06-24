@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from src import readiness_ops as readiness_ops_module
@@ -21,6 +22,73 @@ from src.readiness_ops import (
 def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def _write_session_source_preflight(
+    root: Path,
+    *,
+    sec: str = "unavailable",
+    yfinance_stage: str = "unavailable",
+    fmp: str = "unavailable",
+    alpha_vantage: str = "unavailable",
+    finnhub: str = "unavailable",
+    local_fundamentals: str = "available",
+    fmp_reason: str = "provider_key_missing",
+    alpha_reason: str = "provider_key_missing",
+    finnhub_reason: str = "provider_key_missing",
+) -> None:
+    payload = {
+        "generated_at": "2026-06-24T00:00:00+00:00",
+        "project_root": str(root),
+        "data_dir": str(root / "data"),
+        "session_flags": [],
+        "do_not_retry_paths": [],
+        "available_lanes": [],
+        "preferred_lane_order": [],
+        "sources": {
+            "sec": {
+                "status": sec,
+                "reason_code": "ok" if sec == "available" else "network_error",
+                "detail": "SEC session fixture",
+                "next_action": "",
+            },
+            "yfinance_stage": {
+                "status": yfinance_stage,
+                "reason_code": "probe_succeeded" if yfinance_stage == "available" else "probe_failed",
+                "detail": "Yahoo staging fixture",
+                "next_action": "",
+            },
+            "fmp": {
+                "status": fmp,
+                "reason_code": "configured" if fmp == "available" else fmp_reason,
+                "detail": "FMP_API_KEY fixture",
+                "next_action": "",
+            },
+            "alpha_vantage": {
+                "status": alpha_vantage,
+                "reason_code": "configured" if alpha_vantage == "available" else alpha_reason,
+                "detail": "ALPHA_VANTAGE_API_KEY fixture",
+                "next_action": "",
+            },
+            "finnhub": {
+                "status": finnhub,
+                "reason_code": "configured" if finnhub == "available" else finnhub_reason,
+                "detail": "FINNHUB_API_KEY fixture",
+                "next_action": "",
+            },
+            "local_fundamentals": {
+                "status": local_fundamentals,
+                "reason_code": "ok" if local_fundamentals == "available" else "missing_file",
+                "detail": "local fundamentals fixture",
+                "next_action": "",
+                "row_count": 2 if local_fundamentals == "available" else 0,
+                "ticker_count": 2 if local_fundamentals == "available" else 0,
+                "share_count_fixable_ticker_count": 1,
+                "fundamentals_fixable_ticker_count": 1,
+            },
+        },
+    }
+    _write(root / "outputs" / "session_source_preflight.json", json.dumps(payload))
 
 
 def _sample_root(tmp_path: Path) -> Path:
@@ -109,18 +177,48 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
 
     assert by_lane["price_coverage"].readiness_state == "partial"
     assert by_lane["price_coverage"].workflow_mode == "dry_run_first"
+    assert "configured FMP/Alpha Vantage/Finnhub fallbacks" in by_lane["price_coverage"].source_readiness
     assert by_lane["fundamentals_dcf"].workflow_mode == "preview_first_reviewed_apply"
     assert by_lane["share_count_proof"].workflow_mode == "preview_first_reviewed_apply"
     assert by_lane["share_count_proof"].blocked_count == 1
     assert by_lane["share_count_proof"].partial_count == 1
     assert "shares_outstanding proof" in by_lane["share_count_proof"].source_readiness
     assert by_lane["peer_mapping"].blocked_count == 2
+    assert by_lane["peer_mapping"].excluded_count == 1
     assert "Peer sub-states:" in by_lane["peer_mapping"].notes
     assert "peer_valuation_comparison=0" in by_lane["peer_valuation_inputs"].notes
     assert by_lane["earnings_locked"].workflow_mode == "locked_manual"
     assert by_lane["analyst_estimates_locked"].workflow_mode == "locked_manual"
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"
     assert "trusted local rows" in by_lane["earnings_locked"].notes
+
+
+def test_readiness_ops_routes_fundamentals_to_source_ladder_when_fallback_provider_is_available(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write_session_source_preflight(root, fmp="available")
+
+    lanes = build_readiness_ops_lanes(root)
+    by_lane = {lane.lane: lane for lane in lanes}
+    rendered = render_readiness_ops_center(lanes)
+
+    assert by_lane["fundamentals_dcf"].next_safe_command == "make fundamentals-source-ladder-queue TOP_N=25"
+    assert by_lane["share_count_proof"].next_safe_command == "make fundamentals-source-ladder-queue TOP_N=10"
+    assert "FMP configured" in by_lane["fundamentals_dcf"].source_readiness
+    assert "source ladder" in rendered
+
+
+def test_readiness_ops_classifies_missing_fallback_keys_without_generic_blocker_copy(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write_session_source_preflight(root)
+
+    lanes = build_readiness_ops_lanes(root)
+    by_lane = {lane.lane: lane for lane in lanes}
+
+    assert by_lane["fundamentals_dcf"].next_safe_command == "make fundamentals-source-ladder-queue TOP_N=25"
+    assert "FMP_API_KEY missing" in by_lane["fundamentals_dcf"].source_readiness
+    assert "ALPHA_VANTAGE_API_KEY missing" in by_lane["share_count_proof"].source_readiness
+    assert "FINNHUB_API_KEY missing" in by_lane["share_count_proof"].source_readiness
+    assert "local reviewed rows available" in by_lane["share_count_proof"].source_readiness
 
 
 def test_fundamentals_peer_metrics_queue_summarizes_next_layer_without_fake_unlocks(tmp_path: Path):
@@ -283,7 +381,7 @@ def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tm
 
     assert steps[0].lane == "price_coverage"
     assert by_lane["price_coverage"].next_safe_command == (
-        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     )
     assert "dry-run first" in by_lane["price_coverage"].batch_scope
     assert "save readiness snapshot" in by_lane["price_coverage"].review_gate

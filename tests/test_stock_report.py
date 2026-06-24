@@ -20,6 +20,7 @@ from src.providers.mock_market_data import MockMarketDataProvider
 from src.stock_report import (
     _display_setup_text,
     _format_inline_make_commands,
+    _resolve_dcf_input_queue_tickers,
     _public_report_brief,
     _stock_report_at_a_glance_lines,
     _stock_report_dcf_input_triage_lines,
@@ -1054,6 +1055,9 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "data/staged/earnings/" in markdown
     assert "make import-analyst-estimates" in markdown
     assert "STOOQ_API_KEY" in markdown
+    assert "FMP_API_KEY" in markdown
+    assert "ALPHA_VANTAGE_API_KEY" in markdown
+    assert "FINNHUB_API_KEY" in markdown
     assert "DCF excluded for etf" not in markdown
     assert "company valuation fields are not treated as repair items" in markdown
     assert "Valuation missing field:" not in markdown
@@ -1352,7 +1356,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Price history is the first required input" in markdown
     assert "make focus-price TICKER=APLD" in markdown
     assert "## Copyable Proof Commands" in markdown
-    assert "`make price-worklist TICKERS=APLD TOP_N=10`" in markdown
+    assert "`make price-refresh TICKERS=APLD PROVIDER=auto`" in markdown
+    assert "Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub" in markdown
     assert "`make price-validate && make price-preview && make price-apply`" in markdown
     assert "Price rebuild proof: `make price-coverage TOP_N=25 && make readiness`" in markdown
     assert "`make focus-fundamentals TICKER=APLD`" in markdown
@@ -2023,6 +2028,19 @@ def test_stock_report_cli_yfinance_stage_failure_shows_dependency_and_network_fa
     assert "make imports-preview" in message
     assert "do not infer or fabricate revenue" in message
     assert "recommendations" in message
+
+
+def test_resolve_dcf_input_queue_tickers_returns_unique_ordered_blocker_tickers(monkeypatch, tmp_path: Path):
+    class Row:
+        def __init__(self, ticker: str) -> None:
+            self.ticker = ticker
+
+    monkeypatch.setattr(
+        "src.stock_report.build_dcf_input_proof_queue_from_files",
+        lambda root, data_dir, top_n: [Row("BBB"), Row("AAA"), Row("BBB"), Row("")],
+    )
+
+    assert _resolve_dcf_input_queue_tickers(tmp_path, tmp_path / "data", top_n=4) == ["BBB", "AAA"]
 
 
 def test_stock_report_from_rich_local_fixture_is_serializable_and_includes_validation(tmp_path: Path):

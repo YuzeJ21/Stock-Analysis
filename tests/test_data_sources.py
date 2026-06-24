@@ -153,19 +153,18 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     price_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "prices" and gap["ticker"] == "MSFT")
     assert price_gap["recommended_action"] == (
         "Run make focus-price TICKER=MSFT first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        "if you choose to refresh this ticker, run make price-refresh TICKERS=MSFT; "
-        "if the free refresh path fails, normalize verified downloaded OHLCV files into "
-        "data/imports/prices.csv."
+        "if you choose to refresh this ticker, run make price-refresh TICKERS=MSFT PROVIDER=auto so Yahoo, Stooq, "
+        "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
+        "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
     assert price_gap["focus_command"] == "make focus-price TICKER=MSFT"
     assert price_gap["example_command"] == "make price-normalize INPUT=data/raw/prices/MSFT.csv TICKER=MSFT SOURCE=yahoo_manual"
     assert price_gap["target_file"] == "data/imports/prices.csv"
     fundamentals_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "fundamentals" and gap["ticker"] == "MSFT")
     assert fundamentals_gap["recommended_action"] == (
-        "Run make focus-fundamentals TICKER=MSFT. If SEC_USER_AGENT is configured, run "
-        "make sec-stage TICKERS=MSFT; otherwise prepare trusted manual fundamentals import file rows in "
-        "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
-        "and make imports-apply."
+        "Run make focus-fundamentals TICKER=MSFT, then make fundamentals-source-ladder TICKERS=MSFT. "
+        "The ladder tries SEC, yfinance, configured FMP/Alpha Vantage/Finnhub, then leaves unresolved rows "
+        "still_blocked unless a reviewed local import row exists."
     )
     assert fundamentals_gap["focus_command"] == "make focus-fundamentals TICKER=MSFT"
     assert fundamentals_gap["example_command"] == "make sec-stage TICKERS=MSFT"

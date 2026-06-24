@@ -80,12 +80,18 @@ def test_lane_outcome_history_summarizes_without_generated_csv_churn():
 
 
 def test_price_reviewed_run_plan_is_copy_only_with_snapshot_diff_and_rollback():
-    rendered = render_price_reviewed_run_plan(max_candidates=3500, top_n=100, provider="yahoo", sleep_seconds=30)
+    rendered = render_price_reviewed_run_plan(max_candidates=3500, top_n=100, sleep_seconds=30)
 
     assert "Copy-only" in rendered
+    assert "Provider credential visibility:" in rendered
+    assert "STOOQ_API_KEY missing" in rendered
+    assert "FMP_API_KEY missing" in rendered
+    assert "ALPHA_VANTAGE_API_KEY missing" in rendered
+    assert "FINNHUB_API_KEY missing" in rendered
     assert "make readiness-snapshot" in rendered
-    assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo" in rendered
-    assert "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30" in rendered
+    assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto" in rendered
+    assert "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30" in rendered
+    assert "If no reviewed price rows are fetched or merged, record FINAL_OUTCOME=still_blocked" in rendered
     assert "make diff-hygiene" in rendered
     assert "Rollback notes:" in rendered
     assert "They do not create fundamentals, peers, earnings, estimates, valuation inputs, or recommendations" in rendered

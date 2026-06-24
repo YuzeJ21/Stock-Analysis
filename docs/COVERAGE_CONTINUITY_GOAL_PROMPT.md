@@ -44,9 +44,10 @@ Non-blocking rule:
 
 Lane selection rule:
 1. Use SEC-backed fundamentals/share-count proof only if SEC is available in this session.
-2. Otherwise use reviewed local manual fundamentals if present.
+2. Otherwise use reviewed local fundamentals only when the session preflight says they can fix current share-count or fundamentals blockers.
 3. Otherwise use `make yfinance-stage TICKERS=...` only when the optional research dependency is installed and the source path is working.
-4. Otherwise switch to another executable lane:
+4. Otherwise use configured API fallback paths through `make fundamentals-source-ladder TICKERS=...` or `make fundamentals-source-ladder-queue TOP_N=...`; the fundamentals ladder tries FMP, Alpha Vantage, then Finnhub when `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, or `FINNHUB_API_KEY` is configured. For price blockers, use `make price-refresh-loop ... PROVIDER=auto`; the price ladder tries Yahoo, Stooq, then configured FMP, Alpha Vantage, and Finnhub fallbacks.
+5. Otherwise switch to another executable lane:
    - peer candidate alignment
    - peer mapping proof
    - peer valuation input proof from local reviewed data
@@ -54,7 +55,7 @@ Lane selection rule:
    - earnings optional manual lane
    - analyst estimates optional manual lane
    - coverage summary / workflow / evidence capture improvements
-5. Never retry the same unavailable source path repeatedly in one session.
+6. Never retry the same unavailable source path repeatedly in one session.
 
 Peer workflow rule:
 - Split peer work into two levels:

@@ -91,7 +91,8 @@ def test_coverage_expansion_loop_prints_ready_copy_only_sequence(tmp_path: Path)
     assert loop.source_proof_gate is not None
     assert loop.source_proof_gate.lane == "fundamentals_dcf"
     assert "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=5" in rendered
-    assert "make sec-stage-queue TOP_N=5" in rendered
+    assert "make fundamentals-source-ladder-queue TOP_N=5" in rendered
+    assert "make sec-stage-queue TOP_N=5" not in rendered
     assert "make imports-validate && make imports-preview" in rendered
     assert "Source proof intake" in rendered
     assert "trusted revenue/free-cash-flow/free-cash-flow margin rows" in rendered
@@ -124,7 +125,7 @@ def test_coverage_expansion_loop_uses_local_fundamentals_gate_when_sec_unavailab
     rendered = render_coverage_expansion_loop(loop)
 
     assert loop.source_proof_gate is not None
-    assert "make dcf-input-proof-queue TOP_N=5" in rendered
+    assert "make fundamentals-source-ladder-queue TOP_N=5" in rendered
     assert "SEC is unavailable in this session" in rendered
     assert "do not retry SEC in this session" in rendered
     assert "make sec-stage-queue TOP_N=5" not in rendered
@@ -183,7 +184,7 @@ def test_source_proof_gate_for_share_count_blocks_inference_shortcuts():
     assert gate.lane == "share_count_proof"
     assert "trusted shares_outstanding row" in rendered
     assert "shares inferred from price, market cap, or peers" in rendered
-    assert "make share-count-proof-queue top_n=4" in rendered
+    assert "make fundamentals-source-ladder-queue top_n=4" in rendered
     assert "stock report proves the lane changed" in gate.proof_ready_when
 
 

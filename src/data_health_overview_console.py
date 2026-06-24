@@ -89,7 +89,7 @@ def orientation_cards(readiness_summary: dict[str, object]) -> list[dict[str, ob
                 "valuation available only after required DCF fields pass readiness."
             ),
             "badges": ["price first", "fundamentals next"],
-            "command": "make sec-stage-queue TOP_N=25",
+            "command": "make fundamentals-source-ladder-queue TOP_N=25",
         },
         {
             "kicker": "WHAT IS STILL LOCKED",
@@ -124,7 +124,7 @@ def quick_read_cards(readiness_summary: dict[str, object]) -> list[dict[str, obj
             f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
             "Missing fundamentals are an input gap, not a negative company signal. Review the fundamentals list first, then use the detailed proof commands only when source rows are ready."
         )
-        first_command = "make sec-stage-queue TOP_N=25"
+        first_command = "make fundamentals-source-ladder-queue TOP_N=25"
         first_badges = ["fundamentals next", "no valuation inference"]
     elif dcf_ready > peer_ready:
         gap = max(dcf_ready - peer_ready, 0)
@@ -441,7 +441,7 @@ def freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[s
                 "then inspect generated CSV diffs before committing anything."
             ),
             "badges": ["dry run first", "review diffs"],
-            "command": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={capped_target} TOP_N=100 PROVIDER=yahoo",
+            "command": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={capped_target} TOP_N=100 PROVIDER=auto",
         },
         {
             "kicker": "REVIEW-REQUIRED LANES",

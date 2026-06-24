@@ -1,4 +1,4 @@
-.PHONY: help help-full demo browser-qa-evidence browser-qa-capture-plan pilot-readiness-check pilot-readiness-packet trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff session-source-preflight yfinance-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo browser-qa-evidence browser-qa-capture-plan pilot-readiness-check pilot-readiness-packet trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff session-source-preflight fundamentals-source-ladder fundamentals-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -26,7 +26,7 @@ help:
 	@echo "Useful next paths:"
 	@echo "  Review one stock:        make stock-report-md TICKER=NVDA"
 	@echo "  Check data coverage:     make readiness-ops-center"
-	@echo "  Check price freshness:   make price-refresh-loop DRY_RUN=1"
+	@echo "  Auto fundamentals fallback: make fundamentals-source-ladder-queue TOP_N=10"
 	@echo "  Verify public hygiene:   make diff-hygiene && make staged-hygiene-check"
 	@echo ""
 	@echo "For the full local command catalog, run: make help-full"
@@ -132,7 +132,7 @@ help-full:
 	@echo "  make peer-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the peer mapping and mapped-peer valuation-input proof packet without inferring peers"
 	@echo "  make peer-mapping-source-review [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write a fillable source-review packet before editing data/imports/peers.csv"
 	@echo "  make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> PEER_GROUP=<group> SOURCE=<url> AS_OF_DATE=<yyyy-mm-dd> REVIEWER=<name> REVIEW_DATE=<yyyy-mm-dd> Preview one reviewed peer import row; blocks duplicates, self-peers, placeholders, and stale readiness"
-	@echo "  make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] Print reviewed capped price-run execution, diff, and rollback plan"
+	@echo "  make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan"
 	@echo "  make public-demo-readiness-pack Print the small shareable public demo proof set"
 	@echo "  make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data"
 	@echo "  make readiness-queue [TOP_N=10] Print fundamentals, peer, optional, and SPY/QQQ metric blocker queues"
@@ -225,9 +225,9 @@ help-full:
 	@echo "Price fallback:"
 	@echo "  make price-refresh-loop DRY_RUN=1 Preview the scalable capped refresh plan without changing local CSV files"
 	@echo "  make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 Preview a broad capped plan without calculating batches manually"
-	@echo "  make price-refresh-loop [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30] Run calculated capped batches after reviewing the dry run; avoids repeating 25-ticker refreshes manually"
-	@echo "  make price-refresh [TOP_N=25] [PROVIDER=stooq|yahoo] Attempt a capped missing-price remote refresh with local fallback"
-	@echo "  make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo] Attempt a targeted free remote price refresh"
+	@echo "  make price-refresh-loop [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] [SLEEP_SECONDS=30] Run calculated capped batches after reviewing the dry run; avoids repeating 25-ticker refreshes manually"
+	@echo "  make price-refresh [TOP_N=25] [PROVIDER=auto|yahoo|stooq|fmp|alpha_vantage|finnhub] Attempt a capped missing-price remote refresh with configured fallback"
+	@echo "  make price-refresh TICKERS=NVDA,MSFT [PROVIDER=auto] Attempt a targeted research-grade remote price refresh"
 	@echo "  make price-status [TICKERS=NVDA,MSFT] [TOP_N=10] Show latest price update status"
 	@echo "  make import-prices    Import verified CSVs from data/staged/prices/ into data/prices.csv"
 	@echo "  make price-coverage   Write data/price_coverage_report.csv with rows per universe ticker"
@@ -239,6 +239,12 @@ help-full:
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
 	@echo "  make sec-stage TICKERS=NVDA,MSFT"
 	@echo "  make yfinance-stage TICKERS=NVDA"
+	@echo "  make fundamentals-source-ladder TICKERS=NVDA"
+	@echo "                        Try SEC, yfinance, FMP, Alpha Vantage, then Finnhub before stopping at reviewed blocker evidence"
+	@echo "  make fundamentals-source-ladder-queue TOP_N=10"
+	@echo "                        Run the source ladder against top DCF blockers without manually collecting ticker symbols"
+	@echo "  make fmp-stage TICKERS=NVDA / make alpha-vantage-stage TICKERS=NVDA / make finnhub-stage TICKERS=NVDA"
+	@echo "                        Stage provider-assisted fundamentals through data/imports/fundamentals.csv"
 	@echo "  make dcf-readiness   Write data/dcf_readiness.csv"
 	@echo "  make import-fundamentals Import verified CSVs from data/staged/fundamentals/ into data/imports/fundamentals.csv"
 	@echo "  make import-earnings Import verified CSVs from data/staged/earnings/ into data/imports/earnings.csv"
@@ -366,7 +372,7 @@ trusted-data-pilot:
 	@echo ""
 	@echo "3. Check whether price coverage can be improved safely:"
 	@echo "   make price-worklist $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)"
-	@echo "   make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=$(or $(TOP_N),10) TOP_N=$(or $(TOP_N),10) PROVIDER=yahoo"
+	@echo "   make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=$(or $(TOP_N),10) TOP_N=$(or $(TOP_N),10) PROVIDER=auto"
 	@echo "   Use a real capped price loop only after reviewing the dry run and saving a readiness snapshot."
 	@echo ""
 	@echo "4. Review fundamentals / DCF blockers:"
@@ -425,7 +431,7 @@ lane-outcome-history:
 	@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --history
 
 price-reviewed-run:
-	@python3 -m src.reviewed_data_proof --price-reviewed-run --max-candidates $(or $(MAX_CANDIDATES),3500) --top-n $(or $(TOP_N),100) --provider $(or $(PROVIDER),yahoo) --sleep-seconds $(or $(SLEEP_SECONDS),30)
+	@python3 -m src.reviewed_data_proof --price-reviewed-run --max-candidates $(or $(MAX_CANDIDATES),3500) --top-n $(or $(TOP_N),100) --provider $(or $(PROVIDER),auto) --sleep-seconds $(or $(SLEEP_SECONDS),30)
 
 public-demo-readiness-pack:
 	@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --public-demo-pack
@@ -446,7 +452,7 @@ data-coverage-planner:
 	@python3 -m src.readiness_ops --root . --expansion-plan --top-n $(or $(TOP_N),10)
 
 coverage-expansion-loop:
-	@python3 -m src.coverage_expansion_loop --root . --lane $(or $(LANE),auto) --top-n $(or $(TOP_N),10) --max-candidates $(or $(MAX_CANDIDATES),3500) --provider $(or $(PROVIDER),yahoo)
+	@python3 -m src.coverage_expansion_loop --root . --lane $(or $(LANE),auto) --top-n $(or $(TOP_N),10) --max-candidates $(or $(MAX_CANDIDATES),3500) --provider $(or $(PROVIDER),auto)
 
 readiness-ops-evidence:
 	@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)
@@ -473,7 +479,7 @@ reviewed-batch-compare:
 	@python3 -m src.readiness_comparison --root . --top-n $(or $(TOP_N),25) --batch-id "$(or $(BATCH_ID),<batch_id>)" --lane "$(or $(LANE),prices)" --review-date "$(or $(REVIEW_DATE),<yyyy-mm-dd>)"
 
 reviewed-batch-preflight:
-	@python3 -m src.reviewed_batch_preflight --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),100) --max-candidates $(or $(MAX_CANDIDATES),3500) --provider $(or $(PROVIDER),yahoo) $(if $(BATCH_ID),--batch-id "$(BATCH_ID)",) $(if $(REVIEW_DATE),--review-date "$(REVIEW_DATE)",)
+	@python3 -m src.reviewed_batch_preflight --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),100) --max-candidates $(or $(MAX_CANDIDATES),3500) --provider $(or $(PROVIDER),auto) $(if $(BATCH_ID),--batch-id "$(BATCH_ID)",) $(if $(REVIEW_DATE),--review-date "$(REVIEW_DATE)",)
 
 reviewed-batch-proof-record:
 ifndef BATCH_ID
@@ -801,7 +807,7 @@ else
 endif
 
 price-refresh-loop:
-	MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0) sh scripts/price_refresh_loop.sh
+	MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),auto) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0) sh scripts/price_refresh_loop.sh
 
 price-normalize:
 ifndef INPUT
@@ -831,6 +837,33 @@ dashboard-smoke:
 
 session-source-preflight:
 	@python3 -m src.session_source_preflight --root . --write-output $(if $(SEC_USER_AGENT),--sec-user-agent "$(SEC_USER_AGENT)",)
+
+fundamentals-source-ladder:
+ifndef TICKERS
+	$(error TICKERS is required, for example: make fundamentals-source-ladder TICKERS=NVDA)
+endif
+	python3 -m src.stock_report --fundamentals-source-ladder --tickers $(TICKERS) $(if $(SEC_USER_AGENT),--sec-user-agent "$(SEC_USER_AGENT)",)
+
+fundamentals-source-ladder-queue:
+	python3 -m src.stock_report --fundamentals-source-ladder --from-dcf-input-queue --top-n $(or $(TOP_N),10) $(if $(SEC_USER_AGENT),--sec-user-agent "$(SEC_USER_AGENT)",)
+
+fmp-stage:
+ifndef TICKERS
+	$(error TICKERS is required, for example: make fmp-stage TICKERS=NVDA)
+endif
+	python3 -m src.stock_report --alternative-fundamentals-stage --alt-provider fmp --tickers $(TICKERS)
+
+alpha-vantage-stage:
+ifndef TICKERS
+	$(error TICKERS is required, for example: make alpha-vantage-stage TICKERS=NVDA)
+endif
+	python3 -m src.stock_report --alternative-fundamentals-stage --alt-provider alpha_vantage --tickers $(TICKERS)
+
+finnhub-stage:
+ifndef TICKERS
+	$(error TICKERS is required, for example: make finnhub-stage TICKERS=NVDA)
+endif
+	python3 -m src.stock_report --alternative-fundamentals-stage --alt-provider finnhub --tickers $(TICKERS)
 
 yfinance-stage:
 ifndef TICKERS

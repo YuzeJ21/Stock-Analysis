@@ -18,6 +18,7 @@ from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir
 from src.universe_model import ASSET_TYPES, build_universe_coverage_report, ensure_universe_files, infer_asset_type
 
 ALLOWED_CANDIDATE_STATES = {"candidate", "fallback_context", "research_only"}
+COMPANY_PEER_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
 
 
 TICKER_READINESS_COLUMNS = [
@@ -387,6 +388,10 @@ def _state(ready: bool, partial: bool = False, excluded: bool = False) -> str:
     return "blocked"
 
 
+def _asset_excludes_company_peer_context(asset_type: object) -> bool:
+    return str(asset_type or "").strip().lower() in COMPANY_PEER_EXCLUDED_ASSET_TYPES
+
+
 def build_price_coverage_report(root: Path, data_path: Path, master: pd.DataFrame, active: pd.DataFrame, thresholds: dict[str, Any]) -> pd.DataFrame:
     prices = _read_csv(data_path / "prices.csv")
     active_tickers = _ticker_set(active)
@@ -469,6 +474,49 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
     min_peers = int(thresholds["peer_ready"].get("min_peers", 2))
     rows = []
     for ticker in sorted(universe_tickers):
+        metadata = _metadata_row(master, pd.DataFrame(), ticker)
+        asset_type = str(metadata.get("asset_type", infer_asset_type(ticker, metadata)) or "").strip().lower()
+        if _asset_excludes_company_peer_context(asset_type):
+            reason = "operating-company peer mapping is excluded for ETF/index/fund monitor context"
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "peer_group": "",
+                    "peer_count": 0,
+                    "sample_peers": "",
+                    "mapping_status": "excluded",
+                    "candidate_peer_group": "",
+                    "candidate_peer_count": 0,
+                    "candidate_sample_peers": "",
+                    "candidate_mapping_status": "excluded",
+                    "candidate_states": "",
+                    "peer_blocker_type": "excluded_asset_type",
+                    "peer_price_ready": False,
+                    "peer_momentum_ready": False,
+                    "peer_fundamentals_ready": False,
+                    "peer_valuation_ready": False,
+                    "peer_trend_comparison_ready": False,
+                    "peer_valuation_comparison_ready": False,
+                    "peer_dcf_comparison_ready": False,
+                    "peer_price_ready_count": 0,
+                    "peer_momentum_ready_count": 0,
+                    "peer_fundamentals_ready_count": 0,
+                    "peer_valuation_ready_count": 0,
+                    "ready_peer_count": 0,
+                    "peer_missing_price_tickers": "",
+                    "peer_missing_momentum_tickers": "",
+                    "peer_missing_fundamentals_tickers": "",
+                    "peer_missing_valuation_tickers": "",
+                    "peer_ready": False,
+                    "missing_peer_reason": reason,
+                    "next_peer_action": (
+                        f"No peer import is required for {ticker}; monitor context remains excluded from "
+                        "operating-company peer valuation."
+                    ),
+                    "updated_at": _now(),
+                }
+            )
+            continue
         ticker_peers = peers.loc[peers["ticker"] == ticker].copy() if not peers.empty and "ticker" in peers.columns else pd.DataFrame()
         if not ticker_peers.empty and "peer_ticker" in ticker_peers.columns:
             ticker_peers["peer_ticker"] = ticker_peers["peer_ticker"].astype(str).str.upper().str.strip()
@@ -640,7 +688,7 @@ def build_data_source_status(root: Path, data_path: Path) -> pd.DataFrame:
         ("local_prices", "local_csv", data_path / "prices.csv", "", "data/staged/prices/"),
         ("staged_prices", "manual_staged_csv", data_path / "staged" / "prices", "", "data/staged/prices/"),
         ("remote_price_provider", "remote_api", None, "STOOQ_API_KEY", "data/staged/prices/"),
-        ("yahoo_price_provider", "remote_api", None, "", "make price-refresh PROVIDER=yahoo"),
+        ("auto_price_ladder", "remote_api", None, "", "make price-refresh PROVIDER=auto"),
         ("local_fundamentals", "local_csv", data_path / "fundamentals.csv", "", "data/staged/fundamentals/"),
         ("sec_fundamentals", "remote_api", None, "SEC_USER_AGENT", "data/staged/fundamentals/"),
         ("staged_fundamentals", "manual_staged_csv", data_path / "staged" / "fundamentals", "", "data/staged/fundamentals/"),
@@ -775,7 +823,7 @@ def build_feature_readiness_summary(ticker_readiness: pd.DataFrame) -> pd.DataFr
         ("market_direction", "Market Direction", "make price-refresh-loop DRY_RUN=1"),
         ("liquidity", "Risk / Liquidity", "make research-health TOP_N=10"),
         ("correlation", "Risk / Correlation", "make research-health TOP_N=10"),
-        ("fundamentals", "Fundamentals", "make sec-stage-queue TOP_N=25"),
+        ("fundamentals", "Fundamentals", "make fundamentals-source-ladder-queue TOP_N=25"),
         ("dcf", "Value / Re-rating", "make dcf-readiness"),
         ("peer", "Peer Readiness", "make peer-mapping-queue TOP_N=25"),
         ("earnings", "Optional Context", "make import-earnings"),
@@ -946,6 +994,8 @@ def build_ticker_readiness_report(
     for ticker in sorted(_ticker_set(master) | active_tickers | portfolio_tickers):
         metadata = _metadata_row(master, legacy, ticker)
         asset_type = str(metadata.get("asset_type", infer_asset_type(ticker, metadata)) or "unknown").lower()
+        excludes_company_peer = _asset_excludes_company_peer_context(asset_type)
+        excludes_company_dcf = asset_type in {"etf", "index_proxy", "fund"}
         price = price_lookup.loc[ticker] if ticker in price_lookup.index else pd.Series(dtype=object)
         fund = fundamentals_lookup.loc[ticker] if ticker in fundamentals_lookup.index else pd.Series(dtype=object)
         dcf = dcf_lookup.loc[ticker] if ticker in dcf_lookup.index else pd.Series(dtype=object)
@@ -960,8 +1010,12 @@ def build_ticker_readiness_report(
             "liquidity": _state(bool(price.get("risk_ready", False)), partial=bool(price.get("price_ready", False))),
             "correlation": _state(bool(price.get("risk_ready", False)), partial=bool(price.get("price_ready", False))),
             "fundamentals": _state(bool(fund.get("fundamentals_ready", False)), partial=bool(fund.get("has_fundamentals", False))),
-            "dcf": _state(bool(dcf.get("is_dcf_ready", False)), partial=False, excluded=asset_type in {"etf", "index_proxy", "fund"}),
-            "peer": _state(bool(peer.get("peer_ready", False)), partial=int(peer.get("peer_count", 0) or 0) > 0),
+            "dcf": _state(bool(dcf.get("is_dcf_ready", False)), partial=False, excluded=excludes_company_dcf),
+            "peer": _state(
+                bool(peer.get("peer_ready", False)),
+                partial=int(peer.get("peer_count", 0) or 0) > 0,
+                excluded=excludes_company_peer,
+            ),
             "earnings": _state(bool(earn.get("has_trusted_earnings", False))),
             "analyst_estimates": _state(bool(est.get("has_trusted_analyst_estimates", False))),
             "portfolio": _state(ticker in portfolio_tickers and bool(price.get("price_ready", False)), partial=ticker in portfolio_tickers, excluded=ticker not in portfolio_tickers),
@@ -974,10 +1028,10 @@ def build_ticker_readiness_report(
         if not bool(price.get("price_ready", False)):
             missing_data.append(str(price.get("missing_price_reason", "price")))
         dcf_missing = str(dcf.get("missing_dcf_fields", "") or "").strip()
-        if dcf_missing:
+        if dcf_missing and not excludes_company_dcf:
             missing_data.append(f"dcf: {dcf_missing}")
         peer_missing = str(peer.get("missing_peer_reason", "") or "").strip()
-        if peer_missing:
+        if peer_missing and not excludes_company_peer:
             missing_data.append(f"peers: {peer_missing}")
         if "earnings" in blocked:
             missing_data.append("earnings: trusted local CSV input")

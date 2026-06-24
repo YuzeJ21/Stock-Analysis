@@ -13,12 +13,15 @@ from urllib.request import Request, urlopen
 import pandas as pd
 
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FMP_API_KEY_ENV, FINNHUB_API_KEY_ENV
 from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 
 
 SEC_TICKER_MAP_URL = "https://www.sec.gov/files/company_tickers.json"
 DEFAULT_YFINANCE_SAMPLE_TICKER = "MSFT"
 SESSION_SOURCE_PREFLIGHT_FILENAME = "session_source_preflight.json"
+STOOQ_API_KEY_ENV = "STOOQ_API_KEY"
+PRICE_PROVIDER_ORDER = ["yahoo", "stooq", "fmp", "alpha_vantage", "finnhub"]
 ALWAYS_EXECUTABLE_LANES = [
     "peer_mapping_proof",
     "peer_valuation_local_reviewed",
@@ -168,6 +171,95 @@ def probe_yfinance_stage(
     )
 
 
+def probe_provider_api_key(env_var: str, *, provider_label: str) -> dict[str, Any]:
+    if os.environ.get(env_var, "").strip():
+        return _status_payload(
+            status="available",
+            reason_code="configured",
+            detail=f"{env_var} is configured for {provider_label} fallback staging and price fallback.",
+            next_action="",
+        )
+    return _status_payload(
+        status="unavailable",
+        reason_code="provider_key_missing",
+        detail=f"{env_var} is not configured.",
+        next_action=f"Set {env_var} to enable {provider_label} fallback fundamentals/share-count staging and price fallback.",
+    )
+
+
+def probe_stooq_key() -> dict[str, Any]:
+    if os.environ.get(STOOQ_API_KEY_ENV, "").strip():
+        return _status_payload(
+            status="available",
+            reason_code="configured",
+            detail=f"{STOOQ_API_KEY_ENV} is configured for Stooq price fallback.",
+            next_action="",
+        )
+    return _status_payload(
+        status="unavailable",
+        reason_code="provider_key_missing",
+        detail=f"{STOOQ_API_KEY_ENV} is not configured; Stooq may still be attempted, but some environments require a key.",
+        next_action=f"Set {STOOQ_API_KEY_ENV} to enable keyed Stooq price fallback when the unauthenticated CSV path is unavailable.",
+    )
+
+
+def probe_fmp_key() -> dict[str, Any]:
+    return probe_provider_api_key(FMP_API_KEY_ENV, provider_label="FMP")
+
+
+def probe_alpha_vantage_key() -> dict[str, Any]:
+    return probe_provider_api_key(ALPHA_VANTAGE_API_KEY_ENV, provider_label="Alpha Vantage")
+
+
+def probe_finnhub_key() -> dict[str, Any]:
+    return probe_provider_api_key(FINNHUB_API_KEY_ENV, provider_label="Finnhub")
+
+
+def build_price_ladder_status(
+    *,
+    stooq_status: dict[str, Any],
+    fmp_status: dict[str, Any],
+    alpha_vantage_status: dict[str, Any],
+    finnhub_status: dict[str, Any],
+) -> dict[str, Any]:
+    keyed_providers = {
+        "stooq": (STOOQ_API_KEY_ENV, stooq_status),
+        "fmp": (FMP_API_KEY_ENV, fmp_status),
+        "alpha_vantage": (ALPHA_VANTAGE_API_KEY_ENV, alpha_vantage_status),
+        "finnhub": (FINNHUB_API_KEY_ENV, finnhub_status),
+    }
+    configured = [
+        provider
+        for provider, (_env_var, status) in keyed_providers.items()
+        if str(status.get("status") or "").strip() == "available"
+    ]
+    missing_envs = [
+        env_var
+        for _provider, (env_var, status) in keyed_providers.items()
+        if str(status.get("status") or "").strip() != "available"
+    ]
+    if configured:
+        status = "available"
+        reason_code = "configured_keyed_fallbacks"
+        next_action = "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
+    else:
+        status = "planned"
+        reason_code = "dry_run_first_no_keyed_fallbacks"
+        next_action = "Run the price dry run first; configure a keyed provider if Yahoo/Stooq source paths are unavailable."
+    return _status_payload(
+        status=status,
+        reason_code=reason_code,
+        detail=(
+            "PROVIDER=auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub price fallbacks. "
+            "This preflight records configuration only; the refresh status records provider fetch results."
+        ),
+        next_action=next_action,
+        provider_order=PRICE_PROVIDER_ORDER,
+        configured_keyed_providers=configured,
+        missing_keyed_provider_envs=missing_envs,
+    )
+
+
 def inspect_local_fundamentals(root: Path, *, data_dir: Path | None = None) -> dict[str, Any]:
     data_path = resolve_data_dir(data_dir, root)
     path = data_path / "fundamentals.csv"
@@ -257,13 +349,42 @@ def inspect_local_fundamentals(root: Path, *, data_dir: Path | None = None) -> d
             share_count_fixable_ticker_count = int(
                 (share_mask & merged.get("shares_outstanding", pd.Series(index=merged.index)).notna()).sum()
             )
-            fundamentals_mask = missing_data.str.contains("revenue|free cash flow|fcf margin", regex=True)
-            local_fundamentals_present = (
-                merged.get("revenue", pd.Series(index=merged.index)).notna()
-                | merged.get("free_cash_flow", pd.Series(index=merged.index)).notna()
-                | merged.get("fcf_margin", pd.Series(index=merged.index)).notna()
+            fundamentals_mask = missing_data.str.contains(
+                "revenue|free cash flow|free_cash_flow|fcf margin|fcf_margin", regex=True
             )
-            fundamentals_fixable_ticker_count = int((fundamentals_mask & local_fundamentals_present).sum())
+
+            def has_value(row: pd.Series, columns: list[str]) -> bool:
+                for column in columns:
+                    if column not in row.index:
+                        continue
+                    value = row.get(column)
+                    if pd.notna(value) and str(value).strip() != "":
+                        return True
+                return False
+
+            def missing_fundamental_fields(text: str) -> list[str]:
+                lowered = str(text or "").lower()
+                fields: list[str] = []
+                if "revenue" in lowered:
+                    fields.append("revenue")
+                if "free cash flow" in lowered or "free_cash_flow" in lowered:
+                    fields.append("free_cash_flow")
+                if "fcf margin" in lowered or "fcf_margin" in lowered:
+                    fields.append("fcf_margin")
+                return fields
+
+            field_columns = {
+                "revenue": ["revenue"],
+                "free_cash_flow": ["free_cash_flow", "fcf"],
+                "fcf_margin": ["fcf_margin"],
+            }
+            fundamentals_fixable_ticker_count = int(
+                sum(
+                    all(has_value(row, field_columns[field]) for field in missing_fundamental_fields(row.get("missing_data", "")))
+                    for _, row in merged.loc[fundamentals_mask].iterrows()
+                    if missing_fundamental_fields(row.get("missing_data", ""))
+                )
+            )
 
     return _status_payload(
         status="available",
@@ -301,6 +422,10 @@ def build_session_source_preflight(
     sec_probe: Callable[[str | None], dict[str, Any]] = probe_sec_access,
     yfinance_import_probe: Callable[[], dict[str, Any]] = probe_yfinance_import,
     yfinance_stage_probe: Callable[[], dict[str, Any]] | None = None,
+    stooq_key_probe: Callable[[], dict[str, Any]] = probe_stooq_key,
+    fmp_key_probe: Callable[[], dict[str, Any]] = probe_fmp_key,
+    alpha_vantage_key_probe: Callable[[], dict[str, Any]] = probe_alpha_vantage_key,
+    finnhub_key_probe: Callable[[], dict[str, Any]] = probe_finnhub_key,
     sample_ticker: str = DEFAULT_YFINANCE_SAMPLE_TICKER,
 ) -> dict[str, Any]:
     root = resolve_project_root(base_dir)
@@ -322,6 +447,16 @@ def build_session_source_preflight(
             next_action=yfinance_import_status.get("next_action", ""),
             sample_ticker=str(sample_ticker or DEFAULT_YFINANCE_SAMPLE_TICKER).upper().strip(),
         )
+    stooq_status = stooq_key_probe()
+    fmp_status = fmp_key_probe()
+    alpha_vantage_status = alpha_vantage_key_probe()
+    finnhub_status = finnhub_key_probe()
+    price_ladder_status = build_price_ladder_status(
+        stooq_status=stooq_status,
+        fmp_status=fmp_status,
+        alpha_vantage_status=alpha_vantage_status,
+        finnhub_status=finnhub_status,
+    )
     local_fundamentals_status = inspect_local_fundamentals(root, data_dir=data_path)
 
     session_flags: list[str] = []
@@ -335,6 +470,9 @@ def build_session_source_preflight(
 
     source_lanes: list[str] = []
     preferred_lane_order: list[str] = []
+    local_can_fix_shares = False
+    local_can_fix_fundamentals = False
+    local_can_fix_current_blocker = False
     if sec_status["status"] == "available":
         source_lanes.append("sec_fundamentals_share_count")
         preferred_lane_order.append("sec_fundamentals_share_count")
@@ -342,10 +480,11 @@ def build_session_source_preflight(
         source_lanes.append("local_reviewed_fundamentals_share_count")
         local_can_fix_shares = int(local_fundamentals_status.get("share_count_fixable_ticker_count", 0)) > 0
         local_can_fix_fundamentals = int(local_fundamentals_status.get("fundamentals_fixable_ticker_count", 0)) > 0
+        local_can_fix_current_blocker = local_can_fix_shares or local_can_fix_fundamentals
         if (
             "local_reviewed_fundamentals_share_count" not in preferred_lane_order
             and sec_status["status"] != "available"
-            and (local_can_fix_shares or local_can_fix_fundamentals)
+            and local_can_fix_current_blocker
         ):
             preferred_lane_order.append("local_reviewed_fundamentals_share_count")
     if yfinance_stage_status["status"] == "available":
@@ -353,9 +492,43 @@ def build_session_source_preflight(
         if (
             "yfinance_fundamentals_share_count" not in preferred_lane_order
             and sec_status["status"] != "available"
-            and local_fundamentals_status["status"] != "available"
+            and not local_can_fix_current_blocker
         ):
             preferred_lane_order.append("yfinance_fundamentals_share_count")
+    if fmp_status["status"] == "available":
+        source_lanes.append("fmp_fundamentals_share_count")
+        if (
+            "fmp_fundamentals_share_count" not in preferred_lane_order
+            and sec_status["status"] != "available"
+            and not local_can_fix_current_blocker
+            and yfinance_stage_status["status"] != "available"
+        ):
+            preferred_lane_order.append("fmp_fundamentals_share_count")
+    if alpha_vantage_status["status"] == "available":
+        source_lanes.append("alpha_vantage_fundamentals_share_count")
+        if (
+            "alpha_vantage_fundamentals_share_count" not in preferred_lane_order
+            and sec_status["status"] != "available"
+            and not local_can_fix_current_blocker
+            and yfinance_stage_status["status"] != "available"
+            and fmp_status["status"] != "available"
+        ):
+            preferred_lane_order.append("alpha_vantage_fundamentals_share_count")
+    if finnhub_status["status"] == "available":
+        source_lanes.append("finnhub_fundamentals_share_count")
+        if (
+            "finnhub_fundamentals_share_count" not in preferred_lane_order
+            and sec_status["status"] != "available"
+            and not local_can_fix_current_blocker
+            and yfinance_stage_status["status"] != "available"
+            and fmp_status["status"] != "available"
+            and alpha_vantage_status["status"] != "available"
+        ):
+            preferred_lane_order.append("finnhub_fundamentals_share_count")
+    if price_ladder_status["status"] == "available":
+        source_lanes.append("price_coverage_provider_ladder")
+        if not preferred_lane_order:
+            preferred_lane_order.append("price_coverage_provider_ladder")
 
     preferred_lane_order.extend(ALWAYS_EXECUTABLE_LANES)
     available_lanes = _dedupe_preserve_order(source_lanes + ALWAYS_EXECUTABLE_LANES)
@@ -373,6 +546,10 @@ def build_session_source_preflight(
             "sec": sec_status,
             "yfinance_import": yfinance_import_status,
             "yfinance_stage": yfinance_stage_status,
+            "price_ladder": price_ladder_status,
+            "fmp": fmp_status,
+            "alpha_vantage": alpha_vantage_status,
+            "finnhub": finnhub_status,
             "local_fundamentals": local_fundamentals_status,
         },
     }
@@ -391,7 +568,16 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         *[f"- {lane}" for lane in preflight["preferred_lane_order"]],
         "source_status:",
     ]
-    for source_name in ("sec", "yfinance_import", "yfinance_stage", "local_fundamentals"):
+    for source_name in (
+        "sec",
+        "yfinance_import",
+        "yfinance_stage",
+        "price_ladder",
+        "fmp",
+        "alpha_vantage",
+        "finnhub",
+        "local_fundamentals",
+    ):
         source = sources[source_name]
         lines.extend(
             [
@@ -402,6 +588,16 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         next_action = str(source.get("next_action", "")).strip()
         if next_action:
             lines.append(f"  next_action: {next_action}")
+        if source_name == "price_ladder":
+            lines.append(f"  provider_order: {', '.join(source.get('provider_order', [])) or '-'}")
+            lines.append(
+                "  configured_price_fallbacks: "
+                f"{', '.join(source.get('configured_keyed_providers', [])) or '-'}"
+            )
+            lines.append(
+                "  missing_price_keys: "
+                f"{', '.join(source.get('missing_keyed_provider_envs', [])) or '-'}"
+            )
         if source_name == "local_fundamentals":
             lines.append(
                 "  row_count: "

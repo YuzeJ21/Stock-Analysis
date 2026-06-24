@@ -143,12 +143,14 @@ def _price_recommended_action(ticker: str) -> str:
     if not ticker:
         return (
             "Run make status-check TOP_N=5 first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-            "if you choose to refresh specific tickers, run make price-refresh TICKERS=<ticker>; if the free refresh "
+            "if you choose to refresh specific tickers, run make price-refresh TICKERS=<ticker> PROVIDER=auto so "
+            "Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider "
             "path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
         )
     return (
         f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker}; if the free refresh path fails, "
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Yahoo, Stooq, "
+        "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
         "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
 
@@ -164,6 +166,9 @@ def _normalize_price_action_row(row: dict[str, Any]) -> dict[str, Any]:
         "make price-refresh-loop dry_run=1" not in text
         or "python3 -m src.data_update" in text
         or "or run make price-refresh" in text
+        or "free refresh path fails" in text
+        or "provider=auto" not in text
+        or "configured fmp/alpha vantage" not in text
     ):
         row["recommended_action"] = _price_recommended_action(ticker)
     return row
@@ -191,6 +196,23 @@ def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
             .replace("import drafts", "import files")
             .replace("import draft", "import file")
             .replace("Staged rows are already present", "Local import files already have rows")
+        )
+        if str(row.get("Command") or "").strip().startswith("make price-refresh-loop"):
+            row["Reason"] = (
+                "Preview the broad-universe price frontier first; PROVIDER=auto tries Yahoo, Stooq, "
+                "and configured FMP/Alpha Vantage/Finnhub before the manual import file fallback."
+            )
+    source_context = str(row.get("SourceContext") or "")
+    if source_context:
+        row["SourceContext"] = (
+            source_context.replace(
+                "data/imports/prices.csv fallback plus optional Yahoo refresh",
+                "PROVIDER=auto price ladder with Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks; data/imports/prices.csv remains the last manual fallback",
+            )
+            .replace(
+                "data/imports/prices.csv fallback plus optional auto price ladder",
+                "PROVIDER=auto price ladder with Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks; data/imports/prices.csv remains the last manual fallback",
+            )
         )
     if freshness:
         row["FreshnessContext"] = (
@@ -744,10 +766,13 @@ def _recommended_next_command_rows(
                     "Preview next capped missing-price batch",
                     "make price-refresh-loop DRY_RUN=1",
                     (
-                        "Preview the broad-universe price frontier first, then run several capped batches "
-                        "if you choose; Yahoo rows are research-grade and the manual import file fallback remains available."
+                        "Preview the broad-universe price frontier first; PROVIDER=auto tries Yahoo, Stooq, "
+                        "and configured FMP/Alpha Vantage/Finnhub before the manual import file fallback."
                     ),
-                    source_context="data/imports/prices.csv fallback plus optional Yahoo refresh",
+                    source_context=(
+                        "PROVIDER=auto price ladder with Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks; "
+                        "data/imports/prices.csv remains the last manual fallback"
+                    ),
                     freshness_context="dry-run first; verify source readiness notes and local CSV changes after any refresh",
                 )
             )
@@ -1032,7 +1057,8 @@ def _print_human(payload: dict[str, Any]) -> None:
     price_complete = _price_coverage_complete(summary)
     for row in payload["top_onboarding_actions"]:
         ticker = f" {row['ticker']}" if row.get("ticker") else ""
-        dataset_label = str(row.get("dataset") or "data")
+        raw_dataset_label = str(row.get("dataset") or "data")
+        dataset_label = raw_dataset_label
         if dataset_label == "prices" and price_complete:
             dataset_label = "price history"
         print(f"- P{row['priority']} {dataset_label}{ticker}")
@@ -1041,7 +1067,8 @@ def _print_human(payload: dict[str, Any]) -> None:
         if row.get("recommended_action"):
             print(f"  guidance: {_friendly_cli_guidance(row['recommended_action'])}")
         if row.get("example_command"):
-            print(f"  trusted import/fallback: {row['example_command']}")
+            example_label = "last manual fallback" if raw_dataset_label == "prices" else "trusted import/fallback"
+            print(f"  {example_label}: {row['example_command']}")
         if row.get("credential_required"):
             present = "present" if bool(row.get("credential_present")) else "missing"
             print(f"  credential: {row['credential_required']} ({present})")

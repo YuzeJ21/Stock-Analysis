@@ -76,6 +76,7 @@ def _lane_plan(
     local = sources.get("local_fundamentals", {}) if isinstance(sources, dict) else {}
     sec_available = (sources.get("sec", {}) if isinstance(sources, dict) else {}).get("status") == "available"
     local_fundamentals_fixable = int(local.get("fundamentals_fixable_ticker_count", 0) or 0)
+    local_share_count_fixable = int(local.get("share_count_fixable_ticker_count", 0) or 0)
     if lane == "price_coverage":
         return (
             f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={max_candidates} TOP_N={top_n} PROVIDER={provider}",
@@ -98,7 +99,7 @@ def _lane_plan(
                 ),
             )
         return (
-            f"make sec-stage-queue TOP_N={top_n}",
+            f"make fundamentals-source-ladder-queue TOP_N={top_n}",
             "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
             (
                 "data/imports/fundamentals.csv",
@@ -107,8 +108,19 @@ def _lane_plan(
             ),
         )
     if lane == "share_count_proof":
+        if not sec_available and local_share_count_fixable > 0:
+            return (
+                f"make share-count-proof-queue TOP_N={top_n}",
+                "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted shares_outstanding rows",
+                (
+                    "data/imports/fundamentals.csv",
+                    "data/fundamentals.csv",
+                    "data/rejected/fundamentals_import_rejected.csv",
+                    "data/reports/dcf_readiness_report.csv",
+                ),
+            )
         return (
-            f"make share-count-proof-queue TOP_N={top_n}",
+            f"make fundamentals-source-ladder-queue TOP_N={top_n}",
             "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted shares_outstanding rows",
             (
                 "data/imports/fundamentals.csv",
@@ -146,7 +158,7 @@ def build_reviewed_batch_preflight(
     lane: str = "prices",
     top_n: int = 10,
     max_candidates: int = 3500,
-    provider: str = "yahoo",
+    provider: str = "auto",
     batch_id: str | None = None,
     review_date: str | None = None,
     session_preflight: dict[str, object] | None = None,
@@ -258,7 +270,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lane", default="prices")
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--max-candidates", type=int, default=3500)
-    parser.add_argument("--provider", default="yahoo")
+    parser.add_argument("--provider", default="auto")
     parser.add_argument("--batch-id", default="")
     parser.add_argument("--review-date", default="")
     return parser.parse_args(argv)

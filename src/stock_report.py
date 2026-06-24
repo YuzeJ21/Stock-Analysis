@@ -10,7 +10,15 @@ from typing import Any
 
 import pandas as pd
 
+from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.indicators import compute_return
+from src.fundamentals_source_ladder import build_fundamentals_source_ladder_rows
+from src.providers.alternative_fundamentals import (
+    ALPHA_VANTAGE_API_KEY_ENV,
+    FMP_API_KEY_ENV,
+    FINNHUB_API_KEY_ENV,
+    build_alternative_fundamentals_rows,
+)
 from src.providers.market_data import (
     AnalystEstimateSummary,
     EarningsSummary,
@@ -27,6 +35,7 @@ from src.providers.sec_companyfacts import build_sec_fundamentals_rows, write_se
 from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.review_metrics import build_review_metrics, configured_risk_free_rate
+from src.session_source_preflight import load_session_source_preflight
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
 
 
@@ -2211,6 +2220,9 @@ def _stock_report_source_audit_lines(
 ) -> list[str]:
     sec_status = "present" if os.environ.get("SEC_USER_AGENT", "").strip() else "missing"
     stooq_status = "present" if (os.environ.get("STOOQ_API_KEY", "").strip() or os.environ.get("STOQ_API_KEY", "").strip()) else "missing"
+    fmp_status = "present" if os.environ.get(FMP_API_KEY_ENV, "").strip() else "missing"
+    alpha_vantage_status = "present" if os.environ.get(ALPHA_VANTAGE_API_KEY_ENV, "").strip() else "missing"
+    finnhub_status = "present" if os.environ.get(FINNHUB_API_KEY_ENV, "").strip() else "missing"
     price_window = (
         f"{_display_value(coverage.get('first_price_date'), 'unknown')} to "
         f"{_display_value(coverage.get('last_price_date'), 'unknown')}; "
@@ -2243,7 +2255,10 @@ def _stock_report_source_audit_lines(
         f"- Peer candidate layer: {candidate_summary}",
         f"- Earnings: {_display_report_status(earnings_ready)}; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.",
         f"- Analyst estimates: {_display_report_status(estimates_ready)}; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.",
-        f"- Credentials: SEC_USER_AGENT {sec_status}; STOOQ_API_KEY {stooq_status}; missing remote credentials should not break local CSV reports or preview-first local import workflows.",
+        f"- Credentials: SEC_USER_AGENT {sec_status}; STOOQ_API_KEY {stooq_status}; "
+        f"{FMP_API_KEY_ENV} {fmp_status}; {ALPHA_VANTAGE_API_KEY_ENV} {alpha_vantage_status}; "
+        f"{FINNHUB_API_KEY_ENV} {finnhub_status}; "
+        "missing remote credentials should not break local CSV reports, provider ladders, or preview-first local import workflows.",
         f"- Report command: `make stock-report-md TICKER={ticker}`. Research-only Markdown output; copyable command only.",
     ]
 
@@ -2560,7 +2575,7 @@ def _stock_report_unlock_command_lines(
         lines.extend(
             [
                 f"- Price first: `make focus-price TICKER={ticker}`.",
-                f"- Price coverage checklist: `make price-worklist TICKERS={ticker} TOP_N=10`.",
+                f"- Price coverage refresh: `make price-refresh TICKERS={ticker} PROVIDER=auto` so Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub are tried before the last manual import path.",
                 "- Price import safety: `make price-validate && make price-preview && make price-apply`.",
                 "- Price rebuild proof: `make price-coverage TOP_N=25 && make readiness` before interpreting setup, trend, or valuation context.",
             ]
@@ -3701,10 +3716,25 @@ def _read_dataset_tickers(base_dir: Path, dataset_name: str, data_dir: Path | No
     return sorted(frame["ticker"].dropna().astype(str).str.upper().str.strip().unique().tolist())
 
 
+def _resolve_dcf_input_queue_tickers(base_dir: Path, data_dir: Path, *, top_n: int) -> list[str]:
+    rows = build_dcf_input_proof_queue_from_files(base_dir, data_dir=data_dir, top_n=top_n)
+    tickers: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        ticker = str(getattr(row, "ticker", "") or "").upper().strip()
+        if not ticker or ticker in seen:
+            continue
+        seen.add(ticker)
+        tickers.append(ticker)
+    return tickers
+
+
 def _resolve_sec_tickers(args: argparse.Namespace, base_dir: Path, data_dir: Path, output_dir: Path) -> list[str]:
     tickers: set[str] = set()
     if args.tickers:
         tickers.update(ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip())
+    if getattr(args, "from_dcf_input_queue", False):
+        tickers.update(_resolve_dcf_input_queue_tickers(base_dir, data_dir, top_n=max(int(getattr(args, "top_n", 10) or 10), 1)))
     if args.from_local_tickers:
         provider = LocalCSVMarketDataProvider(base_dir=base_dir, data_dir=data_dir, outputs_dir=output_dir)
         tickers.update(provider.list_local_tickers())
@@ -3740,6 +3770,47 @@ def _yfinance_staging_failure_message(exc: Exception) -> str:
     )
 
 
+def _provider_staging_failure_message(provider: str, exc: Exception) -> str:
+    return (
+        f"{provider} fundamentals staging failed before any rows were applied. "
+        f"Reason: {exc}. "
+        "Next safe action: verify the provider API key and network access, then rerun the provider stage command. "
+        "Rows must still pass make imports-validate and make imports-preview before any apply. "
+        "Research-only guardrail: do not infer or fabricate revenue, free cash flow, shares outstanding, "
+        "market cap, valuation inputs, or recommendations."
+    )
+
+
+def _print_fundamentals_stage_payload(payload: dict[str, Any], *, print_paths_callback) -> None:
+    print_paths_callback()
+    print(f"requested_tickers: {', '.join(payload['requested_tickers']) or '-'}")
+    print(f"resolved_tickers: {', '.join(payload['resolved_tickers']) or '-'}")
+    print(f"unresolved_tickers: {', '.join(payload['unresolved_tickers']) or '-'}")
+    print(f"rows_written: {payload['rows_written']}")
+    print(f"staged_row_count: {payload.get('staged_row_count', 0)}")
+    print(f"output_path: {payload['output_path']}")
+    if payload.get("provider_attempts"):
+        print("provider_attempts:")
+        for attempt in payload["provider_attempts"]:
+            print(
+                f"- {attempt['provider']}: status={attempt['status']} "
+                f"reason={attempt['reason_code']} "
+                f"resolved={','.join(attempt.get('resolved_tickers', [])) or '-'}"
+            )
+    if payload["warnings"]:
+        print(f"warnings: {'; '.join(payload['warnings'])}")
+    for row in payload["row_summaries"]:
+        print(
+            f"{row['ticker']}: source={row.get('source', '-')} "
+            f"populated={','.join(row['populated_fields']) or '-'} "
+            f"missing={','.join(row['missing_fields']) or '-'} "
+            f"warnings={'; '.join(row['warnings']) or '-'}"
+        )
+    print("next:")
+    for command in payload["recommended_next_commands"]:
+        print(f"- {command}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a readable local single-stock research report.")
     parser.add_argument("--ticker", help="Ticker symbol to analyze")
@@ -3760,7 +3831,15 @@ def main() -> None:
     parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge local import CSV files into canonical local data files.")
     parser.add_argument("--sec-stage-fundamentals", action="store_true", help="Fetch official SEC Companyfacts data and stage candidate fundamentals under data/imports/fundamentals.csv.")
     parser.add_argument("--yfinance-stage-fundamentals", action="store_true", help="Fetch research-grade Yahoo/yfinance fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
+    parser.add_argument("--alternative-fundamentals-stage", action="store_true", help="Fetch configured fallback provider fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
+    parser.add_argument("--fundamentals-source-ladder", action="store_true", help="Try SEC, yfinance, FMP, Alpha Vantage, and Finnhub in order, staging the first source-backed fundamentals rows found per ticker.")
+    parser.add_argument("--alt-provider", choices=["fmp", "alpha_vantage", "finnhub"], default="fmp", help="Fallback fundamentals provider for --alternative-fundamentals-stage.")
+    parser.add_argument("--fmp-api-key", help="Optional FMP API key override. Defaults to FMP_API_KEY.")
+    parser.add_argument("--alpha-vantage-api-key", help="Optional Alpha Vantage API key override. Defaults to ALPHA_VANTAGE_API_KEY.")
+    parser.add_argument("--finnhub-api-key", help="Optional Finnhub API key override. Defaults to FINNHUB_API_KEY.")
     parser.add_argument("--tickers", help="Comma-separated tickers for the SEC staging workflow.")
+    parser.add_argument("--from-dcf-input-queue", action="store_true", help="Use top DCF input blocker tickers for the source-ladder staging workflow.")
+    parser.add_argument("--top-n", type=int, default=10, help="Maximum queued ticker count for --from-dcf-input-queue.")
     parser.add_argument("--from-local-tickers", action="store_true", help="Use locally discoverable tickers for the SEC staging workflow.")
     parser.add_argument("--from-universe", action="store_true", help="Use tickers from data/universe.csv for the SEC staging workflow.")
     parser.add_argument("--from-holdings", action="store_true", help="Use tickers from data/holdings.csv for the SEC staging workflow.")
@@ -3990,6 +4069,84 @@ def main() -> None:
             print("next:")
             for command in payload["recommended_next_commands"]:
                 print(f"- {command}")
+        return
+
+    if args.alternative_fundamentals_stage:
+        requested_tickers = _resolve_sec_tickers(args, cli_base_dir, cli_data_dir, cli_output_dir)
+        if not requested_tickers:
+            raise SystemExit(
+                "Alternative fundamentals staging workflow requires at least one ticker source. Use --tickers, "
+                "--from-local-tickers, --from-universe, or --from-holdings."
+            )
+        try:
+            provider_kwargs: dict[str, Any] = {}
+            if args.alt_provider == "fmp":
+                provider_kwargs["api_key"] = args.fmp_api_key
+            elif args.alt_provider == "alpha_vantage":
+                provider_kwargs["api_key"] = args.alpha_vantage_api_key
+            elif args.alt_provider == "finnhub":
+                provider_kwargs["api_key"] = args.finnhub_api_key
+            result = build_alternative_fundamentals_rows(args.alt_provider, requested_tickers, **provider_kwargs)
+            write_result = write_sec_fundamentals_import(
+                result["rows"],
+                output_path=cli_data_dir / "imports" / "fundamentals.csv",
+                overwrite=args.overwrite,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise SystemExit(_provider_staging_failure_message(args.alt_provider, exc)) from exc
+        payload = {
+            **result,
+            **write_result,
+            "recommended_next_commands": [
+                "make imports-validate",
+                "make imports-preview",
+                "make imports-apply",
+            ],
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            _print_fundamentals_stage_payload(payload, print_paths_callback=print_paths)
+        return
+
+    if args.fundamentals_source_ladder:
+        requested_tickers = _resolve_sec_tickers(args, cli_base_dir, cli_data_dir, cli_output_dir)
+        if not requested_tickers:
+            raise SystemExit(
+                "Fundamentals source ladder requires at least one ticker source. Use --tickers, --from-local-tickers, "
+                "--from-universe, or --from-holdings."
+            )
+        try:
+            result = build_fundamentals_source_ladder_rows(
+                requested_tickers,
+                sec_user_agent=args.sec_user_agent,
+                sec_refresh=args.sec_refresh,
+                sec_cache_dir=cli_data_dir / "cache" / "sec",
+                fmp_api_key=args.fmp_api_key,
+                alpha_vantage_api_key=args.alpha_vantage_api_key,
+                finnhub_api_key=args.finnhub_api_key,
+                session_preflight=load_session_source_preflight(cli_base_dir, output_dir=cli_output_dir),
+            )
+            write_result = write_sec_fundamentals_import(
+                result["rows"],
+                output_path=cli_data_dir / "imports" / "fundamentals.csv",
+                overwrite=args.overwrite,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise SystemExit(_provider_staging_failure_message("fundamentals source ladder", exc)) from exc
+        payload = {
+            **result,
+            **write_result,
+            "recommended_next_commands": [
+                "make imports-validate",
+                "make imports-preview",
+                "make imports-apply",
+            ],
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            _print_fundamentals_stage_payload(payload, print_paths_callback=print_paths)
         return
 
     if args.list_local_tickers:

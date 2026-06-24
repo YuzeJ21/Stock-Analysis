@@ -111,9 +111,11 @@ def test_price_coverage_report_lists_rows_per_ticker_and_missing_key_status(tmp_
     assert bool(by_ticker.loc["NVDA", "usable_for_momentum"]) is True
     assert by_ticker.loc["AMD", "price_rows"] == 0
     assert bool(by_ticker.loc["AMD", "has_price_coverage"]) is False
-    assert "missing STOOQ_API_KEY" in by_ticker.loc["AMD", "remote_price_refresh_status"]
-    assert "PROVIDER=yahoo" in by_ticker.loc["AMD", "remote_price_refresh_status"]
+    assert "Stooq fallback may require STOOQ_API_KEY" in by_ticker.loc["AMD", "remote_price_refresh_status"]
+    assert "PROVIDER=auto" in by_ticker.loc["AMD", "remote_price_refresh_status"]
+    assert "configured FMP/Alpha Vantage/Finnhub" in by_ticker.loc["AMD", "remote_price_refresh_status"]
     assert "manual price import file workflow" in by_ticker.loc["AMD", "remote_price_refresh_status"]
+    assert "last" in by_ticker.loc["AMD", "remote_price_refresh_status"].lower()
     assert "import draft" not in by_ticker.loc["AMD", "remote_price_refresh_status"].lower()
     assert "data/staged/prices" in by_ticker.loc["AMD", "manual_staged_price_import"]
     assert (data_dir / "price_coverage_report.csv").exists()

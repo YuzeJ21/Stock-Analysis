@@ -218,7 +218,7 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record a reviewed batch outcome",
         "make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields",
         "make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates",
-        "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] Print reviewed capped price-run execution, diff, and rollback plan",
+        "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan",
         "make public-demo-readiness-pack Print the small shareable public demo proof set",
         "make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data",
         "make coverage-frontier [TOP_N=10] Rank broad batch opportunities by unlock impact and safe command",
@@ -298,9 +298,9 @@ def test_makefile_help_documents_key_workflows():
         "Show one ticker's peer detail and next local checks",
         "make price-status [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make price-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
-        "make price-refresh [TOP_N=25] [PROVIDER=stooq|yahoo]",
-        "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo]",
-        "make price-refresh-loop [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
+        "make price-refresh [TOP_N=25] [PROVIDER=auto|yahoo|stooq|fmp|alpha_vantage|finnhub]",
+        "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=auto]",
+        "make price-refresh-loop [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] [SLEEP_SECONDS=30]",
         "make price-refresh-loop DRY_RUN=1",
         "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100",
         "avoids repeating 25-ticker refreshes manually",
@@ -382,13 +382,13 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     script = Path("scripts/price_refresh_loop.sh").read_text(encoding="utf-8")
 
     assert "price-refresh-loop:" in makefile
-    assert 'MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0)' in makefile
+    assert 'MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),auto) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0)' in makefile
     assert 'BATCHES="${BATCHES:-5}"' in script
     assert 'TOP_N="${TOP_N:-100}"' in script
-    assert 'PROVIDER="${PROVIDER:-yahoo}"' in script
+    assert 'PROVIDER="${PROVIDER:-auto}"' in script
     assert 'DRY_RUN="${DRY_RUN:-0}"' in script
     assert 'MAX_CANDIDATES="${MAX_CANDIDATES:-}"' in script
-    assert "MAX_CANDIDATES must be a positive integer when provided. Example: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo" in script
+    assert "MAX_CANDIDATES must be a positive integer when provided. Example: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto" in script
     assert "BATCHES must be a positive integer. For broad coverage, prefer DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 so the loop calculates batches for you." in script
     assert "TOP_N must be a positive integer. Use TOP_N=100 for a capped broad dry run before changing local CSV files." in script
     assert 'BATCHES=$(((MAX_CANDIDATES + TOP_N - 1) / TOP_N))' in script
@@ -396,6 +396,12 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))" in script
     assert "Coverage target: $TARGET_NOTE. The final batch may have unused capacity if fewer missing tickers remain." in script
     assert "Provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, DCF inputs, or conclusions." in script
+    assert "PROVIDER=auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub before classifying the ticker as still missing." in script
+    assert "Provider credential visibility:" in script
+    assert "STOOQ_API_KEY=$STOOQ_KEY_STATUS" in script
+    assert "FMP_API_KEY=$FMP_KEY_STATUS" in script
+    assert "ALPHA_VANTAGE_API_KEY=$ALPHA_KEY_STATUS" in script
+    assert "FINNHUB_API_KEY=$FINNHUB_KEY_STATUS" in script
     assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
     assert "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)." in script
     assert "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time." in script
@@ -454,7 +460,7 @@ def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_write
         env={
             "BATCHES": "5",
             "TOP_N": "100",
-            "PROVIDER": "yahoo",
+            "PROVIDER": "auto",
             "SLEEP_SECONDS": "30",
             "DRY_RUN": "1",
             "MAX_CANDIDATES": "3538",
@@ -472,7 +478,11 @@ def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_write
     assert "review summary: max_candidates is the approximate missing-price target; top_n is the per-batch safety cap." in output
     assert "no provider call, import, validation apply, or external account action runs during this dry run." in output
     assert "provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, dcf inputs, or conclusions." in output
-    assert "planned loop command: make price-refresh-loop max_candidates=3538 top_n=100 provider=yahoo sleep_seconds=30" in output
+    assert "provider credential visibility:" in output
+    assert "stooq_api_key=missing" in output
+    assert "fmp_api_key=missing" in output
+    assert "alpha_vantage_api_key=missing" in output
+    assert "planned loop command: make price-refresh-loop max_candidates=3538 top_n=100 provider=auto sleep_seconds=30" in output
     assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in output
     assert "dry-run result: no data changed; review the planned command, then run exactly one capped loop when ready." in output
     assert "recalculate anytime: rerun dry_run=1 after interruptions, provider limits, or local csv changes." in output
@@ -681,7 +691,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     for phrase in (
         "make price-worklist TOP_N=10",
         "make price-refresh-loop DRY_RUN=1",
-        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
         "make readiness-snapshot",
         "make diff-hygiene",
         "make focus-fundamentals TICKER=NVDA",
@@ -698,7 +708,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert phrase in operator_guide
     for visitor_clutter in (
         "http://localhost:8501/?page=single-stock-report",
-        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
         "Targeted missing-data examples",
         "Preview-first import flow",
     ):
@@ -984,14 +994,16 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
         "`Blocked by Data - Missing Peer Mapping`",
         "## 8. Next Public Roadmap Stage",
         "Scalable price refresh",
-        "`make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo`",
+        "`make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto`",
         "`make readiness-snapshot`",
-        "`make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30`",
-        "`make diff-hygiene`",
-        "Trusted fundamentals",
-        "`make sec-stage-queue TOP_N=25`",
-        "Source-backed peers",
-        "`make peer-mapping-queue TOP_N=25`",
+        "`make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30`",
+            "`make diff-hygiene`",
+            "Trusted fundamentals",
+            "`make session-source-preflight`",
+            "`make fundamentals-source-ladder-queue TOP_N=25`",
+            "SEC/Yahoo failures pivot to configured FMP, Alpha Vantage, or Finnhub instead of stopping the workflow",
+            "Source-backed peers",
+            "`make peer-mapping-queue TOP_N=25`",
         "Optional context",
         "`make optional-context-worklist TOP_N=25`",
         "Source readiness guidance",
@@ -1005,7 +1017,7 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
 
     assert "### B. Single Stock Research Mode\n\nGoal: produce a data-honest single-ticker research report" not in roadmap
     assert "- Add ticker search in the dashboard." not in roadmap
-    assert "`make price-refresh-loop BATCHES=... TOP_N=... PROVIDER=yahoo`" not in roadmap
+    assert "`make price-refresh-loop BATCHES=... TOP_N=... PROVIDER=auto`" not in roadmap
 
 
 def test_product_spec_keeps_execution_features_permanently_out_of_scope():
@@ -1082,7 +1094,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "make imports-preview",
         "make imports-apply",
         "make price-refresh-loop DRY_RUN=1",
-        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
         "make readiness-snapshot",
         "make diff-hygiene",
         "snapshot readiness, then run one capped loop",
@@ -1117,7 +1129,7 @@ def test_operator_guide_is_command_focused_and_research_only():
     assert "META` demonstrates company-level analysis where peer context is still locked" not in guide
     assert "For local import draft workflows" not in guide
     assert "For local import drafts, use preview before apply" not in guide
-    assert "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30" not in guide
+    assert "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30" not in guide
 
     for forbidden in (
         "buy recommendation",
@@ -1584,8 +1596,8 @@ def test_readiness_model_documents_peer_layers_and_snapshot_history():
 
 def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     dashboard = Path("src/dashboard.py").read_text(encoding="utf-8")
-    dry_run_index = dashboard.index("make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo")
-    refresh_index = dashboard.index("make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30")
+    dry_run_index = dashboard.index("make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto")
+    refresh_index = dashboard.index("make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30")
 
     assert dry_run_index < refresh_index
     assert "Inspect broad refresh changes before committing or sharing them publicly" in dashboard
@@ -1932,7 +1944,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "trusted-data-pilot-evidence:\n\t@python3 -m src.trusted_data_pilot --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS)) --top-n $(or $(TOP_N),10) --write-evidence $(or $(OUTPUT),outputs/trusted_data_pilot_evidence.csv)" in makefile
     assert "reviewed-data-proof:\n\t@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv)" in makefile
     assert "lane-outcome-history:\n\t@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --history" in makefile
-    assert "price-reviewed-run:\n\t@python3 -m src.reviewed_data_proof --price-reviewed-run --max-candidates $(or $(MAX_CANDIDATES),3500) --top-n $(or $(TOP_N),100) --provider $(or $(PROVIDER),yahoo) --sleep-seconds $(or $(SLEEP_SECONDS),30)" in makefile
+    assert "price-reviewed-run:\n\t@python3 -m src.reviewed_data_proof --price-reviewed-run --max-candidates $(or $(MAX_CANDIDATES),3500) --top-n $(or $(TOP_N),100) --provider $(or $(PROVIDER),auto) --sleep-seconds $(or $(SLEEP_SECONDS),30)" in makefile
     assert "public-demo-readiness-pack:\n\t@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --public-demo-pack" in makefile
     assert "readiness-ops-center:\n\t@python3 -m src.readiness_ops --root ." in makefile
     assert "coverage-frontier:\n\t@python3 -m src.readiness_ops --root . --coverage-frontier --top-n $(or $(TOP_N),10)" in makefile
@@ -1976,7 +1988,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Add peers only when you have source-backed relationships; sector/industry fallback is context, not trusted peer valuation." in makefile
     assert "Stage only intentional docs/code/tests or reviewed sample Markdown reports; keep broad CSV/JSON refresh churn local unless it is the reviewed artifact." in makefile
     assert "make price-worklist $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)" in makefile
-    assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=$(or $(TOP_N),10) TOP_N=$(or $(TOP_N),10) PROVIDER=yahoo" in makefile
+    assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=$(or $(TOP_N),10) TOP_N=$(or $(TOP_N),10) PROVIDER=auto" in makefile
     assert "Use a real capped price loop only after reviewing the dry run and saving a readiness snapshot." in makefile
     assert "Use trusted fundamentals, peer, earnings, or estimate rows only, then validate before apply" in makefile
     assert "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan" in makefile

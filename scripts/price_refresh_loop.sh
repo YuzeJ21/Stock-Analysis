@@ -3,7 +3,7 @@ set -eu
 
 BATCHES="${BATCHES:-5}"
 TOP_N="${TOP_N:-100}"
-PROVIDER="${PROVIDER:-yahoo}"
+PROVIDER="${PROVIDER:-auto}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-30}"
 DRY_RUN="${DRY_RUN:-0}"
 MAX_CANDIDATES="${MAX_CANDIDATES:-}"
@@ -19,7 +19,7 @@ case "$SLEEP_SECONDS" in
 esac
 if [ -n "$MAX_CANDIDATES" ]; then
   case "$MAX_CANDIDATES" in
-    ''|*[!0-9]*) echo "MAX_CANDIDATES must be a positive integer when provided. Example: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo" >&2; exit 2 ;;
+    ''|*[!0-9]*) echo "MAX_CANDIDATES must be a positive integer when provided. Example: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto" >&2; exit 2 ;;
   esac
 fi
 
@@ -34,6 +34,23 @@ fi
 
 if [ -n "$MAX_CANDIDATES" ]; then
   BATCHES=$(((MAX_CANDIDATES + TOP_N - 1) / TOP_N))
+fi
+
+STOOQ_KEY_STATUS="missing"
+if [ -n "${STOOQ_API_KEY:-}" ] || [ -n "${STOQ_API_KEY:-}" ]; then
+  STOOQ_KEY_STATUS="present"
+fi
+FMP_KEY_STATUS="missing"
+if [ -n "${FMP_API_KEY:-}" ]; then
+  FMP_KEY_STATUS="present"
+fi
+ALPHA_KEY_STATUS="missing"
+if [ -n "${ALPHA_VANTAGE_API_KEY:-}" ]; then
+  ALPHA_KEY_STATUS="present"
+fi
+FINNHUB_KEY_STATUS="missing"
+if [ -n "${FINNHUB_API_KEY:-}" ]; then
+  FINNHUB_KEY_STATUS="present"
 fi
 
 TOTAL_CANDIDATES=$((BATCHES * TOP_N))
@@ -52,6 +69,10 @@ echo "Batches: $BATCHES; tickers per batch: $TOP_N; provider: $PROVIDER; sleep s
 echo "This updates local CSV files only. It does not connect to brokers, place orders, or make recommendations."
 echo "Plan: review missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
 echo "Provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, DCF inputs, or conclusions."
+echo "Auto provider behavior: PROVIDER=auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub before classifying the ticker as still missing."
+if [ "$PROVIDER" = "auto" ]; then
+  echo "Provider credential visibility: STOOQ_API_KEY=$STOOQ_KEY_STATUS; FMP_API_KEY=$FMP_KEY_STATUS; ALPHA_VANTAGE_API_KEY=$ALPHA_KEY_STATUS; FINNHUB_API_KEY=$FINNHUB_KEY_STATUS."
+fi
 echo "Coverage target: $TARGET_NOTE. The final batch may have unused capacity if fewer missing tickers remain."
 echo "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually."
 echo "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)."

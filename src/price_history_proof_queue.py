@@ -93,7 +93,7 @@ def build_price_history_proof_queue_from_payload(
     """Build proof rows from the existing onboarding price worklist."""
     wanted = {ticker.upper().strip() for ticker in tickers or [] if ticker.strip()}
     rows: list[PriceHistoryProofRow] = []
-    dry_run_command = f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={max(top_n, 1)} PROVIDER=yahoo"
+    dry_run_command = f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={max(top_n, 1)} PROVIDER=auto"
     for raw in payload.get("price_import_worklist", []):
         ticker = str(raw.get("ticker") or "").strip().upper()
         if not ticker or (wanted and ticker not in wanted):

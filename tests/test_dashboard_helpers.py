@@ -1158,9 +1158,9 @@ def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_m
     assert "about 33 100-ticker batch(es)" in rendered
     assert "replacing about 132 small 25-ticker commands" in rendered
     assert "before any local csv files change" in rendered
-    assert "make price-refresh-loop dry_run=1 max_candidates=3300 top_n=100 provider=yahoo" in rendered
+    assert "make price-refresh-loop dry_run=1 max_candidates=3300 top_n=100 provider=auto" in rendered
     assert "make readiness-snapshot" in rendered
-    assert "make price-refresh-loop max_candidates=3300 top_n=100 provider=yahoo sleep_seconds=30" in rendered
+    assert "make price-refresh-loop max_candidates=3300 top_n=100 provider=auto sleep_seconds=30" in rendered
     assert "the loop handles the 33 capped batch(es) for you" in rendered
     assert "rebuild price coverage, readiness, and project status" in rendered
     assert "make price-coverage top_n=25" in rendered
@@ -3943,7 +3943,7 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path, monkeypatch)
                     "ticker": "AMD",
                     "title": "Repair price history for AMD",
                     "status": "parse_error",
-                    "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=yahoo.",
+                    "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=auto.",
                     "focus_command": "make focus-price TICKER=AMD",
                     "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                     "target_file": "data/imports/prices.csv",
@@ -4002,7 +4002,7 @@ def test_load_action_queue_refreshes_stale_price_action_text_even_with_current_c
                     "ticker": "AMD",
                     "title": "Repair price history for AMD",
                     "status": "parse_error",
-                    "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=yahoo.",
+                    "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=auto.",
                     "focus_command": "make focus-price TICKER=AMD",
                     "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                     "target_file": "data/imports/prices.csv",
@@ -4249,7 +4249,7 @@ def _fake_research_health_outputs(_root, *, data_dir=None, output_dir):
         if status == "Needs Price Data":
             focus_command = f"make focus-price TICKER={ticker}"
             example_command = f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
-            next_action = f"Run {focus_command}, then make price-refresh TICKERS={ticker} PROVIDER=yahoo."
+            next_action = f"Run {focus_command}, then make price-refresh TICKERS={ticker} PROVIDER=auto."
         else:
             focus_command = f"make focus-fundamentals TICKER={ticker}"
             example_command = f"make sec-stage TICKERS={ticker}"
@@ -4287,7 +4287,7 @@ def _fake_action_queue_outputs(_root, *, output_dir):
                 "ticker": "AMD",
                 "title": "Repair price history for AMD",
                 "status": "missing",
-                "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=yahoo.",
+                "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=auto.",
                 "focus_command": "make focus-price TICKER=AMD",
                 "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "target_file": "data/imports/prices.csv",
@@ -4316,7 +4316,7 @@ def _fake_onboarding_outputs(_root, *, output_dir):
         lambda ticker: f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
     )
     coverage["next_best_action"] = coverage["ticker"].astype(str).str.upper().map(
-        lambda ticker: f"Run make focus-price TICKER={ticker}, then make price-refresh TICKERS={ticker} PROVIDER=yahoo."
+        lambda ticker: f"Run make focus-price TICKER={ticker}, then make price-refresh TICKERS={ticker} PROVIDER=auto."
     )
     coverage.to_csv(output_path / "ticker_data_coverage.csv", index=False)
 
@@ -4376,7 +4376,7 @@ def _fake_onboarding_outputs(_root, *, output_dir):
                 f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
             )
             refreshed["recommended_action"] = (
-                f"Run make focus-price TICKER={ticker}, then make price-refresh TICKERS={ticker} PROVIDER=yahoo."
+                f"Run make focus-price TICKER={ticker}, then make price-refresh TICKERS={ticker} PROVIDER=auto."
             )
         wizard_rows.append(refreshed)
     pd.DataFrame(wizard_rows).to_csv(output_path / "data_coverage_wizard.csv", index=False)
@@ -4388,7 +4388,7 @@ def _fake_onboarding_outputs(_root, *, output_dir):
                 "ticker": "AMD",
                 "priority": 1,
                 "status": "missing",
-                "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=yahoo.",
+                "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=auto.",
                 "target_file": "data/imports/prices.csv",
                 "focus_command": "make focus-price TICKER=AMD",
                 "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
@@ -11093,7 +11093,7 @@ def test_data_health_quick_read_cards_prioritize_first_unlock_lane_without_execu
 
     assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED"]
     assert cards[0]["title"] == "Prove fundamentals before valuation"
-    assert cards[0]["command"] == "make sec-stage-queue TOP_N=25"
+    assert cards[0]["command"] == "make fundamentals-source-ladder-queue TOP_N=25"
     assert "217 price-ready row(s) still need trusted fundamentals" in rendered
     assert "not a negative company signal" in rendered
     assert "review the fundamentals list first" in rendered
@@ -11224,7 +11224,7 @@ def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overcl
                 "Lane": "Price coverage",
                 "Unlock Impact": 3273,
                 "Possible State Move": "blocked -> partial after verified local price rows",
-                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
             }
         ]
     )
@@ -11257,7 +11257,7 @@ def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overcl
     assert cards[1]["title"] == "265 price / 23 DCF / 9 peer-ready"
     assert cards[1]["command"] == "make readiness-ops-center"
     assert cards[2]["title"] == "Price coverage"
-    assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     assert cards[3]["title"] == "1 earnings / 0 estimates ready"
     assert cards[3]["command"] == "make optional-context-summary TOP_N=10"
     assert cards[4]["command"] == "make diff-hygiene"
@@ -11379,7 +11379,7 @@ def test_data_health_freshness_routine_cards_separate_read_only_from_review_requ
         "REVIEW-REQUIRED LANES",
     ]
     assert cards[0]["command"] == "make status-check TOP_N=5 && make readiness && make dashboard-smoke && make price-refresh-loop DRY_RUN=1"
-    assert cards[1]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3300 TOP_N=100 PROVIDER=yahoo"
+    assert cards[1]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3300 TOP_N=100 PROVIDER=auto"
     assert cards[2]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
     assert "without changing files" in rendered
     assert "without hand-refreshing every ticker every day" in rendered
@@ -11522,7 +11522,7 @@ def test_data_health_trusted_pilot_lane_board_frame_groups_lanes_without_single_
     assert frame.loc[frame["Lane"].eq("Peer mapping proof path"), "Tickers"].iloc[0] == "MU"
     assert "shares outstanding, free-cash-flow margin" in rendered
     assert "earnings and analyst estimates remain locked unless trusted local rows exist" in rendered
-    assert "make price-refresh-loop dry_run=1 max_candidates=3500 top_n=100 provider=yahoo" in rendered
+    assert "make price-refresh-loop dry_run=1 max_candidates=3500 top_n=100 provider=auto" in rendered
     assert "safe_to_batch_dry_run" in rendered
     assert "review_only" in rendered
     assert "locked" in rendered
@@ -11555,7 +11555,7 @@ def test_data_health_trusted_pilot_lane_cards_show_next_safe_command_and_locked_
                 "Tickers": "-",
                 "Current Blocker Theme": "missing or stale price coverage; dry-run-first batch planning",
                 "Status": "safe_to_batch_dry_run",
-                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
                 "What Proves It": "Dry-run planning proves which price rows would be attempted.",
                 "Rows / Files Needed": "verified OHLCV rows",
                 "Rejected-Row Reports": "data/rejected/price_import_rejected.csv",
@@ -11572,7 +11572,7 @@ def test_data_health_trusted_pilot_lane_cards_show_next_safe_command_and_locked_
 
     assert [card["kicker"] for card in cards] == ["LANE GROUP", "LANE GROUP"]
     assert cards[0]["title"] == "Price coverage dry-run path"
-    assert cards[0]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert cards[0]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     assert cards[1]["title"] == "Optional context proof path"
     assert cards[1]["command"] == "make trusted-data-pilot-lane LANE=optional_context_locked"
     assert "next safe command" in rendered
@@ -11716,7 +11716,7 @@ def test_data_health_reviewed_batch_ladder_cards_turn_frontier_into_safe_steps()
             {
                 "Lane": "Price Coverage",
                 "Workflow Mode": "dry_run_first",
-                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
                 "Proof Command": "make readiness && make price-coverage TOP_N=100",
             }
         ]
@@ -11730,7 +11730,7 @@ def test_data_health_reviewed_batch_ladder_cards_turn_frontier_into_safe_steps()
     assert [card["kicker"] for card in cards] == ["BATCH STEP 1", "BATCH STEP 2", "BATCH STEP 3", "BATCH STEP 4"]
     assert cards[0]["command"] == "make readiness"
     assert cards[1]["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
-    assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     assert cards[3]["command"] == "make readiness && make price-coverage TOP_N=100 && make diff-hygiene"
     assert "copy-only reviewed packet" in rendered
     assert "workflow mode: dry-run first" in rendered
@@ -11885,8 +11885,8 @@ def test_data_health_reviewed_batch_operator_flow_uses_preflight_badge_when_plan
         freshness_message="Readiness artifacts are current.",
         packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
         snapshot_command="make readiness-snapshot",
-        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo",
-        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=auto",
+        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=auto SLEEP_SECONDS=30",
         comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-READY REVIEW_DATE=2026-06-14 TOP_N=10",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-READY"',
         do_not_proceed_if=("dry-run scope is not reviewed",),
@@ -12948,8 +12948,8 @@ def test_data_health_reviewed_batch_preflight_cards_warn_before_dry_run_when_sna
         freshness_message="Readiness artifacts are current.",
         packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=100",
         snapshot_command="make readiness-snapshot",
-        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
-        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
+        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
         comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-12 TOP_N=100",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
         do_not_proceed_if=("prior readiness snapshot is missing; run make readiness-snapshot before a reviewed batch",),
@@ -12982,8 +12982,8 @@ def test_data_health_reviewed_batch_preflight_cards_ready_state():
         freshness_message="Readiness artifacts are current.",
         packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=100",
         snapshot_command="make readiness-snapshot",
-        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
-        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
+        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
         comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-12 TOP_N=100",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
         do_not_proceed_if=("dry-run scope is not reviewed",),
@@ -14236,8 +14236,8 @@ def test_reviewed_batch_execution_checklist_covers_lane_to_ledger_loop():
         freshness_message="Readiness artifacts are current.",
         packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
         snapshot_command="make readiness-snapshot",
-        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo",
-        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=auto",
+        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=auto SLEEP_SECONDS=30",
         comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-14 TOP_N=10",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST" LANE="prices" REVIEW_DATE="2026-06-14"',
         do_not_proceed_if=(
@@ -15148,6 +15148,9 @@ def test_stock_report_next_step_cards_prioritize_missing_prices_first():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Fix price coverage"
+    assert "provider=auto" in rendered
+    assert "configured fmp/alpha vantage" in rendered
+    assert "free refresh path" not in rendered
     assert cards[-1]["title"] == "Locked"
     assert cards[-1]["command"] == "make templates"
     assert "make focus-price ticker=nvda" in rendered
@@ -19115,7 +19118,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
                 "Step": "Preview next capped missing-price batch",
                 "Command": "make price-refresh-loop DRY_RUN=1",
                 "Reason": "Advance the broad-universe price frontier safely.",
-                "SourceContext": "data/imports/prices.csv fallback plus optional Yahoo refresh",
+                "SourceContext": "data/imports/prices.csv fallback plus optional auto price ladder",
                 "FreshnessContext": "capped refresh; verify source readiness after merge",
             }
         ]
@@ -19167,7 +19170,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "peer trend needs mapped peer price history" in rendered
     assert "peer valuation needs trusted peer mappings and peer metrics" in rendered
     assert "the report withholds valuation, peer, earnings, and estimate sections when required inputs are missing" in rendered
-    assert "dry-run-first capped yahoo refresh loops" in rendered
+    assert "dry-run-first capped auto price refresh loops" in rendered
     assert "capped refresh; verify source readiness after merge" in rendered
     assert "output_to_check" in console.columns
     assert "when_to_use" in console.columns
@@ -19266,10 +19269,10 @@ def test_next_action_console_sanitizes_uncapped_batch_commands():
 
 def test_next_action_console_safety_notes_distinguish_price_dry_run_from_apply_loop():
     dry_run = dashboard.next_action_console_safety_note(
-        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     )
     real_loop = dashboard.next_action_console_safety_note(
-        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30"
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30"
     )
     rendered = f"{dry_run} {real_loop}".lower()
 
@@ -24526,8 +24529,8 @@ def _reviewed_batch_preflight_fixture(
         freshness_message="Readiness artifacts are current.",
         packet_command=packet_command,
         snapshot_command="make readiness-snapshot",
-        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo",
-        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=auto",
+        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=auto SLEEP_SECONDS=30",
         comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-16 TOP_N=10",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
         do_not_proceed_if=("dry-run scope is not reviewed",),

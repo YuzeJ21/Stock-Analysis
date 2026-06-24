@@ -101,15 +101,26 @@ For larger price refreshes, dry-run first and keep batches capped:
 
 ```bash
 make price-refresh-loop DRY_RUN=1
-make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo
+make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto
 make readiness-snapshot
-make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
+make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30
 make diff-hygiene
 ```
 
-The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover, dry-run again, snapshot readiness, then run one capped loop instead of repeating 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. Large refreshed CSVs are local working data, so review generated changes before committing them.
+The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover, dry-run again, snapshot readiness, then run one capped loop instead of repeating 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. `PROVIDER=auto` tries Yahoo, Stooq, then configured FMP, Alpha Vantage, and Finnhub price fallbacks when `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, or `FINNHUB_API_KEY` exists. Large refreshed CSVs are local working data, so review generated changes before committing them.
 
 Provider boundary: price refreshes can improve research-grade local price rows, but they do not create fundamentals, source-backed peers, earnings, analyst estimates, DCF inputs, or research conclusions. Use Data Health and the trusted-data pilot for those lanes.
+
+For fundamentals and share-count blockers, run the session preflight once before source-backed coverage work:
+
+```bash
+make session-source-preflight
+make fundamentals-source-ladder-queue TOP_N=10
+make imports-validate
+make imports-preview
+```
+
+The fundamentals source ladder automatically skips providers the current session already marked unavailable. It tries configured source-backed paths in order: SEC, Yahoo/yfinance, FMP, Alpha Vantage, then Finnhub. Reviewed local fundamentals rows stay available, but they are only prioritized when they actually match the current share-count or DCF blockers; otherwise the configured API fallback remains the next executable path. FMP, Alpha Vantage, and Finnhub require `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, or `FINNHUB_API_KEY`; missing keys are recorded as unavailable paths, not filled by inference. Apply staged rows only after validation and preview show the source-backed changes are intended.
 
 ## Function Quality Checklist
 

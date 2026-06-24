@@ -7620,10 +7620,11 @@ def stock_report_next_step_cards(
                 "title": "Fix price coverage",
                 "body": (
                     f"{ticker} still needs stronger verified local price history before broader trust. "
-                    "Use the manual price import-file workflow if the free refresh path stays unreliable."
+                    "Run the PROVIDER=auto price ladder first so Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub "
+                    "fallbacks are tried before the last manual import-file path."
                 ),
                 "badges": ["prices", "data moat"],
-                "command": ticker_focus_command("prices", ticker, fallback=f"make price-refresh TICKERS={ticker}"),
+                "command": ticker_focus_command("prices", ticker, fallback=f"make price-refresh TICKERS={ticker} PROVIDER=auto"),
             }
         )
     elif is_etf_like:
@@ -16809,7 +16810,7 @@ def next_action_console_output_to_check(category: str) -> str:
 
 def next_action_console_source_note(category: str) -> str:
     notes = {
-        "Price Coverage Batch": "Uses local prices first, then dry-run-first capped Yahoo refresh loops or staged manual OHLCV CSVs with preview/apply safeguards.",
+        "Price Coverage Batch": "Uses local prices first, then dry-run-first capped auto price refresh loops or staged manual OHLCV CSVs with preview/apply safeguards.",
         "Fundamentals / DCF Proof": "Uses SEC Companyfacts staging workflow when configured, or trusted manual fundamentals CSV rows with validate/preview/apply.",
         "Peer Mapping Proof": "Uses source-backed manual peer mappings or clearly labeled fallback context; no peer relationship is inferred as trusted.",
         "Earnings Import Setup": "Manual trusted local CSV only; feature stays unavailable until rows validate.",
@@ -24759,7 +24760,7 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
                 f"Current plan: about {planned_batches} 100-ticker batch(es), replacing about {avoided_small_batches} small 25-ticker commands."
             ),
             "badges": ["dry run first", "no manual repeats"],
-            "command": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo",
+            "command": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=auto",
         },
         {
             "kicker": "BEFORE UPDATE",
@@ -24779,7 +24780,7 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
                 "then you review the local file changes."
             ),
             "badges": ["capped batches", "review changes"],
-            "command": f"make price-refresh-loop MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+            "command": f"make price-refresh-loop MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
         },
         {
             "kicker": "VERIFY & HYGIENE",
@@ -25282,9 +25283,9 @@ def render_home_page(
                     [
                         "make status-check TOP_N=5",
                         "make price-refresh-loop DRY_RUN=1",
-                        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
                         "make readiness-snapshot",
-                        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+                        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
                         "make diff-hygiene",
                         "make readiness",
                         "make project-status",

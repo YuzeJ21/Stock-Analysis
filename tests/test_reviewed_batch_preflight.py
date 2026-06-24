@@ -35,7 +35,7 @@ def test_reviewed_batch_preflight_blocks_when_prior_snapshot_missing(tmp_path: P
     assert preflight.prior_snapshot_exists is False
     assert "prior readiness snapshot is missing" in " ".join(preflight.do_not_proceed_if)
     assert "make readiness-snapshot" in rendered
-    assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo" in rendered
+    assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto" in rendered
     assert "make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-12 TOP_N=100" in rendered
     assert "Post-run hygiene before any public commit" in rendered
     assert "make diff-hygiene" in rendered
@@ -61,7 +61,7 @@ def test_reviewed_batch_preflight_ready_when_snapshot_and_freshness_exist(tmp_pa
 
     assert preflight.status == "ready_for_dry_run"
     assert preflight.lane_scope == "Fundamentals / DCF"
-    assert preflight.dry_run_command == "make sec-stage-queue TOP_N=25"
+    assert preflight.dry_run_command == "make fundamentals-source-ladder-queue TOP_N=25"
     assert "data/imports/fundamentals.csv" in preflight.expected_artifacts
     assert "make diff-hygiene" in preflight.post_run_hygiene
     assert preflight.proof_record_command.startswith('make reviewed-batch-proof-record BATCH_ID="RB-FUND"')
@@ -85,7 +85,7 @@ def test_reviewed_batch_preflight_handles_share_count_lane_scope(tmp_path: Path)
 
     assert preflight.status == "ready_for_dry_run"
     assert preflight.lane_scope == "Share Count Proof"
-    assert preflight.dry_run_command == "make share-count-proof-queue TOP_N=10"
+    assert preflight.dry_run_command == "make fundamentals-source-ladder-queue TOP_N=10"
     assert "reviewed trusted shares_outstanding rows" in preflight.capped_execution_command
     assert "data/rejected/fundamentals_import_rejected.csv" in preflight.expected_artifacts
     assert "DRY_RUN=1 make reviewed-batch LANE=share_count TOP_N=10" in rendered

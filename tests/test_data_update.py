@@ -5,12 +5,17 @@ from pathlib import Path
 import pandas as pd
 
 from src.data_update import (
+    AlphaVantageDailyPriceSource,
+    FMPDailyPriceSource,
+    FinnhubDailyPriceSource,
+    PriceSourceLadder,
     StooqDailyPriceSource,
     YahooChartDailyPriceSource,
     apply_price_import_merge,
     enrich_price_update_status_frame,
     load_update_tickers,
     main,
+    make_price_source,
     preview_price_import_merge,
     refresh_price_update_status_output,
     show_price_update_status,
@@ -159,6 +164,229 @@ def test_yahoo_chart_source_uses_provider_symbol_alias_but_preserves_local_ticke
     assert "/BRK-B?" in seen["url"]
     assert frame.iloc[0]["ticker"] == "BRK.B"
     assert "provider symbol BRK-B" in warnings[0]
+
+
+def test_fmp_price_source_normalizes_historical_rows():
+    def opener(request, timeout: int):
+        assert timeout == 20
+        assert "historical-price-full/META" in request.full_url
+        assert "apikey=demo" in request.full_url
+        return FakeHTTPResponse(
+            json.dumps(
+                {
+                    "historical": [
+                        {
+                            "date": "2026-01-03",
+                            "open": 100.0,
+                            "high": 102.0,
+                            "low": 99.0,
+                            "close": 101.0,
+                            "adjClose": 100.5,
+                            "volume": 12345,
+                        }
+                    ]
+                }
+            )
+        )
+
+    frame, warnings = FMPDailyPriceSource(api_key="demo", opener=opener).fetch_history("META")
+
+    assert warnings == [
+        "META: prices refreshed from FMP historical price endpoint; treat as research-grade and verify if used for decisions."
+    ]
+    assert len(frame) == 1
+    assert frame.iloc[0]["ticker"] == "META"
+    assert frame.iloc[0]["adj_close"] == 100.5
+
+
+def test_alpha_vantage_price_source_normalizes_daily_adjusted_rows():
+    def opener(request, timeout: int):
+        assert timeout == 20
+        assert "function=TIME_SERIES_DAILY_ADJUSTED" in request.full_url
+        assert "symbol=META" in request.full_url
+        assert "apikey=demo" in request.full_url
+        return FakeHTTPResponse(
+            json.dumps(
+                {
+                    "Time Series (Daily)": {
+                        "2026-01-03": {
+                            "1. open": "100.0",
+                            "2. high": "102.0",
+                            "3. low": "99.0",
+                            "4. close": "101.0",
+                            "5. adjusted close": "100.5",
+                            "6. volume": "12345",
+                        }
+                    }
+                }
+            )
+        )
+
+    frame, warnings = AlphaVantageDailyPriceSource(api_key="demo", opener=opener).fetch_history("META")
+
+    assert warnings == [
+        "META: prices refreshed from Alpha Vantage daily adjusted endpoint; treat as research-grade and verify if used for decisions."
+    ]
+    assert len(frame) == 1
+    assert frame.iloc[0]["ticker"] == "META"
+    assert frame.iloc[0]["adj_close"] == 100.5
+
+
+def test_finnhub_price_source_normalizes_daily_candle_rows():
+    def opener(request, timeout: int):
+        assert timeout == 20
+        assert "stock/candle" in request.full_url
+        assert "symbol=META" in request.full_url
+        assert "resolution=D" in request.full_url
+        assert "token=demo" in request.full_url
+        return FakeHTTPResponse(
+            json.dumps(
+                {
+                    "s": "ok",
+                    "t": [1767398400],
+                    "o": [100.0],
+                    "h": [102.0],
+                    "l": [99.0],
+                    "c": [101.0],
+                    "v": [12345],
+                }
+            )
+        )
+
+    frame, warnings = FinnhubDailyPriceSource(api_key="demo", opener=opener).fetch_history("META")
+
+    assert warnings == [
+        "META: prices refreshed from Finnhub daily candle endpoint; treat as research-grade and verify if used for decisions."
+    ]
+    assert len(frame) == 1
+    assert frame.iloc[0]["ticker"] == "META"
+    assert frame.iloc[0]["adj_close"] == 101.0
+
+
+def test_price_source_ladder_tries_stooq_after_yahoo_has_no_rows():
+    yahoo = FakePriceSource({"META": None})
+    stooq = FakePriceSource(
+        {
+            "META": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "META",
+                        "open": 100.0,
+                        "high": 102.0,
+                        "low": 99.0,
+                        "close": 101.0,
+                        "adj_close": 101.0,
+                        "volume": 12345,
+                    }
+                ]
+            )
+        }
+    )
+
+    frame, warnings = PriceSourceLadder([("yahoo", yahoo), ("stooq", stooq)]).fetch_history("META")
+
+    assert yahoo.calls == ["META"]
+    assert stooq.calls == ["META"]
+    assert not frame.empty
+    assert frame.iloc[0]["ticker"] == "META"
+    assert "source ladder resolved price rows from stooq after yahoo failed" in warnings[-1]
+
+
+def test_update_local_price_data_records_auto_price_ladder_provider(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    yahoo = FakePriceSource({"META": None})
+    stooq = FakePriceSource(
+        {
+            "META": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "META",
+                        "open": 100.0,
+                        "high": 102.0,
+                        "low": 99.0,
+                        "close": 101.0,
+                        "adj_close": 101.0,
+                        "volume": 12345,
+                    }
+                ]
+            )
+        }
+    )
+    source = PriceSourceLadder([("yahoo", yahoo), ("stooq", stooq)])
+
+    result = update_local_price_data(tmp_path, source=source, tickers=["META"])
+
+    status = pd.read_csv(result.status_path)
+    assert result.tickers_updated == ["META"]
+    assert status.iloc[0]["provider"] == "stooq"
+    assert any("source ladder resolved price rows from stooq" in warning for warning in result.warnings)
+
+
+def test_make_price_source_auto_builds_yahoo_then_stooq_ladder():
+    source = make_price_source("auto")
+
+    assert isinstance(source, PriceSourceLadder)
+    assert source.provider_names == ["yahoo", "stooq"]
+
+
+def test_make_price_source_auto_adds_configured_keyed_price_fallbacks(monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "fmp-demo")
+    monkeypatch.setenv("ALPHA_VANTAGE_API_KEY", "alpha-demo")
+    monkeypatch.setenv("FINNHUB_API_KEY", "finnhub-demo")
+
+    source = make_price_source("auto")
+
+    assert isinstance(source, PriceSourceLadder)
+    assert source.provider_names == ["yahoo", "stooq", "fmp", "alpha_vantage", "finnhub"]
+
+
+def test_price_refresh_cli_accepts_direct_finnhub_provider(tmp_path: Path, monkeypatch):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    seen: dict[str, object] = {}
+
+    def fake_update_local_price_data(**kwargs):
+        seen["source"] = kwargs["source"]
+        seen["tickers"] = kwargs["tickers"]
+        return type(
+            "Result",
+            (),
+            {
+                "path": tmp_path / "data" / "prices.csv",
+                "tickers_requested": ["META"],
+                "tickers_updated": [],
+                "tickers_missing": ["META"],
+                "tickers_skipped_fresh": [],
+                "chunks_processed": 0,
+                "rows_written": 0,
+                "status_path": tmp_path / "outputs" / "price_update_status.csv",
+                "warnings": [],
+            },
+        )()
+
+    monkeypatch.setattr("src.data_update.update_local_price_data", fake_update_local_price_data)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "data_update",
+            "--project-root",
+            str(tmp_path),
+            "--tickers",
+            "META",
+            "--provider",
+            "finnhub",
+        ],
+    )
+
+    main()
+
+    assert isinstance(seen["source"], FinnhubDailyPriceSource)
+    assert seen["tickers"] == ["META"]
 
 
 def test_load_update_tickers_collects_universe_holdings_themes_and_benchmarks(tmp_path: Path):
@@ -435,7 +663,7 @@ def test_show_price_update_status_enriches_legacy_rows_with_commands(tmp_path: P
                 "error_category": "parse_error",
                 "error_message": "AMD: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD PROVIDER=auto so Yahoo and Stooq are tried automatically; only if both provider paths fail, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             }
         ]
     ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
@@ -445,6 +673,10 @@ def test_show_price_update_status_enriches_legacy_rows_with_commands(tmp_path: P
     assert payload["status"] == "available"
     row = payload["rows"][0]
     assert row["recommended_action"].startswith("Run make focus-price TICKER=AMD")
+    assert "PROVIDER=auto" in row["recommended_action"]
+    assert "configured FMP/Alpha Vantage/Finnhub" in row["recommended_action"]
+    assert "only if every provider path fails" in row["recommended_action"]
+    assert "free refresh path fails" not in row["recommended_action"]
     assert row["focus_command"] == "make focus-price TICKER=AMD"
     assert row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
     assert row["target_file"] == "data/imports/prices.csv"

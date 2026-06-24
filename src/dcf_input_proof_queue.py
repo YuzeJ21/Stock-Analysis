@@ -389,11 +389,51 @@ def _session_local_share_fixable_count(root: Path | None) -> int | None:
     return int(local.get("share_count_fixable_ticker_count", 0) or 0)
 
 
-def _source_mode(family: str, *, sec_configured: bool, sec_available: bool | None) -> str:
+def _session_provider_statuses(root: Path | None) -> dict[str, str]:
+    if root is None:
+        return {}
+    preflight = load_session_source_preflight(root)
+    if not isinstance(preflight, dict):
+        return {}
+    sources = preflight.get("sources", {})
+    if not isinstance(sources, dict):
+        return {}
+    labels = {
+        "yfinance_stage": "yfinance",
+        "fmp": "FMP",
+        "alpha_vantage": "Alpha Vantage",
+        "finnhub": "Finnhub",
+    }
+    statuses: dict[str, str] = {}
+    for key, label in labels.items():
+        source = sources.get(key, {})
+        if isinstance(source, dict):
+            status = str(source.get("status") or "status unknown").strip().replace("_", " ")
+            reason = str(source.get("reason_code") or "").strip().replace("_", " ")
+            statuses[key] = f"{label} {status}" + (f" ({reason})" if reason else "")
+        else:
+            statuses[key] = f"{label} status unknown"
+    return statuses
+
+
+def _source_mode(
+    family: str,
+    *,
+    sec_configured: bool,
+    sec_available: bool | None,
+    provider_statuses: dict[str, str] | None = None,
+) -> str:
     if family == "price":
-        return "price dry-run first"
+        return "price dry-run first; PROVIDER=auto tries Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub"
     if sec_available is False:
-        return "trusted-local/manual in this session; SEC unavailable"
+        statuses = provider_statuses or {}
+        return (
+            "fundamentals source ladder without SEC in this session; "
+            f"{statuses.get('yfinance_stage', 'yfinance status unknown')}; "
+            f"{statuses.get('fmp', 'FMP status unknown')}; "
+            f"{statuses.get('alpha_vantage', 'Alpha Vantage status unknown')}; "
+            f"{statuses.get('finnhub', 'Finnhub status unknown')}"
+        )
     if sec_configured:
         return "SEC-stageable or trusted-local"
     return "trusted-local/manual; configure SEC_USER_AGENT for SEC staging"
@@ -401,7 +441,7 @@ def _source_mode(family: str, *, sec_configured: bool, sec_available: bool | Non
 
 def _next_safe_command(ticker: str, family: str) -> str:
     if family == "price":
-        return f"make price-worklist TICKERS={ticker}"
+        return f"make price-refresh TICKERS={ticker} PROVIDER=auto"
     if family == "shares_outstanding":
         return f"make share-count-proof-queue TICKERS={ticker}"
     return f"make focus-fundamentals TICKER={ticker}"
@@ -655,6 +695,7 @@ def build_dcf_input_proof_queue_from_dcf_frame(
         return []
     sec_available = _session_sec_available(root)
     local_share_fixable_count = _session_local_share_fixable_count(root)
+    provider_statuses = _session_provider_statuses(root)
     scope_lookup = _universe_scope_lookup(universe)
     ranked = sorted(
         (row for _, row in queue.iterrows()),
@@ -681,7 +722,12 @@ def build_dcf_input_proof_queue_from_dcf_frame(
                 missing_dcf_fields=_display_fields(fields),
                 ready_dcf_inputs=_display_fields(ready),
                 dcf_input_status=_dcf_input_status(fields, ready),
-                source_mode=_source_mode(family, sec_configured=sec_configured, sec_available=sec_available),
+                source_mode=_source_mode(
+                    family,
+                    sec_configured=sec_configured,
+                    sec_available=sec_available,
+                    provider_statuses=provider_statuses,
+                ),
                 next_safe_command=_next_safe_command(ticker, family),
                 proof_packet_command=_proof_packet_command(ticker, family),
                 validation_sequence=_validation_sequence(family),

@@ -564,7 +564,8 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates" in output
     assert "best next proof: make trusted-data-pilot-candidates top_n=10" in output
     assert "details below are capped and copy-only" in output
-    assert "trusted import/fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
+    assert "last manual fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
+    assert "trusted import/fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" not in output
     assert "suggested check: make focus-fundamentals ticker=nvda" in output
     assert "trusted import/fallback: make sec-stage tickers=nvda" in output
     assert "guidance: use make" in output
@@ -666,7 +667,10 @@ def test_project_status_fast_check_normalizes_stale_generated_price_actions(tmp_
     action = payload["top_onboarding_actions"][0]
     assert action["reason"] == "This ticker has only 2 verified local price rows."
     assert "make price-refresh-loop DRY_RUN=1" in action["recommended_action"]
-    assert "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD" in action["recommended_action"]
+    assert "make price-refresh TICKERS=AMD PROVIDER=auto" in action["recommended_action"]
+    assert "configured FMP/Alpha Vantage/Finnhub" in action["recommended_action"]
+    assert "only if every provider path fails" in action["recommended_action"]
+    assert "free refresh path fails" not in action["recommended_action"]
     assert "or run make price-refresh" not in action["recommended_action"]
 
 
@@ -678,7 +682,7 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
                 "Step": "Preview next capped missing-price batch",
                 "Command": "make price-refresh-loop DRY_RUN=1",
                 "Reason": "Preview the broad-universe price frontier first; manual import draft fallback remains available.",
-                "SourceContext": "data/imports/prices.csv fallback plus optional Yahoo refresh",
+                "SourceContext": "data/imports/prices.csv fallback plus optional auto price ladder",
                 "FreshnessContext": "dry-run first; verify source/freshness and generated CSV churn after any refresh",
             },
             {
@@ -707,8 +711,12 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
         command_row["FreshnessContext"]
         == "dry-run first; verify source readiness notes and local CSV changes after any refresh"
     )
+    assert "PROVIDER=auto" in command_row["Reason"]
+    assert "configured FMP/Alpha Vantage/Finnhub" in command_row["Reason"]
     assert "manual import file fallback" in command_row["Reason"]
     assert "manual import draft fallback" not in command_row["Reason"]
+    assert "optional Yahoo refresh" not in command_row["SourceContext"]
+    assert "configured FMP/Alpha Vantage/Finnhub" in command_row["SourceContext"]
     assert "generated CSV churn" not in command_row["FreshnessContext"]
     assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot-candidates TOP_N=10"
     guided_row = payload["recommended_next_command_rows"][2]

@@ -357,9 +357,27 @@ def _price_focus_recommended_action(ticker: str) -> str:
         )
     return (
         f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker}; "
-        "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Yahoo, Stooq, "
+        "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
+        "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
+
+
+def _price_action_needs_refresh(text: str, ticker: str) -> bool:
+    normalized = str(text or "").strip().lower()
+    if not normalized:
+        return True
+    if "free refresh path fails" in normalized:
+        return True
+    if "python3 -m src.data_update" in normalized:
+        return True
+    if "provider=auto" not in normalized:
+        return True
+    if "configured fmp/alpha vantage" not in normalized:
+        return True
+    if ticker and f"make price-refresh tickers={ticker.lower()}" not in normalized:
+        return True
+    return False
 
 
 def _fundamentals_focus_recommended_action(ticker: str) -> str:
@@ -449,7 +467,7 @@ def _normalize_onboarding_recommended_action(
 ) -> str:
     text = str(recommended_action or "").strip()
     normalized_focus = str(focus_command or "").strip().lower()
-    if dataset == "prices" and ticker and "make focus-price" not in text:
+    if dataset == "prices" and ticker and ("make focus-price" not in text or _price_action_needs_refresh(text, ticker)):
         return _price_focus_recommended_action(ticker)
     if dataset == "fundamentals" and ticker and "make focus-fundamentals" not in text:
         return _fundamentals_focus_recommended_action(ticker)
@@ -489,7 +507,7 @@ def _normalize_data_quality_coverage_action(
     lane = _coverage_lane_from_context(missing_fields, normalized_focus, normalized_recommended)
 
     if normalized_status == "Needs Price Data":
-        if ticker and "make focus-price" not in normalized_recommended:
+        if ticker and ("make focus-price" not in normalized_recommended or _price_action_needs_refresh(normalized_recommended, ticker)):
             normalized_recommended = _price_focus_recommended_action(ticker)
         if not normalized_focus:
             normalized_focus = focus_command_for_ticker("prices", ticker)
@@ -659,7 +677,7 @@ def build_action_queue_rows(
                 or row_recommended_action
                 or fallback_recommended_action
             )
-            if ticker and "make focus-price" not in recommended_action:
+            if ticker and ("make focus-price" not in recommended_action or _price_action_needs_refresh(recommended_action, ticker)):
                 recommended_action = _price_focus_recommended_action(ticker)
             fallback_command = _price_normalize_command(ticker)
             example_command = (
@@ -709,7 +727,7 @@ def build_action_queue_rows(
                 recommended_action = str(row.get("NextBestAction", "")).strip()
                 focus_command = str(row.get("FocusCommand", "")).strip() or focus_command_for_ticker("prices", ticker)
                 example_command = _normalize_queue_command(str(row.get("ExampleCommand", "")).strip()) or _price_normalize_command(ticker)
-                if ticker and "make focus-price" not in recommended_action:
+                if ticker and ("make focus-price" not in recommended_action or _price_action_needs_refresh(recommended_action, ticker)):
                     recommended_action = _price_focus_recommended_action(ticker)
                 items.append(
                     ActionQueueItem(
@@ -961,7 +979,8 @@ def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
         ticker = f" {row['ticker']}" if row["ticker"] else ""
         print(f"- P{row['priority']} {row['action_type']}{ticker}: {_friendly_action_text(row['recommended_action'])}")
         print(f"  suggested check: {row.get('focus_command') or '-'}")
-        print(f"  next local command: {row['example_command']}")
+        command_label = "last manual fallback" if str(row.get("action_type") or "").strip() == "prices" else "next local command"
+        print(f"  {command_label}: {row['example_command']}")
         if row.get("credential_required"):
             present = "present" if bool(row.get("credential_present")) else "missing"
             print(f"  credential: {row['credential_required']} ({present})")

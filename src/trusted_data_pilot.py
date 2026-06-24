@@ -1574,14 +1574,14 @@ def pilot_lane_runbook(lane: str) -> PilotLaneRunbook:
             readiness_proof_command="make price-coverage && make readiness && make status-check TOP_N=5",
             remains_blocked_when="the dry run finds no safe provider path, downloaded rows cannot be verified, rejected rows appear, or readiness still shows missing price coverage.",
             ordered_steps=(
-                "Run make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo.",
+                "Run make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto.",
                 "Review the dry-run plan before running any real refresh.",
                 "If a real capped refresh is chosen later, inspect generated CSV diffs before keeping artifacts.",
                 "For downloaded files, normalize verified OHLCV rows, then run make price-validate and make price-preview.",
                 "Run make price-apply only for reviewed trusted price rows.",
                 "Run make price-coverage, make readiness, and make status-check TOP_N=5 to prove coverage changed or remains blocked.",
             ),
-            next_safe_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+            next_safe_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
         ),
     }
     return specs[normalized]

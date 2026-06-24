@@ -134,7 +134,7 @@ def test_public_home_next_step_cards_are_copyable_and_readiness_gated():
     ).lower()
 
     assert price_gap_cards[0]["command"] == "make price-refresh-loop DRY_RUN=1"
-    assert fundamentals_cards[0]["command"] == "make sec-stage-queue TOP_N=25"
+    assert fundamentals_cards[0]["command"] == "make fundamentals-source-ladder-queue TOP_N=25"
     assert peer_cards[0]["command"] == "make peer-mapping-queue TOP_N=25"
     assert price_gap_cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert price_gap_cards[2]["command"] == "make data-wizard TOP_N=10"
@@ -207,7 +207,7 @@ def test_public_home_current_data_coverage_cards_show_public_snapshot_and_unlock
     assert "analyst estimates: 0/3,538 ready (0.0%)" in rendered
     assert "zero ready rows means intentionally locked" in rendered
     assert "make price-refresh-loop dry_run=1" in rendered
-    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make fundamentals-source-ladder-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
     assert "make optional-context-worklist top_n=25" in rendered
     assert "broker" not in rendered
