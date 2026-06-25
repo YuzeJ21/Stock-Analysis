@@ -119,6 +119,31 @@ def _cached_sec_ticker_map(root: Path) -> dict[str, dict[str, object]]:
     return ticker_map
 
 
+def _local_sec_cik_ticker_map(root: Path) -> dict[str, dict[str, object]]:
+    ticker_map: dict[str, dict[str, object]] = {}
+    for path in (root / "data" / "fundamentals.csv", root / "data" / "imports" / "fundamentals.csv"):
+        for row in _read_csv(path):
+            ticker = str(row.get("ticker") or "").upper().strip()
+            cik_value = row.get("sec_cik")
+            if not ticker or cik_value in (None, ""):
+                continue
+            ticker_map.setdefault(
+                ticker,
+                {
+                    "ticker": ticker,
+                    "cik": cik_value,
+                    "title": row.get("sec_entity_name") or row.get("name") or row.get("company_name"),
+                },
+            )
+    return ticker_map
+
+
+def _sec_submissions_ticker_map(root: Path) -> dict[str, dict[str, object]]:
+    ticker_map = _local_sec_cik_ticker_map(root)
+    ticker_map.update(_cached_sec_ticker_map(root))
+    return ticker_map
+
+
 def _truthy(value: object) -> bool:
     return str(value).strip().lower() in {"true", "1", "yes", "y"}
 
@@ -133,7 +158,7 @@ def _clean(value: object, fallback: str = "-") -> str:
 def sec_submissions_metadata_packet_lines(ticker: str, *, root: Path) -> list[str]:
     packet = build_sec_submission_metadata_packet(
         ticker,
-        ticker_map=_cached_sec_ticker_map(root),
+        ticker_map=_sec_submissions_ticker_map(root),
         cache_dir=root / "data" / "cache" / "sec",
         allow_network=False,
     )

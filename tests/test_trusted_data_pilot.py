@@ -1492,6 +1492,36 @@ def test_render_trusted_data_pilot_packet_surfaces_session_boundary_for_blocked_
     assert "Session boundary: SEC and Yahoo-backed fundamentals are unavailable in this session" in rendered
 
 
+def test_trusted_data_pilot_packet_uses_local_sec_cik_when_ticker_map_cache_is_missing(tmp_path):
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "HOOD",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=HOOD",
+            }
+        ],
+        [],
+        [{"ticker": "HOOD", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )[0]
+    _write_text(
+        tmp_path / "data" / "fundamentals.csv",
+        "ticker,sec_cik,sec_entity_name\nHOOD,1783879,\"Robinhood Markets, Inc.\"\n",
+    )
+
+    rendered = render_trusted_data_pilot_packet(candidate, requested_ticker="HOOD", root=tmp_path)
+
+    assert "SEC submissions metadata packet:" in rendered
+    assert "Status: unavailable (cached_submission_missing)" in rendered
+    assert "HOOD CIK 0001783879" in rendered
+    assert "ticker_not_found_in_sec_ticker_map" not in rendered
+    assert "metadata supports ticker/entity/SIC/filing-recency evidence only" in rendered
+    assert "does not unlock fundamentals, share count, DCF, valuation, earnings, or analyst estimates" in rendered
+
+
 def test_render_trusted_data_pilot_board_summarizes_batch_without_writing_files(tmp_path):
     candidates = build_trusted_data_pilot_candidates(
         [
