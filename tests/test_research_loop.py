@@ -59,7 +59,7 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
     assert pre_report["current_step"] == "Single-Stock Report"
     assert pre_report["next_action"] == "Open Review"
     assert loaded_report["current_step"] == "NVDA report review"
-    assert loaded_report["next_action"] == "Read Suggested Reading Path before detailed tabs"
+    assert loaded_report["next_action"] == "Review Detailed Review tabs after the readiness summary"
     assert loaded_report["proof_href"] == "?mode=public&page=data-health&drawer=proof"
     assert loaded_report["stop_href"] == "?mode=public&page=data-health&drawer=proof"
     assert proof_lane["current_step"] == "Proof lane shell"
@@ -72,6 +72,20 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
+    assert "at a glance" not in rendered
+    assert "reader guide" not in rendered
+
+    public_data_health = research_loop.data_health_research_loop_context(
+        selected_lane_key="proof",
+        readiness_freshness=current,
+        next_action="Open the public evidence drawer",
+        public_mode=True,
+    )
+    public_rendered = " ".join(public_data_health.values()).lower()
+    assert "commands stay copy-only" not in public_rendered
+    assert "copy-only" not in public_rendered
+    assert "validate and preview" not in public_rendered
+    assert "evidence stays collapsed" in public_rendered
 
 
 def test_data_health_research_loop_action_href_respects_copy_only_commands():

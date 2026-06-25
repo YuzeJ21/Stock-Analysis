@@ -6,6 +6,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import pandas as pd
 import streamlit as st
@@ -447,7 +448,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         "Single-Stock Report": {
             "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source readiness notes.",
             "locked": "Company valuation, peer comparison, earnings, and estimate sections stay withheld when trusted inputs are missing or excluded.",
-            "read": "Read At A Glance, then Quick Read, then the source readiness check. Locked sections are boundaries, not hidden conclusions.",
+            "read": "Read Review Status, then What Can Be Read Now, then the source readiness check. Locked sections are boundaries, not hidden conclusions.",
             "proof": "After trusted rows change, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
             "review_route": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact missing-input path if anything is still locked.",
             "review_area": "Single-Stock Review",
@@ -2053,6 +2054,13 @@ def apply_dashboard_theme() -> None:
           min-height: 1.25rem !important;
           margin: 0.2rem 0 0.2rem 0 !important;
         }
+        [data-testid="stSidebar"] pre,
+        [data-testid="stSidebar"] code {
+          white-space: pre-wrap !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+          overflow-x: hidden !important;
+        }
         .command-topbar {
           display: flex;
           align-items: center;
@@ -2501,6 +2509,66 @@ def apply_dashboard_theme() -> None:
           background: #eff6ff;
           color: #1d4ed8 !important;
         }
+        .selector-shortlist {
+          border: 1px solid rgba(15, 118, 110, 0.18);
+          border-radius: 8px;
+          background: linear-gradient(180deg, #f8fffc 0%, #ffffff 100%);
+          padding: 0.78rem 0.86rem;
+          margin: 0.58rem 0 0.88rem 0;
+          box-shadow: 0 10px 26px rgba(15, 23, 42, 0.045);
+        }
+        .selector-shortlist.empty {
+          background: #ffffff;
+          border-style: dashed;
+        }
+        .selector-shortlist-title {
+          color: #0b3b36;
+          font-size: 0.96rem;
+          font-weight: 950;
+          line-height: 1.2;
+        }
+        .selector-shortlist-body {
+          color: #526071;
+          font-size: 0.78rem;
+          line-height: 1.34;
+          margin-top: 0.24rem;
+        }
+        .selector-shortlist-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+          gap: 0.5rem;
+          margin-top: 0.62rem;
+        }
+        .selector-shortlist-card {
+          min-width: 0;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 8px;
+          background: #ffffff;
+          padding: 0.62rem 0.68rem;
+        }
+        .selector-shortlist-ticker {
+          color: #07111d;
+          font-size: 0.96rem;
+          font-weight: 950;
+        }
+        .selector-shortlist-meta {
+          display: inline-flex;
+          margin-top: 0.22rem;
+          border-radius: 999px;
+          background: #eef9f5;
+          border: 1px solid rgba(15, 118, 110, 0.16);
+          color: #0b3b36;
+          font-size: 0.68rem;
+          font-weight: 900;
+          padding: 0.16rem 0.42rem;
+        }
+        .selector-shortlist-detail {
+          color: #111827;
+          font-size: 0.8rem;
+          font-weight: 900;
+          line-height: 1.26;
+          margin-top: 0.4rem;
+        }
         .public-proof-history {
           display: grid;
           grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
@@ -2671,6 +2739,7 @@ def apply_dashboard_theme() -> None:
           font-weight: 900;
           letter-spacing: 0;
           color: var(--research-ink);
+          line-height: 1.22;
         }
         .section-caption {
           margin-top: 0;
@@ -4498,10 +4567,10 @@ def score_badge(score: object) -> str:
 def section_header_html(title: str, caption: str = "") -> str:
     caption_html = f"<div class='section-caption'>{html.escape(caption)}</div>" if caption else ""
     return (
-        "<div class='section-shell'>"
-        f"<div class='section-title'>{html.escape(title)}</div>"
+        "<section class='section-shell'>"
+        f"<h2 class='section-title'>{html.escape(title)}</h2>"
         f"{caption_html}"
-        "</div>"
+        "</section>"
     )
 
 
@@ -4654,20 +4723,46 @@ def render_sidebar_product_intro() -> None:
     st.markdown(sidebar_product_intro_html(), unsafe_allow_html=True)
 
 
-def notice_card_html(title: str, body: str, command: str = "", tone: str = "info") -> str:
+def public_notice_copy(value: object) -> str:
+    """Translate operator-refresh wording for public notice cards."""
+
+    raw_text = format_missing(value, "")
+    if re.search(r"generated\s+csv\s+output", raw_text, flags=re.IGNORECASE):
+        return "Refresh readiness before relying on saved status output."
+    text = operator_queue_preview_copy(raw_text)
+    replacements = {
+        "Run open the evidence drawer before relying on generated CSV output.": (
+            "Refresh readiness before relying on saved status output."
+        ),
+        "generated CSV output": "saved status output",
+        "generated csv output": "saved status output",
+        "local CSV": "saved local input",
+        "local csv": "saved local input",
+        "CSV": "saved data",
+        "csv": "saved data",
+    }
+    for raw, replacement in replacements.items():
+        text = text.replace(raw, replacement)
+    text = re.sub(r"\b(open the evidence drawer)\b", "refresh readiness", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s{2,}", " ", text).strip()
+    return text
+
+
+def notice_card_html(title: str, body: str, command: str = "", tone: str = "info", *, public: bool = False) -> str:
     tone_class = "warning" if tone == "warning" else "success" if tone == "success" else ""
-    command_html = f"<div class='command-chip'>{html.escape(command)}</div>" if command else ""
+    display_body = public_notice_copy(body) if public else str(body)
+    command_html = "" if public else f"<div class='command-chip'>{html.escape(command)}</div>" if command else ""
     return (
         f"<div class='notice-card {tone_class}'>"
         f"<div class='notice-title'>{html.escape(title)}</div>"
-        f"<div class='notice-body'>{html.escape(body)}</div>"
+        f"<div class='notice-body'>{html.escape(display_body)}</div>"
         f"{command_html}"
         "</div>"
     )
 
 
-def render_notice_card(title: str, body: str, command: str = "", tone: str = "info") -> None:
-    st.markdown(notice_card_html(title, body, command, tone), unsafe_allow_html=True)
+def render_notice_card(title: str, body: str, command: str = "", tone: str = "info", *, public: bool = False) -> None:
+    st.markdown(notice_card_html(title, body, command, tone, public=public), unsafe_allow_html=True)
 
 
 def context_note_html(title: str, body: str, tone: str = "neutral") -> str:
@@ -4785,6 +4880,27 @@ def operator_queue_preview_copy(text: object) -> str:
     return re.sub(r"\s{2,}", " ", cleaned).strip()
 
 
+def public_card_surface_copy(text: object) -> str:
+    """Translate hidden-command card metadata into public product language."""
+
+    cleaned = str(text)
+    replacements = [
+        (
+            r"\bCopy the next command only when you want to inspect or prove that local lane\.",
+            "Open proof details only when you want to inspect or prove that local lane.",
+        ),
+        (r"\bnext copy-only command\b", "next proof step"),
+        (r"\bcopyable commands section\b", "proof details section"),
+        (r"\bcopy-only commands\b", "read-only proof steps"),
+        (r"\bcopy-only command\b", "read-only proof step"),
+        (r"\bcopy-only\b", "read-only"),
+        (r"\bcopy only\b", "read-only"),
+    ]
+    for pattern, replacement in replacements:
+        cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
+    return cleaned
+
+
 def signal_card_html(
     kicker: str,
     title: str,
@@ -4800,6 +4916,11 @@ def signal_card_html(
     display_title = copy_fn(title)
     display_body = copy_fn(body)
     display_badges = [copy_fn(badge) for badge in (badges or [])]
+    if not show_command:
+        display_kicker = public_card_surface_copy(display_kicker)
+        display_title = public_card_surface_copy(display_title)
+        display_body = public_card_surface_copy(display_body)
+        display_badges = [public_card_surface_copy(badge) for badge in display_badges]
     footer_parts = "".join(tiny_badge_html(badge) for badge in display_badges)
     if command and show_command:
         footer_parts += f"<span class='command-chip'>{html.escape(command)}</span>"
@@ -4952,7 +5073,8 @@ def command_center_header_html(
     )
     compact_class = " compact" if compact else ""
     return (
-        f"<div class='command-topbar{compact_class}'>"
+        f"<header class='command-shell{compact_class}'>"
+        f"<nav class='command-topbar{compact_class}' aria-label='Public workflow status'>"
         "<div class='command-top-left'>"
         "<span class='command-status-item primary'>What can I use now?</span>"
         f"<span class='command-status-item'>Data snapshot: {html.escape(str(latest_price))}</span>"
@@ -4963,10 +5085,10 @@ def command_center_header_html(
         "<a class='command-top-link' href='?mode=public&page=data-health' target='_self'>Data Health</a>"
         "<span class='command-status-item'>About this center</span>"
         "</div>"
-        "</div>"
+        "</nav>"
         f"<div class='command-hero-v2{compact_class}'>"
         "<div class='command-hero-copy'>"
-        "<div class='command-title-v2'>Stock Research Command Center</div>"
+        "<h1 class='command-title-v2'>Stock Research Command Center</h1>"
         "<div class='command-subtitle-v2'>Data readiness first <span>&bull;</span> Research-only</div>"
         "<div class='command-body-v2'>A local, explainable command center for deciding what can be used now. Start with readiness, open one ticker, and inspect proof only when a lane is blocked. Research-only review; no external account actions.</div>"
         "</div>"
@@ -4975,6 +5097,7 @@ def command_center_header_html(
         f"<div class='command-kpi-proof'>Readiness reflects current local outputs. {final_count:,} saved names are available for review. See Data Health for details and proof.</div>"
         "</div>"
         "</div>"
+        "</header>"
     )
 
 
@@ -8017,7 +8140,7 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "title": "Start with a demo or one selected ticker",
             "body": (
                 "For a visitor demo, use one example ticker. For your own ticker, select a saved name above, "
-                "open the review, then read At A Glance and the reader guide before opening detailed sections."
+                "open the review, then read Review Status and What Can Be Read Now before opening Detailed Review tabs."
             ),
             "badges": ["visitor path", "one ticker"],
             "command": "make stock-report-md TICKER=NVDA",
@@ -8031,7 +8154,7 @@ def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
             "kicker": "ONE-TICKER REVIEW",
             "title": "Open one ticker review",
             "body": (
-                "Select a ticker, open the read-only review, then read At A Glance first. "
+                "Select a ticker, open the read-only review, then read What Can Be Read Now first. "
                 "The page separates ready analysis, locked inputs, excluded company valuation, and the next proof step."
             ),
             "badges": ["plain English", "readiness first", "manual review"],
@@ -8289,7 +8412,7 @@ def stock_report_source_detail_summary_frame(report_payload: dict[str, object]) 
             {"Detail": "Missing-input warnings", "Value": report_display_value(len(missing_warnings), "integer")},
             {
                 "Detail": "Optional report data download",
-                "Value": "Use Download Audit Data only if you need the optional saved evidence file; most readers can use this page.",
+                "Value": "Use Download Evidence JSON only if you need the optional saved evidence file; most readers can use this page.",
             },
         ]
     )
@@ -8592,6 +8715,55 @@ def render_data_health_coverage_summary(
             width="stretch",
             hide_index=True,
         )
+
+
+def data_health_public_proof_map_cards(
+    readiness_summary: dict[str, object],
+    freshness: FreshnessStatus,
+) -> list[dict[str, object]]:
+    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    needs_price = max(master - price_ready, 0) if master else 0
+    needs_fundamentals = max(price_ready - fundamentals_ready, 0)
+    needs_peers = max(fundamentals_ready - peer_ready, 0)
+    freshness_label = "Proof is current" if freshness.status == "current" else "Proof is stale"
+    freshness_body = (
+        "Use exact counts with the current saved proof trail."
+        if freshness.status == "current"
+        else "Refresh proof before relying on exact counts or changed readiness states."
+    )
+    return [
+        {
+            "kicker": "PRICE PROOF",
+            "title": f"{price_ready:,} price-ready",
+            "body": f"Needs price history: {needs_price:,} tracked rows still need local price proof before setup review expands.",
+            "badges": ["Needs price history", "price coverage"],
+            "command": "",
+        },
+        {
+            "kicker": "FUNDAMENTALS PROOF",
+            "title": f"{fundamentals_ready:,} fundamentals-ready",
+            "body": f"Needs fundamentals: {needs_fundamentals:,} price-ready rows still need trusted company inputs before DCF review expands.",
+            "badges": ["Needs fundamentals", "company inputs"],
+            "command": "",
+        },
+        {
+            "kicker": "PEER PROOF",
+            "title": f"{peer_ready:,} peer-ready",
+            "body": f"Needs peer mapping: {needs_peers:,} fundamentals-ready rows still need source-backed peer context before peer-relative review expands.",
+            "badges": ["Needs peer mapping", "source-backed peers"],
+            "command": "",
+        },
+        {
+            "kicker": "PROOF FRESHNESS",
+            "title": freshness_label,
+            "body": freshness_body,
+            "badges": [freshness_label, "saved proof trail"],
+            "command": "",
+        },
+    ]
 
 
 def _trusted_ready_count(frame: pd.DataFrame | None, column: str) -> int:
@@ -10983,9 +11155,26 @@ def _proof_history_first_text(frame: pd.DataFrame | None, *columns: str, fallbac
 
 
 def _proof_history_public_text(value: object, fallback: str = "Not recorded") -> str:
-    cleaned = operator_queue_preview_copy(public_status_label(value, fallback=fallback))
+    text = public_status_label(value, fallback=fallback)
+    public_replacements = [
+        (r"\bmake company-level valuation available\b", "company-level valuation support available"),
+        (
+            r"\bmake company-level assumptions and sensitivity review available\b",
+            "company-level assumptions and sensitivity review are available",
+        ),
+        (
+            r"\brun make readiness before relying on generated CSV output\b",
+            "refresh readiness before relying on saved status output",
+        ),
+        (r"\bgenerated CSV output\b", "saved status output"),
+        (r"\bgenerated csv output\b", "saved status output"),
+    ]
+    for pattern, replacement in public_replacements:
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    cleaned = operator_queue_preview_copy(text)
     cleaned = re.sub(r"\b([A-Za-z]+)_([A-Za-z]+)\b", lambda match: f"{match.group(1)} {match.group(2)}", cleaned)
     cleaned = re.sub(r"(?<=\w)_(?=\w)", " ", cleaned)
+    cleaned = cleaned.replace("run open the evidence drawer", "review the evidence drawer")
     return cleaned.replace("record(s)", "records").replace("row(s)", "rows")
 
 
@@ -24469,6 +24658,12 @@ def single_stock_query_ticker(value: object, local_tickers: list[str] | tuple[st
     return cleaned if not local_lookup or cleaned in local_lookup else cleaned
 
 
+def data_health_focus_ticker(value: object) -> str:
+    raw = value[0] if isinstance(value, list) and value else value
+    text = str(raw or "").strip().upper()
+    return re.sub(r"[^A-Z0-9.\-]", "", text)
+
+
 def single_stock_query_open(value: object) -> bool:
     raw = value[0] if isinstance(value, list) and value else value
     return str(raw or "").strip().lower() in {"1", "true", "yes", "open", "review"}
@@ -24664,6 +24859,91 @@ def _selector_public_fragment(value: object, *, max_chars: int) -> str:
     return compact_card_fragment(operator_queue_preview_copy(value), max_chars=max_chars)
 
 
+def stock_selector_proof_lane(row: pd.Series | dict[str, object]) -> str:
+    """Infer the most useful Data Health proof lane for a selector row."""
+
+    text = " ".join(
+        format_missing(value, "")
+        for value in [
+            row.get("Blocked / Missing", "") if hasattr(row, "get") else "",
+            row.get("Next Proof Step", "") if hasattr(row, "get") else "",
+            row.get("Review Detail", "") if hasattr(row, "get") else "",
+        ]
+    ).lower()
+    if any(token in text for token in ("peer", "relative", "mapping")):
+        return "peers"
+    if any(token in text for token in ("fundamental", "dcf", "cash flow", "revenue", "shares outstanding", "fcf")):
+        return "fundamentals"
+    if any(token in text for token in ("earnings", "estimate", "analyst", "optional")):
+        return "optional"
+    if any(token in text for token in ("metric", "benchmark", "risk", "volatility", "liquidity")):
+        return "metrics"
+    if any(token in text for token in ("price", "history", "volume")):
+        return "prices"
+    return "proof"
+
+
+def stock_selector_proof_href(ticker: str, row: pd.Series | dict[str, object]) -> str:
+    params = [
+        ("mode", "public"),
+        ("page", "data-health"),
+        ("ticker", str(ticker or "").strip().upper()),
+        ("lane", stock_selector_proof_lane(row)),
+        ("drawer", "proof"),
+    ]
+    return "?" + urlencode(params)
+
+
+def stock_selector_shortlist_frame(frame: pd.DataFrame, selected_tickers: list[str] | tuple[str, ...]) -> pd.DataFrame:
+    """Return selected selector rows in user order without changing the source queue."""
+
+    if frame is None or frame.empty or "Ticker" not in frame.columns:
+        return pd.DataFrame(columns=[] if frame is None else frame.columns)
+    wanted = [str(ticker).strip().upper() for ticker in selected_tickers if str(ticker).strip()]
+    if not wanted:
+        return frame.head(0).copy()
+    lookup = {ticker: index for index, ticker in enumerate(wanted)}
+    shortlist = frame.loc[frame["Ticker"].astype(str).str.upper().isin(lookup)].copy()
+    if shortlist.empty:
+        return shortlist
+    shortlist["__shortlist_order"] = shortlist["Ticker"].astype(str).str.upper().map(lookup)
+    return shortlist.sort_values("__shortlist_order").drop(columns=["__shortlist_order"])
+
+
+def stock_selector_shortlist_html(frame: pd.DataFrame) -> str:
+    if frame is None or frame.empty:
+        return (
+            "<div class='selector-shortlist empty'>"
+            "<div class='selector-shortlist-title'>Compare review candidates</div>"
+            "<div class='selector-shortlist-body'>Select up to five rows to compare readiness, blockers, and next proof steps before opening a report.</div>"
+            "</div>"
+        )
+    cards: list[str] = []
+    for _, row in frame.head(5).iterrows():
+        ticker = str(row.get("Ticker", "")).strip().upper() or "TICKER"
+        readiness = _selector_public_fragment(row.get("Readiness", "Needs readiness check"), max_chars=48)
+        detail = _selector_public_fragment(row.get("Review Detail", "Review detail unavailable"), max_chars=72)
+        blocker = _selector_public_fragment(row.get("Blocked / Missing", "No missing input listed."), max_chars=90)
+        proof = _selector_public_fragment(row.get("Next Proof Step", "Check proof before deeper review."), max_chars=90)
+        cards.append(
+            "<div class='selector-shortlist-card'>"
+            f"<div class='selector-shortlist-ticker'>{html.escape(ticker)}</div>"
+            f"<div class='selector-shortlist-meta'>{html.escape(readiness)}</div>"
+            f"<div class='selector-shortlist-detail'>{html.escape(detail)}</div>"
+            f"<div class='selector-shortlist-body'>Blocker: {html.escape(blocker)}</div>"
+            f"<div class='selector-shortlist-body'>Next proof: {html.escape(proof)}</div>"
+            "</div>"
+        )
+    return (
+        "<div class='selector-shortlist'>"
+        "<div class='selector-shortlist-title'>Compare review candidates</div>"
+        "<div class='selector-shortlist-body'>Use this comparison to choose a research path; it is not a ranking, rating, or action instruction.</div>"
+        "<div class='selector-shortlist-grid'>"
+        + "".join(cards)
+        + "</div></div>"
+    )
+
+
 def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, limit: int = 30) -> str:
     """Render public selector rows as product UI instead of a raw dataframe."""
 
@@ -24700,7 +24980,7 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
         proof_step = _selector_public_fragment(row.get("Next Proof Step", "Run readiness before deeper review."), max_chars=118)
         freshness = _selector_public_fragment(row.get("Proof Freshness", "Use Data Health freshness before relying on exact state."), max_chars=82)
         report_href = html.escape(f"?mode=public&page=single-stock-report&ticker={ticker}&open=1")
-        proof_href = html.escape("?mode=public&page=data-health&drawer=proof")
+        proof_href = html.escape(stock_selector_proof_href(ticker, row))
         readiness_class = _selector_readiness_class(readiness)
         rows.append(
             "<div class='selector-result-row'>"
@@ -24786,6 +25066,48 @@ def stock_selector_apply_filters(
     return filtered
 
 
+def stock_selector_saved_filter_presets() -> list[dict[str, str]]:
+    return [
+        {
+            "label": "Custom",
+            "state": "All",
+            "readiness": "All",
+            "detail": "All",
+            "theme": "All",
+            "search": "",
+        },
+        {
+            "label": "Ready to review",
+            "state": "Research Now",
+            "readiness": "partial",
+            "detail": "All",
+            "theme": "All",
+            "search": "",
+        },
+        {
+            "label": "Peer proof needed",
+            "state": "Research Now",
+            "readiness": "partial",
+            "detail": "All",
+            "theme": "All",
+            "search": "peer",
+        },
+        {
+            "label": "Monitor context",
+            "state": "Monitor",
+            "readiness": "partial",
+            "detail": "All",
+            "theme": "All",
+            "search": "",
+        },
+    ]
+
+
+def _selector_option_index(options: list[str], preferred: str) -> int:
+    preferred_text = str(preferred or "All").strip()
+    return options.index(preferred_text) if preferred_text in options else 0
+
+
 def render_stock_selector(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
@@ -24827,6 +25149,7 @@ def render_stock_selector(
             ticker_readiness_message or decisions_message or final_message or "Refresh readiness before relying on exact counts.",
             "make status-check TOP_N=5",
             tone="warning",
+            public=public_mode,
         )
 
     if selector_frame.empty:
@@ -24835,35 +25158,53 @@ def render_stock_selector(
             "Build saved research decisions or the final watchlist before using the selector surface.",
             "make status-check TOP_N=5",
             tone="warning",
+            public=public_mode,
         )
         return
 
     render_section_header("Research Queue", "Use filters to narrow the next one-ticker review candidate.")
+    saved_presets = stock_selector_saved_filter_presets()
+    preset_label = st.selectbox(
+        "Saved filter",
+        [preset["label"] for preset in saved_presets],
+        index=0,
+        help="Fast product presets for common review paths. They only adjust filters; they do not create conclusions.",
+        key="stock-selector-saved-filter",
+    )
+    selected_preset = next((preset for preset in saved_presets if preset["label"] == preset_label), saved_presets[0])
     with st.form("stock-selector-filter-form"):
         filter_cols = st.columns([1.05, 1.05, 1.15, 1.2, 1.65])
+        state_options = _stock_selector_filter_options(selector_frame, "Research State")
+        readiness_options = _stock_selector_filter_options(selector_frame, "Readiness")
+        detail_options = _stock_selector_filter_options(selector_frame, "Review Detail")
+        theme_options = _stock_selector_filter_options(selector_frame, "Sector / Theme")
         state_filter = filter_cols[0].selectbox(
             "Research state",
-            _stock_selector_filter_options(selector_frame, "Research State"),
+            state_options,
+            index=_selector_option_index(state_options, selected_preset["state"]),
             key="stock-selector-state",
         )
         readiness_filter = filter_cols[1].selectbox(
             "Readiness",
-            _stock_selector_filter_options(selector_frame, "Readiness"),
+            readiness_options,
+            index=_selector_option_index(readiness_options, selected_preset["readiness"]),
             key="stock-selector-readiness",
         )
         detail_filter = filter_cols[2].selectbox(
             "Review detail",
-            _stock_selector_filter_options(selector_frame, "Review Detail"),
+            detail_options,
+            index=_selector_option_index(detail_options, selected_preset["detail"]),
             key="stock-selector-detail",
         )
         theme_filter = filter_cols[3].selectbox(
             "Sector / theme",
-            _stock_selector_filter_options(selector_frame, "Sector / Theme"),
+            theme_options,
+            index=_selector_option_index(theme_options, selected_preset["theme"]),
             key="stock-selector-theme",
         )
         search = filter_cols[4].text_input(
             "Search ticker, theme, blocker, or proof step",
-            value="",
+            value=selected_preset["search"],
             key="stock-selector-search",
         ).strip()
         st.form_submit_button("Apply filters")
@@ -24881,6 +25222,19 @@ def render_stock_selector(
     render_context_note(
         "Filtered result set.",
         f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
+    )
+    shortlist_options = filtered["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
+    selected_shortlist = st.multiselect(
+        "Compare selected rows",
+        shortlist_options,
+        default=shortlist_options[: min(3, len(shortlist_options))],
+        max_selections=5,
+        help="Optional comparison tray for readiness, blockers, and proof steps. It does not create conclusions or account actions.",
+        key="stock-selector-shortlist",
+    )
+    st.markdown(
+        stock_selector_shortlist_html(stock_selector_shortlist_frame(filtered, selected_shortlist)),
+        unsafe_allow_html=True,
     )
     st.markdown(
         stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=30),
@@ -25362,6 +25716,7 @@ def render_home_page(
             generated_stale_warning,
             "make readiness",
             tone="warning",
+            public=public_mode,
         )
     if freshness.status in {"missing", "stale"}:
         render_notice_card(
@@ -25369,6 +25724,7 @@ def render_home_page(
             freshness.message,
             freshness.refresh_command,
             tone="warning",
+            public=public_mode,
         )
     if public_mode:
         render_section_header("Where To Go Next", "Choose the next surface without reading operator tables first.")
@@ -25488,7 +25844,7 @@ def render_home_page(
 
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
-    render_section_header(
+    render_advanced_page_shell(
         "Monthly Picks",
         "A compact, data-gated research-candidate list. Scores help decide what to review next; they are not advice, allocation guidance, or a conclusion list.",
     )
@@ -25524,7 +25880,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         show_commands=False,
     )
     render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n), show_commands=False)
-    render_section_header("Reader Guide", "How to use candidate cards before opening any detailed table.")
+    render_section_header("Candidate Review Guide", "How to use candidate cards before opening deeper evidence.")
     render_signal_cards(monthly_picks_reader_guide_cards(picks_frame, top_n, action_queue_frame), show_commands=False)
     render_section_header("How To Read Monthly Picks", "Candidate quality, limits, and method provenance before reading any ranked names.")
     render_signal_cards(monthly_picks_function_quality_cards())
@@ -25647,10 +26003,41 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         st.write("Track-record proof is calculated only from local historical price data; insufficient history is shown explicitly.")
 
 
+def advanced_page_shell_cards(title: str) -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "WHAT CAN BE USED NOW",
+            "title": "What can be used now",
+            "body": f"Start with the supported {title} rows and summary cards before opening detail views.",
+            "badges": ["first read", "readiness-gated"],
+            "command": "",
+        },
+        {
+            "kicker": "WHAT STAYS LOCKED",
+            "title": "What stays locked",
+            "body": "Missing inputs, stale proof, and excluded states stay visible instead of being treated as weak conclusions.",
+            "badges": ["blocked stays visible", "no inference"],
+            "command": "",
+        },
+        {
+            "kicker": "DETAIL AREA",
+            "title": "Detail area",
+            "body": "Use charts, tabs, and tables after the page explains what the current data can support.",
+            "badges": ["details after context", "source-backed"],
+            "command": "",
+        },
+    ]
+
+
+def render_advanced_page_shell(title: str, caption: str) -> None:
+    render_section_header(title, caption)
+    render_signal_cards(advanced_page_shell_cards(title), show_commands=False, variant="queue")
+
+
 def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
     filename = TAB_TO_FILE[title]
     frame, message = output_frames[filename]
-    render_section_header(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
+    render_advanced_page_shell(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
     if message and frame is None:
         render_notice_card(
             f"{title} output not ready yet",
@@ -25679,6 +26066,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
 
 
 def render_single_stock_report(provider, show_source_details: bool, *, public_mode: bool = True) -> None:
+    show_card_commands = not public_mode
     if public_mode:
         render_command_center_overview(_header_readiness_summary(), active_step="One-Ticker Review")
     render_section_header(
@@ -25725,24 +26113,24 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         pre_report_cards = single_stock_pre_report_contract_cards(ticker, coverage, peer_summary)
         if report_payload:
             render_section_header(
-                "Before You Open The Review",
+                "Review Status",
                 "Compact readiness state for the selected ticker.",
             )
             render_signal_cards(pre_report_cards[:3], show_commands=False, variant="queue")
         else:
             render_section_header(
-                "Before You Open The Review",
+                "Review Status",
                 "A quick check of available data, locked analysis, and the next safe path.",
             )
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
-        with st.expander("Data Coverage For This Ticker", expanded=False):
+        with st.expander("Ticker Readiness Evidence", expanded=False):
             render_context_note(
                 "Coverage check.",
                 "Shows which inputs are available before deeper analysis. Missing rows keep sections locked.",
             )
-            render_signal_cards(stock_report_local_context_cards(coverage, peer_summary))
+            render_signal_cards(stock_report_local_context_cards(coverage, peer_summary), show_commands=show_card_commands)
             st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
-            with st.expander("Data availability details", expanded=False):
+            with st.expander("Evidence row details", expanded=False):
                 st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
             readiness_cols = st.columns(5)
             readiness_cols[0].metric("Peer File", "Present" if peer_summary["peer_dataset_present"] else "Missing")
@@ -25751,7 +26139,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             readiness_cols[3].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[4].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
-    render_signal_cards(single_stock_report_intro_summary_cards())
+    render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)
     render_context_note(
         "What happens next.",
         "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
@@ -25783,9 +26171,9 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     with st.expander("Example report states", expanded=False):
         demo_note_title, demo_note_body = single_stock_demo_picker_note()
         render_context_note(demo_note_title, demo_note_body)
-        render_signal_cards(single_stock_demo_picker_cards())
+        render_signal_cards(single_stock_demo_picker_cards(), show_commands=show_card_commands)
         with st.expander("How single-stock reports work", expanded=False):
-            render_signal_cards(single_stock_report_intro_cards())
+            render_signal_cards(single_stock_report_intro_cards(), show_commands=show_card_commands)
     if not report_payload:
         return
 
@@ -25798,40 +26186,45 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "A readable view of local research inputs. This is context only, not execution guidance.",
     )
     render_section_header(
-        "At A Glance",
+        "What Can Be Read Now",
         "Start here: what is supported, what is withheld, and what to read next.",
     )
-    render_signal_cards(stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
-    render_section_header(
-        "How To Read This Review",
-        "Selected ticker state, what can be reviewed now, what stays blocked, and where Data Health fits next.",
+    render_signal_cards(
+        stock_report_at_a_glance_cards(
+            report_payload,
+            coverage if provider is not None and ticker else None,
+            peer_summary if provider is not None and ticker else None,
+        ),
+        show_commands=show_card_commands,
     )
     render_signal_cards(
         stock_report_workflow_fit_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None),
         show_commands=False,
     )
-    render_section_header(
-        "Reader Guide",
-        "Plain-English report path before detailed tabs: what can be analyzed, what stays locked, and which boundary matters.",
+    render_signal_cards(stock_report_summary_cards(report_payload), show_commands=show_card_commands)
+    render_signal_cards(stock_report_evaluation_summary_cards(report_payload), show_commands=show_card_commands)
+    render_signal_cards(
+        stock_report_best_review_path_cards(
+            report_payload,
+            coverage if provider is not None and ticker else None,
+            peer_summary if provider is not None and ticker else None,
+        ),
+        show_commands=show_card_commands,
     )
-    render_signal_cards(stock_report_summary_cards(report_payload))
-    render_section_header(
-        "Review Summary",
-        "Supported evaluation, data-confidence cue, valuation boundary, and next proof before deeper methodology.",
-    )
-    render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
-    render_section_header(
-        "Suggested Reading Path",
-        "The shortest safe reading path for this ticker before detailed review.",
-    )
-    render_signal_cards(stock_report_best_review_path_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     with st.expander("More quick-read cards", expanded=False):
         render_context_note(
             "Extra context.",
             "Open this only when you want performance, data-quality, and next-step cards before using the detailed tabs.",
         )
-        render_signal_cards(stock_report_analysis_quality_cards(report_payload))
-        render_signal_cards(stock_report_next_step_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
+        render_signal_cards(stock_report_analysis_quality_cards(report_payload), show_commands=show_card_commands)
+        render_signal_cards(
+            stock_report_next_step_cards(
+                report_payload,
+                coverage if provider is not None and ticker else None,
+                peer_summary if provider is not None and ticker else None,
+            ),
+            show_commands=show_card_commands,
+        )
     st.markdown(
         "<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.5rem 0 1rem 0;'>"
         + "".join(status_badge(label) for label in stock_report_readiness_badges(readiness))
@@ -25844,14 +26237,14 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             "Analysis mode guide.",
             "The current mode controls what the report can support. Other modes are shown as reference so missing inputs do not look like conclusions.",
         )
-        render_signal_cards(stock_report_mode_guide_cards(report_payload))
+        render_signal_cards(stock_report_mode_guide_cards(report_payload), show_commands=show_card_commands)
         st.dataframe(
             clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
             width="stretch",
             hide_index=True,
         )
         st.markdown("#### What This Report Can Evaluate")
-        render_signal_cards(stock_report_function_quality_cards(report_payload))
+        render_signal_cards(stock_report_function_quality_cards(report_payload), show_commands=show_card_commands)
         with st.expander("Detailed readiness status", expanded=False):
             st.dataframe(
                 clean_display_frame(stock_report_function_quality_frame(report_payload)),
@@ -25866,6 +26259,10 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     valuation = report_payload["valuation_snapshot"]
     relative = valuation["relative_valuation"]
 
+    render_section_header(
+        "Detailed Review",
+        "Use these tabs after the review-status and readable-now sections clarify the readiness boundaries.",
+    )
     snapshot_tab, valuation_tab, earnings_tab, sources_tab = st.tabs(
         ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]
     )
@@ -25893,9 +26290,15 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         else:
             render_notice_card(
                 "Price chart not ready yet",
-                "The report is ready, but there is not enough provider-backed daily close history to render a chart. Use make runbook-prices-broader or make focus-price TICKER=... first. For downloaded files, use make price-normalize, then run make price-validate, make price-preview, and make price-apply.",
+                (
+                    "The report is ready, but there is not enough provider-backed daily close history to render a chart. "
+                    "Use the price coverage proof path before relying on trend visuals."
+                    if public_mode
+                    else "The report is ready, but there is not enough provider-backed daily close history to render a chart. Use make runbook-prices-broader or make focus-price TICKER=... first. For downloaded files, use make price-normalize, then run make price-validate, make price-preview, and make price-apply."
+                ),
                 "make runbook-prices-broader",
                 tone="warning",
+                public=public_mode,
             )
 
         performance_columns = st.columns(3)
@@ -25923,11 +26326,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             "Price and trend context.",
             "These fields summarize setup quality and trend context without implying an allocation action.",
         )
-        render_signal_cards(stock_report_technical_context_cards(report_payload))
+        render_signal_cards(stock_report_technical_context_cards(report_payload), show_commands=show_card_commands)
         render_collapsed_detail_frame("Price and trend details", stock_report_technical_context_frame(report_payload))
 
         st.markdown("#### Company Fundamentals")
-        render_signal_cards(stock_report_fundamentals_quality_cards(report_payload))
+        render_signal_cards(stock_report_fundamentals_quality_cards(report_payload), show_commands=show_card_commands)
         financial_fields = [
             ("revenue", "Revenue", "number"),
             ("revenue_growth", "Revenue Growth", "percent"),
@@ -25948,8 +26351,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     with valuation_tab:
         base_dcf = valuation["dcf_result"]
         render_context_note("Valuation view.", "DCF, peer-relative context, and sensitivity stay informational only. Missing assumptions remain visible instead of being guessed.")
-        render_signal_cards(stock_report_valuation_boundary_cards(report_payload))
-        render_signal_cards(stock_report_dcf_calculation_path_cards(report_payload))
+        render_signal_cards(stock_report_valuation_boundary_cards(report_payload), show_commands=show_card_commands)
+        render_signal_cards(stock_report_dcf_calculation_path_cards(report_payload), show_commands=show_card_commands)
         valuation_columns = st.columns(4)
         valuation_columns[0].metric("Valuation Status", public_status_label(valuation.get("status")))
         valuation_columns[1].metric("Coverage", format_missing(valuation.get("coverage")))
@@ -26013,7 +26416,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         earnings = report_payload["earnings_summary"]
         estimates = report_payload["analyst_estimate_summary"]
         render_context_note("Optional context.", "Earnings and analyst estimates only appear when trusted local files exist. Missing files are safe and stay explicit.")
-        render_signal_cards(stock_report_optional_context_boundary_cards(report_payload))
+        render_signal_cards(stock_report_optional_context_boundary_cards(report_payload), show_commands=show_card_commands)
         earnings_col, estimates_col = st.columns(2)
         with earnings_col:
             st.markdown("#### Earnings")
@@ -26114,7 +26517,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 )
 
     st.download_button(
-        "Download Audit Data",
+        "Download Evidence JSON",
         data=st.session_state.get("single_stock_report_download", "{}"),
         file_name=f"{st.session_state.get('single_stock_report_ticker', 'stock').lower()}_stock_report.json",
         mime="application/json",
@@ -26620,7 +27023,7 @@ def render_market_command_center(
     render_section_header("Single-Stock Drilldown", "Ticker-level readiness, decision, missing-data, and next-action context without loading every detail first.")
     render_context_note(
         "One ticker at a time.",
-        "Use this after the table to inspect one ticker's ready analysis, locked inputs, and next copy-only command.",
+        "Use this after the table to inspect one ticker's ready analysis, locked inputs, and next proof step.",
     )
     ticker_options = default_ticker_options
     drill_cols = st.columns([1.4, 2.4])
@@ -26667,15 +27070,15 @@ def render_market_command_center(
         "Route this ticker's locked inputs back to the right readiness lane before opening raw proof details.",
     )
     render_signal_cards(handoff_cards, show_commands=False)
-    with st.expander("Single-stock copy-only commands", expanded=False):
+    with st.expander("Single-stock operator proof steps", expanded=False):
         st.dataframe(
             clean_display_frame(pd.DataFrame(single_stock_workflow_command_rows(workflow_fit_cards + handoff_cards))),
             width="stretch",
             hide_index=True,
         )
-    render_section_header("Single-Stock Quick Read", "The first interpretation path before tables: what this page can support, what stays locked, and the next copy-only command.")
+    render_section_header("Single-Stock Quick Read", "The first interpretation path before tables: what this page can support, what stays locked, and the next proof step.")
     render_signal_cards(single_stock_quick_read_cards(snapshot))
-    render_section_header("Single-Stock Reader Guide", "Plain-English answer for what is ready, what is locked, and the next copy-only step.")
+    render_section_header("Single-Stock Review Guide", "Plain-English answer for what is ready, what is locked, and the next proof step.")
     render_signal_cards(single_stock_reader_guide_cards(snapshot))
     with st.expander("Single-stock reader guide table", expanded=False):
         st.dataframe(clean_display_frame(single_stock_reader_guide_frame(snapshot)), width="stretch", hide_index=True)
@@ -26759,6 +27162,7 @@ def render_data_health(
     )
     selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
     selected_drawer = data_health_drawer_from_query(st.query_params.get("drawer"), selected_lane_key)
+    public_focus_ticker = data_health_focus_ticker(st.query_params.get("ticker"))
     drawer_detail_flags = data_health_drawer_detail_flags(selected_drawer, selected_lane_key)
     queue_details_requested = data_health_detail_selector_requested(
         st.query_params.get("queue_details"),
@@ -26791,6 +27195,12 @@ def render_data_health(
             "Data Quality / Readiness",
             "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
         )
+        render_section_header("Proof Map", "Plain-language proof lanes before any operations detail.")
+        render_signal_cards(
+            data_health_public_proof_map_cards(readiness_summary, readiness_freshness),
+            show_commands=False,
+            variant="queue",
+        )
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
         render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
         render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
@@ -26798,8 +27208,9 @@ def render_data_health(
             with st.expander("Refresh status note", expanded=False):
                 render_notice_card(
                     "Saved coverage view",
-                    "Data Health opens with the latest saved coverage view so the page stays fast. Copy `make project-status` when you want to refresh the next-step summary.",
+                    "Data Health opens with the latest saved coverage view so the page stays fast. Refresh the project status from Operator mode when you want the newest next-step summary.",
                     "make project-status",
+                    public=True,
                 )
         render_context_note(
             "Public Data Health summary.",
@@ -26817,6 +27228,12 @@ def render_data_health(
         render_section_header("Visitor Paths", "Choose the clean public path before opening proof or operator details.")
         render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
         public_evidence_drawer_expanded = selected_drawer == "proof"
+        if public_focus_ticker:
+            render_context_note(
+                "Ticker proof focus.",
+                f"Proof links are focused on {public_focus_ticker}. Use the evidence drawer to check the selected lane before reopening the report.",
+                tone="success",
+            )
         with st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded):
             render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
             render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
@@ -26829,6 +27246,7 @@ def render_data_health(
                     generated_stale_warning,
                     "make readiness",
                     tone="warning",
+                    public=True,
                 )
             render_section_header("Readiness Freshness", "Refresh stale or missing readiness artifacts before relying on exact counts.")
             freshness_cards = data_health_operations_cockpit_cards(
@@ -28976,7 +29394,7 @@ def render_data_health(
 
 
 def render_universe_manager(universe_summary: dict[str, Any]) -> None:
-    render_section_header(
+    render_advanced_page_shell(
         "Universe Manager",
         "Review current universe coverage and use copyable apply commands for safer changes.",
     )
@@ -29103,14 +29521,14 @@ def main() -> None:
         if public_demo_mode or selected_page != "Data Health":
             render_sidebar_product_intro()
         if not public_demo_mode and selected_page != "Data Health":
-            with st.expander("Optional research views", expanded=initial_page in ADVANCED_PAGE_TITLES):
+            with st.expander("Research view switcher", expanded=initial_page in ADVANCED_PAGE_TITLES):
                 advanced_page = st.selectbox(
-                    "Open an optional view",
+                    "Open a research view",
                     ["Keep current path"] + ADVANCED_PAGE_TITLES,
                     index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
                     if initial_page in ADVANCED_PAGE_TITLES
                     else 0,
-                    help="Extra research views remain available, but first-time visitors can stay with the three main paths.",
+                    help="Additional research views remain available, but first-time visitors can stay with the main path.",
                 )
                 if advanced_page != "Keep current path":
                     selected_page = advanced_page
@@ -29139,7 +29557,7 @@ def main() -> None:
             note_title, note_body = sidebar_navigation_note(selected_page)
             render_context_note(note_title, note_body, tone="success")
         if show_sidebar_operator_guides:
-            with st.expander("Recommended path", expanded=False):
+            with st.expander("Workflow guide", expanded=False):
                 render_context_note(
                     "Start simple.",
                     "Home -> Stock Selector -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
@@ -29151,9 +29569,9 @@ def main() -> None:
                 "Home -> Stock Selector -> Single-Stock Report -> Data Health. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
             )
         if show_sidebar_operator_guides:
-            with st.expander("Copy-only local commands", expanded=False):
+            with st.expander("Operator run commands", expanded=False):
                 render_context_note(
-                    "Copy only.",
+                    "Operator commands.",
                     " ".join(sidebar_quick_help_lines()),
                 )
                 st.code(

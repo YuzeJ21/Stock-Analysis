@@ -25,6 +25,8 @@ def test_overview_orientation_cards_frame_proof_workflow_without_advice_language
     ]
     assert "not an error page" in rendered
     assert "586 price-ready / 23 fundamentals-ready / 23 dcf-ready" in rendered
+    assert "trusted fundamentals provide company-level valuation support" in rendered
+    assert "make company-level" not in rendered
     assert "the app does not infer these inputs" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -48,6 +50,8 @@ def test_overview_quick_read_cards_prioritize_first_unlocked_lane():
     assert cards[0]["command"] == "make fundamentals-source-ladder-queue TOP_N=25"
     assert "217 price-ready row(s) still need trusted fundamentals" in rendered
     assert "not a negative company signal" in rendered
+    assert "detailed proof steps only when source rows are ready" in rendered
+    assert "detailed proof commands" not in rendered
     assert "do not read locked sections as weak conclusions" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

@@ -85,8 +85,8 @@ def orientation_cards(readiness_summary: dict[str, object]) -> list[dict[str, ob
             "kicker": "WHAT YOU CAN ANALYZE NOW",
             "title": f"{price_ready} price-ready / {fundamentals_ready} fundamentals-ready / {dcf_ready} DCF-ready",
             "body": (
-                "What this means: price coverage makes setup review available first. Trusted fundamentals make company-level "
-                "valuation available only after required DCF fields pass readiness."
+                "What this means: price coverage makes setup review available first. Trusted fundamentals provide company-level "
+                "valuation support only after required DCF fields pass readiness."
             ),
             "badges": ["price first", "fundamentals next"],
             "command": "make fundamentals-source-ladder-queue TOP_N=25",
@@ -122,7 +122,7 @@ def quick_read_cards(readiness_summary: dict[str, object]) -> list[dict[str, obj
         first_title = "Prove fundamentals before valuation"
         first_body = (
             f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
-            "Missing fundamentals are an input gap, not a negative company signal. Review the fundamentals list first, then use the detailed proof commands only when source rows are ready."
+            "Missing fundamentals are an input gap, not a negative company signal. Review the fundamentals list first, then use the detailed proof steps only when source rows are ready."
         )
         first_command = "make fundamentals-source-ladder-queue TOP_N=25"
         first_badges = ["fundamentals next", "no valuation inference"]
@@ -294,7 +294,7 @@ def operations_cockpit_cards(
     freshness_title = _public_status_label(freshness.status).title()
     freshness_body = (
         f"{freshness.message} "
-        f"Refresh command: {freshness.refresh_command}. "
+        "Refresh readiness before relying on exact counts when artifacts are missing or stale. "
         "Treat stale or missing readiness artifacts as a stop sign before relying on final counts."
     )
     freshness_badges = [freshness.status, "refresh before counts"] if freshness.status in {"missing", "stale"} else [freshness.status, "counts usable"]

@@ -131,8 +131,8 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
         dcf_state = _format_missing(readiness.get("status") if isinstance(readiness, dict) else "", "")
         next_action = f"Open Data Health if {ticker_label} has locked fields"
         if dcf_state.lower() in {"ready", "excluded"}:
-            next_action = "Read Suggested Reading Path before detailed tabs"
-        proof_note = "At A Glance and Reader Guide summarize ready, blocked, excluded, and monitor-only sections."
+            next_action = "Review Detailed Review tabs after the readiness summary"
+        proof_note = "Review Status and What Can Be Read Now summarize ready, blocked, excluded, and monitor-only sections."
         return {
             "current_step": f"{ticker_label} report review",
             "current_note": f"Mode: {_format_missing(mode, 'local report')}",
@@ -158,7 +158,7 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
         "proof_href": "?mode=public",
         "next_action": "Open Review",
         "action_href": "",
-        "action_note": "Read At A Glance first; then use Data Health for any locked input.",
+        "action_note": "Read What Can Be Read Now first; then use Data Health for any locked input.",
         "stop_rule": "No report, no interpretation",
         "stop_note": "Do not use optional online lookup or missing local rows as proof.",
         "stop_href": "?mode=public&page=data-health&drawer=proof",
@@ -205,6 +205,11 @@ def data_health_research_loop_context(
         else "?mode=operator&page=data-health&lane=proof&drawer=proof"
     )
     current_step = "Proof lane shell" if selected_lane_key == "proof" else "Data Health source-proof lane"
+    action_note = (
+        "Evidence stays collapsed on the public page; open proof when you need source status before reading deeper sections."
+        if public_mode
+        else "Commands stay copy-only and collapsed; validate and preview before any reviewed apply step."
+    )
     return {
         "current_step": current_step,
         "current_note": lane_label,
@@ -214,7 +219,7 @@ def data_health_research_loop_context(
         "proof_href": proof_href,
         "next_action": _friendly_card_copy(next_action),
         "action_href": data_health_research_loop_action_href(selected_lane_key, next_action, public_mode),
-        "action_note": "Commands stay copy-only and collapsed; validate and preview before any reviewed apply step.",
+        "action_note": action_note,
         "stop_rule": "Stop before apply without reviewed proof",
         "stop_note": "Missing source rows, stale snapshots, rejected rows, or placeholder fields keep the lane blocked.",
         "stop_href": proof_href,
