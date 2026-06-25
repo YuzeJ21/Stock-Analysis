@@ -39,6 +39,31 @@ def _write_text(path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _write_sec_submission_cache(root, cik: str = "0001045810") -> None:
+    _write_text(
+        root / "data" / "cache" / "sec" / "submissions" / f"CIK{cik}.json",
+        json.dumps(
+            {
+                "cik": cik.lstrip("0"),
+                "name": "CREDO TECHNOLOGY GROUP HOLDING LTD",
+                "sic": "3674",
+                "sicDescription": "Semiconductors and Related Devices",
+                "fiscalYearEnd": "0429",
+                "tickers": ["CRDO"],
+                "exchanges": ["Nasdaq"],
+                "filings": {
+                    "recent": {
+                        "accessionNumber": ["0000950170-26-000123"],
+                        "filingDate": ["2026-06-16"],
+                        "reportDate": ["2026-04-29"],
+                        "form": ["10-K"],
+                    }
+                },
+            }
+        ),
+    )
+
+
 def test_trusted_data_pilot_candidates_prioritize_active_company_blockers():
     readiness_rows = [
         {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
@@ -1243,6 +1268,8 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
 
     _write_text(tmp_path / "data" / "imports" / "fundamentals.csv", "ticker,revenue\nCRDO,1\n")
     _write_text(tmp_path / "data" / "rejected" / "fundamentals_import_rejected.csv", "source_file,source_row,ticker,rejection_reason\n")
+    _write_text(tmp_path / "data" / "cache" / "sec" / "company_tickers.json", json.dumps({"0": {"cik_str": 1045810, "ticker": "CRDO", "title": "CREDO TECHNOLOGY GROUP HOLDING LTD"}}))
+    _write_sec_submission_cache(tmp_path)
 
     rendered = render_trusted_data_pilot_packet(candidates[0], requested_ticker="CRDO", root=tmp_path)
 
@@ -1264,6 +1291,13 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "do not apply placeholder rows just to make the report look complete" in rendered
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present. File presence is not proof." in rendered
+    assert "SEC submissions metadata packet:" in rendered
+    assert "Source usage: metadata_evidence_only" in rendered
+    assert "Ticker/entity validation: CRDO matched SEC submissions tickers for CREDO TECHNOLOGY GROUP HOLDING LTD" in rendered
+    assert "SIC/industry: 3674 - Semiconductors and Related Devices" in rendered
+    assert "Latest filing: 10-K filed 2026-06-16 accession 0000950170-26-000123" in rendered
+    assert "Boundary: SEC submissions metadata supports ticker/entity/SIC/filing-recency evidence only" in rendered
+    assert "does not unlock fundamentals, share count, DCF, valuation, earnings, or analyst estimates" in rendered
     assert "One-company evidence packet:" in rendered
     assert "What this proves before any conclusion changes:" in rendered
     assert "Baseline: snapshot current readiness and generate a before report so the starting mode is visible." in rendered

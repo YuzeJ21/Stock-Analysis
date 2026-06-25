@@ -4,6 +4,7 @@ import pytest
 
 from src.providers.sec_submissions import (
     SEC_SUBMISSIONS_URL_TEMPLATE,
+    build_sec_submission_metadata_packet,
     build_sec_submission_metadata,
     fetch_sec_submission,
     sec_submission_url,
@@ -92,3 +93,45 @@ def test_fetch_sec_submission_requires_user_agent(monkeypatch):
 
     with pytest.raises(ValueError, match="SEC requests require"):
         fetch_sec_submission("1045810", user_agent=None)
+
+
+def test_build_sec_submission_metadata_packet_uses_cached_submission_without_network(tmp_path: Path):
+    cache_path = tmp_path / "cache" / "submissions" / "CIK0001045810.json"
+    cache_path.parent.mkdir(parents=True)
+    cache_path.write_text(
+        __import__("json").dumps(_sample_submission_payload()),
+        encoding="utf-8",
+    )
+
+    packet = build_sec_submission_metadata_packet(
+        "NVDA",
+        ticker_map={"NVDA": {"ticker": "NVDA", "cik": "0001045810"}},
+        cache_dir=tmp_path / "cache",
+        allow_network=False,
+    )
+
+    assert packet["status"] == "available"
+    assert packet["source"] == "sec_submissions_metadata"
+    assert packet["source_usage"] == "metadata_evidence_only"
+    assert packet["ticker"] == "NVDA"
+    assert packet["sec_cik"] == "0001045810"
+    assert packet["ticker_validation"] == "matched_sec_submission_tickers"
+    assert packet["sec_entity_name"] == "NVIDIA CORP"
+    assert packet["sec_sic_description"] == "Semiconductors and Related Devices"
+    assert packet["sec_latest_form"] == "10-K"
+    assert packet["sec_latest_filing_date"] == "2026-02-25"
+    assert "does not unlock fundamentals" in packet["proof_boundary"]
+
+
+def test_build_sec_submission_metadata_packet_reports_missing_cache_without_remote_retry(tmp_path: Path):
+    packet = build_sec_submission_metadata_packet(
+        "NVDA",
+        ticker_map={"NVDA": {"ticker": "NVDA", "cik": "0001045810"}},
+        cache_dir=tmp_path / "cache",
+        allow_network=False,
+    )
+
+    assert packet["status"] == "unavailable"
+    assert packet["reason_code"] == "cached_submission_missing"
+    assert packet["source_usage"] == "metadata_evidence_only"
+    assert "No cached SEC submissions metadata" in packet["detail"]

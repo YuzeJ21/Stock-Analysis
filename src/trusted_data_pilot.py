@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.providers.sec_submissions import build_sec_submission_metadata_packet
 from src.session_source_preflight import load_session_source_preflight
 
 
@@ -86,6 +88,37 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return [dict(row) for row in csv.DictReader(handle)]
 
 
+def _cached_sec_ticker_map(root: Path) -> dict[str, dict[str, object]]:
+    path = root / "data" / "cache" / "sec" / "company_tickers.json"
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if isinstance(payload, dict):
+        rows = payload.values()
+    elif isinstance(payload, list):
+        rows = payload
+    else:
+        rows = []
+    ticker_map: dict[str, dict[str, object]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        ticker = str(row.get("ticker") or "").upper().strip()
+        cik_value = row.get("cik") or row.get("cik_str") or row.get("cikStr")
+        if not ticker or cik_value in (None, ""):
+            continue
+        ticker_map[ticker] = {
+            "ticker": ticker,
+            "cik": cik_value,
+            "title": row.get("title") or row.get("name"),
+            "exchange": row.get("exchange"),
+        }
+    return ticker_map
+
+
 def _truthy(value: object) -> bool:
     return str(value).strip().lower() in {"true", "1", "yes", "y"}
 
@@ -95,6 +128,44 @@ def _clean(value: object, fallback: str = "-") -> str:
     if not text or text.lower() == "nan":
         return fallback
     return text
+
+
+def sec_submissions_metadata_packet_lines(ticker: str, *, root: Path) -> list[str]:
+    packet = build_sec_submission_metadata_packet(
+        ticker,
+        ticker_map=_cached_sec_ticker_map(root),
+        cache_dir=root / "data" / "cache" / "sec",
+        allow_network=False,
+    )
+    if packet.get("status") != "available":
+        return [
+            "SEC submissions metadata packet:",
+            f"- Status: unavailable ({_clean(packet.get('reason_code'), 'unknown')})",
+            f"- Detail: {_clean(packet.get('detail'), 'No SEC submissions metadata available.')}",
+            f"- Boundary: {_clean(packet.get('proof_boundary'))}",
+        ]
+
+    ticker_text = _clean(packet.get("ticker"))
+    entity = _clean(packet.get("sec_entity_name"), "entity unavailable")
+    ticker_validation = (
+        f"{ticker_text} matched SEC submissions tickers for {entity}"
+        if packet.get("ticker_validation") == "matched_sec_submission_tickers"
+        else f"{ticker_text} was not listed in the cached SEC submissions ticker list for {entity}"
+    )
+    sic = _clean(packet.get("sec_sic"), "SIC unavailable")
+    sic_description = _clean(packet.get("sec_sic_description"), "industry unavailable")
+    latest_form = _clean(packet.get("sec_latest_form"), "form unavailable")
+    latest_date = _clean(packet.get("sec_latest_filing_date"), "date unavailable")
+    latest_accession = _clean(packet.get("sec_latest_accession"), "accession unavailable")
+    return [
+        "SEC submissions metadata packet:",
+        f"- Source usage: {_clean(packet.get('source_usage'))}",
+        f"- Ticker/entity validation: {ticker_validation}",
+        f"- CIK/exchange evidence: {_clean(packet.get('sec_cik'))}; exchanges: {_clean(packet.get('sec_exchanges'), 'exchange unavailable')}",
+        f"- SIC/industry: {sic} - {sic_description}",
+        f"- Latest filing: {latest_form} filed {latest_date} accession {latest_accession}",
+        f"- Boundary: {_clean(packet.get('proof_boundary'))}",
+    ]
 
 
 def _int_value(value: object, fallback: int = 99) -> int:
@@ -1253,6 +1324,7 @@ def render_trusted_data_pilot_packet(
             f"Source boundary: {candidate.source_boundary}",
             f"Trusted row target: {pilot_trusted_row_path(candidate)}",
             pilot_local_file_status(candidate, root=root) if root is not None else "Local file status: not checked in this render.",
+            *(sec_submissions_metadata_packet_lines(candidate.ticker, root=root) if root is not None else []),
             f"Skip if: {pilot_skip_condition(candidate)}",
             "",
             "One-company evidence packet:",
