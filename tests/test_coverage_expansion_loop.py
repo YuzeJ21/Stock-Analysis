@@ -45,11 +45,25 @@ def _sample_root(tmp_path: Path, *, prior_snapshot: bool = False) -> Path:
     )
     _write(
         root / "data" / "reports" / "peer_unlock_worklist.csv",
-        "priority,ticker,workflow_group,missing_peer_reason\n1,AAA,peer_valuation_unlock,peer inputs\n",
+        "\n".join(
+            [
+                "priority,ticker,workflow_group,missing_peer_reason",
+                "1,AAA,peer_valuation_unlock,peer inputs",
+                "2,BBB,peer_valuation_unlock,peer inputs",
+            ]
+        )
+        + "\n",
     )
     _write(
         root / "data" / "reports" / "peer_readiness_report.csv",
-        "ticker,peer_count,mapping_status,peer_blocker_type,peer_price_ready,peer_momentum_ready,peer_fundamentals_ready,peer_valuation_ready,peer_valuation_comparison_ready\nAAA,0,missing_mapping,missing_peer_mapping,false,false,false,false,false\n",
+        "\n".join(
+            [
+                "ticker,peer_count,mapping_status,peer_blocker_type,peer_price_ready,peer_momentum_ready,peer_fundamentals_ready,peer_valuation_ready,peer_valuation_comparison_ready",
+                "AAA,2,mapped,peer_valuation_blocked,true,true,true,false,false",
+                "BBB,2,mapped,peer_valuation_blocked,true,true,true,false,false",
+            ]
+        )
+        + "\n",
     )
     if prior_snapshot:
         _write(
@@ -57,6 +71,45 @@ def _sample_root(tmp_path: Path, *, prior_snapshot: bool = False) -> Path:
             "ticker,overall_readiness_state\nAAA,blocked\n",
         )
     return root
+
+
+def _write_optional_context_ledger(root: Path) -> None:
+    _write(
+        root / "data" / "reviewed_batch_proofs.csv",
+        "\n".join(
+            [
+                "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,final_outcome,notes",
+                "RB-OPTIONAL-TOP2,2026-06-25,local reviewer,optional_context,Optional rows 1-2,\"AAA,BBB\",make optional-context-worklist TOP_N=2,imports-validate passed,imports-preview valid,not_run,2 rows,2 rows,none,none,data/imports/earnings.csv,headers reviewed,still_blocked,optional rows locked",
+            ]
+        )
+        + "\n",
+    )
+
+
+def _write_peer_mapping_ledger(root: Path) -> None:
+    _write(
+        root / "data" / "reviewed_batch_proofs.csv",
+        "\n".join(
+            [
+                "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,final_outcome,notes",
+                "RB-PEER-STILLBLOCKED,2026-06-25,local reviewer,peers,Peer missing mapping,AAA,make peer-mapping-source-review TOP_N=1,imports-validate passed,imports-preview valid,not_applied,2 rows,2 rows,none,none,outputs/peer_mapping_source_review.csv,source-review placeholders reviewed,still_blocked,peer source rows still placeholders",
+            ]
+        )
+        + "\n",
+    )
+
+
+def _write_peer_valuation_inputs_ledger(root: Path) -> None:
+    _write(
+        root / "data" / "reviewed_batch_proofs.csv",
+        "\n".join(
+            [
+                "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,final_outcome,notes",
+                "RB-PEER-VALUATION-INPUTS,2026-06-25,local reviewer,peer_valuation_inputs,Peer valuation input blockers,\"AAA,BBB\",make peer-mapping-queue TOP_N=2,imports-validate passed,imports-preview valid,not_applied,2 rows,2 rows,none,none,data/reports/peer_readiness_report.csv,peer blockers reviewed,still_blocked,peer valuation inputs still blocked",
+            ]
+        )
+        + "\n",
+    )
 
 
 def test_coverage_expansion_loop_blocks_until_preflight_snapshot_exists(tmp_path: Path):
@@ -278,6 +331,111 @@ def test_coverage_expansion_loop_requires_source_activation_when_no_executable_s
     assert "candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "make price-refresh-loop" not in rendered
     assert "make fundamentals-source-ladder-queue" not in rendered
+
+
+def test_coverage_expansion_loop_does_not_repeat_optional_worklist_when_ledger_covers_universe(tmp_path: Path):
+    session_preflight = {
+        "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],
+        "preferred_lane_order": ["earnings_optional_manual", "analyst_estimates_optional_manual", "coverage_workflow_evidence"],
+        "sources": {
+            "sec": {"status": "unavailable", "detail": "dns failed"},
+            "yfinance_stage": {"status": "unavailable", "detail": "host resolution failed"},
+            "price_ladder": {
+                "status": "planned",
+                "reason_code": "dry_run_first_no_keyed_fallbacks",
+                "configured_keyed_providers": [],
+                "missing_keyed_provider_envs": ["FMP_API_KEY"],
+            },
+            "fmp": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "alpha_vantage": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "finnhub": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "local_fundamentals": {
+                "status": "available",
+                "detail": "Found local rows.",
+                "share_count_fixable_ticker_count": 0,
+                "fundamentals_fixable_ticker_count": 0,
+            },
+        },
+    }
+    root = _sample_root(tmp_path, prior_snapshot=True)
+    _write_optional_context_ledger(root)
+
+    loop = build_coverage_expansion_loop(root, lane="auto", top_n=10, session_preflight=session_preflight)
+    rendered = render_coverage_expansion_loop(loop)
+
+    assert "optional context already has reviewed proof ledger coverage" in rendered
+    assert "make optional-context-worklist TOP_N=25" not in rendered
+    assert "make public-wording-check && make diff-hygiene-summary" in rendered
+
+
+def test_coverage_expansion_loop_does_not_repeat_peer_source_review_when_ledger_covers_queue(tmp_path: Path):
+    session_preflight = {
+        "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],
+        "preferred_lane_order": ["peer_mapping_proof", "peer_valuation_local_reviewed", "coverage_workflow_evidence"],
+        "sources": {
+            "sec": {"status": "unavailable", "detail": "dns failed"},
+            "yfinance_stage": {"status": "unavailable", "detail": "host resolution failed"},
+            "price_ladder": {
+                "status": "planned",
+                "reason_code": "dry_run_first_no_keyed_fallbacks",
+                "configured_keyed_providers": [],
+                "missing_keyed_provider_envs": ["FMP_API_KEY"],
+            },
+            "fmp": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "alpha_vantage": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "finnhub": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "local_fundamentals": {
+                "status": "available",
+                "detail": "Found local rows.",
+                "share_count_fixable_ticker_count": 0,
+                "fundamentals_fixable_ticker_count": 0,
+            },
+        },
+    }
+    root = _sample_root(tmp_path, prior_snapshot=True)
+    _write_peer_mapping_ledger(root)
+
+    loop = build_coverage_expansion_loop(root, lane="auto", top_n=10, session_preflight=session_preflight)
+    rendered = render_coverage_expansion_loop(loop)
+
+    assert "peer mapping already has reviewed proof ledger coverage" in rendered
+    assert "make peer-mapping-source-review TOP_N=25" not in rendered
+    assert "make focus-peers TICKER=<ticker>" in rendered
+
+
+def test_coverage_expansion_loop_does_not_repeat_peer_valuation_focus_when_ledger_covers_blockers(tmp_path: Path):
+    session_preflight = {
+        "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],
+        "preferred_lane_order": ["peer_valuation_local_reviewed", "coverage_workflow_evidence"],
+        "sources": {
+            "sec": {"status": "unavailable", "detail": "dns failed"},
+            "yfinance_stage": {"status": "unavailable", "detail": "host resolution failed"},
+            "price_ladder": {
+                "status": "planned",
+                "reason_code": "dry_run_first_no_keyed_fallbacks",
+                "configured_keyed_providers": [],
+                "missing_keyed_provider_envs": ["FMP_API_KEY"],
+            },
+            "fmp": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "alpha_vantage": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "finnhub": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "local_fundamentals": {
+                "status": "available",
+                "detail": "Found local rows.",
+                "share_count_fixable_ticker_count": 0,
+                "fundamentals_fixable_ticker_count": 0,
+            },
+        },
+    }
+    root = _sample_root(tmp_path, prior_snapshot=True)
+    _write_peer_valuation_inputs_ledger(root)
+
+    loop = build_coverage_expansion_loop(root, lane="auto", top_n=10, session_preflight=session_preflight)
+    rendered = render_coverage_expansion_loop(loop)
+
+    assert "peer valuation inputs already have reviewed proof ledger coverage" in rendered
+    assert "make focus-peers TICKER=<ticker>" not in rendered
+    assert "make public-wording-check && make diff-hygiene-summary" in rendered
 
 
 def test_coverage_expansion_loop_prefers_fundamentals_before_share_count_when_local_share_fixable_is_zero(tmp_path: Path):

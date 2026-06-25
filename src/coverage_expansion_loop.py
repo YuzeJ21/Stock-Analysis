@@ -17,6 +17,7 @@ from src.readiness_ops import (
     ReadinessLane,
     build_data_coverage_expansion_plan,
     build_readiness_ops_lanes,
+    build_reviewed_batch_ledger_summaries,
 )
 from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_batch_preflight
 from src.session_source_preflight import load_session_source_preflight
@@ -72,6 +73,7 @@ class CoverageExpansionLoop:
     lane_board: tuple[CoverageExpansionLaneStatus, ...] = ()
     source_proof_gate: CoverageExpansionSourceProofGate | None = None
     session_source_preflight: dict[str, Any] | None = None
+    pivot_notes: tuple[str, ...] = ()
 
 
 def _normalize_planner_lane(value: str) -> str:
@@ -191,6 +193,43 @@ def _source_activation_required(preflight: dict[str, Any] | None) -> bool:
             local_fixable > 0,
         )
     )
+
+
+def _optional_context_ledger_covers_lanes(root: Path, lanes: list[ReadinessLane]) -> bool:
+    summary = build_reviewed_batch_ledger_summaries(root).get("optional_context")
+    if summary is None:
+        return False
+    optional_total = max(
+        (
+            lane.total_count
+            for lane in lanes
+            if lane.lane in {"earnings_locked", "analyst_estimates_locked"}
+        ),
+        default=0,
+    )
+    return optional_total > 0 and summary.unique_ticker_count >= optional_total
+
+
+def _peer_mapping_ledger_covers_review_queue(root: Path, lanes: list[ReadinessLane]) -> bool:
+    summary = build_reviewed_batch_ledger_summaries(root).get("peers")
+    if summary is None:
+        return False
+    peer_blocked = max(
+        (lane.blocked_count for lane in lanes if lane.lane == "peer_mapping"),
+        default=0,
+    )
+    return peer_blocked > 0 and summary.unique_ticker_count >= peer_blocked
+
+
+def _peer_valuation_inputs_ledger_covers_blockers(root: Path, lanes: list[ReadinessLane]) -> bool:
+    summary = build_reviewed_batch_ledger_summaries(root).get("peer_valuation_inputs")
+    if summary is None:
+        return False
+    peer_valuation_blocked = max(
+        (lane.blocked_count for lane in lanes if lane.lane == "peer_valuation_inputs"),
+        default=0,
+    )
+    return peer_valuation_blocked > 0 and summary.unique_ticker_count >= peer_valuation_blocked
 
 
 def _lane_proceed_boundary(lane: ReadinessLane) -> str:
@@ -413,6 +452,25 @@ def build_coverage_expansion_loop(
         "analyst_estimates_locked",
     }
     if _source_activation_required(session_preflight) and normalized_requested_lane in source_activation_lanes:
+        pivot_notes: tuple[str, ...] = ()
+        if _peer_mapping_ledger_covers_review_queue(root, lanes):
+            pivot_notes = (
+                *pivot_notes,
+                "peer mapping already has reviewed proof ledger coverage for the current source-review queue; "
+                "do not repeat peer-mapping source-review proof loops unless new trusted rows or new tickers appear.",
+            )
+        if _peer_valuation_inputs_ledger_covers_blockers(root, lanes):
+            pivot_notes = (
+                *pivot_notes,
+                "peer valuation inputs already have reviewed proof ledger coverage for current mapped-peer input blockers; "
+                "do not repeat focus-peers proof loops unless new trusted peer price or fundamentals rows appear.",
+            )
+        if _optional_context_ledger_covers_lanes(root, lanes):
+            pivot_notes = (
+                *pivot_notes,
+                "optional context already has reviewed proof ledger coverage for the current universe; "
+                "do not repeat optional-context worklist proof loops unless new trusted rows or new tickers appear.",
+            )
         return CoverageExpansionLoop(
             status="source_activation_required",
             selected_lane="source_activation",
@@ -438,6 +496,7 @@ def build_coverage_expansion_loop(
                 "local reviewed fundamentals rows do not fix current blockers",
             ),
             session_source_preflight=session_preflight,
+            pivot_notes=pivot_notes,
         )
     if normalized_requested_lane == "auto" and session_preflight is not None:
         preferred_auto_lanes = _preferred_auto_lanes_from_session(session_preflight)
@@ -625,30 +684,34 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
         ]
         pivot_commands: list[str] = []
         if "peer_mapping_proof" in preferred:
-            pivot_commands.extend(
-                [
-                    "make peer-mapping-queue TOP_N=25",
-                    "make peer-mapping-source-review TOP_N=25",
-                    "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-                ]
-            )
+            if not any("peer mapping already has reviewed proof ledger coverage" in note for note in loop.pivot_notes):
+                pivot_commands.extend(
+                    [
+                        "make peer-mapping-queue TOP_N=25",
+                        "make peer-mapping-source-review TOP_N=25",
+                        "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+                    ]
+                )
         if "peer_valuation_local_reviewed" in preferred:
-            pivot_commands.extend(
-                [
-                    "make peer-mapping-queue TOP_N=25",
-                    "make focus-peers TICKER=<ticker>",
-                ]
-            )
+            if not any("peer valuation inputs already have reviewed proof ledger coverage" in note for note in loop.pivot_notes):
+                pivot_commands.extend(
+                    [
+                        "make peer-mapping-queue TOP_N=25",
+                        "make focus-peers TICKER=<ticker>",
+                    ]
+                )
         if "earnings_optional_manual" in preferred or "analyst_estimates_optional_manual" in preferred:
-            pivot_commands.append("make optional-context-worklist TOP_N=25")
+            if not any("optional context already has reviewed proof ledger coverage" in note for note in loop.pivot_notes):
+                pivot_commands.append("make optional-context-worklist TOP_N=25")
         if "coverage_workflow_evidence" in preferred:
             pivot_commands.append("make public-wording-check && make diff-hygiene-summary")
         pivot_commands = list(dict.fromkeys(pivot_commands))
-        if pivot_commands:
+        if pivot_commands or loop.pivot_notes:
             lines.extend(
                 [
                     "Executable pivot path while source activation is blocked:",
                     "- Remote provider-backed coverage remains gated; do not run broad price/fundamentals/share-count batches.",
+                    *[f"- {note}" for note in loop.pivot_notes],
                     "- Use these copy-only commands to continue peer/proof workflow work without fabricating trusted data:",
                     *[f"  {index}. {command}" for index, command in enumerate(pivot_commands, start=1)],
                     "- Valid outcomes from this pivot are candidate_context_only, still_blocked, skipped, or excluded until source-backed rows pass review.",

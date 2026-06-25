@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_queue_from_files, summarize_missing_input_families
+from src.reviewed_batch_proof import ReviewedBatchProof, load_reviewed_batch_proofs
 from src.session_source_preflight import load_session_source_preflight
 
 
@@ -44,6 +46,7 @@ class ReadinessLane:
     generated_churn_policy: str
     stale_proof_warning: str
     notes: str
+    reviewed_proof_status: str = ""
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,7 @@ class CoverageFrontierOpportunity:
     proof_command: str
     generated_churn_policy: str
     guardrail: str
+    reviewed_proof_status: str = ""
 
 
 @dataclass(frozen=True)
@@ -151,6 +155,16 @@ class ReadinessQueueRow:
     guardrail: str
 
 
+@dataclass(frozen=True)
+class ReviewedBatchLedgerSummary:
+    lane: str
+    record_count: int
+    unique_ticker_count: int
+    outcome_counts: dict[str, int]
+    latest_batch_id: str
+    latest_outcome: str
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -238,6 +252,65 @@ def build_stale_proof_warning(root: Path) -> str:
     if not newer:
         return "Latest reviewed proof is at least as recent as watched source/readiness files."
     return "Reviewed proof may be stale after changes in: " + ", ".join(newer[:6])
+
+
+def _ticker_set(rows: Iterable[ReviewedBatchProof]) -> set[str]:
+    tickers: set[str] = set()
+    for row in rows:
+        for ticker in row.tickers.split(","):
+            cleaned = ticker.strip()
+            if cleaned and cleaned != "-":
+                tickers.add(cleaned.upper())
+    return tickers
+
+
+def build_reviewed_batch_ledger_summaries(root: Path | str = ".") -> dict[str, ReviewedBatchLedgerSummary]:
+    rows = load_reviewed_batch_proofs(Path(root) / "data" / "reviewed_batch_proofs.csv")
+    by_lane: dict[str, list[ReviewedBatchProof]] = {}
+    for row in rows:
+        by_lane.setdefault(row.lane, []).append(row)
+
+    summaries: dict[str, ReviewedBatchLedgerSummary] = {}
+    for lane, lane_rows in by_lane.items():
+        latest = lane_rows[-1]
+        summaries[lane] = ReviewedBatchLedgerSummary(
+            lane=lane,
+            record_count=len(lane_rows),
+            unique_ticker_count=len(_ticker_set(lane_rows)),
+            outcome_counts=dict(Counter(row.final_outcome for row in lane_rows)),
+            latest_batch_id=latest.batch_id,
+            latest_outcome=latest.final_outcome,
+        )
+    return summaries
+
+
+def _reviewed_batch_ledger_note(summary: ReviewedBatchLedgerSummary | None, *, lane_label: str) -> str:
+    if summary is None or summary.record_count <= 0:
+        return ""
+    outcomes = ", ".join(
+        f"{outcome}={count}" for outcome, count in sorted(summary.outcome_counts.items())
+    )
+    return (
+        f"Reviewed proof ledger: {lane_label} has {summary.record_count} reviewed record(s) "
+        f"across {summary.unique_ticker_count} unique ticker(s); outcomes {outcomes}; "
+        f"latest {summary.latest_batch_id}={summary.latest_outcome}."
+    )
+
+
+def _reviewed_batch_coverage_status(
+    summary: ReviewedBatchLedgerSummary | None,
+    *,
+    lane_label: str,
+    expected_count: int,
+) -> str:
+    if summary is None or expected_count <= 0 or summary.unique_ticker_count < expected_count:
+        return ""
+    outcomes = ", ".join(f"{outcome}={count}" for outcome, count in sorted(summary.outcome_counts.items()))
+    return (
+        f"reviewed proof ledger covers current {lane_label} scope "
+        f"({summary.unique_ticker_count}/{expected_count} ticker(s); outcomes {outcomes}); "
+        "do not repeat this proof loop unless new source-backed rows, new tickers, or changed blockers appear."
+    )
 
 
 def _feature_counts(
@@ -441,6 +514,31 @@ def build_readiness_ops_lanes(
     excluded_dcf = _count_contains(readiness_rows, "excluded_features", "dcf")
     fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(root)
     source_activation_required, source_activation_context = _source_activation_context(root)
+    batch_ledger_summaries = build_reviewed_batch_ledger_summaries(root)
+    peer_ledger_note = _reviewed_batch_ledger_note(batch_ledger_summaries.get("peers"), lane_label="peer mapping")
+    peer_valuation_ledger_note = _reviewed_batch_ledger_note(
+        batch_ledger_summaries.get("peer_valuation_inputs"),
+        lane_label="peer valuation inputs",
+    )
+    optional_ledger_note = _reviewed_batch_ledger_note(
+        batch_ledger_summaries.get("optional_context"),
+        lane_label="optional context",
+    )
+    peer_ledger_status = _reviewed_batch_coverage_status(
+        batch_ledger_summaries.get("peers"),
+        lane_label="peer mapping",
+        expected_count=peer_mapping_blocked,
+    )
+    peer_valuation_ledger_status = _reviewed_batch_coverage_status(
+        batch_ledger_summaries.get("peer_valuation_inputs"),
+        lane_label="peer valuation input",
+        expected_count=peer_valuation_blocked,
+    )
+    optional_ledger_status = _reviewed_batch_coverage_status(
+        batch_ledger_summaries.get("optional_context"),
+        lane_label="optional context",
+        expected_count=total,
+    )
     source_activation_command = "make coverage-expansion-loop TOP_N=10"
     source_activation_workflow = "source_activation_required"
     fundamentals_next_command = "make fundamentals-source-ladder-queue TOP_N=25"
@@ -578,7 +676,9 @@ def build_readiness_ops_lanes(
             notes=(
                 "Source-backed peer mappings unlock peer trend checks, but peer valuation still waits for mapped-peer inputs. "
                 f"Peer sub-states: {peer_summary.summary_text}."
+                + (f" {peer_ledger_note}" if peer_ledger_note else "")
             ),
+            reviewed_proof_status=peer_ledger_status,
         ),
         ReadinessLane(
             lane="peer_valuation_inputs",
@@ -604,7 +704,10 @@ def build_readiness_ops_lanes(
             notes=(
                 "Peer trend can be partial while peer valuation remains blocked; keep those states separate. "
                 f"Peer sub-states: {peer_summary.summary_text}."
+                + (f" {peer_valuation_ledger_note}" if peer_valuation_ledger_note else "")
+                + (f" Related peer mapping ledger: {peer_ledger_note}" if peer_ledger_note else "")
             ),
+            reviewed_proof_status=peer_valuation_ledger_status,
         ),
         ReadinessLane(
             lane="earnings_locked",
@@ -631,7 +734,11 @@ def build_readiness_ops_lanes(
             ),
             generated_churn_policy="Do not apply or publish earnings rows unless trusted local/provider source rows were reviewed.",
             stale_proof_warning=stale_warning,
-            notes="Optional context stays locked until trusted local or reviewed provider-assisted rows exist.",
+            notes=(
+                "Optional context stays locked until trusted local or reviewed provider-assisted rows exist."
+                + (f" {optional_ledger_note}" if optional_ledger_note else "")
+            ),
+            reviewed_proof_status=optional_ledger_status,
         ),
         ReadinessLane(
             lane="analyst_estimates_locked",
@@ -658,7 +765,11 @@ def build_readiness_ops_lanes(
             ),
             generated_churn_policy="Do not apply or publish estimates unless trusted local/provider source rows were reviewed.",
             stale_proof_warning=stale_warning,
-            notes="Optional context is unavailable by design when trusted local or reviewed provider-assisted rows are missing.",
+            notes=(
+                "Optional context is unavailable by design when trusted local or reviewed provider-assisted rows are missing."
+                + (f" {optional_ledger_note}" if optional_ledger_note else "")
+            ),
+            reviewed_proof_status=optional_ledger_status,
         ),
         ReadinessLane(
             lane="excluded_not_applicable",
@@ -696,10 +807,19 @@ def build_coverage_frontier(lanes: list[ReadinessLane], *, top_n: int = 10) -> l
         "optional_source_ladder": 3,
         "locked_manual": 4,
     }
-    ranked_lanes.sort(key=lambda lane: (workflow_rank.get(lane.workflow_mode, 9), -lane.unlock_impact, lane.label))
+    ranked_lanes.sort(
+        key=lambda lane: (
+            workflow_rank.get(lane.workflow_mode, 9),
+            bool(lane.reviewed_proof_status),
+            -lane.unlock_impact,
+            lane.label,
+        )
+    )
     rows: list[CoverageFrontierOpportunity] = []
     for rank, lane in enumerate(ranked_lanes[: max(top_n, 0)], start=1):
-        if lane.workflow_mode == "source_activation_required":
+        if lane.reviewed_proof_status:
+            move = "reviewed proof already recorded -> wait for new source-backed rows, new tickers, or changed blockers"
+        elif lane.workflow_mode == "source_activation_required":
             move = "source unavailable -> source activation gate before more coverage expansion"
         elif lane.workflow_mode == "dry_run_first":
             move = "blocked/partial price coverage -> reviewed price-ready coverage after capped run proof"
@@ -720,6 +840,7 @@ def build_coverage_frontier(lanes: list[ReadinessLane], *, top_n: int = 10) -> l
                 proof_command=lane.proof_command,
                 generated_churn_policy=lane.generated_churn_policy,
                 guardrail="This rank is an operations queue, not a security recommendation or evidence that data is already available.",
+                reviewed_proof_status=lane.reviewed_proof_status,
             )
         )
     return rows
@@ -1349,6 +1470,8 @@ def render_coverage_frontier(frontier: list[CoverageFrontierOpportunity]) -> str
                 f"   guardrail: {row.guardrail}",
             ]
         )
+        if row.reviewed_proof_status:
+            lines.append(f"   reviewed_proof_status: {row.reviewed_proof_status}")
     return "\n".join(lines)
 
 

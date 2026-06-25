@@ -8,6 +8,7 @@ from src.readiness_ops import (
     build_data_coverage_proof_queues,
     build_data_coverage_expansion_plan,
     build_peer_readiness_summary,
+    build_reviewed_batch_ledger_summaries,
     build_coverage_frontier,
     build_readiness_ops_lanes,
     render_data_coverage_proof_queues,
@@ -89,6 +90,22 @@ def _write_session_source_preflight(
         },
     }
     _write(root / "outputs" / "session_source_preflight.json", json.dumps(payload))
+
+
+def _write_reviewed_batch_proofs(root: Path) -> None:
+    _write(
+        root / "data" / "reviewed_batch_proofs.csv",
+        "\n".join(
+            [
+                "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,final_outcome,notes",
+                "RB-OPTIONAL-TOP2,2026-06-25,local reviewer,optional_context,Optional rows 1-2,\"AAA,BBB\",make optional-context-worklist TOP_N=2,imports-validate passed,imports-preview valid,not_run,3 rows,3 rows,none,none,data/imports/earnings.csv,headers reviewed,still_blocked,optional rows locked",
+                "RB-OPTIONAL-TOP3,2026-06-25,local reviewer,optional_context,Optional rows 3-3,QQQ,make optional-context-worklist TOP_N=3,imports-validate passed,imports-preview valid,not_run,3 rows,3 rows,none,none,data/imports/analyst_estimates.csv,headers reviewed,still_blocked,optional rows locked",
+                "RB-PEER-CANDIDATES,2026-06-25,local reviewer,peers,Peer candidate review,\"AAA,BBB\",make peer-mapping-source-review TOP_N=2,imports-validate passed,imports-preview valid,not_applied,3 rows,3 rows,none,none,data/imports/peers.csv,source-review output reviewed,candidate_context_only,candidate context only",
+                "RB-PEER-VALUATION-INPUTS,2026-06-25,local reviewer,peer_valuation_inputs,Peer valuation input blockers,AAA,make peer-mapping-queue TOP_N=1,imports-validate passed,imports-preview valid,not_applied,3 rows,3 rows,none,none,data/reports/peer_readiness_report.csv,peer blockers reviewed,still_blocked,peer valuation inputs still blocked",
+            ]
+        )
+        + "\n",
+    )
 
 
 def _sample_root(tmp_path: Path) -> Path:
@@ -192,6 +209,35 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert by_lane["earnings_locked"].next_safe_command == "make optional-context-source-ladder-queue TOP_N=10"
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"
     assert "trusted local or reviewed provider-assisted rows" in by_lane["earnings_locked"].notes
+
+
+def test_readiness_ops_surfaces_reviewed_batch_ledger_progress_without_unlocking_lanes(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write_reviewed_batch_proofs(root)
+
+    summaries = build_reviewed_batch_ledger_summaries(root)
+    lanes = build_readiness_ops_lanes(root)
+    by_lane = {lane.lane: lane for lane in lanes}
+    rendered = render_readiness_ops_center(lanes)
+    frontier = build_coverage_frontier(lanes, top_n=10)
+    frontier_rendered = render_coverage_frontier(frontier)
+
+    assert summaries["optional_context"].record_count == 2
+    assert summaries["optional_context"].unique_ticker_count == 3
+    assert summaries["optional_context"].outcome_counts == {"still_blocked": 2}
+    assert summaries["optional_context"].latest_batch_id == "RB-OPTIONAL-TOP3"
+    assert summaries["peers"].outcome_counts == {"candidate_context_only": 1}
+    assert summaries["peer_valuation_inputs"].outcome_counts == {"still_blocked": 1}
+    assert by_lane["earnings_locked"].readiness_state == "blocked"
+    assert by_lane["analyst_estimates_locked"].readiness_state == "blocked"
+    assert "optional context has 2 reviewed record(s) across 3 unique ticker(s)" in by_lane["earnings_locked"].notes
+    assert "outcomes still_blocked=2" in by_lane["analyst_estimates_locked"].notes
+    assert "peer mapping has 1 reviewed record(s) across 2 unique ticker(s)" in by_lane["peer_mapping"].notes
+    assert "peer valuation inputs has 1 reviewed record(s) across 1 unique ticker(s)" in by_lane["peer_valuation_inputs"].notes
+    assert "candidate_context_only=1" in rendered
+    assert "reviewed proof ledger covers current optional context scope" in by_lane["earnings_locked"].reviewed_proof_status
+    assert "reviewed_proof_status: reviewed proof ledger covers current optional context scope" in frontier_rendered
+    assert frontier[-1].lane in {"earnings_locked", "analyst_estimates_locked"}
 
 
 def test_readiness_ops_routes_fundamentals_to_source_ladder_when_fallback_provider_is_available(tmp_path: Path):
