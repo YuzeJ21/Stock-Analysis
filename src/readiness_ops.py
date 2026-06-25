@@ -328,6 +328,24 @@ def _fundamentals_source_ladder_context(root: Path) -> tuple[str, bool]:
     return "Session source availability: " + "; ".join(pieces) + ".", ladder_available
 
 
+def _source_activation_context(root: Path) -> tuple[bool, str]:
+    preflight = load_session_source_preflight(root)
+    if not isinstance(preflight, dict):
+        return False, ""
+    activation = preflight.get("source_activation", {})
+    if not isinstance(activation, dict) or activation.get("status") != "required":
+        return False, ""
+    detail = str(activation.get("detail") or "").strip()
+    next_action = str(activation.get("next_action") or "").strip()
+    pieces = ["Source activation required before more source-backed coverage expansion."]
+    if detail:
+        pieces.append(detail)
+    if next_action:
+        pieces.append(next_action)
+    pieces.append("Use make coverage-expansion-loop TOP_N=10 for the setup-only gate.")
+    return True, " ".join(pieces)
+
+
 def build_peer_readiness_summary(root: Path | str = ".") -> PeerReadinessSummary:
     root = Path(root)
     rows = _read_csv(root / "data" / "reports" / "peer_readiness_report.csv")
@@ -422,15 +440,23 @@ def build_readiness_ops_lanes(
     analyst_blocked = max(total - analyst_ready, 0)
     excluded_dcf = _count_contains(readiness_rows, "excluded_features", "dcf")
     fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(root)
+    source_activation_required, source_activation_context = _source_activation_context(root)
+    source_activation_command = "make coverage-expansion-loop TOP_N=10"
+    source_activation_workflow = "source_activation_required"
     fundamentals_next_command = "make fundamentals-source-ladder-queue TOP_N=25"
     share_count_next_command = "make fundamentals-source-ladder-queue TOP_N=10"
+    optional_context_next_command = "make optional-context-source-ladder-queue TOP_N=10"
+    if source_activation_required:
+        fundamentals_next_command = source_activation_command
+        share_count_next_command = source_activation_command
+        optional_context_next_command = source_activation_command
 
     return [
         ReadinessLane(
             lane="price_coverage",
             label="Price Coverage",
             readiness_state=_lane_state(ready=price_ready, partial=price_partial, blocked=price_blocked, excluded=price_excluded),
-            workflow_mode="dry_run_first",
+            workflow_mode=source_activation_workflow if source_activation_required else "dry_run_first",
             total_count=price_total,
             ready_count=price_ready,
             partial_count=price_partial,
@@ -439,10 +465,18 @@ def build_readiness_ops_lanes(
             unlock_impact=price_blocked + price_partial,
             source_lane="prices",
             source_readiness=(
-                "Provider-assisted price rows can be planned at scale; PROVIDER=auto tries Yahoo, Stooq, "
-                "then configured FMP/Alpha Vantage/Finnhub fallbacks; dry-run and capped review come first."
+                source_activation_context
+                if source_activation_required
+                else (
+                    "Provider-assisted price rows can be planned at scale; PROVIDER=auto tries Yahoo, Stooq, "
+                    "then configured FMP/Alpha Vantage/Finnhub fallbacks; dry-run and capped review come first."
+                )
             ),
-            next_safe_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
+            next_safe_command=(
+                source_activation_command
+                if source_activation_required
+                else "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
+            ),
             proof_command="make readiness && make price-coverage TOP_N=25 && make status-check TOP_N=5",
             generated_churn_policy="Price refreshes can create broad CSV churn; keep refreshed data local unless intentionally reviewed.",
             stale_proof_warning=stale_warning,
@@ -457,7 +491,7 @@ def build_readiness_ops_lanes(
                 blocked=fundamentals_blocked,
                 excluded=fundamentals_excluded,
             ),
-            workflow_mode="preview_first_reviewed_apply",
+            workflow_mode=source_activation_workflow if source_activation_required else "preview_first_reviewed_apply",
             total_count=fundamentals_total,
             ready_count=dcf_ready,
             partial_count=max(fundamentals_ready - dcf_ready, fundamentals_partial, 0),
@@ -466,8 +500,12 @@ def build_readiness_ops_lanes(
             unlock_impact=fundamentals_blocked + max(fundamentals_ready - dcf_ready, 0),
             source_lane="fundamentals",
             source_readiness=(
-                "source ladder tries SEC, yfinance, FMP, Alpha Vantage, then Finnhub when those session paths are available; "
-                "trusted local rows can still be reviewed through validate/preview. "
+                (
+                    "Source activation required before the fundamentals source ladder can be used. "
+                    if source_activation_required
+                    else "source ladder tries SEC, yfinance, FMP, Alpha Vantage, then Finnhub when those session paths are available; "
+                )
+                + "Trusted local rows can still be reviewed through validate/preview. "
                 f"{fundamentals_source_context}"
             ),
             next_safe_command=fundamentals_next_command,
@@ -483,7 +521,7 @@ def build_readiness_ops_lanes(
             lane="share_count_proof",
             label="Share Count Proof",
             readiness_state=_lane_state(ready=share_count_ready, partial=share_count_only_blockers, blocked=len(share_count_rows)),
-            workflow_mode="preview_first_reviewed_apply",
+            workflow_mode=source_activation_workflow if source_activation_required else "preview_first_reviewed_apply",
             total_count=total,
             ready_count=share_count_ready,
             partial_count=share_count_only_blockers,
@@ -492,8 +530,12 @@ def build_readiness_ops_lanes(
             unlock_impact=len(share_count_rows),
             source_lane="shares_outstanding",
             source_readiness=(
-                "shares_outstanding proof must come from SEC/source-ladder proof or trusted local fundamentals rows; "
-                "do not infer it from price, market cap, or peers. "
+                (
+                    "Source activation required before the share-count source ladder can be used. "
+                    if source_activation_required
+                    else "shares_outstanding proof must come from SEC/source-ladder proof or trusted local fundamentals rows; "
+                )
+                + "Do not infer it from price, market cap, or peers. "
                 f"{fundamentals_source_context}"
             ),
             next_safe_command=share_count_next_command,
@@ -559,7 +601,7 @@ def build_readiness_ops_lanes(
             lane="earnings_locked",
             label="Earnings Locked Lane",
             readiness_state=_lane_state(ready=earnings_ready, blocked=earnings_blocked),
-            workflow_mode="optional_source_ladder",
+            workflow_mode=source_activation_workflow if source_activation_required else "optional_source_ladder",
             total_count=total,
             ready_count=earnings_ready,
             partial_count=0,
@@ -567,8 +609,12 @@ def build_readiness_ops_lanes(
             excluded_count=0,
             unlock_impact=earnings_blocked,
             source_lane="earnings",
-            source_readiness="Trusted local or reviewed provider-assisted earnings rows only; empty rows render unavailable, not analysis.",
-            next_safe_command="make optional-context-source-ladder-queue TOP_N=10",
+            source_readiness=(
+                source_activation_context
+                if source_activation_required
+                else "Trusted local or reviewed provider-assisted earnings rows only; empty rows render unavailable, not analysis."
+            ),
+            next_safe_command=optional_context_next_command,
             proof_command="make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
             generated_churn_policy="Do not apply or publish earnings rows unless trusted local/provider source rows were reviewed.",
             stale_proof_warning=stale_warning,
@@ -578,7 +624,7 @@ def build_readiness_ops_lanes(
             lane="analyst_estimates_locked",
             label="Analyst Estimates Locked Lane",
             readiness_state=_lane_state(ready=analyst_ready, blocked=analyst_blocked),
-            workflow_mode="optional_source_ladder",
+            workflow_mode=source_activation_workflow if source_activation_required else "optional_source_ladder",
             total_count=total,
             ready_count=analyst_ready,
             partial_count=0,
@@ -586,8 +632,12 @@ def build_readiness_ops_lanes(
             excluded_count=0,
             unlock_impact=analyst_blocked,
             source_lane="analyst_estimates",
-            source_readiness="Trusted local or reviewed provider-assisted analyst-estimate rows only; consensus context is optional and never a recommendation.",
-            next_safe_command="make optional-context-source-ladder-queue TOP_N=10",
+            source_readiness=(
+                source_activation_context
+                if source_activation_required
+                else "Trusted local or reviewed provider-assisted analyst-estimate rows only; consensus context is optional and never a recommendation."
+            ),
+            next_safe_command=optional_context_next_command,
             proof_command="make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
             generated_churn_policy="Do not apply or publish estimates unless trusted local/provider source rows were reviewed.",
             stale_proof_warning=stale_warning,
@@ -622,6 +672,7 @@ def build_coverage_frontier(lanes: list[ReadinessLane], *, top_n: int = 10) -> l
         if lane.workflow_mode != "excluded" and lane.unlock_impact > 0
     ]
     workflow_rank = {
+        "source_activation_required": -1,
         "dry_run_first": 0,
         "preview_first_reviewed_apply": 1,
         "reviewed_apply": 2,
@@ -631,7 +682,9 @@ def build_coverage_frontier(lanes: list[ReadinessLane], *, top_n: int = 10) -> l
     ranked_lanes.sort(key=lambda lane: (workflow_rank.get(lane.workflow_mode, 9), -lane.unlock_impact, lane.label))
     rows: list[CoverageFrontierOpportunity] = []
     for rank, lane in enumerate(ranked_lanes[: max(top_n, 0)], start=1):
-        if lane.workflow_mode == "dry_run_first":
+        if lane.workflow_mode == "source_activation_required":
+            move = "source unavailable -> source activation gate before more coverage expansion"
+        elif lane.workflow_mode == "dry_run_first":
             move = "blocked/partial price coverage -> reviewed price-ready coverage after capped run proof"
         elif lane.workflow_mode in {"locked_manual", "optional_source_ladder"}:
             move = "locked optional context -> partial/ready only after trusted local/provider rows are reviewed"
@@ -656,6 +709,8 @@ def build_coverage_frontier(lanes: list[ReadinessLane], *, top_n: int = 10) -> l
 
 
 def _expansion_batch_scope(lane: ReadinessLane) -> str:
+    if lane.workflow_mode == "source_activation_required":
+        return "source activation setup only; do not run provider refresh, import, apply, or broad batch commands"
     if lane.lane == "price_coverage":
         return "broad capped missing-price batches; dry-run first; no ticker-by-ticker loop by default"
     if lane.lane == "fundamentals_dcf":
@@ -672,6 +727,8 @@ def _expansion_batch_scope(lane: ReadinessLane) -> str:
 
 
 def _expansion_next_command(lane: ReadinessLane) -> str:
+    if lane.workflow_mode == "source_activation_required":
+        return lane.next_safe_command
     if lane.lane == "fundamentals_dcf":
         return "make fundamentals-batch-proof TOP_N=10"
     if lane.lane == "share_count_proof":
@@ -682,6 +739,8 @@ def _expansion_next_command(lane: ReadinessLane) -> str:
 
 
 def _expansion_review_gate(lane: ReadinessLane) -> str:
+    if lane.workflow_mode == "source_activation_required":
+        return "configure at least one provider key or reviewed local source path, then rerun make session-source-preflight"
     if lane.lane == "price_coverage":
         return "review dry-run tickers, provider/source notes, expected artifacts, and save readiness snapshot before any real capped refresh"
     if lane.lane == "fundamentals_dcf":
@@ -698,6 +757,8 @@ def _expansion_review_gate(lane: ReadinessLane) -> str:
 
 
 def _expansion_stop_condition(lane: ReadinessLane) -> str:
+    if lane.workflow_mode == "source_activation_required":
+        return "stop before coverage expansion while SEC/Yahoo are unavailable, keyed providers are missing, and local rows do not fix blockers"
     if lane.lane == "price_coverage":
         return "stop if the dry run has unexpected scope, provider failures, or source rows that cannot be reviewed"
     if lane.lane == "fundamentals_dcf":
@@ -714,6 +775,8 @@ def _expansion_stop_condition(lane: ReadinessLane) -> str:
 
 
 def _expansion_outcome_boundary(lane: ReadinessLane) -> str:
+    if lane.workflow_mode == "source_activation_required":
+        return "coverage expansion resumes only after source activation preflight shows an executable path"
     if lane.lane == "price_coverage":
         return "price readiness can unlock setup, risk, liquidity, and benchmark review; it does not unlock fundamentals or valuation by itself"
     if lane.lane == "fundamentals_dcf":

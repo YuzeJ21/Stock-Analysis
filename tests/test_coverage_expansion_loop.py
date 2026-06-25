@@ -226,6 +226,53 @@ def test_coverage_expansion_loop_auto_lane_can_follow_session_preflight(tmp_path
     assert "peer_mapping_proof, local_reviewed_fundamentals_share_count" in rendered
 
 
+def test_coverage_expansion_loop_requires_source_activation_when_no_executable_source_path(tmp_path: Path):
+    session_preflight = {
+        "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],
+        "preferred_lane_order": ["peer_mapping_proof", "coverage_workflow_evidence"],
+        "sources": {
+            "sec": {"status": "unavailable", "detail": "dns failed"},
+            "yfinance_stage": {"status": "unavailable", "detail": "host resolution failed"},
+            "price_ladder": {
+                "status": "planned",
+                "reason_code": "dry_run_first_no_keyed_fallbacks",
+                "configured_keyed_providers": [],
+                "missing_keyed_provider_envs": [
+                    "STOOQ_API_KEY",
+                    "FMP_API_KEY",
+                    "ALPHA_VANTAGE_API_KEY",
+                    "FINNHUB_API_KEY",
+                ],
+            },
+            "fmp": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "alpha_vantage": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "finnhub": {"status": "unavailable", "reason_code": "provider_key_missing"},
+            "local_fundamentals": {
+                "status": "available",
+                "detail": "Found local rows.",
+                "share_count_fixable_ticker_count": 0,
+                "fundamentals_fixable_ticker_count": 0,
+            },
+        },
+    }
+
+    loop = build_coverage_expansion_loop(
+        _sample_root(tmp_path, prior_snapshot=True),
+        lane="auto",
+        top_n=10,
+        session_preflight=session_preflight,
+    )
+    rendered = render_coverage_expansion_loop(loop)
+
+    assert loop.status == "source_activation_required"
+    assert loop.selected_lane == "source_activation"
+    assert "configure at least one provider key" in loop.next_safe_action.lower()
+    assert "cp config/provider_keys.env.example config/provider_keys.env" in rendered
+    assert "make session-source-preflight" in rendered
+    assert "make price-refresh-loop" not in rendered
+    assert "make fundamentals-source-ladder-queue" not in rendered
+
+
 def test_coverage_expansion_loop_prefers_fundamentals_before_share_count_when_local_share_fixable_is_zero(tmp_path: Path):
     session_preflight = {
         "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],

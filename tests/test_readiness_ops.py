@@ -222,6 +222,68 @@ def test_readiness_ops_classifies_missing_fallback_keys_without_generic_blocker_
     assert "local reviewed rows available" in by_lane["share_count_proof"].source_readiness
 
 
+def test_readiness_ops_routes_source_lanes_to_activation_when_no_source_path_is_executable(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    payload = {
+        "source_activation": {
+            "status": "required",
+            "reason_code": "no_executable_source_path",
+            "detail": "do not run broad coverage batches",
+            "next_action": "Configure provider keys.",
+        },
+        "sources": {
+            "sec": {"status": "unavailable", "reason_code": "network_error", "detail": "dns failed"},
+            "yfinance_stage": {"status": "unavailable", "reason_code": "probe_failed", "detail": "dns failed"},
+            "fmp": {"status": "unavailable", "reason_code": "provider_key_missing", "detail": "FMP_API_KEY missing"},
+            "alpha_vantage": {
+                "status": "unavailable",
+                "reason_code": "provider_key_missing",
+                "detail": "ALPHA_VANTAGE_API_KEY missing",
+            },
+            "finnhub": {
+                "status": "unavailable",
+                "reason_code": "provider_key_missing",
+                "detail": "FINNHUB_API_KEY missing",
+            },
+            "local_fundamentals": {
+                "status": "available",
+                "reason_code": "ok",
+                "detail": "local fundamentals fixture",
+                "row_count": 2,
+                "ticker_count": 2,
+                "share_count_fixable_ticker_count": 0,
+                "fundamentals_fixable_ticker_count": 0,
+            },
+        },
+    }
+    _write(root / "outputs" / "session_source_preflight.json", json.dumps(payload))
+
+    lanes = build_readiness_ops_lanes(root)
+    by_lane = {lane.lane: lane for lane in lanes}
+    rendered = render_readiness_ops_center(lanes)
+    frontier = build_coverage_frontier(lanes, top_n=10)
+    plan = build_data_coverage_expansion_plan(lanes, top_n=10)
+
+    for lane_name in ("price_coverage", "fundamentals_dcf", "share_count_proof", "earnings_locked", "analyst_estimates_locked"):
+        assert by_lane[lane_name].workflow_mode == "source_activation_required"
+        assert by_lane[lane_name].next_safe_command == "make coverage-expansion-loop TOP_N=10"
+        assert "Source activation required" in by_lane[lane_name].source_readiness
+
+    assert "make price-refresh-loop" not in rendered
+    assert "make fundamentals-source-ladder-queue" not in rendered
+    assert "make optional-context-source-ladder-queue" not in rendered
+    assert all(
+        row.next_safe_command == "make coverage-expansion-loop TOP_N=10"
+        for row in frontier
+        if row.workflow_mode == "source_activation_required"
+    )
+    assert all(
+        step.next_safe_command == "make coverage-expansion-loop TOP_N=10"
+        for step in plan
+        if step.workflow_mode == "source_activation_required"
+    )
+
+
 def test_fundamentals_peer_metrics_queue_summarizes_next_layer_without_fake_unlocks(tmp_path: Path):
     rows = build_fundamentals_peer_metrics_queue(_sample_root(tmp_path), top_n=2)
     rendered = render_fundamentals_peer_metrics_queue(rows)

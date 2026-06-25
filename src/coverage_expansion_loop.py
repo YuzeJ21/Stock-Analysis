@@ -153,6 +153,46 @@ def _session_sec_unavailable(preflight: dict[str, Any] | None) -> bool:
     return sec.get("status") == "unavailable"
 
 
+def _source_activation_required(preflight: dict[str, Any] | None) -> bool:
+    if not isinstance(preflight, dict):
+        return False
+    sources = preflight.get("sources", {})
+    if not isinstance(sources, dict) or "price_ladder" not in sources:
+        return False
+
+    def source_available(name: str) -> bool:
+        source = sources.get(name, {})
+        return isinstance(source, dict) and source.get("status") == "available"
+
+    local = sources.get("local_fundamentals", {})
+    local_fixable = 0
+    if isinstance(local, dict):
+        local_fixable = int(local.get("share_count_fixable_ticker_count", 0) or 0) + int(
+            local.get("fundamentals_fixable_ticker_count", 0) or 0
+        )
+
+    price_ladder = sources.get("price_ladder", {})
+    configured_price_fallbacks: list[str] = []
+    if isinstance(price_ladder, dict):
+        configured_price_fallbacks = [
+            str(item).strip()
+            for item in price_ladder.get("configured_keyed_providers", [])
+            if str(item).strip()
+        ]
+
+    return not any(
+        (
+            source_available("sec"),
+            source_available("yfinance_stage"),
+            source_available("fmp"),
+            source_available("alpha_vantage"),
+            source_available("finnhub"),
+            bool(configured_price_fallbacks),
+            local_fixable > 0,
+        )
+    )
+
+
 def _lane_proceed_boundary(lane: ReadinessLane) -> str:
     if lane.workflow_mode == "dry_run_first":
         return "dry-run and reviewed scope before any capped provider refresh"
@@ -361,9 +401,45 @@ def build_coverage_expansion_loop(
     root = Path(root)
     lanes = build_readiness_ops_lanes(root)
     steps = build_data_coverage_expansion_plan(lanes, top_n=top_n)
-    if session_preflight is None and _normalize_planner_lane(lane) == "auto":
+    normalized_requested_lane = _normalize_planner_lane(lane)
+    if session_preflight is None and normalized_requested_lane == "auto":
         session_preflight = load_session_source_preflight(root)
-    if _normalize_planner_lane(lane) == "auto" and session_preflight is not None:
+    source_activation_lanes = {
+        "auto",
+        "price_coverage",
+        "fundamentals_dcf",
+        "share_count_proof",
+        "earnings_locked",
+        "analyst_estimates_locked",
+    }
+    if _source_activation_required(session_preflight) and normalized_requested_lane in source_activation_lanes:
+        return CoverageExpansionLoop(
+            status="source_activation_required",
+            selected_lane="source_activation",
+            selected_label="Source Activation",
+            reviewed_batch_lane="-",
+            planner_step=None,
+            preflight=None,
+            next_safe_action=(
+                "Configure at least one provider key or add reviewed local source rows before running another "
+                "coverage expansion batch."
+            ),
+            copy_only_sequence=(
+                "cp config/provider_keys.env.example config/provider_keys.env",
+                "chmod 600 config/provider_keys.env",
+                "open -e config/provider_keys.env",
+                "make session-source-preflight",
+                "make readiness-ops-center",
+            ),
+            do_not_proceed_if=(
+                "SEC is unavailable in this session",
+                "Yahoo/yfinance staging is unavailable in this session",
+                "no keyed fallback provider is configured",
+                "local reviewed fundamentals rows do not fix current blockers",
+            ),
+            session_source_preflight=session_preflight,
+        )
+    if normalized_requested_lane == "auto" and session_preflight is not None:
         preferred_auto_lanes = _preferred_auto_lanes_from_session(session_preflight)
         if preferred_auto_lanes:
             ordered_steps = sorted(

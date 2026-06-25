@@ -241,10 +241,15 @@ def test_session_source_preflight_pivots_to_peer_lane_when_no_source_path_is_ava
     )
 
     assert preflight["preferred_lane_order"][0] == "peer_mapping_proof"
+    assert preflight["source_activation"]["status"] == "required"
     assert preflight["sources"]["local_fundamentals"]["status"] == "missing_file"
     rendered = render_session_source_preflight(preflight)
     assert "python3 -m pip install -e '.[research]'" in rendered
     assert "peer_mapping_proof" in rendered
+    assert "source_activation: required" in rendered
+    assert "cp config/provider_keys.env.example config/provider_keys.env" in rendered
+    assert "do not run broad coverage batches" in rendered
+    assert "Run the price dry run first" not in rendered
 
 
 def test_session_source_preflight_prefers_fmp_when_sec_and_yfinance_are_unavailable(tmp_path: Path):

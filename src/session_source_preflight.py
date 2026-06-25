@@ -246,7 +246,10 @@ def build_price_ladder_status(
     else:
         status = "planned"
         reason_code = "dry_run_first_no_keyed_fallbacks"
-        next_action = "Run the price dry run first; configure a keyed provider if Yahoo/Stooq source paths are unavailable."
+        next_action = (
+            "Use make coverage-expansion-loop TOP_N=10 for the source-activation gate; "
+            "configure a keyed provider before broad price coverage batches if Yahoo/Stooq are unavailable."
+        )
     return _status_payload(
         status=status,
         reason_code=reason_code,
@@ -258,6 +261,67 @@ def build_price_ladder_status(
         provider_order=PRICE_PROVIDER_ORDER,
         configured_keyed_providers=configured,
         missing_keyed_provider_envs=missing_envs,
+    )
+
+
+def build_source_activation_status(
+    *,
+    sec_status: dict[str, Any],
+    yfinance_stage_status: dict[str, Any],
+    price_ladder_status: dict[str, Any],
+    fmp_status: dict[str, Any],
+    alpha_vantage_status: dict[str, Any],
+    finnhub_status: dict[str, Any],
+    local_fundamentals_status: dict[str, Any],
+) -> dict[str, Any]:
+    local_fixable = int(local_fundamentals_status.get("share_count_fixable_ticker_count", 0) or 0) + int(
+        local_fundamentals_status.get("fundamentals_fixable_ticker_count", 0) or 0
+    )
+    configured_price_fallbacks = [
+        str(item).strip()
+        for item in price_ladder_status.get("configured_keyed_providers", [])
+        if str(item).strip()
+    ]
+    has_executable_source = any(
+        (
+            sec_status.get("status") == "available",
+            yfinance_stage_status.get("status") == "available",
+            fmp_status.get("status") == "available",
+            alpha_vantage_status.get("status") == "available",
+            finnhub_status.get("status") == "available",
+            bool(configured_price_fallbacks),
+            local_fixable > 0,
+        )
+    )
+    missing_keys = [
+        str(item).strip()
+        for item in price_ladder_status.get("missing_keyed_provider_envs", [])
+        if str(item).strip()
+    ]
+    if has_executable_source:
+        return _status_payload(
+            status="not_required",
+            reason_code="executable_source_available",
+            detail="At least one source path or local reviewed row can be used before broad coverage expansion.",
+            next_action="Use the relevant reviewed dry-run, validate, preview, and apply gate.",
+            activation_commands=(),
+            missing_keyed_provider_envs=missing_keys,
+        )
+    return _status_payload(
+        status="required",
+        reason_code="no_executable_source_path",
+        detail=(
+            "SEC/Yahoo are unavailable or unusable, no keyed fallback provider is configured, "
+            "and local reviewed rows do not fix current blockers; do not run broad coverage batches."
+        ),
+        next_action="Configure at least one provider key or add reviewed local source rows, then rerun make session-source-preflight.",
+        activation_commands=(
+            "cp config/provider_keys.env.example config/provider_keys.env",
+            "chmod 600 config/provider_keys.env",
+            "open -e config/provider_keys.env",
+            "make session-source-preflight",
+        ),
+        missing_keyed_provider_envs=missing_keys,
     )
 
 
@@ -459,6 +523,15 @@ def build_session_source_preflight(
         finnhub_status=finnhub_status,
     )
     local_fundamentals_status = inspect_local_fundamentals(root, data_dir=data_path)
+    source_activation_status = build_source_activation_status(
+        sec_status=sec_status,
+        yfinance_stage_status=yfinance_stage_status,
+        price_ladder_status=price_ladder_status,
+        fmp_status=fmp_status,
+        alpha_vantage_status=alpha_vantage_status,
+        finnhub_status=finnhub_status,
+        local_fundamentals_status=local_fundamentals_status,
+    )
 
     session_flags: list[str] = []
     do_not_retry_paths: list[str] = []
@@ -553,6 +626,7 @@ def build_session_source_preflight(
             "finnhub": finnhub_status,
             "local_fundamentals": local_fundamentals_status,
         },
+        "source_activation": source_activation_status,
     }
 
 
@@ -616,6 +690,22 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
                 f"share_count={source.get('share_count_fixable_ticker_count', 0)} "
                 f"fundamentals={source.get('fundamentals_fixable_ticker_count', 0)}"
             )
+    activation = preflight.get("source_activation", {})
+    if isinstance(activation, dict):
+        lines.extend(
+            [
+                f"source_activation: {activation.get('status', 'unknown')}",
+                f"  reason: {activation.get('reason_code', '')}",
+                f"  detail: {activation.get('detail', '')}",
+            ]
+        )
+        next_action = str(activation.get("next_action", "")).strip()
+        if next_action:
+            lines.append(f"  next_action: {next_action}")
+        commands = [str(item).strip() for item in activation.get("activation_commands", []) if str(item).strip()]
+        if commands:
+            lines.append("  activation_commands:")
+            lines.extend(f"  - {command}" for command in commands)
     lines.append(
         "non_blocking_rule: if a remote path is unavailable in this session, record the lane outcome and continue to the next executable lane."
     )
