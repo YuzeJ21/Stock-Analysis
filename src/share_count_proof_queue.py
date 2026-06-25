@@ -215,7 +215,11 @@ def build_share_count_proof_queue(
                 dcf_input_status=row_status,
                 sec_stage_command=source_command,
                 manual_source_path="data/imports/fundamentals.csv",
-                validation_sequence="make imports-validate -> make imports-preview -> make imports-apply",
+                validation_sequence=(
+                    f"make imports-validate IMPORT_TICKERS={ticker} -> "
+                    f"make imports-preview IMPORT_TICKERS={ticker} -> "
+                    f"make imports-apply IMPORT_TICKERS={ticker}"
+                ),
                 proof_after_update=f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}",
                 stop_rule=(
                     "Stop if SEC/manual source proof cannot verify shares_outstanding; keep DCF blocked and do not infer "

@@ -284,7 +284,7 @@ def format_optional_context_summary(
             "Copy-only unlock sequence:",
             "- make templates",
             "- make import-earnings or make import-analyst-estimates",
-            "- make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness",
+            "- make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker> -> make optional-context-readiness",
             "Rejected-row reports:",
             "- data/earnings_import_rejected.csv",
             "- data/analyst_estimates_import_rejected.csv",

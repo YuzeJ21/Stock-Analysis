@@ -617,6 +617,44 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
                 "",
             ]
         )
+    if loop.status == "source_activation_required":
+        preferred = [
+            str(item).strip()
+            for item in (loop.session_source_preflight or {}).get("preferred_lane_order", [])
+            if str(item).strip()
+        ]
+        pivot_commands: list[str] = []
+        if "peer_mapping_proof" in preferred:
+            pivot_commands.extend(
+                [
+                    "make peer-mapping-queue TOP_N=25",
+                    "make peer-mapping-source-review TOP_N=25",
+                    "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+                ]
+            )
+        if "peer_valuation_local_reviewed" in preferred:
+            pivot_commands.extend(
+                [
+                    "make peer-mapping-queue TOP_N=25",
+                    "make focus-peers TICKER=<ticker>",
+                ]
+            )
+        if "earnings_optional_manual" in preferred or "analyst_estimates_optional_manual" in preferred:
+            pivot_commands.append("make optional-context-worklist TOP_N=25")
+        if "coverage_workflow_evidence" in preferred:
+            pivot_commands.append("make public-wording-check && make diff-hygiene-summary")
+        pivot_commands = list(dict.fromkeys(pivot_commands))
+        if pivot_commands:
+            lines.extend(
+                [
+                    "Executable pivot path while source activation is blocked:",
+                    "- Remote provider-backed coverage remains gated; do not run broad price/fundamentals/share-count batches.",
+                    "- Use these copy-only commands to continue peer/proof workflow work without fabricating trusted data:",
+                    *[f"  {index}. {command}" for index, command in enumerate(pivot_commands, start=1)],
+                    "- Valid outcomes from this pivot are candidate_context_only, still_blocked, skipped, or excluded until source-backed rows pass review.",
+                    "",
+                ]
+            )
     lines.extend(["Copy-only loop:"])
     lines.extend(f"{index}. {command}" for index, command in enumerate(loop.copy_only_sequence, start=1))
     lines.extend(

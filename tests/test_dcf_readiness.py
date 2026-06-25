@@ -141,7 +141,7 @@ def test_dcf_readiness_cli_prints_plain_english_unlock_path(
     assert "make focus-fundamentals ticker=amd" in output
     assert "make sec-stage tickers=amd" in output
     assert "data/imports/fundamentals.csv" in output
-    assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness -> make readiness" in output
+    assert "make imports-validate import_tickers=amd -> make imports-preview import_tickers=amd -> make imports-apply import_tickers=amd -> make dcf-readiness -> make readiness" in output
     assert "price target" not in output
     assert "undervalued" not in output
 

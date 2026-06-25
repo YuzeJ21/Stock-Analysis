@@ -885,14 +885,18 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     assert fundamentals_row.focus_command == "make runbook-fundamentals-broader"
     assert fundamentals_row.example_command == "make runbook-fundamentals-broader"
     assert fundamentals_row.recommended_action == (
-        "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+        "Run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+        "then make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+        "then make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>, then make status "
         "to confirm the live local fundamentals and DCF inputs."
     )
 
     peers_row = next(row for row in rows if row.action_type == "peers" and not row.ticker)
     assert peers_row.recommended_action == (
         "Run make templates, then fill data/imports/peers.csv manually with transparent peer mappings. "
-        "After that, run make imports-validate, make imports-preview, make imports-apply, and make status "
+        "After that, run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+        "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+        "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>, and make status "
         "before relying on peer-relative valuation."
     )
     assert peers_row.focus_command == "make runbook-peers-broader"

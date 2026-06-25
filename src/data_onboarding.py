@@ -1096,8 +1096,8 @@ def _peer_support_follow_through(
                 f"Run make focus-fundamentals TICKER={peer} to inspect missing peer fundamentals needed for "
                 f"{ticker}'s peer-relative context. If SEC_USER_AGENT is configured, run "
                 f"make sec-stage TICKERS={peer}; otherwise prepare trusted manual fundamentals import file rows in "
-                "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
-                "and make imports-apply.",
+                "data/imports/fundamentals.csv and run "
+                f"{_scoped_import_sequence(peer)}.",
                 "data/imports/fundamentals.csv",
                 focus_command_for_ticker("fundamentals", peer),
                 f"make sec-stage TICKERS={peer}",
@@ -1130,6 +1130,15 @@ def _analyst_estimates_action_text() -> str:
     return "Run make templates, then fill data/imports/analyst_estimates.csv manually only if you have a trusted source."
 
 
+def _scoped_import_sequence(ticker: str) -> str:
+    ticker_arg = ticker or "<ticker>"
+    return (
+        f"make imports-validate IMPORT_TICKERS={ticker_arg} -> "
+        f"make imports-preview IMPORT_TICKERS={ticker_arg} -> "
+        f"make imports-apply IMPORT_TICKERS={ticker_arg}"
+    )
+
+
 def _action_for_coverage(row: TickerCoverage) -> str:
     if not row.has_prices:
         return _price_action_text(row.ticker)
@@ -1137,8 +1146,8 @@ def _action_for_coverage(row: TickerCoverage) -> str:
         return _price_action_text(row.ticker)
     missing_dcf_text = str(row.missing_required_for_dcf or "").lower()
     if (
-        "fundamentals import drafts still need make imports-validate, make imports-preview, and make imports-apply" in missing_dcf_text
-        or "fundamentals import file rows still need make imports-validate, make imports-preview, and make imports-apply" in missing_dcf_text
+        "fundamentals import drafts still need make imports-validate" in missing_dcf_text
+        or "fundamentals import file rows still need make imports-validate" in missing_dcf_text
     ):
         return _staged_fundamentals_action_text()
     if not row.has_fundamentals or not row.dcf_ready:
@@ -1165,7 +1174,10 @@ def _price_onboarding_reason(row: TickerCoverage) -> str:
 
 def _fundamentals_onboarding_reason(row: TickerCoverage) -> str:
     if _has_staged_fundamentals_follow_through(row):
-        return "Fundamentals import file rows are present but still need make imports-validate, make imports-preview, and make imports-apply before DCF inputs are live."
+        return (
+            "Fundamentals import file rows are present but still need "
+            f"{_scoped_import_sequence(row.ticker)} before DCF inputs are live."
+        )
     if not row.has_fundamentals:
         return "No local fundamentals row is present for this ticker yet."
     if row.missing_required_for_dcf:
@@ -1197,7 +1209,10 @@ def _peer_onboarding_reason(row: TickerCoverage) -> str:
     if not row.has_peer_mapping:
         return "No local peer mapping is configured for this ticker."
     if row.focus_command == "make imports-validate":
-        return "Peer mapping import file rows are present but still need make imports-validate, make imports-preview, and make imports-apply before peer-relative context is live."
+        return (
+            "Peer mapping import file rows are present but still need "
+            f"{_scoped_import_sequence(row.ticker)} before peer-relative context is live."
+        )
     if row.missing_required_for_peer_relative:
         return f"Peer-relative inputs are still incomplete: {row.missing_required_for_peer_relative}."
     return "Peer-relative inputs are still incomplete."
@@ -1222,6 +1237,7 @@ def _ticker_context_lookup(
     sector_col = universe_lookup.get("sectoretf") or universe_lookup.get("sector_etf")
     default_purpose_col = universe_lookup.get("defaultpurpose") or universe_lookup.get("default_purpose")
     market_cap_bucket_col = universe_lookup.get("marketcapbucket") or universe_lookup.get("market_cap_bucket")
+    source_detail_col = universe_lookup.get("sourcedetail") or universe_lookup.get("source_detail")
     is_etf_col = universe_lookup.get("is_etf")
     holding_tickers = _ticker_set(holdings, holdings_ticker_col) if (holdings_ticker_col := holdings_lookup.get("ticker")) else set()
 
@@ -1237,6 +1253,7 @@ def _ticker_context_lookup(
                 "sector_etf": str(row.get(sector_col, "")).strip() if sector_col else "",
                 "default_purpose": str(row.get(default_purpose_col, "")).strip() if default_purpose_col else "",
                 "market_cap_bucket": str(row.get(market_cap_bucket_col, "")).strip() if market_cap_bucket_col else "",
+                "source_detail": str(row.get(source_detail_col, "")).strip() if source_detail_col else "",
                 "is_etf": row.get(is_etf_col, "") if is_etf_col else "",
             }
 
@@ -1249,6 +1266,7 @@ def _ticker_context_lookup(
                 "sector_etf": "",
                 "default_purpose": "",
                 "market_cap_bucket": "",
+                "source_detail": "",
                 "is_etf": "",
             },
         )
@@ -1270,7 +1288,18 @@ def _monitor_context_from_peer_context(context: dict[str, Any]) -> bool:
 
 def _meaningful_peer_context_value(value: object) -> str:
     text = str(value or "").strip().lower()
-    if text in {"", "nan", "none", "n/a", "na", "not available", "unavailable", "unclassified", "unknown"}:
+    if text in {
+        "",
+        "nan",
+        "none",
+        "n/a",
+        "na",
+        "not available",
+        "unavailable",
+        "unclassified",
+        "unknown",
+        "nasdaq-listed",
+    }:
         return ""
     return text
 
@@ -1287,7 +1316,8 @@ def _peer_candidate_context(
         return "excluded", "asset_type_scope", 0, ""
     theme = _meaningful_peer_context_value(context.get("theme", ""))
     sector_etf = _meaningful_peer_context_value(context.get("sector_etf", ""))
-    if not theme and not sector_etf:
+    source_detail = _meaningful_peer_context_value(context.get("source_detail", ""))
+    if not theme and not sector_etf and not source_detail:
         return "still_blocked", "none", 0, ""
 
     candidates: list[tuple[int, int, str]] = []
@@ -1297,14 +1327,18 @@ def _peer_candidate_context(
             continue
         peer_theme = _meaningful_peer_context_value(peer_context.get("theme", ""))
         peer_sector = _meaningful_peer_context_value(peer_context.get("sector_etf", ""))
+        peer_source_detail = _meaningful_peer_context_value(peer_context.get("source_detail", ""))
         exact_theme = bool(theme and peer_theme == theme)
         exact_sector = bool(sector_etf and peer_sector == sector_etf)
+        exact_source_detail = bool(source_detail and peer_source_detail == source_detail)
         if exact_theme and exact_sector:
             source_rank = 0
         elif exact_sector:
             source_rank = 1
         elif exact_theme:
             source_rank = 2
+        elif exact_source_detail:
+            source_rank = 3
         else:
             continue
         peer_coverage = coverage_by_ticker.get(peer)
@@ -1320,6 +1354,7 @@ def _peer_candidate_context(
         0: "sector_theme_fallback",
         1: "sector_fallback",
         2: "theme_fallback",
+        3: "source_detail_fallback",
     }.get(best_source_rank, "fallback_context")
     peer_names = [peer for source_rank, _readiness_rank, peer in candidates if source_rank == best_source_rank]
     return "candidate_context_only", source, len(peer_names), ", ".join(peer_names[:limit])
@@ -1396,7 +1431,7 @@ def build_ticker_coverage(
         if dcf_excluded:
             missing_dcf.append(f"excluded from company DCF: {asset_type}")
         elif has_staged_fundamentals:
-            missing_dcf.append("fundamentals import file rows still need make imports-validate, make imports-preview, and make imports-apply")
+            missing_dcf.append(f"fundamentals import file rows still need {_scoped_import_sequence(ticker)}")
         elif not has_fundamentals:
             missing_dcf.append("fundamentals row")
         if has_fundamentals and not has_staged_fundamentals and not _has_number(financial_row, "free_cash_flow", "fcf"):
@@ -1412,7 +1447,7 @@ def build_ticker_coverage(
         if not has_peer_mapping:
             missing_peer.append("peer mapping")
         elif has_staged_peer_mapping:
-            missing_peer.append("peer mapping import file rows still need make imports-validate, make imports-preview, and make imports-apply")
+            missing_peer.append(f"peer mapping import file rows still need {_scoped_import_sequence(ticker)}")
         if has_peer_mapping and not peer_ready:
             if not has_staged_peer_mapping:
                 missing_peer.append("peer fundamentals or peer price/market-cap context")
@@ -2049,9 +2084,9 @@ def build_sec_stage_queue(
                 missing_required_for_dcf=coverage.missing_required_for_dcf,
                 next_input_file="data/imports/fundamentals.csv",
                 validation_sequence=(
-                    "make imports-validate -> make imports-preview -> make imports-apply -> make status-check TOP_N=5"
+                    f"{_scoped_import_sequence(coverage.ticker)} -> make status-check TOP_N=5"
                     if _has_staged_fundamentals_follow_through(coverage)
-                    else "make focus-fundamentals -> make sec-stage or data/imports/fundamentals.csv -> make imports-validate -> make imports-preview -> make imports-apply"
+                    else f"make focus-fundamentals TICKER={coverage.ticker} -> make sec-stage TICKERS={coverage.ticker} or data/imports/fundamentals.csv -> {_scoped_import_sequence(coverage.ticker)}"
                 ),
                 recommended_action=recommended_action,
                 target_file=coverage.target_file if _has_staged_fundamentals_follow_through(coverage) else "data/imports/fundamentals.csv",
@@ -2118,14 +2153,14 @@ def build_peer_mapping_queue(
             ) = _peer_candidate_context(coverage.ticker, context_lookup, coverage_by_ticker)
             if candidate_context_state == "candidate_context_only":
                 next_action_summary = (
-                    "Candidate context only: review sector/theme fallback names as research leads; "
+                    "Candidate context only: review classification fallback names as research leads; "
                     "not trusted peer proof until source-backed rows are promoted."
                 )
                 fallback_context_note = (
-                    "Candidate context only from sector/theme fallback; not trusted peer proof and not peer valuation input."
+                    "Candidate context only from local classification fallback; not trusted peer proof and not peer valuation input."
                 )
                 next_input_file = "data/imports/peers.csv"
-                validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
+                validation_sequence = f"make templates -> fill source-backed peers -> {_scoped_import_sequence(coverage.ticker)}"
                 trusted_source_requirement = (
                     "Each row needs ticker, peer_ticker, peer_group, source, and as_of_date from a trusted research source; "
                     "do not use sector/theme fallback as trusted manual peer data."
@@ -2144,7 +2179,7 @@ def build_peer_mapping_queue(
                 next_action_summary = "Add at least two trusted, source-backed peer rows; no candidate context is available yet."
                 fallback_context_note = "No candidate context is available; add only source-backed peer mappings."
                 next_input_file = "data/imports/peers.csv"
-                validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
+                validation_sequence = f"make templates -> fill source-backed peers -> {_scoped_import_sequence(coverage.ticker)}"
                 trusted_source_requirement = (
                     "Each row needs ticker, peer_ticker, peer_group, source, and as_of_date from a trusted research source; "
                     "do not use sector/theme fallback as trusted manual peer data."
@@ -2157,7 +2192,7 @@ def build_peer_mapping_queue(
             candidate_context_count = 0
             candidate_context_peers = ""
             next_input_file = "data/imports/fundamentals.csv, data/imports/prices.csv"
-            validation_sequence = f"make focus-peers TICKER={coverage.ticker} -> add verified peer metrics -> make imports-validate -> make imports-preview -> make imports-apply"
+            validation_sequence = f"make focus-peers TICKER={coverage.ticker} -> add verified peer metrics -> {_scoped_import_sequence(coverage.ticker)}"
             trusted_source_requirement = (
                 "Existing mappings still need verified peer fundamentals and price context before peer valuation is ready."
             )
@@ -2168,7 +2203,7 @@ def build_peer_mapping_queue(
         example_command = "make templates"
         safe_next_step = (
             "Run make templates, fill only manually researched peers in data/imports/peers.csv, then run "
-            "make imports-validate, make imports-preview, and make imports-apply before make status refreshes readiness."
+            f"{_scoped_import_sequence(coverage.ticker)} before make status refreshes readiness."
         )
         if not coverage.has_peer_mapping and candidate_context_state == "excluded":
             recommended_action = (
@@ -2187,7 +2222,7 @@ def build_peer_mapping_queue(
                 example_command = coverage.example_command
                 safe_next_step = "Finish the peer-data import file follow-through for this mapped peer set before relying on peer-relative valuation."
                 next_input_file = target_file
-                validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make status"
+                validation_sequence = f"{_scoped_import_sequence(coverage.ticker)} -> make status"
             else:
                 recommended_action, target_file, focus_command, example_command = _peer_support_follow_through(
                     coverage.ticker,
@@ -3288,7 +3323,8 @@ def _print_optional_context_worklist(payload: dict[str, Any], *, top_n: int | No
     )
     print(
         "Proof path: make templates -> make import-earnings or make import-analyst-estimates -> "
-        "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness."
+        "make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> "
+        "make imports-apply IMPORT_TICKERS=<ticker> -> make optional-context-readiness."
     )
     print(
         "Local folders to use: data/staged/earnings/ and data/staged/analyst_estimates/. "

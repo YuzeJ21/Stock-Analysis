@@ -881,7 +881,7 @@ def build_trusted_data_pilot_candidates(
                 next_command=_clean(row.get("focus_command"), f"make focus-fundamentals TICKER={ticker}"),
                 validation_path=(
                     "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER="
-                    f"{ticker} -> make imports-validate -> make imports-preview -> make imports-apply"
+                    f"{ticker} -> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}"
                 ),
                 proof_after_unlock=f"make readiness && make dcf-readiness && make stock-report-md TICKER={ticker}",
                 source_boundary="Use SEC staging or trusted manual rows only; leave blank fields blocked.",
@@ -900,7 +900,7 @@ def build_trusted_data_pilot_candidates(
             validation_path = (
                 f"make peer-mapping-queue TOP_N=25 -> {peer_review_command}"
                 + (f" -> {peer_metric_command}" if peer_metric_command and peer_metric_command != peer_review_command else "")
-                + " -> make imports-validate -> make imports-preview -> make imports-apply"
+                + f" -> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}"
             )
             candidate = PilotCandidate(
                 ticker=ticker,
@@ -937,7 +937,7 @@ def build_trusted_data_pilot_candidates(
         next_command = _clean(row.get("focus_command"), f"make focus-peers TICKER={ticker}")
         validation_path = _clean(
             row.get("validation_sequence"),
-            f"make peer-mapping-queue TOP_N=25 -> {next_command} -> make imports-validate -> make imports-preview -> make imports-apply",
+            f"make peer-mapping-queue TOP_N=25 -> {next_command} -> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}",
         )
         candidate = PilotCandidate(
             ticker=ticker,
@@ -979,7 +979,7 @@ def build_trusted_data_pilot_candidates(
             next_command=f"make focus-peers TICKER={ticker}",
             validation_path=(
                 "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER="
-                f"{ticker} -> make imports-validate -> make imports-preview -> make imports-apply"
+                f"{ticker} -> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}"
             ),
             proof_after_unlock=f"make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
             source_boundary="Peer rows must be source-backed; do not treat sector or industry fallback as trusted peer valuation.",
@@ -1052,7 +1052,7 @@ def load_trusted_data_pilot_evidence_candidates(
                     next_command=f"make focus-peers TICKER={ticker}",
                     validation_path=(
                         f"make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER={ticker} "
-                        "-> make imports-validate -> make imports-preview -> make imports-apply"
+                        f"-> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}"
                     ),
                     proof_after_unlock=f"make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
                     source_boundary="Peer rows must be source-backed; sector or industry fallback is context only.",
@@ -1069,7 +1069,7 @@ def load_trusted_data_pilot_evidence_candidates(
             next_command=f"make focus-fundamentals TICKER={ticker}",
             validation_path=(
                 f"make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER={ticker} "
-                "-> make imports-validate -> make imports-preview -> make imports-apply"
+                f"-> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}"
             ),
             proof_after_unlock=f"make readiness && make dcf-readiness && make stock-report-md TICKER={ticker}",
             source_boundary="Use SEC staging or trusted manual rows only; leave blank fields blocked.",

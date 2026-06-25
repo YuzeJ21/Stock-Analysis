@@ -94,7 +94,7 @@ def test_research_decisions_etf_peer_blocker_does_not_report_fundamentals_as_pri
     assert "excluded from company DCF" in row["main_reason"]
     assert row["next_action"] == (
         "Add at least 2 source-backed peer mappings for QQQ in data/imports/peers.csv; "
-        "then run make imports-validate, make imports-preview, and make imports-apply."
+        "then run make imports-validate IMPORT_TICKERS=QQQ, make imports-preview IMPORT_TICKERS=QQQ, and make imports-apply IMPORT_TICKERS=QQQ."
     )
     assert row["next_best_action"] == row["next_action"]
 
@@ -128,7 +128,7 @@ def test_research_decisions_block_company_when_fundamentals_or_dcf_are_missing()
     assert "make focus-fundamentals TICKER=AMD" in row["next_best_action"]
     assert "make sec-stage TICKERS=AMD" in row["next_best_action"]
     assert "data/imports/fundamentals.csv" in row["next_best_action"]
-    assert "make imports-validate, make imports-preview, make imports-apply, make dcf-readiness, and make readiness" in row["next_best_action"]
+    assert "make imports-validate IMPORT_TICKERS=AMD, make imports-preview IMPORT_TICKERS=AMD, make imports-apply IMPORT_TICKERS=AMD, make dcf-readiness, and make readiness" in row["next_best_action"]
     assert "before reading DCF output" in row["next_best_action"]
     assert row["next_research_question"] == (
         "Which trusted fundamentals or DCF fields are missing, and can SEC staging or manual import fill them?"
@@ -208,7 +208,7 @@ def test_research_decisions_peer_blocker_next_action_uses_exact_import_flow():
     assert row["primary_blocker"] == "peers"
     assert row["next_action"] == (
         "Add at least 2 source-backed peer mappings for COHR in data/imports/peers.csv; "
-        "then run make imports-validate, make imports-preview, and make imports-apply."
+        "then run make imports-validate IMPORT_TICKERS=COHR, make imports-preview IMPORT_TICKERS=COHR, and make imports-apply IMPORT_TICKERS=COHR."
     )
     assert row["next_best_action"] == row["next_action"]
     assert "peer-relative valuation stays locked" in row["decision_boundary"]
@@ -277,7 +277,7 @@ def test_research_decisions_label_core_ready_rows_with_optional_context_locked()
     assert "Optional context for MSFT stays locked unless trusted local earnings or analyst-estimate rows exist" in row["next_best_action"]
     assert "make templates" in row["next_best_action"]
     assert "make import-earnings or make import-analyst-estimates" in row["next_best_action"]
-    assert "make imports-validate, make imports-preview, and make imports-apply" in row["next_best_action"]
+    assert "make imports-validate IMPORT_TICKERS=MSFT, make imports-preview IMPORT_TICKERS=MSFT, and make imports-apply IMPORT_TICKERS=MSFT" in row["next_best_action"]
     assert "earnings timing or surprise context" in row["unsupported_analysis"]
     assert "analyst estimate trend context" in row["unsupported_analysis"]
     assert "buy" not in rendered

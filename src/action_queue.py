@@ -104,7 +104,9 @@ def _normalize_global_gap_recommended_action(dataset: str, focus_command: str, r
     ):
         if "make imports-validate" not in normalized_recommended.lower():
             return (
-                "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                "Run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+                "then make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+                "then make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>, then make status "
                 "to confirm the live local fundamentals and DCF inputs."
             )
     if normalized_dataset == "peers" and (
@@ -115,7 +117,9 @@ def _normalize_global_gap_recommended_action(dataset: str, focus_command: str, r
         if "make templates" not in normalized_recommended.lower() or "make imports-validate" not in normalized_recommended.lower():
             return (
                 "Run make templates, then fill data/imports/peers.csv manually with transparent peer mappings. "
-                "After that, run make imports-validate, make imports-preview, make imports-apply, and make status "
+                "After that, run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>, and make status "
                 "before relying on peer-relative valuation."
             )
     return normalized_recommended
@@ -519,7 +523,9 @@ def _normalize_data_quality_coverage_action(
         if normalized_focus == "make imports-validate":
             if "make imports-validate" not in normalized_recommended:
                 normalized_recommended = (
-                    "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                    f"Run make imports-validate IMPORT_TICKERS={ticker}, "
+                    f"then make imports-preview IMPORT_TICKERS={ticker}, "
+                    f"then make imports-apply IMPORT_TICKERS={ticker}, then make status "
                     "to confirm the live local fundamentals and DCF inputs."
                 )
         elif ticker and "make focus-fundamentals" not in normalized_recommended:

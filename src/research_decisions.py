@@ -231,20 +231,24 @@ def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -
             return text
         return (
             f"Add at least 2 source-backed peer mappings for {ticker} in data/imports/peers.csv; "
-            "then run make imports-validate, make imports-preview, and make imports-apply."
+            f"then run make imports-validate IMPORT_TICKERS={ticker}, "
+            f"make imports-preview IMPORT_TICKERS={ticker}, and "
+            f"make imports-apply IMPORT_TICKERS={ticker}."
         )
     if primary_blocker in {"earnings", "analyst_estimates", "optional_context"}:
         return (
             f"Optional context for {ticker} stays locked unless trusted local earnings or analyst-estimate rows exist; "
             "use make templates, make import-earnings or make import-analyst-estimates, then run "
-            "make imports-validate, make imports-preview, and make imports-apply."
+            f"make imports-validate IMPORT_TICKERS={ticker}, make imports-preview IMPORT_TICKERS={ticker}, "
+            f"and make imports-apply IMPORT_TICKERS={ticker}."
         )
     if primary_blocker == "fundamentals":
         prefix = f"{text.rstrip('.')}." if text else f"Complete trusted fundamentals and DCF inputs for {ticker}."
         return (
             f"{prefix} Inspect make focus-fundamentals TICKER={ticker}; use make sec-stage TICKERS={ticker} "
             "when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; "
-            "then run make imports-validate, make imports-preview, make imports-apply, make dcf-readiness, and make readiness "
+            f"then run make imports-validate IMPORT_TICKERS={ticker}, make imports-preview IMPORT_TICKERS={ticker}, "
+            f"make imports-apply IMPORT_TICKERS={ticker}, make dcf-readiness, and make readiness "
             "before reading DCF output."
         )
     return text

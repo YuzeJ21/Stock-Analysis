@@ -41,6 +41,11 @@ SOURCE_REVIEW_COLUMNS = (
     "focus_command",
     "validation_sequence",
     "do_not_proceed_if",
+    "candidate_context_state",
+    "candidate_context_source",
+    "candidate_context_count",
+    "candidate_context_peers",
+    "candidate_context_note",
 )
 REQUIRED_REVIEW_FIELDS = (
     "proposed_peer_ticker",
@@ -75,6 +80,11 @@ class PeerMappingReviewRow:
     focus_command: str
     validation_sequence: str
     do_not_proceed_if: str
+    candidate_context_state: str = "not_loaded"
+    candidate_context_source: str = "not_loaded"
+    candidate_context_count: str = "0"
+    candidate_context_peers: str = ""
+    candidate_context_note: str = "Candidate context was not loaded for this source-review row."
 
 
 @dataclass(frozen=True)
@@ -385,6 +395,44 @@ def _candidate_tickers(root: Path, top_n: int, tickers: tuple[str, ...]) -> tupl
     return tuple(candidates)
 
 
+def _candidate_context_by_ticker(root: Path) -> dict[str, dict[str, str]]:
+    try:
+        from src.data_onboarding import build_peer_mapping_queue, build_ticker_coverage
+
+        coverage_rows = build_ticker_coverage(root)
+        queue_rows = build_peer_mapping_queue(coverage_rows, root)
+    except Exception:
+        return {}
+
+    context: dict[str, dict[str, str]] = {}
+    for row in queue_rows:
+        ticker = str(getattr(row, "ticker", "") or "").strip().upper()
+        if not ticker:
+            continue
+        state = str(getattr(row, "candidate_context_state", "") or "not_loaded").strip()
+        source = str(getattr(row, "candidate_context_source", "") or "not_loaded").strip()
+        count = str(getattr(row, "candidate_context_count", 0) or 0)
+        peers = str(getattr(row, "candidate_context_peers", "") or "").strip()
+        note = str(getattr(row, "fallback_context_note", "") or "").strip()
+        if not note:
+            if state == "candidate_context_only":
+                note = "Candidate-only research context is available; it is not trusted peer proof."
+            elif state == "still_blocked":
+                note = "No local candidate context is available; source-backed peer rows are still required."
+            elif state == "excluded":
+                note = "Operating-company peer mapping is excluded for this ticker."
+            else:
+                note = "Candidate context is informational only and does not unlock trusted peer proof."
+        context[ticker] = {
+            "candidate_context_state": state,
+            "candidate_context_source": source,
+            "candidate_context_count": count,
+            "candidate_context_peers": peers,
+            "candidate_context_note": note,
+        }
+    return context
+
+
 def build_peer_mapping_source_review_packet(
     root: Path | str = ".",
     *,
@@ -395,8 +443,19 @@ def build_peer_mapping_source_review_packet(
     selected_tickers = _split_tickers(tickers)
     freshness = readiness_freshness_status(root)
     candidates = _candidate_tickers(root, top_n, selected_tickers)
+    candidate_context = _candidate_context_by_ticker(root)
     review_rows: list[PeerMappingReviewRow] = []
     for ticker in candidates:
+        context = candidate_context.get(
+            ticker,
+            {
+                "candidate_context_state": "not_loaded",
+                "candidate_context_source": "not_loaded",
+                "candidate_context_count": "0",
+                "candidate_context_peers": "",
+                "candidate_context_note": "Candidate context was not loaded for this source-review row.",
+            },
+        )
         for slot in range(1, DEFAULT_MIN_PEERS + 1):
             review_rows.append(
                 PeerMappingReviewRow(
@@ -415,12 +474,23 @@ def build_peer_mapping_source_review_packet(
                     import_row_ready="no",
                     target_file="data/imports/peers.csv",
                     focus_command=f"make focus-peers TICKER={ticker}",
-                    validation_sequence="make templates -> fill reviewed peer rows -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25",
+                    validation_sequence=(
+                        "make templates -> fill reviewed peer rows -> "
+                        f"make imports-validate IMPORT_TICKERS={ticker} -> "
+                        f"make imports-preview IMPORT_TICKERS={ticker} -> "
+                        f"make imports-apply IMPORT_TICKERS={ticker} -> "
+                        "make readiness -> make peer-mapping-queue TOP_N=25"
+                    ),
                     do_not_proceed_if=(
                         "source does not name the peer relationship or comparable business context; "
                         "source is only sector/theme similarity; URL/document reference is missing; "
                         "review date or reviewer is missing; proposed peer ticker is not verified"
                     ),
+                    candidate_context_state=context["candidate_context_state"],
+                    candidate_context_source=context["candidate_context_source"],
+                    candidate_context_count=context["candidate_context_count"],
+                    candidate_context_peers=context["candidate_context_peers"],
+                    candidate_context_note=context["candidate_context_note"],
                 )
             )
     return PeerMappingSourceReviewPacket(
@@ -451,7 +521,8 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
         "- Required review fields before import: proposed peer ticker, peer group, source, as-of date, relationship rationale, reviewer, and review date.",
         "- Accepted proof: a durable URL or local document that names the peer relationship or supports comparable business context.",
         "- Rejected shortcuts: memory, popularity, sector/theme similarity alone, row-count convenience, or placeholders.",
-        "- Validation path: `make imports-validate -> make imports-preview -> make imports-apply` only after source review.",
+        "- Candidate context: local classification leads may help source review, but remain `candidate_context_only` and never count as trusted peer proof.",
+        "- Validation path: `make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>` only after source review.",
         "- Post-run proof: `make readiness -> make peer-mapping-queue TOP_N=25 -> make reviewed-batch-compare LANE=peers ...`.",
         "- Import row scaffold appears only after source proof status and required review fields are filled.",
         "",
@@ -486,6 +557,11 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
                 f"- Peer group: `{row.peer_group}`",
                 f"- Source: `{row.source}`",
                 f"- Relationship rationale: `{row.relationship_rationale}`",
+                f"- Candidate context state: `{row.candidate_context_state}`",
+                f"- Candidate context source: `{row.candidate_context_source}`",
+                f"- Candidate context count: `{row.candidate_context_count}`",
+                f"- Candidate context peers: `{row.candidate_context_peers or '-'}`",
+                f"- Candidate context boundary: {row.candidate_context_note}",
                 f"- Reviewer / review date: `{row.reviewer}` / `{row.review_date}`",
                 f"- Target file after review: `{row.target_file}`",
                 f"- Focus command: `{row.focus_command}`",
@@ -532,6 +608,11 @@ def render_peer_mapping_source_review_preview(packet: PeerMappingSourceReviewPac
                 f"- import_preview_status: {import_preview.status}",
                 f"- csv_header: {import_preview.csv_header}",
                 f"- csv_row: {import_preview.csv_row or '-'}",
+                f"- candidate_context_state: {row.candidate_context_state}",
+                f"- candidate_context_source: {row.candidate_context_source}",
+                f"- candidate_context_count: {row.candidate_context_count}",
+                f"- candidate_context_peers: {row.candidate_context_peers or '-'}",
+                f"- candidate_context_boundary: {row.candidate_context_note}",
                 f"- target_file: {row.target_file}",
                 f"- focus_command: {row.focus_command}",
                 f"- do_not_proceed_if: {row.do_not_proceed_if}",
@@ -600,12 +681,22 @@ def main(argv: list[str] | None = None) -> int:
             import_row_ready=args.import_row_ready,
             target_file=str(IMPORT_PEERS_PATH),
             focus_command=f"make focus-peers TICKER={str(args.ticker).strip().upper()}",
-            validation_sequence="make imports-validate -> make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25",
+            validation_sequence=(
+                f"make imports-validate IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
+                f"make imports-preview IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
+                f"make imports-apply IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
+                "make readiness -> make peer-mapping-queue TOP_N=25"
+            ),
             do_not_proceed_if=(
                 "source does not name the peer relationship or comparable business context; "
                 "source is only sector/theme similarity; duplicate or self-peer row is detected; "
                 "review date or reviewer is missing; proposed peer ticker is not verified"
             ),
+            candidate_context_state="guard_scope",
+            candidate_context_source="reviewed_cli_inputs",
+            candidate_context_count="0",
+            candidate_context_peers="",
+            candidate_context_note="Write-back guard uses reviewed CLI fields; candidate context is not trusted peer proof.",
         )
         print(render_peer_mapping_writeback_guard(build_peer_mapping_writeback_guard(args.root, row), row))
         return 0

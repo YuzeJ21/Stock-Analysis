@@ -46,14 +46,33 @@ def peer_operator_summary_frame(
     latest = latest_rows.iloc[0] if not latest_rows.empty else pd.Series(dtype=object)
     tickers = ", ".join(packet.tickers[:10]) if packet.tickers else "no selected peer tickers"
     source_rows = len(packet.rows)
+    candidate_context_rows = [
+        row for row in packet.rows if str(row.candidate_context_state or "").strip() == "candidate_context_only"
+    ]
+    no_context_rows = [
+        row
+        for row in packet.rows
+        if str(row.candidate_context_state or "").strip() in {"", "still_blocked", "not_loaded", "none"}
+    ]
+    candidate_summary = (
+        f" Candidate context: {len(candidate_context_rows):,} candidate-only slot(s), "
+        f"{len(no_context_rows):,} no-context slot(s)."
+        if packet.rows
+        else ""
+    )
     return pd.DataFrame(
         [
             {
                 "Question": "What is selected?",
                 "Status": _text(packet.freshness.status, "unknown"),
-                "Answer": f"{source_rows:,} peer source-review slot(s); tickers: {compact_card_fragment(tickers, max_chars=180)}.",
+                "Answer": (
+                    f"{source_rows:,} peer source-review slot(s); tickers: "
+                    f"{compact_card_fragment(tickers, max_chars=180)}.{candidate_summary}"
+                ),
                 "Next Safe Action": f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}",
-                "Boundary": "Peer source review plans reviewed rows only; it does not infer comparable companies.",
+                "Boundary": (
+                    "Candidate context can route review work, but trusted peers require reviewed source-backed rows."
+                ),
             },
             {
                 "Question": "What is the current gate?",

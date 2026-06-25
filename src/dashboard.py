@@ -4095,6 +4095,17 @@ def format_missing(value: object, fallback: str = "Not available") -> str:
     return text
 
 
+def scoped_import_sequence(ticker: object = "<ticker-or-reviewed-batch>", *, separator: str = " -> ") -> str:
+    ticker_text = format_missing(ticker, "<ticker-or-reviewed-batch>").upper()
+    return separator.join(
+        [
+            f"make imports-validate IMPORT_TICKERS={ticker_text}",
+            f"make imports-preview IMPORT_TICKERS={ticker_text}",
+            f"make imports-apply IMPORT_TICKERS={ticker_text}",
+        ]
+    )
+
+
 PUBLIC_STATUS_LABELS = {
     "avoid": "No Setup",
     "broken": "Thesis Review Needed",
@@ -5400,7 +5411,9 @@ def optional_context_unlock_help(dataset_label: str) -> str:
     return (
         f"Run `make templates` for schema-only files; templates are not data. "
         f"Add verified {label} rows through `{staged_path}` or `{import_file}`, run `{import_command}`, then run "
-        "`make imports-validate`, `make imports-preview`, `make imports-apply`, "
+        "`make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>`, "
+        "`make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>`, "
+        "`make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>`, "
         "`make optional-context-readiness`, and `make onboarding TOP_N=10`. "
         f"Rejected rows stay visible at `{rejected_path}`."
     )
@@ -5790,7 +5803,10 @@ def optional_context_ladder_frame(
                 "Trusted Input Path": f"{config['staged_path']} or {config['import_file']}",
                 "Import Command": config["import_command"],
                 "Rejected Rows": config["rejected_path"],
-                "Validation Path": "make templates -> import command -> make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness -> make onboarding TOP_N=10",
+                "Validation Path": (
+                    "make templates -> import command -> "
+                    f"{scoped_import_sequence()} -> make optional-context-readiness -> make onboarding TOP_N=10"
+                ),
                 "Readiness Proof": "Run `make optional-context-readiness` and `make onboarding TOP_N=10`, then reopen Data Health or the single-stock report before treating optional context as available.",
                 "What This Unlocks": config["unlocks"],
                 "What Stays Locked": "Optional context stays unavailable until trusted rows pass validation; missing rows must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.",
@@ -6093,17 +6109,17 @@ def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: 
     if dataset == "monitor_context":
         return f"make stock-report-md TICKER={ticker_text} -> review source readiness notes, monitor role, and operating-company DCF exclusion"
     if dataset == "prices":
-        return f"make focus-price TICKER={ticker_text} -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-price TICKER={ticker_text} -> {scoped_import_sequence(ticker_text)}"
     if dataset == "fundamentals":
         if asset_text in {"etf", "fund", "index", "index_proxy"}:
             return "make readiness -> confirm ETF/index DCF exclusion; no operating-company fundamentals import is required"
-        return f"make focus-fundamentals TICKER={ticker_text} -> make sec-stage-queue TOP_N=25 or prepare trusted fundamentals import file rows -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-fundamentals TICKER={ticker_text} -> make sec-stage-queue TOP_N=25 or prepare trusted fundamentals import file rows -> {scoped_import_sequence(ticker_text)}"
     if dataset == "peers":
-        return f"make focus-peers TICKER={ticker_text} -> make templates -> fill data/imports/peers.csv with source-backed mappings -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-peers TICKER={ticker_text} -> make templates -> fill data/imports/peers.csv with source-backed mappings -> {scoped_import_sequence(ticker_text)}"
     if dataset == "earnings":
-        return "make templates -> make import-earnings -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make templates -> make import-earnings -> {scoped_import_sequence(ticker_text)}"
     if dataset == "analyst_estimates":
-        return "make templates -> make import-analyst-estimates -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make templates -> make import-analyst-estimates -> {scoped_import_sequence(ticker_text)}"
     return "make readiness -> make project-status"
 
 
@@ -7542,7 +7558,7 @@ def stock_report_local_context_cards(
             "kicker": "PEER MAPPING",
             "title": "Import file" if staged_peer_import else "Present" if peer_summary.get("peer_dataset_present") else "Missing",
             "body": (
-                f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} in the peer import file; run make imports-validate, make imports-preview, and make imports-apply before trusting peer-relative context."
+                f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} in the peer import file; run {scoped_import_sequence('<ticker-or-reviewed-batch>')} before trusting peer-relative context."
                 if staged_peer_import
                 else f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for peer-relative review."
             ),
@@ -12095,7 +12111,7 @@ def data_health_fix_first_body(reason: object, action: object, command: object, 
             "staged rows use make price-validate -> make price-preview -> make price-apply."
         )
     elif target_text in {"data/imports/fundamentals.csv", "data/imports/peers.csv"} or command_text == "make imports-validate":
-        proof = "Proof path: make imports-validate -> make imports-preview -> make imports-apply."
+        proof = f"Proof path: {scoped_import_sequence()}."
     elif "runbook-" in command_text or "bundle-" in command_text:
         proof = action_text
     else:
@@ -12599,7 +12615,7 @@ def peer_input_ladder_frame(
             "unlocks": "A trusted peer set for the subject company; peer trend can be checked after mapped peer price history is ready.",
             "locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked.",
             "path": "data/imports/peers.csv",
-            "validation": "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness",
+            "validation": f"make templates -> fill source-backed peers -> {scoped_import_sequence()} -> make readiness",
             "command": "make peer-mapping-queue TOP_N=25",
         },
         {
@@ -12619,7 +12635,7 @@ def peer_input_ladder_frame(
             "unlocks": "Peer valuation input readiness for mapped peers.",
             "locked": "Peer-relative valuation stays withheld until all mapped peer valuation inputs pass readiness.",
             "path": "data/imports/fundamentals.csv or data/staged/fundamentals/",
-            "validation": "make focus-fundamentals TICKER=<peer> -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness",
+            "validation": f"make focus-fundamentals TICKER=<peer> -> {scoped_import_sequence('<peer>')} -> make readiness",
             "command": "make peer-mapping-queue TOP_N=25",
         },
         {
@@ -12879,7 +12895,7 @@ def fundamentals_dcf_diagnostic_cards(
 
     sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip()) or sec_configured_from_report
     sec_stage_command = f"make sec-stage TICKERS={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25"
-    fundamentals_validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
+    fundamentals_validation_sequence = f"{scoped_import_sequence(next_ticker)} -> make dcf-readiness"
     fundamentals_validation_summary = validation_sequence_summary(fundamentals_validation_sequence)
     fundamentals_input_path = "data/imports/fundamentals.csv or reviewed SEC staging rows"
     fundamentals_schema_guide = "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, source, updated_at"
@@ -13158,11 +13174,11 @@ def data_health_fundamentals_unlock_frame(
                 "Next Safe Sequence": (
                     f"1. Inspect `{command}`. 2. Use `make sec-stage TICKERS={ticker}` when SEC_USER_AGENT is configured, "
                     "or fill `data/imports/fundamentals.csv` with trusted manual rows. "
-                    "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
+                    f"3. Run `{scoped_import_sequence(ticker, separator='`, `')}`, then `make dcf-readiness`."
                 ),
                 "Readiness Proof": "Run `make dcf-readiness` and `make readiness`, then reopen Data Health or the single-stock report before reading DCF output.",
                 "Copy-Only Command": command,
-                "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
+                "Validation Path": f"{scoped_import_sequence(ticker)} -> make dcf-readiness",
             }
         )
     return pd.DataFrame(rows, columns=columns)
@@ -13343,7 +13359,7 @@ def data_health_peer_unlock_frame(
             input_path = "data/imports/peers.csv with source-backed peer mappings"
         validation_path = format_missing(
             row.get("validation_sequence"),
-            "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25",
+            f"make templates -> fill data/imports/peers.csv -> {scoped_import_sequence()} -> make readiness -> make peer-mapping-queue TOP_N=25",
         )
         can_review = (
             "Peer trend context may be reviewed from mapped peer price history; peer valuation stays locked until trusted valuation inputs pass."
@@ -13461,6 +13477,11 @@ def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket |
         "Post-Apply Proof",
         "Validation Path",
         "Do Not Proceed If",
+        "Candidate Context State",
+        "Candidate Context Source",
+        "Candidate Context Count",
+        "Candidate Context Peers",
+        "Candidate Context Boundary",
         "Freshness Context",
     ]
     if packet is None or not packet.rows:
@@ -13492,6 +13513,11 @@ def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket |
                 "Post-Apply Proof": import_preview.post_apply_proof,
                 "Validation Path": row.validation_sequence,
                 "Do Not Proceed If": row.do_not_proceed_if,
+                "Candidate Context State": row.candidate_context_state,
+                "Candidate Context Source": row.candidate_context_source,
+                "Candidate Context Count": row.candidate_context_count,
+                "Candidate Context Peers": row.candidate_context_peers or "-",
+                "Candidate Context Boundary": row.candidate_context_note,
                 "Freshness Context": f"{freshness_status}: {packet.freshness.message}",
             }
         )
@@ -13536,6 +13562,9 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
     first = packet.rows[0]
     first_completion = peer_mapping_source_review_completion(first, packet.freshness)
     first_import_preview = peer_mapping_import_preview(first, packet.freshness)
+    candidate_rows = [
+        row for row in packet.rows if str(row.candidate_context_state or "").strip() == "candidate_context_only"
+    ]
     tickers = ", ".join(packet.tickers[:3])
     if len(packet.tickers) > 3:
         tickers += ", ..."
@@ -13546,9 +13575,10 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
             "title": f"{len(packet.rows)} fillable source-proof slot(s)",
             "body": (
                 f"Scope: {tickers}. Use this before editing data/imports/peers.csv. "
+                f"Candidate-only context appears for {len(candidate_rows)} slot(s). "
                 "The packet scaffolds proof fields; it does not infer peer relationships or unlock peer valuation."
             ),
-            "badges": ["manual source proof", "copy-only"],
+            "badges": ["manual source proof", "candidate context separated", "copy-only"],
             "command": f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}",
         },
         {
@@ -13558,7 +13588,9 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
                 f"Status: {first_completion.status.replace('_', ' ')}. Missing fields: "
                 f"{', '.join(first_completion.missing_fields) if first_completion.missing_fields else 'none'}. "
                 f"Required fills: {required_fills}. Accepted proof must name the peer relationship or comparable business context; "
-                "sector/theme similarity alone stays fallback context."
+                f"candidate context for this slot is {first.candidate_context_state} via {first.candidate_context_source} "
+                f"({first.candidate_context_count} lead(s): {first.candidate_context_peers or '-'}). "
+                "Classification similarity alone stays fallback context."
             ),
             "badges": ["source-backed", "not a valuation input yet"],
             "command": first.focus_command,
@@ -14350,9 +14382,9 @@ def dcf_missing_field_guide_frame(
             )
             next_sequence = (
                 f"1. Inspect `{command}`. {second_step} "
-                "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
+                f"3. Run `{scoped_import_sequence(ticker, separator='`, `')}`, then `make dcf-readiness`."
             )
-            validation_path = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
+            validation_path = f"{scoped_import_sequence(ticker)} -> make dcf-readiness"
         rows.append(
             {
                 "Missing Input": label,
@@ -14688,7 +14720,7 @@ def build_peer_mapping_studio_frame(
         "peer_trend_status": "peer_trend_blocked",
         "peer_valuation_status": "peer_valuation_blocked",
         "next_input_file": "data/imports/peers.csv",
-        "validation_sequence": "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply",
+        "validation_sequence": f"make templates -> fill source-backed peers -> {scoped_import_sequence()}",
         "example_command": "make peer-mapping-queue TOP_N=25",
         "copy_only_note": "Copy commands only; review import file rows before applying local CSV changes.",
     }
@@ -15840,13 +15872,13 @@ def active_evaluation_validation_sequence(row: pd.Series) -> str:
     ticker = format_missing(row.get("ticker"), "TICKER").upper()
     lane = active_evaluation_lane(row).lower()
     if "peer" in lane and "monitor etf" not in lane:
-        return f"make focus-peers TICKER={ticker} -> make templates -> fill data/imports/peers.csv with source-backed rows -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-peers TICKER={ticker} -> make templates -> fill data/imports/peers.csv with source-backed rows -> {scoped_import_sequence(ticker)}"
     if "fundamentals" in lane or "dcf" in lane:
-        return f"make focus-fundamentals TICKER={ticker} -> prepare trusted fundamentals import file rows -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-fundamentals TICKER={ticker} -> prepare trusted fundamentals import file rows -> {scoped_import_sequence(ticker)}"
     if "price" in lane:
-        return f"make focus-price TICKER={ticker} -> run capped refresh or stage OHLCV -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-price TICKER={ticker} -> run capped refresh or stage OHLCV -> {scoped_import_sequence(ticker)}"
     if "optional" in lane:
-        return "make templates -> fill trusted earnings or analyst estimates CSV -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make templates -> fill trusted earnings or analyst estimates CSV -> {scoped_import_sequence(ticker)}"
     return f"{stock_report_md_command(ticker)} -> compare purpose, supported analysis, currently withheld analysis, and source readiness notes"
 
 
@@ -16617,7 +16649,8 @@ def peer_mapping_unlock_action(ticker: object) -> str:
     symbol = format_missing(ticker, "TICKER").upper()
     return (
         f"Add at least 2 source-backed peer mappings for {symbol} in data/imports/peers.csv; "
-        "then run make imports-validate, make imports-preview, and make imports-apply."
+        f"then run make imports-validate IMPORT_TICKERS={symbol}, "
+        f"make imports-preview IMPORT_TICKERS={symbol}, and make imports-apply IMPORT_TICKERS={symbol}."
     )
 
 
@@ -17731,7 +17764,7 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
         next_input = "Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding."
         command = f"make focus-fundamentals TICKER={ticker}"
         proof_command = (
-            "After fundamentals pass make imports-validate, make imports-preview, and make imports-apply, "
+            f"After fundamentals pass {scoped_import_sequence(ticker)}, "
             "run make dcf-readiness and make readiness."
         )
     elif dcf_status == "ready" and not peer_ready:
@@ -17747,7 +17780,7 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
         next_input = "Trusted peer mappings in data/imports/peers.csv plus peer inputs when needed."
         command = f"make focus-peers TICKER={ticker}"
         proof_command = (
-            "After peer rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            f"After peer rows pass {scoped_import_sequence(ticker)}, "
             "run make readiness and make peer-mapping-queue TOP_N=25."
         )
     elif not earnings_ready or not estimates_ready:
@@ -17756,7 +17789,7 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
         next_input = "Trusted local earnings or analyst estimate rows, only if you have a source you trust."
         command = "make optional-context-worklist TOP_N=25"
         proof_command = (
-            "After optional rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            f"After optional rows pass {scoped_import_sequence(ticker)}, "
             "run make optional-context-readiness and make readiness."
         )
     else:
@@ -17882,7 +17915,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         still_locked = f"DCF is blocked by missing trusted fundamentals: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=130)}"
         command = f"make focus-fundamentals TICKER={ticker}"
         proof_command = (
-            "After fundamentals pass make imports-validate, make imports-preview, and make imports-apply, "
+            f"After fundamentals pass {scoped_import_sequence(ticker)}, "
             "run make dcf-readiness and make readiness."
         )
         badges = ["fundamentals needed", "no valuation conclusion"]
@@ -17899,7 +17932,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
             still_locked = "Peer-relative valuation waits for source-backed peer mappings and peer valuation inputs."
         command = f"make focus-peers TICKER={ticker}"
         proof_command = (
-            "After peer rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            f"After peer rows pass {scoped_import_sequence(ticker)}, "
             "run make readiness and make peer-mapping-queue TOP_N=25."
         )
         badges = ["DCF ready", "peer gated"]
@@ -17909,7 +17942,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         still_locked = "Earnings and analyst-estimate sections remain unavailable until trusted optional CSV rows pass validation."
         command = "make optional-context-worklist TOP_N=25"
         proof_command = (
-            "After optional rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            f"After optional rows pass {scoped_import_sequence(ticker)}, "
             "run make optional-context-readiness and make readiness."
         )
         badges = ["core ready", "optional locked"]
@@ -18329,9 +18362,9 @@ def valuation_blocked_unlock_frame(blocked_companies: pd.DataFrame, limit: int =
             safe_sequence = (
                 f"1. Inspect `{command}`. 2. Use `make sec-stage TICKERS={ticker}` when SEC_USER_AGENT is configured, "
                 "or fill `data/imports/fundamentals.csv` with trusted manual rows. "
-                "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
+                f"3. Run `{scoped_import_sequence(ticker, separator='`, `')}`, then `make dcf-readiness`."
             )
-            validation_path = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
+            validation_path = f"{scoped_import_sequence(ticker)} -> make dcf-readiness"
         rows.append(
             {
                 "Ticker": ticker,
@@ -20185,19 +20218,19 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
         },
         {
             "Dashboard Label": "Missing company fundamentals",
-            "What to do": "Use `make runbook-fundamentals-broader` or `make focus-fundamentals TICKER=...` first, then run `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make status-check TOP_N=5`.",
+            "What to do": f"Use `make runbook-fundamentals-broader` or `make focus-fundamentals TICKER=...` first, then run `{scoped_import_sequence(separator='`, `')}`, and `make status-check TOP_N=5`.",
         },
         {
             "Dashboard Label": "Missing peer mapping",
-            "What to do": "Use `make runbook-peers-broader` or `make focus-peers TICKER=...` first, then add manually researched mappings through `data/imports/peers.csv`, run `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make status-check TOP_N=5`. If mappings already exist, finish the peer fundamentals or peer price follow-through the queue points to.",
+            "What to do": f"Use `make runbook-peers-broader` or `make focus-peers TICKER=...` first, then add manually researched mappings through `data/imports/peers.csv`, run `{scoped_import_sequence(separator='`, `')}`, and `make status-check TOP_N=5`. If mappings already exist, finish the peer fundamentals or peer price follow-through the queue points to.",
         },
         {
             "Dashboard Label": "Earnings unavailable",
-            "What to do": "Leave locked unless you have trusted earnings rows. Use `make templates`, place files in `data/staged/earnings/`, run `make import-earnings`, then `make imports-validate`, `make imports-preview`, and `make imports-apply`. Rejected rows appear at `data/rejected/earnings_import_rejected.csv`.",
+            "What to do": f"Leave locked unless you have trusted earnings rows. Use `make templates`, place files in `data/staged/earnings/`, run `make import-earnings`, then `{scoped_import_sequence(separator='`, `')}`. Rejected rows appear at `data/rejected/earnings_import_rejected.csv`.",
         },
         {
             "Dashboard Label": "Analyst estimates unavailable",
-            "What to do": "Leave locked unless you have trusted analyst-estimate rows. Use `make templates`, place files in `data/staged/analyst_estimates/`, run `make import-analyst-estimates`, then `make imports-validate`, `make imports-preview`, and `make imports-apply`. Rejected rows appear at `data/rejected/analyst_estimates_import_rejected.csv`.",
+            "What to do": f"Leave locked unless you have trusted analyst-estimate rows. Use `make templates`, place files in `data/staged/analyst_estimates/`, run `make import-analyst-estimates`, then `{scoped_import_sequence(separator='`, `')}`. Rejected rows appear at `data/rejected/analyst_estimates_import_rejected.csv`.",
         },
     ]
 
@@ -20308,10 +20341,10 @@ def sidebar_quick_help_lines() -> list[str]:
 def empty_state_command_rows() -> list[dict[str, str]]:
     return [
         {"Scenario": "No local prices or short history", "Next step": "Use make runbook-prices-broader or make focus-price TICKER=... first. For downloaded files, use make price-normalize INPUT=... TICKER=... SOURCE=..., then run make price-validate, make price-preview, and make price-apply."},
-        {"Scenario": "No local fundamentals for valuation", "Next step": "Use make runbook-fundamentals-broader or make focus-fundamentals TICKER=... first, then run make imports-validate, make imports-preview, and make imports-apply."},
+        {"Scenario": "No local fundamentals for valuation", "Next step": f"Use make runbook-fundamentals-broader or make focus-fundamentals TICKER=... first, then run {scoped_import_sequence()}."},
         {"Scenario": "No peer-relative context", "Next step": "Use make runbook-peers-broader or make focus-peers TICKER=... first. If mappings are missing, run make templates, then fill data/imports/peers.csv; if mappings already exist, follow the peer fundamentals or price blocker the queue prints."},
         {"Scenario": "No earnings or analyst estimates", "Next step": "Leave them missing safely unless you have a trusted local source"},
-        {"Scenario": "No import files to review", "Next step": "Use templates or trusted price/fundamental import files first, then run make imports-validate, make imports-preview, and make imports-apply for local datasets, or use make price-validate, make price-preview, and make price-apply for price rows."},
+        {"Scenario": "No import files to review", "Next step": f"Use templates or trusted price/fundamental import files first, then run {scoped_import_sequence()} for local datasets, or use make price-validate, make price-preview, and make price-apply for price rows."},
     ]
 
 
@@ -21280,7 +21313,7 @@ def overview_research_pressure_cards(
                 f"{peer_summary.get('priority_1', 0)} holdings-first peer unlocks and "
                 f"{peer_summary.get('priority_2', 0)} theme-level follow-ons are visible in the local queue. "
                 + (
-                    f"{staged_peer_imports} peer import file{'s' if staged_peer_imports != 1 else ''} already need make imports-validate, make imports-preview, and make imports-apply."
+                    f"{staged_peer_imports} peer import file{'s' if staged_peer_imports != 1 else ''} already need {scoped_import_sequence('<ticker-or-reviewed-batch>')}."
                     if staged_peer_imports
                     else (
                         f"{peer_follow_through} mapped peer set{'s' if peer_follow_through != 1 else ''} still need peer-relative follow-through beyond the initial mapping step."

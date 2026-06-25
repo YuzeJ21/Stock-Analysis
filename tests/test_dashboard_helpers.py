@@ -6646,7 +6646,12 @@ def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers()
     assert "1 holdings-first dcf unlocks" in rendered
     assert "2 missing peer mappings" in rendered
     assert "1 mapped follow-through" in rendered
-    assert "1 peer import file already need make imports-validate, make imports-preview, and make imports-apply" in rendered
+    assert (
+        "1 peer import file already need make imports-validate import_tickers=<ticker-or-reviewed-batch> -> "
+        "make imports-preview import_tickers=<ticker-or-reviewed-batch> -> "
+        "make imports-apply import_tickers=<ticker-or-reviewed-batch>"
+        in rendered
+    )
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -20927,7 +20932,7 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert "make imports-apply" in rendered
     assert "make dcf-readiness" in rendered
     assert "run `make dcf-readiness` and `make readiness`, then reopen data health or the single-stock report" in rendered
-    assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
+    assert "make imports-validate import_tickers=meta -> make imports-preview import_tickers=meta -> make imports-apply import_tickers=meta -> make dcf-readiness" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -21228,7 +21233,10 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
         "VALIDATE BEFORE APPLY",
     ]
     assert cards[0]["command"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
+    assert "Candidate-only context appears for" in cards[0]["body"]
+    assert "candidate context separated" in cards[0]["badges"]
     assert cards[1]["command"] == "make focus-peers TICKER=META"
+    assert "candidate context for this slot" in cards[1]["body"]
     assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
     assert cards[3]["command"].startswith("make peer-mapping-writeback-guard")
     assert cards[4]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
@@ -21238,6 +21246,8 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert "proposed_peer_ticker" in frame.iloc[0]["Missing Fields"]
     assert frame.iloc[0]["CSV Header"] == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
     assert frame.iloc[0]["CSV Row"] == "blocked until completion-ready"
+    assert frame.iloc[0]["Candidate Context State"] in {"still_blocked", "not_loaded"}
+    assert frame.iloc[0]["Candidate Context Boundary"]
     assert frame.iloc[0]["Import Row Scaffold"].startswith("blocked until reviewed fields are filled")
     assert "Do not edit or apply data/imports/peers.csv until the source-review row is completion-ready." in frame.iloc[0]["Apply Boundary"]
     assert "make readiness" in frame.iloc[0]["Post-Apply Proof"]
@@ -21245,7 +21255,8 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert "proposed_peer_ticker, peer_group, source, as_of_date" in rendered
     assert "fill proposed_peer_ticker" in rendered
     assert "source does not name the peer relationship" in rendered
-    assert "sector/theme similarity alone stays fallback context" in rendered
+    assert "classification similarity alone stays fallback context" in rendered
+    assert "candidate context" in rendered
     assert "does not infer peer relationships or unlock peer valuation" in rendered
     assert "header: ticker,peer_ticker,peer_group,sector,industry,source,as_of_date" in rendered
     assert "row: blocked until completion-ready" in rendered
@@ -21529,6 +21540,7 @@ def test_peer_operator_summary_surfaces_current_gate_before_peer_tables(tmp_path
     ]
     assert summary.iloc[0]["Status"] == "current"
     assert "2 peer source-review slot(s)" in summary.iloc[0]["Answer"]
+    assert "candidate context:" in summary.iloc[0]["Answer"].lower()
     assert "tickers: meta" in summary.iloc[0]["Answer"].lower()
     assert summary.iloc[1]["Status"] == "needs_field_fills"
     assert "fill peer source-review fields" in summary.iloc[1]["Answer"].lower()
@@ -23564,14 +23576,14 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
     assert "trusted input needed:" in rendered
     assert "trusted peer mappings in data/imports/peers.csv plus peer inputs when needed" in rendered
     assert "proof command:" in rendered
-    assert "after peer rows pass make imports-validate, make imports-preview, and make imports-apply, run make readiness and make peer-mapping-queue top_n=25" in rendered
+    assert "after peer rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a, run make readiness and make peer-mapping-queue top_n=25" in rendered
     assert "use only current local/provider rows that already passed readiness" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make stock-report-md ticker=a" in rendered
     assert "how to prove the next unlocked state" in rendered
     assert "read this single-stock page in sequence" in rendered
-    assert "proof command: after peer rows pass make imports-validate, make imports-preview, and make imports-apply, run make readiness and make peer-mapping-queue top_n=25" in rendered
+    assert "proof command: after peer rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a, run make readiness and make peer-mapping-queue top_n=25" in rendered
     assert "exact next command is copyable from this card" in rendered
     assert "do not treat the lane as unlocked until the proof command passes and the report is reopened" in rendered
     assert "broker" not in rendered
@@ -23820,7 +23832,7 @@ def test_single_stock_quick_read_cards_cover_monitor_blocked_and_optional_states
     assert "start with trusted price history" in blocked_rendered
     assert "make focus-price ticker=apld" in blocked_rendered
     assert "core analysis is reviewable; optional context is locked" in optional_rendered
-    assert "after optional rows pass make imports-validate, make imports-preview, and make imports-apply, run make optional-context-readiness and make readiness" in optional_rendered
+    assert "after optional rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a, run make optional-context-readiness and make readiness" in optional_rendered
     assert "make optional-context-worklist top_n=25" in optional_rendered
     rendered = etf_rendered + blocked_rendered + optional_rendered
     assert "broker" not in rendered

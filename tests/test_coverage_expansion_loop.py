@@ -272,6 +272,10 @@ def test_coverage_expansion_loop_requires_source_activation_when_no_executable_s
     assert "configure at least one provider key" in loop.next_safe_action.lower()
     assert "cp config/provider_keys.env.example config/provider_keys.env" in rendered
     assert "make session-source-preflight" in rendered
+    assert "Executable pivot path while source activation is blocked" in rendered
+    assert "make peer-mapping-queue TOP_N=25" in rendered
+    assert "make peer-mapping-source-review TOP_N=25" in rendered
+    assert "candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "make price-refresh-loop" not in rendered
     assert "make fundamentals-source-ladder-queue" not in rendered
 

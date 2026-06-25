@@ -174,9 +174,17 @@ def _staged_summary(row: pd.Series | dict[str, object]) -> str:
         return ""
     summary = _compact_reason(row.get("safe_next_step") if hasattr(row, "get") else "", max_sentences=1, max_chars=150)
     if target_file == "data/imports/fundamentals.csv":
-        default = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import file."
+        default = (
+            "Run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, and "
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> for the fundamentals import file."
+        )
     elif target_file == "data/imports/peers.csv":
-        default = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import file."
+        default = (
+            "Run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, and "
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> for the peer import file."
+        )
     else:
         default = "Run make price-validate, make price-preview, and make price-apply for the price import file."
     if summary == "Not available":

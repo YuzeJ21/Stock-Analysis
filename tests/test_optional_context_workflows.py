@@ -163,7 +163,7 @@ def test_optional_context_readiness_cli_prints_unlock_paths(tmp_path: Path, caps
     assert "data/imports/earnings.csv" in output
     assert "data/imports/analyst_estimates.csv" in output
     assert "make import-earnings or make import-analyst-estimates" in output
-    assert "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness" in output
+    assert "make imports-validate import_tickers=<ticker> -> make imports-preview import_tickers=<ticker> -> make imports-apply import_tickers=<ticker> -> make optional-context-readiness" in output
     assert "data/earnings_import_rejected.csv" in output
     assert "data/analyst_estimates_import_rejected.csv" in output
     assert "do not infer earnings or estimate context from price, dcf, peer, or sector data" in output

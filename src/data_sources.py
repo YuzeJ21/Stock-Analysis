@@ -315,7 +315,8 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         fallback_action=(
             "Start with make status, then follow the printed peer focus or runbook path. "
             "Run make templates, then fill data/imports/peers.csv manually with transparent peer mappings. "
-            "After that, run make imports-validate, make imports-preview, make imports-apply, and make status "
+            "After that, run make imports-validate IMPORT_TICKERS=<ticker>, make imports-preview IMPORT_TICKERS=<ticker>, "
+            "make imports-apply IMPORT_TICKERS=<ticker>, and make status "
             "before relying on peer-relative valuation."
         ),
         notes="Peer mappings require local research and are never guessed.",

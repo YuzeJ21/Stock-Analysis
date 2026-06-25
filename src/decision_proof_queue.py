@@ -95,7 +95,9 @@ def _peer_mapping_unlock_action(ticker: object) -> str:
     symbol = _format_missing(ticker, "TICKER").upper()
     return (
         f"Add at least 2 source-backed peer mappings for {symbol} in data/imports/peers.csv; "
-        "then run make imports-validate, make imports-preview, and make imports-apply."
+        f"then run make imports-validate IMPORT_TICKERS={symbol}, "
+        f"make imports-preview IMPORT_TICKERS={symbol}, and "
+        f"make imports-apply IMPORT_TICKERS={symbol}."
     )
 
 

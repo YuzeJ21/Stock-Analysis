@@ -132,7 +132,11 @@ def peer_unlock_operator_cards(
     top_ticker = _format_missing(top_row.get("ticker"), "Ticker")
     top_summary = _compact_reason(top_row.get("next_action_summary") or top_row.get("next_peer_action"), max_sentences=1, max_chars=180)
     input_file = _format_missing(top_row.get("next_input_file"), "data/imports/peers.csv")
-    validation = _format_missing(top_row.get("validation_sequence"), "make templates -> make imports-validate -> make imports-preview -> make imports-apply")
+    validation = _format_missing(
+        top_row.get("validation_sequence"),
+        "make templates -> make imports-validate IMPORT_TICKERS=<ticker> -> "
+        "make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>",
+    )
     peer_schema = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
     priority_text = ", ".join(f"P{int(key)}: {int(value)}" for key, value in priority_counts.head(4).items())
     workflow_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in workflow_counts.head(3).items())

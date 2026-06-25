@@ -851,7 +851,11 @@ def test_data_onboarding_cli_optional_context_worklist_text_surfaces_unlock_summ
     assert "data: data" in output
     assert "outputs: outputs" in output
     assert "proof path: make templates -> make import-earnings or make import-analyst-estimates" in output
-    assert "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness" in output
+    assert (
+        "make imports-validate import_tickers=<ticker> -> make imports-preview import_tickers=<ticker> -> "
+        "make imports-apply import_tickers=<ticker> -> make optional-context-readiness"
+        in output
+    )
     assert "data/staged/earnings/" in output
     assert "data/staged/analyst_estimates/" in output
     assert "data/earnings_import_rejected.csv" in output
@@ -1057,6 +1061,27 @@ def test_peer_mapping_queue_labels_sector_theme_matches_as_candidate_context_onl
     assert amd["candidate_context_peers"] == "NVDA"
     assert "candidate context only" in amd["fallback_context_note"].lower()
     assert "not trusted peer proof" in amd["next_action_summary"].lower()
+
+
+def test_peer_mapping_queue_uses_source_detail_as_candidate_context_only(tmp_path: Path):
+    _write_fixture(tmp_path)
+    (tmp_path / "data" / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,source_detail,notes\n"
+        "A,Unclassified,,Core Compounder,Unknown,Health Care,fixture\n"
+        "DHR,Unclassified,,Core Compounder,Unknown,Health Care,fixture\n",
+        encoding="utf-8",
+    )
+
+    payload = build_onboarding_payload(tmp_path)
+    queue = {row["ticker"]: row for row in payload["peer_mapping_queue"]}
+    a_row = queue["A"]
+
+    assert a_row["has_peer_mapping"] is False
+    assert a_row["candidate_context_state"] == "candidate_context_only"
+    assert a_row["candidate_context_source"] == "source_detail_fallback"
+    assert a_row["candidate_context_count"] == 1
+    assert a_row["candidate_context_peers"] == "DHR"
+    assert "not trusted peer proof" in a_row["next_action_summary"].lower()
 
 
 def test_peer_mapping_queue_excludes_etf_monitor_context_from_candidate_peers(tmp_path: Path):

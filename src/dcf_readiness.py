@@ -226,7 +226,12 @@ def main() -> None:
     print(f"- Inspect one company: make focus-fundamentals TICKER={first_blocker}")
     print(f"- Stage SEC rows when configured: make sec-stage TICKERS={first_blocker}")
     print("- Or add trusted manual rows to data/imports/fundamentals.csv")
-    print("- Validate/apply/prove: make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness -> make readiness")
+    print(
+        "- Validate/apply/prove: "
+        f"make imports-validate IMPORT_TICKERS={first_blocker} -> "
+        f"make imports-preview IMPORT_TICKERS={first_blocker} -> "
+        f"make imports-apply IMPORT_TICKERS={first_blocker} -> make dcf-readiness -> make readiness"
+    )
     missing = frame.loc[~frame["is_dcf_ready"].astype(bool), ["ticker", "reason_not_ready"]]
     for _, row in missing.head(max(args.top_n, 0)).iterrows():
         print(f"- {row['ticker']}: {row['reason_not_ready']}")

@@ -48,6 +48,31 @@ def _sample_root(tmp_path: Path) -> Path:
     return root
 
 
+def _sample_root_with_candidate_context(tmp_path: Path) -> Path:
+    root = _sample_root(tmp_path)
+    data = root / "data"
+    reports = data / "reports"
+    (data / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-01,AAA,10,100\n"
+        "2026-01-01,DDD,20,100\n",
+        encoding="utf-8",
+    )
+    (data / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,source_detail,notes\n"
+        "AAA,Unclassified,,Core Compounder,Unknown,Health Care,fixture\n"
+        "DDD,Unclassified,,Core Compounder,Unknown,Health Care,fixture\n",
+        encoding="utf-8",
+    )
+    (reports / "ticker_readiness_report.csv").write_text(
+        "ticker,price_ready,dcf_ready,peer_ready,overall_readiness_state\n"
+        "AAA,true,true,false,partial\n"
+        "DDD,true,false,false,partial\n",
+        encoding="utf-8",
+    )
+    return root
+
+
 def test_peer_mapping_source_review_packet_builds_two_review_slots_per_candidate(tmp_path: Path):
     packet = build_peer_mapping_source_review_packet(_sample_root(tmp_path), top_n=1)
     rendered = render_peer_mapping_source_review_markdown(packet)
@@ -57,12 +82,27 @@ def test_peer_mapping_source_review_packet_builds_two_review_slots_per_candidate
     assert "Import schema: `ticker, peer_ticker, peer_group, sector, industry, source, as_of_date`" in rendered
     assert "relationship rationale" in rendered
     assert "memory, popularity, sector/theme similarity alone" in rendered
+    assert "Candidate context:" in rendered
     assert "Completion status: `needs_field_fills`" in rendered
     assert "Import row scaffold: `blocked until reviewed fields are filled" in rendered
     assert "Import preview status: `needs_field_fills`" in rendered
     assert "CSV row: `blocked until completion-ready`" in rendered
     assert "Do not fabricate peer mappings" in rendered
     assert "does not provide direct buy/sell instructions" in rendered
+
+
+def test_peer_mapping_source_review_surfaces_candidate_context_only_layer(tmp_path: Path):
+    packet = build_peer_mapping_source_review_packet(_sample_root_with_candidate_context(tmp_path), top_n=1)
+    rendered = render_peer_mapping_source_review_markdown(packet)
+
+    assert packet.rows[0].candidate_context_state == "candidate_context_only"
+    assert packet.rows[0].candidate_context_source == "source_detail_fallback"
+    assert packet.rows[0].candidate_context_count == "1"
+    assert packet.rows[0].candidate_context_peers == "DDD"
+    assert "Candidate context state: `candidate_context_only`" in rendered
+    assert "Candidate context source: `source_detail_fallback`" in rendered
+    assert "Candidate context peers: `DDD`" in rendered
+    assert "not trusted peer proof" in rendered.lower()
 
 
 def test_peer_mapping_source_review_respects_explicit_ticker_scope(tmp_path: Path):
@@ -99,6 +139,8 @@ def test_peer_mapping_source_review_writes_markdown_and_csv(tmp_path: Path):
     assert rows[0]["target_file"] == "data/imports/peers.csv"
     assert rows[0]["source_proof_status"] == "needs_review"
     assert rows[0]["import_row_ready"] == "no"
+    assert "candidate_context_state" in rows[0]
+    assert "candidate_context_note" in rows[0]
 
 
 def test_peer_mapping_source_review_completion_detects_placeholders(tmp_path: Path):
