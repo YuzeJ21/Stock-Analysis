@@ -73,7 +73,7 @@ def test_batch_console_apply_guard_separates_mutating_and_read_only_lanes():
     metrics_frame = batch_console.reviewed_batch_apply_guard_frame(metrics)
     rendered = " ".join(str(value) for card in fundamentals_cards + metrics_cards for value in card.values()).lower()
 
-    assert fundamentals_cards[0]["command"] == "make imports-validate && make imports-preview"
+    assert fundamentals_cards[0]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>"
     assert "validate and preview before apply" in rendered
     assert metrics_cards[0]["title"] == "Read-only lane: no apply step"
     assert metrics_cards[0]["command"] == "make metric-readiness-board TOP_N=10"
@@ -116,7 +116,7 @@ def test_batch_console_sequence_cards_preserve_validate_preview_apply_boundary()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["PACKET", "DRY RUN", "MUTATION GATE", "PROOF"]
-    assert cards[2]["command"] == "make imports-validate && make imports-preview"
+    assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>"
     assert "metrics remain read-only" in rendered
     assert "restore standard local csvs" in rendered
     assert "buy" not in rendered

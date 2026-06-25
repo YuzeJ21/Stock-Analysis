@@ -1096,7 +1096,9 @@ def _stock_report_dcf_input_triage_lines(
         )
     lines.append(
         "- Safe sequence: `make focus-fundamentals TICKER={ticker}` -> stage SEC or trusted manual fundamentals rows -> "
-        "`make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`.".format(ticker=ticker)
+        "`make imports-validate IMPORT_TICKERS={ticker}` -> "
+        "`make imports-preview IMPORT_TICKERS={ticker}` -> "
+        "`make imports-apply IMPORT_TICKERS={ticker}` -> `make dcf-readiness`.".format(ticker=ticker)
     )
     return lines
 
@@ -2315,7 +2317,8 @@ def _stock_report_data_unlock_lines(
         dcf_line = (
             f"Fundamentals / DCF are blocked: {dcf_reason}. Inspect `make focus-fundamentals TICKER={ticker}`, "
             f"then use `make sec-stage TICKERS={ticker}` when SEC_USER_AGENT is configured or prepare trusted "
-            "manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, "
+            f"manual fundamentals rows before `make imports-validate IMPORT_TICKERS={ticker}`, "
+            f"`make imports-preview IMPORT_TICKERS={ticker}`, `make imports-apply IMPORT_TICKERS={ticker}`, "
             "and `make dcf-readiness`."
         )
 
@@ -2341,7 +2344,8 @@ def _stock_report_data_unlock_lines(
     else:
         optional_line = (
             "Earnings and analyst estimates remain optional and locked until trusted local rows are imported with "
-            "`make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`."
+            f"`make templates`, `make imports-validate IMPORT_TICKERS={ticker}`, "
+            f"`make imports-preview IMPORT_TICKERS={ticker}`, and `make imports-apply IMPORT_TICKERS={ticker}`."
         )
 
     return [
@@ -2478,13 +2482,15 @@ def _stock_report_peer_evidence_ladder_lines(
     if _stock_report_peer_lane(peer, peer_ready) == "peer_valuation_inputs":
         trusted_peer_path = (
             "- Trusted peer path: add verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals; "
-            "use `data/imports/peers.csv` only if mappings change. Then run `make imports-validate`, "
-            "`make imports-preview`, `make imports-apply`, `make readiness`, and `make peer-mapping-queue TOP_N=25`."
+            f"use `data/imports/peers.csv` only if mappings change. Then run `make imports-validate IMPORT_TICKERS={ticker}`, "
+            f"`make imports-preview IMPORT_TICKERS={ticker}`, `make imports-apply IMPORT_TICKERS={ticker}`, "
+            "`make readiness`, and `make peer-mapping-queue TOP_N=25`."
         )
     else:
         trusted_peer_path = (
-            "- Trusted peer path: add source-backed rows in `data/imports/peers.csv`, then run `make imports-validate`, "
-            "`make imports-preview`, `make imports-apply`, `make readiness`, and `make peer-mapping-queue TOP_N=25`."
+            f"- Trusted peer path: add source-backed rows in `data/imports/peers.csv`, then run `make imports-validate IMPORT_TICKERS={ticker}`, "
+            f"`make imports-preview IMPORT_TICKERS={ticker}`, `make imports-apply IMPORT_TICKERS={ticker}`, "
+            "`make readiness`, and `make peer-mapping-queue TOP_N=25`."
         )
     return [
         "- Peer ladder: standalone DCF can be reviewed before peer valuation is ready.",
@@ -2538,8 +2544,8 @@ def _stock_report_optional_context_ladder_lines(
         )
     lines.extend(
         [
-            "- Earnings path: `make templates` -> place trusted rows in `data/staged/earnings/` -> `make import-earnings` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.",
-            "- Analyst-estimates path: `make templates` -> place trusted rows in `data/staged/analyst_estimates/` -> `make import-analyst-estimates` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.",
+            f"- Earnings path: `make templates` -> place trusted rows in `data/staged/earnings/` -> `make import-earnings` -> `make imports-validate IMPORT_TICKERS={ticker}` -> `make imports-preview IMPORT_TICKERS={ticker}` -> `make imports-apply IMPORT_TICKERS={ticker}`.",
+            f"- Analyst-estimates path: `make templates` -> place trusted rows in `data/staged/analyst_estimates/` -> `make import-analyst-estimates` -> `make imports-validate IMPORT_TICKERS={ticker}` -> `make imports-preview IMPORT_TICKERS={ticker}` -> `make imports-apply IMPORT_TICKERS={ticker}`.",
             "- Rejected-row checks: review `data/rejected/earnings_import_rejected.csv` and `data/rejected/analyst_estimates_import_rejected.csv` before trusting optional context.",
             f"- Rebuild proof: run `make optional-context-readiness`, then `make stock-report-md TICKER={ticker}` to confirm optional sections changed from locked to available.",
             "- No-conclusion boundary: missing earnings or estimates must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.",
@@ -2592,7 +2598,7 @@ def _stock_report_unlock_command_lines(
             [
                 f"- Fundamentals / DCF: `make focus-fundamentals TICKER={ticker}`.",
                 f"- SEC/manual import checklist: `make sec-stage-queue TICKERS={ticker} TOP_N=10`.",
-                "- Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.",
+                f"- Fundamentals import safety: `make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker}` after source review.",
                 "- DCF rebuild proof: `make dcf-readiness && make readiness` before reading standalone DCF output.",
             ]
         )
@@ -2606,7 +2612,7 @@ def _stock_report_unlock_command_lines(
             [
                 f"- Peer mapping: `make focus-peers TICKER={ticker}`.",
                 f"- Peer mapping checklist: `make peer-mapping-queue TICKERS={ticker} TOP_N=10`.",
-                "- Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.",
+                f"- Peer import safety: `make templates && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker}` after source review.",
                 f"- Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS={ticker} TOP_N=10` before reading peer-relative valuation.",
             ]
         )
@@ -2620,7 +2626,7 @@ def _stock_report_unlock_command_lines(
                 "- Optional templates: `make templates`.",
                 "- Earnings import: `make import-earnings`.",
                 "- Analyst-estimates import: `make import-analyst-estimates`.",
-                "- Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.",
+                f"- Optional import safety: `make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker}` after source review.",
                 "- Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.",
             ]
         )
@@ -3794,8 +3800,8 @@ def _sec_staging_failure_message(exc: Exception) -> str:
         f"Reason: {exc}. "
         "Next safe action: verify network access and SEC_USER_AGENT, then rerun the capped SEC stage command; "
         "if SEC is unavailable, inspect the blocker with make focus-fundamentals TICKER=<ticker>, prepare only "
-        "source-backed rows in data/imports/fundamentals.csv, and run make imports-validate followed by "
-        "make imports-preview before any apply. Research-only guardrail: do not infer or fabricate revenue, "
+        "source-backed rows in data/imports/fundamentals.csv, and run make imports-validate IMPORT_TICKERS=<ticker> followed by "
+        "make imports-preview IMPORT_TICKERS=<ticker> before any scoped apply. Research-only guardrail: do not infer or fabricate revenue, "
         "free cash flow, shares outstanding, market cap, valuation inputs, or recommendations."
     )
 
@@ -3807,8 +3813,8 @@ def _yfinance_staging_failure_message(exc: Exception) -> str:
         "Next safe action: verify that the optional research dependency is installed with "
         "`pip install -e '.[research]'`, confirm network access, then rerun the targeted yfinance stage command; "
         "if yfinance is unavailable, inspect the blocker with make focus-fundamentals TICKER=<ticker>, prepare only "
-        "trusted or reviewed provider-assisted rows in data/imports/fundamentals.csv, and run make imports-validate "
-        "followed by make imports-preview before any apply. Research-only guardrail: do not infer or fabricate revenue, "
+        "trusted or reviewed provider-assisted rows in data/imports/fundamentals.csv, and run make imports-validate IMPORT_TICKERS=<ticker> "
+        "followed by make imports-preview IMPORT_TICKERS=<ticker> before any scoped apply. Research-only guardrail: do not infer or fabricate revenue, "
         "free cash flow, shares outstanding, market cap, valuation inputs, or recommendations."
     )
 
@@ -3818,7 +3824,7 @@ def _provider_staging_failure_message(provider: str, exc: Exception) -> str:
         f"{provider} fundamentals staging failed before any rows were applied. "
         f"Reason: {exc}. "
         "Next safe action: verify the provider API key and network access, then rerun the provider stage command. "
-        "Rows must still pass make imports-validate and make imports-preview before any apply. "
+        "Rows must still pass make imports-validate IMPORT_TICKERS=<ticker> and make imports-preview IMPORT_TICKERS=<ticker> before any scoped apply. "
         "Research-only guardrail: do not infer or fabricate revenue, free cash flow, shares outstanding, "
         "market cap, valuation inputs, or recommendations."
     )
@@ -3872,6 +3878,7 @@ def main() -> None:
     parser.add_argument("--validate-imports", action="store_true", help="Validate staged local import CSV files under data/imports.")
     parser.add_argument("--preview-import-merge", action="store_true", help="Preview local import CSV merge effects without changing canonical data files.")
     parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge local import CSV files into canonical local data files.")
+    parser.add_argument("--import-tickers", help="Optional comma-separated ticker filter for import validation, preview, and apply.")
     parser.add_argument("--sec-stage-fundamentals", action="store_true", help="Fetch official SEC Companyfacts data and stage candidate fundamentals under data/imports/fundamentals.csv.")
     parser.add_argument("--yfinance-stage-fundamentals", action="store_true", help="Fetch research-grade Yahoo/yfinance fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
     parser.add_argument("--alternative-fundamentals-stage", action="store_true", help="Fetch configured fallback provider fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
@@ -3953,7 +3960,7 @@ def main() -> None:
         return
 
     if args.validate_imports:
-        result = validate_imports(base_dir=cli_base_dir, data_dir=cli_data_dir)
+        result = validate_imports(base_dir=cli_base_dir, data_dir=cli_data_dir, tickers=args.import_tickers)
         if args.json:
             print(json.dumps(result, indent=2))
         elif result["status"] == "no_staged_files":
@@ -3972,7 +3979,7 @@ def main() -> None:
         return
 
     if args.preview_import_merge:
-        result = preview_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir)
+        result = preview_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir, tickers=args.import_tickers)
         if args.json:
             print(json.dumps(result, indent=2))
         elif result["status"] == "no_staged_files":
@@ -3990,7 +3997,7 @@ def main() -> None:
         return
 
     if args.apply_import_merge:
-        result = apply_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir)
+        result = apply_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir, tickers=args.import_tickers)
         if args.json:
             print(json.dumps(result, indent=2))
         elif result["status"] == "no_staged_files":
@@ -4040,9 +4047,9 @@ def main() -> None:
             **result,
             **write_result,
             "recommended_next_commands": [
-                "make imports-validate",
-                "make imports-preview",
-                "make imports-apply",
+                "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
             ],
         }
         if args.json:
@@ -4088,9 +4095,9 @@ def main() -> None:
             **result,
             **write_result,
             "recommended_next_commands": [
-                "make imports-validate",
-                "make imports-preview",
-                "make imports-apply",
+                "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
             ],
         }
         if args.json:
@@ -4144,9 +4151,9 @@ def main() -> None:
             **result,
             **write_result,
             "recommended_next_commands": [
-                "make imports-validate",
-                "make imports-preview",
-                "make imports-apply",
+                "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
             ],
         }
         if args.json:
@@ -4184,9 +4191,9 @@ def main() -> None:
             **result,
             **write_result,
             "recommended_next_commands": [
-                "make imports-validate",
-                "make imports-preview",
-                "make imports-apply",
+                "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
             ],
         }
         if args.json:
@@ -4222,9 +4229,9 @@ def main() -> None:
             **result,
             **write_result,
             "recommended_next_commands": [
-                "make imports-validate",
-                "make imports-preview",
-                "make imports-apply",
+                "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
                 "make optional-context-readiness",
             ],
         }

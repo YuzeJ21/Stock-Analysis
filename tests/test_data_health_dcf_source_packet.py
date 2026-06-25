@@ -61,8 +61,8 @@ def test_fundamentals_batch_review_queue_keeps_validate_preview_apply_boundary()
     table_text = " ".join(str(value) for value in queue.to_numpy().flatten()).lower()
 
     assert queue["Batch Route"].tolist() == ["SEC-stageable", "Trusted-local/manual", "Price dry-run path"]
-    assert queue.loc[queue["Batch Route"].eq("SEC-stageable"), "Validation Gate"].iloc[0] == "make imports-validate"
-    assert queue.loc[queue["Batch Route"].eq("SEC-stageable"), "Preview Gate"].iloc[0] == "make imports-preview"
+    assert queue.loc[queue["Batch Route"].eq("SEC-stageable"), "Validation Gate"].iloc[0] == "make imports-validate IMPORT_TICKERS=META"
+    assert queue.loc[queue["Batch Route"].eq("SEC-stageable"), "Preview Gate"].iloc[0] == "make imports-preview IMPORT_TICKERS=META"
     assert "review data/rejected/fundamentals_import_rejected.csv" in table_text
     assert "apply only reviewed sec/manual fundamentals rows after preview" in table_text
     assert "dry_run=1 make reviewed-batch-proof-record" in table_text

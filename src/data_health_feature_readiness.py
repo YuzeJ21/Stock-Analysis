@@ -51,14 +51,14 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
             body = (
                 f"{body} Optional context is intentionally locked until trusted local rows exist. "
                 "Use schema-only templates, place files in data/staged/earnings/, import to data/imports/earnings.csv, "
-                "then run make imports-validate -> make imports-preview -> make imports-apply."
+                "then run make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>."
             )
             command = "make templates"
         elif feature_key == "analyst_estimates":
             body = (
                 f"{body} Optional context is intentionally locked until trusted local rows exist. "
                 "Use schema-only templates, place files in data/staged/analyst_estimates/, import to data/imports/analyst_estimates.csv, "
-                "then run make imports-validate -> make imports-preview -> make imports-apply."
+                "then run make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>."
             )
             command = "make templates"
         elif feature_key == "price":

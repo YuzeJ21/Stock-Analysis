@@ -152,7 +152,7 @@ make stock-report-md TICKER=<ticker>
 Run the lane-specific review command printed by the packet:
   fundamentals lane: make focus-fundamentals TICKER=<ticker>
   peer lane: make focus-peers TICKER=<ticker>
-make imports-validate && make imports-preview && make imports-apply
+make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker>
 Check the rejected-row report printed by the packet before treating the lane as available.
 Run the matching rebuild proof:
   fundamentals lane: make readiness && make dcf-readiness
@@ -165,7 +165,7 @@ Run the matching rebuild proof:
 4. For fundamentals, use `make dcf-input-proof-queue TOP_N=25`, then `make dcf-input-source-review FAMILY=<family> TOP_N=10` to fill source file, as-of date, reviewer, review date, source proof status, validation result, preview result, and apply decision. Use `make dcf-input-source-guard ...` to block placeholders and preview the exact import row before `make dcf-input-proof-handoff FAMILY=<family> TOP_N=10` groups the packet, validation, preview, apply boundary, readiness proof, comparison, and proof-record dry run.
 5. When the DCF gap is `shares_outstanding`, use `make share-count-proof-queue TOP_N=10` to separate share-count-only blockers from tickers that still need price, revenue, free cash flow, or FCF margin too.
 6. For peers, use `make peer-mapping-queue TOP_N=25` and add only source-backed rows.
-7. For manual imports, run `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
+7. For manual imports, run `make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>`, then `make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>`, then `make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>`.
 8. Prove the result with `make readiness`, `make project-status`, and `make stock-report-md TICKER=...`.
 9. Keep the public branch clean with `make diff-hygiene`; stage only reviewed docs/code/tests or sample Markdown reports unless a refreshed CSV is the artifact you intentionally want to publish.
 
@@ -179,7 +179,7 @@ A company is a useful pilot win only when the evidence is reviewable, not just w
 
 - Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`.
 - Keep one regenerated Markdown report per pilot company so readers can see whether the mode changed or stayed visibly blocked by missing data.
-- Keep the exact review and validation path that changed the state: lane review command, `make imports-validate`, `make imports-preview`, `make imports-apply`, rejected-row report path, then the relevant readiness proof command.
+- Keep the exact review and validation path that changed the state: lane review command, ticker-scoped `make imports-validate`, ticker-scoped `make imports-preview`, ticker-scoped `make imports-apply`, rejected-row report path, then the relevant readiness proof command.
 - Record local file status from the pilot output, but do not treat row counts or file existence as proof by themselves.
 - The single-stock report opens with the correct mode: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data needed before analysis.
 - DCF-ready companies show assumptions, sensitivity, source readiness, and any locked optional context before interpretation.
@@ -206,7 +206,7 @@ Use `make readiness-ops-center` before drilling into individual tickers. It prin
 
 Trusted Coverage Growth V2 keeps peer readiness split into sub-states before a lane can be called supported: peer mapping, peer price, peer momentum, peer fundamentals, peer valuation, and peer valuation comparison. Peer trend context can become usable before peer valuation is ready. Sector or industry fallback remains research context only; it is not trusted peer mapping or peer valuation proof.
 
-In Operator mode, Data Health now shows Peer Source-Review Intake before the peer sub-state matrix. Use it to generate fillable proof slots for missing peer mappings, including proposed peer ticker, peer group, source, as-of date, relationship rationale, reviewer, and review date. The completion view keeps placeholders visible, blocks stale readiness, and shows an import-row scaffold only after the reviewed fields are filled. The import preview then shows the exact peer CSV header and row plus `make imports-validate && make imports-preview`; `make imports-apply` remains a reviewed boundary after preview and rejected-row review. Before copy/paste into `data/imports/peers.csv`, run `make peer-mapping-writeback-guard ...` with the reviewed values so placeholders, stale readiness, self-peers, and duplicate pairs are blocked. The guard also prints a `DRY_RUN=1 make reviewed-batch-proof-record ...` scaffold with the fields that still need validation, preview, apply, before/after readiness, changed ticker, source-file, artifact-review, and final-outcome evidence. This intake layer does not create trusted peer rows by itself; it keeps peer valuation locked until reviewed rows pass validation, preview, apply, rebuilt readiness, and the reviewed-batch proof loop.
+In Operator mode, Data Health now shows Peer Source-Review Intake before the peer sub-state matrix. Use it to generate fillable proof slots for missing peer mappings, including proposed peer ticker, peer group, source, as-of date, relationship rationale, reviewer, and review date. The completion view keeps placeholders visible, blocks stale readiness, and shows an import-row scaffold only after the reviewed fields are filled. The import preview then shows the exact peer CSV header and row plus `make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; `make imports-apply IMPORT_TICKERS=<ticker>` remains a reviewed boundary after preview and rejected-row review. Before copy/paste into `data/imports/peers.csv`, run `make peer-mapping-writeback-guard ...` with the reviewed values so placeholders, stale readiness, self-peers, and duplicate peer pairs are blocked. The guard also prints a `DRY_RUN=1 make reviewed-batch-proof-record ...` scaffold with the fields that still need validation, preview, apply, before/after readiness, changed ticker, source-file, artifact-review, and final-outcome evidence. This intake layer does not create trusted peer rows by itself; it keeps peer valuation locked until reviewed rows pass validation, preview, apply, rebuilt readiness, and the reviewed-batch proof loop.
 
 Use `make coverage-frontier TOP_N=10` to rank broad batch opportunities by unlock impact. This is an operations queue, not a security ranking: a high-impact lane means many feature states are blocked or partial, not that any ticker is attractive or that source data is already available. The command includes the source lane, workflow mode, possible state move, proof command, and generated-churn policy.
 

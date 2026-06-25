@@ -439,18 +439,18 @@ def _queue_lane_gate_action(lane: object) -> tuple[str, str, str]:
         return (
             "optional_trusted_local_only",
             "Optional context stays locked unless trusted local rows exist and pass validate / preview checks.",
-            "make imports-validate && make imports-preview",
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
         )
     if lane_key in {"peer_mapping", "peer_valuation_inputs"}:
         return (
             "validate_preview_apply",
             "Peer rows need source-backed relationships or mapped-peer inputs before any reviewed apply.",
-            "make imports-validate && make imports-preview",
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
         )
     return (
         "validate_preview_apply",
         "Fundamentals rows need trusted SEC/manual source proof before any reviewed apply.",
-        "make imports-validate && make imports-preview",
+        "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
     )
 
 

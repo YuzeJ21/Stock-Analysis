@@ -7,7 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.providers.local_schemas import LOCAL_DATASET_SCHEMAS, validate_local_dataset
+from src.providers.local_schemas import LOCAL_DATASET_SCHEMAS, normalize_columns, validate_local_dataframe, validate_local_dataset
 
 
 IMPORT_FILE_SPECS: dict[str, dict[str, Any]] = {
@@ -36,6 +36,32 @@ def _dataset_allowed_columns(dataset_name: str) -> list[str]:
         if column not in columns:
             columns.append(column)
     return columns
+
+
+def _normalize_ticker_filter(tickers: list[str] | tuple[str, ...] | set[str] | str | None) -> set[str] | None:
+    if tickers is None:
+        return None
+    if isinstance(tickers, str):
+        values = tickers.split(",")
+    else:
+        values = list(tickers)
+    normalized = {str(value).strip().upper() for value in values if str(value).strip()}
+    return normalized or None
+
+
+def _validate_staged_dataset(
+    dataset_name: str,
+    staged_path: Path,
+    tickers: set[str] | None,
+):
+    if not tickers:
+        return validate_local_dataset(dataset_name, staged_path)
+    raw_frame = pd.read_csv(staged_path)
+    raw_frame.columns = normalize_columns(list(raw_frame.columns))
+    if "ticker" in raw_frame.columns:
+        ticker_series = raw_frame["ticker"].astype("string").str.upper().str.strip()
+        raw_frame = raw_frame.loc[ticker_series.isin(tickers)].copy()
+    return validate_local_dataframe(dataset_name, staged_path, raw_frame)
 
 
 def _staged_entries(import_path: Path, data_path: Path) -> list[dict[str, Any]]:
@@ -90,6 +116,8 @@ def _normalize_merge_frame(
         if column not in normalized.columns:
             continue
         normalized[column] = normalized[column].apply(_serialize_date_value)
+    if dataset_name == "fundamentals" and "sec_cik" in normalized.columns:
+        normalized["sec_cik"] = normalized["sec_cik"].apply(_serialize_identifier_value)
 
     return normalized, dropped_columns, skipped_missing_key_rows + duplicate_rows
 
@@ -103,6 +131,17 @@ def _serialize_date_value(value: Any) -> Any:
     if timestamp.hour == 0 and timestamp.minute == 0 and timestamp.second == 0 and timestamp.microsecond == 0:
         return timestamp.date().isoformat()
     return timestamp.isoformat()
+
+
+def _serialize_identifier_value(value: Any) -> Any:
+    if pd.isna(value):
+        return None
+    text = str(value).strip()
+    if text.endswith(".0"):
+        head = text[:-2]
+        if head.isdigit():
+            return head
+    return text
 
 
 def _has_import_value(value: Any) -> bool:
@@ -128,11 +167,17 @@ def _key_series(frame: pd.DataFrame, merge_keys: list[str]) -> pd.Series:
     return frame[merge_keys].astype(str).agg("||".join, axis=1)
 
 
-def validate_imports(import_dir: Path | str | None = None, data_dir: Path | str | None = None, base_dir: Path | None = None) -> dict[str, Any]:
+def validate_imports(
+    import_dir: Path | str | None = None,
+    data_dir: Path | str | None = None,
+    base_dir: Path | None = None,
+    tickers: list[str] | tuple[str, ...] | set[str] | str | None = None,
+) -> dict[str, Any]:
     base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
     data_path = _resolve_data_dir(base_dir, Path(data_dir) if isinstance(data_dir, str) else data_dir)
     import_path = _resolve_import_dir(base_dir, Path(import_dir) if isinstance(import_dir, str) else import_dir)
     entries = _staged_entries(import_path, data_path)
+    ticker_filter = _normalize_ticker_filter(tickers)
 
     if not import_path.exists():
         return {
@@ -152,7 +197,7 @@ def validate_imports(import_dir: Path | str | None = None, data_dir: Path | str 
     file_results: list[dict[str, Any]] = []
     overall_status = "valid"
     for entry in entries:
-        validation, frame = validate_local_dataset(entry["dataset_name"], entry["staged_path"])
+        validation, frame = _validate_staged_dataset(entry["dataset_name"], entry["staged_path"], ticker_filter)
         ticker_count = 0
         if frame is not None:
             ticker_column = "ticker" if "ticker" in frame.columns else None
@@ -176,16 +221,23 @@ def validate_imports(import_dir: Path | str | None = None, data_dir: Path | str 
     return {
         "status": overall_status,
         "import_dir": str(import_path),
+        "import_tickers": sorted(ticker_filter) if ticker_filter else [],
         "files": file_results,
         "warnings": [],
     }
 
 
-def preview_import_merge(import_dir: Path | str | None = None, data_dir: Path | str | None = None, base_dir: Path | None = None) -> dict[str, Any]:
+def preview_import_merge(
+    import_dir: Path | str | None = None,
+    data_dir: Path | str | None = None,
+    base_dir: Path | None = None,
+    tickers: list[str] | tuple[str, ...] | set[str] | str | None = None,
+) -> dict[str, Any]:
     base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
     data_path = _resolve_data_dir(base_dir, Path(data_dir) if isinstance(data_dir, str) else data_dir)
     import_path = _resolve_import_dir(base_dir, Path(import_dir) if isinstance(import_dir, str) else import_dir)
-    validation_summary = validate_imports(import_path, data_path, base_dir=base_dir)
+    ticker_filter = _normalize_ticker_filter(tickers)
+    validation_summary = validate_imports(import_path, data_path, base_dir=base_dir, tickers=ticker_filter)
     if validation_summary["status"] == "no_staged_files":
         return {
             **validation_summary,
@@ -222,7 +274,7 @@ def preview_import_merge(import_dir: Path | str | None = None, data_dir: Path | 
             preview_rows.append(preview)
             continue
 
-        staged_result, staged_frame = validate_local_dataset(dataset_name, staged_path)
+        staged_result, staged_frame = _validate_staged_dataset(dataset_name, staged_path, ticker_filter)
         canonical_result, canonical_frame = validate_local_dataset(dataset_name, canonical_path)
         staged_frame = staged_frame if staged_frame is not None else pd.DataFrame()
         canonical_frame = canonical_frame if canonical_frame is not None else pd.DataFrame()
@@ -278,6 +330,7 @@ def preview_import_merge(import_dir: Path | str | None = None, data_dir: Path | 
     return {
         "status": overall_status,
         "import_dir": str(import_path),
+        "import_tickers": sorted(ticker_filter) if ticker_filter else [],
         "preview": preview_rows,
         "warnings": validation_summary["warnings"],
     }
@@ -339,11 +392,13 @@ def apply_import_merge(
     data_dir: Path | str | None = None,
     base_dir: Path | None = None,
     backup: bool = True,
+    tickers: list[str] | tuple[str, ...] | set[str] | str | None = None,
 ) -> dict[str, Any]:
     base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
     data_path = _resolve_data_dir(base_dir, Path(data_dir) if isinstance(data_dir, str) else data_dir)
     import_path = _resolve_import_dir(base_dir, Path(import_dir) if isinstance(import_dir, str) else import_dir)
-    preview = preview_import_merge(import_path, data_path, base_dir=base_dir)
+    ticker_filter = _normalize_ticker_filter(tickers)
+    preview = preview_import_merge(import_path, data_path, base_dir=base_dir, tickers=ticker_filter)
     if preview["status"] == "no_staged_files":
         return {
             **preview,
@@ -365,7 +420,7 @@ def apply_import_merge(
         canonical_path = Path(item["canonical_path"])
         dataset_name = item["dataset_name"]
         merge_keys = item["merge_keys"]
-        _staged_validation, staged_frame = validate_local_dataset(dataset_name, staged_path)
+        _staged_validation, staged_frame = _validate_staged_dataset(dataset_name, staged_path, ticker_filter)
         _canonical_validation, canonical_frame = validate_local_dataset(dataset_name, canonical_path)
         staged_frame = staged_frame if staged_frame is not None else pd.DataFrame()
         canonical_frame = canonical_frame if canonical_frame is not None else pd.DataFrame()
@@ -404,6 +459,7 @@ def apply_import_merge(
     return {
         "status": "applied",
         "import_dir": str(import_path),
+        "import_tickers": sorted(ticker_filter) if ticker_filter else [],
         "applied": applied_rows,
         "warnings": preview["warnings"],
     }

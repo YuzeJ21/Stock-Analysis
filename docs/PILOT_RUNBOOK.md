@@ -128,14 +128,14 @@ Fundamentals / DCF:
 ```bash
 make dcf-input-proof-queue TOP_N=25
 make focus-fundamentals TICKER=<ticker>
-make imports-validate
-make imports-preview
+make imports-validate IMPORT_TICKERS=<ticker>
+make imports-preview IMPORT_TICKERS=<ticker>
 ```
 
 Apply only after source proof, validation, preview, and rejected-row review:
 
 ```bash
-make imports-apply
+make imports-apply IMPORT_TICKERS=<ticker>
 make dcf-readiness
 make readiness
 make stock-report-md TICKER=<ticker>
@@ -147,8 +147,8 @@ Peers:
 make peer-mapping-queue TOP_N=25
 DRY_RUN=1 make peer-mapping-source-review TOP_N=10
 make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> PEER_GROUP=<group> SOURCE=<source> AS_OF_DATE=<yyyy-mm-dd> REVIEWER=<name> REVIEW_DATE=<yyyy-mm-dd>
-make imports-validate
-make imports-preview
+make imports-validate IMPORT_TICKERS=<ticker>
+make imports-preview IMPORT_TICKERS=<ticker>
 ```
 
 Earnings and analyst estimates:
@@ -157,8 +157,8 @@ Earnings and analyst estimates:
 make optional-context-worklist TOP_N=25
 make optional-context-source-ladder-queue TOP_N=10
 make templates
-make imports-validate
-make imports-preview
+make imports-validate IMPORT_TICKERS=<ticker>
+make imports-preview IMPORT_TICKERS=<ticker>
 ```
 
 Keep optional context locked until trusted local or reviewed provider-assisted rows exist and pass validate, preview, apply, and optional-context readiness.

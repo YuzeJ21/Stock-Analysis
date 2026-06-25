@@ -255,7 +255,8 @@ help-full:
 	@echo "  make import-analyst-estimates Import verified CSVs from data/staged/analyst_estimates/ into data/imports/analyst_estimates.csv"
 	@echo "  make optional-context-summary [TOP_N=10] Read-only optional earnings/analyst readiness summary without writing CSVs"
 	@echo "  make optional-context-readiness Write data/earnings_readiness.csv and data/analyst_estimates_readiness.csv"
-	@echo "  make imports-validate && make imports-preview && make imports-apply"
+	@echo "  make imports-validate IMPORT_TICKERS=NVDA && make imports-preview IMPORT_TICKERS=NVDA && make imports-apply IMPORT_TICKERS=NVDA"
+	@echo "                        Use IMPORT_TICKERS for narrow reviewed slices; broad imports-apply requires ALLOW_BROAD_IMPORT_APPLY=1 after full staged-scope review"
 	@echo "  make universe-preview"
 	@echo "  make universe-apply"
 	@echo "  make universe-refresh Import staged universe rows and refresh master/active reports"
@@ -361,7 +362,8 @@ trusted-data-pilot:
 	@echo "   Run the lane-specific review command printed by the packet:"
 	@echo "      fundamentals lane: make focus-fundamentals TICKER=<ticker>"
 	@echo "      peer lane: make focus-peers TICKER=<ticker>"
-	@echo "   make imports-validate && make imports-preview && make imports-apply"
+	@echo "   make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker>"
+	@echo "   Use the broad imports-apply sequence only after every staged row is source-reviewed and intended."
 	@echo "   Check the rejected-row report printed by the packet before treating the lane as available."
 	@echo "   Run the matching rebuild proof:"
 	@echo "      fundamentals lane: make readiness && make dcf-readiness"
@@ -391,9 +393,9 @@ trusted-data-pilot:
 	@echo ""
 	@echo "6. Use trusted fundamentals, peer, earnings, or estimate rows only, then validate before apply:"
 	@echo "   make templates"
-	@echo "   make imports-validate"
-	@echo "   make imports-preview"
-	@echo "   make imports-apply"
+	@echo "   make imports-validate IMPORT_TICKERS=<ticker>"
+	@echo "   make imports-preview IMPORT_TICKERS=<ticker>"
+	@echo "   make imports-apply IMPORT_TICKERS=<ticker>"
 	@echo ""
 	@echo "7. Prove the lane is available before reading valuation:"
 	@echo "   make readiness"
@@ -901,13 +903,18 @@ sec-apply:
 	python3 -m src.stock_report --apply-import-merge
 
 imports-validate:
-	python3 -m src.stock_report --validate-imports
+	python3 -m src.stock_report --validate-imports $(if $(IMPORT_TICKERS),--import-tickers "$(IMPORT_TICKERS)",)
 
 imports-preview:
-	python3 -m src.stock_report --preview-import-merge
+	python3 -m src.stock_report --preview-import-merge $(if $(IMPORT_TICKERS),--import-tickers "$(IMPORT_TICKERS)",)
 
 imports-apply:
-	python3 -m src.stock_report --apply-import-merge
+ifndef IMPORT_TICKERS
+ifndef ALLOW_BROAD_IMPORT_APPLY
+	$(error IMPORT_TICKERS is required for imports-apply; use ALLOW_BROAD_IMPORT_APPLY=1 only after full staged-scope review)
+endif
+endif
+	python3 -m src.stock_report --apply-import-merge $(if $(IMPORT_TICKERS),--import-tickers "$(IMPORT_TICKERS)",)
 
 dcf-readiness:
 	python3 -m src.dcf_readiness

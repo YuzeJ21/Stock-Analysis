@@ -458,7 +458,7 @@ def _proof_packet_command(ticker: str, family: str) -> str:
 def _validation_sequence(family: str) -> str:
     if family == "price":
         return "dry-run -> reviewed capped refresh/import -> make price-validate -> make price-preview -> reviewed apply"
-    return "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply"
+    return "make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker>"
 
 
 def _proof_after_update(ticker: str, family: str) -> str:

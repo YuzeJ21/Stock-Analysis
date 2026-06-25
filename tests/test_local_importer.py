@@ -164,6 +164,77 @@ def test_apply_import_merge_creates_backup_and_updates_and_appends_rows(tmp_path
     assert nvda["as_of_date"] == "2026-05-01"
 
 
+def test_preview_import_merge_can_filter_to_reviewed_ticker(tmp_path: Path):
+    data_dir, imports_dir = _setup_dirs(tmp_path)
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,eps,source,as_of_date\n"
+        "MSFT,1000,5,old,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,eps,source,as_of_date\n"
+        "MSFT,1100,5.5,new,2026-05-01\n"
+        "BAD,1200,6,new,not_a_date\n",
+        encoding="utf-8",
+    )
+
+    result = preview_import_merge(base_dir=tmp_path, tickers="MSFT")
+    preview = result["preview"][0]
+
+    assert result["status"] == "valid"
+    assert result["import_tickers"] == ["MSFT"]
+    assert preview["updated_rows"] == 1
+    assert preview["new_rows"] == 0
+    assert preview["warnings"] == []
+
+
+def test_apply_import_merge_can_filter_to_reviewed_ticker(tmp_path: Path):
+    data_dir, imports_dir = _setup_dirs(tmp_path)
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,eps,source,as_of_date\n"
+        "MSFT,1000,5,old,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,eps,source,as_of_date\n"
+        "MSFT,1100,5.5,new,2026-05-01\n"
+        "NVDA,1200,6,new,2026-05-01\n",
+        encoding="utf-8",
+    )
+
+    result = apply_import_merge(base_dir=tmp_path, tickers=["MSFT"])
+    merged = pd.read_csv(data_dir / "fundamentals.csv")
+
+    assert result["status"] == "applied"
+    assert result["import_tickers"] == ["MSFT"]
+    assert set(merged["ticker"]) == {"MSFT"}
+    msft = merged.loc[merged["ticker"] == "MSFT"].iloc[0]
+    assert msft["revenue"] == 1100
+    assert msft["source"] == "new"
+
+
+def test_apply_import_merge_preserves_integer_like_sec_cik_text(tmp_path: Path):
+    data_dir, imports_dir = _setup_dirs(tmp_path)
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,source,as_of_date,sec_cik\n"
+        "MSFT,1000,old,2026-01-01,789019\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,source,as_of_date,sec_cik\n"
+        "NVDA,1200,new,2026-05-01,1045810\n",
+        encoding="utf-8",
+    )
+
+    apply_import_merge(base_dir=tmp_path)
+    text = (data_dir / "fundamentals.csv").read_text(encoding="utf-8")
+
+    assert "789019.0" not in text
+    assert "1045810.0" not in text
+    assert "MSFT,1000,old,2026-01-01,789019" in text
+    assert "NVDA,1200,new,2026-05-01,1045810" in text
+
+
 def test_sparse_staged_import_preserves_existing_canonical_values(tmp_path: Path):
     data_dir, imports_dir = _setup_dirs(tmp_path)
     (data_dir / "fundamentals.csv").write_text(

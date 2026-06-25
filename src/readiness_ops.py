@@ -509,7 +509,10 @@ def build_readiness_ops_lanes(
                 f"{fundamentals_source_context}"
             ),
             next_safe_command=fundamentals_next_command,
-            proof_command="make imports-validate && make imports-preview && make readiness && make dcf-readiness",
+            proof_command=(
+                "make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && make readiness && make dcf-readiness"
+            ),
             generated_churn_policy="Stage/apply only reviewed trusted fundamentals rows; avoid broad generated report churn by default.",
             stale_proof_warning=stale_warning,
             notes=(
@@ -539,7 +542,10 @@ def build_readiness_ops_lanes(
                 f"{fundamentals_source_context}"
             ),
             next_safe_command=share_count_next_command,
-            proof_command="make imports-validate && make imports-preview && make dcf-readiness && make readiness",
+            proof_command=(
+                "make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && make dcf-readiness && make readiness"
+            ),
             generated_churn_policy=(
                 "Apply only reviewed trusted share-count rows; broad readiness/report CSV churn stays local unless intentionally reviewed."
             ),
@@ -563,7 +569,10 @@ def build_readiness_ops_lanes(
             source_lane="peers",
             source_readiness="Peer relationships must be source-backed or clearly labeled fallback context only.",
             next_safe_command="make peer-mapping-queue TOP_N=25",
-            proof_command="make imports-validate && make imports-preview && make readiness && make peer-mapping-queue TOP_N=25",
+            proof_command=(
+                "make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && make readiness && make peer-mapping-queue TOP_N=25"
+            ),
             generated_churn_policy="Apply only reviewed peer rows; do not infer trusted peers from sector similarity.",
             stale_proof_warning=stale_warning,
             notes=(
@@ -615,7 +624,11 @@ def build_readiness_ops_lanes(
                 else "Trusted local or reviewed provider-assisted earnings rows only; empty rows render unavailable, not analysis."
             ),
             next_safe_command=optional_context_next_command,
-            proof_command="make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
+            proof_command=(
+                "make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && "
+                "make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness"
+            ),
             generated_churn_policy="Do not apply or publish earnings rows unless trusted local/provider source rows were reviewed.",
             stale_proof_warning=stale_warning,
             notes="Optional context stays locked until trusted local or reviewed provider-assisted rows exist.",
@@ -638,7 +651,11 @@ def build_readiness_ops_lanes(
                 else "Trusted local or reviewed provider-assisted analyst-estimate rows only; consensus context is optional and never a recommendation."
             ),
             next_safe_command=optional_context_next_command,
-            proof_command="make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
+            proof_command=(
+                "make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && "
+                "make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness"
+            ),
             generated_churn_policy="Do not apply or publish estimates unless trusted local/provider source rows were reviewed.",
             stale_proof_warning=stale_warning,
             notes="Optional context is unavailable by design when trusted local or reviewed provider-assisted rows are missing.",

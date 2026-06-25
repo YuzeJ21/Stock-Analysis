@@ -641,7 +641,7 @@ def test_pilot_evidence_row_template_is_copyable_and_data_honest():
         "CRDO | before: run report | after: rerun report | "
         "outcome_state: supported/candidate_context_only/still_blocked/skipped/excluded | revenue, free-cash-flow margin |"
     )
-    assert "make imports-validate && make imports-preview && make imports-apply" in row
+    assert "make imports-validate IMPORT_TICKERS=CRDO && make imports-preview IMPORT_TICKERS=CRDO && make imports-apply IMPORT_TICKERS=CRDO" in row
     assert "outputs/stock_reports/crdo.md" in row
     assert "keep visible if source proof is unavailable or readiness remains blocked" in row
     assert "fcf_margin" not in row
@@ -1035,8 +1035,8 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" not in rendered
     assert "Trusted input target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." not in rendered
-    assert "Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
-    assert "make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "Validate/apply only reviewed rows: make imports-validate IMPORT_TICKERS=META && make imports-preview IMPORT_TICKERS=META && make imports-apply IMPORT_TICKERS=META" in rendered
+    assert "make imports-validate IMPORT_TICKERS=META && make imports-preview IMPORT_TICKERS=META && make imports-apply IMPORT_TICKERS=META" in rendered
     assert "2. make trusted-data-pilot-packet TICKER=META" in rendered
     assert "3. Review the lane blocker: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
     assert "4. Prepare trusted rows only if the source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
@@ -1281,7 +1281,7 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "2. Before report: make stock-report-md TICKER=CRDO" in rendered
     assert "3. Focused blocker check: make focus-fundamentals TICKER=CRDO" in rendered
     assert "4. Prepare or stage trusted rows only if source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
-    assert "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "5. Validate/apply only reviewed rows: make imports-validate IMPORT_TICKERS=CRDO && make imports-preview IMPORT_TICKERS=CRDO && make imports-apply IMPORT_TICKERS=CRDO" in rendered
     assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "make readiness && make dcf-readiness && make stock-report-md TICKER=CRDO" in rendered
     assert "7. Rebuild proof and after report:" in rendered

@@ -301,29 +301,12 @@ def _coerce_numeric_column(frame: pd.DataFrame, column: str, warnings: list[str]
         warnings.append(f"{column}: {original_non_null - parsed_non_null} rows could not be parsed as numeric values.")
 
 
-def validate_local_dataset(dataset_name: str, file_path: Path | None) -> tuple[LocalSchemaValidationResult, pd.DataFrame | None]:
+def validate_local_dataframe(
+    dataset_name: str,
+    file_path: Path,
+    frame: pd.DataFrame,
+) -> tuple[LocalSchemaValidationResult, pd.DataFrame | None]:
     schema = LOCAL_DATASET_SCHEMAS.get(dataset_name)
-    if file_path is None or not file_path.exists():
-        result = LocalSchemaValidationResult(
-            dataset_name=dataset_name,
-            file_path=str(file_path) if file_path is not None else "",
-            status="missing_file",
-            row_count=0,
-            available_columns=[],
-            missing_required_columns=list(schema.required_columns) if schema else [],
-            available_optional_columns=[],
-            unknown_columns=[],
-            warnings=["Local CSV file is not present."],
-            source=make_source_metadata(
-                provider=f"local:{dataset_name}",
-                freshness="missing file",
-                official=False,
-                notes=["Local CSV file is not present."],
-            ).to_dict(),
-        )
-        return result, None
-
-    frame = pd.read_csv(file_path)
     frame.columns = normalize_columns(list(frame.columns))
     if dataset_name in ALIASED_DATASET_COLUMNS:
         frame = frame.rename(columns=ALIASED_DATASET_COLUMNS[dataset_name])
@@ -399,3 +382,28 @@ def validate_local_dataset(dataset_name: str, file_path: Path | None) -> tuple[L
         latest_data_timestamp=latest_timestamp,
     )
     return result, frame
+
+
+def validate_local_dataset(dataset_name: str, file_path: Path | None) -> tuple[LocalSchemaValidationResult, pd.DataFrame | None]:
+    schema = LOCAL_DATASET_SCHEMAS.get(dataset_name)
+    if file_path is None or not file_path.exists():
+        result = LocalSchemaValidationResult(
+            dataset_name=dataset_name,
+            file_path=str(file_path) if file_path is not None else "",
+            status="missing_file",
+            row_count=0,
+            available_columns=[],
+            missing_required_columns=list(schema.required_columns) if schema else [],
+            available_optional_columns=[],
+            unknown_columns=[],
+            warnings=["Local CSV file is not present."],
+            source=make_source_metadata(
+                provider=f"local:{dataset_name}",
+                freshness="missing file",
+                official=False,
+                notes=["Local CSV file is not present."],
+            ).to_dict(),
+        )
+        return result, None
+
+    return validate_local_dataframe(dataset_name, file_path, pd.read_csv(file_path))

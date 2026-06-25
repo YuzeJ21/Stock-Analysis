@@ -144,8 +144,8 @@ def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(
     assert peer_mapping_import_csv_header() == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
     assert preview.status == "ready_for_validate_preview"
     assert preview.csv_row == completion.import_row_scaffold
-    assert preview.validation_command == "make imports-validate && make imports-preview"
-    assert "make imports-apply only after imports-preview" in preview.apply_boundary
+    assert preview.validation_command == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
+    assert "make imports-apply IMPORT_TICKERS=<ticker> only after imports-preview" in preview.apply_boundary
     assert "make readiness" in preview.post_apply_proof
 
 
@@ -185,7 +185,7 @@ def test_peer_mapping_writeback_guard_allows_ready_non_duplicate_row(tmp_path: P
     assert "status: ready_for_validate_preview" in rendered
     assert "proof_record_status: ready_for_review_fields" in rendered
     assert "proof_record_missing_fields: validation_result" in rendered
-    assert "validation_command: make imports-validate && make imports-preview" in rendered
+    assert "validation_command: make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
     assert "proof_record_command: DRY_RUN=1 make reviewed-batch-proof-record" in rendered
     assert "Copy this dry-run proof-record command only after" in rendered
     assert "does not edit files" in rendered

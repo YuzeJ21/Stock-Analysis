@@ -92,10 +92,12 @@ For local import files, use preview before apply:
 
 ```bash
 make templates
-make imports-validate
-make imports-preview
-make imports-apply
+make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>
+make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>
+make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>
 ```
+
+Broad `make imports-apply` requires `ALLOW_BROAD_IMPORT_APPLY=1` and should only be used after the full staged import scope is intentionally reviewed.
 
 For larger price refreshes, dry-run first and keep batches capped:
 
@@ -116,8 +118,8 @@ For fundamentals and share-count blockers, run the session preflight once before
 ```bash
 make session-source-preflight
 make fundamentals-source-ladder-queue TOP_N=10
-make imports-validate
-make imports-preview
+make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>
+make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>
 ```
 
 The fundamentals source ladder automatically skips providers the current session already marked unavailable. It tries configured source-backed paths in order: SEC, Yahoo/yfinance, FMP, Alpha Vantage, then Finnhub. Reviewed local fundamentals rows stay available, but they are only prioritized when they actually match the current share-count or DCF blockers; otherwise the configured API fallback remains the next executable path. FMP, Alpha Vantage, and Finnhub require `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, or `FINNHUB_API_KEY`; missing keys are recorded as unavailable paths, not filled by inference. Apply staged rows only after validation and preview show the source-backed changes are intended.
@@ -126,9 +128,9 @@ For optional earnings and analyst-estimate context, use provider-assisted stagin
 
 ```bash
 make optional-context-source-ladder-queue TOP_N=10
-make imports-validate
-make imports-preview
-make imports-apply
+make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>
+make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>
+make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>
 make optional-context-readiness
 ```
 

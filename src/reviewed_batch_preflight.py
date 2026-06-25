@@ -91,7 +91,7 @@ def _lane_plan(
         if not sec_available and local_fundamentals_fixable > 0:
             return (
                 f"make dcf-input-proof-queue TOP_N={top_n}",
-                "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after reviewed trusted fundamentals rows",
                 (
                     "data/imports/fundamentals.csv",
                     "data/fundamentals.csv",
@@ -100,7 +100,7 @@ def _lane_plan(
             )
         return (
             f"make fundamentals-source-ladder-queue TOP_N={top_n}",
-            "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after reviewed trusted fundamentals rows",
             (
                 "data/imports/fundamentals.csv",
                 "data/fundamentals.csv",
@@ -111,7 +111,7 @@ def _lane_plan(
         if not sec_available and local_share_count_fixable > 0:
             return (
                 f"make share-count-proof-queue TOP_N={top_n}",
-                "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted shares_outstanding rows",
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after reviewed trusted shares_outstanding rows",
                 (
                     "data/imports/fundamentals.csv",
                     "data/fundamentals.csv",
@@ -121,7 +121,7 @@ def _lane_plan(
             )
         return (
             f"make fundamentals-source-ladder-queue TOP_N={top_n}",
-            "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted shares_outstanding rows",
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after reviewed trusted shares_outstanding rows",
             (
                 "data/imports/fundamentals.csv",
                 "data/fundamentals.csv",
@@ -132,7 +132,7 @@ def _lane_plan(
     if lane in {"peer_mapping", "peer_valuation_inputs"}:
         return (
             f"make peer-mapping-queue TOP_N={top_n}",
-            "make imports-validate && make imports-preview && make imports-apply only after source-backed peer rows or mapped-peer inputs",
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after source-backed peer rows or mapped-peer inputs",
             (
                 "data/imports/peers.csv",
                 "data/peers.csv",
@@ -142,7 +142,7 @@ def _lane_plan(
         )
     return (
         f"make optional-context-worklist TOP_N={top_n}",
-        "make imports-validate && make imports-preview && make imports-apply only after trusted local optional rows",
+        "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after trusted local optional rows",
         (
             "data/imports/earnings.csv",
             "data/imports/analyst_estimates.csv",

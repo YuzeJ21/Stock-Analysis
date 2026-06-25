@@ -653,7 +653,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "`make focus-fundamentals TICKER=MSFT`" in markdown
     assert "`make focus-peers TICKER=MSFT`" in markdown
     assert "`make optional-context-worklist TICKERS=MSFT TOP_N=10`" in markdown
-    assert "`make imports-validate && make imports-preview && make imports-apply`" in markdown
+    assert "`make imports-validate IMPORT_TICKERS=MSFT && make imports-preview IMPORT_TICKERS=MSFT && make imports-apply IMPORT_TICKERS=MSFT`" in markdown
     assert "Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10`" in markdown
     assert "Optional-context rebuild proof: `make optional-context-readiness && make readiness`" in markdown
     assert "Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below." in markdown
@@ -846,7 +846,11 @@ def test_build_stock_report_surfaces_missing_data_risks(tmp_path: Path):
     assert "Fundamentals / DCF are blocked:" in markdown
     assert "Inspect `make focus-fundamentals TICKER=TSLA`" in markdown
     assert "`make sec-stage TICKERS=TSLA`" in markdown
-    assert "trusted manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make dcf-readiness`" in markdown
+    assert (
+        "trusted manual fundamentals rows before `make imports-validate IMPORT_TICKERS=TSLA`, "
+        "`make imports-preview IMPORT_TICKERS=TSLA`, `make imports-apply IMPORT_TICKERS=TSLA`, and `make dcf-readiness`"
+        in markdown
+    )
     assert "## Next Layer To Prove" in markdown
     assert "Current supported layer: Price/setup review only; company valuation stays locked until fundamentals and DCF inputs pass readiness." in markdown
     assert "Next trusted input: Trusted fundamentals, free-cash-flow or margin inputs, share count, and DCF fields." in markdown
@@ -1309,7 +1313,12 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Why DCF is blocked:" in markdown
     assert "## DCF Input Triage" in markdown
     assert "DCF input triage: blocked inputs are repair steps, not negative company signals" in markdown
-    assert "Safe sequence: `make focus-fundamentals TICKER=APLD` -> stage SEC or trusted manual fundamentals rows -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`" in markdown
+    assert (
+        "Safe sequence: `make focus-fundamentals TICKER=APLD` -> stage SEC or trusted manual fundamentals rows -> "
+        "`make imports-validate IMPORT_TICKERS=APLD` -> `make imports-preview IMPORT_TICKERS=APLD` -> "
+        "`make imports-apply IMPORT_TICKERS=APLD` -> `make dcf-readiness`"
+        in markdown
+    )
     assert "`make trusted-data-pilot-packet TICKER=APLD`" in markdown
     assert "One-company pilot packet: `make trusted-data-pilot-packet TICKER=APLD` is read-only" in markdown
     assert "trusted-data proof path and stop if source evidence is unavailable" in markdown
@@ -1908,9 +1917,9 @@ def test_stock_report_cli_sec_stage_json_surfaces_make_based_follow_up(monkeypat
         main()
         payload = json.loads(capsys.readouterr().out)
         assert payload["recommended_next_commands"] == [
-            "make imports-validate",
-            "make imports-preview",
-            "make imports-apply",
+            "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+            "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+            "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
         ]
     finally:
         sys.argv = previous_argv
@@ -1984,9 +1993,9 @@ def test_stock_report_cli_yfinance_stage_json_surfaces_make_based_follow_up(monk
         main()
         payload = json.loads(capsys.readouterr().out)
         assert payload["recommended_next_commands"] == [
-            "make imports-validate",
-            "make imports-preview",
-            "make imports-apply",
+            "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+            "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+            "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
         ]
         assert payload["resolved_tickers"] == ["NVDA"]
     finally:
@@ -2077,9 +2086,9 @@ def test_stock_report_cli_optional_context_source_ladder_writes_import_files(mon
     assert (tmp_path / "data" / "imports" / "earnings.csv").exists()
     assert (tmp_path / "data" / "imports" / "analyst_estimates.csv").exists()
     assert payload["recommended_next_commands"] == [
-        "make imports-validate",
-        "make imports-preview",
-        "make imports-apply",
+        "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+        "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+        "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
         "make optional-context-readiness",
     ]
 

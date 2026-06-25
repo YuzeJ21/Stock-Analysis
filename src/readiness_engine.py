@@ -326,7 +326,9 @@ def _text_value(value: object) -> str:
 def _peer_mapping_next_action(ticker: str) -> str:
     return (
         f"Add at least 2 source-backed peer mappings for {ticker} in data/imports/peers.csv; "
-        "then run make imports-validate, make imports-preview, and make imports-apply."
+        f"then run make imports-validate IMPORT_TICKERS={ticker}, "
+        f"make imports-preview IMPORT_TICKERS={ticker}, and "
+        f"make imports-apply IMPORT_TICKERS={ticker} after scope review."
     )
 
 
@@ -337,8 +339,9 @@ def _peer_readiness_next_action(ticker: str, peer: pd.Series) -> str:
         return _peer_mapping_next_action(ticker)
     if blocker_type == "missing_peer_mapping":
         return (
-            f"{action} Then run make imports-validate, make imports-preview, "
-            "and make imports-apply."
+            f"{action} Then run make imports-validate IMPORT_TICKERS={ticker}, "
+            f"make imports-preview IMPORT_TICKERS={ticker}, and "
+            f"make imports-apply IMPORT_TICKERS={ticker} after scope review."
         )
     if blocker_type in {"peer_price_missing", "peer_momentum_missing"}:
         return (
@@ -892,7 +895,12 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
             else:
                 next_action_summary = "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data."
             next_input_file = "data/imports/peers.csv"
-            validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
+            validation_sequence = (
+                "make templates -> fill source-backed peers -> "
+                "make imports-validate IMPORT_TICKERS=<ticker> -> "
+                "make imports-preview IMPORT_TICKERS=<ticker> -> "
+                "make imports-apply IMPORT_TICKERS=<ticker>"
+            )
         elif blocker_type in {"peer_price_missing", "peer_momentum_missing"}:
             unlock_stage = "add_peer_price_history"
             workflow_group = "peer_trend_unlock"

@@ -5410,15 +5410,18 @@ def optional_context_unlock_sequence_command(dataset_label: str) -> str:
     normalized = str(dataset_label or "").strip().lower().replace("_", "-")
     import_command = "make import-analyst-estimates" if "analyst" in normalized or "estimate" in normalized else "make import-earnings"
     return (
-        f"make templates && {import_command} && make imports-validate && make imports-preview && "
-        "make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
+        f"make templates && {import_command} && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+        "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+        "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness && make onboarding TOP_N=10"
     )
 
 
 def import_workflow_caption(staged_path: str, import_command: str) -> str:
     return (
         f"Manual import: {staged_path} -> {import_command} -> "
-        "make imports-validate -> make imports-preview -> make imports-apply."
+        "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> "
+        "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> "
+        "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>."
     )
 
 
@@ -5506,7 +5509,11 @@ def stock_report_optional_context_boundary_cards(report_payload: dict[str, objec
             "title": "Validate before applying",
             "body": "Use schema-only templates, stage trusted rows, then validate, preview, apply, and rebuild readiness before the report treats optional context as available.",
             "badges": ["schema only first", "copy-only"],
-            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10",
+            "command": (
+                "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness && make onboarding TOP_N=10"
+            ),
         },
     ]
 
@@ -5542,12 +5549,18 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "title": "Validate and preview",
             "body": (
                 "Use make templates first, then run make import-earnings or make import-analyst-estimates for staged files, "
-                "then make imports-validate, make imports-preview, and make imports-apply. "
+                "then make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, and "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>. "
                 "After applying, run make optional-context-readiness and make onboarding TOP_N=10 before treating optional context as available. "
                 "Invalid rows stay visible in rejected CSV reports."
             ),
             "badges": ["csv-first", "no fabrication"],
-            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
+            "command": (
+                "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness"
+            ),
         },
         {
             "kicker": "SCHEMA-ONLY EXAMPLES",
@@ -5603,7 +5616,11 @@ def first_optional_context_unlock_frame(dataset: str = "earnings") -> pd.DataFra
             {
                 "Step": "4. Validate before applying",
                 "Why It Matters": "Optional readiness should improve only after rows pass validation, preview, and apply.",
-                "Copy Command": "make imports-validate && make imports-preview && make imports-apply",
+                "Copy Command": (
+                    "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>"
+                ),
                 "Trusted Input": f"Rejected rows: {rejected_path}",
             },
             {
@@ -5800,7 +5817,12 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
     ready_counts = pd.to_numeric(frame.get("Ready Rows"), errors="coerce").fillna(0)
     first_locked = frame.loc[ready_counts.eq(0)]
     first = first_locked.iloc[0] if not first_locked.empty else frame.iloc[0]
-    copy_command = format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply")
+    copy_command = format_missing(
+        first.get("Copy-Only Command"),
+        "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+        "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+        "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+    )
     first_ticker_command = format_missing(first.get("First Ticker Command"), "make stock-report-md TICKER=NVDA")
     proof_summary = validation_sequence_summary(first.get("Copy-Only Command"))
     validation_summary = validation_sequence_summary(first.get("Validation Path"))
@@ -12742,7 +12764,11 @@ def first_peer_mapping_unlock_frame(peer_unlock_worklist_frame: pd.DataFrame | N
         {
             "Step": "3. Validate before applying",
             "Why It Matters": "Peer readiness should improve only after mapped rows pass validation, preview, and apply.",
-            "Copy Command": "make imports-validate && make imports-preview && make imports-apply",
+            "Copy Command": (
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>"
+            ),
             "Trusted Input": "Rejected rows: data/rejected/peers_import_rejected.csv",
         },
         {
@@ -12779,7 +12805,11 @@ def first_peer_mapping_unlock_cards(peer_unlock_worklist_frame: pd.DataFrame | N
             "title": "Validate, preview, apply, then rebuild",
             "body": "Do not show peer-relative valuation until source-backed mappings and required peer inputs pass readiness after a rebuild.",
             "badges": ["peer valuation gated", "copy-only"],
-            "command": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+            "command": (
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+            ),
         },
     ]
 
@@ -13207,7 +13237,11 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
                 f"Readiness proof: {proof}"
             ),
             "badges": ["validate", "preview before apply", "proof before analysis"],
-            "command": "make imports-validate && make imports-preview && make imports-apply",
+            "command": (
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>"
+            ),
         },
     ]
 
@@ -13400,7 +13434,11 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
                 f"Readiness proof: {proof}"
             ),
             "badges": ["validate", "preview before apply", "proof before valuation"],
-            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+            "command": (
+                "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+            ),
         },
     ]
 
@@ -13555,7 +13593,11 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
                 "After source review, run validate and preview first. Apply only reviewed rows, then rebuild readiness and the peer queue before reading peer-relative context."
             ),
             "badges": ["validate", "preview", "proof after apply"],
-            "command": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+            "command": (
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+            ),
         },
     ]
 
@@ -13660,7 +13702,11 @@ def data_health_peer_proof_batch_planner_frame(
                 "Step": "5. Validate, preview, and rebuild",
                 "Status": "copy_only_gate",
                 "Scope": first.target_file,
-                "Copy-Ready Action": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+                "Copy-Ready Action": (
+                    "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                ),
                 "Review Boundary": "Apply only reviewed rows after validate, preview, rejected-row review, and an explicit apply decision.",
             },
             {
@@ -13844,7 +13890,11 @@ def data_health_peer_proof_loop_outcome_frame(
                 "Proof Loop Step": "Validate / preview / rebuild",
                 "Status": "copy_only_gate",
                 "Detail": "Validate and preview reviewed peer rows, apply only after review, then rebuild readiness and peer queue before peer-relative context changes.",
-                "Next Safe Action": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+                "Next Safe Action": (
+                    "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                ),
             },
             {
                 "Proof Loop Step": "Proof-record scaffold",
@@ -14012,7 +14062,11 @@ def data_health_peer_proof_completion_checklist_frame(
                 "Checklist Item": "4. Validate, preview, and rebuild peer proof",
                 "Status": "copy_only_gate",
                 "Need Before Proceeding": "Validate and preview reviewed peer rows, apply only after review, rebuild readiness, then rerun the peer queue.",
-                "Next Safest Action": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+                "Next Safest Action": (
+                    "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                ),
                 "Stop Rule": "Stop if validate, preview, apply decision, or rebuilt readiness proof is missing.",
             },
             {
@@ -14144,7 +14198,11 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
                 "Readiness counts should improve only after trusted rows pass validation, preview, and apply. "
                 "Rejected rows must be reviewed before treating fundamentals or DCF as available."
             ),
-            "Copy Command": "make imports-validate && make imports-preview && make imports-apply",
+            "Copy Command": (
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>"
+            ),
             "Trusted Input": "Rejected rows: data/rejected/fundamentals_import_rejected.csv",
         },
         {
@@ -14189,7 +14247,11 @@ def first_fundamentals_unlock_cards(sec_configured: bool, next_ticker: str | Non
             "title": "Validate, preview, apply, then rebuild",
             "body": "Do not treat fundamentals_ready or dcf_ready as improved until trusted rows pass the import workflow and readiness is regenerated.",
             "badges": ["no fabricated data", "source readiness"],
-            "command": "make imports-validate && make imports-preview && make imports-apply",
+            "command": (
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>"
+            ),
         },
     ]
 

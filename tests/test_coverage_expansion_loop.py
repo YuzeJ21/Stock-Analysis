@@ -93,7 +93,10 @@ def test_coverage_expansion_loop_prints_ready_copy_only_sequence(tmp_path: Path)
     assert "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=5" in rendered
     assert "make fundamentals-source-ladder-queue TOP_N=5" in rendered
     assert "make sec-stage-queue TOP_N=5" not in rendered
-    assert "make imports-validate && make imports-preview" in rendered
+    assert (
+        "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+        "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>"
+    ) in rendered
     assert "Source proof intake" in rendered
     assert "trusted revenue/free-cash-flow/free-cash-flow margin rows" in rendered
     assert "placeholder fundamentals" in rendered

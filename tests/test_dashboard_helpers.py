@@ -369,7 +369,7 @@ def _trusted_fundamentals_dcf_input_frame() -> pd.DataFrame:
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make focus-fundamentals TICKER=AACB",
                 "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=AACB",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=AACB",
                 "Stop Rule": "Stop if trusted source rows do not prove the required revenue, free cash flow, FCF margin, and share-count fields.",
                 "Source Note": "SEC staging is not configured; review exact DCF fields.",
@@ -11657,7 +11657,7 @@ def test_data_health_peer_readiness_v2_cards_separate_trend_and_valuation_gates(
                 "Workflow Mode": "reviewed_apply",
                 "Notes": "Source-backed peer mappings unlock peer trend checks. Peer sub-states: mapping=2/3; peer_price=2; peer_momentum=2; peer_fundamentals=1; peer_valuation=0; peer_valuation_comparison=0.",
                 "Next Safe Command": "make peer-mapping-queue TOP_N=25",
-                "Proof Command": "make imports-validate && make imports-preview && make readiness && make peer-mapping-queue TOP_N=25",
+                "Proof Command": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25",
             },
             {
                 "Lane": "Peer Valuation Inputs Proof",
@@ -11774,7 +11774,7 @@ def test_data_health_reviewed_batch_execution_cards_show_lane_source_and_next_ac
         packet_command="DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make peer-mapping-queue TOP_N=10",
-        capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after source-backed peer rows",
+        capped_execution_command="make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after source-backed peer rows",
         comparison_command="make reviewed-batch-compare LANE=peers BATCH_ID=RB-TEST REVIEW_DATE=2026-06-12 TOP_N=10",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
         do_not_proceed_if=("prior readiness snapshot is missing; run make readiness-snapshot before a reviewed batch",),
@@ -11797,7 +11797,7 @@ def test_data_health_reviewed_batch_execution_cards_show_lane_source_and_next_ac
     ]
     assert cards[1]["command"] == "make readiness"
     assert cards[2]["command"] == "make readiness-snapshot"
-    assert cards[3]["command"] == "make imports-validate && make imports-preview"
+    assert cards[3]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>"
     assert cards[5]["command"] == "make readiness"
     assert "selected reviewed-batch lane: peers" in rendered
     assert "operator sequence: snapshot -> reviewed packet/dry run -> validate/preview/apply gate -> proof-record command -> before/after comparison" in rendered
@@ -11828,7 +11828,7 @@ def test_data_health_reviewed_batch_operator_flow_cards_make_lane_to_proof_compa
         packet_command="DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make peer-mapping-queue TOP_N=10",
-        capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after source-backed peer rows",
+        capped_execution_command="make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after source-backed peer rows",
         comparison_command="make reviewed-batch-compare LANE=peers BATCH_ID=RB-TEST REVIEW_DATE=2026-06-14 TOP_N=10",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
         do_not_proceed_if=("prior readiness snapshot is missing; run make readiness-snapshot before a reviewed batch",),
@@ -12115,7 +12115,7 @@ def test_data_health_reviewed_batch_apply_guard_cards_block_supported_until_revi
         packet_command="DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make sec-stage-queue TOP_N=10",
-        capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
+        capped_execution_command="make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after reviewed trusted fundamentals rows",
         comparison_command="make reviewed-batch-compare LANE=fundamentals BATCH_ID=RB-FUND REVIEW_DATE=2026-06-12 TOP_N=10",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-FUND"',
         do_not_proceed_if=("dry-run scope is not reviewed",),
@@ -12128,12 +12128,12 @@ def test_data_health_reviewed_batch_apply_guard_cards_block_supported_until_revi
     frame_rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
 
     assert cards[0]["kicker"] == "APPLY GUARD"
-    assert cards[0]["command"] == "make imports-validate && make imports-preview"
+    assert cards[0]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>"
     assert "validate and preview before apply" in rendered
     assert "rejected-row reports are reviewed" in rendered
     assert "otherwise record still_blocked, skipped, or excluded" in rendered
     assert "Rejected-row review" in frame["Gate"].tolist()
-    assert "make imports-apply only for reviewed trusted rows" in frame_rendered
+    assert "make imports-apply import_tickers=<ticker-or-reviewed-batch> only for reviewed trusted rows" in frame_rendered
     assert "blocked_until_proven" in frame_rendered
 
 
@@ -12185,7 +12185,7 @@ def test_data_health_reviewed_batch_execution_frame_keeps_mutating_gates_explici
         packet_command="DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make sec-stage-queue TOP_N=10",
-        capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
+        capped_execution_command="make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only after reviewed trusted fundamentals rows",
         comparison_command="make reviewed-batch-compare LANE=fundamentals BATCH_ID=RB-FUND REVIEW_DATE=2026-06-12 TOP_N=10",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-FUND"',
         do_not_proceed_if=("dry-run scope is not reviewed",),
@@ -12233,7 +12233,7 @@ def test_data_health_reviewed_batch_sequence_cards_make_commands_copyable_but_re
     assert [card["kicker"] for card in cards] == ["PACKET", "DRY RUN", "MUTATION GATE", "PROOF"]
     assert cards[0]["command"] == "DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10"
     assert cards[1]["command"] == "make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope>"
-    assert cards[2]["command"] == "make imports-validate && make imports-preview"
+    assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>"
     assert "metrics remain read-only" in rendered
     assert "restore standard local csvs" in rendered
     assert "supported/candidate_context_only/still_blocked/skipped/excluded" in rendered
@@ -13077,7 +13077,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Next Command": "make focus-peers TICKER=MU",
                 "Proof After Data Changes": "make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU",
                 "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
-                "Evidence Row": "MU | before: run report | after: rerun report | needs source-backed peer mappings | make imports-validate && make imports-preview && make imports-apply | outputs/stock_reports/mu.md | keep visible if source proof is unavailable or readiness remains blocked",
+                "Evidence Row": "MU | before: run report | after: rerun report | needs source-backed peer mappings | make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> | outputs/stock_reports/mu.md | keep visible if source proof is unavailable or readiness remains blocked",
             },
             {
                 "Ticker": "META",
@@ -13094,7 +13094,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Next Command": "make focus-fundamentals TICKER=META",
                 "Proof After Data Changes": "make readiness && make dcf-readiness && make stock-report-md TICKER=META",
                 "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
-                "Evidence Row": "META | before: run report | after: rerun report | shares outstanding | make imports-validate && make imports-preview && make imports-apply | outputs/stock_reports/meta.md | keep visible if source proof is unavailable or readiness remains blocked",
+                "Evidence Row": "META | before: run report | after: rerun report | shares outstanding | make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> | outputs/stock_reports/meta.md | keep visible if source proof is unavailable or readiness remains blocked",
             },
         ]
     )
@@ -13302,7 +13302,7 @@ def test_data_health_dcf_input_proof_queue_cards_keep_commands_in_drawer_boundar
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof; do not infer it from price or placeholder rows.",
             },
@@ -13314,7 +13314,7 @@ def test_data_health_dcf_input_proof_queue_cards_keep_commands_in_drawer_boundar
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make focus-fundamentals TICKER=ACHV",
                 "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=ACHV",
                 "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
             },
@@ -13402,7 +13402,7 @@ def test_dcf_input_family_filter_scopes_cards_and_rows_without_hiding_blockers()
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
             },
@@ -13414,7 +13414,7 @@ def test_dcf_input_family_filter_scopes_cards_and_rows_without_hiding_blockers()
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=ABNB",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=ABNB",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=ABNB",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
             },
@@ -13426,7 +13426,7 @@ def test_dcf_input_family_filter_scopes_cards_and_rows_without_hiding_blockers()
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make focus-fundamentals TICKER=ACHV",
                 "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=ACHV",
                 "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
             },
@@ -13464,7 +13464,7 @@ def test_dcf_input_proof_handoff_cards_and_frame_keep_record_boundary_visible():
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
                 "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
@@ -13503,7 +13503,7 @@ def test_dcf_input_source_review_cards_show_missing_fields_before_handoff():
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
                 "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
@@ -13541,7 +13541,7 @@ def test_dcf_source_command_plan_shows_copy_only_path_before_raw_tables():
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
                 "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
@@ -13586,7 +13586,7 @@ def test_dcf_source_packet_separates_sec_manual_and_price_routes():
                 "Missing Input Family": "shares_outstanding",
                 "Missing DCF Fields": "shares_outstanding",
                 "Source Mode": "SEC-stageable or trusted-local",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
             },
@@ -13595,7 +13595,7 @@ def test_dcf_source_packet_separates_sec_manual_and_price_routes():
                 "Missing Input Family": "fcf_margin",
                 "Missing DCF Fields": "fcf_margin",
                 "Source Mode": "trusted-local/manual; configure SEC_USER_AGENT for SEC staging",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
                 "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
             },
@@ -13638,7 +13638,7 @@ def test_fundamentals_batch_review_queue_shows_gates_and_proof_scaffolds():
                 "Missing Input Family": "shares_outstanding",
                 "Missing DCF Fields": "shares_outstanding",
                 "Source Mode": "SEC-stageable or trusted-local",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
             },
@@ -13647,7 +13647,7 @@ def test_fundamentals_batch_review_queue_shows_gates_and_proof_scaffolds():
                 "Missing Input Family": "fcf_margin",
                 "Missing DCF Fields": "fcf_margin",
                 "Source Mode": "trusted-local/manual; configure SEC_USER_AGENT for SEC staging",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
                 "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
             },
@@ -13692,7 +13692,7 @@ def test_dcf_proof_batch_planner_selects_top_family_and_keeps_stop_rule_visible(
                 "Missing Input Family": "shares_outstanding",
                 "Missing DCF Fields": "shares_outstanding",
                 "Source Mode": "SEC-stageable or trusted-local",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
             },
@@ -13701,7 +13701,7 @@ def test_dcf_proof_batch_planner_selects_top_family_and_keeps_stop_rule_visible(
                 "Missing Input Family": "shares_outstanding",
                 "Missing DCF Fields": "shares_outstanding",
                 "Source Mode": "SEC-stageable or trusted-local",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=ABNB",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
             },
@@ -13710,7 +13710,7 @@ def test_dcf_proof_batch_planner_selects_top_family_and_keeps_stop_rule_visible(
                 "Missing Input Family": "fcf_margin",
                 "Missing DCF Fields": "fcf_margin",
                 "Source Mode": "trusted-local/manual; configure SEC_USER_AGENT for SEC staging",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
                 "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
             },
@@ -13737,7 +13737,7 @@ def test_dcf_proof_batch_planner_selects_top_family_and_keeps_stop_rule_visible(
     assert planner.iloc[1]["Status"] == "SEC-stageable"
     assert planner.iloc[2]["Status"] == "dry_run_first"
     assert planner.iloc[2]["Copy-Ready Action"] == "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META"
-    assert "make imports-validate && make imports-preview" in rendered
+    assert "make imports-validate import_tickers=meta,abnb && make imports-preview import_tickers=meta,abnb" in rendered
     assert "dry_run=1 make reviewed-batch-proof-record" in rendered
     assert "changed counts, changed tickers, source files" in rendered
     assert "stop if shares_outstanding is unavailable" in rendered
@@ -13769,7 +13769,7 @@ def test_dcf_import_preview_keeps_guard_between_source_review_and_handoff():
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
                 "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
@@ -13819,7 +13819,7 @@ def test_dcf_proof_loop_outcome_summarizes_source_guard_handoff_and_ledger():
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
                 "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
@@ -13894,7 +13894,7 @@ def test_dcf_proof_closeout_summarizes_final_state_and_remaining_evidence():
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
                 "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
@@ -13960,7 +13960,7 @@ def test_dcf_proof_source_review_checklist_summarizes_missing_steps_before_table
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
                 "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
@@ -14027,7 +14027,7 @@ def test_dcf_input_proof_handoff_all_families_uses_top_family_scope():
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make share-count-proof-queue TICKERS=META",
                 "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=META",
                 "Stop Rule": "Stop if shares_outstanding is unavailable from SEC/manual source proof.",
                 "Source Note": "SEC staging is configured; use SEC/manual filing proof.",
@@ -14043,7 +14043,7 @@ def test_dcf_input_proof_handoff_all_families_uses_top_family_scope():
                 "Source Mode": "SEC-stageable or trusted-local",
                 "Next Proof Command": "make focus-fundamentals TICKER=ACHV",
                 "Proof Packet Command": "DRY_RUN=1 make fundamentals-batch-proof TICKERS=ACHV",
-                "Validation Sequence": "make imports-validate -> make imports-preview -> rejected-row review -> make imports-apply",
+                "Validation Sequence": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "Proof After Update": "make dcf-readiness && make readiness && make stock-report-md TICKER=ACHV",
                 "Stop Rule": "Stop if trusted source rows do not prove the required FCF margin field.",
                 "Source Note": "SEC staging is configured; review exact DCF fields.",
@@ -20264,7 +20264,7 @@ def test_first_peer_mapping_unlock_frame_prioritizes_source_backed_mapping_workf
     assert frame.iloc[1]["Trusted Input"] == "data/imports/peers.csv"
     assert "sector or industry fallback is not trusted peer data" in rendered
     assert "schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
-    assert "make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "make imports-validate import_tickers=<ticker-or-reviewed-batch> && make imports-preview import_tickers=<ticker-or-reviewed-batch> && make imports-apply import_tickers=<ticker-or-reviewed-batch>" in rendered
     assert "make readiness && make peer-mapping-queue top_n=25" in rendered
     assert "peer readiness should improve only after mapped rows pass validation" in rendered
     assert "buy" not in rendered
@@ -20277,7 +20277,7 @@ def test_first_peer_mapping_unlock_cards_keep_peer_valuation_gated():
 
     assert cards[0]["command"] == "make focus-peers TICKER=COHR"
     assert cards[1]["command"] == "make templates"
-    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
     assert "no guessed peers" in rendered
     assert "fallback is not input" in rendered
     assert "do not show peer-relative valuation until source-backed mappings" in rendered
@@ -20977,7 +20977,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert "before reading dcf output" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec staging rows" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
-    assert "make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "make imports-validate import_tickers=<ticker-or-reviewed-batch> && make imports-preview import_tickers=<ticker-or-reviewed-batch> && make imports-apply import_tickers=<ticker-or-reviewed-batch>" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -21168,7 +21168,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "before reading peer-relative valuation" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "make focus-peers ticker=a" in rendered
-    assert cards[2]["command"] == "make templates && make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
     assert "fallback valuation" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -21229,9 +21229,9 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     ]
     assert cards[0]["command"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
     assert cards[1]["command"] == "make focus-peers TICKER=META"
-    assert cards[2]["command"] == "make imports-validate && make imports-preview"
+    assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
     assert cards[3]["command"].startswith("make peer-mapping-writeback-guard")
-    assert cards[4]["command"] == "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25"
+    assert cards[4]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
     assert frame.iloc[0]["Review Gate"] == "source proof required"
     assert frame.iloc[0]["Completion Status"] == "needs field fills"
     assert frame.iloc[0]["Import Preview Status"] == "needs field fills"
@@ -21297,7 +21297,7 @@ def test_peer_proof_batch_planner_summarizes_packet_guard_and_stop_rule(tmp_path
     assert "peer valuation remains locked" in planner.iloc[2]["Review Boundary"]
     assert planner.iloc[3]["Copy-Ready Action"].startswith("make peer-mapping-writeback-guard")
     assert "placeholders, stale readiness, self-peers" in rendered
-    assert "make imports-validate && make imports-preview" in rendered
+    assert "make imports-validate import_tickers=<ticker-or-reviewed-batch> && make imports-preview import_tickers=<ticker-or-reviewed-batch>" in rendered
     assert planner.iloc[5]["Status"] == "blocked_by_guard"
     assert "latest ledger outcome: still_blocked" in rendered
     assert "source does not name the peer relationship" in rendered
@@ -21696,7 +21696,7 @@ def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_ag
     assert "minimum dcf fields: ticker, report_date or period, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source" in rendered
     assert "data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "rejected rows must be reviewed before treating fundamentals or dcf as available" in rendered
-    assert "make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "make imports-validate import_tickers=<ticker-or-reviewed-batch> && make imports-preview import_tickers=<ticker-or-reviewed-batch> && make imports-apply import_tickers=<ticker-or-reviewed-batch>" in rendered
     assert "readiness counts should improve only after trusted rows pass validation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -21709,7 +21709,7 @@ def test_first_fundamentals_unlock_cards_use_sec_path_when_configured():
     assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
     assert cards[1]["command"] == "make trusted-data-pilot-packet TICKER=NVDA"
     assert cards[2]["command"] == "make sec-stage TICKERS=NVDA"
-    assert cards[3]["command"] == "make imports-validate && make imports-preview && make imports-apply"
+    assert cards[3]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>"
     assert "one-company packet" in rendered
     assert "review/validate/rebuild" in rendered
     assert "sec company facts staging rows in data/staged/fundamentals/" in rendered
@@ -23010,7 +23010,9 @@ def test_import_workflow_caption_spells_out_validation_preview_apply_commands():
 
     assert caption == (
         "Manual import: data/staged/earnings/ -> make import-earnings -> "
-        "make imports-validate -> make imports-preview -> make imports-apply."
+        "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> -> "
+        "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> -> "
+        "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>."
     )
     assert "imports-validate/preview/apply" not in caption
     assert "broker" not in caption.lower()
@@ -23095,9 +23097,9 @@ def test_stock_report_optional_context_boundary_cards_explain_locked_and_availab
     assert "schema guide: ticker, period, eps_estimate, revenue_estimate, price_target_mean, price_target_high, price_target_low, rating_consensus, source, updated_at" in locked_rendered
     assert "data/imports/analyst_estimates.csv" in locked_rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in locked_rendered
-    assert locked_cards[1]["command"] == "make templates && make import-earnings && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
-    assert locked_cards[2]["command"] == "make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
-    assert locked_cards[3]["command"] == "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
+    assert locked_cards[1]["command"] == "make templates && make import-earnings && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness && make onboarding TOP_N=10"
+    assert locked_cards[2]["command"] == "make templates && make import-analyst-estimates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness && make onboarding TOP_N=10"
+    assert locked_cards[3]["command"] == "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness && make onboarding TOP_N=10"
     assert ready_cards[1]["command"] == ""
     assert ready_cards[2]["command"] == ""
     assert "next date: 2026-07-24" in ready_rendered
@@ -23151,7 +23153,7 @@ def test_first_optional_context_unlock_cards_are_recommendation_free():
     ]
     assert cards[1]["command"] == "make templates"
     assert cards[2]["command"] == "make import-earnings"
-    assert cards[3]["command"] == "make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
+    assert cards[3]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness && make onboarding TOP_N=10"
     assert "data/staged/earnings/" in rendered
     assert "data/imports/earnings.csv" in rendered
     assert "schema fields: ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at" in rendered
@@ -23235,7 +23237,7 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert "prove optional context before showing it" in rendered
     assert "next proof: use schema-only templates, add trusted optional rows, validate and preview them" in rendered
-    assert cards[2]["command"] == "make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
+    assert cards[2]["command"] == "make templates && make import-analyst-estimates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness && make onboarding TOP_N=10"
     assert "schema-only examples and templates remain workflow aids, not data" in rendered
     assert "optional proof ladder" in rendered
     assert "template -> import -> readiness -> report" in rendered

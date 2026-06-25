@@ -21,7 +21,7 @@ def _lane(**overrides):
         "source_lane": "trusted_fundamentals",
         "source_readiness": "trusted local rows only",
         "next_safe_command": "make sec-stage-queue TOP_N=25",
-        "proof_command": "make imports-validate && make imports-preview && make readiness",
+        "proof_command": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness",
         "generated_churn_policy": "Keep generated CSV churn out unless reviewed as evidence.",
         "stale_proof_warning": "current",
         "notes": "Fundamentals stay blocked until source proof exists.",

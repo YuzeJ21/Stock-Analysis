@@ -329,7 +329,7 @@ def build_source_proof_gate(
             ),
             review_commands=(
                 first_review_command,
-                "make imports-validate && make imports-preview",
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "make dcf-readiness && make readiness",
             ),
             proof_ready_when="source-backed rows pass validation and preview, rejected rows are reviewed, readiness is rebuilt, and the stock report proves the lane changed.",
@@ -356,7 +356,7 @@ def build_source_proof_gate(
             ),
             review_commands=(
                 f"make peer-mapping-queue TOP_N={top_n}",
-                "make imports-validate && make imports-preview",
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
                 "make readiness && make peer-mapping-queue TOP_N=25",
             ),
             proof_ready_when="peer mappings and mapped-peer inputs are source-backed, validation/preview passes, readiness is rebuilt, and peer valuation remains blocked if inputs are still missing.",
@@ -382,7 +382,7 @@ def build_source_proof_gate(
         ),
         review_commands=(
             f"make optional-context-source-ladder-queue TOP_N={top_n}",
-            "make imports-validate && make imports-preview",
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
             "make optional-context-readiness",
         ),
         proof_ready_when="trusted optional rows exist and pass review, or the lane remains locked/skipped/excluded with that state recorded honestly.",

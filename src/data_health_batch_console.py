@@ -203,9 +203,9 @@ def reviewed_batch_apply_guard_steps(preflight: Any) -> dict[str, str]:
         }
     return {
         "mode": "mutating_import_lane",
-        "validate": "make imports-validate",
-        "preview": "make imports-preview",
-        "apply": "make imports-apply only for reviewed trusted rows",
+        "validate": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+        "preview": "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+        "apply": "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> only for reviewed trusted rows",
         "rejected": "data/rejected/fundamentals_import_rejected.csv or data/rejected/peers_import_rejected.csv",
         "proof": "supported only after source proof, validation, preview, rejected-row review, apply decision, and rebuilt readiness",
     }
@@ -559,7 +559,7 @@ def reviewed_batch_sequence_cards(preflight: Any) -> list[dict[str, object]]:
             "title": "Validate -> preview -> apply",
             "body": "Mutating source lanes must pass validation, preview, rejected-row review, and explicit apply. Metrics remain read-only and route back to source lanes.",
             "badges": ["review required", "manual apply"],
-            "command": "make imports-validate && make imports-preview",
+            "command": "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
         },
         {
             "kicker": "PROOF",

@@ -272,7 +272,7 @@ The safe local sequence is:
 
 1. Inspect the focused review list or report, such as `make focus-fundamentals TICKER=NVDA` or `make focus-peers TICKER=A`.
 2. Stage trusted rows only in the matching local CSV path, such as `data/imports/fundamentals.csv`, `data/imports/peers.csv`, `data/staged/earnings/`, or `data/staged/analyst_estimates/`.
-3. Run validation and preview before apply: `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
+3. Run validation and preview before apply: `make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>`, then `make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>`, then `make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>`.
 4. Regenerate readiness, then read the report again before interpreting the newly available section.
 
 This ladder is why empty or partial outputs are useful: they show the first trustworthy proof step instead of hiding the gap behind a weak conclusion.

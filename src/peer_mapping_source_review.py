@@ -219,8 +219,9 @@ def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessS
     ready = completion.status == "ready_for_import_row_scaffold"
     csv_row = completion.import_row_scaffold if ready else ""
     status = "ready_for_validate_preview" if ready else completion.status
+    validation_command = "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
     apply_boundary = (
-        "Run make imports-apply only after imports-preview and rejected-row reports are reviewed."
+        "Run make imports-apply IMPORT_TICKERS=<ticker> only after imports-preview and rejected-row reports are reviewed."
         if ready
         else "Do not edit or apply data/imports/peers.csv until the source-review row is completion-ready."
     )
@@ -229,7 +230,7 @@ def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessS
         csv_header=peer_mapping_import_csv_header(),
         csv_row=csv_row,
         target_file=row.target_file,
-        validation_command="make imports-validate && make imports-preview",
+        validation_command=validation_command,
         apply_boundary=apply_boundary,
         post_apply_proof="make readiness && make peer-mapping-queue TOP_N=25 && make reviewed-batch-compare LANE=peers ...",
     )
@@ -272,7 +273,7 @@ def peer_mapping_proof_record_command(row: PeerMappingReviewRow, guard_status: s
     batch_id = f"RB-PEER-{ticker}-{peer_ticker}-{batch_date}" if ticker and peer_ticker else "RB-PEER-<ticker>-<peer>-<yyyymmdd>"
     source_files = f"{IMPORT_PEERS_PATH}; {row.source}" if row.source and not _is_placeholder(row.source) else str(IMPORT_PEERS_PATH)
     command_run = (
-        "make peer-mapping-writeback-guard ... && make imports-validate && make imports-preview"
+        "make peer-mapping-writeback-guard ... && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
         if guard_status == "ready_for_validate_preview"
         else "make peer-mapping-writeback-guard ..."
     )

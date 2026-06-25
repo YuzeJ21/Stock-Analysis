@@ -319,7 +319,8 @@ def test_makefile_help_documents_key_workflows():
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
         "export SEC_USER_AGENT='Name email@example.com'",
         "make sec-stage TICKERS=NVDA,MSFT",
-        "make imports-validate && make imports-preview && make imports-apply",
+        "make imports-validate IMPORT_TICKERS=NVDA && make imports-preview IMPORT_TICKERS=NVDA && make imports-apply IMPORT_TICKERS=NVDA",
+        "Use IMPORT_TICKERS for narrow reviewed slices; broad imports-apply requires ALLOW_BROAD_IMPORT_APPLY=1 after full staged-scope review",
         "make universe-preview",
         "Preview-first fundamentals and universe imports",
     ):
@@ -1089,7 +1090,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "`make focus-peers TICKER=A`",
         "`data/imports/fundamentals.csv`",
         "`data/imports/peers.csv`",
-        "`make imports-validate`, then `make imports-preview`, then `make imports-apply`",
+        "`make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>`, then `make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>`, then `make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>`",
         "they show the first trustworthy proof step instead of hiding the gap behind a weak conclusion",
         "Where This Lives In Code",
         "`src/readiness_engine.py`",
@@ -1807,7 +1808,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Run the lane-specific review command printed by the packet:" in data_strategy
     assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in data_strategy
     assert "peer lane: make focus-peers TICKER=<ticker>" in data_strategy
-    assert "make imports-validate && make imports-preview && make imports-apply" in data_strategy
+    assert "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker>" in data_strategy
     assert "Check the rejected-row report printed by the packet before treating the lane as available." in data_strategy
     assert "Run the matching rebuild proof:" in data_strategy
     assert "fundamentals lane: make readiness && make dcf-readiness" in data_strategy
@@ -2103,7 +2104,10 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Run the lane-specific review command printed by the packet:" in makefile
     assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in makefile
     assert "peer lane: make focus-peers TICKER=<ticker>" in makefile
-    assert "make imports-validate && make imports-preview && make imports-apply" in makefile
+    assert "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker>" in makefile
+    assert "Use the broad imports-apply sequence only after every staged row is source-reviewed and intended." in makefile
+    assert "ifndef IMPORT_TICKERS\nifndef ALLOW_BROAD_IMPORT_APPLY" in makefile
+    assert "$(error IMPORT_TICKERS is required for imports-apply; use ALLOW_BROAD_IMPORT_APPLY=1 only after full staged-scope review)" in makefile
     assert "Check the rejected-row report printed by the packet before treating the lane as available." in makefile
     assert "Run the matching rebuild proof:" in makefile
     assert "fundamentals lane: make readiness && make dcf-readiness" in makefile

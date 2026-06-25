@@ -639,7 +639,7 @@ def pilot_evidence_row_template(candidate: PilotCandidate) -> str:
         f"{candidate.ticker} | before: run report | after: rerun report | "
         "outcome_state: supported/candidate_context_only/still_blocked/skipped/excluded | "
         f"{pilot_primary_missing_input(candidate)} | "
-        "make imports-validate && make imports-preview && make imports-apply | "
+        f"make imports-validate IMPORT_TICKERS={candidate.ticker} && make imports-preview IMPORT_TICKERS={candidate.ticker} && make imports-apply IMPORT_TICKERS={candidate.ticker} | "
         f"{report_path} | keep visible if source proof is unavailable or readiness remains blocked"
     )
 
@@ -1167,7 +1167,7 @@ def render_trusted_data_pilot_candidates(
                     ),
                     f"   {pilot_local_file_status(candidate, root=root) if root is not None else 'Local file status: not checked in this render.'}",
                     f"   Skip if: {pilot_skip_condition(candidate)}",
-                    "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
+                    f"   Validate/apply only reviewed rows: make imports-validate IMPORT_TICKERS={candidate.ticker} && make imports-preview IMPORT_TICKERS={candidate.ticker} && make imports-apply IMPORT_TICKERS={candidate.ticker}",
                     f"   Rejected-row report to review: {pilot_rejected_report_path(candidate)}",
                     f"   Proof after data changes: {candidate.proof_after_unlock}",
                     f"   Evidence expectation: {pilot_evidence_expectation(candidate)}",
@@ -1194,7 +1194,7 @@ def render_trusted_data_pilot_candidates(
             f"2. make trusted-data-pilot-packet TICKER={first}",
             f"3. Review the lane blocker: {pilot_session_review_path(candidates[0], preflight=preflight)}",
             f"4. Prepare trusted rows only if the source review passes: {pilot_trusted_row_path(candidates[0])}",
-            "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
+            f"5. Validate/apply only reviewed rows: make imports-validate IMPORT_TICKERS={first} && make imports-preview IMPORT_TICKERS={first} && make imports-apply IMPORT_TICKERS={first}",
             f"6. Check rejected-row report: {pilot_rejected_report_path(candidates[0])}",
             f"7. Rebuild lane proof: {candidates[0].proof_after_unlock}",
             f"8. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS={ticker_list} TOP_N={len(safe_loop_candidates)}",
@@ -1265,7 +1265,7 @@ def render_trusted_data_pilot_packet(
             f"2. Before report: make stock-report-md TICKER={candidate.ticker}",
             f"3. Focused blocker check: {candidate.next_command}",
             f"4. Prepare or stage trusted rows only if source review passes: {pilot_trusted_row_path(candidate)}",
-            "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
+            f"5. Validate/apply only reviewed rows: make imports-validate IMPORT_TICKERS={candidate.ticker} && make imports-preview IMPORT_TICKERS={candidate.ticker} && make imports-apply IMPORT_TICKERS={candidate.ticker}",
             f"6. Check rejected-row report: {pilot_rejected_report_path(candidate)}",
             f"7. Rebuild proof and after report: {candidate.proof_after_unlock}",
             "8. Record the evidence row and keep any remaining blocker visible.",
@@ -1333,7 +1333,11 @@ def build_trusted_data_pilot_evidence_rows(
                 "current_outcome": current_outcome,
                 "changed_inputs": pilot_primary_missing_input(candidate),
                 "review_command": candidate.next_command,
-                "validation_commands": "make imports-validate && make imports-preview && make imports-apply",
+                "validation_commands": (
+                    f"make imports-validate IMPORT_TICKERS={candidate.ticker} && "
+                    f"make imports-preview IMPORT_TICKERS={candidate.ticker} && "
+                    f"make imports-apply IMPORT_TICKERS={candidate.ticker}"
+                ),
                 "proof_command": candidate.proof_after_unlock,
                 "report_path": report_path,
                 "trusted_row_target": pilot_trusted_row_path(candidate),
