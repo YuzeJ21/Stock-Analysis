@@ -15,11 +15,13 @@ import pandas as pd
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.provider_env import load_provider_environment
 from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FMP_API_KEY_ENV, FINNHUB_API_KEY_ENV
+from src.providers.sec_submissions import build_sec_submission_metadata, fetch_sec_submission
 from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 
 
 SEC_TICKER_MAP_URL = "https://www.sec.gov/files/company_tickers.json"
 DEFAULT_YFINANCE_SAMPLE_TICKER = "MSFT"
+DEFAULT_SEC_SUBMISSIONS_SAMPLE_CIK = "0000789019"
 SESSION_SOURCE_PREFLIGHT_FILENAME = "session_source_preflight.json"
 STOOQ_API_KEY_ENV = "STOOQ_API_KEY"
 PRICE_PROVIDER_ORDER = ["yahoo", "stooq", "fmp", "alpha_vantage", "finnhub"]
@@ -105,6 +107,61 @@ def probe_sec_access(
         detail=f"Reached SEC ticker map with HTTP {status_code or 200}.",
         next_action="",
         user_agent=user_agent,
+    )
+
+
+def probe_sec_submissions_access(
+    sec_user_agent: str | None = None,
+    *,
+    sample_cik: str = DEFAULT_SEC_SUBMISSIONS_SAMPLE_CIK,
+    fetcher: Callable[..., Any] | None = None,
+) -> dict[str, Any]:
+    try:
+        payload = fetch_sec_submission(
+            sample_cik,
+            sec_user_agent,
+            cache=False,
+            sleep_seconds=0,
+            fetcher=fetcher,
+        )
+        metadata = build_sec_submission_metadata(payload)
+    except ValueError as exc:
+        return _status_payload(
+            status="unavailable",
+            reason_code="missing_user_agent",
+            detail=str(exc),
+            next_action="export SEC_USER_AGENT='Name email@example.com'",
+            source_usage="metadata_evidence_only",
+        )
+    except Exception as exc:
+        return _status_payload(
+            status="unavailable",
+            reason_code="request_failed",
+            detail=f"SEC submissions request failed: {exc}",
+            next_action="Use existing ticker map or reviewed local files; do not treat metadata as DCF/share-count proof.",
+            source_usage="metadata_evidence_only",
+        )
+
+    entity = str(metadata.get("sec_entity_name") or "").strip()
+    latest_form = str(metadata.get("sec_latest_form") or "").strip()
+    latest_date = str(metadata.get("sec_latest_filing_date") or "").strip()
+    detail_parts = [f"Reached SEC submissions metadata for sample CIK {metadata['sec_cik']}"]
+    if entity:
+        detail_parts.append(entity)
+    if latest_form and latest_date:
+        detail_parts.append(f"latest filing {latest_form} filed {latest_date}")
+    return _status_payload(
+        status="available",
+        reason_code="ok",
+        detail="; ".join(detail_parts) + ".",
+        next_action="Use SEC submissions metadata for ticker/entity/SIC/filing-recency evidence only.",
+        source_usage="metadata_evidence_only",
+        sample_cik=metadata["sec_cik"],
+        sample_entity_name=metadata.get("sec_entity_name"),
+        sample_sic=metadata.get("sec_sic"),
+        sample_sic_description=metadata.get("sec_sic_description"),
+        sample_latest_form=metadata.get("sec_latest_form"),
+        sample_latest_filing_date=metadata.get("sec_latest_filing_date"),
     )
 
 
@@ -485,6 +542,7 @@ def build_session_source_preflight(
     data_dir: Path | None = None,
     sec_user_agent: str | None = None,
     sec_probe: Callable[[str | None], dict[str, Any]] = probe_sec_access,
+    sec_submissions_probe: Callable[[str | None], dict[str, Any]] = probe_sec_submissions_access,
     yfinance_import_probe: Callable[[], dict[str, Any]] = probe_yfinance_import,
     yfinance_stage_probe: Callable[[], dict[str, Any]] | None = None,
     stooq_key_probe: Callable[[], dict[str, Any]] = probe_stooq_key,
@@ -497,6 +555,7 @@ def build_session_source_preflight(
     data_path = resolve_data_dir(data_dir, root)
 
     sec_status = sec_probe(sec_user_agent)
+    sec_submissions_status = sec_submissions_probe(sec_user_agent)
     yfinance_import_status = yfinance_import_probe()
     if yfinance_import_status["status"] == "available":
         yfinance_stage_status = (
@@ -603,6 +662,8 @@ def build_session_source_preflight(
         source_lanes.append("price_coverage_provider_ladder")
         if not preferred_lane_order:
             preferred_lane_order.append("price_coverage_provider_ladder")
+    if sec_submissions_status["status"] == "available":
+        source_lanes.append("sec_submissions_metadata")
 
     preferred_lane_order.extend(ALWAYS_EXECUTABLE_LANES)
     available_lanes = _dedupe_preserve_order(source_lanes + ALWAYS_EXECUTABLE_LANES)
@@ -618,6 +679,7 @@ def build_session_source_preflight(
         "preferred_lane_order": preferred_lane_order,
         "sources": {
             "sec": sec_status,
+            "sec_submissions": sec_submissions_status,
             "yfinance_import": yfinance_import_status,
             "yfinance_stage": yfinance_stage_status,
             "price_ladder": price_ladder_status,
@@ -645,6 +707,7 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
     ]
     for source_name in (
         "sec",
+        "sec_submissions",
         "yfinance_import",
         "yfinance_stage",
         "price_ladder",
@@ -663,6 +726,16 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         next_action = str(source.get("next_action", "")).strip()
         if next_action:
             lines.append(f"  next_action: {next_action}")
+        if source_name == "sec_submissions":
+            lines.append(f"  source_usage: {source.get('source_usage', 'metadata_evidence_only')}")
+            sample_bits = [
+                str(source.get("sample_cik") or "").strip(),
+                str(source.get("sample_entity_name") or "").strip(),
+                str(source.get("sample_sic_description") or "").strip(),
+            ]
+            sample_detail = " | ".join(bit for bit in sample_bits if bit)
+            if sample_detail:
+                lines.append(f"  sample_metadata: {sample_detail}")
         if source_name == "price_ladder":
             lines.append(f"  provider_order: {', '.join(source.get('provider_order', [])) or '-'}")
             lines.append(

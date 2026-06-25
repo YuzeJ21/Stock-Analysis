@@ -252,6 +252,44 @@ def test_session_source_preflight_pivots_to_peer_lane_when_no_source_path_is_ava
     assert "Run the price dry run first" not in rendered
 
 
+def test_session_source_preflight_reports_sec_submissions_as_metadata_only(tmp_path: Path, monkeypatch):
+    _clear_provider_env(monkeypatch)
+
+    preflight = build_session_source_preflight(
+        tmp_path,
+        sec_probe=lambda _user_agent: {
+            "status": "unavailable",
+            "reason_code": "network_error",
+            "detail": "SEC ticker map failed.",
+            "next_action": "Do not retry SEC-backed fundamentals in this session.",
+        },
+        sec_submissions_probe=lambda _user_agent: {
+            "status": "available",
+            "reason_code": "ok",
+            "detail": "Reached SEC submissions metadata for sample CIK 0000789019.",
+            "next_action": "",
+            "source_usage": "metadata_evidence_only",
+        },
+        yfinance_import_probe=lambda: {
+            "status": "unavailable",
+            "reason_code": "missing_dependency",
+            "detail": "No module named 'yfinance'",
+            "next_action": "python3 -m pip install -e '.[research]'",
+        },
+    )
+
+    assert preflight["sources"]["sec_submissions"]["status"] == "available"
+    assert preflight["sources"]["sec_submissions"]["source_usage"] == "metadata_evidence_only"
+    assert "sec_submissions_metadata" in preflight["available_lanes"]
+    assert preflight["preferred_lane_order"][0] == "peer_mapping_proof"
+    assert preflight["source_activation"]["status"] == "required"
+
+    rendered = render_session_source_preflight(preflight)
+
+    assert "- sec_submissions: status=available reason=ok" in rendered
+    assert "metadata_evidence_only" in rendered
+
+
 def test_session_source_preflight_prefers_fmp_when_sec_and_yfinance_are_unavailable(tmp_path: Path):
     preflight = build_session_source_preflight(
         tmp_path,
