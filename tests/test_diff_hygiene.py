@@ -41,6 +41,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         ".streamlit/config.toml",
         "README.md",
         "Makefile",
+        "config/provider_keys.env.example",
         "docs/DIFF_HYGIENE_AUDIT.md",
         "src/dashboard.py",
         "tests/test_launchers.py",
@@ -53,6 +54,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "outputs/pilot_readiness_packet.md",
     ):
         assert module.classify_path(path) == "product_candidate"
+    assert module.classify_path("config/provider_keys.env") == "review_manually"
 
 
 def test_diff_hygiene_counts_untracked_and_staged_added_files_as_new():

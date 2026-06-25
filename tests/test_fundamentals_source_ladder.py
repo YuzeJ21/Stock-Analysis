@@ -1,7 +1,10 @@
 from src.fundamentals_source_ladder import build_fundamentals_source_ladder_rows
 
 
-def test_fundamentals_source_ladder_uses_fmp_after_sec_and_yfinance_fail():
+def test_fundamentals_source_ladder_uses_fmp_after_sec_and_yfinance_fail(monkeypatch):
+    monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+
     def sec_builder(tickers, **_kwargs):
         return {
             "requested_tickers": list(tickers),

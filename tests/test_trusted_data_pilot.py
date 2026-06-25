@@ -639,7 +639,7 @@ def test_pilot_evidence_row_template_is_copyable_and_data_honest():
 
     assert row.startswith(
         "CRDO | before: run report | after: rerun report | "
-        "outcome_state: supported/still_blocked/skipped/excluded | revenue, free-cash-flow margin |"
+        "outcome_state: supported/candidate_context_only/still_blocked/skipped/excluded | revenue, free-cash-flow margin |"
     )
     assert "make imports-validate && make imports-preview && make imports-apply" in row
     assert "outputs/stock_reports/crdo.md" in row
@@ -672,7 +672,7 @@ def test_pilot_primary_missing_input_separates_secondary_optional_context():
         "missing peers: needs at least 2 peers with momentum-ready price history."
     )
     assert pilot_evidence_row_template(candidate).startswith(
-        "MU | before: run report | after: rerun report | outcome_state: supported/still_blocked/skipped/excluded | "
+        "MU | before: run report | after: rerun report | outcome_state: supported/candidate_context_only/still_blocked/skipped/excluded | "
         "peers: needs at least 2 peers with momentum-ready price history |"
     )
 
@@ -1293,7 +1293,7 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "ticker | before_mode | after_mode | outcome_state | changed_inputs | validation_commands | report_path | still_blocked_reason" in rendered
     assert (
         "CRDO | before: run report | after: rerun report | "
-        "outcome_state: supported/still_blocked/skipped/excluded | revenue, free-cash-flow margin"
+        "outcome_state: supported/candidate_context_only/still_blocked/skipped/excluded | revenue, free-cash-flow margin"
         in rendered
     )
     assert "outputs/stock_reports/crdo.md" in rendered
@@ -1326,7 +1326,7 @@ def test_render_trusted_data_pilot_packet_separates_primary_lane_from_optional_c
     assert "Secondary locked context: earnings: trusted local CSV input; analyst estimates: trusted local CSV input" in rendered
     assert "Rank reason: active-universe public-demo name; peer mapping proof path; priority 2; missing peers: needs at least 2 peers with momentum-ready price history." in rendered
     assert (
-        "MU | before: run report | after: rerun report | outcome_state: supported/still_blocked/skipped/excluded | "
+        "MU | before: run report | after: rerun report | outcome_state: supported/candidate_context_only/still_blocked/skipped/excluded | "
         "peers: needs at least 2 peers with momentum-ready price history |"
         in rendered
     )

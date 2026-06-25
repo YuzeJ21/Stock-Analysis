@@ -293,7 +293,7 @@ def proof_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, objec
                 "title": load_status.get("title", "Proof details loaded"),
                 "body": (
                     f"{load_status.get('body', 'Proof detail rows are loaded.')}{warning_suffix} "
-                    "Record supported, still_blocked, skipped, or excluded only after reviewed evidence is complete."
+                    "Record supported, candidate_context_only, still_blocked, skipped, or excluded only after reviewed evidence is complete."
                 ),
                 "badges": ["loaded", "proof ledger"],
                 "command": load_status.get("next_action", "Open reviewed batch proof drawer."),

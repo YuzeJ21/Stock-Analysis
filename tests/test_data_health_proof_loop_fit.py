@@ -71,7 +71,7 @@ def test_proof_loop_fit_summarizes_status_blocker_evidence_and_stop_rule():
     assert frame.iloc[2]["Status"] == "still_blocked"
     assert cards[0]["title"] == "needs_field_fills: 2 open gate(s)"
     assert "use this first before reading detailed source tables" in rendered
-    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "supported, candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "research-only" in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered

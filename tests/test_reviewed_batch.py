@@ -357,7 +357,7 @@ def test_reviewed_batch_writes_markdown_and_csv_without_advice(tmp_path: Path):
     assert rows[0]["pre_run_readiness_snapshot"].startswith("record saved counts")
     assert rows[0]["changed_readiness_counts"] == "<before -> after counts, or none>"
     assert rows[0]["generated_artifacts_reviewed"] == "<kept evidence or excluded local churn>"
-    assert rows[0]["final_outcome"] == "supported|still_blocked|skipped|excluded"
+    assert rows[0]["final_outcome"] == "supported|candidate_context_only|still_blocked|skipped|excluded"
 
 
 def test_reviewed_batch_preview_shows_next_action_without_writing_outputs(tmp_path: Path):

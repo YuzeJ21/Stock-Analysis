@@ -107,9 +107,9 @@ make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECOND
 make diff-hygiene
 ```
 
-The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover, dry-run again, snapshot readiness, then run one capped loop instead of repeating 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. `PROVIDER=auto` tries Yahoo, Stooq, then configured FMP, Alpha Vantage, and Finnhub price fallbacks when `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, or `FINNHUB_API_KEY` exists. Large refreshed CSVs are local working data, so review generated changes before committing them.
+The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover, dry-run again, snapshot readiness, then run one capped loop instead of repeating 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. `PROVIDER=auto` tries Yahoo, Stooq, then configured FMP, Alpha Vantage, and Finnhub price fallbacks when `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, or `FINNHUB_API_KEY` exists. If a provider batch fails, the loop records the source-path outcome, stops retrying that path in the same session, rebuilds proof outputs, and returns control to the coverage workflow. Large refreshed CSVs are local working data, so review generated changes before committing them.
 
-Provider boundary: price refreshes can improve research-grade local price rows, but they do not create fundamentals, source-backed peers, earnings, analyst estimates, DCF inputs, or research conclusions. Use Data Health and the trusted-data pilot for those lanes.
+Provider boundary: price refreshes can improve research-grade local price rows, but they do not create fundamentals, source-backed peers, optional context, DCF inputs, or research conclusions. Use Data Health and the trusted-data pilot for those lanes. Optional earnings and analyst-estimate rows can be staged through the optional-context source ladder, but they still stay locked until validation, preview, reviewed apply, and readiness rebuild pass.
 
 For fundamentals and share-count blockers, run the session preflight once before source-backed coverage work:
 
@@ -122,13 +122,27 @@ make imports-preview
 
 The fundamentals source ladder automatically skips providers the current session already marked unavailable. It tries configured source-backed paths in order: SEC, Yahoo/yfinance, FMP, Alpha Vantage, then Finnhub. Reviewed local fundamentals rows stay available, but they are only prioritized when they actually match the current share-count or DCF blockers; otherwise the configured API fallback remains the next executable path. FMP, Alpha Vantage, and Finnhub require `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, or `FINNHUB_API_KEY`; missing keys are recorded as unavailable paths, not filled by inference. Apply staged rows only after validation and preview show the source-backed changes are intended.
 
+For optional earnings and analyst-estimate context, use provider-assisted staging before falling back to manual files:
+
+```bash
+make optional-context-source-ladder-queue TOP_N=10
+make imports-validate
+make imports-preview
+make imports-apply
+make optional-context-readiness
+```
+
+The optional-context source ladder tries yfinance, FMP, Alpha Vantage, then Finnhub when the session and configured keys allow it. Provider rows are research context only and are staged into `data/imports/earnings.csv` and `data/imports/analyst_estimates.csv`; they are not public data freshness proof and do not unlock analysis without the normal import review gates.
+
+To avoid retyping credentials every session, copy `config/provider_keys.env.example` to `config/provider_keys.env` or create `.env` in the project root. The command-line workflows load those local files automatically, while `.gitignore` keeps the real key files out of GitHub. Exported terminal variables still win over local files when both are present.
+
 ## Function Quality Checklist
 
 - Readiness gates are the strongest layer; they decide whether deeper analysis is allowed.
 - Price and momentum are useful when local price history is present.
 - Fundamentals and DCF are useful for DCF-ready companies only.
 - Peer comparison waits for source-backed peer mappings and peer metrics.
-- Earnings and analyst estimates remain optional context until trusted local rows exist.
+- Earnings and analyst estimates remain optional context until trusted local or reviewed provider-assisted rows pass the import gates.
 - ETF/index/fund reports are monitor context; operating-company DCF is excluded.
 
 See `docs/analysis_capability_audit.md` for the deeper function-quality and provenance explanation.

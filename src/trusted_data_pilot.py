@@ -637,7 +637,7 @@ def pilot_evidence_row_template(candidate: PilotCandidate) -> str:
     report_path = f"outputs/stock_reports/{candidate.ticker.lower()}.md"
     return (
         f"{candidate.ticker} | before: run report | after: rerun report | "
-        "outcome_state: supported/still_blocked/skipped/excluded | "
+        "outcome_state: supported/candidate_context_only/still_blocked/skipped/excluded | "
         f"{pilot_primary_missing_input(candidate)} | "
         "make imports-validate && make imports-preview && make imports-apply | "
         f"{report_path} | keep visible if source proof is unavailable or readiness remains blocked"

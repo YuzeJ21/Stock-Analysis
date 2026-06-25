@@ -155,12 +155,13 @@ Earnings and analyst estimates:
 
 ```bash
 make optional-context-worklist TOP_N=25
+make optional-context-source-ladder-queue TOP_N=10
 make templates
 make imports-validate
 make imports-preview
 ```
 
-Keep optional context locked until trusted local rows exist.
+Keep optional context locked until trusted local or reviewed provider-assisted rows exist and pass validate, preview, apply, and optional-context readiness.
 
 ## 6. Interpret Readiness States
 
@@ -171,6 +172,7 @@ Keep optional context locked until trusted local rows exist.
 | `blocked` | Required source-backed inputs are missing. | Do not interpret withheld analysis; run the lane proof command. |
 | `excluded` | The method does not apply, such as company DCF for ETF/index/fund rows. | Use monitor context only. |
 | `supported` | A reviewed proof row and rebuilt readiness show the lane changed. | Treat as available within the documented boundary. |
+| `candidate_context_only` | Candidate/generated context can route research, but it is not source-backed proof. | Use it for navigation only; keep trusted lanes blocked until source proof exists. |
 | `still_blocked` | Review occurred, but the lane remains gated. | Keep the blocker visible and move to the next candidate/lane. |
 | `skipped` | Source proof was unavailable or not reviewable. | Do not apply placeholder data; continue elsewhere. |
 
@@ -184,7 +186,7 @@ make imports-validate
 make imports-preview
 make readiness
 make reviewed-batch-compare LANE=<lane> BATCH_ID=<id> REVIEW_DATE=<yyyy-mm-dd>
-DRY_RUN=1 make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded>
+DRY_RUN=1 make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded>
 ```
 
 Only record a real proof row after source proof, validation, preview, rejected-row review, apply/skip decision, rebuilt readiness, comparison, and generated-artifact review are complete.
@@ -253,7 +255,7 @@ If `make dashboard-smoke` cannot bind a local socket in a restricted environment
 
 Exit the controlled pilot when:
 
-- 5 to 10 selected operating-company packets have outcome states recorded as `supported`, `still_blocked`, `skipped`, or `excluded`.
+- 5 to 10 selected operating-company packets have outcome states recorded as `supported`, `candidate_context_only`, `still_blocked`, `skipped`, or `excluded`.
 - Every supported lane has source proof, validation, preview, rejected-row review, rebuilt readiness, regenerated report, and proof-ledger evidence.
 - Operators can complete the workflow from dashboard, runbook, and CLI commands without guessing the next gate.
 - Public/release checks pass in the target environment.

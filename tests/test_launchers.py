@@ -1,4 +1,5 @@
 import csv
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -25,6 +26,9 @@ def test_generated_staging_pathspec_files_are_ignored():
     gitignore = Path(".gitignore").read_text(encoding="utf-8")
 
     assert "outputs/staging/" in gitignore
+    assert ".env" in gitignore
+    assert ".env.local" in gitignore
+    assert "config/provider_keys.env" in gitignore
 
 
 def test_streamlit_toolbar_uses_viewer_mode_for_public_dashboard():
@@ -140,6 +144,8 @@ def test_makefile_contains_convenience_targets():
         "price-worklist",
         "fundamentals-peer-worklist",
         "optional-context-worklist",
+        "optional-context-source-ladder",
+        "optional-context-source-ladder-queue",
         "sec-stage-queue",
         "peer-mapping-queue",
         "price-validate",
@@ -213,9 +219,9 @@ def test_makefile_help_documents_key_workflows():
         "make trusted-data-pilot-lane LANE=fundamentals_dcf [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only lane-group runbook and evidence summary",
         "make reviewed-data-proof [LEDGER=data/reviewed_data_proofs.csv] Print the durable reviewed data proof ledger",
         "make lane-outcome-history [LEDGER=data/reviewed_data_proofs.csv] Print lane outcome history from reviewed proof rows",
-        "make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record an intentional reviewed proof row",
+        "make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded> Record an intentional reviewed proof row",
         "make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows",
-        "make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record a reviewed batch outcome",
+        "make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed batch outcome",
         "make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields",
         "make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates",
         "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan",
@@ -382,21 +388,26 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     script = Path("scripts/price_refresh_loop.sh").read_text(encoding="utf-8")
 
     assert "price-refresh-loop:" in makefile
-    assert 'MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),auto) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0)' in makefile
+    assert 'MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),auto) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0) CONTINUE_ON_PROVIDER_FAILURE=$(or $(CONTINUE_ON_PROVIDER_FAILURE),1)' in makefile
     assert 'BATCHES="${BATCHES:-5}"' in script
     assert 'TOP_N="${TOP_N:-100}"' in script
     assert 'PROVIDER="${PROVIDER:-auto}"' in script
     assert 'DRY_RUN="${DRY_RUN:-0}"' in script
     assert 'MAX_CANDIDATES="${MAX_CANDIDATES:-}"' in script
+    assert 'CONTINUE_ON_PROVIDER_FAILURE="${CONTINUE_ON_PROVIDER_FAILURE:-1}"' in script
     assert "MAX_CANDIDATES must be a positive integer when provided. Example: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto" in script
     assert "BATCHES must be a positive integer. For broad coverage, prefer DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 so the loop calculates batches for you." in script
     assert "TOP_N must be a positive integer. Use TOP_N=100 for a capped broad dry run before changing local CSV files." in script
     assert 'BATCHES=$(((MAX_CANDIDATES + TOP_N - 1) / TOP_N))' in script
     assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
     assert "MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))" in script
+    assert "env_file_has_key()" in script
+    assert "provider_key_present()" in script
+    assert "for env_file in .env config/provider_keys.env .env.local" in script
     assert "Coverage target: $TARGET_NOTE. The final batch may have unused capacity if fewer missing tickers remain." in script
     assert "Provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, DCF inputs, or conclusions." in script
     assert "PROVIDER=auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub before classifying the ticker as still missing." in script
+    assert "Non-blocking behavior: if a provider batch fails" in script
     assert "Provider credential visibility:" in script
     assert "STOOQ_API_KEY=$STOOQ_KEY_STATUS" in script
     assert "FMP_API_KEY=$FMP_KEY_STATUS" in script
@@ -422,6 +433,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES." in script
     assert "If interrupted or provider-limited, rerun the dry run" in script
     assert "No provider call, import, validation apply, or external account action runs during this dry run." in script
+    assert "CONTINUE_ON_PROVIDER_FAILURE=$CONTINUE_ON_PROVIDER_FAILURE" in script
     assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
@@ -444,11 +456,76 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Resume note: after fixing the source issue, rerun make price-refresh-loop DRY_RUN=1" in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
     assert "Price refresh batch $i failed." in script
+    assert "Non-blocking provider failure recorded for price batch $i." in script
+    assert "Source path outcome: price provider ladder still_blocked for this session after batch $FAILED_BATCH failed." in script
     assert "This replaces repeating 25-ticker refreshes manually" in script
     assert "make price-coverage TOP_N=25" in script
     assert "make readiness" in script
     assert "make project-status" in script
     assert "run make diff-hygiene before staging" in script
+
+
+def test_operator_guide_documents_local_provider_env_loading():
+    guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
+    example = Path("config/provider_keys.env.example").read_text(encoding="utf-8")
+
+    assert "copy `config/provider_keys.env.example` to `config/provider_keys.env` or create `.env`" in guide
+    assert "load those local files automatically" in guide
+    assert "Exported terminal variables still win" in guide
+    assert "make optional-context-source-ladder-queue TOP_N=10" in guide
+    assert "reviewed provider-assisted rows pass the import gates" in guide
+    assert "FMP_API_KEY=" in example
+    assert "ALPHA_VANTAGE_API_KEY=" in example
+    assert "FINNHUB_API_KEY=" in example
+
+
+def test_makefile_exposes_optional_context_source_ladder_targets():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "optional-context-source-ladder:\nifndef TICKERS" in makefile
+    assert "python3 -m src.stock_report --optional-context-source-ladder --tickers $(TICKERS)" in makefile
+    assert "optional-context-source-ladder-queue:\n\tpython3 -m src.stock_report --optional-context-source-ladder --from-optional-context-queue --top-n $(or $(TOP_N),10)" in makefile
+    assert "make optional-context-source-ladder-queue TOP_N=10" in makefile
+
+
+def test_price_refresh_loop_dry_run_reads_local_provider_env_files(tmp_path):
+    project_root = Path.cwd()
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "provider_keys.env").write_text(
+        "STOOQ_API_KEY=stooq-from-file\n"
+        "FMP_API_KEY=fmp-from-file\n"
+        "ALPHA_VANTAGE_API_KEY=alpha-from-file\n"
+        "FINNHUB_API_KEY=finnhub-from-file\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    for key in ("STOOQ_API_KEY", "STOQ_API_KEY", "FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY"):
+        env.pop(key, None)
+    env.update(
+        {
+            "DRY_RUN": "1",
+            "MAX_CANDIDATES": "1",
+            "TOP_N": "1",
+            "PROVIDER": "auto",
+            "SLEEP_SECONDS": "0",
+        }
+    )
+
+    result = subprocess.run(
+        ["sh", str(project_root / "scripts" / "price_refresh_loop.sh")],
+        cwd=tmp_path,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert (
+        "Provider credential visibility: STOOQ_API_KEY=present; FMP_API_KEY=present; "
+        "ALPHA_VANTAGE_API_KEY=present; FINNHUB_API_KEY=present."
+    ) in result.stdout
+    assert "stooq-from-file" not in result.stdout
+    assert "fmp-from-file" not in result.stdout
 
 
 def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_writes():
@@ -489,6 +566,51 @@ def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_write
     assert "does not connect to brokers, place orders, or make recommendations" in output
     assert "buy" not in output
     assert "sell" not in output
+
+
+def test_price_refresh_loop_can_record_provider_failure_without_blocking(tmp_path: Path):
+    fake_make = tmp_path / "make"
+    calls = tmp_path / "calls.log"
+    fake_make.write_text(
+        "#!/usr/bin/env sh\n"
+        "echo \"$*\" >> \"$CALLS_LOG\"\n"
+        "case \"$1\" in\n"
+        "  price-refresh) exit 1 ;;\n"
+        "  price-coverage|readiness|project-status) exit 0 ;;\n"
+        "  *) exit 0 ;;\n"
+        "esac\n",
+        encoding="utf-8",
+    )
+    fake_make.chmod(0o755)
+    env = {
+        **os.environ,
+        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "CALLS_LOG": str(calls),
+        "BATCHES": "3",
+        "TOP_N": "2",
+        "PROVIDER": "auto",
+        "SLEEP_SECONDS": "0",
+        "DRY_RUN": "0",
+        "CONTINUE_ON_PROVIDER_FAILURE": "1",
+    }
+
+    result = subprocess.run(
+        ["sh", "scripts/price_refresh_loop.sh"],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = result.stdout.lower()
+    recorded_calls = calls.read_text(encoding="utf-8").splitlines()
+
+    assert "non-blocking provider failure recorded for price batch 1." in output
+    assert "skipping remaining price batches in this session" in output
+    assert "source path outcome: price provider ladder still_blocked for this session" in output
+    assert recorded_calls.count("price-refresh TOP_N=2 PROVIDER=auto") == 1
+    assert "price-coverage TOP_N=25" in recorded_calls
+    assert "readiness" in recorded_calls
+    assert "project-status" in recorded_calls
 
 
 def test_readme_public_landing_page_is_short_visual_and_command_focused():
@@ -699,13 +821,14 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make optional-context-worklist TOP_N=10",
         "make templates",
         "make imports-validate",
-        "make imports-preview",
-        "make imports-apply",
-        "Large refreshed CSVs are local working data",
-        "Provider boundary: price refreshes can improve research-grade local price rows",
-        "they do not create fundamentals, source-backed peers, earnings, analyst estimates, DCF inputs, or research conclusions",
-    ):
-        assert phrase in operator_guide
+            "make imports-preview",
+            "make imports-apply",
+            "Large refreshed CSVs are local working data",
+            "Provider boundary: price refreshes can improve research-grade local price rows",
+            "they do not create fundamentals, source-backed peers, optional context, DCF inputs, or research conclusions",
+            "Optional earnings and analyst-estimate rows can be staged through the optional-context source ladder",
+        ):
+            assert phrase in operator_guide
     for visitor_clutter in (
         "http://localhost:8501/?page=single-stock-report",
         "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
@@ -1956,6 +2079,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "reviewed-batch-compare:\n\t@python3 -m src.readiness_comparison --root ." in makefile
     assert "reviewed-batch-preflight:\n\t@python3 -m src.reviewed_batch_preflight --root ." in makefile
     assert "reviewed-batch-proof-record:\nifndef BATCH_ID" in makefile
+    assert "$(error FINAL_OUTCOME is required: supported, candidate_context_only, still_blocked, skipped, or excluded)" in makefile
     assert "reviewed-data-proof-record:\nifndef LANE" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
     assert "Check whether price coverage can be improved safely" in makefile

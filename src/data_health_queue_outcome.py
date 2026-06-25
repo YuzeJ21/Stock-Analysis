@@ -58,7 +58,7 @@ def readiness_queue_outcome_summary_cards(frame: pd.DataFrame | None) -> list[di
                 f"{card_sentence('Operator cue', latest_cue)} "
                 "Open the lane drawer only when you need blocker examples, packet commands, or proof-record detail."
             ),
-            "badges": ["supported/still-blocked/skipped/excluded", "no drawer required"],
+            "badges": ["supported/candidate-context-only/still-blocked/skipped/excluded", "no drawer required"],
             "command": format_missing(latest_row.get("Proof Ledger Command"), "make reviewed-batch-proof"),
         },
     ]

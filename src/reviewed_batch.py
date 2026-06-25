@@ -606,7 +606,7 @@ def _proof_template_csv_row(packet: ReviewedBatchPacket) -> str:
         "review_date": "<YYYY-MM-DD>",
         "source_files": "<trusted local source files reviewed>",
         "generated_artifacts_reviewed": "<CSV/JSON artifacts kept/excluded>",
-        "final_outcome": "supported|still_blocked|skipped|excluded",
+        "final_outcome": "supported|candidate_context_only|still_blocked|skipped|excluded",
         "notes": "<source proof, blockers, rollback notes>",
     }
     return ",".join(values[field] for field in PROOF_TEMPLATE_FIELDS)
@@ -618,7 +618,7 @@ def _proof_record_scaffold(batch_id: str, lane: str) -> str:
         f'BATCH_ID="{batch_id}" '
         f'LANE="{lane}" '
         'REVIEW_DATE="<yyyy-mm-dd>" '
-        'FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" '
+        'FINAL_OUTCOME="<supported|candidate_context_only|still_blocked|skipped|excluded>" '
         'COMMAND_RUN="<exact reviewed command>" '
         'VALIDATION_RESULT="<pass/fail/not_run>" '
         'PREVIEW_RESULT="<reviewed/not_run>" '
@@ -709,7 +709,7 @@ def build_reviewed_batch_packet(
                     review_date="<YYYY-MM-DD>",
                     source_files=commands["artifacts"],
                     generated_artifacts_reviewed="<kept evidence or excluded local churn>",
-                    final_outcome="supported|still_blocked|skipped|excluded",
+                    final_outcome="supported|candidate_context_only|still_blocked|skipped|excluded",
                     notes="<source proof, blockers, rollback notes>",
                 )
             )
@@ -805,7 +805,7 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
             "- Confirm source files are trusted and local.",
             "- For mutating workflows, run validate -> preview -> apply only after review.",
             "- Check rejected-row reports before treating any lane as supported.",
-            "- Run post-run readiness verification and record supported, still_blocked, skipped, or excluded honestly.",
+            "- Run post-run readiness verification and record supported, candidate_context_only, still_blocked, skipped, or excluded honestly.",
             "- Record changed readiness counts and changed tickers only when the before/after proof supports them.",
             "- Classify generated CSV/JSON artifacts as kept evidence or excluded local churn before staging.",
             "",

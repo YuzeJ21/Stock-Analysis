@@ -2030,6 +2030,60 @@ def test_stock_report_cli_yfinance_stage_failure_shows_dependency_and_network_fa
     assert "recommendations" in message
 
 
+def test_stock_report_cli_optional_context_source_ladder_writes_import_files(monkeypatch, tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    monkeypatch.setattr(
+        "src.stock_report.build_optional_context_source_ladder_rows",
+        lambda requested_tickers, **_kwargs: {
+            "requested_tickers": requested_tickers,
+            "resolved_tickers": requested_tickers,
+            "unresolved_tickers": [],
+            "earnings_rows": [
+                {
+                    "ticker": requested_tickers[0],
+                    "last_earnings_date": "2026-02-18",
+                    "eps_actual": 1.25,
+                    "source": "fmp_research_api",
+                }
+            ],
+            "analyst_estimate_rows": [
+                {
+                    "ticker": requested_tickers[0],
+                    "period": "2026-Q1",
+                    "current_quarter_eps": 1.2,
+                    "source": "fmp_research_api",
+                }
+            ],
+            "warnings": [],
+            "provider_attempts": [{"provider": "fmp", "status": "resolved_rows", "reason_code": "ok"}],
+        },
+    )
+
+    sys.argv = ["python", "--project-root", str(tmp_path), "--optional-context-source-ladder", "--tickers", "NVDA", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+    assert payload["resolved_tickers"] == ["NVDA"]
+    assert payload["earnings_write"]["rows_written"] == 1
+    assert payload["analyst_estimates_write"]["rows_written"] == 1
+    assert (tmp_path / "data" / "imports" / "earnings.csv").exists()
+    assert (tmp_path / "data" / "imports" / "analyst_estimates.csv").exists()
+    assert payload["recommended_next_commands"] == [
+        "make imports-validate",
+        "make imports-preview",
+        "make imports-apply",
+        "make optional-context-readiness",
+    ]
+
+
 def test_resolve_dcf_input_queue_tickers_returns_unique_ordered_blocker_tickers(monkeypatch, tmp_path: Path):
     class Row:
         def __init__(self, ticker: str) -> None:

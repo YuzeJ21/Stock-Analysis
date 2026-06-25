@@ -7,6 +7,7 @@ PROVIDER="${PROVIDER:-auto}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-30}"
 DRY_RUN="${DRY_RUN:-0}"
 MAX_CANDIDATES="${MAX_CANDIDATES:-}"
+CONTINUE_ON_PROVIDER_FAILURE="${CONTINUE_ON_PROVIDER_FAILURE:-1}"
 
 case "$BATCHES" in
   ''|*[!0-9]*) echo "BATCHES must be a positive integer. For broad coverage, prefer DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 so the loop calculates batches for you." >&2; exit 2 ;;
@@ -16,6 +17,10 @@ case "$TOP_N" in
 esac
 case "$SLEEP_SECONDS" in
   ''|*[!0-9]*) echo "SLEEP_SECONDS must be a non-negative integer." >&2; exit 2 ;;
+esac
+case "$CONTINUE_ON_PROVIDER_FAILURE" in
+  1|true|TRUE|yes|YES|0|false|FALSE|no|NO) ;;
+  *) echo "CONTINUE_ON_PROVIDER_FAILURE must be 1/0, true/false, or yes/no." >&2; exit 2 ;;
 esac
 if [ -n "$MAX_CANDIDATES" ]; then
   case "$MAX_CANDIDATES" in
@@ -36,20 +41,42 @@ if [ -n "$MAX_CANDIDATES" ]; then
   BATCHES=$(((MAX_CANDIDATES + TOP_N - 1) / TOP_N))
 fi
 
+env_file_has_key() {
+  key="$1"
+  env_file="$2"
+  [ -f "$env_file" ] || return 1
+  grep -Eq "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=[[:space:]]*['\"]?[^'\"#[:space:]][^#]*" "$env_file"
+}
+
+provider_key_present() {
+  for key in "$@"; do
+    eval "current_value=\${$key:-}"
+    if [ -n "$current_value" ]; then
+      return 0
+    fi
+    for env_file in .env config/provider_keys.env .env.local; do
+      if env_file_has_key "$key" "$env_file"; then
+        return 0
+      fi
+    done
+  done
+  return 1
+}
+
 STOOQ_KEY_STATUS="missing"
-if [ -n "${STOOQ_API_KEY:-}" ] || [ -n "${STOQ_API_KEY:-}" ]; then
+if provider_key_present STOOQ_API_KEY STOQ_API_KEY; then
   STOOQ_KEY_STATUS="present"
 fi
 FMP_KEY_STATUS="missing"
-if [ -n "${FMP_API_KEY:-}" ]; then
+if provider_key_present FMP_API_KEY; then
   FMP_KEY_STATUS="present"
 fi
 ALPHA_KEY_STATUS="missing"
-if [ -n "${ALPHA_VANTAGE_API_KEY:-}" ]; then
+if provider_key_present ALPHA_VANTAGE_API_KEY; then
   ALPHA_KEY_STATUS="present"
 fi
 FINNHUB_KEY_STATUS="missing"
-if [ -n "${FINNHUB_API_KEY:-}" ]; then
+if provider_key_present FINNHUB_API_KEY; then
   FINNHUB_KEY_STATUS="present"
 fi
 
@@ -70,6 +97,7 @@ echo "This updates local CSV files only. It does not connect to brokers, place o
 echo "Plan: review missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
 echo "Provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, DCF inputs, or conclusions."
 echo "Auto provider behavior: PROVIDER=auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub before classifying the ticker as still missing."
+echo "Non-blocking behavior: if a provider batch fails, the loop records the source-path outcome, stops retrying that path, and rebuilds proof outputs."
 if [ "$PROVIDER" = "auto" ]; then
   echo "Provider credential visibility: STOOQ_API_KEY=$STOOQ_KEY_STATUS; FMP_API_KEY=$FMP_KEY_STATUS; ALPHA_VANTAGE_API_KEY=$ALPHA_KEY_STATUS; FINNHUB_API_KEY=$FINNHUB_KEY_STATUS."
 fi
@@ -98,6 +126,7 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES."
   echo "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time."
   echo "No provider call, import, validation apply, or external account action runs during this dry run."
+  echo "If a real provider batch fails, CONTINUE_ON_PROVIDER_FAILURE=$CONTINUE_ON_PROVIDER_FAILURE controls whether the loop records still_blocked and rebuilds proof outputs instead of exiting."
   echo "If interrupted or provider-limited, rerun the dry run; missing-only batches recalculate from current local prices."
   if [ -n "$MAX_CANDIDATES" ]; then
     echo "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
@@ -128,6 +157,8 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
 fi
 
 i=1
+STOPPED_AFTER_PROVIDER_FAILURE=0
+FAILED_BATCH=0
 while [ "$i" -le "$BATCHES" ]; do
   echo ""
   echo "Starting capped price batch $i of $BATCHES..."
@@ -136,7 +167,18 @@ while [ "$i" -le "$BATCHES" ]; do
     echo "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=... to switch to the local import file workflow." >&2
     echo "Manual CSV path: normalize downloaded OHLCV rows with make price-normalize, then run make price-validate, make price-preview, and make price-apply." >&2
     echo "Resume note: after fixing the source issue, rerun make price-refresh-loop DRY_RUN=1 so the next missing-only plan reflects the current local CSV state." >&2
-    exit 1
+    case "$CONTINUE_ON_PROVIDER_FAILURE" in
+      1|true|TRUE|yes|YES)
+        STOPPED_AFTER_PROVIDER_FAILURE=1
+        FAILED_BATCH="$i"
+        echo "Non-blocking provider failure recorded for price batch $i."
+        echo "Skipping remaining price batches in this session so the same unavailable source path is not retried repeatedly."
+        break
+        ;;
+      *)
+        exit 1
+        ;;
+    esac
   fi
   if [ "$i" -lt "$BATCHES" ] && [ "$SLEEP_SECONDS" -gt 0 ]; then
     echo "Sleeping $SLEEP_SECONDS seconds before the next capped batch..."
@@ -146,6 +188,10 @@ while [ "$i" -le "$BATCHES" ]; do
 done
 
 echo ""
+if [ "$STOPPED_AFTER_PROVIDER_FAILURE" = "1" ]; then
+  echo "Source path outcome: price provider ladder still_blocked for this session after batch $FAILED_BATCH failed."
+  echo "Exact next command after provider access is fixed: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=$REQUESTED_TARGET TOP_N=$TOP_N PROVIDER=$PROVIDER"
+fi
 echo "Rebuilding coverage, readiness, and project status after capped refresh loop..."
 make price-coverage TOP_N=25
 make readiness

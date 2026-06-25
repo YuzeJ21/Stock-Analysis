@@ -22,6 +22,11 @@ def _write_fundamentals(root: Path, rows: list[dict[str, object]]) -> None:
     pd.DataFrame(rows).to_csv(data_dir / "fundamentals.csv", index=False)
 
 
+def _clear_provider_env(monkeypatch) -> None:
+    for key in ("STOOQ_API_KEY", "FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+
+
 def test_session_source_preflight_prefers_sec_lane_when_sec_is_available(tmp_path: Path):
     def sec_probe(_user_agent: str) -> dict[str, object]:
         return {
@@ -210,7 +215,9 @@ def test_session_source_preflight_does_not_count_partial_local_fundamentals_as_f
     assert preflight["preferred_lane_order"][0] == "local_reviewed_fundamentals_share_count"
 
 
-def test_session_source_preflight_pivots_to_peer_lane_when_no_source_path_is_available(tmp_path: Path):
+def test_session_source_preflight_pivots_to_peer_lane_when_no_source_path_is_available(tmp_path: Path, monkeypatch):
+    _clear_provider_env(monkeypatch)
+
     def sec_probe(_user_agent: str) -> dict[str, object]:
         return {
             "status": "unavailable",
@@ -390,6 +397,7 @@ def test_session_source_preflight_prefers_fmp_when_local_rows_do_not_fix_current
 
 
 def test_session_source_preflight_cli_prints_json_summary(tmp_path: Path, monkeypatch, capsys):
+    _clear_provider_env(monkeypatch)
     _write_fundamentals(tmp_path, [{"ticker": "ALOY", "source": "reviewed_manual", "revenue": 123.0}])
 
     monkeypatch.setattr(
@@ -424,6 +432,7 @@ def test_session_source_preflight_cli_prints_json_summary(tmp_path: Path, monkey
 
 
 def test_session_source_preflight_can_write_and_reload_session_artifact(tmp_path: Path, monkeypatch, capsys):
+    _clear_provider_env(monkeypatch)
     _write_fundamentals(tmp_path, [{"ticker": "ALOY", "source": "reviewed_manual", "revenue": 123.0}])
 
     monkeypatch.setattr(

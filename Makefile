@@ -1,4 +1,4 @@
-.PHONY: help help-full demo browser-qa-evidence browser-qa-capture-plan pilot-readiness-check pilot-readiness-packet trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff session-source-preflight fundamentals-source-ladder fundamentals-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo browser-qa-evidence browser-qa-capture-plan pilot-readiness-check pilot-readiness-packet trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff session-source-preflight fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -121,9 +121,9 @@ help-full:
 	@echo "  make trusted-data-pilot-evidence [TICKERS=MU,CRDO] [OUTPUT=outputs/trusted_data_pilot_evidence.csv] Write current before-state proof paths"
 	@echo "  make reviewed-data-proof [LEDGER=data/reviewed_data_proofs.csv] Print the durable reviewed data proof ledger"
 	@echo "  make lane-outcome-history [LEDGER=data/reviewed_data_proofs.csv] Print lane outcome history from reviewed proof rows"
-	@echo "  make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record an intentional reviewed proof row"
+	@echo "  make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded> Record an intentional reviewed proof row"
 	@echo "  make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows"
-	@echo "  make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record a reviewed batch outcome"
+	@echo "  make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed batch outcome"
 	@echo "  make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields"
 	@echo "  make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates"
 	@echo "  make fundamentals-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the SEC/manual fundamentals proof packet with validate, preview, rejected-row, compare, and proof-record gates"
@@ -245,6 +245,10 @@ help-full:
 	@echo "                        Run the source ladder against top DCF blockers without manually collecting ticker symbols"
 	@echo "  make fmp-stage TICKERS=NVDA / make alpha-vantage-stage TICKERS=NVDA / make finnhub-stage TICKERS=NVDA"
 	@echo "                        Stage provider-assisted fundamentals through data/imports/fundamentals.csv"
+	@echo "  make optional-context-source-ladder TICKERS=NVDA"
+	@echo "                        Try yfinance, FMP, Alpha Vantage, then Finnhub for optional earnings/estimate rows"
+	@echo "  make optional-context-source-ladder-queue TOP_N=10"
+	@echo "                        Run optional-context source staging against top locked earnings/estimate rows"
 	@echo "  make dcf-readiness   Write data/dcf_readiness.csv"
 	@echo "  make import-fundamentals Import verified CSVs from data/staged/fundamentals/ into data/imports/fundamentals.csv"
 	@echo "  make import-earnings Import verified CSVs from data/staged/earnings/ into data/imports/earnings.csv"
@@ -492,7 +496,7 @@ ifndef REVIEW_DATE
 	$(error REVIEW_DATE is required)
 endif
 ifndef FINAL_OUTCOME
-	$(error FINAL_OUTCOME is required: supported, still_blocked, skipped, or excluded)
+	$(error FINAL_OUTCOME is required: supported, candidate_context_only, still_blocked, skipped, or excluded)
 endif
 	@python3 -m src.reviewed_batch_proof --ledger $(or $(LEDGER),data/reviewed_batch_proofs.csv) $(if $(DRY_RUN),--dry-run,--record) --batch-id "$(BATCH_ID)" --review-date "$(REVIEW_DATE)" --reviewer "$(or $(REVIEWER),local reviewer)" --lane "$(LANE)" --scope "$(or $(SCOPE),reviewed batch scope)" --tickers "$(or $(TICKERS),-)" --command-run "$(or $(COMMAND_RUN),-)" --validation-result "$(or $(VALIDATION_RESULT),not_run)" --preview-result "$(or $(PREVIEW_RESULT),not_run)" --apply-result "$(or $(APPLY_RESULT),not_run)" --pre-run-readiness-snapshot "$(or $(PRE_RUN_READINESS_SNAPSHOT),not recorded)" --post-run-readiness-snapshot "$(or $(POST_RUN_READINESS_SNAPSHOT),not recorded)" --changed-readiness-counts "$(or $(CHANGED_READINESS_COUNTS),none)" --changed-tickers "$(or $(CHANGED_TICKERS),none)" --source-files "$(or $(SOURCE_FILES),-)" --generated-artifacts-reviewed "$(or $(GENERATED_ARTIFACTS_REVIEWED),excluded unless intentionally reviewed)" --final-outcome "$(FINAL_OUTCOME)" --notes "$(or $(NOTES),-)"
 
@@ -507,7 +511,7 @@ ifndef PROOF_DATE
 	$(error PROOF_DATE is required)
 endif
 ifndef FINAL_OUTCOME
-	$(error FINAL_OUTCOME is required: supported, still_blocked, skipped, or excluded)
+	$(error FINAL_OUTCOME is required: supported, candidate_context_only, still_blocked, skipped, or excluded)
 endif
 	@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --record --proof-id "$(PROOF_ID)" --proof-date "$(PROOF_DATE)" --lane "$(LANE)" --lane-label "$(or $(LANE_LABEL),$(LANE))" --scope "$(or $(SCOPE),reviewed lane proof)" --tickers-or-dependencies "$(or $(TICKERS_OR_DEPENDENCIES),-)" --source-proof-status "$(or $(SOURCE_PROOF_STATUS),reviewed)" --reviewer-outcome "$(or $(REVIEWER_OUTCOME),reviewed)" --validate-result "$(or $(VALIDATE_RESULT),not recorded)" --preview-result "$(or $(PREVIEW_RESULT),not recorded)" --apply-result "$(or $(APPLY_RESULT),not recorded)" --rejected-row-status "$(or $(REJECTED_ROW_STATUS),not recorded)" --readiness-before "$(or $(READINESS_BEFORE),not recorded)" --readiness-after "$(or $(READINESS_AFTER),not recorded)" --final-outcome "$(FINAL_OUTCOME)" --changed-inputs "$(or $(CHANGED_INPUTS),-)" --what-changed "$(or $(WHAT_CHANGED),-)" --still-blocked "$(or $(STILL_BLOCKED),-)" --review-command "$(or $(REVIEW_COMMAND),-)" --proof-command "$(or $(PROOF_COMMAND),-)" --artifact-paths "$(or $(ARTIFACT_PATHS),-)" --generated-churn-policy "$(or $(GENERATED_CHURN_POLICY),keep broad generated CSV/JSON churn out of commits unless intentionally reviewed evidence)"
 
@@ -807,7 +811,7 @@ else
 endif
 
 price-refresh-loop:
-	MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),auto) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0) sh scripts/price_refresh_loop.sh
+	MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),auto) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0) CONTINUE_ON_PROVIDER_FAILURE=$(or $(CONTINUE_ON_PROVIDER_FAILURE),1) sh scripts/price_refresh_loop.sh
 
 price-normalize:
 ifndef INPUT
@@ -846,6 +850,15 @@ endif
 
 fundamentals-source-ladder-queue:
 	python3 -m src.stock_report --fundamentals-source-ladder --from-dcf-input-queue --top-n $(or $(TOP_N),10) $(if $(SEC_USER_AGENT),--sec-user-agent "$(SEC_USER_AGENT)",)
+
+optional-context-source-ladder:
+ifndef TICKERS
+	$(error TICKERS is required, for example: make optional-context-source-ladder TICKERS=NVDA)
+endif
+	python3 -m src.stock_report --optional-context-source-ladder --tickers $(TICKERS)
+
+optional-context-source-ladder-queue:
+	python3 -m src.stock_report --optional-context-source-ladder --from-optional-context-queue --top-n $(or $(TOP_N),10)
 
 fmp-stage:
 ifndef TICKERS

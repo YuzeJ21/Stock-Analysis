@@ -73,7 +73,7 @@ def reviewed_batch_preflight_cards(preflight: Any) -> list[dict[str, object]]:
     else:
         body = (
             "Current readiness and prior snapshot are present. Start with the packet and dry-run command, then compare "
-            "readiness before recording a supported, still-blocked, skipped, or excluded proof row."
+            "readiness before recording a supported, candidate-context-only, still-blocked, skipped, or excluded proof row."
         )
         badges = ["ready", "dry-run first"]
     return [
@@ -418,7 +418,7 @@ def reviewed_batch_operator_flow_cards(
             "title": "Compare before recording",
             "body": (
                 f"{apply_body} After reviewed work, compare before/after readiness before claiming supported, "
-                "still_blocked, skipped, or excluded."
+                "candidate_context_only, still_blocked, skipped, or excluded."
             ),
             "badges": [apply_steps["mode"], "ledger proof"],
             "command": preflight.comparison_command,
@@ -429,7 +429,8 @@ def reviewed_batch_operator_flow_cards(
             "body": (
                 "Use the proof-record dry run only after packet review, capped preview, source review, validation or "
                 "read-only metric review, and before/after comparison are complete. If required fields still contain "
-                "placeholders, keep the outcome unfinished."
+                "placeholders, keep the outcome unfinished. Record supported, candidate_context_only, still_blocked, "
+                "skipped, or excluded only after proof."
             ),
             "badges": ["dry-run proof", "manual review"],
             "command": proof_record_command,
@@ -447,7 +448,7 @@ def reviewed_batch_execution_frame(preflight: Any) -> pd.DataFrame:
             {"Step": "5. Validate", "Command": "make imports-validate or lane-specific validator", "Gate": "Stop when validation fails."},
             {"Step": "6. Preview", "Command": "make imports-preview or lane-specific preview", "Gate": "Stop when preview or rejected-row reports are unresolved."},
             {"Step": "7. Apply", "Command": "make imports-apply only for reviewed trusted rows", "Gate": "Manual reviewed step; not a dashboard action."},
-            {"Step": "8. Proof", "Command": preflight.comparison_command, "Gate": "Record supported, still_blocked, skipped, or excluded only after proof."},
+            {"Step": "8. Proof", "Command": preflight.comparison_command, "Gate": "Record supported, candidate_context_only, still_blocked, skipped, or excluded only after proof."},
             {"Step": "9. Ledger", "Command": preflight.proof_record_command, "Gate": "Durable record after source files and generated churn are classified."},
             {"Step": "10. Hygiene", "Command": " && ".join(preflight.post_run_hygiene[:2]), "Gate": "Classify generated CSV/JSON churn before any public commit."},
             {"Step": "Rollback", "Command": "restore reviewed standard local CSVs from git/backups, then rerun make readiness", "Gate": "Use if applied local rows are wrong or source proof fails."},
@@ -522,7 +523,7 @@ def reviewed_batch_execution_checklist_frame(
             {
                 "Step": "7. Record proof outcome",
                 "Status": "dry-run first",
-                "Operator Decision": "Record supported, still_blocked, skipped, or excluded only after reviewed source and comparison proof.",
+                "Operator Decision": "Record supported, candidate_context_only, still_blocked, skipped, or excluded only after reviewed source and comparison proof.",
                 "Copy-Only Command": f"DRY_RUN=1 {preflight.proof_record_command}",
                 "Stop If": "required proof fields still contain placeholders",
             },
@@ -563,7 +564,7 @@ def reviewed_batch_sequence_cards(preflight: Any) -> list[dict[str, object]]:
         {
             "kicker": "PROOF",
             "title": "Compare, record, rollback if needed",
-            "body": "After reviewed work, rebuild readiness, compare before/after counts, record supported/still_blocked/skipped/excluded, and restore standard local CSVs if source proof fails.",
+            "body": "After reviewed work, rebuild readiness, compare before/after counts, record supported/candidate_context_only/still_blocked/skipped/excluded, and restore standard local CSVs if source proof fails.",
             "badges": ["proof ledger", "rollback ready"],
             "command": preflight.comparison_command,
         },

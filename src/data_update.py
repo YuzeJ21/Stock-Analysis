@@ -19,6 +19,7 @@ import pandas as pd
 
 from src.config import AppConfig
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.provider_env import load_provider_environment
 from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FMP_API_KEY_ENV, FINNHUB_API_KEY_ENV
 
 
@@ -541,6 +542,7 @@ def _price_source_status_name(source: PriceHistorySource) -> str:
 
 
 def make_price_source(provider: str) -> PriceHistorySource:
+    load_provider_environment()
     normalized = str(provider or "auto").strip().lower()
     if normalized in {"auto", "ladder", "source_ladder"}:
         sources: list[tuple[str, PriceHistorySource]] = [

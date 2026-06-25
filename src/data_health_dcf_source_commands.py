@@ -1074,7 +1074,7 @@ def _proof_record_dry_run_command(*, ticker: str, family: str, command_run: str)
         "LANE": lane,
         "TICKERS": ticker,
         "REVIEW_DATE": "<yyyy-mm-dd>",
-        "FINAL_OUTCOME": "<supported|still_blocked|skipped|excluded>",
+        "FINAL_OUTCOME": "<supported|candidate_context_only|still_blocked|skipped|excluded>",
         "COMMAND_RUN": command_run or "<reviewed_guard_command>",
         "VALIDATION_RESULT": "<reviewed_validation_result>",
         "PREVIEW_RESULT": "<reviewed_preview_result>",

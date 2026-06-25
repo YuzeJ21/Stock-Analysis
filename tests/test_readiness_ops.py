@@ -187,10 +187,11 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert by_lane["peer_mapping"].excluded_count == 1
     assert "Peer sub-states:" in by_lane["peer_mapping"].notes
     assert "peer_valuation_comparison=0" in by_lane["peer_valuation_inputs"].notes
-    assert by_lane["earnings_locked"].workflow_mode == "locked_manual"
-    assert by_lane["analyst_estimates_locked"].workflow_mode == "locked_manual"
+    assert by_lane["earnings_locked"].workflow_mode == "optional_source_ladder"
+    assert by_lane["analyst_estimates_locked"].workflow_mode == "optional_source_ladder"
+    assert by_lane["earnings_locked"].next_safe_command == "make optional-context-source-ladder-queue TOP_N=10"
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"
-    assert "trusted local rows" in by_lane["earnings_locked"].notes
+    assert "trusted local or reviewed provider-assisted rows" in by_lane["earnings_locked"].notes
 
 
 def test_readiness_ops_routes_fundamentals_to_source_ladder_when_fallback_provider_is_available(tmp_path: Path):
@@ -240,7 +241,7 @@ def test_fundamentals_peer_metrics_queue_summarizes_next_layer_without_fake_unlo
     assert "mapped peer prices" in by_lane["peer_valuation_inputs"].top_missing_input_families
     assert by_lane["metrics_readiness"].source_lane == "review_metrics"
     assert "SPY/QQQ" in by_lane["metrics_readiness"].proof_gate
-    assert by_lane["earnings_locked"].source_mode == "optional trusted-local only"
+    assert by_lane["earnings_locked"].source_mode == "optional source ladder plus trusted-local fallback"
     assert "not a ranking, recommendation, or trade instruction" in rendered
     assert "Validate -> preview" in rendered
     assert "Sharpe" in rendered
@@ -370,7 +371,7 @@ def test_coverage_frontier_ranks_batch_lanes_without_implying_data_available(tmp
     assert "operations queue, not a security recommendation" in rendered
     assert "does not imply data is available" in rendered
     assert "make price-refresh-loop DRY_RUN=1" in rendered
-    assert "make optional-context-worklist TOP_N=25" in rendered
+    assert "make optional-context-source-ladder-queue TOP_N=10" in rendered
 
 
 def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tmp_path: Path):
@@ -398,7 +399,7 @@ def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tm
     assert "make share-count-proof-queue TOP_N=10" in rendered
     assert "shares_outstanding" in rendered
     assert "sector fallback remains context only" in rendered
-    assert "trusted local rows" in rendered
+    assert "trusted-local or provider-assisted rows" in rendered
     assert "investment advice" in rendered
     assert "buy/sell" not in rendered.lower()
 

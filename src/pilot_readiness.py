@@ -300,7 +300,7 @@ def _proof_ledger_check(root: Path) -> PilotReadinessCheck:
     if not rows:
         status = "manual"
         title = "No reviewed batch proof rows yet"
-        detail = "Pilot can start, but supported/still-blocked/skipped/excluded outcomes need ledger rows after reviewed batches."
+        detail = "Pilot can start, but supported/candidate-context-only/still-blocked/skipped/excluded outcomes need ledger rows after reviewed batches."
     else:
         status = "green"
         title = f"{len(rows)} reviewed batch proof row(s)"

@@ -146,6 +146,24 @@ def test_reviewed_batch_proof_validation_accepts_reviewed_no_change_values():
     assert reviewed_batch_proof_validation_status(validation_rows) == "ready_to_record"
 
 
+def test_reviewed_batch_proof_accepts_candidate_context_only_outcome(tmp_path: Path):
+    ledger = tmp_path / "reviewed_batch_proofs.csv"
+    row = _proof(
+        batch_id="RB-CANDIDATE-001",
+        lane="peers",
+        final_outcome="candidate_context_only",
+        notes="Candidate peers were generated for routing context only; no trusted peer rows were promoted.",
+    )
+
+    validation_rows = reviewed_batch_proof_validation_rows(row)
+    append_reviewed_batch_proof(row, ledger)
+    rendered = render_reviewed_batch_proofs(load_reviewed_batch_proofs(ledger))
+
+    assert reviewed_batch_proof_validation_status(validation_rows) == "ready_to_record"
+    assert "candidate_context_only" in rendered
+    assert "no trusted peer rows were promoted" in rendered
+
+
 def test_reviewed_batch_proof_dry_run_prints_preview_without_writing(tmp_path: Path, capsys):
     ledger = tmp_path / "reviewed_batch_proofs.csv"
 

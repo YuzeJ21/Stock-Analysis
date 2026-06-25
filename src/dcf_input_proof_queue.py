@@ -529,7 +529,7 @@ def _proof_record_scaffold(*, lane: str, tickers: list[str], command_run: str) -
         "BATCH_ID": "<reviewed_batch_id>",
         "LANE": lane,
         "REVIEW_DATE": "<yyyy-mm-dd>",
-        "FINAL_OUTCOME": "<supported|still_blocked|skipped|excluded>",
+        "FINAL_OUTCOME": "<supported|candidate_context_only|still_blocked|skipped|excluded>",
         "TICKERS": ",".join(tickers) if tickers else "<reviewed_tickers>",
         "COMMAND_RUN": command_run,
         "VALIDATION_RESULT": "<reviewed_validation_result>",

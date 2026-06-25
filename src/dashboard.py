@@ -10473,7 +10473,7 @@ def data_health_readiness_queue_drilldown_cards(row: pd.Series | dict[str, objec
             "kicker": "PROOF RECORD",
             "title": proof_status,
             "body": (
-                "Record supported, still_blocked, skipped, or excluded only after reviewed evidence, comparison, "
+                "Record supported, candidate_context_only, still_blocked, skipped, or excluded only after reviewed evidence, comparison, "
                 "and generated-artifact classification are complete."
             ),
             "badges": ["ledger boundary", "research-only"],
@@ -19268,7 +19268,7 @@ def data_health_proof_history_operator_console_frame(
                 "Sub": "durable lane outcomes",
                 "State": "ready" if proof_count else "partial",
                 "Blocked": f"{proof_count:,}",
-                "Next Proof": "Record supported, still-blocked, skipped, or excluded only after source proof and rebuilt readiness.",
+                "Next Proof": "Record supported, candidate-context-only, still-blocked, skipped, or excluded only after source proof and rebuilt readiness.",
             },
             {
                 "Family": "Reviewed batch proof",
@@ -19297,7 +19297,7 @@ def data_health_proof_history_operator_console_html(
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
     comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
     next_title = "Proof ledger review"
-    next_body = "Open evidence only when you need durable supported, still-blocked, skipped, or excluded outcomes."
+    next_body = "Open evidence only when you need durable supported, candidate-context-only, still-blocked, skipped, or excluded outcomes."
     if comparison.status != "ok":
         next_title = "Snapshot comparison blocked"
         next_body = "Capture a prior readiness snapshot before a reviewed batch, then compare real before/after counts."
@@ -27456,7 +27456,7 @@ def render_data_health(
                     readiness_comparison,
                 ),
             )
-            render_section_header("DCF Proof Closeout", "Final supported, still-blocked, skipped, or excluded proof state with remaining evidence gates.")
+            render_section_header("DCF Proof Closeout", "Final supported, candidate-context-only, still-blocked, skipped, or excluded proof state with remaining evidence gates.")
             render_signal_cards(
                 data_health_dcf_proof_closeout_cards(
                     dcf_input_queue_filtered,
@@ -27593,7 +27593,7 @@ def render_data_health(
                 "Peer proof-loop outcome table",
                 data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
             )
-            render_section_header("Peer Proof Closeout", "Final supported, still-blocked, skipped, or excluded proof state with remaining peer evidence gates.")
+            render_section_header("Peer Proof Closeout", "Final supported, candidate-context-only, still-blocked, skipped, or excluded proof state with remaining peer evidence gates.")
             render_signal_cards(data_health_peer_proof_closeout_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison))
             render_collapsed_detail_frame(
                 "Peer proof closeout table",
@@ -27693,7 +27693,7 @@ def render_data_health(
                 render_section_header("Apply Guard", "Supported batch outcomes require reviewed validation, preview, rejected-row status, and apply decision.")
                 render_signal_cards(data_health_reviewed_batch_apply_guard_cards(batch_preflight))
                 st.dataframe(clean_display_frame(data_health_reviewed_batch_apply_guard_frame(batch_preflight)), width="stretch", hide_index=True)
-                render_section_header("Outcome Recorder", "Required proof-row fields before recording supported, still_blocked, skipped, or excluded.")
+                render_section_header("Outcome Recorder", "Required proof-row fields before recording supported, candidate_context_only, still_blocked, skipped, or excluded.")
                 render_signal_cards(
                     data_health_reviewed_batch_outcome_recorder_cards(batch_packet_frame, readiness_comparison),
                     show_commands=True,

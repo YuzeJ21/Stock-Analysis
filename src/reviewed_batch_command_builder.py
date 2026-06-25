@@ -14,6 +14,8 @@ from typing import Mapping, Sequence
 
 from src.reviewed_batch_proof import BATCH_OUTCOMES, BATCH_PROOF_COLUMNS
 
+ALLOWED_OUTCOME_TEXT = "supported, candidate_context_only, still_blocked, skipped, or excluded"
+ALLOWED_OUTCOME_PLACEHOLDER = "<supported|candidate_context_only|still_blocked|skipped|excluded>"
 
 @dataclass(frozen=True)
 class OutcomeRequiredField:
@@ -84,7 +86,7 @@ PROOF_RECORD_COMMAND_FIELDS: tuple[ProofRecordCommandField, ...] = (
     ProofRecordCommandField("scope", "SCOPE", "Scope", "reviewed batch scope"),
     ProofRecordCommandField("tickers", "TICKERS", "", "-"),
     ProofRecordCommandField("review_date", "REVIEW_DATE", "Review Date", "<yyyy-mm-dd>"),
-    ProofRecordCommandField("final_outcome", "FINAL_OUTCOME", "Allowed Outcome", "<supported|still_blocked|skipped|excluded>"),
+    ProofRecordCommandField("final_outcome", "FINAL_OUTCOME", "Allowed Outcome", ALLOWED_OUTCOME_PLACEHOLDER),
     ProofRecordCommandField("command_run", "COMMAND_RUN", "Dry Run Command", "<exact reviewed command>"),
     ProofRecordCommandField("validation_result", "VALIDATION_RESULT", "Validation Result", "<pass/fail/not_applicable>"),
     ProofRecordCommandField("preview_result", "PREVIEW_RESULT", "Preview Result", "<reviewed/no unexpected rows/not_applicable>"),
@@ -121,7 +123,7 @@ PROOF_COMPLETION_ACTIONS: dict[str, str] = {
     "batch_id": "Regenerate or review the latest reviewed batch packet so the batch id is explicit.",
     "lane": "Confirm the selected readiness lane from the reviewed batch packet.",
     "review_date": "Fill REVIEW_DATE with the local review date in yyyy-mm-dd format.",
-    "final_outcome": "Set FINAL_OUTCOME to supported, still_blocked, skipped, or excluded.",
+    "final_outcome": f"Set FINAL_OUTCOME to {ALLOWED_OUTCOME_TEXT}.",
     "command_run": "Paste the exact reviewed command that was run or reviewed.",
     "validation_result": "Copy the validator result, or record not_applicable_read_only for read-only lanes.",
     "preview_result": "Copy the preview and rejected-row review result before recording proof.",
@@ -298,7 +300,7 @@ def validate_proof_record_command_parts(command_parts: Sequence[Mapping[str, str
         if field == "final_outcome":
             if value not in BATCH_OUTCOMES:
                 validation_status = "invalid_outcome"
-                reason = "FINAL_OUTCOME must be exactly one of supported, still_blocked, skipped, or excluded."
+                reason = f"FINAL_OUTCOME must be exactly one of {ALLOWED_OUTCOME_TEXT}."
         elif source_status == "blocked_by_snapshot_gate":
             validation_status = "blocked_by_snapshot_gate"
             reason = "Snapshot comparison is required before this proof field can be trusted."
@@ -355,7 +357,7 @@ def build_proof_completion_rows(
         if validation_status == "blocked_by_snapshot_gate":
             action = "Run make readiness-snapshot, then make reviewed-batch-compare before copying changed readiness proof."
         elif validation_status == "invalid_outcome":
-            action = "Set FINAL_OUTCOME exactly to supported, still_blocked, skipped, or excluded."
+            action = f"Set FINAL_OUTCOME exactly to {ALLOWED_OUTCOME_TEXT}."
         rows.append(
             {
                 "Step": f"Fill {field}",

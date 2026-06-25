@@ -213,7 +213,7 @@ def build_reviewed_batch_preflight(
         comparison_command=f"make reviewed-batch-compare LANE={lane} BATCH_ID={batch_id} REVIEW_DATE={review_date} TOP_N={top_n}",
         proof_record_command=(
             f'make reviewed-batch-proof-record BATCH_ID="{batch_id}" LANE="{lane}" REVIEW_DATE="{review_date}" '
-            'FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" '
+            'FINAL_OUTCOME="<supported|candidate_context_only|still_blocked|skipped|excluded>" '
             'CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"'
         ),
         do_not_proceed_if=tuple(blockers),

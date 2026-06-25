@@ -13,6 +13,7 @@ import pandas as pd
 from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.indicators import compute_return
 from src.fundamentals_source_ladder import build_fundamentals_source_ladder_rows
+from src.optional_context_sources import build_optional_context_source_ladder_rows, write_optional_context_imports
 from src.providers.alternative_fundamentals import (
     ALPHA_VANTAGE_API_KEY_ENV,
     FMP_API_KEY_ENV,
@@ -34,6 +35,7 @@ from src.providers.mock_market_data import MockMarketDataProvider
 from src.providers.sec_companyfacts import build_sec_fundamentals_rows, write_sec_fundamentals_import
 from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.provider_env import load_provider_environment
 from src.review_metrics import build_review_metrics, configured_risk_free_rate
 from src.session_source_preflight import load_session_source_preflight
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
@@ -3729,12 +3731,53 @@ def _resolve_dcf_input_queue_tickers(base_dir: Path, data_dir: Path, *, top_n: i
     return tickers
 
 
+def _resolve_optional_context_queue_tickers(base_dir: Path, data_dir: Path, *, top_n: int) -> list[str]:
+    report_path = data_dir / "reports" / "ticker_readiness_report.csv"
+    if not report_path.exists():
+        return _read_dataset_tickers(base_dir, "universe", data_dir, base_dir / "outputs")[:top_n]
+    try:
+        frame = pd.read_csv(report_path)
+    except Exception:
+        return []
+    if frame.empty or "ticker" not in frame.columns:
+        return []
+    working = frame.copy()
+    working["ticker"] = working["ticker"].fillna("").astype(str).str.upper().str.strip()
+    locked_mask = pd.Series(False, index=working.index)
+    for column in ("earnings_ready", "analyst_estimates_ready"):
+        if column in working.columns:
+            values = working[column].fillna(False)
+            if values.dtype == object:
+                values = values.astype(str).str.lower().isin({"true", "1", "yes", "ready"})
+            locked_mask |= ~values.astype(bool)
+    if not locked_mask.any():
+        locked_mask = working["ticker"].ne("")
+    tickers: list[str] = []
+    seen: set[str] = set()
+    for ticker in working.loc[locked_mask, "ticker"]:
+        if not ticker or ticker in seen:
+            continue
+        seen.add(ticker)
+        tickers.append(ticker)
+        if len(tickers) >= top_n:
+            break
+    return tickers
+
+
 def _resolve_sec_tickers(args: argparse.Namespace, base_dir: Path, data_dir: Path, output_dir: Path) -> list[str]:
     tickers: set[str] = set()
     if args.tickers:
         tickers.update(ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip())
     if getattr(args, "from_dcf_input_queue", False):
         tickers.update(_resolve_dcf_input_queue_tickers(base_dir, data_dir, top_n=max(int(getattr(args, "top_n", 10) or 10), 1)))
+    if getattr(args, "from_optional_context_queue", False):
+        tickers.update(
+            _resolve_optional_context_queue_tickers(
+                base_dir,
+                data_dir,
+                top_n=max(int(getattr(args, "top_n", 10) or 10), 1),
+            )
+        )
     if args.from_local_tickers:
         provider = LocalCSVMarketDataProvider(base_dir=base_dir, data_dir=data_dir, outputs_dir=output_dir)
         tickers.update(provider.list_local_tickers())
@@ -3833,12 +3876,14 @@ def main() -> None:
     parser.add_argument("--yfinance-stage-fundamentals", action="store_true", help="Fetch research-grade Yahoo/yfinance fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
     parser.add_argument("--alternative-fundamentals-stage", action="store_true", help="Fetch configured fallback provider fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
     parser.add_argument("--fundamentals-source-ladder", action="store_true", help="Try SEC, yfinance, FMP, Alpha Vantage, and Finnhub in order, staging the first source-backed fundamentals rows found per ticker.")
+    parser.add_argument("--optional-context-source-ladder", action="store_true", help="Try yfinance, FMP, Alpha Vantage, and Finnhub in order, staging source-backed optional earnings/estimate rows under data/imports.")
     parser.add_argument("--alt-provider", choices=["fmp", "alpha_vantage", "finnhub"], default="fmp", help="Fallback fundamentals provider for --alternative-fundamentals-stage.")
     parser.add_argument("--fmp-api-key", help="Optional FMP API key override. Defaults to FMP_API_KEY.")
     parser.add_argument("--alpha-vantage-api-key", help="Optional Alpha Vantage API key override. Defaults to ALPHA_VANTAGE_API_KEY.")
     parser.add_argument("--finnhub-api-key", help="Optional Finnhub API key override. Defaults to FINNHUB_API_KEY.")
     parser.add_argument("--tickers", help="Comma-separated tickers for the SEC staging workflow.")
     parser.add_argument("--from-dcf-input-queue", action="store_true", help="Use top DCF input blocker tickers for the source-ladder staging workflow.")
+    parser.add_argument("--from-optional-context-queue", action="store_true", help="Use top optional earnings/analyst-estimate blocker tickers for the optional-context source ladder.")
     parser.add_argument("--top-n", type=int, default=10, help="Maximum queued ticker count for --from-dcf-input-queue.")
     parser.add_argument("--from-local-tickers", action="store_true", help="Use locally discoverable tickers for the SEC staging workflow.")
     parser.add_argument("--from-universe", action="store_true", help="Use tickers from data/universe.csv for the SEC staging workflow.")
@@ -3852,6 +3897,7 @@ def main() -> None:
     cli_base_dir = resolve_project_root(args.project_root)
     cli_data_dir = resolve_data_dir(args.data_dir, cli_base_dir)
     cli_output_dir = resolve_outputs_dir(args.output_dir, cli_base_dir)
+    load_provider_environment(cli_base_dir)
 
     def print_paths() -> None:
         print(format_path_context(cli_base_dir, cli_data_dir, cli_output_dir))
@@ -4147,6 +4193,62 @@ def main() -> None:
             print(json.dumps(payload, indent=2))
         else:
             _print_fundamentals_stage_payload(payload, print_paths_callback=print_paths)
+        return
+
+    if args.optional_context_source_ladder:
+        requested_tickers = _resolve_sec_tickers(args, cli_base_dir, cli_data_dir, cli_output_dir)
+        if not requested_tickers:
+            raise SystemExit(
+                "Optional context source ladder requires at least one ticker source. Use --tickers, "
+                "--from-optional-context-queue, --from-local-tickers, --from-universe, or --from-holdings."
+            )
+        try:
+            result = build_optional_context_source_ladder_rows(
+                requested_tickers,
+                fmp_api_key=args.fmp_api_key,
+                alpha_vantage_api_key=args.alpha_vantage_api_key,
+                finnhub_api_key=args.finnhub_api_key,
+                session_preflight=load_session_source_preflight(cli_base_dir, output_dir=cli_output_dir),
+            )
+            write_result = write_optional_context_imports(
+                earnings_rows=result["earnings_rows"],
+                analyst_estimate_rows=result["analyst_estimate_rows"],
+                import_dir=cli_data_dir / "imports",
+                overwrite=args.overwrite,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise SystemExit(_provider_staging_failure_message("optional context source ladder", exc)) from exc
+        payload = {
+            **result,
+            **write_result,
+            "recommended_next_commands": [
+                "make imports-validate",
+                "make imports-preview",
+                "make imports-apply",
+                "make optional-context-readiness",
+            ],
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print_paths()
+            print(f"requested_tickers: {', '.join(payload['requested_tickers']) or '-'}")
+            print(f"resolved_tickers: {', '.join(payload['resolved_tickers']) or '-'}")
+            print(f"unresolved_tickers: {', '.join(payload['unresolved_tickers']) or '-'}")
+            print(f"earnings_rows_written: {payload['earnings_write']['rows_written']}")
+            print(f"analyst_estimates_rows_written: {payload['analyst_estimates_write']['rows_written']}")
+            print(f"earnings_output_path: {payload['earnings_write']['output_path']}")
+            print(f"analyst_estimates_output_path: {payload['analyst_estimates_write']['output_path']}")
+            for attempt in payload.get("provider_attempts", []):
+                print(
+                    f"- {attempt['provider']}: status={attempt['status']} "
+                    f"reason={attempt['reason_code']} resolved={','.join(attempt.get('resolved_tickers', [])) or '-'}"
+                )
+            if payload["warnings"]:
+                print(f"warnings: {'; '.join(payload['warnings'])}")
+            print("next:")
+            for command in payload["recommended_next_commands"]:
+                print(f"- {command}")
         return
 
     if args.list_local_tickers:

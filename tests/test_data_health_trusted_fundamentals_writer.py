@@ -51,7 +51,7 @@ def test_evidence_writer_ready_state_still_keeps_apply_gated():
             "Source Guard Status": "ready_for_guard",
             "Import Row Scaffold": "AACB,<reviewed_period>,100,20,0.20,1000,https://www.sec.gov/example,2026-06-01",
             "Apply Boundary": "Run make imports-apply only after source guard, validate, preview, and rejected-row review are complete.",
-            "Proof Record Dry-Run Boundary": "DRY_RUN=1 make reviewed-batch-proof-record BATCH_ID=RB-FUND-AACB FINAL_OUTCOME=<supported|still_blocked|skipped|excluded>",
+            "Proof Record Dry-Run Boundary": "DRY_RUN=1 make reviewed-batch-proof-record BATCH_ID=RB-FUND-AACB FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded>",
         }
     )
 

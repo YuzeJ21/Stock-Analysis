@@ -122,7 +122,7 @@ Current readiness pattern:
 - Price, momentum, liquidity, and correlation coverage can improve through capped local refresh/import workflows.
 - Fundamentals and DCF coverage remain limited to trusted local/SEC-backed rows.
 - Peer readiness remains intentionally sparse until source-backed peer mappings and peer inputs are imported.
-- Earnings and analyst estimates remain locked until trusted local CSV rows are imported.
+- Earnings and analyst estimates remain locked until trusted local or reviewed provider-assisted CSV rows are imported.
 - Decision buckets remain readiness-gated: incomplete rows stay `Blocked by Data` or `Monitor` rather than becoming recommendations.
 
 Use `make status-check TOP_N=5`, `make readiness`, or the dashboard Home page for exact current local counts.
@@ -139,11 +139,11 @@ Pilot entry criteria:
 - `make public-check`, `make browser-qa-evidence`, `make public-wording-check`, `make diff-hygiene`, and `git diff --check` pass in the target environment.
 - The pilot operator follows `docs/PILOT_RUNBOOK.md`.
 - Generated CSV/JSON/report churn is excluded unless the exact artifact is reviewed pilot evidence.
-- Source-proof lanes keep `ready`, `partial`, `blocked`, `excluded`, `supported`, `still_blocked`, and `skipped` states visible.
+- Source-proof lanes keep `ready`, `partial`, `blocked`, `excluded`, `supported`, `candidate_context_only`, `still_blocked`, and `skipped` states visible.
 
 Pilot exit criteria:
 
-- 5 to 10 selected operating-company packets have recorded outcomes: `supported`, `still_blocked`, `skipped`, or `excluded`.
+- 5 to 10 selected operating-company packets have recorded outcomes: `supported`, `candidate_context_only`, `still_blocked`, `skipped`, or `excluded`.
 - Any supported lane has source proof, validation, preview, rejected-row review, apply or skip decision, rebuilt readiness, regenerated report, and proof-ledger evidence.
 - Operators can complete one full reviewed source-proof slice from dashboard, runbook, CLI packet, proof comparison, and proof ledger without guessing the next gate.
 - Remaining blockers are trusted-source, provider, licensing, or owner-decision constraints rather than product-code or documentation gaps.
@@ -157,7 +157,7 @@ Immediate pilot priorities:
 Post-pilot priorities:
 
 - Increase trusted fundamentals, share-count, and source-backed peer coverage.
-- Improve optional earnings and analyst-estimate lanes only after trusted local rows exist.
+- Improve optional earnings and analyst-estimate lanes only after trusted local or reviewed provider-assisted rows exist.
 - Continue extracting dashboard logic into tested helpers where it reduces operator risk.
 
 Launch-readiness priorities:
@@ -250,7 +250,7 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Add DCF Source Review Guard Preview V1 so guard-ready rows show the exact guard command, validate/preview gates, apply boundary, and post-guard proof before import-preview tables.
 - [x] Add DCF Source Proof Handoff V2 so guard preview rows show proof-record dry-run fields, validation/preview boundaries, artifact review, and stop rules before lower source tables.
 - [x] Add DCF Proof Ledger Outcome Compare V1 so source proof, before/after readiness comparison, and latest ledger outcome appear together before lower source tables.
-- [x] Add DCF Proof Outcome Closeout V1 so supported, still-blocked, skipped, or excluded closeout status and remaining evidence gates appear before lower source tables.
+- [x] Add DCF Proof Outcome Closeout V1 so supported, candidate-context-only, still-blocked, skipped, or excluded closeout status and remaining evidence gates appear before lower source tables.
 - [x] Add Proof Closeout Summary Board V1 so DCF and peer closeout states appear side by side before opening lane-specific evidence drawers.
 - [x] Add Proof Planner Stale-State CTA V1 so stale or missing readiness artifacts show one refresh-first CTA before DCF/peer proof-planning language.
 - [x] Extract DCF/peer proof CTA card builders from the Streamlit dashboard into a focused tested module.
@@ -291,7 +291,7 @@ Goal: make coverage growth proof-backed at the lane level before any ticker-leve
 - [x] Add Peer Proof-Loop Outcome UX in Data Health so source-review, write-back guard, validate/preview/rebuild, proof-record scaffold, and latest peer proof ledger outcome appear before raw peer tables.
 - [x] Add Peer Proof Completion Checklist V1 so the peer drawer shows freshness, missing source fields, write-back guard status, proof-record readiness, and latest ledger outcome before detailed tables.
 - [x] Add Peer Proof Batch Planner V1 so the peer drawer turns source-review rows into a capped source-proof plan with reviewed-batch packet, write-back guard, validation, proof-record, and stop-rule gates before raw peer tables.
-- [x] Add Peer Proof Closeout Parity V1 so peer proof comparison, supported/still-blocked/skipped/excluded closeout status, and remaining evidence gates mirror the DCF closeout flow.
+- [x] Add Peer Proof Closeout Parity V1 so peer proof comparison, supported/candidate-context-only/still-blocked/skipped/excluded closeout status, and remaining evidence gates mirror the DCF closeout flow.
 - Keep proof-ledger rows local and reviewable; do not claim a supported lane until source proof, validation, preview, rejected-row review, post-run readiness, and artifact hygiene are complete.
 
 ### Readiness-Gated Review Metrics V1
@@ -493,7 +493,7 @@ This stage should improve breadth without pretending the whole 3,538-ticker univ
 | Scalable price refresh | Separate complete price coverage from short-history blockers, then use capped batches only after review; `PROVIDER=auto` should use Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks without manual provider hopping. | `make price-history-proof-queue TOP_N=10`, `make focus-price TICKER=...`, then `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto`, then `make readiness-snapshot`, then capped `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30` only if reviewed, then `make diff-hygiene`. | Price-ready coverage stays honest while short-history momentum/track-record blockers move only from source-backed rows. |
 | Trusted fundamentals | Use the session-aware fundamentals source ladder, then trusted local imports when no configured source path is available. | `make session-source-preflight`, `make fundamentals-source-ladder-queue TOP_N=25`, `make focus-fundamentals TICKER=...`, `make imports-validate`, `make imports-preview`, `make imports-apply` only after source-backed review. | `fundamentals_ready` and `dcf_ready` improve only from trusted rows; SEC/Yahoo failures pivot to configured FMP, Alpha Vantage, or Finnhub instead of stopping the workflow. |
 | Source-backed peers | Prioritize active-universe and DCF-ready peer blockers before broad peer work. | `make peer-mapping-queue TOP_N=25`, `make focus-peers TICKER=...`, `make templates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Peer trend and peer valuation states are separated; peer valuation appears only when trusted peer inputs pass readiness. |
-| Optional context | Keep earnings and analyst estimates locked until trusted local rows exist. | `make optional-context-worklist TOP_N=25`, `make import-earnings`, `make import-analyst-estimates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Empty optional context reads as intentionally locked, not broken or inferred. |
+| Optional context | Keep earnings and analyst estimates locked until trusted local or reviewed provider-assisted rows exist. | `make optional-context-worklist TOP_N=25`, `make optional-context-source-ladder-queue TOP_N=10`, `make import-earnings`, `make import-analyst-estimates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Empty optional context reads as intentionally locked, not broken or inferred. |
 | Source readiness guidance | Make source age, rejected-row reports, and generated-data hygiene visible before interpretation. | `make project-status`, `make research-health-check TOP_N=10`, `make public-check`, `make diff-hygiene`. | Visitors can see what is fresh, what is stale, what is local-only, and what should not be committed. |
 | Data strategy | Keep a public, data-honest explanation of what can refresh safely and what still needs trusted human/source review. | Read `docs/DATA_STRATEGY.md`, then use the targeted commands above for a 5-10 company pilot. | Visitors understand why broad valuation coverage is limited and how the next trusted proof step should happen. |
 

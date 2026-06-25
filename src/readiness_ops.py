@@ -559,7 +559,7 @@ def build_readiness_ops_lanes(
             lane="earnings_locked",
             label="Earnings Locked Lane",
             readiness_state=_lane_state(ready=earnings_ready, blocked=earnings_blocked),
-            workflow_mode="locked_manual",
+            workflow_mode="optional_source_ladder",
             total_count=total,
             ready_count=earnings_ready,
             partial_count=0,
@@ -567,18 +567,18 @@ def build_readiness_ops_lanes(
             excluded_count=0,
             unlock_impact=earnings_blocked,
             source_lane="earnings",
-            source_readiness="Trusted local earnings rows only; empty rows render unavailable, not analysis.",
-            next_safe_command="make optional-context-worklist TOP_N=25",
-            proof_command="make imports-validate && make imports-preview && make optional-context-readiness",
-            generated_churn_policy="Do not apply or publish earnings rows unless trusted source rows were reviewed.",
+            source_readiness="Trusted local or reviewed provider-assisted earnings rows only; empty rows render unavailable, not analysis.",
+            next_safe_command="make optional-context-source-ladder-queue TOP_N=10",
+            proof_command="make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
+            generated_churn_policy="Do not apply or publish earnings rows unless trusted local/provider source rows were reviewed.",
             stale_proof_warning=stale_warning,
-            notes="Optional context stays locked until trusted local rows exist.",
+            notes="Optional context stays locked until trusted local or reviewed provider-assisted rows exist.",
         ),
         ReadinessLane(
             lane="analyst_estimates_locked",
             label="Analyst Estimates Locked Lane",
             readiness_state=_lane_state(ready=analyst_ready, blocked=analyst_blocked),
-            workflow_mode="locked_manual",
+            workflow_mode="optional_source_ladder",
             total_count=total,
             ready_count=analyst_ready,
             partial_count=0,
@@ -586,12 +586,12 @@ def build_readiness_ops_lanes(
             excluded_count=0,
             unlock_impact=analyst_blocked,
             source_lane="analyst_estimates",
-            source_readiness="Trusted local analyst-estimate rows only; consensus context is optional and never a recommendation.",
-            next_safe_command="make optional-context-worklist TOP_N=25",
-            proof_command="make imports-validate && make imports-preview && make optional-context-readiness",
-            generated_churn_policy="Do not apply or publish estimates unless trusted source rows were reviewed.",
+            source_readiness="Trusted local or reviewed provider-assisted analyst-estimate rows only; consensus context is optional and never a recommendation.",
+            next_safe_command="make optional-context-source-ladder-queue TOP_N=10",
+            proof_command="make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
+            generated_churn_policy="Do not apply or publish estimates unless trusted local/provider source rows were reviewed.",
             stale_proof_warning=stale_warning,
-            notes="Optional context is unavailable by design when local trusted rows are missing.",
+            notes="Optional context is unavailable by design when trusted local or reviewed provider-assisted rows are missing.",
         ),
         ReadinessLane(
             lane="excluded_not_applicable",
@@ -625,15 +625,16 @@ def build_coverage_frontier(lanes: list[ReadinessLane], *, top_n: int = 10) -> l
         "dry_run_first": 0,
         "preview_first_reviewed_apply": 1,
         "reviewed_apply": 2,
-        "locked_manual": 3,
+        "optional_source_ladder": 3,
+        "locked_manual": 4,
     }
     ranked_lanes.sort(key=lambda lane: (workflow_rank.get(lane.workflow_mode, 9), -lane.unlock_impact, lane.label))
     rows: list[CoverageFrontierOpportunity] = []
     for rank, lane in enumerate(ranked_lanes[: max(top_n, 0)], start=1):
         if lane.workflow_mode == "dry_run_first":
             move = "blocked/partial price coverage -> reviewed price-ready coverage after capped run proof"
-        elif lane.workflow_mode == "locked_manual":
-            move = "locked optional context -> partial/ready only after trusted local rows are reviewed"
+        elif lane.workflow_mode in {"locked_manual", "optional_source_ladder"}:
+            move = "locked optional context -> partial/ready only after trusted local/provider rows are reviewed"
         else:
             move = "blocked/partial analysis lane -> supported only after source proof and rebuilt readiness"
         rows.append(
@@ -665,8 +666,8 @@ def _expansion_batch_scope(lane: ReadinessLane) -> str:
         return "source-backed peer relationships for capped peer blockers; mapping before valuation inputs"
     if lane.lane == "peer_valuation_inputs":
         return "mapped-peer price, fundamentals, market-cap, or valuation-input proof after mappings exist"
-    if lane.workflow_mode == "locked_manual":
-        return "optional trusted-local rows only; keep locked until reviewed files exist"
+    if lane.workflow_mode in {"locked_manual", "optional_source_ladder"}:
+        return "optional trusted-local or provider-assisted rows only; keep locked until reviewed rows pass gates"
     return "readiness lane review only"
 
 
@@ -691,8 +692,8 @@ def _expansion_review_gate(lane: ReadinessLane) -> str:
         return "verify source-backed peer relationships; sector or industry similarity stays fallback context, not trusted peer mapping"
     if lane.lane == "peer_valuation_inputs":
         return "verify mapped peers have trusted price, fundamentals, market-cap, or valuation inputs before peer valuation appears"
-    if lane.workflow_mode == "locked_manual":
-        return "do not unlock optional context unless trusted local earnings or analyst-estimate rows exist"
+    if lane.workflow_mode in {"locked_manual", "optional_source_ladder"}:
+        return "do not unlock optional context unless trusted local or reviewed provider-assisted earnings/estimate rows pass validate and preview"
     return "review readiness state and proof notes before changing local files"
 
 
@@ -707,8 +708,8 @@ def _expansion_stop_condition(lane: ReadinessLane) -> str:
         return "stop if peer relationships are guessed, undocumented, self-peers only, or not source-backed"
     if lane.lane == "peer_valuation_inputs":
         return "stop if mapped peers lack trusted fundamentals, market-cap, price, or valuation-input rows"
-    if lane.workflow_mode == "locked_manual":
-        return "stop if no trusted local rows exist; locked optional context is the correct state"
+    if lane.workflow_mode in {"locked_manual", "optional_source_ladder"}:
+        return "stop if no trusted local/provider rows pass review; locked optional context is the correct state"
     return "stop if proof would rely on inferred or stale data"
 
 
@@ -723,7 +724,7 @@ def _expansion_outcome_boundary(lane: ReadinessLane) -> str:
         return "peer mappings can unlock peer trend setup, but peer valuation remains blocked until mapped-peer inputs exist"
     if lane.lane == "peer_valuation_inputs":
         return "peer valuation dispersion appears only when peer input readiness passes; sector fallback remains context only"
-    if lane.workflow_mode == "locked_manual":
+    if lane.workflow_mode in {"locked_manual", "optional_source_ladder"}:
         return "earnings and analyst estimates are optional review context, not required analysis inputs or auto-unlocks"
     return "excluded or unsupported states remain visible"
 
@@ -921,8 +922,8 @@ def build_fundamentals_peer_metrics_queue_from_lanes(
         )
     rows.append(_metric_queue_rollup(root, top_n=top_n))
     for lane_name, missing_inputs in (
-        ("earnings_locked", "trusted local earnings rows"),
-        ("analyst_estimates_locked", "trusted local analyst-estimate rows"),
+        ("earnings_locked", "trusted local or provider-assisted earnings rows"),
+        ("analyst_estimates_locked", "trusted local or provider-assisted analyst-estimate rows"),
     ):
         lane = lanes_by_key.get(lane_name)
         if lane is not None:
@@ -930,8 +931,8 @@ def build_fundamentals_peer_metrics_queue_from_lanes(
                 _queue_row_from_lane(
                     lane,
                     top_missing_input_families=missing_inputs,
-                    source_mode="optional trusted-local only",
-                    proof_gate="Optional context stays locked unless reviewed local rows exist and pass validate/preview gates.",
+                    source_mode="optional source ladder plus trusted-local fallback",
+                    proof_gate="Optional context stays locked unless reviewed local/provider rows exist and pass validate/preview gates.",
                 )
             )
     return rows
@@ -1283,7 +1284,7 @@ def render_readiness_ops_evidence(lanes: list[ReadinessLane], frontier: list[Cov
         f"- top_frontier_command: {latest.next_safe_command if latest else '-'}",
         "- proof_required_before_supported: source proof, validation, preview, rejected-row review, apply when appropriate, rebuilt readiness, and reviewed proof row.",
         "- generated_churn_policy: broad CSV/JSON churn stays out of commits unless intentionally reviewed evidence.",
-        "- locked_lanes: earnings and analyst estimates remain locked unless trusted local rows exist.",
+        "- locked_lanes: earnings and analyst estimates remain locked unless trusted local/provider rows pass import review.",
         "- excluded_lanes: non-company DCF exclusion remains excluded/not applicable, not failed.",
     ]
     return "\n".join(lines)

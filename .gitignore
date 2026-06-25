@@ -1,4 +1,8 @@
 .DS_Store
+.env
+.env.local
+.env.*.local
+config/provider_keys.env
 .pytest_cache/
 __pycache__/
 *.py[cod]

@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 import pandas as pd
 
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.provider_env import load_provider_environment
 from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FMP_API_KEY_ENV, FINNHUB_API_KEY_ENV
 from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 
@@ -669,6 +670,7 @@ def main() -> None:
     args = parser.parse_args()
 
     root = resolve_project_root(args.root)
+    load_provider_environment(root)
     data_path = resolve_data_dir(Path(args.data_dir) if args.data_dir else None, root)
     preflight = build_session_source_preflight(
         root,

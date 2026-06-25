@@ -338,7 +338,7 @@ def test_dcf_input_handoff_builds_copy_only_proof_record_scaffold(monkeypatch):
     assert handoff.validation_command == "make imports-validate"
     assert handoff.preview_command == "make imports-preview"
     assert "dry_run=1 make reviewed-batch-proof-record" in handoff.proof_record_scaffold.lower()
-    assert "FINAL_OUTCOME='<supported|still_blocked|skipped|excluded>'" in handoff.proof_record_scaffold
+    assert "FINAL_OUTCOME='<supported|candidate_context_only|still_blocked|skipped|excluded>'" in handoff.proof_record_scaffold
     assert "COMMAND_RUN='DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=AMD'" in handoff.proof_record_scaffold
     assert "copy-only sequence" in rendered
     assert "read-only" in rendered

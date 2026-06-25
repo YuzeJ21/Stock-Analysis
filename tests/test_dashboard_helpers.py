@@ -11861,7 +11861,7 @@ def test_data_health_reviewed_batch_operator_flow_cards_make_lane_to_proof_compa
     assert "source-backed peer mappings" in rendered
     assert "capture snapshot gate" in rendered
     assert "compare before recording" in rendered
-    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "supported, candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "dry-run proof row last" in rendered
     assert "placeholders" in rendered
     assert "security ranking" in rendered
@@ -12201,7 +12201,7 @@ def test_data_health_reviewed_batch_execution_frame_keeps_mutating_gates_explici
     assert "make diff-hygiene && make diff-hygiene-files" in rendered
     assert "rollback" in rendered
     assert "restore reviewed standard local csvs" in rendered
-    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "supported, candidate_context_only, still_blocked, skipped, or excluded" in rendered
 
 
 def test_data_health_reviewed_batch_sequence_cards_make_commands_copyable_but_review_gated():
@@ -12234,7 +12234,7 @@ def test_data_health_reviewed_batch_sequence_cards_make_commands_copyable_but_re
     assert cards[2]["command"] == "make imports-validate && make imports-preview"
     assert "metrics remain read-only" in rendered
     assert "restore standard local csvs" in rendered
-    assert "supported/still_blocked/skipped/excluded" in rendered
+    assert "supported/candidate_context_only/still_blocked/skipped/excluded" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -12264,7 +12264,7 @@ def test_data_health_latest_reviewed_batch_packet_frame_reads_packet_scaffold(tm
     packet = tmp_path / "reviewed_batch_packet.csv"
     packet.write_text(
         "batch_id,lane,lane_label,ticker_scope,proposed_ticker,workflow_mode,freshness_status,dry_run_command,readiness_comparison_command,proof_record_command,validation_result,preview_result,apply_result,changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,final_outcome\n"
-        "RB-2,metric_readiness_review,Metric Readiness Review,AAA;BBB,AAA,read_only_review,current,make metric-readiness-board TOP_N=2,make reviewed-batch-compare LANE=metrics,make reviewed-batch-proof-record BATCH_ID=RB-2,,,,,AAA,metric queue output,exclude broad churn,supported|still_blocked|skipped|excluded\n",
+        "RB-2,metric_readiness_review,Metric Readiness Review,AAA;BBB,AAA,read_only_review,current,make metric-readiness-board TOP_N=2,make reviewed-batch-compare LANE=metrics,make reviewed-batch-proof-record BATCH_ID=RB-2,,,,,AAA,metric queue output,exclude broad churn,supported|candidate_context_only|still_blocked|skipped|excluded\n",
         encoding="utf-8",
     )
 
@@ -12292,7 +12292,7 @@ def test_data_health_reviewed_batch_proof_loop_cards_connect_packet_comparison_a
                 "Proof Record Scaffold": "make reviewed-batch-proof-record BATCH_ID=RB-2",
                 "Source Files": "metric queue output",
                 "Generated Artifacts Review": "exclude broad churn",
-                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+                "Allowed Outcome": "supported|candidate_context_only|still_blocked|skipped|excluded",
             },
             {
                 "Batch ID": "RB-2",
@@ -12306,7 +12306,7 @@ def test_data_health_reviewed_batch_proof_loop_cards_connect_packet_comparison_a
                 "Proof Record Scaffold": "make reviewed-batch-proof-record BATCH_ID=RB-2",
                 "Source Files": "metric queue output",
                 "Generated Artifacts Review": "exclude broad churn",
-                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+                "Allowed Outcome": "supported|candidate_context_only|still_blocked|skipped|excluded",
             },
         ]
     )
@@ -12334,7 +12334,7 @@ def test_data_health_reviewed_batch_proof_loop_cards_connect_packet_comparison_a
     assert cards[2]["command"] == "make reviewed-batch-proof-record BATCH_ID=RB-2"
     assert "rows: 2; tickers: 2" in rendered
     assert "metric_state" in rendered
-    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "supported, candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "source files (metric queue output)" in rendered
     assert "exclude broad churn" in rendered
     assert "copy command" in " ".join(frame.columns).lower()
@@ -12366,7 +12366,7 @@ def test_data_health_reviewed_batch_proof_loop_cards_warn_when_packet_or_snapsho
     assert cards[1]["title"] == "Comparison blocked"
     assert cards[1]["command"] == "make readiness-snapshot"
     assert "keep the proof row open" in rendered
-    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "supported, candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -12387,7 +12387,7 @@ def test_data_health_reviewed_batch_outcome_recorder_flags_missing_proof_fields(
                 "Changed Tickers": "<tickers changed, or none>",
                 "Source Files": "metric queue output",
                 "Generated Artifacts Review": "<kept evidence or excluded local churn>",
-                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+                "Allowed Outcome": "supported|candidate_context_only|still_blocked|skipped|excluded",
             }
         ]
     )
@@ -12613,7 +12613,7 @@ def test_data_health_reviewed_batch_proof_record_command_builder_keeps_missing_f
                 "Changed Tickers": "<tickers changed, or none>",
                 "Source Files": "metric queue output",
                 "Generated Artifacts Review": "<kept evidence or excluded local churn>",
-                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+                "Allowed Outcome": "supported|candidate_context_only|still_blocked|skipped|excluded",
             }
         ]
     )
@@ -12801,7 +12801,7 @@ def test_data_health_reviewed_batch_proof_ledger_preview_blocks_unready_rows():
                 "Changed Tickers": "<tickers changed, or none>",
                 "Source Files": "metric queue output",
                 "Generated Artifacts Review": "<kept evidence or excluded local churn>",
-                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+                "Allowed Outcome": "supported|candidate_context_only|still_blocked|skipped|excluded",
             }
         ]
     )
@@ -12995,7 +12995,7 @@ def test_data_health_reviewed_batch_preflight_cards_ready_state():
 
     assert cards[0]["badges"] == ["ready", "dry-run first"]
     assert "current readiness and prior snapshot are present" in rendered
-    assert "supported, still-blocked, skipped, or excluded" in rendered
+    assert "supported, candidate-context-only, still-blocked, skipped, or excluded" in rendered
 
 
 def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
@@ -13481,7 +13481,7 @@ def test_dcf_input_proof_handoff_cards_and_frame_keep_record_boundary_visible():
     assert handoff.iloc[0]["Step"] == "1. Reviewed packet preview"
     assert handoff.iloc[-1]["Step"] == "7. Proof record dry run"
     assert "dry_run=1 make reviewed-batch-proof-record" in table_text
-    assert "final_outcome='<supported|still_blocked|skipped|excluded>'" in table_text
+    assert "final_outcome='<supported|candidate_context_only|still_blocked|skipped|excluded>'" in table_text
     assert "copy the proof-record command only after" in table_text
     assert "buy now" not in rendered
     assert "sell now" not in rendered
@@ -24778,7 +24778,7 @@ def test_proof_detail_load_cards_keep_proof_states_clear_and_research_only():
     assert "loaded" in rendered
     assert "source warning" in rendered
     assert "reviewed evidence is complete" in rendered
-    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "supported, candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered

@@ -3,7 +3,7 @@
 Use this copy-pasteable continuation contract when you want an automation run to keep expanding coverage without stalling on one unavailable source path.
 
 ```text
-Continue Stock Research Command Center coverage proof work until every coverage lane is updated to one of: supported, still_blocked, skipped, or excluded.
+Continue Stock Research Command Center coverage proof work until every coverage lane is updated to one of: supported, candidate_context_only, still_blocked, skipped, or excluded.
 
 Workspace: current repo root
 

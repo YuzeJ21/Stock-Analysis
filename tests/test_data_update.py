@@ -22,6 +22,7 @@ from src.data_update import (
     update_local_price_data,
     validate_price_imports,
 )
+from src.provider_env import reset_provider_environment_cache
 
 
 class FakePriceSource:
@@ -325,7 +326,12 @@ def test_update_local_price_data_records_auto_price_ladder_provider(tmp_path: Pa
     assert any("source ladder resolved price rows from stooq" in warning for warning in result.warnings)
 
 
-def test_make_price_source_auto_builds_yahoo_then_stooq_ladder():
+def test_make_price_source_auto_builds_yahoo_then_stooq_ladder(tmp_path: Path, monkeypatch):
+    for key in ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.chdir(tmp_path)
+    reset_provider_environment_cache()
+
     source = make_price_source("auto")
 
     assert isinstance(source, PriceSourceLadder)
@@ -333,6 +339,7 @@ def test_make_price_source_auto_builds_yahoo_then_stooq_ladder():
 
 
 def test_make_price_source_auto_adds_configured_keyed_price_fallbacks(monkeypatch):
+    reset_provider_environment_cache()
     monkeypatch.setenv("FMP_API_KEY", "fmp-demo")
     monkeypatch.setenv("ALPHA_VANTAGE_API_KEY", "alpha-demo")
     monkeypatch.setenv("FINNHUB_API_KEY", "finnhub-demo")

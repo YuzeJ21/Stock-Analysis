@@ -223,7 +223,7 @@ def test_peer_mapping_writeback_guard_blocks_duplicate_and_self_peer(tmp_path: P
     assert duplicate_guard.csv_row == ""
     assert duplicate_guard.proof_record_status == "blocked_by_guard"
     assert duplicate_guard.proof_record_missing_fields == ("guard_blocking_reasons",)
-    assert "FINAL_OUTCOME='<supported|still_blocked|skipped|excluded>'" in duplicate_guard.proof_record_command
+    assert "FINAL_OUTCOME='<supported|candidate_context_only|still_blocked|skipped|excluded>'" in duplicate_guard.proof_record_command
     assert "Do not record a supported peer outcome" in duplicate_guard.proof_record_boundary
     assert self_peer_guard.status == "blocked"
     assert "self_peer" in self_peer_guard.blocking_reasons

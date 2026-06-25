@@ -473,7 +473,7 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
         "BATCH_ID=<batch_id> "
         f"LANE={batch_lane} "
         "REVIEW_DATE=<yyyy-mm-dd> "
-        "FINAL_OUTCOME=<supported|still_blocked|skipped|excluded>"
+        "FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded>"
     )
     return pd.DataFrame(
         [
@@ -507,7 +507,7 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
             {
                 "Step": "4. Proof-record command",
                 "Status": proof_status,
-                "Operator Decision": "Record only supported, still_blocked, skipped, or excluded after final review.",
+                "Operator Decision": "Record only supported, candidate_context_only, still_blocked, skipped, or excluded after final review.",
                 "Drawer Route": _proof_lane_drawer_route("proof-record"),
                 "Route Boundary": "navigation-only; proof rows stay dry-run-first until required fields are reviewed",
                 "Copy-Only Command": proof_command,
@@ -663,7 +663,7 @@ def build_readiness_queue_route_overview_cards(drilldown_frame: pd.DataFrame | N
             "title": proof_status,
             "body": (
                 f"Open {_proof_lane_drawer_route('comparison')} before {_proof_lane_drawer_route('proof-record')}. "
-                "Record supported, still_blocked, skipped, or excluded only after reviewed fields are complete."
+                "Record supported, candidate_context_only, still_blocked, skipped, or excluded only after reviewed fields are complete."
             ),
             "badges": ["compare first", "dry-run proof"],
             "command": f"make reviewed-batch-compare LANE={_queue_lane_batch_lane(lane)} BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",

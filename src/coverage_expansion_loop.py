@@ -160,6 +160,8 @@ def _lane_proceed_boundary(lane: ReadinessLane) -> str:
         return "source proof, validate, preview, rejected-row review, explicit apply decision, rebuilt readiness"
     if lane.workflow_mode == "reviewed_apply":
         return "source-backed rows only; fallback context does not become trusted data"
+    if lane.workflow_mode == "optional_source_ladder":
+        return "locked until trusted local or reviewed provider-assisted rows exist; skipped is valid when source proof is unavailable"
     if lane.workflow_mode == "locked_manual":
         return "locked until trusted local rows exist; skipped is valid when source proof is unavailable"
     if lane.workflow_mode == "excluded":
@@ -178,8 +180,9 @@ def build_coverage_expansion_lane_board(
         "dry_run_first": 0,
         "preview_first_reviewed_apply": 1,
         "reviewed_apply": 2,
-        "locked_manual": 3,
-        "excluded": 4,
+        "optional_source_ladder": 3,
+        "locked_manual": 4,
+        "excluded": 5,
     }
     ranked = sorted(
         lanes,
@@ -322,22 +325,23 @@ def build_source_proof_gate(
         lane=normalized,
         status="locked_or_excluded",
         evidence_to_collect=(
-            "trusted local optional rows if the lane is earnings or estimates",
+            "trusted local or reviewed provider-assisted optional rows if the lane is earnings or estimates",
             "asset-type evidence if the lane is excluded/not applicable",
             "reviewer note when the correct outcome is skipped or excluded",
         ),
         accepted_sources=(
             "trusted local earnings rows with source",
             "trusted local analyst-estimate rows with source",
+            "reviewed provider-assisted optional rows that pass validation and preview",
             "readiness/report output showing excluded/not applicable state",
         ),
         rejected_shortcuts=(
             "empty optional rows treated as analysis",
-            "third-party estimates copied without trusted local source review",
+            "third-party estimates copied without trusted local/provider source review",
             "forcing operating-company valuation onto ETF/index/fund rows",
         ),
         review_commands=(
-            f"make optional-context-worklist TOP_N={top_n}",
+            f"make optional-context-source-ladder-queue TOP_N={top_n}",
             "make imports-validate && make imports-preview",
             "make optional-context-readiness",
         ),

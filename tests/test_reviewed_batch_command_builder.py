@@ -199,7 +199,7 @@ def test_proof_record_validation_rejects_invalid_outcome():
             "Lane": "Prices",
             "Review Date": "2026-06-14",
             "Dry Run Command": "make price-refresh-loop DRY_RUN=1 TOP_N=1",
-            "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+            "Allowed Outcome": "supported|candidate_context_only|still_blocked|skipped|excluded",
             "Validation Result": "passed",
             "Preview Result": "reviewed 1 row",
             "Apply Result": "skipped",
@@ -269,8 +269,8 @@ def test_proof_record_validation_prioritizes_snapshot_blockers():
 
 
 def test_placeholder_detection_is_conservative_for_outcome_choices():
-    assert is_placeholder_value("<supported|still_blocked|skipped|excluded>")
-    assert is_placeholder_value("supported|still_blocked|skipped|excluded")
+    assert is_placeholder_value("<supported|candidate_context_only|still_blocked|skipped|excluded>")
+    assert is_placeholder_value("supported|candidate_context_only|still_blocked|skipped|excluded")
     assert is_placeholder_value("")
     assert not is_placeholder_value("still_blocked")
     assert not is_placeholder_value("not_applicable_read_only_metric_review")
@@ -307,7 +307,7 @@ def test_proof_completion_rows_prioritize_snapshot_and_invalid_outcome_actions()
             "Field": "final_outcome",
             "Validation Status": "invalid_outcome",
             "Command Value": "maybe_supported",
-            "Reason": "FINAL_OUTCOME must be exactly one of supported, still_blocked, skipped, or excluded.",
+            "Reason": "FINAL_OUTCOME must be exactly one of supported, candidate_context_only, still_blocked, skipped, or excluded.",
         },
         {
             "Field": "changed_tickers",
@@ -320,7 +320,7 @@ def test_proof_completion_rows_prioritize_snapshot_and_invalid_outcome_actions()
     rows = build_proof_completion_rows(validation_rows, command_status="invalid_outcome")
 
     assert rows[0]["Field"] == "final_outcome"
-    assert rows[0]["Next Safest Action"] == "Set FINAL_OUTCOME exactly to supported, still_blocked, skipped, or excluded."
+    assert rows[0]["Next Safest Action"] == "Set FINAL_OUTCOME exactly to supported, candidate_context_only, still_blocked, skipped, or excluded."
     assert rows[1]["Field"] == "changed_tickers"
     assert "make readiness-snapshot" in rows[1]["Next Safest Action"]
 
@@ -406,7 +406,7 @@ def test_proof_ledger_preview_rows_keep_copy_boundary_until_ready():
             "Batch ID": "RB-10",
             "Lane": "Metric Readiness Review",
             "Dry Run Command": "make metric-readiness-board TOP_N=1",
-            "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+            "Allowed Outcome": "supported|candidate_context_only|still_blocked|skipped|excluded",
             "Validation Result": "<pass/fail/not_applicable>",
             "Preview Result": "<reviewed rows>",
             "Apply Result": "<not_run/applied/skipped>",

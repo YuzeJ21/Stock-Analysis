@@ -155,7 +155,7 @@ def proof_loop_fit_cards(frame: pd.DataFrame | None, *, lane: str) -> list[dict[
             "title": format_missing(proof.get("Status"), "not_recorded"),
             "body": (
                 f"{card_sentence('Evidence', compact_card_fragment(proof.get('What To Look At'), max_chars=190))} "
-                "Proof states stay supported, still_blocked, skipped, or excluded until reviewed evidence is complete."
+                "Proof states stay supported, candidate_context_only, still_blocked, skipped, or excluded until reviewed evidence is complete."
             ),
             "badges": ["evidence", "copy-only"],
             "command": format_missing(proof.get("Next Safe Action"), "make reviewed-batch-proof"),

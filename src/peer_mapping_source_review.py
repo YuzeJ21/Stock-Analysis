@@ -291,7 +291,7 @@ def peer_mapping_proof_record_command(row: PeerMappingReviewRow, guard_status: s
         "CHANGED_TICKERS": "<from reviewed-batch-compare LANE=peers>",
         "SOURCE_FILES": source_files,
         "GENERATED_ARTIFACTS_REVIEWED": "<kept peer evidence or excluded generated churn>",
-        "FINAL_OUTCOME": "<supported|still_blocked|skipped|excluded>",
+        "FINAL_OUTCOME": "<supported|candidate_context_only|still_blocked|skipped|excluded>",
         "NOTES": "peer row remains research-only until validate, preview, apply decision, readiness, and proof review pass",
     }
     assignments = " ".join(_shell_assignment(name, value) for name, value in values.items())

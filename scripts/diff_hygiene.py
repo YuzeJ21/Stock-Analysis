@@ -26,6 +26,7 @@ ROOT_PRODUCT_FILES = {
     "DECISION_OUTPUT_MODEL.md",
     "Makefile",
     "config.yaml",
+    "config/provider_keys.env.example",
     "pyproject.toml",
     "data/reviewed_data_proofs.csv",
     "data/reviewed_batch_proofs.csv",

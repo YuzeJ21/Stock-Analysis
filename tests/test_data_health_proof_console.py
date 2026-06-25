@@ -48,7 +48,7 @@ def _packet_frame(*, ready: bool = False) -> pd.DataFrame:
                 "Changed Tickers": "AAA" if ready else "<tickers changed, or none>",
                 "Source Files": "metric-readiness console output",
                 "Generated Artifacts Review": "excluded generated CSV churn" if ready else "<kept evidence or excluded local churn>",
-                "Allowed Outcome": "still_blocked" if ready else "supported|still_blocked|skipped|excluded",
+                "Allowed Outcome": "still_blocked" if ready else "supported|candidate_context_only|still_blocked|skipped|excluded",
             }
         ]
     )
@@ -64,7 +64,7 @@ def test_proof_console_summary_and_loop_cards_are_research_only():
     assert summary["ticker_count"] == "1"
     assert [card["kicker"] for card in cards] == ["LATEST PACKET", "COMPARISON STATUS", "PROOF RECORD"]
     assert "copy-only evidence" in rendered
-    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "supported, candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered

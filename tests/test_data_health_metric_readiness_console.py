@@ -122,7 +122,7 @@ def test_metric_and_proof_detail_cards_are_research_only():
 
     assert "no stale counts" in rendered
     assert "no stale proof" in rendered
-    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "supported, candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered

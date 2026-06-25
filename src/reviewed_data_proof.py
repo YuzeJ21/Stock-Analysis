@@ -17,7 +17,7 @@ from typing import Iterable
 
 DEFAULT_LEDGER_PATH = Path("data/reviewed_data_proofs.csv")
 DEFAULT_PUBLIC_DEMO_PACK_PATH = Path("docs/PUBLIC_DEMO_READINESS_PACK.md")
-PROOF_OUTCOMES = {"supported", "still_blocked", "skipped", "excluded"}
+PROOF_OUTCOMES = {"supported", "candidate_context_only", "still_blocked", "skipped", "excluded"}
 
 PROOF_LEDGER_COLUMNS = (
     "proof_id",
@@ -275,7 +275,7 @@ def render_price_reviewed_run_plan(
             "7. make readiness",
             "8. make status-check TOP_N=5",
             "9. make diff-hygiene",
-            "10. Record a reviewed proof row with final outcome supported/still_blocked/skipped/excluded.",
+            "10. Record a reviewed proof row with final outcome supported/candidate_context_only/still_blocked/skipped/excluded.",
             "If no reviewed price rows are fetched or merged, record FINAL_OUTCOME=still_blocked with provider output as evidence and pivot to the next executable lane.",
             "",
             "Rollback notes:",
@@ -323,7 +323,7 @@ def render_public_demo_readiness_pack(rows: list[ReviewedProof]) -> str:
 def build_proof_from_args(args: argparse.Namespace) -> ReviewedProof:
     final_outcome = _clean(args.final_outcome).lower()
     if final_outcome not in PROOF_OUTCOMES:
-        raise SystemExit("FINAL_OUTCOME must be one of supported, still_blocked, skipped, excluded.")
+        raise SystemExit("FINAL_OUTCOME must be one of supported, candidate_context_only, still_blocked, skipped, or excluded.")
     return ReviewedProof(
         proof_id=_clean(args.proof_id),
         proof_date=_clean(args.proof_date),

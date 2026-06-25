@@ -79,7 +79,31 @@ def test_lane_outcome_history_summarizes_without_generated_csv_churn():
     assert "without reading generated readiness CSV churn" in rendered
 
 
-def test_price_reviewed_run_plan_is_copy_only_with_snapshot_diff_and_rollback():
+def test_reviewed_data_proof_history_accepts_candidate_context_only():
+    rows = [
+        _proof(
+            proof_id="RDP-CANDIDATE-001",
+            lane="peer_mapping",
+            lane_label="Peer mapping candidate context",
+            final_outcome="candidate_context_only",
+            source_proof_status="candidate peers generated from local classification only",
+            reviewer_outcome="not promoted to trusted peer proof",
+            still_blocked="Trusted peer source proof is still required before peer valuation.",
+        )
+    ]
+
+    history = lane_history_rows(rows)
+    rendered = render_lane_outcome_history(rows)
+
+    assert history[0]["latest_outcome"] == "candidate_context_only"
+    assert "candidate_context_only" in rendered
+    assert "Trusted peer source proof is still required" in rendered
+
+
+def test_price_reviewed_run_plan_is_copy_only_with_snapshot_diff_and_rollback(monkeypatch):
+    for key in ("STOOQ_API_KEY", "STOQ_API_KEY", "FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+
     rendered = render_price_reviewed_run_plan(max_candidates=3500, top_n=100, sleep_seconds=30)
 
     assert "Copy-only" in rendered

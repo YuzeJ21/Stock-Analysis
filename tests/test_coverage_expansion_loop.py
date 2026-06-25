@@ -153,9 +153,9 @@ def test_coverage_expansion_lane_board_keeps_locked_and_excluded_boundaries_visi
     )
 
     assert any(row.selected and row.lane == "earnings_locked" for row in board)
-    assert "locked until trusted local rows exist" in rendered
+    assert "locked until trusted local or reviewed provider-assisted rows exist" in rendered
     assert "excluded/not applicable stays visible" in rendered
-    assert "make optional-context-worklist TOP_N=25" in rendered
+    assert "make optional-context-source-ladder-queue TOP_N=10" in rendered
     assert "buy" not in rendered.lower()
     assert "sell" not in rendered.lower()
     assert "broker" not in rendered.lower()
@@ -194,9 +194,9 @@ def test_source_proof_gate_for_optional_context_keeps_locked_outcome_valid():
 
     assert gate.status == "locked_or_excluded"
     assert gate.lane == "earnings_locked"
-    assert "trusted local optional rows" in rendered
+    assert "trusted local or reviewed provider-assisted optional rows" in rendered
     assert "empty optional rows treated as analysis" in rendered
-    assert "make optional-context-worklist top_n=6" in rendered
+    assert "make optional-context-source-ladder-queue top_n=6" in rendered
     assert "locked/skipped/excluded" in gate.proof_ready_when
 
 
