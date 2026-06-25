@@ -132,6 +132,8 @@ from src.dashboard_navigation import (
     dashboard_page_slug,
     page_title_from_public_path,
     public_path_label,
+    route_rail_query_update,
+    selected_page_from_route_rail,
     sidebar_path_index as _sidebar_path_index,
     sidebar_path_options as _sidebar_path_options,
 )
@@ -1913,6 +1915,7 @@ def apply_dashboard_theme() -> None:
         [data-testid="stAppDeployButton"],
         [data-testid="stBaseButton-header"],
         [data-testid="stBaseButton-headerNoPadding"],
+        [data-testid="stSidebarHeader"],
         [data-testid="stSidebarCollapseButton"],
         .stDeployButton,
         .stAppDeployButton {
@@ -1926,15 +1929,19 @@ def apply_dashboard_theme() -> None:
         [data-testid="stSidebar"] {
           background: #07111d !important;
           border-right: 1px solid rgba(255,255,255,0.08);
-          width: 10.1rem !important;
-          min-width: 10.1rem !important;
+          width: 10.5rem !important;
+          min-width: 10.5rem !important;
+          overflow-x: hidden !important;
         }
         [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
           background: linear-gradient(180deg, #070d16 0%, #0a1724 100%) !important;
           padding: 0.85rem 0.62rem !important;
+          overflow-x: hidden !important;
         }
         [data-testid="stSidebar"] * {
+          box-sizing: border-box;
           color: rgba(255,255,255,0.86) !important;
+          max-width: 100%;
         }
         [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
           gap: 0.38rem;
@@ -1961,10 +1968,12 @@ def apply_dashboard_theme() -> None:
           margin-top: 0.22rem;
         }
         .sidebar-nav-copy {
-          color: rgba(226,232,240,0.72) !important;
-          font-size: 0.66rem;
-          line-height: 1.28;
-          margin-top: 0.32rem;
+          display: none !important;
+          visibility: hidden !important;
+          height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
         }
         [data-testid="stSidebar"] [data-testid="stRadio"] > label {
           color: rgba(226,232,240,0.72) !important;
@@ -2145,6 +2154,7 @@ def apply_dashboard_theme() -> None:
           border-right: 1px solid rgba(148, 163, 184, 0.28);
           padding: 0.28rem 0.56rem 0.28rem 0.28rem;
           min-height: 4.1rem;
+          min-width: 0;
         }
         .command-kpi:last-child {
           border-right: 0;
@@ -2157,9 +2167,11 @@ def apply_dashboard_theme() -> None:
         .command-kpi-value {
           color: #047857;
           font-size: 1.12rem;
+          line-height: 1.16;
           font-weight: 950;
           margin-top: 0.18rem;
-          white-space: nowrap;
+          white-space: normal;
+          overflow-wrap: anywhere;
         }
         .command-kpi.blocked .command-kpi-value,
         .command-kpi.warn .command-kpi-value {
@@ -4365,6 +4377,8 @@ def normalize_operator_copy(text: object) -> str:
         "locked_manual": "Locked manual",
         "reviewed_apply": "Reviewed apply",
         "preview_first_reviewed_apply": "Preview first, reviewed apply",
+        "optional_source_ladder": "Optional source review",
+        "source_activation_required": "Source review needed",
     }
     lowered = normalized.strip().lower()
     if lowered in display_labels:
@@ -4570,7 +4584,7 @@ def action_card_html(title: str, body: str, command: str = "", tone: str = "neut
     tone_class = "warning" if tone == "warning" else "danger" if tone == "danger" else ""
     command_text = str(command or "").strip()
     if command_text.startswith("?") or command_text.startswith("http://") or command_text.startswith("https://"):
-        command_html = f"<a class='action-link' href='{html.escape(command_text, quote=True)}'>Open</a>"
+        command_html = f"<a class='action-link' href='{html.escape(command_text, quote=True)}' target='_self'>Open</a>"
     else:
         command_html = f"<div class='command-chip'>{html.escape(command_text)}</div>" if command_text else ""
     return (
@@ -4747,6 +4761,9 @@ def operator_queue_preview_copy(text: object) -> str:
         "optional_context": "optional context",
         "still_blocked": "still blocked",
         "missing_before": "missing before",
+        "free_cash_flow": "free cash flow",
+        "shares_outstanding": "shares outstanding",
+        "fcf_margin": "FCF margin",
     }
     for raw, label in token_replacements.items():
         cleaned = re.sub(rf"\b{re.escape(raw)}\b", label, cleaned)
@@ -4943,7 +4960,7 @@ def command_center_header_html(
         "<span class='command-status-item'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
-        "<a class='command-top-link' href='?mode=public&page=data-health'>Data Health</a>"
+        "<a class='command-top-link' href='?mode=public&page=data-health' target='_self'>Data Health</a>"
         "<span class='command-status-item'>About this center</span>"
         "</div>"
         "</div>"
@@ -5058,7 +5075,7 @@ def command_center_workbench_html(summary: dict[str, object] | None) -> str:
     blocked = max(total - price_ready, 0) if total else 0
     recent_reports = ["NVDA", "AAPL", "MSFT", "AVGO", "TSLA"]
     report_rows = "".join(
-        f"<div class='command-mini-row'><span>{html.escape(ticker)}</span><span>Local report</span></div>"
+        f"<div class='command-mini-row'><span>{html.escape(ticker)}</span><span>Open review</span></div>"
         for ticker in recent_reports
     )
     proof_rows = "".join(
@@ -5080,7 +5097,7 @@ def command_center_workbench_html(summary: dict[str, object] | None) -> str:
             ("Readiness snapshot", "Current"),
             ("Selector queue", "Sorted by readiness"),
             ("Proof drawer", "Open in Data Health"),
-            ("Report path", "Copy-only"),
+            ("Review path", "Read-only"),
         ]
     )
     return (
@@ -9091,8 +9108,8 @@ def data_health_readiness_ops_center_frame(root: Path | None = None) -> pd.DataF
     rows = [
         {
             "Lane": lane.label,
-            "State": lane.readiness_state,
-            "Workflow Mode": lane.workflow_mode,
+            "State": public_status_label(lane.readiness_state),
+            "Workflow Mode": normalize_operator_copy(lane.workflow_mode),
             "Ready": lane.ready_count,
             "Partial": lane.partial_count,
             "Blocked": lane.blocked_count,
@@ -10965,34 +10982,105 @@ def _proof_history_first_text(frame: pd.DataFrame | None, *columns: str, fallbac
     return fallback
 
 
+def _proof_history_public_text(value: object, fallback: str = "Not recorded") -> str:
+    cleaned = operator_queue_preview_copy(public_status_label(value, fallback=fallback))
+    cleaned = re.sub(r"\b([A-Za-z]+)_([A-Za-z]+)\b", lambda match: f"{match.group(1)} {match.group(2)}", cleaned)
+    cleaned = re.sub(r"(?<=\w)_(?=\w)", " ", cleaned)
+    return cleaned.replace("record(s)", "records").replace("row(s)", "rows")
+
+
 def proof_history_public_summary_html(proof_timeline: pd.DataFrame | None, batch_proof_frame: pd.DataFrame | None) -> str:
     proof_count = 0 if proof_timeline is None else len(proof_timeline)
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
-    latest_proof_lane = _proof_history_first_text(proof_timeline, "Lane", fallback="No lane proof yet")
-    latest_proof_outcome = _proof_history_first_text(proof_timeline, "Final Outcome", "Reviewer Outcome", fallback="not_recorded")
-    latest_proof_change = _proof_history_first_text(proof_timeline, "What Changed", "Still Blocked", fallback="No reviewed lane change recorded yet.")
-    latest_batch_lane = _proof_history_first_text(batch_proof_frame, "Lane", fallback="No batch proof yet")
-    latest_batch_outcome = _proof_history_first_text(batch_proof_frame, "Final Outcome", fallback="not_recorded")
-    latest_batch_change = _proof_history_first_text(
-        batch_proof_frame,
-        "Changed Readiness Counts",
-        "Changed Tickers",
-        fallback="No reviewed batch change recorded yet.",
+    latest_proof_lane = _proof_history_public_text(_proof_history_first_text(proof_timeline, "Lane", fallback="No lane proof yet"))
+    latest_proof_outcome = _proof_history_public_text(
+        _proof_history_first_text(proof_timeline, "Final Outcome", "Reviewer Outcome", fallback="not_recorded")
+    )
+    latest_proof_change = _proof_history_public_text(
+        _proof_history_first_text(proof_timeline, "What Changed", "Still Blocked", fallback="No reviewed lane change recorded yet.")
+    )
+    latest_batch_lane = _proof_history_public_text(_proof_history_first_text(batch_proof_frame, "Lane", fallback="No batch proof yet"))
+    latest_batch_outcome = _proof_history_public_text(_proof_history_first_text(batch_proof_frame, "Final Outcome", fallback="not_recorded"))
+    latest_batch_change = _proof_history_public_text(
+        _proof_history_first_text(
+            batch_proof_frame,
+            "Changed Readiness Counts",
+            "Changed Tickers",
+            fallback="No reviewed batch change recorded yet.",
+        )
     )
     return (
         "<div class='public-proof-history'>"
         "<div class='public-proof-summary-card'>"
         "<div class='public-proof-kicker'>Proof History</div>"
         "<div class='public-proof-title'>Latest source-proof trail</div>"
-        f"<div class='public-proof-body'>{html.escape(str(proof_count))} reviewed lane proof row(s). Latest lane: {html.escape(latest_proof_lane)}. Outcome: {html.escape(latest_proof_outcome)}. {html.escape(latest_proof_change)}</div>"
+        f"<div class='public-proof-body'>{html.escape(str(proof_count))} reviewed lane proof records. Latest lane: {html.escape(latest_proof_lane)}. Outcome: {html.escape(latest_proof_outcome)}. {html.escape(latest_proof_change)}</div>"
         "</div>"
         "<div class='public-proof-summary-card'>"
         "<div class='public-proof-kicker'>Reviewed Batch Proof</div>"
         "<div class='public-proof-title'>Changed readiness needs durable proof</div>"
-        f"<div class='public-proof-body'>{html.escape(str(batch_count))} reviewed batch proof row(s). Latest lane: {html.escape(latest_batch_lane)}. Outcome: {html.escape(latest_batch_outcome)}. {html.escape(latest_batch_change)}</div>"
+        f"<div class='public-proof-body'>{html.escape(str(batch_count))} reviewed batch proof records. Latest lane: {html.escape(latest_batch_lane)}. Outcome: {html.escape(latest_batch_outcome)}. {html.escape(latest_batch_change)}</div>"
         "</div>"
         "</div>"
     )
+
+
+def proof_history_public_detail_cards(
+    proof_timeline: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    latest_proof_date = _proof_history_public_text(_proof_history_first_text(proof_timeline, "Proof Date", fallback="No date recorded"))
+    latest_proof_lane = _proof_history_public_text(_proof_history_first_text(proof_timeline, "Lane", fallback="No lane proof yet"))
+    latest_proof_outcome = _proof_history_public_text(
+        _proof_history_first_text(proof_timeline, "Final Outcome", "Reviewer Outcome", fallback="not_recorded")
+    )
+    latest_proof_change = _proof_history_public_text(
+        _proof_history_first_text(proof_timeline, "What Changed", fallback="No reviewed lane change recorded yet.")
+    )
+    latest_proof_blocker = _proof_history_public_text(
+        _proof_history_first_text(proof_timeline, "Still Blocked", fallback="No remaining blocker recorded.")
+    )
+    latest_batch_date = _proof_history_public_text(_proof_history_first_text(batch_proof_frame, "Review Date", fallback="No date recorded"))
+    latest_batch_lane = _proof_history_public_text(_proof_history_first_text(batch_proof_frame, "Lane", fallback="No batch proof yet"))
+    latest_batch_outcome = _proof_history_public_text(_proof_history_first_text(batch_proof_frame, "Final Outcome", fallback="not_recorded"))
+    latest_batch_tickers = _proof_history_public_text(
+        _proof_history_first_text(batch_proof_frame, "Changed Tickers", fallback="No changed tickers recorded.")
+    )
+    latest_batch_notes = _proof_history_public_text(_proof_history_first_text(batch_proof_frame, "Notes", fallback="No batch note recorded."))
+    proof_count = 0 if proof_timeline is None else len(proof_timeline)
+    batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
+    return [
+        {
+            "kicker": "LATEST LANE PROOF",
+            "title": f"{latest_proof_lane}: {latest_proof_outcome}",
+            "body": (
+                f"{card_sentence('What changed', latest_proof_change)} "
+                f"{card_sentence('What still needs proof', latest_proof_blocker)}"
+            ),
+            "badges": [latest_proof_date, "source proof"],
+            "command": "",
+        },
+        {
+            "kicker": "PROOF HISTORY",
+            "title": f"{proof_count} lane proof records",
+            "body": (
+                "Use this trail to see whether readiness changes were supported, still blocked, skipped, or excluded after review. "
+                "Detailed proof rows stay available below for audit."
+            ),
+            "badges": ["evidence trail", "reviewed changes"],
+            "command": "",
+        },
+        {
+            "kicker": "LATEST BATCH PROOF",
+            "title": f"{latest_batch_lane}: {latest_batch_outcome}",
+            "body": (
+                f"{card_sentence('Changed tickers', latest_batch_tickers)} "
+                f"{card_sentence('Review note', latest_batch_notes)}"
+            ),
+            "badges": [latest_batch_date, f"{batch_count} batch records"],
+            "command": "",
+        },
+    ]
 
 
 def render_proof_history(*, public_mode: bool = True) -> None:
@@ -11013,7 +11101,7 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         "Proof History records data-readiness evidence. It is not performance reporting, investment advice, or an account-action surface.",
         tone="success",
     )
-    render_signal_cards(data_health_reviewed_proof_cards() + data_health_reviewed_batch_proof_cards(), show_commands=False)
+    render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
     with st.expander("Proof ledger details", expanded=False):
         render_section_header("Reviewed Data Proof Ledger", "Durable lane proof rows, not generated CSV churn.")
         if proof_timeline.empty:
@@ -24570,6 +24658,12 @@ def _selector_readiness_class(value: object) -> str:
     return "unknown"
 
 
+def _selector_public_fragment(value: object, *, max_chars: int) -> str:
+    """Return compact selector copy with internal field tokens translated."""
+
+    return compact_card_fragment(operator_queue_preview_copy(value), max_chars=max_chars)
+
+
 def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, limit: int = 30) -> str:
     """Render public selector rows as product UI instead of a raw dataframe."""
 
@@ -24598,13 +24692,13 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
         ticker = str(row.get("Ticker", "")).strip().upper() or "TICKER"
         readiness = str(row.get("Readiness", "Needs readiness check")).strip() or "Needs readiness check"
         state = str(row.get("Research State", "Research state unavailable")).strip() or "Research state unavailable"
-        detail = compact_card_fragment(row.get("Review Detail", "Review detail unavailable"), max_chars=98)
-        theme = compact_card_fragment(row.get("Sector / Theme", "Not available"), max_chars=76)
-        why = compact_card_fragment(row.get("Why Included", "Saved research output includes this row."), max_chars=170)
-        supported = compact_card_fragment(row.get("Supported Now", "Supported analysis not listed."), max_chars=110)
-        blocked = compact_card_fragment(row.get("Blocked / Missing", "No missing input listed."), max_chars=120)
-        proof_step = compact_card_fragment(row.get("Next Proof Step", "Run readiness before deeper review."), max_chars=118)
-        freshness = compact_card_fragment(row.get("Proof Freshness", "Use Data Health freshness before relying on exact state."), max_chars=82)
+        detail = _selector_public_fragment(row.get("Review Detail", "Review detail unavailable"), max_chars=98)
+        theme = _selector_public_fragment(row.get("Sector / Theme", "Not available"), max_chars=76)
+        why = _selector_public_fragment(row.get("Why Included", "Saved research output includes this row."), max_chars=170)
+        supported = _selector_public_fragment(row.get("Supported Now", "Supported analysis not listed."), max_chars=110)
+        blocked = _selector_public_fragment(row.get("Blocked / Missing", "No missing input listed."), max_chars=120)
+        proof_step = _selector_public_fragment(row.get("Next Proof Step", "Run readiness before deeper review."), max_chars=118)
+        freshness = _selector_public_fragment(row.get("Proof Freshness", "Use Data Health freshness before relying on exact state."), max_chars=82)
         report_href = html.escape(f"?mode=public&page=single-stock-report&ticker={ticker}&open=1")
         proof_href = html.escape("?mode=public&page=data-health&drawer=proof")
         readiness_class = _selector_readiness_class(readiness)
@@ -24631,8 +24725,8 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
             f"<div class='selector-result-body'>{html.escape(freshness)}</div>"
             "</div>"
             "<div class='selector-actions'>"
-            f"<a class='selector-action-link' href='{report_href}'>Open review</a>"
-            f"<a class='selector-action-link secondary' href='{proof_href}'>Check proof</a>"
+            f"<a class='selector-action-link' href='{report_href}' target='_self'>Open review</a>"
+            f"<a class='selector-action-link secondary' href='{proof_href}' target='_self'>Check proof</a>"
             "</div>"
             "</div>"
         )
@@ -24640,7 +24734,7 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
     if len(frame) > len(visible):
         footer = (
             "<div class='selector-result-row'>"
-            f"<div class='selector-result-body'>{len(visible):,} of {len(frame):,} matching row(s) shown; {total_count:,} saved row(s) are available before filtering.</div>"
+            f"<div class='selector-result-body'>{len(visible):,} of {len(frame):,} matching rows shown; {total_count:,} saved rows are available before filtering.</div>"
             "</div>"
         )
     return "<div class='selector-result-table'>" + head + "".join(rows) + footer + "</div>"
@@ -24783,7 +24877,7 @@ def render_stock_selector(
         search=search,
     )
 
-    count_label = f"{len(filtered):,} of {len(selector_frame):,} saved row(s)"
+    count_label = f"{len(filtered):,} of {len(selector_frame):,} saved rows"
     render_context_note(
         "Filtered result set.",
         f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
@@ -26748,10 +26842,15 @@ def render_data_health(
             render_signal_cards(freshness_cards, show_commands=False)
             render_section_header("Review Metrics Readiness", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
             render_signal_cards(data_health_review_metric_readiness_cards(), show_commands=False)
-            render_section_header("Latest Reviewed Batch Evidence", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
-            render_signal_cards(data_health_reviewed_batch_proof_cards(), show_commands=False)
-            render_section_header("Latest Reviewed Data Proof", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
-            render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)
+            render_section_header("Latest Reviewed Proof", "Durable reviewed outcomes for lane and batch proof, translated for the public workflow.")
+            render_signal_cards(
+                proof_history_public_detail_cards(
+                    data_health_reviewed_proof_timeline_frame(),
+                    data_health_reviewed_batch_proof_frame(),
+                ),
+                show_commands=False,
+                variant="queue",
+            )
             render_context_note(
                 "Operator details are hidden.",
                 "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
@@ -28987,13 +29086,17 @@ def main() -> None:
             help="Most visitors only need these paths: review one stock, explore ready names, check data coverage, or inspect proof.",
             key=path_widget_key,
         )
-        path_selection = page_title_from_public_path(path_selection)
-        if path_selection == DETAILED_PAGE_PATH_TITLE:
-            selected_page = initial_page
-        else:
-            selected_page = path_selection
-        if has_explicit_page_query:
-            selected_page = initial_page
+        selected_page = selected_page_from_route_rail(
+            initial_page=initial_page,
+            default_path=default_path,
+            path_selection=path_selection,
+            has_explicit_page_query=has_explicit_page_query,
+        )
+        route_query_update = route_rail_query_update(selected_page=selected_page, initial_page=initial_page, mode=mode)
+        if route_query_update:
+            st.query_params.clear()
+            for query_key, query_value in route_query_update.items():
+                st.query_params[query_key] = query_value
         if not public_demo_mode and initial_page == "Data Health":
             selected_page = "Data Health"
         show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"

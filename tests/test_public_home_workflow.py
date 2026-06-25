@@ -308,10 +308,14 @@ def test_public_home_route_choice_cards_warn_when_candidate_pages_should_stay_em
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
     assert cards[0][0] == "Review one stock"
+    assert cards[0][2] == "?mode=public&page=single-stock-report&ticker=NVDA&open=1"
     assert cards[1][0] == "Explore ready names"
+    assert cards[1][2] == "?mode=public&page=stock-selector"
     assert cards[1][3] == "warning"
     assert cards[2][0] == "Check data coverage"
+    assert cards[2][2] == "?mode=public&page=data-health&drawer=proof"
     assert cards[2][3] == "warning"
+    assert cards[3][2] == "?mode=public&page=proof-history"
     assert "choose any local ticker" in rendered
     assert "ready, blocked, excluded, or monitor-only" in rendered
     assert "open proof history first" in rendered

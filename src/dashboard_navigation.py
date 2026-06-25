@@ -130,3 +130,31 @@ def page_title_from_public_path(value: object) -> str:
 
 def public_path_label(page_title: str) -> str:
     return PUBLIC_PATH_LABELS.get(page_title, page_title)
+
+
+def selected_page_from_route_rail(
+    *,
+    initial_page: str,
+    default_path: str,
+    path_selection: str,
+    has_explicit_page_query: bool,
+) -> str:
+    selected_path = page_title_from_public_path(path_selection)
+    default_path = page_title_from_public_path(default_path)
+    if selected_path == DETAILED_PAGE_PATH_TITLE:
+        return initial_page
+    if has_explicit_page_query and selected_path == default_path:
+        return initial_page
+    return selected_path
+
+
+def route_rail_query_update(*, selected_page: str, initial_page: str, mode: str) -> dict[str, str]:
+    selected_page = page_title_from_public_path(selected_page)
+    if selected_page == initial_page:
+        return {}
+    if selected_page not in PUBLIC_PATH_PAGE_TITLES:
+        return {}
+    return {
+        "mode": dashboard_page_slug(mode),
+        "page": dashboard_page_slug(selected_page),
+    }

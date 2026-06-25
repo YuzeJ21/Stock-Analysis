@@ -118,7 +118,7 @@ def test_browser_qa_capture_targets_show_manual_pending_without_fabricating_asse
     target = BrowserQaCaptureTarget(
         name="Single-stock workflow fit screenshot",
         path=Path("docs/assets/single-stock-workflow-fit-real.jpg"),
-        route="http://localhost:8501/?mode=public&page=single-stock",
+        route="http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         first_view_markers=("Where This Ticker Fits", "Stop rule"),
         min_width=1000,
         min_height=600,
@@ -144,7 +144,7 @@ def test_browser_qa_capture_targets_become_ready_when_real_asset_exists(tmp_path
     target = BrowserQaCaptureTarget(
         name="Single-stock workflow fit screenshot",
         path=Path("docs/assets/single-stock-workflow-fit-real.jpg"),
-        route="http://localhost:8501/?mode=public&page=single-stock",
+        route="http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         first_view_markers=("Where This Ticker Fits", "Stop rule"),
         min_width=1000,
         min_height=600,
@@ -198,7 +198,7 @@ def test_browser_qa_pending_capture_closeout_rows_focus_only_missing_real_assets
             "Capture Target": "Single-stock workflow fit screenshot",
             "State": "manual_capture_pending",
             "Path": "docs/assets/single-stock-workflow-fit-real.jpg",
-            "Route": "http://localhost:8501/?mode=public&page=single-stock",
+            "Route": "http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
             "First View Markers": "research-loop-strip, Single-Stock Report, Data Health Handoff",
         },
         {
@@ -215,7 +215,7 @@ def test_browser_qa_pending_capture_closeout_rows_focus_only_missing_real_assets
 
     assert len(rows) == 1
     assert rows[0]["Target"] == "Single-stock workflow fit screenshot"
-    assert rows[0]["Open Route"] == "http://localhost:8501/?mode=public&page=single-stock"
+    assert rows[0]["Open Route"] == "http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1"
     assert rows[0]["Save As"] == "docs/assets/single-stock-workflow-fit-real.jpg"
     assert rows[0]["Verify"] == "make browser-qa-evidence"
     assert rows[0]["Stage If Reviewed"] == "git add -- docs/assets/single-stock-workflow-fit-real.jpg"

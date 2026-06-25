@@ -58,6 +58,6 @@ def generated_artifact_stale_warning(
     if len(relative_sources) > 4:
         sample = f"{sample}, +{len(relative_sources) - 4} more"
     return (
-        "Generated status artifacts may be stale because source CSVs changed after the last generated report "
+        "Generated status artifacts may be stale because source CSVs changed after the last saved readiness view "
         f"({sample}). Run {refresh_command} to refresh before relying on exact counts."
     )

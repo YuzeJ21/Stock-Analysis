@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+from urllib.parse import quote
 
 import pandas as pd
 
@@ -75,7 +76,7 @@ def research_loop_strip_html(
             safe_href = html.escape(href, quote=True)
             value_html = (
                 "<div class='research-loop-value'>"
-                f"<a class='research-loop-link' href='{safe_href}'>{html.escape(value)}</a>"
+                f"<a class='research-loop-link' href='{safe_href}' target='_self'>{html.escape(value)}</a>"
                 "</div>"
             )
         else:
@@ -108,7 +109,7 @@ def home_research_loop_context(summary: dict[str, object], freshness: object) ->
         "proof_note": proof_note,
         "proof_href": "?mode=public&page=data-health&drawer=proof",
         "next_action": next_action,
-        "action_href": "?mode=public&page=single-stock",
+        "action_href": "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         "action_note": "Review one ticker, then route locked fields to Data Health.",
         "stop_rule": "Do not infer missing inputs",
         "stop_note": "Blocked, partial, and excluded states stay visible until source proof changes readiness.",
@@ -118,6 +119,7 @@ def home_research_loop_context(summary: dict[str, object], freshness: object) ->
 
 def single_stock_research_loop_context(ticker: str, report_payload: dict[str, object] | None = None) -> dict[str, str]:
     ticker_label = _format_missing(ticker, "selected ticker").upper()
+    ticker_href = quote(ticker_label, safe="")
     if report_payload:
         readiness = report_payload.get("valuation_readiness", {})
         mode = _first_meaningful_text(
@@ -134,7 +136,7 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
         return {
             "current_step": f"{ticker_label} report review",
             "current_note": f"Mode: {_format_missing(mode, 'local report')}",
-            "current_href": "?mode=public&page=single-stock",
+            "current_href": f"?mode=public&page=single-stock-report&ticker={ticker_href}&open=1",
             "previous_proof": "Saved readiness checks",
             "proof_note": proof_note,
             "proof_href": "?mode=public&page=data-health&drawer=proof",
@@ -150,7 +152,7 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
     return {
         "current_step": "Single-Stock Report",
         "current_note": f"Selected ticker: {ticker_label}",
-        "current_href": "?mode=public&page=single-stock",
+        "current_href": f"?mode=public&page=single-stock-report&ticker={ticker_href}&open=1",
         "previous_proof": "Home readiness snapshot",
         "proof_note": "Use saved readiness counts to understand whether this ticker can support deeper review.",
         "proof_href": "?mode=public",

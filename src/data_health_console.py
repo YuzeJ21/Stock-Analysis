@@ -77,7 +77,7 @@ def data_health_operator_lane_nav_html(selected_lane_key: str) -> str:
         active_class = " active" if lane_key == selected_lane_key else ""
         href = f"?mode=operator&page=data-health&lane={lane_key}"
         links.append(
-            f"<a class='ops-lane-link{active_class}' href='{html.escape(href)}'>{html.escape(label)}</a>"
+            f"<a class='ops-lane-link{active_class}' href='{html.escape(href)}' target='_self'>{html.escape(label)}</a>"
         )
     return "<div class='ops-lane-nav'>" + "".join(links) + "</div>"
 

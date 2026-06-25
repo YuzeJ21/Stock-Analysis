@@ -66,3 +66,69 @@ def test_dashboard_navigation_mode_defaults_public_unless_advanced_context():
     assert nav.dashboard_mode_from_query("", "Home", advanced) == nav.PUBLIC_DEMO_MODE
     assert nav.dashboard_mode_from_query("", "Universe Manager", advanced) == nav.OPERATOR_DEMO_MODE
     assert nav.dashboard_mode_label(nav.OPERATOR_DEMO_MODE) == "Operator mode"
+
+
+def test_dashboard_navigation_query_wins_only_until_route_rail_changes():
+    assert (
+        nav.selected_page_from_route_rail(
+            initial_page="Home",
+            default_path="Home",
+            path_selection="Home",
+            has_explicit_page_query=True,
+        )
+        == "Home"
+    )
+    assert (
+        nav.selected_page_from_route_rail(
+            initial_page="Home",
+            default_path="Home",
+            path_selection="Stock Selector",
+            has_explicit_page_query=True,
+        )
+        == "Stock Selector"
+    )
+    assert (
+        nav.selected_page_from_route_rail(
+            initial_page="Universe Manager",
+            default_path="Home",
+            path_selection="Home",
+            has_explicit_page_query=True,
+        )
+        == "Universe Manager"
+    )
+
+
+def test_dashboard_navigation_route_rail_query_update_is_canonical_and_clean():
+    assert nav.route_rail_query_update(
+        selected_page="Stock Selector",
+        initial_page="Home",
+        mode=nav.PUBLIC_DEMO_MODE,
+    ) == {"mode": "public", "page": "stock-selector"}
+    assert nav.route_rail_query_update(
+        selected_page="Home",
+        initial_page="Home",
+        mode=nav.PUBLIC_DEMO_MODE,
+    ) == {}
+    assert nav.route_rail_query_update(
+        selected_page=nav.DETAILED_PAGE_PATH_TITLE,
+        initial_page="Universe Manager",
+        mode=nav.OPERATOR_DEMO_MODE,
+    ) == {}
+    assert (
+        nav.selected_page_from_route_rail(
+            initial_page="Universe Manager",
+            default_path="Home",
+            path_selection="Stock Selector",
+            has_explicit_page_query=True,
+        )
+        == "Stock Selector"
+    )
+    assert (
+        nav.selected_page_from_route_rail(
+            initial_page="Universe Manager",
+            default_path="Home",
+            path_selection=nav.DETAILED_PAGE_PATH_TITLE,
+            has_explicit_page_query=False,
+        )
+        == "Universe Manager"
+    )

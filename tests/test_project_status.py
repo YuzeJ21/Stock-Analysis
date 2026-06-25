@@ -872,6 +872,7 @@ def test_project_status_cli_check_labels_stale_generated_snapshot_before_counts(
 
     assert freshness_index < warning_index < summary_index < ready_index
     assert "Ready now: 1 price-ready" not in output
+    assert "generated report" not in output.lower()
     assert "Refresh needed: run make readiness or make status before using exact readiness counts." in output
 
 

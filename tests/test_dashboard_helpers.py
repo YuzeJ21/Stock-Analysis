@@ -1119,6 +1119,21 @@ def test_command_center_loop_and_workbench_follow_reference_structure():
     assert "Next safe action" in rendered
     assert "Stop rule" in rendered
     assert "Research-only workspace" in rendered
+    assert "Open review" in rendered
+    assert "Read-only" in rendered
+    assert "Local report" not in rendered
+    assert "Copy-only" not in rendered
+
+
+def test_command_center_kpi_values_can_wrap_without_viewport_overflow():
+    source = Path(dashboard.__file__).read_text()
+    kpi_block = source[source.index(".command-kpi {") : source.index(".command-kpi.blocked .command-kpi-value")]
+    value_block = source[source.index(".command-kpi-value {") : source.index(".command-kpi.blocked .command-kpi-value")]
+
+    assert "min-width: 0;" in kpi_block
+    assert "white-space: normal;" in value_block
+    assert "overflow-wrap: anywhere;" in value_block
+    assert "line-height:" in value_block
 
 
 def test_purpose_evaluation_page_copy_uses_built_from_readiness_language():
@@ -1405,10 +1420,57 @@ def test_stock_selector_public_rows_render_actions_without_raw_table_first():
     assert "?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1" in rendered
     assert "Check proof" in rendered
     assert "?mode=public&amp;page=data-health&amp;drawer=proof" in rendered
+    assert rendered.count("target='_self'") >= 2
     assert "<table" not in lowered
     assert "buy" not in lowered
     assert "sell" not in lowered
     assert "broker" not in lowered
+
+
+def test_stock_selector_public_copy_uses_plain_plural_labels():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Research State": "Research Now",
+                "Readiness": "partial",
+                "Review Detail": "Research Candidate",
+                "Sector / Theme": "SMH / AI Semiconductors",
+                "Why Included": "Core company data is ready.",
+                "Supported Now": "price history",
+                "Blocked / Missing": "dcf: free_cash_flow, shares_outstanding, revenue, fcf_margin; peer proof needed",
+                "Next Proof Step": "Complete trusted fundamentals; missing fields: free_cash_flow, revenue, fcf_margin, shares_outstanding",
+                "Proof Freshness": "Current snapshot",
+            },
+            {
+                "Ticker": "AAPL",
+                "Research State": "Monitor",
+                "Readiness": "partial",
+                "Review Detail": "Monitor row",
+                "Sector / Theme": "Consumer Hardware",
+                "Why Included": "Watchlist row.",
+                "Supported Now": "price history",
+                "Blocked / Missing": "no blocker",
+                "Next Proof Step": "Review later.",
+                "Proof Freshness": "Current snapshot",
+            },
+        ]
+    )
+
+    rendered = dashboard.stock_selector_result_table_html(frame, total_count=120, limit=1)
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+
+    assert "1 of 2 matching rows shown; 120 saved rows are available before filtering." in rendered
+    assert "row(s)" not in rendered
+    rendered_lower = rendered.lower()
+    assert "free cash flow" in rendered_lower
+    assert "shares outstanding" in rendered_lower
+    assert "fcf margin" in rendered_lower
+    assert "free_cash_flow" not in rendered
+    assert "shares_outstanding" not in rendered
+    assert "fcf_margin" not in rendered
+    assert "saved rows" in source
+    assert "saved row(s)" not in source[source.index("def render_stock_selector(") : source.index('with st.expander("Full filtered selector rows"')]
 
 
 def test_public_action_cards_render_query_routes_as_clickable_links():
@@ -1421,6 +1483,7 @@ def test_public_action_cards_render_query_routes_as_clickable_links():
 
     assert "<a " in rendered
     assert "href='?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1'" in rendered
+    assert "target='_self'" in rendered
     assert "Open ?mode=public" not in rendered
     assert "command-chip" not in rendered
     assert "buy" not in rendered.lower()
@@ -1588,16 +1651,17 @@ def test_research_loop_strip_connects_current_proof_next_action_and_stop_rule():
         stop_note="Blocked and excluded states stay visible.",
         current_href="?mode=public",
         proof_href="?mode=public&page=data-health&drawer=proof",
-        action_href="?mode=public&page=single-stock",
+        action_href="?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         stop_href="?mode=public&page=data-health&drawer=proof",
     ).lower()
 
     assert "research-loop-strip" in rendered
     assert "research-loop-link" in rendered
     assert rendered.count("research-loop-link") == 4
+    assert rendered.count("target='_self'") == 4
     assert "?mode=public" in rendered
     assert "drawer=proof" in rendered
-    assert "?mode=public&amp;page=single-stock" in rendered
+    assert "?mode=public&amp;page=single-stock-report&amp;ticker=nvda&amp;open=1" in rendered
     assert "current step" in rendered
     assert "previous proof" in rendered
     assert "next safe action" in rendered
@@ -1639,13 +1703,13 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     assert home["current_href"] == "?mode=public"
     assert home["proof_href"] == "?mode=public&page=data-health&drawer=proof"
     assert home["next_action"] == "Open a Single-Stock Report"
-    assert home["action_href"] == "?mode=public&page=single-stock"
+    assert home["action_href"] == "?mode=public&page=single-stock-report&ticker=NVDA&open=1"
     assert home["stop_href"] == "?mode=public&page=data-health&drawer=proof"
     assert home_stale["previous_proof"] == "Saved readiness snapshot needs refresh"
     assert home_stale["proof_note"] == "make readiness"
     assert pre_report["current_step"] == "Single-Stock Report"
     assert "Selected ticker: NVDA" in pre_report["current_note"]
-    assert pre_report["current_href"] == "?mode=public&page=single-stock"
+    assert pre_report["current_href"] == "?mode=public&page=single-stock-report&ticker=NVDA&open=1"
     assert pre_report["proof_href"] == "?mode=public"
     assert pre_report["next_action"] == "Open Review"
     assert loaded_report["current_step"] == "NVDA report review"
@@ -1849,8 +1913,13 @@ def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
     assert '[data-testid="stAppDeployButton"]' in css
     assert '[data-testid="stBaseButton-header"]' in css
     assert '[data-testid="stBaseButton-headerNoPadding"]' in css
+    assert '[data-testid="stSidebarHeader"]' in css
     assert '[data-testid="stSidebarCollapseButton"]' in css
     assert '[data-testid="stIconMaterial"]' in css
+    assert '[data-testid="stSidebar"]' in css
+    assert "overflow-x: hidden !important;" in css
+    assert "box-sizing: border-box;" in css
+    assert "keyboard_double_arrow" not in css
     assert ".stDeployButton" in css
     assert ".stAppDeployButton" in css
     assert "visibility: hidden !important" in css
@@ -2601,7 +2670,12 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
         "Check data coverage",
         "Inspect proof",
     ]
-    assert [card[2] for card in cards] == ["Single-Stock Report", "Stock Selector", "Data Health", "Proof History"]
+    assert [card[2] for card in cards] == [
+        "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
+        "?mode=public&page=stock-selector",
+        "?mode=public&page=data-health&drawer=proof",
+        "?mode=public&page=proof-history",
+    ]
     assert cards[2][3] == "warning"
     assert "23 ticker(s) have dcf-ready local inputs" in rendered
     assert "open a report, read supported sections first" in rendered
@@ -11635,9 +11709,10 @@ def test_data_health_readiness_ops_center_frame_groups_broad_lanes():
     assert "earnings locked lane" in rendered
     assert "analyst estimates locked lane" in rendered
     assert "excluded / not applicable" in rendered
-    assert "source_activation_required" in rendered
-    assert "make coverage-expansion-loop top_n=10" in rendered
-    assert "make price-refresh-loop dry_run=1" not in rendered
+    assert "source_activation_required" not in rendered
+    assert "preview first, reviewed apply" in rendered
+    assert "optional source review" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
     assert "trusted local rows" in rendered
 
 
@@ -14222,12 +14297,74 @@ def test_public_proof_history_summary_is_evidence_first_without_raw_tables():
     assert "public-proof-history" in rendered
     assert "Proof History" in rendered
     assert "supported" in rendered
-    assert "still_blocked" in rendered
+    assert "still blocked" in rendered
+    assert "still_blocked" not in rendered
+    assert "row(s)" not in rendered
+    assert "record" in rendered
     assert "source-proof trail" in rendered
     assert "<table" not in lowered
     assert "buy" not in lowered
     assert "sell" not in lowered
     assert "broker" not in lowered
+
+
+def test_public_proof_history_cards_hide_command_language_from_first_read():
+    proof_timeline = pd.DataFrame(
+        [
+            {
+                "Proof Date": "2026-06-20",
+                "Lane": "peer_valuation_inputs",
+                "Final Outcome": "still_blocked",
+                "What Changed": "source rows reviewed",
+                "Still Blocked": "peer price history is missing",
+                "Proof Command": "make peer-mapping-queue TOP_N=25",
+            }
+        ]
+    )
+    batch_proof = pd.DataFrame(
+        [
+            {
+                "Review Date": "2026-06-20",
+                "Lane": "share_count",
+                "Final Outcome": "supported",
+                "Command Run": "make imports-validate IMPORT_TICKERS=NVDA",
+                "Changed Tickers": "NVDA",
+                "Notes": "source-backed share_count and free_cash_flow reviewed",
+            }
+        ]
+    )
+
+    rendered = "".join(
+        dashboard.signal_card_html(
+            str(card.get("kicker", "")),
+            str(card.get("title", "")),
+            str(card.get("body", "")),
+            [str(item) for item in card.get("badges", [])],
+            str(card.get("command", "")),
+            show_command=False,
+            queue_preview=True,
+        )
+        for card in dashboard.proof_history_public_detail_cards(proof_timeline, batch_proof)
+    ).lower()
+
+    assert "latest lane proof" in rendered
+    assert "peer valuation inputs" in rendered
+    assert "still blocked" in rendered
+    assert "latest batch proof" in rendered
+    assert "source-backed share count and free cash flow reviewed" in rendered
+    assert "share count" in rendered
+    assert "share_count" not in rendered
+    assert "free_cash_flow" not in rendered
+    assert "record(s)" not in rendered
+    assert "make " not in rendered
+    assert "command run" not in rendered
+    assert "proof command" not in rendered
+    assert "source-controlled" not in rendered
+    assert "no generated churn" not in rendered
+    assert "still_blocked" not in rendered
+    assert "peer_valuation_inputs" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_reviewed_batch_execution_checklist_covers_lane_to_ledger_loop():
@@ -25458,6 +25595,8 @@ def test_dashboard_generated_artifact_stale_warning_uses_broad_status_sources(tm
     assert "Generated status artifacts may be stale" in warning
     assert "data/prices.csv" in warning
     assert "make readiness or make status" in warning
+    assert "last saved readiness view" in warning
+    assert "generated report" not in warning.lower()
 
 
 def test_data_health_freshness_status_marks_current_readiness_stale_when_status_artifacts_lag(tmp_path):
@@ -25481,6 +25620,7 @@ def test_data_health_freshness_status_marks_current_readiness_stale_when_status_
 
     assert freshness.status == "stale"
     assert "Generated status artifacts may be stale" in freshness.message
+    assert "generated report" not in freshness.message.lower()
     assert freshness.refresh_command == "make readiness"
 
 
@@ -25493,7 +25633,8 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert "has_explicit_page_query = dashboard_query_value_present(page_query_value)" in source
     assert "has_explicit_mode_query = dashboard_query_value_present(mode_query_value)" in source
     assert "if has_explicit_mode_query:\n            public_demo_mode = initial_mode == PUBLIC_DEMO_MODE" in source
-    assert "if has_explicit_page_query:\n            selected_page = initial_page" in source
+    assert "selected_page_from_route_rail(" in source
+    assert "if has_explicit_page_query:\n            selected_page = initial_page" not in source
     assert "public_demo_mode = st.toggle" in source
     assert "path_options = sidebar_path_options(initial_page)" in source
     assert 'path_state_key = "dashboard-path-selection"' in source
@@ -25580,9 +25721,9 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
         drawer_open_state_index,
     )
     freshness_index = source.index('render_section_header("Readiness Freshness"', drawer_index)
-    batch_index = source.index('render_section_header("Latest Reviewed Batch Evidence"', freshness_index)
-    proof_index = source.index('render_section_header("Latest Reviewed Data Proof"', batch_index)
-    hidden_index = source.index("Operator details are hidden.", proof_index)
+    proof_index = source.index('render_section_header("Latest Reviewed Proof"', freshness_index)
+    public_cards_index = source.index("proof_history_public_detail_cards(", proof_index)
+    hidden_index = source.index("Operator details are hidden.", public_cards_index)
     return_index = source.index("return", hidden_index)
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", return_index)
     batch_execution_index = source.index('render_section_header("Readiness Batch Execution"', ops_index)
@@ -25595,8 +25736,8 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
         < drawer_open_state_index
         < drawer_index
         < freshness_index
-        < batch_index
         < proof_index
+        < public_cards_index
         < hidden_index
         < return_index
         < ops_index
@@ -25609,6 +25750,18 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     assert "proof details, or research conclusions." in source
     assert "Commands and raw tables stay collapsed by default" not in source
     assert "Research-only boundary." in source
+
+
+def test_data_health_public_proof_drawer_uses_public_proof_cards():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    public_index = source.index("if public_mode:", source.index("def render_data_health("))
+    drawer_index = source.index('st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded)', public_index)
+    return_index = source.index("return", drawer_index)
+    drawer_source = source[drawer_index:return_index]
+
+    assert "proof_history_public_detail_cards(" in drawer_source
+    assert "data_health_reviewed_batch_proof_cards()" not in drawer_source
+    assert "data_health_reviewed_proof_cards()" not in drawer_source
 
 
 def test_data_health_queue_drilldown_places_route_strip_before_route_cards_and_tables():

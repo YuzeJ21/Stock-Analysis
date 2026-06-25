@@ -75,7 +75,7 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
     BrowserQaCaptureTarget(
         name="Single-stock workflow fit screenshot",
         path=Path("docs/assets/single-stock-workflow-fit-real.jpg"),
-        route="http://localhost:8501/?mode=public&page=single-stock",
+        route="http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         first_view_markers=(
             "research-loop-strip",
             "One-Stock Review",
@@ -125,7 +125,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     ),
     BrowserQaRouteCheck(
         name="Single-stock workflow fit",
-        route="http://localhost:8501/?mode=public&page=single-stock",
+        route="http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         first_view_markers=(
             "research-loop-strip",
             "One-Stock Review",
