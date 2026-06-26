@@ -909,10 +909,10 @@ sec-apply:
 	python3 -m src.stock_report --apply-import-merge
 
 imports-validate:
-	python3 -m src.stock_report --validate-imports $(if $(IMPORT_TICKERS),--import-tickers "$(IMPORT_TICKERS)",)
+	python3 -m src.stock_report --validate-imports $(if $(IMPORT_TICKERS),--import-tickers "$(IMPORT_TICKERS)",) $(if $(IMPORT_FILES),--import-files "$(IMPORT_FILES)",)
 
 imports-preview:
-	python3 -m src.stock_report --preview-import-merge $(if $(IMPORT_TICKERS),--import-tickers "$(IMPORT_TICKERS)",)
+	python3 -m src.stock_report --preview-import-merge $(if $(IMPORT_TICKERS),--import-tickers "$(IMPORT_TICKERS)",) $(if $(IMPORT_FILES),--import-files "$(IMPORT_FILES)",)
 
 imports-apply:
 ifndef IMPORT_TICKERS
@@ -920,7 +920,7 @@ ifndef ALLOW_BROAD_IMPORT_APPLY
 	$(error IMPORT_TICKERS is required for imports-apply; use ALLOW_BROAD_IMPORT_APPLY=1 only after full staged-scope review)
 endif
 endif
-	python3 -m src.stock_report --apply-import-merge $(if $(IMPORT_TICKERS),--import-tickers "$(IMPORT_TICKERS)",)
+	python3 -m src.stock_report --apply-import-merge $(if $(IMPORT_TICKERS),--import-tickers "$(IMPORT_TICKERS)",) $(if $(IMPORT_FILES),--import-files "$(IMPORT_FILES)",)
 
 dcf-readiness:
 	python3 -m src.dcf_readiness

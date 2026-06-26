@@ -3880,6 +3880,7 @@ def main() -> None:
     parser.add_argument("--preview-import-merge", action="store_true", help="Preview local import CSV merge effects without changing canonical data files.")
     parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge local import CSV files into canonical local data files.")
     parser.add_argument("--import-tickers", help="Optional comma-separated ticker filter for import validation, preview, and apply.")
+    parser.add_argument("--import-files", help="Optional comma-separated import file filter, for example fundamentals.csv.")
     parser.add_argument("--sec-stage-fundamentals", action="store_true", help="Fetch official SEC Companyfacts data and stage candidate fundamentals under data/imports/fundamentals.csv.")
     parser.add_argument("--sec-filing-share-stage", action="store_true", help="Fetch SEC filing-document share-count evidence and stage reviewed shares_outstanding rows under data/imports/fundamentals.csv.")
     parser.add_argument("--yfinance-stage-fundamentals", action="store_true", help="Fetch research-grade Yahoo/yfinance fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
@@ -3962,7 +3963,7 @@ def main() -> None:
         return
 
     if args.validate_imports:
-        result = validate_imports(base_dir=cli_base_dir, data_dir=cli_data_dir, tickers=args.import_tickers)
+        result = validate_imports(base_dir=cli_base_dir, data_dir=cli_data_dir, tickers=args.import_tickers, files=args.import_files)
         if args.json:
             print(json.dumps(result, indent=2))
         elif result["status"] == "no_staged_files":
@@ -3981,7 +3982,7 @@ def main() -> None:
         return
 
     if args.preview_import_merge:
-        result = preview_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir, tickers=args.import_tickers)
+        result = preview_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir, tickers=args.import_tickers, files=args.import_files)
         if args.json:
             print(json.dumps(result, indent=2))
         elif result["status"] == "no_staged_files":
@@ -3999,7 +4000,7 @@ def main() -> None:
         return
 
     if args.apply_import_merge:
-        result = apply_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir, tickers=args.import_tickers)
+        result = apply_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir, tickers=args.import_tickers, files=args.import_files)
         if args.json:
             print(json.dumps(result, indent=2))
         elif result["status"] == "no_staged_files":

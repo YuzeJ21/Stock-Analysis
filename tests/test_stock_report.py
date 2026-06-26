@@ -1886,6 +1886,55 @@ def test_stock_report_cli_apply_import_merge_json(tmp_path: Path, capsys):
         os.chdir(previous_cwd)
 
 
+def test_stock_report_cli_apply_import_merge_can_filter_to_reviewed_file(tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "imports").mkdir()
+    (tmp_path / "data" / "fundamentals.csv").write_text(
+        "ticker,revenue,shares_outstanding,source,as_of_date\n"
+        "AACB,,0,sec_companyfacts,2025-12-31\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "earnings.csv").write_text(
+        "ticker,next_earnings_date,source\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "imports" / "fundamentals.csv").write_text(
+        "ticker,revenue,shares_outstanding,source,as_of_date\n"
+        "AACB,,22175000,sec_filing_document,2026-03-31\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "imports" / "earnings.csv").write_text(
+        "ticker,next_earnings_date,source\n"
+        "AACB,1746648000,yfinance_research_api\n",
+        encoding="utf-8",
+    )
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--apply-import-merge",
+        "--import-tickers",
+        "AACB",
+        "--import-files",
+        "fundamentals.csv",
+        "--json",
+    ]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+        assert [item["file_name"] for item in payload["applied"]] == ["fundamentals.csv"]
+        fundamentals = pd.read_csv(tmp_path / "data" / "fundamentals.csv")
+        earnings = pd.read_csv(tmp_path / "data" / "earnings.csv")
+        assert fundamentals.loc[0, "shares_outstanding"] == 22175000
+        assert earnings.empty
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
 def test_stock_report_cli_sec_stage_json_surfaces_make_based_follow_up(monkeypatch, tmp_path: Path, capsys):
     (tmp_path / "data").mkdir()
     previous_cwd = Path.cwd()

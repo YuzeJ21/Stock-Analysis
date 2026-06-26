@@ -213,6 +213,39 @@ def test_apply_import_merge_can_filter_to_reviewed_ticker(tmp_path: Path):
     assert msft["source"] == "new"
 
 
+def test_apply_import_merge_can_filter_to_reviewed_file_without_applying_optional_context(tmp_path: Path):
+    data_dir, imports_dir = _setup_dirs(tmp_path)
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,shares_outstanding,source,as_of_date\n"
+        "AACB,,0,sec_companyfacts,2025-12-31\n",
+        encoding="utf-8",
+    )
+    (data_dir / "earnings.csv").write_text(
+        "ticker,next_earnings_date,source\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,shares_outstanding,source,as_of_date\n"
+        "AACB,,22175000,sec_filing_document,2026-03-31\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "earnings.csv").write_text(
+        "ticker,next_earnings_date,source\n"
+        "AACB,1746648000,yfinance_research_api\n",
+        encoding="utf-8",
+    )
+
+    preview = preview_import_merge(base_dir=tmp_path, tickers="AACB", files=["fundamentals.csv"])
+    result = apply_import_merge(base_dir=tmp_path, tickers="AACB", files=["fundamentals.csv"])
+
+    assert [item["file_name"] for item in preview["preview"]] == ["fundamentals.csv"]
+    assert [item["file_name"] for item in result["applied"]] == ["fundamentals.csv"]
+    fundamentals = pd.read_csv(data_dir / "fundamentals.csv")
+    earnings = pd.read_csv(data_dir / "earnings.csv")
+    assert fundamentals.loc[0, "shares_outstanding"] == 22175000
+    assert earnings.empty
+
+
 def test_apply_import_merge_preserves_integer_like_sec_cik_text(tmp_path: Path):
     data_dir, imports_dir = _setup_dirs(tmp_path)
     (data_dir / "fundamentals.csv").write_text(

@@ -49,6 +49,17 @@ def _normalize_ticker_filter(tickers: list[str] | tuple[str, ...] | set[str] | s
     return normalized or None
 
 
+def _normalize_file_filter(files: list[str] | tuple[str, ...] | set[str] | str | None) -> set[str] | None:
+    if files is None:
+        return None
+    if isinstance(files, str):
+        values = files.split(",")
+    else:
+        values = list(files)
+    normalized = {str(value).strip() for value in values if str(value).strip()}
+    return normalized or None
+
+
 def _validate_staged_dataset(
     dataset_name: str,
     staged_path: Path,
@@ -172,12 +183,16 @@ def validate_imports(
     data_dir: Path | str | None = None,
     base_dir: Path | None = None,
     tickers: list[str] | tuple[str, ...] | set[str] | str | None = None,
+    files: list[str] | tuple[str, ...] | set[str] | str | None = None,
 ) -> dict[str, Any]:
     base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
     data_path = _resolve_data_dir(base_dir, Path(data_dir) if isinstance(data_dir, str) else data_dir)
     import_path = _resolve_import_dir(base_dir, Path(import_dir) if isinstance(import_dir, str) else import_dir)
     entries = _staged_entries(import_path, data_path)
     ticker_filter = _normalize_ticker_filter(tickers)
+    file_filter = _normalize_file_filter(files)
+    if file_filter:
+        entries = [entry for entry in entries if entry["file_name"] in file_filter]
 
     if not import_path.exists():
         return {
@@ -222,6 +237,7 @@ def validate_imports(
         "status": overall_status,
         "import_dir": str(import_path),
         "import_tickers": sorted(ticker_filter) if ticker_filter else [],
+        "import_files": sorted(file_filter) if file_filter else [],
         "files": file_results,
         "warnings": [],
     }
@@ -232,12 +248,14 @@ def preview_import_merge(
     data_dir: Path | str | None = None,
     base_dir: Path | None = None,
     tickers: list[str] | tuple[str, ...] | set[str] | str | None = None,
+    files: list[str] | tuple[str, ...] | set[str] | str | None = None,
 ) -> dict[str, Any]:
     base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
     data_path = _resolve_data_dir(base_dir, Path(data_dir) if isinstance(data_dir, str) else data_dir)
     import_path = _resolve_import_dir(base_dir, Path(import_dir) if isinstance(import_dir, str) else import_dir)
     ticker_filter = _normalize_ticker_filter(tickers)
-    validation_summary = validate_imports(import_path, data_path, base_dir=base_dir, tickers=ticker_filter)
+    file_filter = _normalize_file_filter(files)
+    validation_summary = validate_imports(import_path, data_path, base_dir=base_dir, tickers=ticker_filter, files=file_filter)
     if validation_summary["status"] == "no_staged_files":
         return {
             **validation_summary,
@@ -331,6 +349,7 @@ def preview_import_merge(
         "status": overall_status,
         "import_dir": str(import_path),
         "import_tickers": sorted(ticker_filter) if ticker_filter else [],
+        "import_files": sorted(file_filter) if file_filter else [],
         "preview": preview_rows,
         "warnings": validation_summary["warnings"],
     }
@@ -393,12 +412,14 @@ def apply_import_merge(
     base_dir: Path | None = None,
     backup: bool = True,
     tickers: list[str] | tuple[str, ...] | set[str] | str | None = None,
+    files: list[str] | tuple[str, ...] | set[str] | str | None = None,
 ) -> dict[str, Any]:
     base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
     data_path = _resolve_data_dir(base_dir, Path(data_dir) if isinstance(data_dir, str) else data_dir)
     import_path = _resolve_import_dir(base_dir, Path(import_dir) if isinstance(import_dir, str) else import_dir)
     ticker_filter = _normalize_ticker_filter(tickers)
-    preview = preview_import_merge(import_path, data_path, base_dir=base_dir, tickers=ticker_filter)
+    file_filter = _normalize_file_filter(files)
+    preview = preview_import_merge(import_path, data_path, base_dir=base_dir, tickers=ticker_filter, files=file_filter)
     if preview["status"] == "no_staged_files":
         return {
             **preview,
@@ -460,6 +481,7 @@ def apply_import_merge(
         "status": "applied",
         "import_dir": str(import_path),
         "import_tickers": sorted(ticker_filter) if ticker_filter else [],
+        "import_files": sorted(file_filter) if file_filter else [],
         "applied": applied_rows,
         "warnings": preview["warnings"],
     }
