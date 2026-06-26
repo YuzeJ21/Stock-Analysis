@@ -22,6 +22,11 @@ from src.reviewed_batch_command_builder import (
 )
 
 
+PROOF_OUTCOME_OPTIONS = (
+    "auto_supported, human_reviewed_supported, candidate_context_only, still_blocked, skipped, or excluded"
+)
+
+
 def _format_missing(value: object, fallback: str = "Not available") -> str:
     if value is None:
         return fallback
@@ -80,7 +85,7 @@ def latest_batch_packet_summary(packet_frame: pd.DataFrame | None) -> dict[str, 
             "proof_record_command": "make reviewed-batch-proof-record",
             "source_files": "not available",
             "generated_artifacts_reviewed": "not available",
-            "allowed_outcome": "supported|candidate_context_only|still_blocked|skipped|excluded",
+            "allowed_outcome": "auto_supported|human_reviewed_supported|candidate_context_only|still_blocked|skipped|excluded",
         }
     first = packet_frame.iloc[0]
     proposed = packet_frame.get("Proposed Ticker", pd.Series(dtype=object)).fillna("").astype(str)
@@ -101,7 +106,10 @@ def latest_batch_packet_summary(packet_frame: pd.DataFrame | None) -> dict[str, 
             _format_missing(first.get("Generated Artifacts Review"), "classify generated artifacts before staging"),
             max_chars=170,
         ),
-        "allowed_outcome": _format_missing(first.get("Allowed Outcome"), "supported|candidate_context_only|still_blocked|skipped|excluded"),
+        "allowed_outcome": _format_missing(
+            first.get("Allowed Outcome"),
+            "auto_supported|human_reviewed_supported|candidate_context_only|still_blocked|skipped|excluded",
+        ),
     }
 
 
@@ -130,7 +138,7 @@ def reviewed_batch_outcome_recorder_cards(packet_frame: pd.DataFrame | None, com
             {
                 "kicker": "OUTCOME RECORDER",
                 "title": "Proof row blocked: packet missing",
-                "body": "Generate or review the latest batch packet before recording supported, candidate_context_only, still_blocked, skipped, or excluded.",
+                "body": f"Generate or review the latest batch packet before recording {PROOF_OUTCOME_OPTIONS}.",
                 "badges": ["blocked", "packet first"],
                 "command": summary["dry_run_command"],
             }
@@ -155,7 +163,8 @@ def reviewed_batch_outcome_recorder_cards(packet_frame: pd.DataFrame | None, com
             "kicker": "OUTCOME RECORDER",
             "title": "Proof row fields ready to record",
             "body": (
-                "Required proof-row fields have reviewed values. Record only supported, candidate_context_only, still_blocked, skipped, or excluded; this remains data-readiness proof, not a research recommendation."
+                f"Required proof-row fields have reviewed values. Record only {PROOF_OUTCOME_OPTIONS}; "
+                "auto_supported means deterministic gates passed, human_reviewed_supported means reviewed evidence passed, and this remains data-readiness proof, not a research recommendation."
             ),
             "badges": ["ready_to_record", "research-only"],
             "command": summary["proof_record_command"],
@@ -385,8 +394,9 @@ def reviewed_batch_proof_loop_cards(packet_frame: pd.DataFrame | None, compariso
             "kicker": "PROOF RECORD",
             "title": "Outcome scaffold ready",
             "body": (
-                "Record supported, candidate_context_only, still_blocked, skipped, or excluded only after validation, preview/apply decision, "
-                f"readiness comparison, source files ({summary['source_files']}), and artifact review ({summary['generated_artifacts_reviewed']})."
+                f"Record {PROOF_OUTCOME_OPTIONS} only after validation, preview/apply decision, "
+                f"readiness comparison, source files ({summary['source_files']}), and artifact review ({summary['generated_artifacts_reviewed']}). "
+                "auto_supported is deterministic gate proof; human_reviewed_supported is reviewed evidence proof."
             ),
             "badges": ["review required", "durable ledger"],
             "command": summary["proof_record_command"],

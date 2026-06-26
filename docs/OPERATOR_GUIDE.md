@@ -99,6 +99,19 @@ make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>
 
 Broad `make imports-apply` requires `ALLOW_BROAD_IMPORT_APPLY=1` and should only be used after the full staged import scope is intentionally reviewed.
 
+For unattended source-backed refresh planning, use the auto-refresh orchestrator:
+
+```bash
+make auto-refresh-plan
+make auto-refresh-daily
+make auto-refresh-weekly
+make auto-refresh-optional
+```
+
+The auto-refresh plan is scheduler-ready but still gate-first. `auto_supported` means the deterministic gate passed validation, preview, rejected-row, source-provenance, scope, and no-fabrication checks. `human_reviewed_supported` means a person reviewed the evidence. `candidate_context_only` can route research, especially peer candidates, but it is not trusted proof. Rows that fail a source path should be recorded as `still_blocked`, `skipped`, or `excluded` and the workflow should pivot instead of retrying the same unavailable provider.
+
+Use `make auto-apply-gate` before any unattended apply step. The gate must see valid validation/preview results, zero rejected rows, source provenance, no fabricated values, expected scope, and a batch size within the lane policy. If any condition fails, it returns `still_blocked` and the next scheduler step should move to another executable lane.
+
 For larger price refreshes, dry-run first and keep batches capped:
 
 ```bash

@@ -15,7 +15,15 @@ from typing import Iterable
 
 
 DEFAULT_BATCH_PROOF_LEDGER = Path("data/reviewed_batch_proofs.csv")
-BATCH_OUTCOMES = {"supported", "candidate_context_only", "still_blocked", "skipped", "excluded"}
+BATCH_OUTCOMES = {
+    "supported",
+    "auto_supported",
+    "human_reviewed_supported",
+    "candidate_context_only",
+    "still_blocked",
+    "skipped",
+    "excluded",
+}
 BATCH_PROOF_COLUMNS = (
     "batch_id",
     "review_date",
@@ -158,7 +166,10 @@ def reviewed_batch_proof_validation_rows(row: ReviewedBatchProof) -> list[dict[s
         reason = "Reviewed value is present."
         if field == "final_outcome" and row.final_outcome not in BATCH_OUTCOMES:
             status = "invalid_outcome"
-            reason = "FINAL_OUTCOME must be one of supported, candidate_context_only, still_blocked, skipped, or excluded."
+            reason = (
+                "FINAL_OUTCOME must be one of supported, auto_supported, human_reviewed_supported, "
+                "candidate_context_only, still_blocked, skipped, or excluded."
+            )
         elif _is_placeholder(value) and not _is_reviewed_no_change(field, value):
             status = "missing_required"
             reason = "Required ledger field still contains a placeholder or missing value."
@@ -239,7 +250,10 @@ def render_reviewed_batch_proofs(rows: list[ReviewedBatchProof]) -> str:
 def build_batch_proof_from_args(args: argparse.Namespace, *, strict_outcome: bool = True) -> ReviewedBatchProof:
     final_outcome = _clean(args.final_outcome).lower()
     if strict_outcome and final_outcome not in BATCH_OUTCOMES:
-        raise SystemExit("FINAL_OUTCOME must be one of supported, candidate_context_only, still_blocked, skipped, or excluded.")
+        raise SystemExit(
+            "FINAL_OUTCOME must be one of supported, auto_supported, human_reviewed_supported, "
+            "candidate_context_only, still_blocked, skipped, or excluded."
+        )
     return ReviewedBatchProof(
         batch_id=_clean(args.batch_id),
         review_date=_clean(args.review_date),

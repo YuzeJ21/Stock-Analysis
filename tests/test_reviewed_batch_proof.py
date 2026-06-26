@@ -164,6 +164,25 @@ def test_reviewed_batch_proof_accepts_candidate_context_only_outcome(tmp_path: P
     assert "no trusted peer rows were promoted" in rendered
 
 
+def test_reviewed_batch_proof_accepts_auto_supported_outcome(tmp_path: Path):
+    ledger = tmp_path / "reviewed_batch_proofs.csv"
+    row = _proof(
+        batch_id="RB-AUTO-001",
+        lane="fundamentals",
+        final_outcome="auto_supported",
+        reviewer="auto-refresh-orchestrator",
+        notes="Deterministic auto gate passed validation, preview, provenance, and no-fabrication checks.",
+    )
+
+    validation_rows = reviewed_batch_proof_validation_rows(row)
+    append_reviewed_batch_proof(row, ledger)
+    rendered = render_reviewed_batch_proofs(load_reviewed_batch_proofs(ledger))
+
+    assert reviewed_batch_proof_validation_status(validation_rows) == "ready_to_record"
+    assert "auto_supported" in rendered
+    assert "no-fabrication" in rendered
+
+
 def test_reviewed_batch_proof_dry_run_prints_preview_without_writing(tmp_path: Path, capsys):
     ledger = tmp_path / "reviewed_batch_proofs.csv"
 

@@ -221,7 +221,8 @@ def test_makefile_help_documents_key_workflows():
         "make lane-outcome-history [LEDGER=data/reviewed_data_proofs.csv] Print lane outcome history from reviewed proof rows",
         "make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded> Record an intentional reviewed proof row",
         "make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows",
-        "make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed batch outcome",
+        "make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<auto_supported|human_reviewed_supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed or auto-gated batch outcome",
+        "make auto-refresh-plan       Print scheduler-ready source-backed auto-refresh lanes and auto gates",
         "make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields",
         "make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates",
         "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan",
@@ -2080,7 +2081,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "reviewed-batch-compare:\n\t@python3 -m src.readiness_comparison --root ." in makefile
     assert "reviewed-batch-preflight:\n\t@python3 -m src.reviewed_batch_preflight --root ." in makefile
     assert "reviewed-batch-proof-record:\nifndef BATCH_ID" in makefile
-    assert "$(error FINAL_OUTCOME is required: supported, candidate_context_only, still_blocked, skipped, or excluded)" in makefile
+    assert "$(error FINAL_OUTCOME is required: supported, auto_supported, human_reviewed_supported, candidate_context_only, still_blocked, skipped, or excluded)" in makefile
+    assert "auto-refresh-plan:\n\t@python3 -m src.auto_refresh_orchestrator --root . --schedule all" in makefile
+    assert "auto-apply-gate:\n\t@python3 -m src.auto_refresh_orchestrator --root ." in makefile
     assert "reviewed-data-proof-record:\nifndef LANE" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
     assert "Check whether price coverage can be improved safely" in makefile
