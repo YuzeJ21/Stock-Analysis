@@ -2075,18 +2075,28 @@ def apply_dashboard_theme() -> None:
           background: #ffffff;
           box-shadow: none;
         }
+        .command-topbar.compact {
+          gap: 0.52rem;
+          align-items: center;
+        }
         .command-top-left,
         .command-top-right {
           display: flex;
           align-items: center;
           gap: 0.5rem;
           flex-wrap: wrap;
+          min-width: 0;
         }
         .command-status-item {
           color: #111827;
           font-size: 0.74rem;
           font-weight: 750;
           white-space: nowrap;
+        }
+        .command-topbar.compact .command-status-item {
+          white-space: normal;
+          overflow-wrap: anywhere;
+          line-height: 1.25;
         }
         .command-status-item.primary {
           color: #0f766e;
@@ -2733,13 +2743,14 @@ def apply_dashboard_theme() -> None:
           text-transform: uppercase;
           margin-left: 0.05rem;
         }
-        .section-title {
-          margin: 0.1rem 0 0.12rem 0;
-          font-size: 0.98rem;
-          font-weight: 900;
-          letter-spacing: 0;
-          color: var(--research-ink);
-          line-height: 1.22;
+        .section-title,
+        section.section-shell h2.section-title {
+          margin: 0.1rem 0 0.12rem 0 !important;
+          font-size: 0.98rem !important;
+          font-weight: 900 !important;
+          letter-spacing: 0 !important;
+          color: var(--research-ink) !important;
+          line-height: 1.22 !important;
         }
         .section-caption {
           margin-top: 0;
@@ -2922,10 +2933,6 @@ def apply_dashboard_theme() -> None:
           white-space: pre-line;
         }
         .signal-grid.queue-grid .signal-body {
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
           font-size: 0.78rem;
           line-height: 1.3;
           margin-top: 0.26rem;
@@ -3062,6 +3069,32 @@ def apply_dashboard_theme() -> None:
           max-width: 50rem;
         }
         @media (max-width: 760px) {
+          section.section-shell h2.section-title {
+            font-size: 0.94rem !important;
+            line-height: 1.22 !important;
+          }
+          .command-topbar.compact {
+            align-items: flex-start;
+            gap: 0.28rem;
+            padding: 0.4rem 0.54rem;
+          }
+          .command-topbar.compact .command-top-left,
+          .command-topbar.compact .command-top-right {
+            width: 100%;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 0.28rem;
+          }
+          .command-topbar.compact .command-status-item,
+          .command-topbar.compact .command-top-link {
+            font-size: 0.68rem;
+          }
+          .command-topbar.compact .command-top-left .command-status-item:not(.primary) {
+            display: none;
+          }
+          .command-topbar.compact .command-top-right {
+            width: auto;
+          }
           .app-hero.compact .hero-subtitle {
             display: none;
           }
@@ -4727,6 +4760,8 @@ def public_notice_copy(value: object) -> str:
     """Translate operator-refresh wording for public notice cards."""
 
     raw_text = format_missing(value, "")
+    if re.search(r"\bmake\s+", raw_text, flags=re.IGNORECASE):
+        return public_readiness_refresh_message(raw_text)
     if re.search(r"generated\s+csv\s+output", raw_text, flags=re.IGNORECASE):
         return "Refresh readiness before relying on saved status output."
     text = operator_queue_preview_copy(raw_text)
@@ -4746,6 +4781,40 @@ def public_notice_copy(value: object) -> str:
     text = re.sub(r"\b(open the evidence drawer)\b", "refresh readiness", text, flags=re.IGNORECASE)
     text = re.sub(r"\s{2,}", " ", text).strip()
     return text
+
+
+def public_readiness_refresh_message(value: object) -> str:
+    """Return public-safe freshness copy without terminal commands."""
+
+    text = format_missing(value, "Refresh the local readiness snapshot before relying on exact counts.")
+    text = re.sub(
+        r"\s*Run\s+`?make\b[^.]*\.",
+        " Refresh readiness before relying on saved status output.",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\b`?make\s+[^.`]+`?", "the local readiness refresh", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s*\([^)]*\.csv[^)]*\)", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bgenerated\s+CSV\s+output\b", "saved status output", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bsource\s+CSVs\b", "source files", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bCSV(s)?\b", "saved data", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s{2,}", " ", text).strip()
+    text = re.sub(r"\s+\.", ".", text)
+    text = text.lstrip(". ").strip()
+    refresh_sentence = "Refresh the local readiness snapshot before relying on exact counts."
+    if "refresh " not in text.lower():
+        text = f"{text} {refresh_sentence}".strip()
+    return text
+
+
+def public_freshness_status(freshness: FreshnessStatus) -> FreshnessStatus:
+    """Translate freshness details for public routes while preserving status."""
+
+    return FreshnessStatus(
+        freshness.status,
+        public_readiness_refresh_message(freshness.message),
+        "Refresh the local readiness snapshot",
+    )
 
 
 def notice_card_html(title: str, body: str, command: str = "", tone: str = "info", *, public: bool = False) -> str:
@@ -5083,7 +5152,7 @@ def command_center_header_html(
         "</div>"
         "<div class='command-top-right'>"
         "<a class='command-top-link' href='?mode=public&page=data-health' target='_self'>Data Health</a>"
-        "<span class='command-status-item'>About this center</span>"
+        "<span class='command-status-item command-about'>About this center</span>"
         "</div>"
         "</nav>"
     )
@@ -25707,6 +25776,7 @@ def render_home_page(
     )
     generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
     freshness = readiness_freshness_status(BASE_DIR)
+    display_freshness = public_freshness_status(freshness) if public_mode else freshness
 
     if not public_mode:
         render_section_header(
@@ -25744,8 +25814,8 @@ def render_home_page(
     if freshness.status in {"missing", "stale"}:
         render_notice_card(
             "Readiness snapshot may be stale",
-            freshness.message,
-            freshness.refresh_command,
+            display_freshness.message,
+            display_freshness.refresh_command,
             tone="warning",
             public=public_mode,
         )
@@ -25765,7 +25835,7 @@ def render_home_page(
             "Research Workflow",
             "One connected loop: readiness snapshot, selector queue, one-ticker report, source-proof lane, then proof history before trusting changed states.",
         )
-        render_research_loop_strip(**home_research_loop_context(summary, freshness))
+        render_research_loop_strip(**home_research_loop_context(summary, display_freshness))
         render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)
         render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
         render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)
@@ -27204,6 +27274,7 @@ def render_data_health(
         pd.DataFrame() if defer_broad_queue else data_health_data_coverage_proof_queue_frame(top_n=10)
     )
     readiness_freshness = data_health_freshness_status(BASE_DIR)
+    public_readiness_freshness = public_freshness_status(readiness_freshness) if public_mode else readiness_freshness
     if public_mode:
         render_section_header(
             "Data Quality / Readiness",
@@ -27234,7 +27305,7 @@ def render_data_health(
         render_research_loop_strip(
             **data_health_research_loop_context(
                 selected_lane_key=selected_lane_key,
-                readiness_freshness=readiness_freshness,
+                readiness_freshness=public_readiness_freshness,
                 next_action="Open the public evidence drawer",
                 public_mode=True,
             )
@@ -27269,7 +27340,7 @@ def render_data_health(
                 coverage_frontier,
                 earnings_readiness_frame,
                 analyst_readiness_frame,
-                readiness_freshness,
+                public_readiness_freshness,
             )[:1]
             render_signal_cards(freshness_cards, show_commands=False)
             render_section_header("Review Metrics Readiness", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")

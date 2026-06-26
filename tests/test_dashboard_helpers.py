@@ -2631,10 +2631,17 @@ def test_public_home_computes_freshness_before_loop_strip():
 
     render_home_index = source.index("def render_home_page(")
     freshness_index = source.index("freshness = readiness_freshness_status(BASE_DIR)", render_home_index)
-    public_mode_index = source.index("if public_mode:", freshness_index)
-    loop_strip_index = source.index("render_research_loop_strip(**home_research_loop_context(summary, freshness))", public_mode_index)
+    display_freshness_index = source.index(
+        "display_freshness = public_freshness_status(freshness) if public_mode else freshness",
+        freshness_index,
+    )
+    public_mode_index = source.index("if public_mode:", display_freshness_index)
+    loop_strip_index = source.index(
+        "render_research_loop_strip(**home_research_loop_context(summary, display_freshness))",
+        public_mode_index,
+    )
 
-    assert render_home_index < freshness_index < public_mode_index < loop_strip_index
+    assert render_home_index < freshness_index < display_freshness_index < public_mode_index < loop_strip_index
 
 
 def test_home_public_loop_cards_connect_first_scan_without_commands_or_demo_framing():
@@ -3083,6 +3090,20 @@ def test_section_header_html_uses_shell_and_escapes_content():
     assert "Research View" not in html
     assert "&lt;Monthly Picks&gt;" in html
     assert "&lt;local&gt;" in html
+
+
+def test_section_header_css_overrides_streamlit_native_h2_scale():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    scoped_title_index = source.index("section.section-shell h2.section-title")
+    scoped_title_chunk = source[scoped_title_index : scoped_title_index + 360]
+    mobile_index = source.index("@media (max-width: 760px)", scoped_title_index)
+    mobile_title_index = source.index("section.section-shell h2.section-title", mobile_index)
+    mobile_title_chunk = source[mobile_title_index : mobile_title_index + 220]
+
+    assert "font-size: 0.98rem !important" in scoped_title_chunk
+    assert "line-height: 1.22 !important" in scoped_title_chunk
+    assert "font-size: 0.94rem !important" in mobile_title_chunk
 
 
 def test_command_center_header_uses_semantic_product_heading():
@@ -25746,6 +25767,22 @@ def test_dashboard_generated_artifact_stale_warning_uses_broad_status_sources(tm
     assert "generated report" not in warning.lower()
 
 
+def test_public_readiness_refresh_message_removes_terminal_commands():
+    message = (
+        "Generated status artifacts may be stale because source CSVs changed after "
+        "the last saved readiness view (data/fundamentals.csv). Run make readiness "
+        "or make status-check TOP_N=5 to refresh before relying on exact counts."
+    )
+
+    public_message = dashboard.public_readiness_refresh_message(message)
+
+    assert "Generated status artifacts may be stale" in public_message
+    assert "Refresh readiness before relying on saved status output." in public_message
+    assert "make " not in public_message.lower()
+    assert "status-check" not in public_message.lower()
+    assert ".csv" not in public_message.lower()
+
+
 def test_data_health_freshness_status_marks_current_readiness_stale_when_status_artifacts_lag(tmp_path):
     data_dir = tmp_path / "data"
     reports_dir = data_dir / "reports"
@@ -25813,6 +25850,39 @@ def test_public_subpages_use_compact_header_before_page_content():
         in source
     )
     assert "render_app_header(\n        catalog,\n        output_frames," in source
+
+
+def test_public_compact_header_allows_mobile_status_wrap():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    compact_topbar_index = source.index(".command-topbar.compact")
+    compact_status_index = source.index(".command-topbar.compact .command-status-item", compact_topbar_index)
+    mobile_index = source.index("@media (max-width: 760px)", compact_status_index)
+    mobile_compact_index = source.index(".command-topbar.compact", mobile_index)
+
+    compact_status_chunk = source[compact_status_index : compact_status_index + 260]
+    mobile_compact_chunk = source[mobile_compact_index : mobile_compact_index + 700]
+    assert "white-space: normal" in compact_status_chunk
+    assert "overflow-wrap: anywhere" in compact_status_chunk
+    assert "align-items: flex-start" in mobile_compact_chunk
+    assert "gap: 0.28rem" in mobile_compact_chunk
+    assert ".command-topbar.compact .command-top-left .command-status-item:not(.primary)" in mobile_compact_chunk
+    assert "display: none" in mobile_compact_chunk
+    assert "command-about" in source
+
+
+def test_compact_header_keeps_about_link_classed_for_mobile():
+    html = dashboard.command_center_header_html(
+        {"master_universe": 100, "price_ready": 20, "dcf_ready": 5, "peer_ready": 2},
+        tickers=100,
+        final_count=12,
+        latest_price="2026-06-05",
+        compact=True,
+    )
+
+    assert "command-topbar compact" in html
+    assert "command-status-item command-about" in html
+    assert "Stock Research Command Center" not in html
 
 
 def test_public_subpages_do_not_insert_home_loop_before_page_content():
@@ -25914,6 +25984,15 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     assert "read At A Glance" not in source
     assert "At A Glance and the reader guide" not in source
     assert "read What Can Be Read Now first" in source
+
+
+def test_queue_signal_cards_do_not_clip_public_explanatory_text():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    queue_body_index = source.index(".signal-grid.queue-grid .signal-body")
+    queue_body_rule = source[queue_body_index : source.index("}", queue_body_index)]
+
+    assert "-webkit-line-clamp" not in queue_body_rule
+    assert "overflow: hidden" not in queue_body_rule
 
 
 def test_advanced_pages_share_command_center_shell_before_raw_tables():
