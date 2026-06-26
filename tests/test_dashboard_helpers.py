@@ -1869,11 +1869,10 @@ def test_research_loop_action_links_are_navigation_only_and_lane_aware():
 def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert 'render_command_center_overview(summary, active_step="Explore ready names")' in source
     assert "render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))" in source
     assert source.count("data_health_research_loop_context(") >= 2
-    home_loop_index = source.index('render_command_center_overview(summary, active_step="Explore ready names")')
-    public_first_scan_index = source.index('render_section_header(\n            "First 30 Seconds"', home_loop_index)
+    proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
+    public_first_scan_index = source.index('render_section_header(\n            "First 30 Seconds"', proof_strip_index)
     home_optional_workflow_index = source.index(
         'st.expander("Optional: workflow and next-step details", expanded=False)',
         public_first_scan_index,
@@ -1885,7 +1884,7 @@ def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages(
     data_health_loop_index = source.index("render_research_loop_strip(\n        **data_health_research_loop_context(", data_health_nav_index)
     data_health_mode_index = source.index("render_data_health_current_mode_strip(", data_health_nav_index)
 
-    assert home_loop_index < public_first_scan_index < home_optional_workflow_index < home_workflow_index
+    assert proof_strip_index < public_first_scan_index < home_optional_workflow_index < home_workflow_index
     assert single_stock_button_index < single_stock_loop_index
     assert data_health_nav_index < data_health_loop_index < data_health_mode_index
 
@@ -2690,8 +2689,7 @@ def test_home_current_data_coverage_cards_delegate_to_public_home_workflow_helpe
 def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    command_center_index = source.index('render_command_center_overview(summary, active_step="Explore ready names")')
-    proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))", command_center_index)
+    proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
     first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', proof_strip_index)
     first_30_cards_index = source.index("render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)", first_30_index)
     connected_workflow_index = source.index('render_section_header(\n            "Connected Workflow"', first_30_cards_index)
@@ -2716,7 +2714,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
 
-    assert command_center_index < proof_strip_index < first_30_index < first_30_cards_index < connected_workflow_index < review_map_cards_index < visitor_path_index < visitor_path_cards_index < where_to_go_index < route_cards_index < optional_workflow_expander_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
+    assert proof_strip_index < first_30_index < first_30_cards_index < connected_workflow_index < review_map_cards_index < visitor_path_index < visitor_path_cards_index < where_to_go_index < route_cards_index < optional_workflow_expander_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
     assert "A compact map from readiness snapshot to one-ticker review, source-proof lane, and stop rule." in source
     assert "A simple four-step path for reading the project without opening operator tables." in source
@@ -25817,12 +25815,27 @@ def test_public_subpages_use_compact_header_before_page_content():
     assert "render_app_header(\n        catalog,\n        output_frames," in source
 
 
+def test_public_subpages_do_not_insert_home_loop_before_page_content():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    subpage_functions = [
+        "def render_stock_selector(",
+        "def render_single_stock_report(",
+        "def render_data_health(",
+        "def render_proof_history(",
+    ]
+
+    for start_marker in subpage_functions:
+        start_index = source.index(start_marker)
+        next_function_index = source.find("\ndef ", start_index + 1)
+        chunk = source[start_index:next_function_index]
+        assert "render_command_center_overview(" not in chunk
+
+
 def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_report_button():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")
 
-    overview_index = source.index('render_command_center_overview(_header_readiness_summary(), active_step="One-Ticker Review")', render_index)
-    section_index = source.index('"One-Stock Review"', overview_index)
+    section_index = source.index('"One-Stock Review"', render_index)
     selected_readiness_index = source.index('"Review Status"', section_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", selected_readiness_index)
     coverage_expander_index = source.index('st.expander("Ticker Readiness Evidence"', contract_cards_index)
@@ -25833,8 +25846,8 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     report_button_index = source.index('st.button("Open Review"', intro_cards_index)
 
     assert (
-        overview_index
-        < section_index
+            render_index
+            < section_index
         < selected_readiness_index
         < contract_cards_index
         < coverage_expander_index
@@ -25942,8 +25955,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
-    overview_index = source.index('render_command_center_overview(readiness_summary, active_step="Data Health (source-proof)")', public_index)
-    first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", overview_index)
+    first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_index)
     visitor_paths_index = source.index('render_section_header("Visitor Paths"', first_30_index)
     drawer_open_state_index = source.index('public_evidence_drawer_expanded = selected_drawer == "proof"', public_index)
     drawer_index = source.index(
@@ -25959,9 +25971,8 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     batch_execution_index = source.index('render_section_header("Readiness Batch Execution"', ops_index)
 
     assert (
-        public_index
-        < overview_index
-        < first_30_index
+            public_index
+            < first_30_index
         < visitor_paths_index
         < drawer_open_state_index
         < drawer_index

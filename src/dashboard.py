@@ -11302,8 +11302,6 @@ def proof_history_public_detail_cards(
 
 
 def render_proof_history(*, public_mode: bool = True) -> None:
-    if public_mode:
-        render_command_center_overview(_header_readiness_summary(), active_step="Proof History")
     render_section_header(
         PROOF_HISTORY_PATH_TITLE,
         "Review source-proof trail and durable batch proof before trusting changed readiness states.",
@@ -25159,8 +25157,6 @@ def render_stock_selector(
     )
     selector_frame = stock_selector_queue_frame(decisions_frame, final_frame, ticker_readiness_frame, limit=120)
 
-    if public_mode:
-        render_command_center_overview(summary, active_step="Explore ready names")
     render_section_header(
         STOCK_SELECTOR_PATH_TITLE,
         "Filter readiness-backed research candidates before opening a single-stock report.",
@@ -25712,9 +25708,7 @@ def render_home_page(
     generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
     freshness = readiness_freshness_status(BASE_DIR)
 
-    if public_mode:
-        render_command_center_overview(summary, active_step="Explore ready names")
-    else:
+    if not public_mode:
         render_section_header(
             "Home",
             "A readiness-first research cockpit for choosing what to review next.",
@@ -26096,8 +26090,6 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
 
 def render_single_stock_report(provider, show_source_details: bool, *, public_mode: bool = True) -> None:
     show_card_commands = not public_mode
-    if public_mode:
-        render_command_center_overview(_header_readiness_summary(), active_step="One-Ticker Review")
     render_section_header(
         "One-Stock Review",
         "Choose a ticker to see what can be reviewed now, what stays locked, and which proof path comes next.",
@@ -27213,7 +27205,6 @@ def render_data_health(
     )
     readiness_freshness = data_health_freshness_status(BASE_DIR)
     if public_mode:
-        render_command_center_overview(readiness_summary, active_step="Data Health (source-proof)")
         render_section_header(
             "Data Quality / Readiness",
             "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
