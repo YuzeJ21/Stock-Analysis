@@ -18867,6 +18867,7 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert list(frame["lane"]) == [
+        "Metadata / identity",
         "Price / setup",
         "Fundamentals / DCF",
         "Peers",
@@ -18874,36 +18875,50 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
         "Analyst estimates",
         "Proof / demo evidence",
     ]
-    assert list(frame["state"]) == ["ready", "partial", "partial", "blocked", "blocked", "supported"]
+    assert list(frame["state"]) == ["ready", "ready", "partial", "partial", "blocked", "blocked", "supported"]
+    assert list(frame["coverage_tier"]) == [
+        "metadata_ready",
+        "price_ready",
+        "fundamentals_partial / dcf_ready",
+        "peer_candidate_context / trusted_peer_ready",
+        "optional_context_locked",
+        "optional_context_locked",
+        "product_evidence_only",
+    ]
     assert list(frame["why_blocked_or_limited"]) == [
+        "Metadata can confirm scope and filing context, but it is not price, fundamentals, valuation, earnings, or estimates.",
         "Some tickers still lack enough verified local price history.",
         "Missing trusted fundamentals, shares, or DCF inputs keep valuation withheld.",
-        "Peer context needs source-backed mappings plus trusted peer inputs.",
+        "Candidate peers are context only; trusted peers need source-backed mappings plus trusted peer inputs.",
         "Trusted local earnings rows have not been reviewed for most tickers.",
         "Trusted local analyst-estimate rows have not been reviewed for most tickers.",
         "Screenshots and proof artifacts do not prove current market data.",
     ]
     assert list(frame["proof_to_unlock"]) == [
+        "SEC submissions metadata, local universe rows, or reviewed ticker metadata prove identity only.",
         "Reviewed price rows or a capped dry-run refresh prove price coverage.",
         "Validated fundamentals imports, preview, rejected-row review, apply decision, and rebuilt readiness.",
-        "Reviewed peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
+        "Reviewed trusted peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
         "Trusted earnings CSV rows that pass validation, preview, and optional-context readiness.",
         "Trusted analyst-estimate CSV rows that pass validation, preview, and optional-context readiness.",
         "Current app screenshot evidence plus public-check; data freshness still comes from readiness commands.",
     ]
     assert list(frame["stop_rule"]) == [
+        "Stop before analysis if only metadata evidence exists.",
         "Stop if price rows are missing, too short, stale, or unreviewed.",
         "Stop if any required DCF input is missing or not source-backed.",
-        "Stop if peers are inferred from sector similarity or missing mapped-peer inputs.",
+        "Stop if candidate peers are promoted to trusted peers or mapped-peer inputs are missing.",
         "Stop if rows are empty, stale, or not trusted local evidence.",
         "Stop if estimates are absent, scraped without review, or treated as a recommendation.",
         "Stop if screenshots are used as proof of data freshness or source-input coverage.",
     ]
+    assert "use now to identify the tracked company" in rendered
     assert "use now for market setup" in rendered
     assert "use only on dcf-ready companies" in rendered
     assert "why limited:" in rendered
     assert "proof to unlock:" in rendered
-    assert "stop if peers are inferred from sector similarity" in rendered
+    assert "candidate peers are context only" in rendered
+    assert "stop if candidate peers are promoted to trusted peers" in rendered
     assert "do not use yet unless trusted local earnings rows exist" in rendered
     assert "not data freshness" in rendered
     assert "buy" not in rendered
@@ -25789,6 +25804,17 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert "data_health_freshness_status(BASE_DIR)" in source
     assert "dashboard_generated_artifact_stale_warning(BASE_DIR)" in source
     assert '"Generated status may be stale"' in source
+
+
+def test_public_subpages_use_compact_header_before_page_content():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert 'public_subpage_header = public_demo_mode and selected_page != "Home"' in source
+    assert (
+        'compact=public_subpage_header or (selected_page == "Data Health" and not public_demo_mode)'
+        in source
+    )
+    assert "render_app_header(\n        catalog,\n        output_frames," in source
 
 
 def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_report_button():

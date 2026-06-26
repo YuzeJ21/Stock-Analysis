@@ -56,11 +56,31 @@ def _write_sec_submission_cache(root, cik: str = "0001045810") -> None:
                         "accessionNumber": ["0000950170-26-000123"],
                         "filingDate": ["2026-06-16"],
                         "reportDate": ["2026-04-29"],
+                        "primaryDocument": ["crdo-20260429.htm"],
                         "form": ["10-K"],
                     }
                 },
             }
         ),
+    )
+
+
+def _write_sec_filing_document_cache(root, cik: str = "0001045810") -> None:
+    _write_text(
+        root
+        / "data"
+        / "cache"
+        / "sec"
+        / "filing_documents"
+        / f"CIK{cik}"
+        / "000095017026000123"
+        / "crdo-20260429.htm",
+        """
+        <html>
+          <ix:nonFraction name="dei:EntityCommonStockSharesOutstanding"
+            contextRef="shares-context" unitRef="shares">245,000,000</ix:nonFraction>
+        </html>
+        """,
     )
 
 
@@ -1270,6 +1290,7 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     _write_text(tmp_path / "data" / "rejected" / "fundamentals_import_rejected.csv", "source_file,source_row,ticker,rejection_reason\n")
     _write_text(tmp_path / "data" / "cache" / "sec" / "company_tickers.json", json.dumps({"0": {"cik_str": 1045810, "ticker": "CRDO", "title": "CREDO TECHNOLOGY GROUP HOLDING LTD"}}))
     _write_sec_submission_cache(tmp_path)
+    _write_sec_filing_document_cache(tmp_path)
 
     rendered = render_trusted_data_pilot_packet(candidates[0], requested_ticker="CRDO", root=tmp_path)
 
@@ -1298,6 +1319,16 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "Latest filing: 10-K filed 2026-06-16 accession 0000950170-26-000123" in rendered
     assert "Boundary: SEC submissions metadata supports ticker/entity/SIC/filing-recency evidence only" in rendered
     assert "does not unlock fundamentals, share count, DCF, valuation, earnings, or analyst estimates" in rendered
+    assert "Tiered coverage snapshot:" in rendered
+    assert "metadata_ready: available for identity, SIC/industry, exchange, and filing recency only" in rendered
+    assert "share_count_ready: not ready until a reviewed import uses source-backed shares_outstanding" in rendered
+    assert "peer_candidate_context: contextual only; trusted_peer_ready requires reviewed peer rows" in rendered
+    assert "optional_context_locked: earnings and estimates remain locked until trusted optional rows exist" in rendered
+    assert "SEC filing document share-count fallback:" in rendered
+    assert "Source usage: share_count_evidence_only" in rendered
+    assert "Explicit share-count fact: dei:EntityCommonStockSharesOutstanding = 245,000,000" in rendered
+    assert "Filing document: 10-K filed 2026-06-16 accession 0000950170-26-000123 document crdo-20260429.htm" in rendered
+    assert "does not unlock DCF unless it is validated, previewed, applied, and rebuilt into readiness" in rendered
     assert "One-company evidence packet:" in rendered
     assert "What this proves before any conclusion changes:" in rendered
     assert "Baseline: snapshot current readiness and generate a before report so the starting mode is visible." in rendered
@@ -1517,6 +1548,8 @@ def test_trusted_data_pilot_packet_uses_local_sec_cik_when_ticker_map_cache_is_m
     assert "SEC submissions metadata packet:" in rendered
     assert "Status: unavailable (cached_submission_missing)" in rendered
     assert "HOOD CIK 0001783879" in rendered
+    assert "SEC filing document share-count fallback:" in rendered
+    assert "Status: unavailable (cached_submission_missing)" in rendered
     assert "ticker_not_found_in_sec_ticker_map" not in rendered
     assert "metadata supports ticker/entity/SIC/filing-recency evidence only" in rendered
     assert "does not unlock fundamentals, share count, DCF, valuation, earnings, or analyst estimates" in rendered

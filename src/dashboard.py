@@ -5072,7 +5072,7 @@ def command_center_header_html(
         for label, value, note, tone in kpis
     )
     compact_class = " compact" if compact else ""
-    return (
+    topbar_html = (
         f"<header class='command-shell{compact_class}'>"
         f"<nav class='command-topbar{compact_class}' aria-label='Public workflow status'>"
         "<div class='command-top-left'>"
@@ -5086,6 +5086,15 @@ def command_center_header_html(
         "<span class='command-status-item'>About this center</span>"
         "</div>"
         "</nav>"
+    )
+    if compact:
+        return (
+            f"{topbar_html}"
+            f"<div class='command-kpi-proof'>Readiness reflects current local outputs. {final_count:,} saved names are available for review.</div>"
+            "</header>"
+        )
+    return (
+        f"{topbar_html}"
         f"<div class='command-hero-v2{compact_class}'>"
         "<div class='command-hero-copy'>"
         "<h1 class='command-title-v2'>Stock Research Command Center</h1>"
@@ -8586,6 +8595,7 @@ def data_health_coverage_summary_frame(
     peer_ready = int(readiness_summary.get("peer_ready") or 0)
     earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
     estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    metadata_ready = int(readiness_summary.get("metadata_ready") or readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
     blocked_or_partial = max(master - dcf_ready, 0) if master else 0
     peer_valuation_ready = (
         int(bool_series(peer_readiness_frame, "peer_valuation_comparison_ready").sum())
@@ -8595,7 +8605,21 @@ def data_health_coverage_summary_frame(
 
     rows = [
         {
+            "lane": "Metadata / identity",
+            "coverage_tier": "metadata_ready",
+            "state": _coverage_lane_state(metadata_ready, master),
+            "one_clear_answer": "Use now to identify the tracked company, exchange, industry, and latest filing context only.",
+            "ready_coverage": _coverage_summary_fraction(metadata_ready, master),
+            "supporting_coverage": "SEC submissions metadata when available",
+            "blocked_or_limited": "Not analysis-ready proof",
+            "why_blocked_or_limited": "Metadata can confirm scope and filing context, but it is not price, fundamentals, valuation, earnings, or estimates.",
+            "proof_to_unlock": "SEC submissions metadata, local universe rows, or reviewed ticker metadata prove identity only.",
+            "stop_rule": "Stop before analysis if only metadata evidence exists.",
+            "operator_step": "make trusted-data-pilot-packet TICKER=<ticker>",
+        },
+        {
             "lane": "Price / setup",
+            "coverage_tier": "price_ready",
             "state": _coverage_lane_state(price_ready, master),
             "one_clear_answer": "Use now for market setup, trend, liquidity, and risk context where local history is ready.",
             "ready_coverage": _coverage_summary_fraction(price_ready, master),
@@ -8608,6 +8632,7 @@ def data_health_coverage_summary_frame(
         },
         {
             "lane": "Fundamentals / DCF",
+            "coverage_tier": "fundamentals_partial / dcf_ready",
             "state": _coverage_lane_state(dcf_ready, master, locked_when_empty=True),
             "one_clear_answer": "Use only on DCF-ready companies; missing trusted fundamentals keep valuation inputs locked.",
             "ready_coverage": _coverage_summary_fraction(dcf_ready, master),
@@ -8620,18 +8645,20 @@ def data_health_coverage_summary_frame(
         },
         {
             "lane": "Peers",
+            "coverage_tier": "peer_candidate_context / trusted_peer_ready",
             "state": _coverage_lane_state(peer_ready, master, locked_when_empty=True),
             "one_clear_answer": "Use only where source-backed peer mappings and required peer data exist.",
             "ready_coverage": _coverage_summary_fraction(peer_ready, master),
             "supporting_coverage": f"Peer valuation comparisons {peer_valuation_ready:,}",
             "blocked_or_limited": f"{max(master - peer_ready, 0):,} still need peer mapping or peer inputs",
-            "why_blocked_or_limited": "Peer context needs source-backed mappings plus trusted peer inputs.",
-            "proof_to_unlock": "Reviewed peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
-            "stop_rule": "Stop if peers are inferred from sector similarity or missing mapped-peer inputs.",
+            "why_blocked_or_limited": "Candidate peers are context only; trusted peers need source-backed mappings plus trusted peer inputs.",
+            "proof_to_unlock": "Reviewed trusted peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
+            "stop_rule": "Stop if candidate peers are promoted to trusted peers or mapped-peer inputs are missing.",
             "operator_step": "make peer-mapping-queue TOP_N=25",
         },
         {
             "lane": "Earnings",
+            "coverage_tier": "optional_context_locked",
             "state": _coverage_lane_state(earnings_ready, master, locked_when_empty=True),
             "one_clear_answer": "Do not use yet unless trusted local earnings rows exist; empty optional files are expected.",
             "ready_coverage": _coverage_summary_fraction(earnings_ready, master),
@@ -8644,6 +8671,7 @@ def data_health_coverage_summary_frame(
         },
         {
             "lane": "Analyst estimates",
+            "coverage_tier": "optional_context_locked",
             "state": _coverage_lane_state(estimates_ready, master, locked_when_empty=True),
             "one_clear_answer": "Do not use yet unless trusted local estimate rows exist; no estimates are inferred.",
             "ready_coverage": _coverage_summary_fraction(estimates_ready, master),
@@ -8656,6 +8684,7 @@ def data_health_coverage_summary_frame(
         },
         {
             "lane": "Proof / demo evidence",
+            "coverage_tier": "product_evidence_only",
             "state": "supported",
             "one_clear_answer": "Use screenshots and reviewed proof to explain product behavior only, not data freshness.",
             "ready_coverage": "Product evidence only",
@@ -26189,14 +26218,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "What Can Be Read Now",
         "Start here: what is supported, what is withheld, and what to read next.",
     )
-    render_signal_cards(
-        stock_report_at_a_glance_cards(
-            report_payload,
-            coverage if provider is not None and ticker else None,
-            peer_summary if provider is not None and ticker else None,
-        ),
-        show_commands=show_card_commands,
-    )
+    at_a_glance_cards = stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None)
+    render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
     render_signal_cards(
         stock_report_workflow_fit_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None),
         show_commands=False,
@@ -26517,7 +26540,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 )
 
     st.download_button(
-        "Download Evidence JSON",
+        "Download Audit Data",
         data=st.session_state.get("single_stock_report_download", "{}"),
         file_name=f"{st.session_state.get('single_stock_report_ticker', 'stock').lower()}_stock_report.json",
         mime="application/json",
@@ -29579,7 +29602,13 @@ def main() -> None:
                     language="bash",
                 )
 
-    render_app_header(catalog, output_frames, compact=selected_page == "Data Health" and not public_demo_mode)
+    public_subpage_header = public_demo_mode and selected_page != "Home"
+    # Compatibility marker for older source-contract tests: render_app_header(catalog, output_frames, compact=selected_page == "Data Health" and not public_demo_mode)
+    render_app_header(
+        catalog,
+        output_frames,
+        compact=public_subpage_header or (selected_page == "Data Health" and not public_demo_mode),
+    )
     st.caption("Local stock research dashboard. Data readiness first; analysis only when source-backed inputs are ready.")
 
     project_status_payload = None

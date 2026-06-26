@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from src.providers.sec_submissions import build_sec_submission_metadata_packet
+from src.providers.sec_submissions import build_sec_filing_share_count_evidence, build_sec_submission_metadata_packet
 from src.session_source_preflight import load_session_source_preflight
 
 
@@ -190,6 +190,74 @@ def sec_submissions_metadata_packet_lines(ticker: str, *, root: Path) -> list[st
         f"- SIC/industry: {sic} - {sic_description}",
         f"- Latest filing: {latest_form} filed {latest_date} accession {latest_accession}",
         f"- Boundary: {_clean(packet.get('proof_boundary'))}",
+    ]
+
+
+def _format_count(value: object) -> str:
+    try:
+        number = float(str(value).replace(",", "").strip())
+    except (TypeError, ValueError):
+        return _clean(value)
+    if number.is_integer():
+        return f"{int(number):,}"
+    return f"{number:,.2f}"
+
+
+def tiered_coverage_packet_lines(candidate: PilotCandidate) -> list[str]:
+    is_fundamentals = candidate.lane == "fundamentals_dcf"
+    is_peer = candidate.lane in {"peer_mapping", "peer_valuation_inputs"}
+    return [
+        "Tiered coverage snapshot:",
+        "- metadata_ready: available for identity, SIC/industry, exchange, and filing recency only when SEC submissions metadata is present.",
+        "- price_ready: usable for setup, trend, liquidity, and market context only after verified local price history exists.",
+        (
+            "- fundamentals_partial: current lane is a fundamentals/share-count blocker; use source proof before DCF."
+            if is_fundamentals
+            else "- fundamentals_partial: not changed by this packet unless reviewed source rows are validated and applied."
+        ),
+        "- share_count_ready: not ready until a reviewed import uses source-backed shares_outstanding and readiness is rebuilt.",
+        (
+            "- dcf_ready: withheld for this candidate until all required fundamentals, shares, cash/debt, and price inputs are source-backed."
+            if is_fundamentals
+            else "- dcf_ready: unchanged by metadata or candidate peer context."
+        ),
+        (
+            "- peer_candidate_context: contextual only; trusted_peer_ready requires reviewed peer rows and mapped-peer inputs."
+            if is_peer
+            else "- peer_candidate_context: contextual only; trusted_peer_ready requires reviewed peer rows."
+        ),
+        "- optional_context_locked: earnings and estimates remain locked until trusted optional rows exist.",
+    ]
+
+
+def sec_filing_share_count_packet_lines(ticker: str, *, root: Path) -> list[str]:
+    evidence = build_sec_filing_share_count_evidence(
+        ticker,
+        ticker_map=_sec_submissions_ticker_map(root),
+        cache_dir=root / "data" / "cache" / "sec",
+        allow_network=False,
+    )
+    if evidence.get("status") != "available":
+        return [
+            "SEC filing document share-count fallback:",
+            f"- Status: unavailable ({_clean(evidence.get('reason_code'), 'unknown')})",
+            f"- Detail: {_clean(evidence.get('detail'), 'No explicit filing-document share-count evidence available.')}",
+            f"- Boundary: {_clean(evidence.get('proof_boundary'))}",
+        ]
+    return [
+        "SEC filing document share-count fallback:",
+        f"- Source usage: {_clean(evidence.get('source_usage'))}",
+        (
+            f"- Explicit share-count fact: {_clean(evidence.get('sec_fact_name'))} = "
+            f"{_format_count(evidence.get('shares_outstanding'))}"
+        ),
+        (
+            f"- Filing document: {_clean(evidence.get('sec_form'), 'form unavailable')} filed "
+            f"{_clean(evidence.get('sec_filed_date'), 'date unavailable')} accession "
+            f"{_clean(evidence.get('sec_accession'), 'accession unavailable')} document "
+            f"{_clean(evidence.get('sec_primary_document'), 'document unavailable')}"
+        ),
+        f"- Boundary: {_clean(evidence.get('proof_boundary'))}",
     ]
 
 
@@ -1349,7 +1417,9 @@ def render_trusted_data_pilot_packet(
             f"Source boundary: {candidate.source_boundary}",
             f"Trusted row target: {pilot_trusted_row_path(candidate)}",
             pilot_local_file_status(candidate, root=root) if root is not None else "Local file status: not checked in this render.",
+            *tiered_coverage_packet_lines(candidate),
             *(sec_submissions_metadata_packet_lines(candidate.ticker, root=root) if root is not None else []),
+            *(sec_filing_share_count_packet_lines(candidate.ticker, root=root) if root is not None else []),
             f"Skip if: {pilot_skip_condition(candidate)}",
             "",
             "One-company evidence packet:",
