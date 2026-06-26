@@ -2133,6 +2133,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert 'session-source-preflight:\n\t@python3 -m src.session_source_preflight --root . --write-output $(if $(SEC_USER_AGENT),--sec-user-agent "$(SEC_USER_AGENT)",)' in makefile
     assert "yfinance-stage:\nifndef TICKERS\n\t$(error TICKERS is required, for example: make yfinance-stage TICKERS=NVDA)\nendif\n\tpython3 -m src.stock_report --yfinance-stage-fundamentals --tickers $(TICKERS)" in makefile
+    assert "sec-filing-share-stage:\nifndef TICKERS\n\t$(error TICKERS is required, for example: make sec-filing-share-stage TICKERS=HOOD)\nendif\n\tpython3 -m src.stock_report --sec-filing-share-stage --tickers $(TICKERS)" in makefile
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert '@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."' in makefile
     assert "@echo \"Visitor workflow path:\"" in makefile

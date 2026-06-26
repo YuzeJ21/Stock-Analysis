@@ -33,6 +33,7 @@ from src.providers.local_importer import apply_import_merge, preview_import_merg
 from src.providers.local_templates import write_import_staging_files, write_local_data_templates
 from src.providers.mock_market_data import MockMarketDataProvider
 from src.providers.sec_companyfacts import build_sec_fundamentals_rows, write_sec_fundamentals_import
+from src.sec_filing_share_stage import stage_sec_filing_share_count_rows
 from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.provider_env import load_provider_environment
@@ -3880,6 +3881,7 @@ def main() -> None:
     parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge local import CSV files into canonical local data files.")
     parser.add_argument("--import-tickers", help="Optional comma-separated ticker filter for import validation, preview, and apply.")
     parser.add_argument("--sec-stage-fundamentals", action="store_true", help="Fetch official SEC Companyfacts data and stage candidate fundamentals under data/imports/fundamentals.csv.")
+    parser.add_argument("--sec-filing-share-stage", action="store_true", help="Fetch SEC filing-document share-count evidence and stage reviewed shares_outstanding rows under data/imports/fundamentals.csv.")
     parser.add_argument("--yfinance-stage-fundamentals", action="store_true", help="Fetch research-grade Yahoo/yfinance fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
     parser.add_argument("--alternative-fundamentals-stage", action="store_true", help="Fetch configured fallback provider fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
     parser.add_argument("--fundamentals-source-ladder", action="store_true", help="Try SEC, yfinance, FMP, Alpha Vantage, and Finnhub in order, staging the first source-backed fundamentals rows found per ticker.")
@@ -4070,6 +4072,49 @@ def main() -> None:
                     f"missing={','.join(row['missing_fields']) or '-'} "
                     f"warnings={'; '.join(row['warnings']) or '-'}"
                 )
+            print("next:")
+            for command in payload["recommended_next_commands"]:
+                print(f"- {command}")
+        return
+
+    if args.sec_filing_share_stage:
+        requested_tickers = _resolve_sec_tickers(args, cli_base_dir, cli_data_dir, cli_output_dir)
+        if not requested_tickers:
+            raise SystemExit(
+                "SEC filing share-count staging requires at least one ticker source. Use --tickers, "
+                "--from-dcf-input-queue, --from-local-tickers, --from-universe, or --from-holdings."
+            )
+        try:
+            payload = stage_sec_filing_share_count_rows(
+                requested_tickers,
+                root=cli_base_dir,
+                data_dir=cli_data_dir,
+                user_agent=args.sec_user_agent,
+                refresh=args.sec_refresh,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise SystemExit(_sec_staging_failure_message(exc)) from exc
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print_paths()
+            print(f"requested_tickers: {', '.join(payload['requested_tickers']) or '-'}")
+            print(f"resolved_tickers: {', '.join(payload['resolved_tickers']) or '-'}")
+            print(f"unresolved_tickers: {', '.join(payload['unresolved_tickers']) or '-'}")
+            print(f"rows_written: {payload.get('rows_written', 0)}")
+            print(f"staged_row_count: {payload.get('staged_row_count', 0)}")
+            print(f"output_path: {payload.get('output_path')}")
+            if payload["warnings"]:
+                print(f"warnings: {'; '.join(payload['warnings'])}")
+            for row in payload["row_summaries"]:
+                if row["status"] == "available":
+                    print(
+                        f"{row['ticker']}: shares_outstanding={row['shares_outstanding']} "
+                        f"source={row['source']} filing={row['sec_form']} filed={row['sec_filed_date']} "
+                        f"accession={row['sec_accession']} document={row['sec_primary_document']}"
+                    )
+                else:
+                    print(f"{row['ticker']}: unavailable reason={row.get('reason_code') or '-'} detail={row.get('detail') or '-'}")
             print("next:")
             for command in payload["recommended_next_commands"]:
                 print(f"- {command}")

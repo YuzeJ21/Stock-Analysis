@@ -1926,6 +1926,58 @@ def test_stock_report_cli_sec_stage_json_surfaces_make_based_follow_up(monkeypat
         os.chdir(previous_cwd)
 
 
+def test_stock_report_cli_sec_filing_share_stage_json_surfaces_preview_gate(monkeypatch, tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    def fake_stage(*_args, **_kwargs):
+        return {
+            "requested_tickers": ["HOOD"],
+            "resolved_tickers": ["HOOD"],
+            "unresolved_tickers": [],
+            "rows": [{"ticker": "HOOD", "shares_outstanding": 791184698, "source": "sec_filing_document"}],
+            "rows_written": 1,
+            "staged_row_count": 1,
+            "output_path": str(tmp_path / "data" / "imports" / "fundamentals.csv"),
+            "warnings": [],
+            "row_summaries": [
+                {
+                    "ticker": "HOOD",
+                    "populated_fields": ["shares_outstanding"],
+                    "source": "sec_filing_document",
+                    "sec_form": "10-Q",
+                    "sec_filed_date": "2026-04-29",
+                    "sec_accession": "0001783879-26-000062",
+                }
+            ],
+            "recommended_next_commands": [
+                "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
+            ],
+        }
+
+    monkeypatch.setattr("src.stock_report.stage_sec_filing_share_count_rows", fake_stage)
+
+    sys.argv = ["python", "--project-root", str(tmp_path), "--sec-filing-share-stage", "--tickers", "HOOD", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["resolved_tickers"] == ["HOOD"]
+        assert payload["rows_written"] == 1
+        assert payload["rows"][0]["source"] == "sec_filing_document"
+        assert payload["recommended_next_commands"] == [
+            "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
+            "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+            "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
+        ]
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
 def test_stock_report_cli_sec_stage_failure_shows_safe_manual_fallback(monkeypatch, tmp_path: Path):
     (tmp_path / "data").mkdir()
     previous_cwd = Path.cwd()
