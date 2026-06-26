@@ -66,6 +66,20 @@ class YFinanceProvider(MarketDataProvider):
         text = str(value).strip()
         return text or None
 
+    @staticmethod
+    def _clean_date(value: Any) -> str | None:
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return None
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            try:
+                return datetime.fromtimestamp(float(value), timezone.utc).date().isoformat()
+            except (OSError, OverflowError, ValueError):
+                return None
+        parsed = pd.to_datetime(value, errors="coerce", utc=True)
+        if pd.isna(parsed):
+            return None
+        return parsed.date().isoformat()
+
     def get_quote(self, ticker: str) -> QuoteSnapshot:
         asset = self._ticker(ticker)
         info = getattr(asset, "info", {}) or {}
@@ -137,7 +151,7 @@ class YFinanceProvider(MarketDataProvider):
             else None,
             debt_to_equity=self._clean_float(info.get("debtToEquity")),
             currency=self._clean_str(info.get("financialCurrency") or info.get("currency")),
-            as_of_date=self._clean_str(info.get("mostRecentQuarter")),
+            as_of_date=self._clean_date(info.get("mostRecentQuarter")),
             source=self._source("latest available fundamentals"),
         )
 
