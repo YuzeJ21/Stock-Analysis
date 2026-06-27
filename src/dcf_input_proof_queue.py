@@ -416,6 +416,29 @@ def _session_provider_statuses(root: Path | None) -> dict[str, str]:
     return statuses
 
 
+def _reviewed_non_actionable_tickers(root: Path | None) -> set[str]:
+    if root is None:
+        return set()
+    ledger_path = root / "data" / "reviewed_batch_proofs.csv"
+    if not ledger_path.exists():
+        return set()
+    ledger = _read_csv(ledger_path)
+    if ledger.empty or "tickers" not in ledger.columns or "final_outcome" not in ledger.columns:
+        return set()
+    relevant_lanes = {"fundamentals", "share_count"}
+    non_actionable = {"candidate_context_only", "still_blocked", "skipped", "excluded"}
+    if "lane" in ledger.columns:
+        ledger = ledger.loc[ledger["lane"].astype(str).str.lower().str.strip().isin(relevant_lanes)]
+    ledger = ledger.loc[ledger["final_outcome"].astype(str).str.lower().str.strip().isin(non_actionable)]
+    tickers: set[str] = set()
+    for value in ledger["tickers"].fillna(""):
+        for part in str(value).replace("|", ",").replace(";", ",").split(","):
+            ticker = part.upper().strip()
+            if ticker and ticker != "-":
+                tickers.add(ticker)
+    return tickers
+
+
 def _source_mode(
     family: str,
     *,
@@ -661,8 +684,10 @@ def _rank(
     *,
     sec_available: bool | None = None,
     local_share_fixable_count: int | None = None,
+    reviewed_non_actionable: set[str] | None = None,
 ) -> tuple[int, int, int, int, str]:
     ticker = str(row.get("ticker", "")).upper()
+    reviewed_rank = 1 if ticker in (reviewed_non_actionable or set()) else 0
     scope_rank = 0 if scope_lookup.get(ticker, "master universe") == "active universe" else 1
     fields = _split_fields(row.get("missing_dcf_fields"))
     single_input_rank = 0 if len(fields) == 1 else 1
@@ -672,7 +697,7 @@ def _rank(
     if sec_available is False and (local_share_fixable_count or 0) == 0:
         if family in {"shares_outstanding", "fundamentals_bundle_plus_shares"}:
             executable_rank = 1
-    return scope_rank, executable_rank, single_input_rank, family_rank, ticker
+    return reviewed_rank, scope_rank, executable_rank, single_input_rank, family_rank, ticker
 
 
 def build_dcf_input_proof_queue_from_dcf_frame(
@@ -696,6 +721,7 @@ def build_dcf_input_proof_queue_from_dcf_frame(
     sec_available = _session_sec_available(root)
     local_share_fixable_count = _session_local_share_fixable_count(root)
     provider_statuses = _session_provider_statuses(root)
+    reviewed_non_actionable = _reviewed_non_actionable_tickers(root)
     scope_lookup = _universe_scope_lookup(universe)
     ranked = sorted(
         (row for _, row in queue.iterrows()),
@@ -704,6 +730,7 @@ def build_dcf_input_proof_queue_from_dcf_frame(
             scope_lookup,
             sec_available=sec_available,
             local_share_fixable_count=local_share_fixable_count,
+            reviewed_non_actionable=reviewed_non_actionable,
         ),
     )
     rows: list[DcfInputProofRow] = []
@@ -713,6 +740,13 @@ def build_dcf_input_proof_queue_from_dcf_frame(
         ready = _ready_inputs(row)
         family = _missing_input_family(fields)
         sec_configured = _truthy(row.get("sec_user_agent_configured"))
+        source_note = _source_note(fields, family, sec_configured=sec_configured)
+        if ticker in reviewed_non_actionable:
+            source_note = (
+                "Reviewed proof ledger already records this ticker as non-actionable for the current source path; "
+                "prefer unreviewed executable blockers unless new source-backed rows or changed blockers appear. "
+                + source_note
+            )
         rows.append(
             DcfInputProofRow(
                 priority=len(rows) + 1,
@@ -733,7 +767,7 @@ def build_dcf_input_proof_queue_from_dcf_frame(
                 validation_sequence=_validation_sequence(family),
                 proof_after_update=_proof_after_update(ticker, family),
                 stop_rule=_stop_rule(family),
-                source_note=_source_note(fields, family, sec_configured=sec_configured),
+                source_note=source_note,
             )
         )
     return rows
