@@ -8,6 +8,7 @@ from src.data_update import (
     AlphaVantageDailyPriceSource,
     FMPDailyPriceSource,
     FinnhubDailyPriceSource,
+    IBKRDailyPriceSource,
     PriceSourceLadder,
     StooqDailyPriceSource,
     YahooChartDailyPriceSource,
@@ -50,6 +51,42 @@ class FakeHTTPResponse:
 
     def read(self) -> bytes:
         return self.payload.encode("utf-8")
+
+
+class FakeIBKRClient:
+    def __init__(self, bars=None, *, connect_error: Exception | None = None) -> None:
+        self.bars = bars or []
+        self.connect_error = connect_error
+        self.calls: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
+
+    def connect(self, *args, **kwargs):
+        self.calls.append(("connect", args, kwargs))
+        if self.connect_error:
+            raise self.connect_error
+        return True
+
+    def disconnect(self):
+        self.calls.append(("disconnect", (), {}))
+
+    def reqHistoricalData(self, *args, **kwargs):
+        self.calls.append(("reqHistoricalData", args, kwargs))
+        return list(self.bars)
+
+    def placeOrder(self, *_args, **_kwargs):  # pragma: no cover - guard method for negative assertions
+        raise AssertionError("IBKR price provider must never call trading APIs.")
+
+    def cancelOrder(self, *_args, **_kwargs):  # pragma: no cover - guard method for negative assertions
+        raise AssertionError("IBKR price provider must never call trading APIs.")
+
+
+class FakeIBKRBar:
+    def __init__(self, date, open, high, low, close, volume) -> None:
+        self.date = date
+        self.open = open
+        self.high = high
+        self.low = low
+        self.close = close
+        self.volume = volume
 
 
 def test_stooq_source_reports_api_key_page_without_parser_failure():
@@ -264,6 +301,68 @@ def test_finnhub_price_source_normalizes_daily_candle_rows():
     assert frame.iloc[0]["adj_close"] == 101.0
 
 
+def test_ibkr_price_source_normalizes_read_only_daily_bars():
+    client = FakeIBKRClient(
+        bars=[
+            FakeIBKRBar("2026-01-02", 100.0, 102.0, 99.0, 101.0, 12345),
+            FakeIBKRBar("2026-01-03", 101.0, 103.0, 100.0, 102.0, 23456),
+        ]
+    )
+
+    source = IBKRDailyPriceSource(
+        host="127.0.0.1",
+        port=7497,
+        client_id=42,
+        ib_factory=lambda: client,
+        contract_factory=lambda symbol, exchange, currency: {
+            "symbol": symbol,
+            "exchange": exchange,
+            "currency": currency,
+        },
+    )
+
+    frame, warnings = source.fetch_history("msft")
+
+    assert len(frame) == 2
+    assert list(frame.columns) == ["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
+    assert frame.iloc[0]["ticker"] == "MSFT"
+    assert frame.iloc[0]["adj_close"] == 101.0
+    assert client.calls[0] == (
+        "connect",
+        ("127.0.0.1", 7497),
+        {"clientId": 42, "timeout": 4, "readonly": True},
+    )
+    historical_call = [call for call in client.calls if call[0] == "reqHistoricalData"][0]
+    assert historical_call[2]["barSizeSetting"] == "1 day"
+    assert historical_call[2]["whatToShow"] == "TRADES"
+    assert historical_call[2]["keepUpToDate"] is False
+    assert [call[0] for call in client.calls] == ["connect", "reqHistoricalData", "disconnect"]
+    assert "IBKR historical daily bars" in warnings[0]
+    assert "read-only market data" in warnings[0]
+
+
+def test_ibkr_price_source_reports_dependency_or_gateway_unavailable():
+    missing_dependency = IBKRDailyPriceSource(ib_factory=None, module_loader=lambda _name: (_ for _ in ()).throw(ImportError("No module named ib_insync")))
+    frame, warnings = missing_dependency.fetch_history("MSFT")
+
+    assert frame.empty
+    assert "ib_insync is not installed" in warnings[0]
+
+    client = FakeIBKRClient(connect_error=ConnectionRefusedError("gateway down"))
+    source = IBKRDailyPriceSource(ib_factory=lambda: client, contract_factory=lambda *_args: object())
+    frame, warnings = source.fetch_history("MSFT")
+
+    assert frame.empty
+    assert "IBKR Gateway/TWS is unavailable" in warnings[0]
+
+
+def test_ibkr_price_source_exposes_no_trading_methods():
+    source = IBKRDailyPriceSource(ib_factory=lambda: FakeIBKRClient(), contract_factory=lambda *_args: object())
+
+    for forbidden in ("place_order", "placeOrder", "cancel_order", "cancelOrder", "submit_order", "get_account"):
+        assert not hasattr(source, forbidden)
+
+
 def test_price_source_ladder_tries_stooq_after_yahoo_has_no_rows():
     yahoo = FakePriceSource({"META": None})
     stooq = FakePriceSource(
@@ -327,7 +426,7 @@ def test_update_local_price_data_records_auto_price_ladder_provider(tmp_path: Pa
 
 
 def test_make_price_source_auto_builds_yahoo_then_stooq_ladder(tmp_path: Path, monkeypatch):
-    for key in ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY"):
+    for key in ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY", "IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.chdir(tmp_path)
     reset_provider_environment_cache()
@@ -340,6 +439,9 @@ def test_make_price_source_auto_builds_yahoo_then_stooq_ladder(tmp_path: Path, m
 
 def test_make_price_source_auto_adds_configured_keyed_price_fallbacks(monkeypatch):
     reset_provider_environment_cache()
+    monkeypatch.delenv("IBKR_HOST", raising=False)
+    monkeypatch.delenv("IBKR_PORT", raising=False)
+    monkeypatch.delenv("IBKR_CLIENT_ID", raising=False)
     monkeypatch.setenv("FMP_API_KEY", "fmp-demo")
     monkeypatch.setenv("ALPHA_VANTAGE_API_KEY", "alpha-demo")
     monkeypatch.setenv("FINNHUB_API_KEY", "finnhub-demo")
@@ -348,6 +450,19 @@ def test_make_price_source_auto_adds_configured_keyed_price_fallbacks(monkeypatc
 
     assert isinstance(source, PriceSourceLadder)
     assert source.provider_names == ["yahoo", "stooq", "fmp", "alpha_vantage", "finnhub"]
+
+
+def test_make_price_source_auto_adds_configured_ibkr_before_keyed_price_fallbacks(monkeypatch):
+    reset_provider_environment_cache()
+    monkeypatch.setenv("IBKR_HOST", "127.0.0.1")
+    monkeypatch.setenv("IBKR_PORT", "7497")
+    monkeypatch.setenv("IBKR_CLIENT_ID", "42")
+    monkeypatch.setenv("FMP_API_KEY", "fmp-demo")
+
+    source = make_price_source("auto")
+
+    assert isinstance(source, PriceSourceLadder)
+    assert source.provider_names == ["yahoo", "stooq", "ibkr", "fmp"]
 
 
 def test_price_refresh_cli_accepts_direct_finnhub_provider(tmp_path: Path, monkeypatch):

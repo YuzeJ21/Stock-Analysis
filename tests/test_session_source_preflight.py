@@ -7,6 +7,7 @@ import pandas as pd
 
 from src.session_source_preflight import (
     build_session_source_preflight,
+    probe_ibkr_price,
     load_session_source_preflight,
     main,
     probe_fmp_key,
@@ -23,7 +24,7 @@ def _write_fundamentals(root: Path, rows: list[dict[str, object]]) -> None:
 
 
 def _clear_provider_env(monkeypatch) -> None:
-    for key in ("STOOQ_API_KEY", "FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY"):
+    for key in ("STOOQ_API_KEY", "FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY", "IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -345,6 +346,67 @@ def test_session_source_preflight_finnhub_key_message_mentions_price_fallback(mo
     assert "price fallback" in status["detail"]
 
 
+def test_probe_ibkr_price_reports_missing_dependency_without_blocking(monkeypatch):
+    monkeypatch.setenv("IBKR_HOST", "127.0.0.1")
+    monkeypatch.setenv("IBKR_PORT", "7497")
+    monkeypatch.setenv("IBKR_CLIENT_ID", "12")
+
+    status = probe_ibkr_price(module_loader=lambda _name: (_ for _ in ()).throw(ImportError("No module named ib_insync")))
+
+    assert status["status"] == "unavailable"
+    assert status["reason_code"] == "missing_dependency"
+    assert "ib_insync" in status["detail"]
+    assert status["source_usage"] == "read_only_daily_ohlcv"
+    assert "Do not retry IBKR" in status["next_action"]
+
+
+def test_session_source_preflight_reports_ibkr_read_only_price_provider(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("IBKR_HOST", "127.0.0.1")
+    monkeypatch.setenv("IBKR_PORT", "7497")
+    monkeypatch.setenv("IBKR_CLIENT_ID", "12")
+    monkeypatch.setenv("FMP_API_KEY", "fmp-demo")
+
+    preflight = build_session_source_preflight(
+        tmp_path,
+        sec_probe=lambda _user_agent: {
+            "status": "unavailable",
+            "reason_code": "network_error",
+            "detail": "dns failed",
+            "next_action": "Do not retry SEC-backed fundamentals in this session.",
+        },
+        yfinance_import_probe=lambda: {
+            "status": "unavailable",
+            "reason_code": "missing_dependency",
+            "detail": "No module named 'yfinance'",
+            "next_action": "python3 -m pip install -e '.[research]'",
+        },
+        ibkr_price_probe=lambda: {
+            "status": "available",
+            "reason_code": "configured",
+            "detail": "IBKR read-only daily bars configured.",
+            "next_action": "",
+            "source_usage": "read_only_daily_ohlcv",
+            "host": "127.0.0.1",
+            "port": 7497,
+            "client_id_configured": True,
+        },
+    )
+
+    assert preflight["sources"]["ibkr_price"]["status"] == "available"
+    assert "ibkr_price_coverage" in preflight["available_lanes"]
+    price_ladder = preflight["sources"]["price_ladder"]
+    assert price_ladder["provider_order"] == ["yahoo", "stooq", "ibkr", "fmp", "alpha_vantage", "finnhub"]
+    assert price_ladder["available_readonly_providers"] == ["ibkr"]
+    assert "price_coverage_provider_ladder" in preflight["available_lanes"]
+
+    rendered = render_session_source_preflight(preflight)
+
+    assert "- ibkr_price: status=available reason=configured" in rendered
+    assert "source_usage: read_only_daily_ohlcv" in rendered
+    assert "provider_order: yahoo, stooq, ibkr, fmp, alpha_vantage, finnhub" in rendered
+    assert "configured_price_fallbacks: fmp" in rendered
+
+
 def test_session_source_preflight_reports_price_ladder_keyed_fallbacks(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
     monkeypatch.setenv("FMP_API_KEY", "fmp-demo")
@@ -371,15 +433,16 @@ def test_session_source_preflight_reports_price_ladder_keyed_fallbacks(tmp_path:
 
     assert price_ladder["status"] == "available"
     assert price_ladder["reason_code"] == "configured_keyed_fallbacks"
-    assert price_ladder["provider_order"] == ["yahoo", "stooq", "fmp", "alpha_vantage", "finnhub"]
+    assert price_ladder["provider_order"] == ["yahoo", "stooq", "ibkr", "fmp", "alpha_vantage", "finnhub"]
     assert price_ladder["configured_keyed_providers"] == ["fmp", "finnhub"]
+    assert price_ladder["available_readonly_providers"] == []
     assert price_ladder["missing_keyed_provider_envs"] == ["STOOQ_API_KEY", "ALPHA_VANTAGE_API_KEY"]
     assert "price_coverage_provider_ladder" in preflight["available_lanes"]
 
     rendered = render_session_source_preflight(preflight)
 
     assert "- price_ladder: status=available reason=configured_keyed_fallbacks" in rendered
-    assert "provider_order: yahoo, stooq, fmp, alpha_vantage, finnhub" in rendered
+    assert "provider_order: yahoo, stooq, ibkr, fmp, alpha_vantage, finnhub" in rendered
     assert "configured_price_fallbacks: fmp, finnhub" in rendered
     assert "missing_price_keys: STOOQ_API_KEY, ALPHA_VANTAGE_API_KEY" in rendered
 

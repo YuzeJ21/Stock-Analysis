@@ -229,7 +229,7 @@ help-full:
 	@echo "  make price-refresh-loop DRY_RUN=1 Preview the scalable capped refresh plan without changing local CSV files"
 	@echo "  make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 Preview a broad capped plan without calculating batches manually"
 	@echo "  make price-refresh-loop [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] [SLEEP_SECONDS=30] Run calculated capped batches after reviewing the dry run; avoids repeating 25-ticker refreshes manually"
-	@echo "  make price-refresh [TOP_N=25] [PROVIDER=auto|yahoo|stooq|fmp|alpha_vantage|finnhub] Attempt a capped missing-price remote refresh with configured fallback"
+	@echo "  make price-refresh [TOP_N=25] [PROVIDER=auto|yahoo|stooq|ibkr|fmp|alpha_vantage|finnhub] Attempt a capped missing-price remote refresh with configured fallback"
 	@echo "  make price-refresh TICKERS=NVDA,MSFT [PROVIDER=auto] Attempt a targeted research-grade remote price refresh"
 	@echo "  make price-status [TICKERS=NVDA,MSFT] [TOP_N=10] Show latest price update status"
 	@echo "  make import-prices    Import verified CSVs from data/staged/prices/ into data/prices.csv"

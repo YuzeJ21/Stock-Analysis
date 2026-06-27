@@ -6,9 +6,13 @@ BANNED_EXECUTION_TOKENS = (
     "def submit_order(",
     "def execute_trade(",
     "def route_order(",
+    ".placeorder(",
+    ".reqopenorders(",
+    ".reqaccountupdates(",
+    ".accountsummary(",
+    ".reqpositions(",
     "alpaca",
     "interactivebrokers",
-    "ibkr",
 )
 
 BANNED_RECOMMENDATION_PHRASES = (
@@ -28,6 +32,20 @@ def test_no_trade_execution_module_or_order_placement_was_introduced():
     lowered = source_text.lower()
     for token in BANNED_EXECUTION_TOKENS:
         assert token not in lowered
+
+
+def test_ibkr_references_stay_read_only_price_data_scoped():
+    allowed_paths = {
+        Path("src/data_update.py"),
+        Path("src/session_source_preflight.py"),
+    }
+    paths_with_ibkr = {
+        path
+        for path in Path("src").rglob("*.py")
+        if "ibkr" in path.read_text(encoding="utf-8").lower()
+    }
+
+    assert paths_with_ibkr <= allowed_paths
 
 
 def test_stock_report_workflow_does_not_introduce_direct_recommendation_language():

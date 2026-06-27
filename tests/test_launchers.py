@@ -305,7 +305,7 @@ def test_makefile_help_documents_key_workflows():
         "Show one ticker's peer detail and next local checks",
         "make price-status [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make price-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
-        "make price-refresh [TOP_N=25] [PROVIDER=auto|yahoo|stooq|fmp|alpha_vantage|finnhub]",
+        "make price-refresh [TOP_N=25] [PROVIDER=auto|yahoo|stooq|ibkr|fmp|alpha_vantage|finnhub]",
         "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=auto]",
         "make price-refresh-loop [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] [SLEEP_SECONDS=30]",
         "make price-refresh-loop DRY_RUN=1",

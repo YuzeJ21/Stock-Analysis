@@ -4,6 +4,7 @@ import argparse
 import importlib
 import json
 import os
+import socket
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -15,6 +16,7 @@ import pandas as pd
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.provider_env import load_provider_environment
 from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FMP_API_KEY_ENV, FINNHUB_API_KEY_ENV
+from src.data_update import DEFAULT_IBKR_CLIENT_ID, DEFAULT_IBKR_HOST, DEFAULT_IBKR_PORT, IBKR_CLIENT_ID_ENV, IBKR_HOST_ENV, IBKR_PORT_ENV
 from src.providers.sec_submissions import build_sec_submission_metadata, fetch_sec_submission
 from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 
@@ -24,7 +26,7 @@ DEFAULT_YFINANCE_SAMPLE_TICKER = "MSFT"
 DEFAULT_SEC_SUBMISSIONS_SAMPLE_CIK = "0000789019"
 SESSION_SOURCE_PREFLIGHT_FILENAME = "session_source_preflight.json"
 STOOQ_API_KEY_ENV = "STOOQ_API_KEY"
-PRICE_PROVIDER_ORDER = ["yahoo", "stooq", "fmp", "alpha_vantage", "finnhub"]
+PRICE_PROVIDER_ORDER = ["yahoo", "stooq", "ibkr", "fmp", "alpha_vantage", "finnhub"]
 ALWAYS_EXECUTABLE_LANES = [
     "peer_mapping_proof",
     "peer_valuation_local_reviewed",
@@ -261,6 +263,85 @@ def probe_stooq_key() -> dict[str, Any]:
     )
 
 
+def probe_ibkr_price(
+    *,
+    module_loader: Callable[[str], Any] = importlib.import_module,
+    socket_connector: Callable[[tuple[str, int], float], Any] = socket.create_connection,
+    timeout: float = 2.0,
+) -> dict[str, Any]:
+    host = str(os.environ.get(IBKR_HOST_ENV) or "").strip()
+    port_text = str(os.environ.get(IBKR_PORT_ENV) or "").strip()
+    client_id_text = str(os.environ.get(IBKR_CLIENT_ID_ENV) or "").strip()
+    if not host or not port_text or not client_id_text:
+        return _status_payload(
+            status="unavailable",
+            reason_code="not_configured",
+            detail=f"{IBKR_HOST_ENV}, {IBKR_PORT_ENV}, and {IBKR_CLIENT_ID_ENV} are not fully configured.",
+            next_action=(
+                f"Set {IBKR_HOST_ENV}, {IBKR_PORT_ENV}, and {IBKR_CLIENT_ID_ENV}; run IBKR Gateway/TWS; "
+                "then use make price-refresh TICKERS=<ticker> PROVIDER=ibkr."
+            ),
+            source_usage="read_only_daily_ohlcv",
+            host=host or DEFAULT_IBKR_HOST,
+            port=int(port_text) if port_text.isdigit() else DEFAULT_IBKR_PORT,
+            client_id_configured=bool(client_id_text),
+        )
+    try:
+        port = int(port_text)
+    except ValueError:
+        return _status_payload(
+            status="unavailable",
+            reason_code="invalid_port",
+            detail=f"{IBKR_PORT_ENV} must be an integer port.",
+            next_action=f"Set {IBKR_PORT_ENV}=7497 for TWS paper or the port configured in IBKR Gateway/TWS.",
+            source_usage="read_only_daily_ohlcv",
+            host=host,
+            port=DEFAULT_IBKR_PORT,
+            client_id_configured=bool(client_id_text),
+        )
+    try:
+        module_loader("ib_insync")
+    except ImportError:
+        return _status_payload(
+            status="unavailable",
+            reason_code="missing_dependency",
+            detail="ib_insync is not installed for IBKR read-only daily price refresh.",
+            next_action="Do not retry IBKR in this session until ib_insync is installed and IBKR Gateway/TWS is running.",
+            source_usage="read_only_daily_ohlcv",
+            host=host,
+            port=port,
+            client_id_configured=True,
+        )
+    try:
+        connection = socket_connector((host, port), timeout)
+        try:
+            connection.close()
+        except Exception:
+            pass
+    except OSError as exc:
+        return _status_payload(
+            status="unavailable",
+            reason_code="gateway_unavailable",
+            detail=f"IBKR Gateway/TWS is not reachable at {host}:{port} ({exc}).",
+            next_action="Start IBKR Gateway/TWS with API socket enabled before using PROVIDER=ibkr.",
+            source_usage="read_only_daily_ohlcv",
+            host=host,
+            port=port,
+            client_id_configured=True,
+        )
+    return _status_payload(
+        status="available",
+        reason_code="configured",
+        detail=f"IBKR read-only daily bars appear configured at {host}:{port}; client id is configured.",
+        next_action="Use make price-refresh TICKERS=<ticker> PROVIDER=ibkr for a one-ticker validate/preview path.",
+        source_usage="read_only_daily_ohlcv",
+        host=host,
+        port=port,
+        client_id_configured=True,
+        default_client_id=DEFAULT_IBKR_CLIENT_ID,
+    )
+
+
 def probe_fmp_key() -> dict[str, Any]:
     return probe_provider_api_key(FMP_API_KEY_ENV, provider_label="FMP")
 
@@ -275,6 +356,7 @@ def probe_finnhub_key() -> dict[str, Any]:
 
 def build_price_ladder_status(
     *,
+    ibkr_status: dict[str, Any],
     stooq_status: dict[str, Any],
     fmp_status: dict[str, Any],
     alpha_vantage_status: dict[str, Any],
@@ -291,14 +373,17 @@ def build_price_ladder_status(
         for provider, (_env_var, status) in keyed_providers.items()
         if str(status.get("status") or "").strip() == "available"
     ]
+    available_readonly = []
+    if str(ibkr_status.get("status") or "").strip() == "available":
+        available_readonly.append("ibkr")
     missing_envs = [
         env_var
         for _provider, (env_var, status) in keyed_providers.items()
         if str(status.get("status") or "").strip() != "available"
     ]
-    if configured:
+    if configured or available_readonly:
         status = "available"
-        reason_code = "configured_keyed_fallbacks"
+        reason_code = "configured_price_fallbacks" if available_readonly else "configured_keyed_fallbacks"
         next_action = "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     else:
         status = "planned"
@@ -311,11 +396,12 @@ def build_price_ladder_status(
         status=status,
         reason_code=reason_code,
         detail=(
-            "PROVIDER=auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub price fallbacks. "
+            "PROVIDER=auto tries Yahoo, Stooq, configured IBKR read-only daily bars, then configured FMP/Alpha Vantage/Finnhub price fallbacks. "
             "This preflight records configuration only; the refresh status records provider fetch results."
         ),
         next_action=next_action,
         provider_order=PRICE_PROVIDER_ORDER,
+        available_readonly_providers=available_readonly,
         configured_keyed_providers=configured,
         missing_keyed_provider_envs=missing_envs,
     )
@@ -334,11 +420,6 @@ def build_source_activation_status(
     local_fixable = int(local_fundamentals_status.get("share_count_fixable_ticker_count", 0) or 0) + int(
         local_fundamentals_status.get("fundamentals_fixable_ticker_count", 0) or 0
     )
-    configured_price_fallbacks = [
-        str(item).strip()
-        for item in price_ladder_status.get("configured_keyed_providers", [])
-        if str(item).strip()
-    ]
     has_executable_source = any(
         (
             sec_status.get("status") == "available",
@@ -346,7 +427,7 @@ def build_source_activation_status(
             fmp_status.get("status") == "available",
             alpha_vantage_status.get("status") == "available",
             finnhub_status.get("status") == "available",
-            bool(configured_price_fallbacks),
+            price_ladder_status.get("status") == "available",
             local_fixable > 0,
         )
     )
@@ -546,6 +627,7 @@ def build_session_source_preflight(
     yfinance_import_probe: Callable[[], dict[str, Any]] = probe_yfinance_import,
     yfinance_stage_probe: Callable[[], dict[str, Any]] | None = None,
     stooq_key_probe: Callable[[], dict[str, Any]] = probe_stooq_key,
+    ibkr_price_probe: Callable[[], dict[str, Any]] = probe_ibkr_price,
     fmp_key_probe: Callable[[], dict[str, Any]] = probe_fmp_key,
     alpha_vantage_key_probe: Callable[[], dict[str, Any]] = probe_alpha_vantage_key,
     finnhub_key_probe: Callable[[], dict[str, Any]] = probe_finnhub_key,
@@ -572,10 +654,12 @@ def build_session_source_preflight(
             sample_ticker=str(sample_ticker or DEFAULT_YFINANCE_SAMPLE_TICKER).upper().strip(),
         )
     stooq_status = stooq_key_probe()
+    ibkr_status = ibkr_price_probe()
     fmp_status = fmp_key_probe()
     alpha_vantage_status = alpha_vantage_key_probe()
     finnhub_status = finnhub_key_probe()
     price_ladder_status = build_price_ladder_status(
+        ibkr_status=ibkr_status,
         stooq_status=stooq_status,
         fmp_status=fmp_status,
         alpha_vantage_status=alpha_vantage_status,
@@ -662,6 +746,8 @@ def build_session_source_preflight(
         source_lanes.append("price_coverage_provider_ladder")
         if not preferred_lane_order:
             preferred_lane_order.append("price_coverage_provider_ladder")
+    if ibkr_status["status"] == "available":
+        source_lanes.append("ibkr_price_coverage")
     if sec_submissions_status["status"] == "available":
         source_lanes.append("sec_submissions_metadata")
 
@@ -683,6 +769,7 @@ def build_session_source_preflight(
             "yfinance_import": yfinance_import_status,
             "yfinance_stage": yfinance_stage_status,
             "price_ladder": price_ladder_status,
+            "ibkr_price": ibkr_status,
             "fmp": fmp_status,
             "alpha_vantage": alpha_vantage_status,
             "finnhub": finnhub_status,
@@ -711,6 +798,7 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         "yfinance_import",
         "yfinance_stage",
         "price_ladder",
+        "ibkr_price",
         "fmp",
         "alpha_vantage",
         "finnhub",
@@ -739,12 +827,23 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         if source_name == "price_ladder":
             lines.append(f"  provider_order: {', '.join(source.get('provider_order', [])) or '-'}")
             lines.append(
+                "  available_readonly_providers: "
+                f"{', '.join(source.get('available_readonly_providers', [])) or '-'}"
+            )
+            lines.append(
                 "  configured_price_fallbacks: "
                 f"{', '.join(source.get('configured_keyed_providers', [])) or '-'}"
             )
             lines.append(
                 "  missing_price_keys: "
                 f"{', '.join(source.get('missing_keyed_provider_envs', [])) or '-'}"
+            )
+        if source_name == "ibkr_price":
+            lines.append(f"  source_usage: {source.get('source_usage', 'read_only_daily_ohlcv')}")
+            lines.append(
+                "  connection: "
+                f"host={source.get('host', DEFAULT_IBKR_HOST)} port={source.get('port', DEFAULT_IBKR_PORT)} "
+                f"client_id_configured={bool(source.get('client_id_configured', False))}"
             )
         if source_name == "local_fundamentals":
             lines.append(

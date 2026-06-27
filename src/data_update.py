@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import importlib
 import os
 import re
 import shutil
@@ -44,6 +45,12 @@ PRICE_STATUS_COLUMNS = [
     "example_command",
     "target_file",
 ]
+IBKR_HOST_ENV = "IBKR_HOST"
+IBKR_PORT_ENV = "IBKR_PORT"
+IBKR_CLIENT_ID_ENV = "IBKR_CLIENT_ID"
+DEFAULT_IBKR_HOST = "127.0.0.1"
+DEFAULT_IBKR_PORT = 7497
+DEFAULT_IBKR_CLIENT_ID = 27
 
 
 def _normalize_columns(columns: list[str]) -> list[str]:
@@ -79,6 +86,57 @@ def _stooq_symbol(ticker: str) -> str:
 
 def _yahoo_chart_symbol(ticker: str) -> str:
     return str(ticker or "").upper().strip().replace(".", "-")
+
+
+def _coerce_int(value: int | str | None, default: int) -> int:
+    try:
+        if value is None or str(value).strip() == "":
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _ibkr_auto_configured() -> bool:
+    return all(
+        str(os.environ.get(key, "")).strip()
+        for key in (IBKR_HOST_ENV, IBKR_PORT_ENV, IBKR_CLIENT_ID_ENV)
+    )
+
+
+def _ibkr_bars_to_price_frame(ticker: str, bars: Any) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    for bar in list(bars or []):
+        rows.append(
+            {
+                "date": getattr(bar, "date", None),
+                "ticker": ticker,
+                "open": getattr(bar, "open", None),
+                "high": getattr(bar, "high", None),
+                "low": getattr(bar, "low", None),
+                "close": getattr(bar, "close", None),
+                "adj_close": getattr(bar, "close", None),
+                "volume": getattr(bar, "volume", None),
+            }
+        )
+    frame = pd.DataFrame(rows, columns=PRICE_COLUMNS)
+    if frame.empty:
+        return pd.DataFrame(columns=PRICE_COLUMNS)
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce", format="mixed")
+    for numeric_column in ("open", "high", "low", "close", "adj_close", "volume"):
+        frame[numeric_column] = pd.to_numeric(frame[numeric_column], errors="coerce")
+    frame = frame.loc[
+        frame["date"].notna()
+        & frame["close"].notna()
+        & frame["close"].gt(0)
+        & frame["volume"].notna()
+        & frame["volume"].ge(0)
+    ].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=PRICE_COLUMNS)
+    frame["ticker"] = ticker
+    frame = frame.sort_values("date")
+    return frame[PRICE_COLUMNS].copy()
 
 
 class PriceHistorySource(Protocol):
@@ -501,6 +559,117 @@ class FinnhubDailyPriceSource:
         ]
 
 
+class IBKRDailyPriceSource:
+    """Read-only daily OHLCV source using IBKR Gateway/TWS historical bars."""
+
+    provider_name = "ibkr"
+
+    def __init__(
+        self,
+        *,
+        host: str | None = None,
+        port: int | str | None = None,
+        client_id: int | str | None = None,
+        range_days: int = 900,
+        timeout: int = 4,
+        ib_factory: Callable[[], Any] | None = None,
+        contract_factory: Callable[[str, str, str], Any] | None = None,
+        module_loader: Callable[[str], Any] = importlib.import_module,
+    ) -> None:
+        self.host = str(host or os.environ.get(IBKR_HOST_ENV) or DEFAULT_IBKR_HOST).strip()
+        self.port = _coerce_int(port if port is not None else os.environ.get(IBKR_PORT_ENV), DEFAULT_IBKR_PORT)
+        self.client_id = _coerce_int(
+            client_id if client_id is not None else os.environ.get(IBKR_CLIENT_ID_ENV),
+            DEFAULT_IBKR_CLIENT_ID,
+        )
+        self.range_days = range_days
+        self.timeout = timeout
+        self.ib_factory = ib_factory
+        self.contract_factory = contract_factory
+        self.module_loader = module_loader
+
+    def _load_ibkr_runtime(self) -> tuple[Callable[[], Any], Callable[[str, str, str], Any]] | tuple[None, None]:
+        if self.ib_factory is not None and self.contract_factory is not None:
+            return self.ib_factory, self.contract_factory
+        try:
+            module = self.module_loader("ib_insync")
+        except ImportError:
+            return None, None
+        ib_factory = self.ib_factory or getattr(module, "IB")
+        contract_factory = self.contract_factory or getattr(module, "Stock")
+        return ib_factory, contract_factory
+
+    def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        ticker = ticker.upper().strip()
+        ib_factory, contract_factory = self._load_ibkr_runtime()
+        if ib_factory is None or contract_factory is None:
+            return (
+                pd.DataFrame(columns=PRICE_COLUMNS),
+                [
+                    f"{ticker}: ib_insync is not installed for IBKR read-only daily price refresh. "
+                    "Install the optional IBKR dependency and run IBKR Gateway/TWS before using PROVIDER=ibkr."
+                ],
+            )
+
+        client = ib_factory()
+        connected = False
+        try:
+            client.connect(self.host, self.port, clientId=self.client_id, timeout=self.timeout, readonly=True)
+            connected = True
+            contract = contract_factory(ticker, "SMART", "USD")
+            bars = client.reqHistoricalData(
+                contract,
+                endDateTime="",
+                durationStr=f"{max(self.range_days, 1)} D",
+                barSizeSetting="1 day",
+                whatToShow="TRADES",
+                useRTH=True,
+                formatDate=1,
+                keepUpToDate=False,
+            )
+        except TypeError as exc:
+            if "readonly" not in str(exc):
+                return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: IBKR historical daily bars request failed ({exc})"]
+            try:
+                client.connect(self.host, self.port, clientId=self.client_id, timeout=self.timeout)
+                connected = True
+                contract = contract_factory(ticker, "SMART", "USD")
+                bars = client.reqHistoricalData(
+                    contract,
+                    endDateTime="",
+                    durationStr=f"{max(self.range_days, 1)} D",
+                    barSizeSetting="1 day",
+                    whatToShow="TRADES",
+                    useRTH=True,
+                    formatDate=1,
+                    keepUpToDate=False,
+                )
+            except Exception as fallback_exc:
+                return (
+                    pd.DataFrame(columns=PRICE_COLUMNS),
+                    [f"{ticker}: IBKR Gateway/TWS is unavailable for read-only daily bars ({fallback_exc})"],
+                )
+        except Exception as exc:
+            return (
+                pd.DataFrame(columns=PRICE_COLUMNS),
+                [f"{ticker}: IBKR Gateway/TWS is unavailable for read-only daily bars ({exc})"],
+            )
+        finally:
+            if connected and hasattr(client, "disconnect"):
+                try:
+                    client.disconnect()
+                except Exception:
+                    pass
+
+        frame = _ibkr_bars_to_price_frame(ticker, bars)
+        if frame.empty:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: IBKR historical daily bars returned no valid OHLCV rows."]
+        return frame, [
+            f"{ticker}: prices refreshed from IBKR historical daily bars as read-only market data; "
+            "validate exchange subscriptions and provenance before applying."
+        ]
+
+
 class PriceSourceLadder:
     def __init__(self, sources: list[tuple[str, PriceHistorySource]]) -> None:
         if not sources:
@@ -549,6 +718,8 @@ def make_price_source(provider: str) -> PriceHistorySource:
             ("yahoo", YahooChartDailyPriceSource()),
             ("stooq", StooqDailyPriceSource()),
         ]
+        if _ibkr_auto_configured():
+            sources.append(("ibkr", IBKRDailyPriceSource()))
         if os.environ.get(FMP_API_KEY_ENV, "").strip():
             sources.append(("fmp", FMPDailyPriceSource()))
         if os.environ.get(ALPHA_VANTAGE_API_KEY_ENV, "").strip():
@@ -568,6 +739,8 @@ def make_price_source(provider: str) -> PriceHistorySource:
         return AlphaVantageDailyPriceSource()
     if normalized == "finnhub":
         return FinnhubDailyPriceSource()
+    if normalized == "ibkr":
+        return IBKRDailyPriceSource()
     raise ValueError(f"Unsupported price provider: {provider}")
 
 
@@ -1494,10 +1667,11 @@ def main() -> None:
     parser.add_argument("--universe-file", help="Alternate universe file to derive tickers from.")
     parser.add_argument(
         "--provider",
-        choices=["auto", "stooq", "yahoo", "fmp", "alpha_vantage", "finnhub"],
+        choices=["auto", "stooq", "yahoo", "ibkr", "fmp", "alpha_vantage", "finnhub"],
         default="auto",
         help=(
-            "Remote price provider. Auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub fallbacks; "
+            "Remote price provider. Auto tries Yahoo, Stooq, configured IBKR read-only daily bars, "
+            "then configured FMP/Alpha Vantage/Finnhub fallbacks; "
             "remote providers are research-grade and should be reviewed."
         ),
     )
