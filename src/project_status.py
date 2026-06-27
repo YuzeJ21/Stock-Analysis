@@ -144,12 +144,12 @@ def _price_recommended_action(ticker: str) -> str:
         return (
             "Run make status-check TOP_N=5 first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
             "if you choose to refresh specific tickers, run make price-refresh TICKERS=<ticker> PROVIDER=auto so "
-            "Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider "
+            "Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider "
             "path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
         )
     return (
         f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Yahoo, Stooq, "
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Stooq, Yahoo, "
         "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
         "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
@@ -199,7 +199,7 @@ def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
         )
         if str(row.get("Command") or "").strip().startswith("make price-refresh-loop"):
             row["Reason"] = (
-                "Preview the broad-universe price frontier first; PROVIDER=auto tries Yahoo, Stooq, "
+                "Preview the broad-universe price frontier first; PROVIDER=auto tries Stooq, Yahoo, "
                 "and configured FMP/Alpha Vantage/Finnhub before the manual import file fallback."
             )
     source_context = str(row.get("SourceContext") or "")
@@ -207,11 +207,11 @@ def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
         row["SourceContext"] = (
             source_context.replace(
                 "data/imports/prices.csv fallback plus optional Yahoo refresh",
-                "PROVIDER=auto price ladder with Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks; data/imports/prices.csv remains the last manual fallback",
+                "PROVIDER=auto price ladder with Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub fallbacks; data/imports/prices.csv remains the last manual fallback",
             )
             .replace(
                 "data/imports/prices.csv fallback plus optional auto price ladder",
-                "PROVIDER=auto price ladder with Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks; data/imports/prices.csv remains the last manual fallback",
+                "PROVIDER=auto price ladder with Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub fallbacks; data/imports/prices.csv remains the last manual fallback",
             )
         )
     if freshness:
@@ -766,11 +766,11 @@ def _recommended_next_command_rows(
                     "Preview next capped missing-price batch",
                     "make price-refresh-loop DRY_RUN=1",
                     (
-                        "Preview the broad-universe price frontier first; PROVIDER=auto tries Yahoo, Stooq, "
+                        "Preview the broad-universe price frontier first; PROVIDER=auto tries Stooq, Yahoo, "
                         "and configured FMP/Alpha Vantage/Finnhub before the manual import file fallback."
                     ),
                     source_context=(
-                        "PROVIDER=auto price ladder with Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks; "
+                        "PROVIDER=auto price ladder with Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub fallbacks; "
                         "data/imports/prices.csv remains the last manual fallback"
                     ),
                     freshness_context="dry-run first; verify source readiness notes and local CSV changes after any refresh",

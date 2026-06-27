@@ -395,16 +395,26 @@ def test_session_source_preflight_reports_ibkr_read_only_price_provider(tmp_path
     assert preflight["sources"]["ibkr_price"]["status"] == "available"
     assert "ibkr_price_coverage" in preflight["available_lanes"]
     price_ladder = preflight["sources"]["price_ladder"]
-    assert price_ladder["provider_order"] == ["yahoo", "stooq", "ibkr", "fmp", "alpha_vantage", "finnhub"]
+    assert price_ladder["provider_order"] == ["stooq", "yahoo", "ibkr", "fmp", "alpha_vantage", "finnhub"]
     assert price_ladder["available_readonly_providers"] == ["ibkr"]
+    assert preflight["source_categories"]["free_public_available"] == ["stooq", "yahoo", "sec_submissions"]
+    assert preflight["source_categories"]["optional_broker_disabled"] == []
+    assert preflight["source_categories"]["keyed_free_tier_available"] == ["fmp"]
+    assert preflight["source_categories"]["paid_or_locked"] == ["alpha_vantage", "finnhub"]
+    assert price_ladder["free_tier_batch_limits"]["fmp"]["recommended_daily_request_limit"] == 250
+    assert price_ladder["free_tier_batch_limits"]["alpha_vantage"]["recommended_daily_request_limit"] == 25
     assert "price_coverage_provider_ladder" in preflight["available_lanes"]
 
     rendered = render_session_source_preflight(preflight)
 
     assert "- ibkr_price: status=available reason=configured" in rendered
     assert "source_usage: read_only_daily_ohlcv" in rendered
-    assert "provider_order: yahoo, stooq, ibkr, fmp, alpha_vantage, finnhub" in rendered
+    assert "provider_order: stooq, yahoo, ibkr, fmp, alpha_vantage, finnhub" in rendered
     assert "configured_price_fallbacks: fmp" in rendered
+    assert "source_categories:" in rendered
+    assert "free_public_available: stooq, yahoo, sec_submissions" in rendered
+    assert "keyed_free_tier_available: fmp" in rendered
+    assert "free_tier_batch_limits: fmp<=250/day, alpha_vantage<=25/day, finnhub<=60/day" in rendered
 
 
 def test_session_source_preflight_reports_price_ladder_keyed_fallbacks(tmp_path: Path, monkeypatch):
@@ -433,16 +443,18 @@ def test_session_source_preflight_reports_price_ladder_keyed_fallbacks(tmp_path:
 
     assert price_ladder["status"] == "available"
     assert price_ladder["reason_code"] == "configured_keyed_fallbacks"
-    assert price_ladder["provider_order"] == ["yahoo", "stooq", "ibkr", "fmp", "alpha_vantage", "finnhub"]
+    assert price_ladder["provider_order"] == ["stooq", "yahoo", "ibkr", "fmp", "alpha_vantage", "finnhub"]
     assert price_ladder["configured_keyed_providers"] == ["fmp", "finnhub"]
     assert price_ladder["available_readonly_providers"] == []
+    assert preflight["source_categories"]["optional_broker_disabled"] == ["ibkr"]
+    assert preflight["source_categories"]["keyed_free_tier_available"] == ["fmp", "finnhub"]
     assert price_ladder["missing_keyed_provider_envs"] == ["STOOQ_API_KEY", "ALPHA_VANTAGE_API_KEY"]
     assert "price_coverage_provider_ladder" in preflight["available_lanes"]
 
     rendered = render_session_source_preflight(preflight)
 
     assert "- price_ladder: status=available reason=configured_keyed_fallbacks" in rendered
-    assert "provider_order: yahoo, stooq, ibkr, fmp, alpha_vantage, finnhub" in rendered
+    assert "provider_order: stooq, yahoo, ibkr, fmp, alpha_vantage, finnhub" in rendered
     assert "configured_price_fallbacks: fmp, finnhub" in rendered
     assert "missing_price_keys: STOOQ_API_KEY, ALPHA_VANTAGE_API_KEY" in rendered
 

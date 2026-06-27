@@ -1366,7 +1366,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "make focus-price TICKER=APLD" in markdown
     assert "## Copyable Proof Commands" in markdown
     assert "`make price-refresh TICKERS=APLD PROVIDER=auto`" in markdown
-    assert "Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub" in markdown
+    assert "Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub" in markdown
     assert "`make price-validate && make price-preview && make price-apply`" in markdown
     assert "Price rebuild proof: `make price-coverage TOP_N=25 && make readiness`" in markdown
     assert "`make focus-fundamentals TICKER=APLD`" in markdown

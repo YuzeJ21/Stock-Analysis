@@ -183,7 +183,7 @@ def test_dcf_input_queue_classifies_exact_missing_input_families(monkeypatch):
     assert by_ticker["HOOD"].missing_input_family == "fundamentals_bundle"
     assert by_ticker["PAYC"].missing_input_family == "fcf_margin"
     assert by_ticker["META"].missing_input_family == "price"
-    assert by_ticker["META"].source_mode == "price dry-run first; PROVIDER=auto tries Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub"
+    assert by_ticker["META"].source_mode == "price dry-run first; PROVIDER=auto tries Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub"
     assert "make price-refresh TICKERS=META PROVIDER=auto" == by_ticker["META"].next_safe_command
     assert "NVDA" not in by_ticker
     assert "QQQ" not in by_ticker

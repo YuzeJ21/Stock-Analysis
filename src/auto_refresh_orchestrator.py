@@ -69,7 +69,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             lane="daily_price_refresh",
             label="Daily Price Coverage",
             cadence="daily_after_market_close",
-            provider_order=("yahoo", "stooq", "fmp", "alpha_vantage", "finnhub"),
+            provider_order=("stooq", "yahoo", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=3500,
             auto_apply=True,
             dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",

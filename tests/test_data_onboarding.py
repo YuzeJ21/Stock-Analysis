@@ -100,7 +100,7 @@ def test_data_onboarding_coverage_works_with_local_fixtures(tmp_path: Path):
     assert coverage["AMD"]["usable_for_momentum"] is False
     assert coverage["AMD"]["next_best_action"] == (
         "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD PROVIDER=auto so Yahoo, Stooq, "
+        "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD PROVIDER=auto so Stooq, Yahoo, "
         "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
         "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
@@ -130,7 +130,7 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
         row["dataset"] == "prices"
         and row["recommended_action"] == (
             "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-            "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD PROVIDER=auto so Yahoo, Stooq, "
+            "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD PROVIDER=auto so Stooq, Yahoo, "
             "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
             "normalize verified downloaded OHLCV files into data/imports/prices.csv."
         )

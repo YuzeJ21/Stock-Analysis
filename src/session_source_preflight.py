@@ -26,7 +26,12 @@ DEFAULT_YFINANCE_SAMPLE_TICKER = "MSFT"
 DEFAULT_SEC_SUBMISSIONS_SAMPLE_CIK = "0000789019"
 SESSION_SOURCE_PREFLIGHT_FILENAME = "session_source_preflight.json"
 STOOQ_API_KEY_ENV = "STOOQ_API_KEY"
-PRICE_PROVIDER_ORDER = ["yahoo", "stooq", "ibkr", "fmp", "alpha_vantage", "finnhub"]
+PRICE_PROVIDER_ORDER = ["stooq", "yahoo", "ibkr", "fmp", "alpha_vantage", "finnhub"]
+FREE_TIER_BATCH_LIMITS = {
+    "fmp": {"recommended_daily_request_limit": 250, "recommended_batch_size": 25},
+    "alpha_vantage": {"recommended_daily_request_limit": 25, "recommended_batch_size": 5},
+    "finnhub": {"recommended_daily_request_limit": 60, "recommended_batch_size": 10},
+}
 ALWAYS_EXECUTABLE_LANES = [
     "peer_mapping_proof",
     "peer_valuation_local_reviewed",
@@ -390,13 +395,13 @@ def build_price_ladder_status(
         reason_code = "dry_run_first_no_keyed_fallbacks"
         next_action = (
             "Use make coverage-expansion-loop TOP_N=10 for the source-activation gate; "
-            "configure a keyed provider before broad price coverage batches if Yahoo/Stooq are unavailable."
+            "configure a keyed provider before broad price coverage batches if Stooq/Yahoo are unavailable."
         )
     return _status_payload(
         status=status,
         reason_code=reason_code,
         detail=(
-            "PROVIDER=auto tries Yahoo, Stooq, configured IBKR read-only daily bars, then configured FMP/Alpha Vantage/Finnhub price fallbacks. "
+            "PROVIDER=auto tries Stooq, Yahoo, configured IBKR read-only daily bars, then configured FMP/Alpha Vantage/Finnhub price fallbacks. "
             "This preflight records configuration only; the refresh status records provider fetch results."
         ),
         next_action=next_action,
@@ -404,6 +409,7 @@ def build_price_ladder_status(
         available_readonly_providers=available_readonly,
         configured_keyed_providers=configured,
         missing_keyed_provider_envs=missing_envs,
+        free_tier_batch_limits=FREE_TIER_BATCH_LIMITS,
     )
 
 
@@ -449,7 +455,7 @@ def build_source_activation_status(
         status="required",
         reason_code="no_executable_source_path",
         detail=(
-            "SEC/Yahoo are unavailable or unusable, no keyed fallback provider is configured, "
+            "SEC/Stooq/Yahoo are unavailable or unusable, no keyed fallback provider is configured, "
             "and local reviewed rows do not fix current blockers; do not run broad coverage batches."
         ),
         next_action="Configure at least one provider key or add reviewed local source rows, then rerun make session-source-preflight.",
@@ -606,6 +612,54 @@ def inspect_local_fundamentals(root: Path, *, data_dir: Path | None = None) -> d
     )
 
 
+def build_source_categories(
+    *,
+    sec_status: dict[str, Any],
+    sec_submissions_status: dict[str, Any],
+    yfinance_import_status: dict[str, Any],
+    yfinance_stage_status: dict[str, Any],
+    ibkr_status: dict[str, Any],
+    fmp_status: dict[str, Any],
+    alpha_vantage_status: dict[str, Any],
+    finnhub_status: dict[str, Any],
+) -> dict[str, list[str]]:
+    free_public_available = ["stooq", "yahoo"]
+    if sec_status.get("status") == "available":
+        free_public_available.append("sec")
+    if sec_submissions_status.get("status") == "available":
+        free_public_available.append("sec_submissions")
+    if yfinance_import_status.get("status") == "available":
+        free_public_available.append("yfinance_import")
+    if yfinance_stage_status.get("status") == "available":
+        free_public_available.append("yfinance_stage")
+
+    keyed_free_tier_available = [
+        provider
+        for provider, status in (
+            ("fmp", fmp_status),
+            ("alpha_vantage", alpha_vantage_status),
+            ("finnhub", finnhub_status),
+        )
+        if status.get("status") == "available"
+    ]
+    paid_or_locked = [
+        provider
+        for provider, status in (
+            ("fmp", fmp_status),
+            ("alpha_vantage", alpha_vantage_status),
+            ("finnhub", finnhub_status),
+        )
+        if status.get("status") != "available"
+    ]
+    optional_broker_disabled = [] if ibkr_status.get("status") == "available" else ["ibkr"]
+    return {
+        "free_public_available": free_public_available,
+        "optional_broker_disabled": optional_broker_disabled,
+        "keyed_free_tier_available": keyed_free_tier_available,
+        "paid_or_locked": paid_or_locked,
+    }
+
+
 def _dedupe_preserve_order(items: list[str]) -> list[str]:
     ordered: list[str] = []
     seen: set[str] = set()
@@ -666,6 +720,16 @@ def build_session_source_preflight(
         finnhub_status=finnhub_status,
     )
     local_fundamentals_status = inspect_local_fundamentals(root, data_dir=data_path)
+    source_categories = build_source_categories(
+        sec_status=sec_status,
+        sec_submissions_status=sec_submissions_status,
+        yfinance_import_status=yfinance_import_status,
+        yfinance_stage_status=yfinance_stage_status,
+        ibkr_status=ibkr_status,
+        fmp_status=fmp_status,
+        alpha_vantage_status=alpha_vantage_status,
+        finnhub_status=finnhub_status,
+    )
     source_activation_status = build_source_activation_status(
         sec_status=sec_status,
         yfinance_stage_status=yfinance_stage_status,
@@ -763,6 +827,7 @@ def build_session_source_preflight(
         "do_not_retry_paths": do_not_retry_paths,
         "available_lanes": available_lanes,
         "preferred_lane_order": preferred_lane_order,
+        "source_categories": source_categories,
         "sources": {
             "sec": sec_status,
             "sec_submissions": sec_submissions_status,
@@ -781,6 +846,7 @@ def build_session_source_preflight(
 
 def render_session_source_preflight(preflight: dict[str, Any]) -> str:
     sources = preflight["sources"]
+    categories = preflight.get("source_categories", {})
     lines = [
         "Session source preflight",
         f"project_root: {preflight['project_root']}",
@@ -790,6 +856,11 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         f"do_not_retry_paths: {', '.join(preflight['do_not_retry_paths']) or '-'}",
         "preferred_lane_order:",
         *[f"- {lane}" for lane in preflight["preferred_lane_order"]],
+        "source_categories:",
+        f"  free_public_available: {', '.join(categories.get('free_public_available', [])) or '-'}",
+        f"  optional_broker_disabled: {', '.join(categories.get('optional_broker_disabled', [])) or '-'}",
+        f"  keyed_free_tier_available: {', '.join(categories.get('keyed_free_tier_available', [])) or '-'}",
+        f"  paid_or_locked: {', '.join(categories.get('paid_or_locked', [])) or '-'}",
         "source_status:",
     ]
     for source_name in (
@@ -838,6 +909,18 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
                 "  missing_price_keys: "
                 f"{', '.join(source.get('missing_keyed_provider_envs', [])) or '-'}"
             )
+            limits = source.get("free_tier_batch_limits", {})
+            if isinstance(limits, dict) and limits:
+                rendered_limits = []
+                for provider in ("fmp", "alpha_vantage", "finnhub"):
+                    payload = limits.get(provider, {})
+                    if not isinstance(payload, dict):
+                        continue
+                    daily_limit = payload.get("recommended_daily_request_limit")
+                    if daily_limit:
+                        rendered_limits.append(f"{provider}<={daily_limit}/day")
+                if rendered_limits:
+                    lines.append(f"  free_tier_batch_limits: {', '.join(rendered_limits)}")
         if source_name == "ibkr_price":
             lines.append(f"  source_usage: {source.get('source_usage', 'read_only_daily_ohlcv')}")
             lines.append(

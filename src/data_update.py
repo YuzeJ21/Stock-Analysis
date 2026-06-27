@@ -715,8 +715,8 @@ def make_price_source(provider: str) -> PriceHistorySource:
     normalized = str(provider or "auto").strip().lower()
     if normalized in {"auto", "ladder", "source_ladder"}:
         sources: list[tuple[str, PriceHistorySource]] = [
-            ("yahoo", YahooChartDailyPriceSource()),
             ("stooq", StooqDailyPriceSource()),
+            ("yahoo", YahooChartDailyPriceSource()),
         ]
         if _ibkr_auto_configured():
             sources.append(("ibkr", IBKRDailyPriceSource()))
@@ -916,8 +916,8 @@ def _normalized_error_message(status: str, ticker: str, error_message: object) -
 def _price_recommended_action(status: str, ticker: str, has_local_data: bool) -> str:
     normalize_action = (
         f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Yahoo, "
-        "Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path "
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Stooq, "
+        "Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path "
         "fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
     if status == "fetched":
@@ -1670,7 +1670,7 @@ def main() -> None:
         choices=["auto", "stooq", "yahoo", "ibkr", "fmp", "alpha_vantage", "finnhub"],
         default="auto",
         help=(
-            "Remote price provider. Auto tries Yahoo, Stooq, configured IBKR read-only daily bars, "
+            "Remote price provider. Auto tries Stooq, Yahoo, configured IBKR read-only daily bars, "
             "then configured FMP/Alpha Vantage/Finnhub fallbacks; "
             "remote providers are research-grade and should be reviewed."
         ),

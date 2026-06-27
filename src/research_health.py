@@ -100,7 +100,7 @@ def _format_operator_path_context(root: Path, data_path: Path, output_path: Path
 def _price_next_best_action(ticker: str) -> str:
     return (
         f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Yahoo, Stooq, "
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Stooq, Yahoo, "
         "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
         "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )

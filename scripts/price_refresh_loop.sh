@@ -96,7 +96,7 @@ echo "Batches: $BATCHES; tickers per batch: $TOP_N; provider: $PROVIDER; sleep s
 echo "This updates local CSV files only. It does not connect to brokers, place orders, or make recommendations."
 echo "Plan: review missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
 echo "Provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, DCF inputs, or conclusions."
-echo "Auto provider behavior: PROVIDER=auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub before classifying the ticker as still missing."
+echo "Auto provider behavior: PROVIDER=auto tries Stooq, Yahoo, optional IBKR read-only, then configured FMP/Alpha Vantage/Finnhub before classifying the ticker as still missing."
 echo "Non-blocking behavior: if a provider batch fails, the loop records the source-path outcome, stops retrying that path, and rebuilds proof outputs."
 if [ "$PROVIDER" = "auto" ]; then
   echo "Provider credential visibility: STOOQ_API_KEY=$STOOQ_KEY_STATUS; FMP_API_KEY=$FMP_KEY_STATUS; ALPHA_VANTAGE_API_KEY=$ALPHA_KEY_STATUS; FINNHUB_API_KEY=$FINNHUB_KEY_STATUS."

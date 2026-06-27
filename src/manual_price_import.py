@@ -235,12 +235,12 @@ def _write_rejected(rejected: pd.DataFrame, path: Path) -> None:
 def _remote_status() -> str:
     if os.environ.get("STOOQ_API_KEY"):
         return (
-            "Auto remote price refresh configured: PROVIDER=auto tries Yahoo, Stooq, then configured "
+            "Auto remote price refresh configured: PROVIDER=auto tries Stooq, Yahoo, then configured "
             "FMP/Alpha Vantage/Finnhub before the last manual price import file workflow."
         )
     return (
         "Auto remote price refresh available with make price-refresh PROVIDER=auto; "
-        "the ladder tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub; Stooq fallback may require "
+        "the ladder tries Stooq, Yahoo, then configured FMP/Alpha Vantage/Finnhub; Stooq fallback may require "
         "STOOQ_API_KEY in this environment; use the manual price import file workflow only as the last fallback."
     )
 

@@ -837,7 +837,7 @@ def _missing_join(items: list[str]) -> str:
 def _price_action_text(ticker: str) -> str:
     return (
         f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
-        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Yahoo, Stooq, "
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker} PROVIDER=auto so Stooq, Yahoo, "
         "and configured FMP/Alpha Vantage/Finnhub fallbacks are tried automatically; only if every provider path fails, "
         "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
@@ -1107,7 +1107,7 @@ def _peer_support_follow_through(
             return (
                 f"Run make focus-price TICKER={peer} to inspect missing peer price history needed for "
                 f"{ticker}'s peer-relative context, then run make price-refresh TICKERS={peer} PROVIDER=auto. "
-                "The auto price source ladder tries Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub; only if every "
+                "The auto price source ladder tries Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub; only if every "
                 "provider path fails, use verified local OHLCV import rows as the last manual fallback.",
                 "data/prices.csv; data/imports/prices.csv if all remote price sources fail",
                 focus_command_for_ticker("prices", peer),

@@ -425,7 +425,7 @@ def test_update_local_price_data_records_auto_price_ladder_provider(tmp_path: Pa
     assert any("source ladder resolved price rows from stooq" in warning for warning in result.warnings)
 
 
-def test_make_price_source_auto_builds_yahoo_then_stooq_ladder(tmp_path: Path, monkeypatch):
+def test_make_price_source_auto_builds_stooq_then_yahoo_ladder(tmp_path: Path, monkeypatch):
     for key in ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY", "IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.chdir(tmp_path)
@@ -434,7 +434,7 @@ def test_make_price_source_auto_builds_yahoo_then_stooq_ladder(tmp_path: Path, m
     source = make_price_source("auto")
 
     assert isinstance(source, PriceSourceLadder)
-    assert source.provider_names == ["yahoo", "stooq"]
+    assert source.provider_names == ["stooq", "yahoo"]
 
 
 def test_make_price_source_auto_adds_configured_keyed_price_fallbacks(monkeypatch):
@@ -449,7 +449,7 @@ def test_make_price_source_auto_adds_configured_keyed_price_fallbacks(monkeypatc
     source = make_price_source("auto")
 
     assert isinstance(source, PriceSourceLadder)
-    assert source.provider_names == ["yahoo", "stooq", "fmp", "alpha_vantage", "finnhub"]
+    assert source.provider_names == ["stooq", "yahoo", "fmp", "alpha_vantage", "finnhub"]
 
 
 def test_make_price_source_auto_adds_configured_ibkr_before_keyed_price_fallbacks(monkeypatch):
@@ -462,7 +462,7 @@ def test_make_price_source_auto_adds_configured_ibkr_before_keyed_price_fallback
     source = make_price_source("auto")
 
     assert isinstance(source, PriceSourceLadder)
-    assert source.provider_names == ["yahoo", "stooq", "ibkr", "fmp"]
+    assert source.provider_names == ["stooq", "yahoo", "ibkr", "fmp"]
 
 
 def test_price_refresh_cli_accepts_direct_finnhub_provider(tmp_path: Path, monkeypatch):

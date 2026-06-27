@@ -60,4 +60,4 @@ def test_auto_price_source_uses_local_provider_env_file(tmp_path, monkeypatch):
     source = make_price_source("auto")
 
     assert isinstance(source, PriceSourceLadder)
-    assert source.provider_names == ["yahoo", "stooq", "fmp", "finnhub"]
+    assert source.provider_names == ["stooq", "yahoo", "fmp", "finnhub"]

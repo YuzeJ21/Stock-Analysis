@@ -36,8 +36,13 @@ def test_no_trade_execution_module_or_order_placement_was_introduced():
 
 def test_ibkr_references_stay_read_only_price_data_scoped():
     allowed_paths = {
+        Path("src/dashboard.py"),
+        Path("src/data_onboarding.py"),
         Path("src/data_update.py"),
+        Path("src/dcf_input_proof_queue.py"),
+        Path("src/project_status.py"),
         Path("src/session_source_preflight.py"),
+        Path("src/stock_report.py"),
     }
     paths_with_ibkr = {
         path

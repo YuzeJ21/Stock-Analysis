@@ -2584,7 +2584,7 @@ def _stock_report_unlock_command_lines(
         lines.extend(
             [
                 f"- Price first: `make focus-price TICKER={ticker}`.",
-                f"- Price coverage refresh: `make price-refresh TICKERS={ticker} PROVIDER=auto` so Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub are tried before the last manual import path.",
+                f"- Price coverage refresh: `make price-refresh TICKERS={ticker} PROVIDER=auto` so Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub are tried before the last manual import path.",
                 "- Price import safety: `make price-validate && make price-preview && make price-apply`.",
                 "- Price rebuild proof: `make price-coverage TOP_N=25 && make readiness` before interpreting setup, trend, or valuation context.",
             ]

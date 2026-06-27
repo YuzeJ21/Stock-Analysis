@@ -424,7 +424,7 @@ def _source_mode(
     provider_statuses: dict[str, str] | None = None,
 ) -> str:
     if family == "price":
-        return "price dry-run first; PROVIDER=auto tries Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub"
+        return "price dry-run first; PROVIDER=auto tries Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub"
     if sec_available is False:
         statuses = provider_statuses or {}
         return (

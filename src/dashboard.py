@@ -7876,7 +7876,7 @@ def stock_report_next_step_cards(
                 "title": "Fix price coverage",
                 "body": (
                     f"{ticker} still needs stronger verified local price history before broader trust. "
-                    "Run the PROVIDER=auto price ladder first so Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub "
+                    "Run the PROVIDER=auto price ladder first so Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub "
                     "fallbacks are tried before the last manual import-file path."
                 ),
                 "badges": ["prices", "data moat"],

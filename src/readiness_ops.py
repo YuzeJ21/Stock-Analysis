@@ -566,7 +566,7 @@ def build_readiness_ops_lanes(
                 source_activation_context
                 if source_activation_required
                 else (
-                    "Provider-assisted price rows can be planned at scale; PROVIDER=auto tries Yahoo, Stooq, "
+                    "Provider-assisted price rows can be planned at scale; PROVIDER=auto tries Stooq, Yahoo, "
                     "then configured FMP/Alpha Vantage/Finnhub fallbacks; dry-run and capped review come first."
                 )
             ),

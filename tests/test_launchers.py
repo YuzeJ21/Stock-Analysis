@@ -408,7 +408,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "for env_file in .env config/provider_keys.env .env.local" in script
     assert "Coverage target: $TARGET_NOTE. The final batch may have unused capacity if fewer missing tickers remain." in script
     assert "Provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, DCF inputs, or conclusions." in script
-    assert "PROVIDER=auto tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub before classifying the ticker as still missing." in script
+    assert "PROVIDER=auto tries Stooq, Yahoo, optional IBKR read-only, then configured FMP/Alpha Vantage/Finnhub before classifying the ticker as still missing." in script
     assert "Non-blocking behavior: if a provider batch fails" in script
     assert "Provider credential visibility:" in script
     assert "STOOQ_API_KEY=$STOOQ_KEY_STATUS" in script
