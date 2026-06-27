@@ -224,6 +224,7 @@ def test_resolve_ticker_to_cik():
     ticker_map = load_sec_ticker_map(fetcher=lambda *_: _sample_ticker_map_payload(), user_agent="Test test@example.com", refresh=True)
 
     assert resolve_ticker_to_cik("NVDA", ticker_map) == "0001045810"
+    assert resolve_ticker_to_cik("BRK.B", {"BRK-B": {"ticker": "BRK-B", "cik": "0001067983"}}) == "0001067983"
     assert resolve_ticker_to_cik("MISSING", ticker_map) is None
 
 
@@ -350,6 +351,20 @@ def test_build_sec_fundamentals_rows_and_write_import_file(tmp_path: Path):
     preview = preview_import_merge(base_dir=tmp_path)
     assert validation["status"] in {"valid", "valid_with_warnings"}
     assert preview["preview"][0]["new_rows"] == 1
+
+
+def test_build_sec_fundamentals_rows_resolves_dot_class_alias_but_preserves_requested_ticker():
+    result = build_sec_fundamentals_rows(
+        ["BRK.B"],
+        user_agent="Test test@example.com",
+        ticker_map={"BRK-B": {"ticker": "BRK-B", "cik": "0001067983"}},
+        companyfacts_fetcher=lambda *_: _sample_companyfacts_payload(),
+    )
+
+    assert result["resolved_tickers"] == ["BRK.B"]
+    assert result["unresolved_tickers"] == []
+    assert result["rows"][0]["ticker"] == "BRK.B"
+    assert result["row_summaries"][0]["sec_cik"] == "0001067983"
 
 
 def test_write_sec_fundamentals_import_updates_existing_float_rows_with_missing_values(tmp_path: Path):

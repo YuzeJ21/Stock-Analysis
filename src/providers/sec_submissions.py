@@ -393,13 +393,43 @@ def _empty_packet(
     }
 
 
+def _ticker_lookup_candidates(ticker: str) -> list[str]:
+    ticker_text = str(ticker or "").upper().strip()
+    if not ticker_text:
+        return []
+    candidates = [ticker_text]
+    if "." in ticker_text:
+        candidates.append(ticker_text.replace(".", "-"))
+    if "-" in ticker_text:
+        candidates.append(ticker_text.replace("-", "."))
+    deduped: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
+
+
+def _ticker_map_entry(ticker: str, ticker_map: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    if not isinstance(ticker_map, dict):
+        return {}
+    for candidate in _ticker_lookup_candidates(ticker):
+        entry = ticker_map.get(candidate, {})
+        if entry:
+            return entry
+    return {}
+
+
 def _ticker_matches_submission(ticker: str, metadata: dict[str, Any]) -> str:
     submission_tickers = {
         value.strip().upper()
         for value in str(metadata.get("sec_tickers") or "").split(",")
         if value.strip()
     }
-    return "matched_sec_submission_tickers" if ticker in submission_tickers else "ticker_not_listed_in_sec_submission"
+    return (
+        "matched_sec_submission_tickers"
+        if any(candidate in submission_tickers for candidate in _ticker_lookup_candidates(ticker))
+        else "ticker_not_listed_in_sec_submission"
+    )
 
 
 def build_sec_submission_metadata_packet(
@@ -420,7 +450,7 @@ def build_sec_submission_metadata_packet(
             detail="Ticker is required for SEC submissions metadata.",
         )
 
-    ticker_entry = ticker_map.get(ticker_text, {}) if isinstance(ticker_map, dict) else {}
+    ticker_entry = _ticker_map_entry(ticker_text, ticker_map)
     cik_value = ticker_entry.get("cik") or ticker_entry.get("cik_str") or ticker_entry.get("cikStr")
     if cik_value in (None, ""):
         return _empty_packet(
@@ -489,7 +519,7 @@ def build_sec_filing_share_count_evidence(
             "proof_boundary": SEC_FILING_SHARE_COUNT_BOUNDARY,
         }
 
-    ticker_entry = ticker_map.get(ticker_text, {}) if isinstance(ticker_map, dict) else {}
+    ticker_entry = _ticker_map_entry(ticker_text, ticker_map)
     cik_value = ticker_entry.get("cik") or ticker_entry.get("cik_str") or ticker_entry.get("cikStr")
     if cik_value in (None, ""):
         return {

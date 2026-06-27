@@ -142,8 +142,28 @@ def load_sec_ticker_map(
     return ticker_map
 
 
+def sec_ticker_lookup_candidates(ticker: str) -> list[str]:
+    ticker_text = str(ticker or "").upper().strip()
+    if not ticker_text:
+        return []
+    candidates = [ticker_text]
+    if "." in ticker_text:
+        candidates.append(ticker_text.replace(".", "-"))
+    if "-" in ticker_text:
+        candidates.append(ticker_text.replace("-", "."))
+    deduped: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
+
+
 def resolve_ticker_to_cik(ticker: str, ticker_map: dict[str, dict[str, Any]]) -> str | None:
-    return ticker_map.get(ticker.upper().strip(), {}).get("cik")
+    for candidate in sec_ticker_lookup_candidates(ticker):
+        cik = ticker_map.get(candidate, {}).get("cik")
+        if cik:
+            return cik
+    return None
 
 
 def fetch_companyfacts(

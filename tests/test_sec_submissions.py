@@ -128,6 +128,31 @@ def test_build_sec_submission_metadata_packet_uses_cached_submission_without_net
     assert "does not unlock fundamentals" in packet["proof_boundary"]
 
 
+def test_build_sec_submission_metadata_packet_resolves_dot_class_alias(tmp_path: Path):
+    payload = {
+        **_sample_submission_payload(),
+        "cik": "1067983",
+        "name": "BERKSHIRE HATHAWAY INC",
+        "tickers": ["BRK-B"],
+    }
+    cache_path = tmp_path / "cache" / "submissions" / "CIK0001067983.json"
+    cache_path.parent.mkdir(parents=True)
+    cache_path.write_text(__import__("json").dumps(payload), encoding="utf-8")
+
+    packet = build_sec_submission_metadata_packet(
+        "BRK.B",
+        ticker_map={"BRK-B": {"ticker": "BRK-B", "cik": "0001067983"}},
+        cache_dir=tmp_path / "cache",
+        allow_network=False,
+    )
+
+    assert packet["status"] == "available"
+    assert packet["ticker"] == "BRK.B"
+    assert packet["sec_cik"] == "0001067983"
+    assert packet["sec_tickers"] == "BRK-B"
+    assert packet["ticker_validation"] == "matched_sec_submission_tickers"
+
+
 def test_build_sec_submission_metadata_packet_reports_missing_cache_without_remote_retry(tmp_path: Path):
     packet = build_sec_submission_metadata_packet(
         "NVDA",
@@ -245,6 +270,37 @@ def test_build_sec_filing_share_count_evidence_uses_cached_document(tmp_path: Pa
     assert evidence["sec_primary_document"] == "nvda-20260125.htm"
     assert evidence["source"] == "sec_filing_document"
     assert evidence["source_usage"] == "share_count_evidence_only"
+
+
+def test_build_sec_filing_share_count_evidence_resolves_dot_class_alias(tmp_path: Path):
+    cache_dir = tmp_path / "cache"
+    payload = {
+        **_sample_submission_payload(),
+        "cik": "1067983",
+        "name": "BERKSHIRE HATHAWAY INC",
+        "tickers": ["BRK-B"],
+    }
+    submission_path = cache_dir / "submissions" / "CIK0001067983.json"
+    document_path = cache_dir / "filing_documents" / "CIK0001067983" / "000104581026000021" / "nvda-20260125.htm"
+    submission_path.parent.mkdir(parents=True)
+    document_path.parent.mkdir(parents=True)
+    submission_path.write_text(__import__("json").dumps(payload), encoding="utf-8")
+    document_path.write_text(
+        '<ix:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="c1" unitRef="shares">100</ix:nonFraction>',
+        encoding="utf-8",
+    )
+
+    evidence = build_sec_filing_share_count_evidence(
+        "BRK.B",
+        ticker_map={"BRK-B": {"ticker": "BRK-B", "cik": "0001067983"}},
+        cache_dir=cache_dir,
+        allow_network=False,
+    )
+
+    assert evidence["status"] == "available"
+    assert evidence["ticker"] == "BRK.B"
+    assert evidence["sec_cik"] == "0001067983"
+    assert evidence["shares_outstanding"] == 100
 
 
 def test_build_sec_filing_share_count_evidence_reports_missing_document_without_retry(tmp_path: Path):
