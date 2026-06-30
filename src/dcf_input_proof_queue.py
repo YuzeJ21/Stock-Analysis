@@ -15,7 +15,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.company_analysis_scope import excludes_company_dcf
+from src.company_analysis_scope import excludes_company_dcf_for_inputs
 from src.dcf_readiness import build_dcf_readiness_frame
 from src.loader import normalize_columns
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
@@ -749,6 +749,7 @@ def build_dcf_input_proof_queue_from_dcf_frame(
     root: Path | None = None,
     universe: pd.DataFrame,
     dcf: pd.DataFrame,
+    fundamentals: pd.DataFrame | None = None,
     top_n: int = 10,
     tickers: list[str] | None = None,
 ) -> list[DcfInputProofRow]:
@@ -763,11 +764,24 @@ def build_dcf_input_proof_queue_from_dcf_frame(
             if not universe.empty and "ticker" in universe.columns
             else pd.DataFrame()
         )
+        fundamentals_frame = fundamentals.copy() if fundamentals is not None else pd.DataFrame()
+        if not fundamentals_frame.empty:
+            fundamentals_frame.columns = normalize_columns(list(fundamentals_frame.columns))
+        if not fundamentals_frame.empty and "ticker" in fundamentals_frame.columns:
+            fundamentals_frame["ticker"] = fundamentals_frame["ticker"].astype(str).str.upper().str.strip()
+        fundamentals_lookup = (
+            fundamentals_frame.set_index("ticker", drop=False)
+            if not fundamentals_frame.empty and "ticker" in fundamentals_frame.columns
+            else pd.DataFrame()
+        )
         applicable = []
         for _, row in queue.iterrows():
             ticker = str(row.get("ticker") or "").upper().strip()
             metadata = universe_lookup.loc[ticker] if ticker in universe_lookup.index else pd.Series(dtype=object)
-            applicable.append(not excludes_company_dcf(row.get("asset_type"), metadata))
+            fundamentals_row = (
+                fundamentals_lookup.loc[ticker] if ticker in fundamentals_lookup.index else pd.Series(dtype=object)
+            )
+            applicable.append(not excludes_company_dcf_for_inputs(row.get("asset_type"), metadata, fundamentals_row))
         queue = queue.loc[applicable]
     if tickers:
         wanted = {ticker.upper().strip() for ticker in tickers if ticker.strip()}
@@ -843,6 +857,7 @@ def build_dcf_input_proof_queue(
         root=Path(root) if root is not None else None,
         universe=universe,
         dcf=dcf,
+        fundamentals=fundamentals,
         top_n=top_n,
         tickers=tickers,
     )

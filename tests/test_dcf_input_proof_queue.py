@@ -146,7 +146,7 @@ def _sample_fundamentals() -> pd.DataFrame:
             {"ticker": "AMD", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2},
             {"ticker": "HOOD", "shares_outstanding": 20},
             {"ticker": "META", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10},
-            {"ticker": "PAYC", "revenue": 0, "free_cash_flow": 12, "shares_outstanding": 5},
+            {"ticker": "PAYC", "revenue": 50, "free_cash_flow": 12, "shares_outstanding": 5},
             {"ticker": "NVDA", "revenue": 120, "free_cash_flow": 30, "fcf_margin": 0.25, "shares_outstanding": 10},
             {"ticker": "QQQ", "revenue": 1, "free_cash_flow": 1, "fcf_margin": 1, "shares_outstanding": 1},
         ]
@@ -182,12 +182,54 @@ def test_dcf_input_queue_classifies_exact_missing_input_families(monkeypatch):
     assert by_ticker["AMD"].next_safe_command == "make share-count-proof-queue TICKERS=AMD"
     assert by_ticker["AMD"].proof_packet_command == "DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=AMD"
     assert by_ticker["HOOD"].missing_input_family == "fundamentals_bundle"
-    assert by_ticker["PAYC"].missing_input_family == "fcf_margin"
     assert by_ticker["META"].missing_input_family == "price"
     assert by_ticker["META"].source_mode == "price dry-run first; PROVIDER=auto tries Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub"
     assert "make price-refresh TICKERS=META PROVIDER=auto" == by_ticker["META"].next_safe_command
     assert "NVDA" not in by_ticker
     assert "QQQ" not in by_ticker
+
+
+def test_dcf_input_queue_skips_zero_revenue_margin_model_blockers(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    universe = pd.DataFrame(
+        [
+            {"ticker": "ZREV", "name": "Zero Revenue Therapeutics Inc.", "asset_type": "company"},
+            {"ticker": "OPCO", "name": "Operating Company Inc.", "asset_type": "company"},
+        ]
+    )
+    fundamentals = pd.DataFrame(
+        [
+            {
+                "ticker": "ZREV",
+                "revenue": 0,
+                "free_cash_flow": -10_000_000,
+                "shares_outstanding": 20_000_000,
+                "source": "sec_companyfacts",
+            },
+            {
+                "ticker": "OPCO",
+                "revenue": 50_000_000,
+                "shares_outstanding": 10_000_000,
+                "source": "sec_companyfacts",
+            },
+        ]
+    )
+    prices = pd.DataFrame(
+        [
+            {"ticker": "ZREV", "date": "2026-01-01", "close": 10},
+            {"ticker": "OPCO", "date": "2026-01-01", "close": 20},
+        ]
+    )
+
+    rows = build_dcf_input_proof_queue(
+        universe=universe,
+        fundamentals=fundamentals,
+        prices=prices,
+        top_n=10,
+    )
+
+    assert [row.ticker for row in rows] == ["OPCO"]
+    assert rows[0].missing_input_family == "fundamentals_bundle"
 
 
 def test_dcf_input_queue_skips_explicit_acquisition_vehicles(monkeypatch):
@@ -481,10 +523,10 @@ def test_dcf_input_queue_deprioritizes_reviewed_non_actionable_blockers(tmp_path
         "preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,"
         "changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,"
         "final_outcome,notes\n"
-        "RB-PAYC,2026-06-27,local reviewer,fundamentals,reviewed scope,PAYC,"
-        "make focus-fundamentals TICKER=PAYC,passed,valid,not_applied,before,after,"
+        "RB-META,2026-06-27,local reviewer,fundamentals,reviewed scope,META,"
+        "make focus-fundamentals TICKER=META,passed,valid,not_applied,before,after,"
         "none,none,data/imports/fundamentals.csv,excluded,still_blocked,"
-        "zero revenue keeps fcf_margin blocked\n",
+        "price still unavailable in the reviewed path\n",
         encoding="utf-8",
     )
 
@@ -497,9 +539,9 @@ def test_dcf_input_queue_deprioritizes_reviewed_non_actionable_blockers(tmp_path
     )
     by_ticker = {row.ticker: row for row in rows}
 
-    assert [row.ticker for row in rows[:3]] == ["AMD", "HOOD", "META"]
-    assert rows[-1].ticker == "PAYC"
-    assert "reviewed proof ledger already records" in by_ticker["PAYC"].source_note.lower()
+    assert [row.ticker for row in rows[:2]] == ["AMD", "HOOD"]
+    assert rows[-1].ticker == "META"
+    assert "reviewed proof ledger already records" in by_ticker["META"].source_note.lower()
 
 
 def test_dcf_input_queue_deprioritizes_partial_tickers_from_supported_batch_notes(tmp_path, monkeypatch):
@@ -511,10 +553,10 @@ def test_dcf_input_queue_deprioritizes_partial_tickers_from_supported_batch_note
         "preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,"
         "changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,"
         "final_outcome,notes\n"
-        "RB-SUPPORTED,2026-06-30,local reviewer,fundamentals,reviewed scope,AMD,PAYC,"
+        "RB-SUPPORTED,2026-06-30,local reviewer,fundamentals,reviewed scope,AMD,META,"
         "passed,valid,applied,before,after,dcf_ready +1,AMD,data/imports/fundamentals.csv,"
         "excluded,supported,"
-        "Applied AMD. Partial staged rows were not applied: PAYC missing fcf_margin; "
+        "Applied AMD. Partial staged rows were not applied: META missing price; "
         "other rows were incomplete.\n",
         encoding="utf-8",
     )
@@ -528,9 +570,9 @@ def test_dcf_input_queue_deprioritizes_partial_tickers_from_supported_batch_note
     )
     by_ticker = {row.ticker: row for row in rows}
 
-    assert [row.ticker for row in rows[:3]] == ["AMD", "HOOD", "META"]
-    assert rows[-1].ticker == "PAYC"
-    assert "reviewed proof ledger already records" in by_ticker["PAYC"].source_note.lower()
+    assert [row.ticker for row in rows[:2]] == ["AMD", "HOOD"]
+    assert rows[-1].ticker == "META"
+    assert "reviewed proof ledger already records" in by_ticker["META"].source_note.lower()
 
 
 def test_dcf_input_queue_family_summary_counts_rows(monkeypatch):
@@ -547,7 +589,6 @@ def test_dcf_input_queue_family_summary_counts_rows(monkeypatch):
 
     assert "shares_outstanding: 1" in summary
     assert "fundamentals_bundle: 1" in summary
-    assert "fcf_margin: 1" in summary
     assert "price: 1" in summary
 
 
@@ -586,18 +627,18 @@ def test_dcf_input_queue_renderer_pivots_when_every_row_is_reviewed_non_actionab
         "preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,"
         "changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,"
         "final_outcome,notes\n"
-        "RB-PAYC,2026-06-27,local reviewer,fundamentals,reviewed scope,PAYC,"
-        "make focus-fundamentals TICKER=PAYC,passed,valid,not_applied,before,after,"
+        "RB-OPCO,2026-06-27,local reviewer,fundamentals,reviewed scope,OPCO,"
+        "make focus-fundamentals TICKER=OPCO,passed,valid,not_applied,before,after,"
         "none,none,data/imports/fundamentals.csv,excluded,still_blocked,"
-        "zero revenue keeps fcf_margin blocked\n",
+        "trusted fundamentals source path did not produce the missing bundle\n",
         encoding="utf-8",
     )
 
     rows = build_dcf_input_proof_queue(
         root=tmp_path,
-        universe=pd.DataFrame([{"ticker": "PAYC", "asset_type": "company", "in_active_universe": False}]),
-        fundamentals=pd.DataFrame([{"ticker": "PAYC", "revenue": 0, "free_cash_flow": 12, "shares_outstanding": 5}]),
-        prices=pd.DataFrame([{"ticker": "PAYC", "date": "2026-01-01", "close": 50}]),
+        universe=pd.DataFrame([{"ticker": "OPCO", "asset_type": "company", "in_active_universe": False}]),
+        fundamentals=pd.DataFrame([{"ticker": "OPCO", "revenue": 50, "shares_outstanding": 5}]),
+        prices=pd.DataFrame([{"ticker": "OPCO", "date": "2026-01-01", "close": 50}]),
         top_n=10,
     )
     rendered = render_dcf_input_proof_queue(rows).lower()

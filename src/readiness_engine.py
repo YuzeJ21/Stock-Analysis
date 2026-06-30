@@ -13,7 +13,7 @@ try:
 except ImportError:  # pragma: no cover - exercised only in stripped-down environments.
     yaml = None
 
-from src.company_analysis_scope import excludes_company_dcf as company_dcf_excluded
+from src.company_analysis_scope import excludes_company_dcf_for_inputs as company_dcf_excluded
 from src.loader import normalize_columns
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.universe_model import ASSET_TYPES, build_universe_coverage_report, ensure_universe_files, infer_asset_type
@@ -994,6 +994,7 @@ def build_ticker_readiness_report(
     portfolio_tickers = _ticker_set(holdings)
     price_lookup = _index_by_ticker(price_report)
     fundamentals_lookup = _index_by_ticker(fundamentals_report)
+    raw_fundamentals_lookup = _index_by_ticker(fundamentals)
     dcf_lookup = _index_by_ticker(dcf_report)
     peer_lookup = _index_by_ticker(peer_report)
     earnings_lookup = _index_by_ticker(earnings_report)
@@ -1004,7 +1005,10 @@ def build_ticker_readiness_report(
         metadata = _metadata_row(master, legacy, ticker)
         asset_type = str(metadata.get("asset_type", infer_asset_type(ticker, metadata)) or "unknown").lower()
         excludes_company_peer = _asset_excludes_company_peer_context(asset_type)
-        excludes_company_dcf = company_dcf_excluded(asset_type, metadata)
+        raw_fundamentals = (
+            raw_fundamentals_lookup.loc[ticker] if ticker in raw_fundamentals_lookup.index else pd.Series(dtype=object)
+        )
+        excludes_company_dcf = company_dcf_excluded(asset_type, metadata, raw_fundamentals)
         price = price_lookup.loc[ticker] if ticker in price_lookup.index else pd.Series(dtype=object)
         fund = fundamentals_lookup.loc[ticker] if ticker in fundamentals_lookup.index else pd.Series(dtype=object)
         dcf = dcf_lookup.loc[ticker] if ticker in dcf_lookup.index else pd.Series(dtype=object)

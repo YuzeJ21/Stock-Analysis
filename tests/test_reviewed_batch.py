@@ -226,14 +226,14 @@ def test_reviewed_batch_fundamentals_candidates_follow_local_dcf_queue_order(tmp
             [
                 "ticker,source,revenue,free_cash_flow,fcf_margin,shares_outstanding,cash,debt",
                 "AACB,sec_companyfacts,,,,,20298,",
-                "ABAT,sec_companyfacts,0,-35661851,,136414409,37700000,9413088",
+                "ABAT,sec_companyfacts,4290224,-35661851,-8.312351755992228,,37700000,9413088",
             ]
         )
         + "\n",
     )
     _write(
         root / "data" / "reports" / "fundamentals_coverage_report.csv",
-        "ticker,fundamentals_ready,missing_fundamentals_fields\nAACB,false,revenue free_cash_flow fcf_margin shares_outstanding\nABAT,false,fcf_margin\n",
+            "ticker,fundamentals_ready,missing_fundamentals_fields\nAACB,false,revenue free_cash_flow fcf_margin shares_outstanding\nABAT,false,shares_outstanding\n",
     )
     _write(
         root / "outputs" / "session_source_preflight.json",

@@ -224,6 +224,66 @@ def test_company_dcf_excludes_explicit_spac_and_closed_end_fund_names(tmp_path: 
     assert int(feature_summary.loc["dcf", "excluded_count"]) == 4
 
 
+def test_company_dcf_excludes_zero_revenue_margin_model_blockers(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {
+                "ticker": "ZREV",
+                "name": "Zero Revenue Therapeutics Inc. - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "OPCO",
+                "name": "Operating Company Inc. - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame(_price_rows("ZREV", 60) + _price_rows("OPCO", 60)).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "ticker": "ZREV",
+                "revenue": 0,
+                "free_cash_flow": -10_000_000,
+                "shares_outstanding": 20_000_000,
+                "source": "sec_companyfacts",
+            },
+            {
+                "ticker": "OPCO",
+                "revenue": 50_000_000,
+                "shares_outstanding": 10_000_000,
+                "source": "sec_companyfacts",
+            },
+        ]
+    ).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(columns=["ticker", "peer_ticker", "peer_group", "source"]).to_csv(data_dir / "peers.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
+
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    readiness = reports["ticker_readiness_report"].set_index("ticker")
+    feature_summary = reports["feature_readiness_summary"].set_index("feature")
+
+    assert "dcf" in readiness.loc["ZREV", "excluded_features"]
+    assert "dcf" not in readiness.loc["ZREV", "blocked_features"]
+    assert "dcf:" not in readiness.loc["ZREV", "missing_data"]
+    assert bool(readiness.loc["ZREV", "dcf_ready"]) is False
+    assert "dcf" in readiness.loc["OPCO", "blocked_features"]
+    assert "dcf:" in readiness.loc["OPCO", "missing_data"]
+    assert int(feature_summary.loc["dcf", "excluded_count"]) == 1
+    assert int(feature_summary.loc["dcf", "blocked_count"]) == 1
+
+
 def test_company_dcf_excludes_explicit_financial_institution_names(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)
