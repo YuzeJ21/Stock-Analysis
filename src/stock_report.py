@@ -3727,9 +3727,14 @@ def _read_dataset_tickers(base_dir: Path, dataset_name: str, data_dir: Path | No
 
 def _resolve_dcf_input_queue_tickers(base_dir: Path, data_dir: Path, *, top_n: int) -> list[str]:
     rows = build_dcf_input_proof_queue_from_files(base_dir, data_dir=data_dir, top_n=top_n)
+    unreviewed_rows = [
+        row
+        for row in rows
+        if "reviewed proof ledger already records" not in str(getattr(row, "source_note", "") or "").lower()
+    ]
     tickers: list[str] = []
     seen: set[str] = set()
-    for row in rows:
+    for row in unreviewed_rows:
         ticker = str(getattr(row, "ticker", "") or "").upper().strip()
         if not ticker or ticker in seen:
             continue
@@ -4211,6 +4216,32 @@ def main() -> None:
     if args.fundamentals_source_ladder:
         requested_tickers = _resolve_sec_tickers(args, cli_base_dir, cli_data_dir, cli_output_dir)
         if not requested_tickers:
+            if args.from_dcf_input_queue:
+                payload = {
+                    "status": "skipped",
+                    "reason": "no_unreviewed_executable_dcf_blockers",
+                    "requested_tickers": [],
+                    "resolved_tickers": [],
+                    "unresolved_tickers": [],
+                    "rows_written": 0,
+                    "staged_row_count": 0,
+                    "recommended_next_commands": [
+                        "make dcf-input-proof-queue TOP_N=<n>",
+                        "Configure keyed provider data or add reviewed manual fundamentals rows before rerunning the source ladder.",
+                    ],
+                }
+                if args.json:
+                    print(json.dumps(payload, indent=2))
+                else:
+                    print_paths()
+                    print(
+                        "No unreviewed executable DCF blockers are shown; do not repeat these source paths "
+                        "unless new provider data, keyed sources, manual source rows, or changed blockers appear."
+                    )
+                    print("next:")
+                    for command in payload["recommended_next_commands"]:
+                        print(f"- {command}")
+                return
             raise SystemExit(
                 "Fundamentals source ladder requires at least one ticker source. Use --tickers, --from-local-tickers, "
                 "--from-universe, or --from-holdings."

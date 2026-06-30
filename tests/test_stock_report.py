@@ -2196,8 +2196,9 @@ def test_stock_report_cli_optional_context_source_ladder_writes_import_files(mon
 
 def test_resolve_dcf_input_queue_tickers_returns_unique_ordered_blocker_tickers(monkeypatch, tmp_path: Path):
     class Row:
-        def __init__(self, ticker: str) -> None:
+        def __init__(self, ticker: str, source_note: str = "") -> None:
             self.ticker = ticker
+            self.source_note = source_note
 
     monkeypatch.setattr(
         "src.stock_report.build_dcf_input_proof_queue_from_files",
@@ -2205,6 +2206,42 @@ def test_resolve_dcf_input_queue_tickers_returns_unique_ordered_blocker_tickers(
     )
 
     assert _resolve_dcf_input_queue_tickers(tmp_path, tmp_path / "data", top_n=4) == ["BBB", "AAA"]
+
+
+def test_resolve_dcf_input_queue_tickers_returns_empty_when_all_rows_reviewed_non_actionable(monkeypatch, tmp_path: Path):
+    class Row:
+        def __init__(self, ticker: str) -> None:
+            self.ticker = ticker
+            self.source_note = "Reviewed proof ledger already records this source path as non-actionable."
+
+    monkeypatch.setattr(
+        "src.stock_report.build_dcf_input_proof_queue_from_files",
+        lambda root, data_dir, top_n: [Row("ACHV"), Row("ADGM")],
+    )
+
+    assert _resolve_dcf_input_queue_tickers(tmp_path, tmp_path / "data", top_n=2) == []
+
+
+def test_stock_report_cli_fundamentals_source_ladder_queue_stops_cleanly_when_no_unreviewed_rows(
+    monkeypatch, tmp_path: Path, capsys
+):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    monkeypatch.setattr("src.stock_report._resolve_dcf_input_queue_tickers", lambda *_args, **_kwargs: [])
+
+    sys.argv = ["python", "--project-root", str(tmp_path), "--fundamentals-source-ladder", "--from-dcf-input-queue"]
+    try:
+        main()
+        output = capsys.readouterr().out
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+    assert "No unreviewed executable DCF blockers are shown" in output
+    assert not (tmp_path / "data" / "imports" / "fundamentals.csv").exists()
 
 
 def test_stock_report_from_rich_local_fixture_is_serializable_and_includes_validation(tmp_path: Path):
