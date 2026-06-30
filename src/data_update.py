@@ -45,6 +45,7 @@ PRICE_STATUS_COLUMNS = [
     "example_command",
     "target_file",
 ]
+MIN_PRICE_READY_ROWS = 5
 IBKR_HOST_ENV = "IBKR_HOST"
 IBKR_PORT_ENV = "IBKR_PORT"
 IBKR_CLIENT_ID_ENV = "IBKR_CLIENT_ID"
@@ -922,6 +923,8 @@ def _price_recommended_action(status: str, ticker: str, has_local_data: bool) ->
     )
     if status == "fetched":
         return "No action needed; remote rows were merged into local prices."
+    if status == "insufficient_history":
+        return normalize_action
     if status == "skipped_fresh":
         return "Leave unchanged because local data exists and is fresh."
     if status == "no_rows":
@@ -956,6 +959,25 @@ def _price_target_file(status: str) -> str:
     if status in {"fetched", "skipped_fresh"}:
         return "data/prices.csv"
     return "data/imports/prices.csv"
+
+
+def _valid_price_row_count(frame: pd.DataFrame, ticker: str) -> int:
+    if frame.empty or "ticker" not in frame.columns:
+        return 0
+    rows = frame.loc[frame["ticker"].astype(str).str.upper().str.strip() == ticker].copy()
+    if rows.empty:
+        return 0
+    rows["date"] = pd.to_datetime(rows.get("date"), errors="coerce", format="mixed")
+    rows["close"] = pd.to_numeric(rows.get("close"), errors="coerce")
+    rows = rows.loc[rows["date"].notna() & rows["close"].notna() & rows["close"].gt(0)]
+    return int(len(rows))
+
+
+def _projected_price_row_count(existing: pd.DataFrame, fetched: pd.DataFrame, ticker: str) -> int:
+    projected = pd.concat([existing, fetched], ignore_index=True)
+    if {"date", "ticker"}.issubset(projected.columns):
+        projected = projected.drop_duplicates(subset=["date", "ticker"], keep="last")
+    return _valid_price_row_count(projected, ticker)
 
 
 def _recommended_action_needs_refresh(status: str, recommended_action: str, ticker: str) -> bool:
@@ -1242,6 +1264,8 @@ def update_local_price_data(
             fetched_frames.append(frame)
             updated.append(ticker)
             provider_name = _price_source_status_name(source)
+            projected_rows = _projected_price_row_count(combined, frame, ticker)
+            status = "fetched" if projected_rows >= MIN_PRICE_READY_ROWS else "insufficient_history"
             status_rows.append(
                 _price_status_row(
                     run_timestamp=run_timestamp,
@@ -1249,9 +1273,9 @@ def update_local_price_data(
                     requested_start=_next_requested_start(existing, ticker),
                     requested_end=requested_end,
                     provider=provider_name,
-                    status="fetched",
+                    status=status,
                     rows_fetched=len(frame),
-                    rows_merged=len(frame),
+                    rows_merged=projected_rows,
                     fallback_used=False,
                     has_local_data=True,
                 )

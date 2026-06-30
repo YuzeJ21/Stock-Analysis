@@ -515,6 +515,10 @@ def build_readiness_ops_lanes(
     fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(root)
     source_activation_required, source_activation_context = _source_activation_context(root)
     batch_ledger_summaries = build_reviewed_batch_ledger_summaries(root)
+    price_ledger_note = _reviewed_batch_ledger_note(
+        batch_ledger_summaries.get("prices"),
+        lane_label="price coverage",
+    )
     peer_ledger_note = _reviewed_batch_ledger_note(batch_ledger_summaries.get("peers"), lane_label="peer mapping")
     peer_valuation_ledger_note = _reviewed_batch_ledger_note(
         batch_ledger_summaries.get("peer_valuation_inputs"),
@@ -538,6 +542,11 @@ def build_readiness_ops_lanes(
         batch_ledger_summaries.get("optional_context"),
         lane_label="optional context",
         expected_count=total,
+    )
+    price_ledger_status = _reviewed_batch_coverage_status(
+        batch_ledger_summaries.get("prices"),
+        lane_label="price coverage",
+        expected_count=price_partial + price_blocked,
     )
     source_activation_command = "make coverage-expansion-loop TOP_N=10"
     source_activation_workflow = "source_activation_required"
@@ -573,12 +582,18 @@ def build_readiness_ops_lanes(
             next_safe_command=(
                 source_activation_command
                 if source_activation_required
+                else "make price-history-proof-queue TOP_N=25"
+                if price_ledger_status
                 else "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
             ),
             proof_command="make readiness && make price-coverage TOP_N=25 && make status-check TOP_N=5",
             generated_churn_policy="Price refreshes can create broad CSV churn; keep refreshed data local unless intentionally reviewed.",
             stale_proof_warning=stale_warning,
-            notes="Improves setup, momentum, liquidity, risk, and peer trend inputs only; it does not create fundamentals or valuation inputs.",
+            notes=(
+                "Improves setup, momentum, liquidity, risk, and peer trend inputs only; it does not create fundamentals or valuation inputs."
+                + (f" {price_ledger_note}" if price_ledger_note else "")
+            ),
+            reviewed_proof_status=price_ledger_status,
         ),
         ReadinessLane(
             lane="fundamentals_dcf",

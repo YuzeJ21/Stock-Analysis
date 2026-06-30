@@ -11864,7 +11864,7 @@ def test_data_health_readiness_ops_center_frame_groups_broad_lanes():
     assert "source_activation_required" not in rendered
     assert "preview first, reviewed apply" in rendered
     assert "optional source review" in rendered
-    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "make price-history-proof-queue top_n=25" in rendered
     assert "trusted local rows" in rendered
 
 

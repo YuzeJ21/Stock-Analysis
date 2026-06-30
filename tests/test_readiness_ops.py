@@ -240,6 +240,31 @@ def test_readiness_ops_surfaces_reviewed_batch_ledger_progress_without_unlocking
     assert frontier[-1].lane in {"earnings_locked", "analyst_estimates_locked"}
 
 
+def test_readiness_ops_uses_reviewed_price_ledger_to_stop_repeating_exhausted_refresh(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write(
+        root / "data" / "reviewed_batch_proofs.csv",
+        "\n".join(
+            [
+                "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,final_outcome,notes",
+                "RB-PRICE-CGCT,2026-06-30,codex,prices,final price partial,BBB,make price-refresh TICKERS=BBB PROVIDER=auto REFRESH=1,provider tried Stooq and Yahoo,Yahoo returned one row,not enough rows,price ready=2 partial=1,price ready=2 partial=1,none,BBB,data/prices.csv,reviewed,still_blocked,do not repeat normal refresh loops",
+            ]
+        )
+        + "\n",
+    )
+
+    lanes = build_readiness_ops_lanes(root)
+    by_lane = {lane.lane: lane for lane in lanes}
+    frontier_rendered = render_coverage_frontier(build_coverage_frontier(lanes, top_n=3))
+
+    assert by_lane["price_coverage"].reviewed_proof_status.startswith(
+        "reviewed proof ledger covers current price coverage scope"
+    )
+    assert by_lane["price_coverage"].next_safe_command == "make price-history-proof-queue TOP_N=25"
+    assert "reviewed proof already recorded" in frontier_rendered
+    assert "do not repeat this proof loop" in frontier_rendered
+
+
 def test_readiness_ops_routes_fundamentals_to_source_ladder_when_fallback_provider_is_available(tmp_path: Path):
     root = _sample_root(tmp_path)
     _write_session_source_preflight(root, fmp="available")

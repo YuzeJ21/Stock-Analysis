@@ -1137,6 +1137,44 @@ def test_update_local_price_data_retries_and_continues_when_one_ticker_fails(tmp
     assert source.calls.count("BBB") >= 2
 
 
+def test_update_local_price_data_marks_fetched_rows_still_insufficient_when_history_remains_short(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,open,high,low,close,adj_close,volume\n"
+        "2026-06-08,CGCT,12.16,11.9,11.9,11.9,11.9,33924\n",
+        encoding="utf-8",
+    )
+    source = FakePriceSource(
+        {
+            "CGCT": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-06-09"),
+                        "ticker": "CGCT",
+                        "open": 11.9,
+                        "high": 12.0,
+                        "low": 11.8,
+                        "close": 11.95,
+                        "adj_close": 11.95,
+                        "volume": 25000,
+                    }
+                ]
+            )
+        }
+    )
+
+    result = update_local_price_data(tmp_path, source=source, tickers=["CGCT"], refresh=True)
+
+    status = pd.read_csv(result.status_path)
+    assert status.iloc[0]["status"] == "insufficient_history"
+    assert status.iloc[0]["rows_fetched"] == 1
+    assert status.iloc[0]["rows_merged"] == 2
+    assert "normalize verified downloaded OHLCV files" in status.iloc[0]["recommended_action"]
+    assert status.iloc[0]["focus_command"] == "make focus-price TICKER=CGCT"
+
+
 def test_update_local_price_data_writes_status_when_remote_parse_errors(tmp_path: Path):
     (tmp_path / "data").mkdir()
     (tmp_path / "outputs").mkdir()
