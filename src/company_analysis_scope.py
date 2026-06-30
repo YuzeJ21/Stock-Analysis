@@ -18,14 +18,16 @@ COMPANY_DCF_EXCLUDED_TEXT_PATTERNS = (
     ),
     re.compile(r"\bclosed[- ]end fund\b", re.IGNORECASE),
     re.compile(
-        r"\b\w*bank\w*|\b(bancorp|bancorporation|bancshares|bankshares|bankholding|bank holding)\b",
+        r"\b\w*bank\w*|\b(banc\w*|bankshares|bankholding|bank holding)\b",
         re.IGNORECASE,
     ),
     re.compile(
-        r"\b(financial\b|insurance|reinsurance|mortgage)\b",
+        r"\b(financial\b|finance\b|insurance|reinsurance|mortgage)\b",
         re.IGNORECASE,
     ),
     re.compile(r"\b(real estate investment trust|reit)\b", re.IGNORECASE),
+    re.compile(r"\b(realty trust|business development company)\b", re.IGNORECASE),
+    re.compile(r"\b(capital corp|capital corporation)\b", re.IGNORECASE),
 )
 
 

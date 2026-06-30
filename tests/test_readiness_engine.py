@@ -429,6 +429,81 @@ def test_company_dcf_excludes_compact_acquisition_and_financial_names(tmp_path: 
     assert int(feature_summary.loc["dcf", "excluded_count"]) == 3
 
 
+def test_company_dcf_excludes_finance_trust_and_capital_vehicle_names(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {
+                "ticker": "BANC",
+                "name": "First Interstate BancSystem, Inc. - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "TRST",
+                "name": "Seven Hills Realty Trust - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "BDCO",
+                "name": "Gladstone Investment Corporation - Business Development Company",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "CAPC",
+                "name": "Churchill Capital Corp IX - Ordinary Shares",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "FINC",
+                "name": "Chicago Atlantic Real Estate Finance, Inc. - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "OPCO",
+                "name": "Operating Company Inc. - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame(
+        _price_rows("BANC", 60)
+        + _price_rows("TRST", 60)
+        + _price_rows("BDCO", 60)
+        + _price_rows("CAPC", 60)
+        + _price_rows("FINC", 60)
+        + _price_rows("OPCO", 60)
+    ).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(columns=["ticker", "peer_ticker", "peer_group", "source"]).to_csv(data_dir / "peers.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
+
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    readiness = reports["ticker_readiness_report"].set_index("ticker")
+    feature_summary = reports["feature_readiness_summary"].set_index("feature")
+
+    for ticker in ("BANC", "TRST", "BDCO", "CAPC", "FINC"):
+        assert "dcf" in readiness.loc[ticker, "excluded_features"]
+        assert "dcf" not in readiness.loc[ticker, "blocked_features"]
+        assert "dcf:" not in readiness.loc[ticker, "missing_data"]
+
+    assert "dcf" in readiness.loc["OPCO", "blocked_features"]
+    assert "dcf:" in readiness.loc["OPCO", "missing_data"]
+    assert int(feature_summary.loc["dcf", "excluded_count"]) == 5
+
+
 def test_peer_unlock_worklist_sorts_active_dcf_ready_rows_before_master_rows(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)

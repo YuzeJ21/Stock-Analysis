@@ -326,6 +326,48 @@ def test_dcf_input_queue_skips_compact_acquisition_and_financial_names(monkeypat
     assert [row.ticker for row in rows] == ["OPCO"]
 
 
+def test_dcf_input_queue_skips_finance_trust_and_capital_vehicle_names(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    universe = pd.DataFrame(
+        [
+            {"ticker": "BANC", "name": "First Interstate BancSystem, Inc. - Common Stock", "asset_type": "company"},
+            {"ticker": "TRST", "name": "Seven Hills Realty Trust - Common Stock", "asset_type": "company"},
+            {
+                "ticker": "BDCO",
+                "name": "Gladstone Investment Corporation - Business Development Company",
+                "asset_type": "company",
+            },
+            {"ticker": "CAPC", "name": "Churchill Capital Corp IX - Ordinary Shares", "asset_type": "company"},
+            {
+                "ticker": "FINC",
+                "name": "Chicago Atlantic Real Estate Finance, Inc. - Common Stock",
+                "asset_type": "company",
+            },
+            {"ticker": "OPCO", "name": "Operating Company Inc. - Common Stock", "asset_type": "company"},
+        ]
+    )
+    fundamentals = pd.DataFrame(columns=["ticker", "revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"])
+    prices = pd.DataFrame(
+        [
+            {"ticker": "BANC", "date": "2026-01-01", "close": 10},
+            {"ticker": "TRST", "date": "2026-01-01", "close": 10},
+            {"ticker": "BDCO", "date": "2026-01-01", "close": 10},
+            {"ticker": "CAPC", "date": "2026-01-01", "close": 10},
+            {"ticker": "FINC", "date": "2026-01-01", "close": 10},
+            {"ticker": "OPCO", "date": "2026-01-01", "close": 10},
+        ]
+    )
+
+    rows = build_dcf_input_proof_queue(
+        universe=universe,
+        fundamentals=fundamentals,
+        prices=prices,
+        top_n=10,
+    )
+
+    assert [row.ticker for row in rows] == ["OPCO"]
+
+
 def test_dcf_input_queue_from_files_prefers_master_universe_scope_metadata(tmp_path, monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
     data_dir = tmp_path / "data"
