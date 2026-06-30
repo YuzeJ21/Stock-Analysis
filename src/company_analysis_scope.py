@@ -17,6 +17,15 @@ COMPANY_DCF_EXCLUDED_TEXT_PATTERNS = (
         re.IGNORECASE,
     ),
     re.compile(r"\bclosed[- ]end fund\b", re.IGNORECASE),
+    re.compile(
+        r"\b(bank|bancorp|bancorporation|bancshares|bankshares|bankholding|bank holding)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(financial (corp|corporation|services|group|holdings|institutions)|insurance|reinsurance|mortgage)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(real estate investment trust|reit)\b", re.IGNORECASE),
 )
 
 

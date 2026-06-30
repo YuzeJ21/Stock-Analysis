@@ -224,6 +224,75 @@ def test_company_dcf_excludes_explicit_spac_and_closed_end_fund_names(tmp_path: 
     assert int(feature_summary.loc["dcf", "excluded_count"]) == 4
 
 
+def test_company_dcf_excludes_explicit_financial_institution_names(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {
+                "ticker": "BANK",
+                "name": "Bank First Corporation - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "BANC",
+                "name": "Affinity Bancshares, Inc. - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "INSR",
+                "name": "Example Insurance Group, Inc. - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "REIT",
+                "name": "Example Real Estate Investment Trust - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "OPCO",
+                "name": "Operating Company Inc. - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame(
+        _price_rows("BANK", 60)
+        + _price_rows("BANC", 60)
+        + _price_rows("INSR", 60)
+        + _price_rows("REIT", 60)
+        + _price_rows("OPCO", 60)
+    ).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(columns=["ticker", "peer_ticker", "peer_group", "source"]).to_csv(data_dir / "peers.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
+
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    readiness = reports["ticker_readiness_report"].set_index("ticker")
+    feature_summary = reports["feature_readiness_summary"].set_index("feature")
+
+    for ticker in ("BANK", "BANC", "INSR", "REIT"):
+        assert "dcf" in readiness.loc[ticker, "excluded_features"]
+        assert "dcf" not in readiness.loc[ticker, "blocked_features"]
+        assert "dcf:" not in readiness.loc[ticker, "missing_data"]
+        assert "trusted fundamentals" not in readiness.loc[ticker, "next_action"]
+
+    assert "dcf" in readiness.loc["OPCO", "blocked_features"]
+    assert "dcf:" in readiness.loc["OPCO", "missing_data"]
+    assert int(feature_summary.loc["dcf", "excluded_count"]) == 4
+
+
 def test_peer_unlock_worklist_sorts_active_dcf_ready_rows_before_master_rows(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)

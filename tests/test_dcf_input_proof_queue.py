@@ -218,6 +218,42 @@ def test_dcf_input_queue_skips_explicit_acquisition_vehicles(monkeypatch):
     assert [row.ticker for row in rows] == ["OPCO"]
 
 
+def test_dcf_input_queue_skips_explicit_financial_institution_names(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    universe = pd.DataFrame(
+        [
+            {"ticker": "BANK", "name": "Bank First Corporation - Common Stock", "asset_type": "company"},
+            {"ticker": "BANC", "name": "Affinity Bancshares, Inc. - Common Stock", "asset_type": "company"},
+            {"ticker": "INSR", "name": "Example Insurance Group, Inc. - Common Stock", "asset_type": "company"},
+            {
+                "ticker": "REIT",
+                "name": "Example Real Estate Investment Trust - Common Stock",
+                "asset_type": "company",
+            },
+            {"ticker": "OPCO", "name": "Operating Company Inc. - Common Stock", "asset_type": "company"},
+        ]
+    )
+    fundamentals = pd.DataFrame(columns=["ticker", "revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"])
+    prices = pd.DataFrame(
+        [
+            {"ticker": "BANK", "date": "2026-01-01", "close": 10},
+            {"ticker": "BANC", "date": "2026-01-01", "close": 10},
+            {"ticker": "INSR", "date": "2026-01-01", "close": 10},
+            {"ticker": "REIT", "date": "2026-01-01", "close": 10},
+            {"ticker": "OPCO", "date": "2026-01-01", "close": 10},
+        ]
+    )
+
+    rows = build_dcf_input_proof_queue(
+        universe=universe,
+        fundamentals=fundamentals,
+        prices=prices,
+        top_n=10,
+    )
+
+    assert [row.ticker for row in rows] == ["OPCO"]
+
+
 def test_dcf_input_queue_from_files_prefers_master_universe_scope_metadata(tmp_path, monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
     data_dir = tmp_path / "data"
