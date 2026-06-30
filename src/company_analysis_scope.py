@@ -13,16 +13,16 @@ except ImportError:  # pragma: no cover - pandas is present in normal project ru
 COMPANY_DCF_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
 COMPANY_DCF_EXCLUDED_TEXT_PATTERNS = (
     re.compile(
-        r"\b(acquisition\b.{0,32}\b(corp|corporation|company|inc|ltd)|spac|blank check)\b",
+        r"\b(\w*acquisitions?\b.{0,36}\b(co|corp|corporation|company|inc|limited|ltd)|spac|blank check)\b",
         re.IGNORECASE,
     ),
     re.compile(r"\bclosed[- ]end fund\b", re.IGNORECASE),
     re.compile(
-        r"\b(bank|bancorp|bancorporation|bancshares|bankshares|bankholding|bank holding)\b",
+        r"\b\w*bank\w*|\b(bancorp|bancorporation|bancshares|bankshares|bankholding|bank holding)\b",
         re.IGNORECASE,
     ),
     re.compile(
-        r"\b(financial (corp|corporation|services|group|holdings|institutions)|insurance|reinsurance|mortgage)\b",
+        r"\b(financial\b|insurance|reinsurance|mortgage)\b",
         re.IGNORECASE,
     ),
     re.compile(r"\b(real estate investment trust|reit)\b", re.IGNORECASE),

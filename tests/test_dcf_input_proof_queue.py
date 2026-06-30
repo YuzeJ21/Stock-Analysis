@@ -254,6 +254,78 @@ def test_dcf_input_queue_skips_explicit_financial_institution_names(monkeypatch)
     assert [row.ticker for row in rows] == ["OPCO"]
 
 
+def test_dcf_input_queue_skips_explicit_scope_variant_names(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    universe = pd.DataFrame(
+        [
+            {
+                "ticker": "ACQCO",
+                "name": "Chenghe Acquisition III Co. - Class A Ordinary Shares",
+                "asset_type": "company",
+            },
+            {"ticker": "ACQPL", "name": "Iron Horse Acquisitions II Corp. - Common Stock", "asset_type": "company"},
+            {"ticker": "FINI", "name": "AmeriServ Financial Inc. - Common Stock", "asset_type": "company"},
+            {"ticker": "BNK7", "name": "Bank7 Corp. - Common stock", "asset_type": "company"},
+            {"ticker": "AVBH", "name": "Avidbank Holdings, Inc. - Common Stock", "asset_type": "company"},
+            {"ticker": "OPCO", "name": "Operating Company Inc. - Common Stock", "asset_type": "company"},
+        ]
+    )
+    fundamentals = pd.DataFrame(columns=["ticker", "revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"])
+    prices = pd.DataFrame(
+        [
+            {"ticker": "ACQCO", "date": "2026-01-01", "close": 10},
+            {"ticker": "ACQPL", "date": "2026-01-01", "close": 10},
+            {"ticker": "FINI", "date": "2026-01-01", "close": 10},
+            {"ticker": "BNK7", "date": "2026-01-01", "close": 10},
+            {"ticker": "AVBH", "date": "2026-01-01", "close": 10},
+            {"ticker": "OPCO", "date": "2026-01-01", "close": 10},
+        ]
+    )
+
+    rows = build_dcf_input_proof_queue(
+        universe=universe,
+        fundamentals=fundamentals,
+        prices=prices,
+        top_n=10,
+    )
+
+    assert [row.ticker for row in rows] == ["OPCO"]
+
+
+def test_dcf_input_queue_skips_compact_acquisition_and_financial_names(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    universe = pd.DataFrame(
+        [
+            {"ticker": "KRAQ", "name": "KRAKacquisition Corp - Class A Ordinary Shares", "asset_type": "company"},
+            {
+                "ticker": "NBRG",
+                "name": "Newbridge Acquisition Limited - Class A Ordinary Share",
+                "asset_type": "company",
+            },
+            {"ticker": "SYF", "name": "Synchrony Financial", "asset_type": "company"},
+            {"ticker": "OPCO", "name": "Operating Company Inc. - Common Stock", "asset_type": "company"},
+        ]
+    )
+    fundamentals = pd.DataFrame(columns=["ticker", "revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"])
+    prices = pd.DataFrame(
+        [
+            {"ticker": "KRAQ", "date": "2026-01-01", "close": 10},
+            {"ticker": "NBRG", "date": "2026-01-01", "close": 10},
+            {"ticker": "SYF", "date": "2026-01-01", "close": 10},
+            {"ticker": "OPCO", "date": "2026-01-01", "close": 10},
+        ]
+    )
+
+    rows = build_dcf_input_proof_queue(
+        universe=universe,
+        fundamentals=fundamentals,
+        prices=prices,
+        top_n=10,
+    )
+
+    assert [row.ticker for row in rows] == ["OPCO"]
+
+
 def test_dcf_input_queue_from_files_prefers_master_universe_scope_metadata(tmp_path, monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
     data_dir = tmp_path / "data"
