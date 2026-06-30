@@ -230,6 +230,13 @@ def _coverage_note(payload: dict[str, Any]) -> str:
     )
 
 
+def _price_rows_complete(payload: dict[str, Any]) -> bool:
+    coverage = payload.get("ticker_coverage", [])
+    if not coverage:
+        return False
+    return all(_truthy(row.get("has_prices")) for row in coverage)
+
+
 def render_price_history_proof_queue(rows: list[PriceHistoryProofRow], payload: dict[str, Any]) -> str:
     lines = [
         "Short Price-History Proof Queue",
@@ -254,7 +261,13 @@ def render_price_history_proof_queue(rows: list[PriceHistoryProofRow], payload: 
         )
     else:
         lines.append(f"Next safest action: {rows[0].next_safe_command}.")
-    lines.append(f"Dry-run batch plan: {rows[0].dry_run_batch_command}.")
+    if _price_rows_complete(payload):
+        lines.append(
+            "History source path: price rows are already present for every ticker; use focused review or "
+            "verified manual OHLCV history for short-history names, not missing-price refresh."
+        )
+    else:
+        lines.append(f"Dry-run batch plan: {rows[0].dry_run_batch_command}.")
     lines.append("")
     lines.append("Priority | Ticker | State | Local rows | Next goal | Rows needed | Next proof command")
     lines.append("---: | --- | --- | ---: | --- | ---: | ---")

@@ -104,7 +104,8 @@ def test_price_history_proof_queue_renderer_is_research_only_and_read_only(tmp_p
     assert "do not fabricate missing dates, prices, volume, or adjusted close rows" in lowered
     assert "price coverage can be complete while momentum" in lowered
     assert "make focus-price ticker=amd" in lowered
-    assert "make price-refresh-loop dry_run=1" in lowered
+    assert "price rows are already present for every ticker" in lowered
+    assert "not missing-price refresh" in lowered
     assert "review checklist" in lowered
     assert "price target" not in lowered
     assert "undervalued" not in lowered
@@ -166,3 +167,4 @@ def test_price_history_proof_queue_renderer_pivots_when_every_row_is_reviewed_no
 
     assert "Next safest action: No unreviewed executable price-history blockers are shown" in rendered
     assert "do not repeat these source paths unless new provider data" in rendered
+    assert "not missing-price refresh" in rendered.lower()
