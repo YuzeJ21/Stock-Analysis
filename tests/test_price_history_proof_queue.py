@@ -130,3 +130,39 @@ def test_price_history_proof_queue_empty_scope_explains_no_blockers(tmp_path: Pa
 
     assert rows == []
     assert "No short price-history blockers found" in render_price_history_proof_queue(rows, payload)
+
+
+def test_price_history_proof_queue_deprioritizes_reviewed_non_actionable_tickers(tmp_path: Path):
+    _write_fixture(tmp_path)
+    proofs = tmp_path / "data" / "reviewed_batch_proofs.csv"
+    proofs.write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-PRICE-AMD,prices,AMD,still_blocked,none,"
+        "\"AMD public provider path already tried; do not retry without a new verified OHLCV source.\"\n",
+        encoding="utf-8",
+    )
+
+    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10)
+
+    assert [row.ticker for row in rows[:2]] == ["NVDA", "AMD"]
+    amd = next(row for row in rows if row.ticker == "AMD")
+    assert "reviewed proof ledger already records" in amd.source_note.lower()
+    rendered = render_price_history_proof_queue(rows, build_onboarding_payload(tmp_path))
+    assert "Next safest action: make focus-price TICKER=NVDA." in rendered
+
+
+def test_price_history_proof_queue_renderer_pivots_when_every_row_is_reviewed_non_actionable(tmp_path: Path):
+    _write_fixture(tmp_path)
+    proofs = tmp_path / "data" / "reviewed_batch_proofs.csv"
+    proofs.write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-PRICE-BOTH,price_coverage,\"AMD,NVDA\",still_blocked,none,"
+        "\"AMD and NVDA public provider paths already tried; do not retry without new verified OHLCV source.\"\n",
+        encoding="utf-8",
+    )
+
+    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10)
+    rendered = render_price_history_proof_queue(rows, build_onboarding_payload(tmp_path))
+
+    assert "Next safest action: No unreviewed executable price-history blockers are shown" in rendered
+    assert "do not repeat these source paths unless new provider data" in rendered

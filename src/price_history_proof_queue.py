@@ -8,6 +8,8 @@ or review-metric workflows when the verified local history is too short.
 from __future__ import annotations
 
 import argparse
+import csv
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -84,14 +86,42 @@ def _parse_tickers(value: str | None) -> list[str] | None:
     return [part.strip().upper() for part in value.split(",") if part.strip()]
 
 
+def _reviewed_non_actionable_price_tickers(root: Path, possible_tickers: set[str]) -> set[str]:
+    path = root / "data" / "reviewed_batch_proofs.csv"
+    if not path.exists() or not possible_tickers:
+        return set()
+
+    reviewed: set[str] = set()
+    price_lanes = {"prices", "price_coverage"}
+    non_actionable_outcomes = {"still_blocked", "skipped", "excluded"}
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            lane = str(row.get("lane") or "").strip().lower()
+            outcome = str(row.get("final_outcome") or "").strip().lower()
+            if lane not in price_lanes or outcome not in non_actionable_outcomes:
+                continue
+
+            fields = " ".join(
+                str(row.get(name) or "")
+                for name in ("tickers", "changed_tickers", "notes")
+            ).upper()
+            for token in re.findall(r"\b[A-Z][A-Z0-9.]{0,9}\b", fields):
+                normalized = token.replace(".", "-")
+                if normalized in possible_tickers:
+                    reviewed.add(normalized)
+    return reviewed
+
+
 def build_price_history_proof_queue_from_payload(
     payload: dict[str, Any],
     *,
     top_n: int = 10,
     tickers: list[str] | None = None,
+    reviewed_non_actionable_tickers: set[str] | None = None,
 ) -> list[PriceHistoryProofRow]:
     """Build proof rows from the existing onboarding price worklist."""
     wanted = {ticker.upper().strip() for ticker in tickers or [] if ticker.strip()}
+    reviewed_non_actionable_tickers = reviewed_non_actionable_tickers or set()
     rows: list[PriceHistoryProofRow] = []
     dry_run_command = f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={max(top_n, 1)} PROVIDER=auto"
     for raw in payload.get("price_import_worklist", []):
@@ -108,7 +138,18 @@ def build_price_history_proof_queue_from_payload(
             "rows_needed": rows_needed,
         }
         state = _state(row_data)
+        source_note = (
+            "Uses local price worklist thresholds. Price coverage can be complete while momentum, track-record, "
+            "or review-metric history depth remains partial."
+        )
         next_safe_command = str(raw.get("focus_command") or f"make focus-price TICKER={ticker}").strip()
+        if ticker in reviewed_non_actionable_tickers:
+            source_note = (
+                "Reviewed proof ledger already records this short-history source path as non-actionable; "
+                "do not repeat it unless new provider data, a verified manual OHLCV file, or changed source behavior appears. "
+                + source_note
+            )
+            next_safe_command = "wait for new verified OHLCV source or changed provider behavior"
         rows.append(
             PriceHistoryProofRow(
                 priority=len(rows) + 1,
@@ -128,12 +169,30 @@ def build_price_history_proof_queue_from_payload(
                     "Stop if the provider/manual source cannot verify enough OHLCV history; keep the short-history "
                     "state visible and do not infer missing dates or prices."
                 ),
-                source_note=(
-                    "Uses local price worklist thresholds. Price coverage can be complete while momentum, track-record, "
-                    "or review-metric history depth remains partial."
-                ),
+                source_note=source_note,
             )
         )
+    rows.sort(key=lambda row: ("reviewed proof ledger already records" in row.source_note.lower(), row.priority))
+    rows = [
+        PriceHistoryProofRow(
+            priority=index,
+            ticker=row.ticker,
+            state=row.state,
+            current_history_rows=row.current_history_rows,
+            next_goal=row.next_goal,
+            target_history_rows=row.target_history_rows,
+            rows_needed=row.rows_needed,
+            first_local_date=row.first_local_date,
+            latest_local_date=row.latest_local_date,
+            next_safe_command=row.next_safe_command,
+            dry_run_batch_command=row.dry_run_batch_command,
+            validate_preview_apply_gate=row.validate_preview_apply_gate,
+            post_run_proof_command=row.post_run_proof_command,
+            stop_rule=row.stop_rule,
+            source_note=row.source_note,
+        )
+        for index, row in enumerate(rows, start=1)
+    ]
     return rows[: max(top_n, 0)]
 
 
@@ -146,7 +205,18 @@ def build_price_history_proof_queue_from_files(
     tickers: list[str] | None = None,
 ) -> list[PriceHistoryProofRow]:
     payload = build_onboarding_payload(root, data_dir=data_dir, output_dir=output_dir, tickers=tickers)
-    return build_price_history_proof_queue_from_payload(payload, top_n=top_n, tickers=tickers)
+    possible_tickers = {
+        str(row.get("ticker") or "").strip().upper()
+        for row in payload.get("price_import_worklist", [])
+        if str(row.get("ticker") or "").strip()
+    }
+    reviewed_tickers = _reviewed_non_actionable_price_tickers(root, possible_tickers)
+    return build_price_history_proof_queue_from_payload(
+        payload,
+        top_n=top_n,
+        tickers=tickers,
+        reviewed_non_actionable_tickers=reviewed_tickers,
+    )
 
 
 def _coverage_note(payload: dict[str, Any]) -> str:
@@ -176,7 +246,14 @@ def render_price_history_proof_queue(rows: list[PriceHistoryProofRow], payload: 
     blocked = sum(1 for row in rows if row.state == "blocked")
     partial = sum(1 for row in rows if row.state == "partial")
     lines.append(f"Rows shown: {len(rows)}; blocked: {blocked}; partial: {partial}.")
-    lines.append(f"Next safest action: {rows[0].next_safe_command}.")
+    all_reviewed_non_actionable = all("reviewed proof ledger already records" in row.source_note.lower() for row in rows)
+    if all_reviewed_non_actionable:
+        lines.append(
+            "Next safest action: No unreviewed executable price-history blockers are shown; "
+            "do not repeat these source paths unless new provider data, a verified manual OHLCV file, or changed source behavior appears."
+        )
+    else:
+        lines.append(f"Next safest action: {rows[0].next_safe_command}.")
     lines.append(f"Dry-run batch plan: {rows[0].dry_run_batch_command}.")
     lines.append("")
     lines.append("Priority | Ticker | State | Local rows | Next goal | Rows needed | Next proof command")
@@ -219,7 +296,18 @@ def main() -> None:
     output_path = resolve_outputs_dir(Path(args.outputs_dir) if args.outputs_dir else None, root)
     tickers = _parse_tickers(args.tickers)
     payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
-    rows = build_price_history_proof_queue_from_payload(payload, top_n=args.top_n, tickers=tickers)
+    possible_tickers = {
+        str(row.get("ticker") or "").strip().upper()
+        for row in payload.get("price_import_worklist", [])
+        if str(row.get("ticker") or "").strip()
+    }
+    reviewed_tickers = _reviewed_non_actionable_price_tickers(root, possible_tickers)
+    rows = build_price_history_proof_queue_from_payload(
+        payload,
+        top_n=args.top_n,
+        tickers=tickers,
+        reviewed_non_actionable_tickers=reviewed_tickers,
+    )
     print(format_path_context(root, data_path, output_path))
     print(render_price_history_proof_queue(rows, payload))
 
