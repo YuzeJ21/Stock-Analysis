@@ -1034,7 +1034,7 @@ def build_trusted_data_pilot_candidates(
         if not _is_company_candidate(ticker, readiness_row):
             continue
         missing_dcf = _clean(row.get("missing_required_for_dcf"), "")
-        has_dcf = _truthy(row.get("dcf_ready"))
+        has_dcf = _truthy(row.get("dcf_ready")) or _truthy((readiness_row or {}).get("dcf_ready"))
         if missing_dcf and not has_dcf:
             candidate = PilotCandidate(
                 ticker=ticker,

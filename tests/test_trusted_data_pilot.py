@@ -156,6 +156,48 @@ def test_trusted_data_pilot_candidates_prioritize_active_company_blockers():
     assert all(candidate.ticker != "SPAC" for candidate in candidates)
 
 
+def test_trusted_data_pilot_candidates_skip_currently_dcf_ready_fundamentals_rows():
+    candidates = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "AAPG",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "free_cash_flow, revenue, fcf_margin",
+                "focus_command": "make focus-fundamentals TICKER=AAPG",
+            },
+            {
+                "ticker": "AARD",
+                "priority": "2",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue, fcf_margin",
+                "focus_command": "make focus-fundamentals TICKER=AARD",
+            },
+        ],
+        [],
+        [
+            {
+                "ticker": "AAPG",
+                "asset_type": "company",
+                "in_active_universe": "False",
+                "fundamentals_ready": "True",
+                "dcf_ready": "True",
+            },
+            {
+                "ticker": "AARD",
+                "asset_type": "company",
+                "in_active_universe": "False",
+                "fundamentals_ready": "False",
+                "dcf_ready": "False",
+            },
+        ],
+        top_n=10,
+    )
+
+    assert [candidate.ticker for candidate in candidates] == ["AARD"]
+    assert candidates[0].lane == "fundamentals_dcf"
+
+
 def test_trusted_data_pilot_candidates_honor_ticker_filter():
     candidates = build_trusted_data_pilot_candidates(
         [
