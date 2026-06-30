@@ -8,6 +8,8 @@ apply imports, or create valuation conclusions.
 from __future__ import annotations
 
 import argparse
+import csv
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -175,6 +177,31 @@ def _source_action_for_share_count(
     )
 
 
+def _reviewed_non_actionable_share_tickers(root: Path, possible_tickers: set[str]) -> set[str]:
+    path = root / "data" / "reviewed_batch_proofs.csv"
+    if not path.exists() or not possible_tickers:
+        return set()
+
+    reviewed: set[str] = set()
+    lanes = {"share_count", "fundamentals"}
+    outcomes = {"still_blocked", "skipped", "excluded"}
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            lane = str(row.get("lane") or "").strip().lower()
+            outcome = str(row.get("final_outcome") or "").strip().lower()
+            if lane not in lanes or outcome not in outcomes:
+                continue
+            text = " ".join(
+                str(row.get(name) or "")
+                for name in ("tickers", "changed_tickers", "notes")
+            ).upper()
+            for token in re.findall(r"\b[A-Z][A-Z0-9.]{0,9}\b", text):
+                normalized = token.replace(".", "-")
+                if normalized in possible_tickers:
+                    reviewed.add(normalized)
+    return reviewed
+
+
 def build_share_count_proof_queue(
     *,
     universe: pd.DataFrame,
@@ -183,6 +210,7 @@ def build_share_count_proof_queue(
     top_n: int = 10,
     tickers: list[str] | None = None,
     session_preflight: dict[str, Any] | None = None,
+    reviewed_non_actionable_tickers: set[str] | None = None,
 ) -> list[ShareCountProofRow]:
     dcf = build_dcf_readiness_frame(universe=universe, fundamentals=fundamentals, prices=prices)
     if dcf.empty:
@@ -200,12 +228,20 @@ def build_share_count_proof_queue(
         return []
     scope_lookup = _universe_scope_lookup(universe)
     ranked = sorted((row for _, row in queue.iterrows()), key=lambda row: _rank(row, scope_lookup))
+    reviewed_non_actionable_tickers = reviewed_non_actionable_tickers or set()
     rows: list[ShareCountProofRow] = []
     for row in ranked[: max(top_n, 0)]:
         ticker = str(row.get("ticker", "")).upper().strip()
         missing = _missing_fields(row.get("missing_dcf_fields"))
         row_status = _dcf_input_status(row)
         source_command, source_note = _source_action_for_share_count(ticker, missing, session_preflight)
+        if ticker in reviewed_non_actionable_tickers:
+            source_command = "wait for new SEC facts, keyed provider data, or reviewed manual source rows"
+            source_note = (
+                "Reviewed proof ledger already records this share-count/DCF source path as non-actionable; "
+                "do not repeat it unless new SEC facts, keyed provider data, reviewed manual source rows, "
+                f"or changed blockers appear. {source_note}"
+            )
         rows.append(
             ShareCountProofRow(
                 priority=len(rows) + 1,
@@ -228,6 +264,23 @@ def build_share_count_proof_queue(
                 source_note=source_note,
             )
         )
+    rows.sort(key=lambda row: ("reviewed proof ledger already records" in row.source_note.lower(), row.priority))
+    rows = [
+        ShareCountProofRow(
+            priority=index,
+            ticker=row.ticker,
+            scope=row.scope,
+            missing_field=row.missing_field,
+            dcf_input_status=row.dcf_input_status,
+            sec_stage_command=row.sec_stage_command,
+            manual_source_path=row.manual_source_path,
+            validation_sequence=row.validation_sequence,
+            proof_after_update=row.proof_after_update,
+            stop_rule=row.stop_rule,
+            source_note=row.source_note,
+        )
+        for index, row in enumerate(rows, start=1)
+    ]
     return rows
 
 
@@ -239,13 +292,24 @@ def build_share_count_proof_queue_from_files(
     tickers: list[str] | None = None,
 ) -> list[ShareCountProofRow]:
     data_path = resolve_data_dir(data_dir, root)
+    universe = _read_csv(data_path / "universe.csv")
+    fundamentals = _read_csv(data_path / "fundamentals.csv")
+    prices = _read_csv(data_path / "prices.csv")
+    dcf = build_dcf_readiness_frame(universe=universe, fundamentals=fundamentals, prices=prices)
+    possible_tickers = {
+        str(row.get("ticker") or "").strip().upper()
+        for _, row in dcf.iterrows()
+        if str(row.get("ticker") or "").strip()
+    }
+    reviewed_tickers = _reviewed_non_actionable_share_tickers(root, possible_tickers)
     return build_share_count_proof_queue(
-        universe=_read_csv(data_path / "universe.csv"),
-        fundamentals=_read_csv(data_path / "fundamentals.csv"),
-        prices=_read_csv(data_path / "prices.csv"),
+        universe=universe,
+        fundamentals=fundamentals,
+        prices=prices,
         top_n=top_n,
         tickers=tickers,
         session_preflight=load_session_source_preflight(root),
+        reviewed_non_actionable_tickers=reviewed_tickers,
     )
 
 
@@ -261,7 +325,13 @@ def render_share_count_proof_queue(rows: list[ShareCountProofRow]) -> str:
         return "\n".join(lines)
     share_only = sum(1 for row in rows if row.dcf_input_status.startswith("share-count-only"))
     lines.append(f"Rows shown: {len(rows)}; share-count-only blockers: {share_only}")
-    if rows[0].sec_stage_command.startswith("make sec-stage"):
+    all_reviewed_non_actionable = all("reviewed proof ledger already records" in row.source_note.lower() for row in rows)
+    if all_reviewed_non_actionable:
+        lines.append(
+            "Next safest action: No unreviewed executable share-count blockers are shown; "
+            "do not repeat these source paths unless new SEC facts, keyed provider data, reviewed manual source rows, or changed blockers appear."
+        )
+    elif rows[0].sec_stage_command.startswith("make sec-stage"):
         lines.append(
             f"Next safest action: {rows[0].sec_stage_command}, then review whether SEC/manual source proof includes shares_outstanding."
         )
@@ -287,7 +357,12 @@ def render_share_count_proof_queue(rows: list[ShareCountProofRow]) -> str:
         )
     lines.append("")
     lines.append("Review checklist:")
-    if any(row.sec_stage_command.startswith("make sec-stage") for row in rows):
+    if all_reviewed_non_actionable:
+        lines.append(
+            "- Do not repeat reviewed share-count source paths unless new SEC facts, keyed provider data, "
+            "reviewed manual source rows, or changed blockers appear."
+        )
+    elif any(row.sec_stage_command.startswith("make sec-stage") for row in rows):
         lines.append("- Stage SEC rows first when configured, but keep shares_outstanding blocked if SEC does not expose it.")
     else:
         lines.append("- Do not retry SEC in this session; use source-ladder output or reviewed local rows only.")

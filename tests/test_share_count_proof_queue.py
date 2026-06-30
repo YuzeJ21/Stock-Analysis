@@ -173,3 +173,68 @@ def test_share_count_queue_empty_scope_explains_no_blockers():
 
     assert rows == []
     assert "No shares-outstanding DCF blockers found" in render_share_count_proof_queue(rows)
+
+
+def test_share_count_queue_deprioritizes_reviewed_non_actionable_tickers(tmp_path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (data_dir / "universe.csv").write_text(
+        "ticker,in_active_universe,asset_type\nAMD,true,company\nHOOD,true,company\n",
+        encoding="utf-8",
+    )
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,free_cash_flow,fcf_margin\nAMD,100,20,0.2\nHOOD,80,12,0.15\n",
+        encoding="utf-8",
+    )
+    (data_dir / "prices.csv").write_text(
+        "ticker,date,close\nAMD,2026-01-01,100\nHOOD,2026-01-01,50\n",
+        encoding="utf-8",
+    )
+    (data_dir / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-SHARE-AMD,share_count,AMD,still_blocked,none,"
+        "\"AMD share-count source path already reviewed; explicit share-count fact missing.\"\n",
+        encoding="utf-8",
+    )
+
+    rows = build_share_count_proof_queue_from_files(tmp_path, top_n=10)
+
+    assert [row.ticker for row in rows] == ["HOOD", "AMD"]
+    amd = next(row for row in rows if row.ticker == "AMD")
+    assert "reviewed proof ledger already records" in amd.source_note.lower()
+    rendered = render_share_count_proof_queue(rows)
+    assert "Next safest action: make sec-stage TICKERS=HOOD" in rendered
+
+
+def test_share_count_queue_renderer_pivots_when_every_row_is_reviewed_non_actionable(tmp_path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (data_dir / "universe.csv").write_text(
+        "ticker,in_active_universe,asset_type\nAMD,true,company\nHOOD,true,company\n",
+        encoding="utf-8",
+    )
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,free_cash_flow,fcf_margin\nAMD,100,20,0.2\nHOOD,80,12,0.15\n",
+        encoding="utf-8",
+    )
+    (data_dir / "prices.csv").write_text(
+        "ticker,date,close\nAMD,2026-01-01,100\nHOOD,2026-01-01,50\n",
+        encoding="utf-8",
+    )
+    (data_dir / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-SHARE-BOTH,share_count,\"AMD,HOOD\",still_blocked,none,"
+        "\"AMD and HOOD share-count source paths already reviewed.\"\n",
+        encoding="utf-8",
+    )
+
+    rows = build_share_count_proof_queue_from_files(tmp_path, top_n=10)
+    rendered = render_share_count_proof_queue(rows)
+
+    assert "Next safest action: No unreviewed executable share-count blockers are shown" in rendered
+    assert "do not repeat these source paths unless new SEC facts" in rendered
+    assert "Do not repeat reviewed share-count source paths" in rendered
