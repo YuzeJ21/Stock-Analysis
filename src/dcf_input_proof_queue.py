@@ -15,6 +15,7 @@ from typing import Any
 
 import pandas as pd
 
+from src.company_analysis_scope import excludes_company_dcf
 from src.dcf_readiness import build_dcf_readiness_frame
 from src.loader import normalize_columns
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
@@ -756,6 +757,18 @@ def build_dcf_input_proof_queue_from_dcf_frame(
     company = dcf.get("asset_type", pd.Series("", index=dcf.index)).astype(str).str.lower().eq("company")
     blocked = ~dcf.get("is_dcf_ready", pd.Series(False, index=dcf.index)).astype(bool)
     queue = dcf.loc[company & blocked].copy()
+    if not queue.empty and "ticker" in queue.columns:
+        universe_lookup = (
+            universe.set_index("ticker", drop=False)
+            if not universe.empty and "ticker" in universe.columns
+            else pd.DataFrame()
+        )
+        applicable = []
+        for _, row in queue.iterrows():
+            ticker = str(row.get("ticker") or "").upper().strip()
+            metadata = universe_lookup.loc[ticker] if ticker in universe_lookup.index else pd.Series(dtype=object)
+            applicable.append(not excludes_company_dcf(row.get("asset_type"), metadata))
+        queue = queue.loc[applicable]
     if tickers:
         wanted = {ticker.upper().strip() for ticker in tickers if ticker.strip()}
         queue = queue.loc[queue["ticker"].astype(str).str.upper().isin(wanted)]
@@ -843,9 +856,12 @@ def build_dcf_input_proof_queue_from_files(
     tickers: list[str] | None = None,
 ) -> list[DcfInputProofRow]:
     data_path = resolve_data_dir(data_dir, root)
+    universe = _read_csv(data_path / "universe_master.csv")
+    if universe.empty:
+        universe = _read_csv(data_path / "universe.csv")
     return build_dcf_input_proof_queue(
         root=root,
-        universe=_read_csv(data_path / "universe.csv"),
+        universe=universe,
         fundamentals=_read_csv(data_path / "fundamentals.csv"),
         prices=_read_csv(data_path / "prices.csv"),
         top_n=top_n,

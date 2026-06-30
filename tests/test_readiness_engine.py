@@ -163,6 +163,18 @@ def test_company_dcf_excludes_explicit_spac_and_closed_end_fund_names(tmp_path: 
                 "source": "fixture",
             },
             {
+                "ticker": "ACQI",
+                "name": "AcquiCo Acquisition Inc. - Class A Ordinary Shares",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "ACQII",
+                "name": "AcquiCo Acquisition II Corporation - Class A Ordinary Shares",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
                 "ticker": "CEF",
                 "name": "Example Income Fund - Closed End Fund",
                 "asset_type": "company",
@@ -176,7 +188,13 @@ def test_company_dcf_excludes_explicit_spac_and_closed_end_fund_names(tmp_path: 
             },
         ]
     ).to_csv(data_dir / "universe_master.csv", index=False)
-    pd.DataFrame(_price_rows("ACME", 60) + _price_rows("CEF", 60) + _price_rows("OPCO", 60)).to_csv(
+    pd.DataFrame(
+        _price_rows("ACME", 60)
+        + _price_rows("ACQI", 60)
+        + _price_rows("ACQII", 60)
+        + _price_rows("CEF", 60)
+        + _price_rows("OPCO", 60)
+    ).to_csv(
         data_dir / "prices.csv",
         index=False,
     )
@@ -194,12 +212,16 @@ def test_company_dcf_excludes_explicit_spac_and_closed_end_fund_names(tmp_path: 
     assert "dcf" not in readiness.loc["ACME", "blocked_features"]
     assert "dcf:" not in readiness.loc["ACME", "missing_data"]
     assert "trusted fundamentals" not in readiness.loc["ACME", "next_action"]
+    assert "dcf" in readiness.loc["ACQI", "excluded_features"]
+    assert "dcf" not in readiness.loc["ACQI", "blocked_features"]
+    assert "dcf" in readiness.loc["ACQII", "excluded_features"]
+    assert "dcf" not in readiness.loc["ACQII", "blocked_features"]
     assert "dcf" in readiness.loc["CEF", "excluded_features"]
     assert "dcf" not in readiness.loc["CEF", "blocked_features"]
     assert "dcf:" not in readiness.loc["CEF", "missing_data"]
     assert "dcf" in readiness.loc["OPCO", "blocked_features"]
     assert "dcf:" in readiness.loc["OPCO", "missing_data"]
-    assert int(feature_summary.loc["dcf", "excluded_count"]) == 2
+    assert int(feature_summary.loc["dcf", "excluded_count"]) == 4
 
 
 def test_peer_unlock_worklist_sorts_active_dcf_ready_rows_before_master_rows(tmp_path: Path, monkeypatch):

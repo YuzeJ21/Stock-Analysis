@@ -4,6 +4,7 @@ from src.data_health_dcf_source_commands import dcf_source_loop_progress_strip_c
 from src.dcf_input_proof_queue import (
     build_dcf_input_proof_handoff,
     build_dcf_input_proof_queue,
+    build_dcf_input_proof_queue_from_files,
     build_dcf_input_source_command_plan,
     build_dcf_input_source_review_rows,
     build_dcf_input_source_guard,
@@ -187,6 +188,66 @@ def test_dcf_input_queue_classifies_exact_missing_input_families(monkeypatch):
     assert "make price-refresh TICKERS=META PROVIDER=auto" == by_ticker["META"].next_safe_command
     assert "NVDA" not in by_ticker
     assert "QQQ" not in by_ticker
+
+
+def test_dcf_input_queue_skips_explicit_acquisition_vehicles(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    universe = pd.DataFrame(
+        [
+            {"ticker": "ACQI", "name": "AcquiCo Acquisition Inc. - Class A Ordinary Shares", "asset_type": "company"},
+            {"ticker": "ACQII", "name": "AcquiCo Acquisition II Corporation - Class A Ordinary Shares", "asset_type": "company"},
+            {"ticker": "OPCO", "name": "Operating Company Inc. - Common Stock", "asset_type": "company"},
+        ]
+    )
+    fundamentals = pd.DataFrame(columns=["ticker", "revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"])
+    prices = pd.DataFrame(
+        [
+            {"ticker": "ACQI", "date": "2026-01-01", "close": 10},
+            {"ticker": "ACQII", "date": "2026-01-01", "close": 10},
+            {"ticker": "OPCO", "date": "2026-01-01", "close": 10},
+        ]
+    )
+
+    rows = build_dcf_input_proof_queue(
+        universe=universe,
+        fundamentals=fundamentals,
+        prices=prices,
+        top_n=10,
+    )
+
+    assert [row.ticker for row in rows] == ["OPCO"]
+
+
+def test_dcf_input_queue_from_files_prefers_master_universe_scope_metadata(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "ACQI", "asset_type": "company"},
+            {"ticker": "OPCO", "asset_type": "company"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "ACQI", "name": "AcquiCo Acquisition Inc. - Class A Ordinary Shares", "asset_type": "company"},
+            {"ticker": "OPCO", "name": "Operating Company Inc. - Common Stock", "asset_type": "company"},
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame(columns=["ticker", "revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"]).to_csv(
+        data_dir / "fundamentals.csv",
+        index=False,
+    )
+    pd.DataFrame(
+        [
+            {"ticker": "ACQI", "date": "2026-01-01", "close": 10},
+            {"ticker": "OPCO", "date": "2026-01-01", "close": 10},
+        ]
+    ).to_csv(data_dir / "prices.csv", index=False)
+
+    rows = build_dcf_input_proof_queue_from_files(tmp_path, data_dir=data_dir, top_n=10)
+
+    assert [row.ticker for row in rows] == ["OPCO"]
 
 
 def test_dcf_input_queue_respects_top_n_and_ticker_scope(monkeypatch):
