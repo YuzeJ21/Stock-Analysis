@@ -1488,6 +1488,34 @@ def test_load_trusted_data_pilot_candidates_prefers_session_executable_paths(tmp
     assert [candidate.ticker for candidate in candidates[:2]] == ["MU", "META"]
 
 
+def test_load_trusted_data_pilot_candidates_skips_reviewed_non_actionable_fundamentals(tmp_path):
+    _write_text(
+        tmp_path / "outputs" / "fundamentals_peer_worklist.csv",
+        "ticker,priority,dcf_ready,missing_required_for_dcf,focus_command\n"
+        "AARD,1,False,\"revenue, fcf_margin\",make focus-fundamentals TICKER=AARD\n"
+        "ABOS,2,False,\"revenue, fcf_margin\",make focus-fundamentals TICKER=ABOS\n",
+    )
+    _write_text(tmp_path / "outputs" / "peer_unlock_worklist.csv", "ticker,priority,peer_blocker_type,missing_peer_reason,focus_command\n")
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        "ticker,asset_type,in_active_universe,dcf_ready\n"
+        "AARD,company,False,False\n"
+        "ABOS,company,False,False\n",
+    )
+    _write_text(
+        tmp_path / "data" / "reviewed_batch_proofs.csv",
+        "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,"
+        "pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,"
+        "generated_artifacts_reviewed,final_outcome,notes\n"
+        "RB-AARD,2026-06-30,local reviewer,fundamentals_dcf,one ticker,AARD,cmd,valid,preview,not_applied,"
+        "before,after,none,none,data/imports/fundamentals.csv,excluded,skipped,source row did not prove missing fields\n",
+    )
+
+    candidates = load_trusted_data_pilot_candidates(root=tmp_path, top_n=10)
+
+    assert [candidate.ticker for candidate in candidates] == ["ABOS"]
+
+
 def test_render_trusted_data_pilot_candidates_uses_local_review_path_when_sec_unavailable(tmp_path):
     candidate = build_trusted_data_pilot_candidates(
         [

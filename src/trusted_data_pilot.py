@@ -344,6 +344,23 @@ def _readiness_lookup(rows: Iterable[dict[str, str]]) -> dict[str, dict[str, str
     return {_clean(row.get("ticker"), "").upper(): row for row in rows if _clean(row.get("ticker"), "")}
 
 
+def _reviewed_non_actionable_pilot_tickers(root: Path) -> set[str]:
+    rows = _read_csv(root / "data" / "reviewed_batch_proofs.csv")
+    relevant_lanes = {"fundamentals", "fundamentals_dcf", "share_count"}
+    non_actionable = {"candidate_context_only", "still_blocked", "skipped", "excluded"}
+    tickers: set[str] = set()
+    for row in rows:
+        lane = _clean(row.get("lane"), "").lower()
+        outcome = _clean(row.get("final_outcome"), "").lower()
+        if lane not in relevant_lanes or outcome not in non_actionable:
+            continue
+        for part in _clean(row.get("tickers"), "").replace("|", ",").replace(";", ",").split(","):
+            ticker = part.upper().strip()
+            if ticker and ticker != "-":
+                tickers.add(ticker)
+    return tickers
+
+
 def _csv_ticker_set(path: Path) -> set[str]:
     rows = _read_csv(path)
     return {
@@ -1169,6 +1186,9 @@ def load_trusted_data_pilot_candidates(
         tickers=tickers,
         top_n=top_n,
     )
+    reviewed_non_actionable = _reviewed_non_actionable_pilot_tickers(root)
+    if reviewed_non_actionable:
+        candidates = [candidate for candidate in candidates if candidate.ticker not in reviewed_non_actionable]
     return _session_sorted_candidates(candidates, root=root)
 
 
