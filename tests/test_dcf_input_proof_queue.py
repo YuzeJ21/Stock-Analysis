@@ -291,6 +291,37 @@ def test_dcf_input_queue_deprioritizes_reviewed_non_actionable_blockers(tmp_path
     assert "reviewed proof ledger already records" in by_ticker["PAYC"].source_note.lower()
 
 
+def test_dcf_input_queue_deprioritizes_partial_tickers_from_supported_batch_notes(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,"
+        "preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,"
+        "changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,"
+        "final_outcome,notes\n"
+        "RB-SUPPORTED,2026-06-30,local reviewer,fundamentals,reviewed scope,AMD,PAYC,"
+        "passed,valid,applied,before,after,dcf_ready +1,AMD,data/imports/fundamentals.csv,"
+        "excluded,supported,"
+        "Applied AMD. Partial staged rows were not applied: PAYC missing fcf_margin; "
+        "other rows were incomplete.\n",
+        encoding="utf-8",
+    )
+
+    rows = build_dcf_input_proof_queue(
+        root=tmp_path,
+        universe=_sample_universe(),
+        fundamentals=_sample_fundamentals(),
+        prices=_sample_prices(),
+        top_n=10,
+    )
+    by_ticker = {row.ticker: row for row in rows}
+
+    assert [row.ticker for row in rows[:3]] == ["AMD", "HOOD", "META"]
+    assert rows[-1].ticker == "PAYC"
+    assert "reviewed proof ledger already records" in by_ticker["PAYC"].source_note.lower()
+
+
 def test_dcf_input_queue_family_summary_counts_rows(monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
 
@@ -333,6 +364,35 @@ def test_dcf_input_queue_renderer_keeps_research_only_boundaries(monkeypatch):
     assert "buy now" not in lowered
     assert "sell now" not in lowered
     assert "undervalued" not in lowered
+
+
+def test_dcf_input_queue_renderer_pivots_when_every_row_is_reviewed_non_actionable(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,"
+        "preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,"
+        "changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,"
+        "final_outcome,notes\n"
+        "RB-PAYC,2026-06-27,local reviewer,fundamentals,reviewed scope,PAYC,"
+        "make focus-fundamentals TICKER=PAYC,passed,valid,not_applied,before,after,"
+        "none,none,data/imports/fundamentals.csv,excluded,still_blocked,"
+        "zero revenue keeps fcf_margin blocked\n",
+        encoding="utf-8",
+    )
+
+    rows = build_dcf_input_proof_queue(
+        root=tmp_path,
+        universe=pd.DataFrame([{"ticker": "PAYC", "asset_type": "company", "in_active_universe": False}]),
+        fundamentals=pd.DataFrame([{"ticker": "PAYC", "revenue": 0, "free_cash_flow": 12, "shares_outstanding": 5}]),
+        prices=pd.DataFrame([{"ticker": "PAYC", "date": "2026-01-01", "close": 50}]),
+        top_n=10,
+    )
+    rendered = render_dcf_input_proof_queue(rows).lower()
+
+    assert "no unreviewed executable dcf blockers are shown" in rendered
+    assert "do not repeat these source paths" in rendered
 
 
 def test_dcf_input_queue_empty_scope_explains_no_blockers(monkeypatch):

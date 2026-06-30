@@ -8,6 +8,7 @@ apply imports, infer missing inputs, or create investment conclusions.
 from __future__ import annotations
 
 import argparse
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -112,6 +113,15 @@ REQUIRED_SOURCE_REVIEW_FIELDS = (
 
 READY_SOURCE_PROOF_STATUSES = {"reviewed", "supported", "source_backed", "source-backed"}
 READY_GATE_VALUES = {"pass", "passed", "reviewed", "ready", "not_applicable_read_only", "skipped_after_review"}
+NON_TICKER_NOTE_TOKENS = {
+    "CIK",
+    "DCF",
+    "EPS",
+    "FCF",
+    "SEC",
+    "OTHER",
+    "PARTIAL",
+}
 FUNDAMENTALS_IMPORT_COLUMNS = (
     "ticker",
     "period",
@@ -439,6 +449,39 @@ def _reviewed_non_actionable_tickers(root: Path | None) -> set[str]:
     return tickers
 
 
+def _partial_not_applied_tickers_from_note(note: object) -> set[str]:
+    text = str(note or "")
+    lowered = text.lower()
+    if "partial staged" not in lowered or "not applied" not in lowered:
+        return set()
+    tickers: set[str] = set()
+    for match in re.finditer(r"partial staged[^.]*?(?:not applied|were not applied|not applied in this proof scope)[^.]*", text, re.IGNORECASE):
+        segment = match.group(0)
+        for ticker in re.findall(r"\b[A-Z][A-Z0-9]{0,4}\b", segment):
+            if ticker not in NON_TICKER_NOTE_TOKENS:
+                tickers.add(ticker)
+    return tickers
+
+
+def _reviewed_partial_not_applied_tickers(root: Path | None) -> set[str]:
+    if root is None:
+        return set()
+    ledger_path = root / "data" / "reviewed_batch_proofs.csv"
+    if not ledger_path.exists():
+        return set()
+    ledger = _read_csv(ledger_path)
+    if ledger.empty or "notes" not in ledger.columns or "final_outcome" not in ledger.columns:
+        return set()
+    if "lane" in ledger.columns:
+        ledger = ledger.loc[ledger["lane"].astype(str).str.lower().str.strip().isin({"fundamentals", "share_count"})]
+    supported = {"auto_supported", "human_reviewed_supported", "supported"}
+    ledger = ledger.loc[ledger["final_outcome"].astype(str).str.lower().str.strip().isin(supported)]
+    tickers: set[str] = set()
+    for note in ledger["notes"].fillna(""):
+        tickers.update(_partial_not_applied_tickers_from_note(note))
+    return tickers
+
+
 def _source_mode(
     family: str,
     *,
@@ -721,7 +764,7 @@ def build_dcf_input_proof_queue_from_dcf_frame(
     sec_available = _session_sec_available(root)
     local_share_fixable_count = _session_local_share_fixable_count(root)
     provider_statuses = _session_provider_statuses(root)
-    reviewed_non_actionable = _reviewed_non_actionable_tickers(root)
+    reviewed_non_actionable = _reviewed_non_actionable_tickers(root) | _reviewed_partial_not_applied_tickers(root)
     scope_lookup = _universe_scope_lookup(universe)
     ranked = sorted(
         (row for _, row in queue.iterrows()),
@@ -1211,9 +1254,18 @@ def render_dcf_input_proof_queue(rows: list[DcfInputProofRow]) -> str:
     if not rows:
         lines.append("No company DCF input blockers found for the selected scope.")
         return "\n".join(lines)
+    all_reviewed_non_actionable = all(
+        "reviewed proof ledger already records" in row.source_note.lower() for row in rows
+    )
     lines.append(f"Rows shown: {len(rows)}")
     lines.append(f"Shown missing input families: {summarize_missing_input_families(rows)}")
-    lines.append(f"Next safest action: {rows[0].next_safe_command}")
+    if all_reviewed_non_actionable:
+        lines.append(
+            "Next safest action: No unreviewed executable DCF blockers are shown; do not repeat these source paths "
+            "unless new provider data, keyed sources, manual source rows, or changed blockers appear."
+        )
+    else:
+        lines.append(f"Next safest action: {rows[0].next_safe_command}")
     lines.append("")
     lines.append("Priority | Ticker | Scope | Missing family | Missing DCF fields | Source mode | Next safe command")
     lines.append("---: | --- | --- | --- | --- | --- | ---")
