@@ -197,6 +197,9 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert by_lane["price_coverage"].workflow_mode == "dry_run_first"
     assert "configured FMP/Alpha Vantage/Finnhub fallbacks" in by_lane["price_coverage"].source_readiness
     assert by_lane["fundamentals_dcf"].workflow_mode == "preview_first_reviewed_apply"
+    assert by_lane["fundamentals_dcf"].ready_count == 1
+    assert by_lane["fundamentals_dcf"].blocked_count == 1
+    assert by_lane["fundamentals_dcf"].excluded_count == 1
     assert by_lane["share_count_proof"].workflow_mode == "preview_first_reviewed_apply"
     assert by_lane["share_count_proof"].blocked_count == 1
     assert by_lane["share_count_proof"].partial_count == 1

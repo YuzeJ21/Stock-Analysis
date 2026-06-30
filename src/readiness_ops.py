@@ -202,6 +202,23 @@ def _row_excludes_company_peer_context(row: dict[str, str]) -> bool:
     return asset_type in COMPANY_PEER_EXCLUDED_ASSET_TYPES or _feature_list_contains(row, "excluded_features", "peer")
 
 
+def _fundamentals_dcf_counts(rows: list[dict[str, str]]) -> tuple[int, int, int, int]:
+    ready = 0
+    partial = 0
+    blocked = 0
+    excluded = 0
+    for row in rows:
+        if _feature_list_contains(row, "excluded_features", "dcf"):
+            excluded += 1
+        elif _truthy(row.get("dcf_ready")):
+            ready += 1
+        elif _truthy(row.get("fundamentals_ready")) or _feature_list_contains(row, "partial_features", "fundamentals"):
+            partial += 1
+        else:
+            blocked += 1
+    return ready, partial, blocked, excluded
+
+
 def _feature_row(feature_rows: list[dict[str, str]], feature: str) -> dict[str, str] | None:
     for row in feature_rows:
         if str(row.get("feature") or "").strip().lower() == feature:
@@ -491,10 +508,10 @@ def build_readiness_ops_lanes(
     price_total, price_ready, price_partial, price_blocked, price_excluded = _feature_counts(
         feature_rows, "price", readiness_rows, "price_ready"
     )
-    fundamentals_total, fundamentals_ready, fundamentals_partial, fundamentals_blocked, fundamentals_excluded = _feature_counts(
+    fundamentals_total, _fundamentals_ready, _fundamentals_partial, _fundamentals_blocked, _fundamentals_excluded = _feature_counts(
         feature_rows, "fundamentals", readiness_rows, "fundamentals_ready"
     )
-    dcf_ready = _count_true(readiness_rows, "dcf_ready")
+    dcf_ready, dcf_partial, dcf_blocked, excluded_dcf = _fundamentals_dcf_counts(readiness_rows)
     peer_ready = _count_true(readiness_rows, "peer_ready")
     peer_mapping_excluded = sum(1 for row in readiness_rows if _row_excludes_company_peer_context(row))
     peer_mapping_blocked = sum(
@@ -517,7 +534,6 @@ def build_readiness_ops_lanes(
     analyst_ready = _count_true(readiness_rows, "analyst_estimates_ready")
     earnings_blocked = max(total - earnings_ready, 0)
     analyst_blocked = max(total - analyst_ready, 0)
-    excluded_dcf = _count_contains(readiness_rows, "excluded_features", "dcf")
     fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(root)
     source_activation_required, source_activation_context = _source_activation_context(root)
     batch_ledger_summaries = build_reviewed_batch_ledger_summaries(root)
@@ -619,18 +635,18 @@ def build_readiness_ops_lanes(
             lane="fundamentals_dcf",
             label="Fundamentals / DCF Proof",
             readiness_state=_lane_state(
-                ready=min(fundamentals_ready, dcf_ready),
-                partial=max(fundamentals_ready - dcf_ready, fundamentals_partial, 0),
-                blocked=fundamentals_blocked,
-                excluded=fundamentals_excluded,
+                ready=dcf_ready,
+                partial=dcf_partial,
+                blocked=dcf_blocked,
+                excluded=excluded_dcf,
             ),
             workflow_mode=source_activation_workflow if source_activation_required else "preview_first_reviewed_apply",
             total_count=fundamentals_total,
             ready_count=dcf_ready,
-            partial_count=max(fundamentals_ready - dcf_ready, fundamentals_partial, 0),
-            blocked_count=fundamentals_blocked,
-            excluded_count=fundamentals_excluded,
-            unlock_impact=fundamentals_blocked + max(fundamentals_ready - dcf_ready, 0),
+            partial_count=dcf_partial,
+            blocked_count=dcf_blocked,
+            excluded_count=excluded_dcf,
+            unlock_impact=dcf_partial + dcf_blocked,
             source_lane="fundamentals",
             source_readiness=(
                 exhausted_dcf_context + " "

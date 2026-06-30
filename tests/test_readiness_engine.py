@@ -147,6 +147,61 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     assert (data_dir / "reports" / "data_source_status.csv").exists()
 
 
+def test_company_dcf_excludes_explicit_spac_and_closed_end_fund_names(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {
+                "ticker": "ACME",
+                "name": "Acme Acquisition Corp. - Class A Ordinary Shares",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "CEF",
+                "name": "Example Income Fund - Closed End Fund",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+            {
+                "ticker": "OPCO",
+                "name": "Operating Company Inc. - Common Stock",
+                "asset_type": "company",
+                "source": "fixture",
+            },
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame(_price_rows("ACME", 60) + _price_rows("CEF", 60) + _price_rows("OPCO", 60)).to_csv(
+        data_dir / "prices.csv",
+        index=False,
+    )
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(columns=["ticker", "peer_ticker", "peer_group", "source"]).to_csv(data_dir / "peers.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
+
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    readiness = reports["ticker_readiness_report"].set_index("ticker")
+    feature_summary = reports["feature_readiness_summary"].set_index("feature")
+
+    assert "dcf" in readiness.loc["ACME", "excluded_features"]
+    assert "dcf" not in readiness.loc["ACME", "blocked_features"]
+    assert "dcf:" not in readiness.loc["ACME", "missing_data"]
+    assert "trusted fundamentals" not in readiness.loc["ACME", "next_action"]
+    assert "dcf" in readiness.loc["CEF", "excluded_features"]
+    assert "dcf" not in readiness.loc["CEF", "blocked_features"]
+    assert "dcf:" not in readiness.loc["CEF", "missing_data"]
+    assert "dcf" in readiness.loc["OPCO", "blocked_features"]
+    assert "dcf:" in readiness.loc["OPCO", "missing_data"]
+    assert int(feature_summary.loc["dcf", "excluded_count"]) == 2
+
+
 def test_peer_unlock_worklist_sorts_active_dcf_ready_rows_before_master_rows(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,11 @@ from src.universe_model import ASSET_TYPES, build_universe_coverage_report, ensu
 
 ALLOWED_CANDIDATE_STATES = {"candidate", "fallback_context", "research_only"}
 COMPANY_PEER_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
+COMPANY_DCF_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
+COMPANY_DCF_EXCLUDED_TEXT_PATTERNS = (
+    re.compile(r"\b(acquisition corp|acquisition corporation|acquisition company|spac|blank check)\b", re.IGNORECASE),
+    re.compile(r"\bclosed[- ]end fund\b", re.IGNORECASE),
+)
 
 
 TICKER_READINESS_COLUMNS = [
@@ -393,6 +399,14 @@ def _state(ready: bool, partial: bool = False, excluded: bool = False) -> str:
 
 def _asset_excludes_company_peer_context(asset_type: object) -> bool:
     return str(asset_type or "").strip().lower() in COMPANY_PEER_EXCLUDED_ASSET_TYPES
+
+
+def _excludes_company_dcf(asset_type: object, metadata: pd.Series) -> bool:
+    normalized_asset_type = str(asset_type or "").strip().lower()
+    if normalized_asset_type in COMPANY_DCF_EXCLUDED_ASSET_TYPES:
+        return True
+    text = " ".join(str(metadata.get(column) or "") for column in ("name", "security_type", "industry"))
+    return any(pattern.search(text) for pattern in COMPANY_DCF_EXCLUDED_TEXT_PATTERNS)
 
 
 def build_price_coverage_report(root: Path, data_path: Path, master: pd.DataFrame, active: pd.DataFrame, thresholds: dict[str, Any]) -> pd.DataFrame:
@@ -1003,7 +1017,7 @@ def build_ticker_readiness_report(
         metadata = _metadata_row(master, legacy, ticker)
         asset_type = str(metadata.get("asset_type", infer_asset_type(ticker, metadata)) or "unknown").lower()
         excludes_company_peer = _asset_excludes_company_peer_context(asset_type)
-        excludes_company_dcf = asset_type in {"etf", "index_proxy", "fund"}
+        excludes_company_dcf = _excludes_company_dcf(asset_type, metadata)
         price = price_lookup.loc[ticker] if ticker in price_lookup.index else pd.Series(dtype=object)
         fund = fundamentals_lookup.loc[ticker] if ticker in fundamentals_lookup.index else pd.Series(dtype=object)
         dcf = dcf_lookup.loc[ticker] if ticker in dcf_lookup.index else pd.Series(dtype=object)
