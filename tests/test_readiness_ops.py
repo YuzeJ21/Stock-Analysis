@@ -18,6 +18,7 @@ from src.readiness_ops import (
     render_readiness_ops_center,
     render_readiness_ops_evidence,
 )
+from src.dcf_input_proof_queue import DcfInputProofRow
 
 
 def _write(path: Path, text: str) -> None:
@@ -255,7 +256,7 @@ def test_readiness_ops_uses_reviewed_price_ledger_to_stop_repeating_exhausted_re
 
     lanes = build_readiness_ops_lanes(root)
     by_lane = {lane.lane: lane for lane in lanes}
-    frontier_rendered = render_coverage_frontier(build_coverage_frontier(lanes, top_n=3))
+    frontier_rendered = render_coverage_frontier(build_coverage_frontier(lanes, top_n=10))
 
     assert by_lane["price_coverage"].reviewed_proof_status.startswith(
         "reviewed proof ledger covers current price coverage scope"
@@ -263,6 +264,40 @@ def test_readiness_ops_uses_reviewed_price_ledger_to_stop_repeating_exhausted_re
     assert by_lane["price_coverage"].next_safe_command == "make price-history-proof-queue TOP_N=25"
     assert "reviewed proof already recorded" in frontier_rendered
     assert "do not repeat this proof loop" in frontier_rendered
+
+
+def test_readiness_ops_routes_exhausted_dcf_ladders_to_provider_or_manual_activation(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    reviewed_rows = [
+        DcfInputProofRow(
+            priority=1,
+            ticker="BBB",
+            scope="master universe",
+            missing_input_family="fcf_margin",
+            missing_dcf_fields="fcf_margin",
+            ready_dcf_inputs="revenue, free_cash_flow, shares_outstanding",
+            dcf_input_status="single-input blocker: fcf_margin",
+            source_mode="SEC-stageable or trusted-local",
+            next_safe_command="make focus-fundamentals TICKER=BBB",
+            proof_packet_command="DRY_RUN=1 make reviewed-batch LANE=fundamentals TICKERS=BBB",
+            validation_sequence="make imports-validate IMPORT_TICKERS=BBB && make imports-preview IMPORT_TICKERS=BBB",
+            proof_after_update="make dcf-readiness && make readiness",
+            stop_rule="Stop if trusted source rows do not prove required fields.",
+            source_note=(
+                "Reviewed proof ledger already records this ticker as non-actionable for the current source path; "
+                "prefer unreviewed executable blockers unless new source-backed rows or changed blockers appear."
+            ),
+        )
+    ]
+
+    lanes = build_readiness_ops_lanes(root, dcf_input_rows=reviewed_rows)
+    by_lane = {lane.lane: lane for lane in lanes}
+    frontier_rendered = render_coverage_frontier(build_coverage_frontier(lanes, top_n=10))
+
+    assert by_lane["fundamentals_dcf"].next_safe_command == "make session-source-preflight"
+    assert by_lane["share_count_proof"].next_safe_command == "make session-source-preflight"
+    assert "No unreviewed executable DCF/share-count blockers are available" in by_lane["fundamentals_dcf"].source_readiness
+    assert "new provider data, keyed sources, or reviewed manual source rows" in frontier_rendered
 
 
 def test_readiness_ops_routes_fundamentals_to_source_ladder_when_fallback_provider_is_available(tmp_path: Path):

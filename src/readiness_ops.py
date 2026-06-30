@@ -419,6 +419,12 @@ def _source_activation_context(root: Path) -> tuple[bool, str]:
     return True, " ".join(pieces)
 
 
+def _dcf_source_ladder_exhausted(rows: list[DcfInputProofRow]) -> bool:
+    if not rows:
+        return False
+    return all("reviewed proof ledger already records" in str(row.source_note or "").lower() for row in rows)
+
+
 def build_peer_readiness_summary(root: Path | str = ".") -> PeerReadinessSummary:
     root = Path(root)
     rows = _read_csv(root / "data" / "reports" / "peer_readiness_report.csv")
@@ -553,10 +559,24 @@ def build_readiness_ops_lanes(
     fundamentals_next_command = "make fundamentals-source-ladder-queue TOP_N=25"
     share_count_next_command = "make fundamentals-source-ladder-queue TOP_N=10"
     optional_context_next_command = "make optional-context-source-ladder-queue TOP_N=10"
+    dcf_ladder_exhausted = _dcf_source_ladder_exhausted(dcf_input_rows)
+    exhausted_dcf_context = (
+        "No unreviewed executable DCF/share-count blockers are available in the current free source ladder; "
+        "do not repeat these source paths unless new provider data, keyed sources, or reviewed manual source rows appear."
+    )
+    exhausted_dcf_status = (
+        "current DCF/share-count source ladder has only reviewed non-actionable blockers; "
+        "wait for new provider data, keyed sources, or reviewed manual source rows before repeating this proof loop."
+        if dcf_ladder_exhausted and not source_activation_required
+        else ""
+    )
     if source_activation_required:
         fundamentals_next_command = source_activation_command
         share_count_next_command = source_activation_command
         optional_context_next_command = source_activation_command
+    elif dcf_ladder_exhausted:
+        fundamentals_next_command = "make session-source-preflight"
+        share_count_next_command = "make session-source-preflight"
 
     return [
         ReadinessLane(
@@ -613,6 +633,11 @@ def build_readiness_ops_lanes(
             unlock_impact=fundamentals_blocked + max(fundamentals_ready - dcf_ready, 0),
             source_lane="fundamentals",
             source_readiness=(
+                exhausted_dcf_context + " "
+                if dcf_ladder_exhausted and not source_activation_required
+                else ""
+            )
+            + (
                 (
                     "Source activation required before the fundamentals source ladder can be used. "
                     if source_activation_required
@@ -632,6 +657,7 @@ def build_readiness_ops_lanes(
                 "Missing DCF inputs keep valuation withheld; no placeholder revenue, cash flow, margin, or shares rows. "
                 f"Current DCF input families: {dcf_input_summary}."
             ),
+            reviewed_proof_status=exhausted_dcf_status,
         ),
         ReadinessLane(
             lane="share_count_proof",
@@ -646,6 +672,11 @@ def build_readiness_ops_lanes(
             unlock_impact=len(share_count_rows),
             source_lane="shares_outstanding",
             source_readiness=(
+                exhausted_dcf_context + " "
+                if dcf_ladder_exhausted and not source_activation_required
+                else ""
+            )
+            + (
                 (
                     "Source activation required before the share-count source ladder can be used. "
                     if source_activation_required
@@ -667,6 +698,7 @@ def build_readiness_ops_lanes(
                 f"{len(share_count_rows)} DCF blocker(s) need shares_outstanding proof; "
                 f"{share_count_only_blockers} have price, revenue, free cash flow, and FCF margin already present."
             ),
+            reviewed_proof_status=exhausted_dcf_status,
         ),
         ReadinessLane(
             lane="peer_mapping",
