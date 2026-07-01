@@ -1,6 +1,10 @@
 import pandas as pd
 
-from src.universe_scope_workflow import universe_scope_counts, universe_scope_workflow_cards
+from src.universe_scope_workflow import (
+    universe_scope_counts,
+    universe_scope_review_plan,
+    universe_scope_workflow_cards,
+)
 
 
 def _render(cards: list[dict[str, object]]) -> str:
@@ -42,6 +46,62 @@ def test_universe_scope_workflow_cards_explain_scope_filters_and_stop_rule():
     assert "keep missing fundamentals, shares, peers, earnings, analyst estimates, valuation inputs, and review metrics blocked" in rendered
     assert "make status-check top_n=5" in rendered
     assert "make data-coverage-proof-queues top_n=10" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_universe_scope_review_plan_gives_lazy_copy_only_scope_commands():
+    frame = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "in_active_universe": True,
+                "sector": "Communication Services",
+                "theme": "AI Applications",
+                "price_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "blocked_features": "peer, earnings, analyst_estimates",
+            },
+            {
+                "ticker": "BROAD",
+                "in_active_universe": False,
+                "sector": "Technology",
+                "theme": "Broad Universe",
+                "price_ready": True,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "blocked_features": "fundamentals, dcf, peer",
+            },
+        ]
+    )
+
+    plan = universe_scope_review_plan(
+        {},
+        frame,
+        tickers="META,BROAD",
+        sector="Technology",
+        theme="AI Applications",
+        top_n=12,
+    )
+    rendered = " ".join(str(value) for value in plan.to_numpy().ravel()).lower()
+
+    assert list(plan["scope"]) == [
+        "active_universe",
+        "ticker_list",
+        "sector_theme",
+        "ready_only",
+        "missing_data",
+    ]
+    assert plan.loc[plan["scope"].eq("active_universe"), "matching_rows"].iloc[0] == 1
+    assert plan.loc[plan["scope"].eq("ticker_list"), "matching_rows"].iloc[0] == 2
+    assert plan.loc[plan["scope"].eq("sector_theme"), "matching_rows"].iloc[0] == 2
+    assert "make status-check tickers=meta,broad top_n=12" in rendered
+    assert "make trusted-data-pilot-candidates top_n=12" in rendered
+    assert "make coverage-frontier top_n=12" in rendered
+    assert "copy-only" in rendered
+    assert "does not refresh, import, apply, or infer missing values" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
