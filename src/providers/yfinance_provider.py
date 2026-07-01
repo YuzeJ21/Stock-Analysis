@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import io
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
@@ -168,7 +170,8 @@ class YFinanceProvider(MarketDataProvider):
         last_earnings_date = None
 
         try:
-            earnings_dates = asset.get_earnings_dates(limit=4)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                earnings_dates = asset.get_earnings_dates(limit=4)
         except Exception:  # pragma: no cover - upstream instability
             earnings_dates = pd.DataFrame()
             notes.append("Earnings history was unavailable from yfinance.")
