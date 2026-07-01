@@ -4324,7 +4324,9 @@ def main() -> None:
             print(f"resolved_tickers: {', '.join(payload['resolved_tickers']) or '-'}")
             print(f"unresolved_tickers: {', '.join(payload['unresolved_tickers']) or '-'}")
             print(f"earnings_rows_written: {payload['earnings_write']['rows_written']}")
+            print(f"earnings_status: {payload['earnings_write']['status']}")
             print(f"analyst_estimates_rows_written: {payload['analyst_estimates_write']['rows_written']}")
+            print(f"analyst_estimates_status: {payload['analyst_estimates_write']['status']}")
             print(f"earnings_output_path: {payload['earnings_write']['output_path']}")
             print(f"analyst_estimates_output_path: {payload['analyst_estimates_write']['output_path']}")
             for attempt in payload.get("provider_attempts", []):

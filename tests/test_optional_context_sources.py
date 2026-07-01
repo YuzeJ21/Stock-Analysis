@@ -4,6 +4,7 @@ from src.optional_context_sources import (
     build_alpha_vantage_optional_context_rows,
     build_fmp_optional_context_rows,
     build_optional_context_source_ladder_rows,
+    write_optional_context_import,
 )
 
 
@@ -177,3 +178,37 @@ def test_optional_context_ladder_continues_until_each_dataset_has_rows(monkeypat
     assert result["provider_attempts"][0]["resolved_tickers"] == ["NVDA"]
     assert result["provider_attempts"][1]["provider"] == "fmp"
     assert result["provider_attempts"][1]["resolved_tickers"] == ["NVDA"]
+
+
+def test_write_optional_context_import_preserves_existing_row_when_only_updated_at_changes(tmp_path):
+    import_path = tmp_path / "data" / "imports" / "earnings.csv"
+
+    first = write_optional_context_import(
+        "earnings",
+        [
+            {
+                "ticker": "NVDA",
+                "next_earnings_date": "2026-08-26",
+                "source": "yfinance_research_api",
+                "updated_at": "2026-07-01T08:00:00+00:00",
+            }
+        ],
+        import_path,
+    )
+    second = write_optional_context_import(
+        "earnings",
+        [
+            {
+                "ticker": "NVDA",
+                "next_earnings_date": "2026-08-26",
+                "source": "yfinance_research_api",
+                "updated_at": "2026-07-01T09:00:00+00:00",
+            }
+        ],
+        import_path,
+    )
+
+    assert first["status"] == "staged"
+    assert second["status"] == "unchanged"
+    assert "2026-07-01T08:00:00+00:00" in import_path.read_text()
+    assert "2026-07-01T09:00:00+00:00" not in import_path.read_text()

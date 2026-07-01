@@ -661,6 +661,36 @@ def _import_columns(dataset_name: str) -> list[str]:
     return columns
 
 
+def _optional_import_values_equal(left: Any, right: Any) -> bool:
+    left_missing = left is None or (isinstance(left, str) and not left.strip())
+    right_missing = right is None or (isinstance(right, str) and not right.strip())
+    try:
+        left_missing = left_missing or bool(pd.isna(left))
+    except (TypeError, ValueError):
+        pass
+    try:
+        right_missing = right_missing or bool(pd.isna(right))
+    except (TypeError, ValueError):
+        pass
+    if left_missing and right_missing:
+        return True
+    if left_missing != right_missing:
+        return False
+
+    left_number = _clean_float(left)
+    right_number = _clean_float(right)
+    if left_number is not None and right_number is not None:
+        return left_number == right_number
+    left_date = pd.to_datetime(left, errors="coerce")
+    right_date = pd.to_datetime(right, errors="coerce")
+    try:
+        if not pd.isna(left_date) and not pd.isna(right_date):
+            return left_date == right_date
+    except (TypeError, ValueError):
+        pass
+    return str(left).strip() == str(right).strip()
+
+
 def write_optional_context_import(
     dataset_name: str,
     rows: list[dict[str, Any]],
@@ -697,6 +727,7 @@ def write_optional_context_import(
 
     output.parent.mkdir(parents=True, exist_ok=True)
     merged = frame
+    status = "staged"
     if output.exists() and not overwrite:
         existing_validation, existing_frame = validate_local_dataset(dataset_name, output)
         if existing_validation.status == "invalid":
@@ -712,20 +743,40 @@ def write_optional_context_import(
         existing = existing.set_index("ticker", drop=False)
         incoming = frame.set_index("ticker", drop=False)
         overlap = existing.index.intersection(incoming.index)
+        changed_tickers: set[str] = set(incoming.index.difference(existing.index).astype(str).tolist())
         if not overlap.empty:
-            for column in [column for column in columns if column != "ticker"]:
-                existing[column] = existing[column].astype("object")
-                existing.loc[overlap, column] = incoming.loc[overlap, column].astype("object")
+            material_columns = [column for column in columns if column not in {"ticker", "updated_at"}]
+            for ticker in overlap:
+                if any(
+                    not _optional_import_values_equal(existing.at[ticker, column], incoming.at[ticker, column])
+                    for column in material_columns
+                ):
+                    changed_tickers.add(str(ticker))
+            if changed_tickers:
+                changed_overlap = [ticker for ticker in overlap if str(ticker) in changed_tickers]
+                for column in [column for column in columns if column != "ticker"]:
+                    existing[column] = existing[column].astype("object")
+                    if changed_overlap:
+                        existing.loc[changed_overlap, column] = incoming.loc[changed_overlap, column].astype("object")
         additions = incoming.loc[incoming.index.difference(existing.index)]
         merged = pd.concat([existing.reset_index(drop=True), additions.reset_index(drop=True)], ignore_index=True)
         merged = merged[columns].drop_duplicates(subset=["ticker"], keep="last")
+        if not changed_tickers:
+            status = "unchanged"
+            return {
+                "output_path": str(output),
+                "rows_written": int(len(frame)),
+                "staged_row_count": int(len(merged)),
+                "status": status,
+                "tickers_written": sorted(frame["ticker"].dropna().astype(str).unique().tolist()),
+            }
 
     merged.to_csv(output, index=False)
     return {
         "output_path": str(output),
         "rows_written": int(len(frame)),
         "staged_row_count": int(len(merged)),
-        "status": "staged",
+        "status": status,
         "tickers_written": sorted(frame["ticker"].dropna().astype(str).unique().tolist()),
     }
 

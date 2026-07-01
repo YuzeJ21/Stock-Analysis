@@ -2195,6 +2195,44 @@ def test_stock_report_cli_optional_context_source_ladder_writes_import_files(mon
     assert "only after validation passes" in payload["apply_gate_boundary"]
 
 
+def test_stock_report_cli_optional_context_source_ladder_prints_staging_status(monkeypatch, tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    monkeypatch.setattr(
+        "src.stock_report.build_optional_context_source_ladder_rows",
+        lambda requested_tickers, **_kwargs: {
+            "requested_tickers": requested_tickers,
+            "resolved_tickers": requested_tickers,
+            "unresolved_tickers": [],
+            "earnings_rows": [
+                {
+                    "ticker": requested_tickers[0],
+                    "last_earnings_date": "2026-02-18",
+                    "eps_actual": 1.25,
+                    "source": "fmp_research_api",
+                }
+            ],
+            "analyst_estimate_rows": [],
+            "warnings": [],
+            "provider_attempts": [{"provider": "fmp", "status": "resolved_rows", "reason_code": "ok"}],
+        },
+    )
+
+    sys.argv = ["python", "--project-root", str(tmp_path), "--optional-context-source-ladder", "--tickers", "NVDA"]
+    try:
+        main()
+        rendered = capsys.readouterr().out
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+    assert "earnings_status: staged" in rendered
+    assert "analyst_estimates_status: no_rows" in rendered
+
+
 def test_resolve_dcf_input_queue_tickers_returns_unique_ordered_blocker_tickers(monkeypatch, tmp_path: Path):
     class Row:
         def __init__(self, ticker: str, source_note: str = "") -> None:
