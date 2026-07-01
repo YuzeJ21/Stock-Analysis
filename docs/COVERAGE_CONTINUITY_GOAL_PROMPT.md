@@ -1,13 +1,31 @@
-# Coverage Continuity Contract
+# Coverage Continuity Runbook
 
-Use this copy-pasteable continuation contract when you want an automation run to keep expanding coverage without stalling on one unavailable source path.
+Use this continuity contract when running a long next-stage roadmap session
+without reopening stale blocker loops.
 
 ```text
-Continue Stock Research Command Center coverage proof work until every coverage lane is updated to one of: supported, candidate_context_only, still_blocked, skipped, or excluded.
-
-Workspace: current repo root
+Continue in the repository root.
 
 Start from current repo truth, not chat memory.
+
+Objective:
+Continue the Stock Research Command Center next-stage roadmap until the pilot
+package, source-boundary workflow, and coverage-proof surfaces are cleaner than
+the current state. Do not stop just because a ticker, provider, source path, or
+batch has no usable data. If a data path is exhausted, record or preserve the
+truthful blocked state and pivot to the next executable product, proof, workflow,
+documentation, QA, or packaging improvement.
+
+Current stage to verify:
+- Controlled external pilot is allowed only with manual gates.
+- Price coverage is almost complete, but one short-history/partial item may remain.
+- Fundamentals/DCF, share count, peer mapping, earnings, and analyst-estimate
+  lanes remain proof-gated.
+- Current source-proof queues may already be reviewed/exhausted. Do not repeat
+  stale loops unless new provider data, keyed sources, reviewed manual rows, new
+  tickers, or changed blockers appear.
+- The repo may be ahead of GitHub and may contain broad generated CSV/report
+  churn. Keep generated churn excluded unless it is intentionally reviewed.
 
 Product principle:
 Data readiness first. Analysis second. Research decision last.
@@ -15,170 +33,122 @@ Data readiness first. Analysis second. Research decision last.
 Guardrails:
 - Research-only.
 - No investment advice.
-- No broker integration.
-- No auto-trading.
+- No broker trading.
+- No broker integration beyond explicitly configured read-only market data.
 - No order routing.
+- No auto-trading.
 - No direct buy/sell instructions.
-- Do not fabricate prices, fundamentals, shares, market cap, peers, earnings, estimates, valuation inputs, metrics, or recommendations.
-- Preserve ready, partial, blocked, excluded, supported, still_blocked, and skipped states.
-- Do not stage generated CSV/JSON/report churn unless intentionally reviewed evidence.
-- Do not push unless I explicitly ask.
+- Do not fabricate prices, fundamentals, shares, market cap, peers, earnings,
+  estimates, valuation inputs, metrics, rankings, or recommendations.
+- Preserve ready, partial, blocked, excluded, supported, auto_supported,
+  human_reviewed_supported, candidate_context_only, still_blocked, and skipped.
+- Do not stage generated CSV/JSON/report churn unless the exact artifact is
+  intentionally reviewed evidence.
+- Do not push unless explicitly asked.
 
-Non-blocking rule:
-- The overall goal must not stop because one source path fails.
-- Do not mark the overall goal blocked while any executable lane, candidate, fallback research path, workflow improvement, or read-only verification path still exists in the current session.
-- Ticker-level `still_blocked`, `skipped`, or `excluded` outcomes are valid slice outcomes and must not by themselves turn the whole goal into blocked status.
-- Run one session preflight at the start:
-  - git status --short --branch
-  - make diff-hygiene
-  - make status-check TOP_N=5
-  - make readiness-ops-center
-  - make coverage-frontier TOP_N=10
-  - make session-source-preflight SEC_USER_AGENT='Name email@example.com'
-- Treat the latest `make session-source-preflight` output as the session truth for lane selection.
-- Commands that choose the next lane or candidate should reuse that session truth instead of retrying unavailable SEC/Yahoo-backed fundamentals paths in the same session.
-- If SEC access fails, record session_sec_unavailable and do not retry SEC-backed fundamentals/share-count candidates again in that session.
-- If yfinance fails, mark session_yfinance_unavailable and do not retry Yahoo-backed fundamentals again in that session.
-- If both SEC and yfinance are unavailable, pivot immediately to another executable lane instead of blocking the goal.
-- Never fabricate data to make coverage appear complete.
-
-Lane selection rule:
-1. Use SEC-backed fundamentals/share-count proof only if SEC is available in this session.
-2. Otherwise use reviewed local fundamentals only when the session preflight says they can fix current share-count or fundamentals blockers.
-3. Otherwise use `make yfinance-stage TICKERS=...` only when the optional research dependency is installed and the source path is working.
-4. Otherwise use configured API fallback paths through `make fundamentals-source-ladder TICKERS=...` or `make fundamentals-source-ladder-queue TOP_N=...`; the fundamentals ladder tries FMP, Alpha Vantage, then Finnhub when `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, or `FINNHUB_API_KEY` is configured. For price blockers, use `make price-refresh-loop ... PROVIDER=auto`; the price ladder tries Yahoo, Stooq, then configured FMP, Alpha Vantage, and Finnhub fallbacks.
-5. Otherwise switch to another executable lane:
-   - peer candidate alignment
-   - peer mapping proof
-   - peer valuation input proof from local reviewed data
-   - share count proof from reviewed local rows
-   - earnings optional manual lane
-   - analyst estimates optional manual lane
-   - coverage summary / workflow / evidence capture improvements
-6. Never retry the same unavailable source path repeatedly in one session.
-
-Peer workflow rule:
-- Split peer work into two levels:
-  - candidate peer alignment
-  - trusted peer mapping proof
-- Use separate files for each layer:
-  - candidate import draft: `data/imports/peer_candidates.csv`
-  - candidate canonical layer: `data/peer_candidates.csv`
-  - trusted import draft: `data/imports/peers.csv`
-  - trusted canonical layer: `data/peers.csv`
-- Candidate peer alignment is allowed to use:
-  - current repo sector/industry context
-  - SIC / NAICS / exchange / company-profile context
-  - public company descriptions, filings, investor-relations pages, and other public research context
-  - model-assisted synthesis from public information when stronger direct competitor evidence is not feasible in the current session
-- Candidate peer alignment must stay explicitly labeled as one of:
-  - candidate
-  - fallback_context
-  - research_only
-- Candidate peer alignment can help:
-  - choose the next peer lane
-  - draft peer groups and rationales
-  - rank likely peers
-  - prepare source-review rows
-- UI/report wording should reflect the split explicitly:
-  - `candidate only` means the candidate layer exists in `data/peer_candidates.csv`
-  - `trusted peer proof pending` means peer-relative valuation stays withheld
-  - `trusted peer-ready` means reviewed `data/peers.csv` rows and follow-through inputs passed readiness
-- Candidate peer alignment must not:
-  - be written as trusted peer proof automatically
-  - unlock peer-relative valuation automatically
-  - be described as source-backed peer mapping unless reviewed evidence is recorded
-- Trusted peer mapping proof still requires reviewed rows, validate/preview/apply, rebuilt readiness, and the normal proof loop before peer-relative valuation is treated as available.
-
-Current first target:
-1. Refresh ALOY first only if its fundamentals row still has the old epoch-shaped `as_of_date`; use:
-   - make yfinance-stage TICKERS=ALOY
-   - make imports-validate
-   - make imports-preview
-   - make imports-apply
-   - make dcf-readiness
-   - make readiness
-   - make stock-report-md TICKER=ALOY
-2. Then continue one narrow slice at a time in this order:
-   - Peer Mapping Proof
-   - Share Count Proof
-   - Fundamentals / DCF Proof
-   - Peer Valuation Inputs Proof
-   - Earnings optional lane
-   - Analyst Estimates optional lane
-3. Choose the next candidate from:
-   - make trusted-data-pilot-candidates TOP_N=10
-   - make trusted-data-pilot-packet TICKER=<ticker>
-
-Per-slice rule:
-- inspect source path
-- validate
-- preview
-- apply only if source-backed and intended
-- rebuild readiness/report
-- record outcome
-- move on
-
-Peer-slice fallback:
-- If trusted peer proof is not feasible for the current ticker in this session, do not block the overall goal.
-- Instead:
-  - produce a candidate peer set with rationale from public context or model synthesis
-  - label it candidate / fallback_context / research_only
-  - record whether trusted peer proof remains still_blocked, skipped, or excluded
-  - continue to the next executable candidate or lane
-- Do not promote candidate peers into trusted peer mappings without the reviewed import/proof workflow.
-- Do not reuse the same peer-blocked ticker repeatedly in the same session once its outcome has already been recorded with evidence.
-
-Autonomous boundary:
-- If SEC is blocked, yfinance is unavailable, and no reviewed local source rows exist, autonomous work cannot create new fundamentals/share-count coverage from scratch.
-- If I do not want human intervention, continue only with executable lanes already backed by reviewed local rows or read-only monitoring.
-- In that case, keep moving with:
-  - read-only readiness/status/public checks
-  - dry-run price planning or capped price coverage work
-  - peer candidate alignment
-  - peer follow-through when reviewed local peer rows already exist
-  - optional-context lanes only when reviewed local rows already exist
-  - workflow, coverage-summary, or evidence-capture improvements
-- If no executable reviewed-source lane exists, record the candidate/lane as still_blocked, skipped, or excluded with evidence and move to the next executable item.
-
-Per-slice process:
-- inspect source path
-- validate
-- preview
-- apply only if the gate passes
-- rebuild readiness/report
-- record outcome
-- move on
-
-Verification after each applied slice:
-- python3 -m pytest tests -q
-- make status-check TOP_N=5
+Start:
+- git status --short --branch --untracked-files=no
+- git log -5 --oneline
+- make diff-hygiene-summary
+- make project-status
+- make provider-setup-checklist
 - make readiness-ops-center
 - make coverage-frontier TOP_N=10
+- make pilot-readiness-check TOP_N=10
 - make public-wording-check
-- make diff-hygiene
+- git diff --check
+
+Non-stop rule:
+- Do not mark the overall goal blocked while any executable next step remains.
+- A ticker-level or lane-level still_blocked, skipped, excluded, or
+  candidate_context_only result is valid progress and must not stop the goal.
+- Never retry the same unavailable provider/source path repeatedly in one
+  session.
+- If no data-changing source path is executable, switch to product workflow,
+  public/pilot packaging, QA evidence, docs, guardrails, or tested helper
+  extraction.
+- Never invent data so a lane appears complete.
+
+Source gate:
+1. Read `make project-status` first.
+2. If it says source-proof queues are exhausted, run and use
+   `make provider-setup-checklist`; do not run broad trusted-data candidate
+   loops.
+3. If keyed providers are missing, keep them as setup-needed and continue with
+   product/workflow improvements.
+4. If a provider becomes available, run only that provider's smoke command,
+   then validate and preview before any apply.
+5. Apply rows only when validation passes, preview scope is narrow and intended,
+   rejected rows are zero, source provenance exists, and no fabricated values are
+   introduced.
+
+Work priority:
+1. Keep the pilot package clean:
+   - make public-check
+   - make public-release-package
+   - make browser-qa-evidence
+   - keep broad generated churn excluded
+2. Improve the first-screen workflow:
+   - public visitor path
+   - Coverage Summary / What Can I Use
+   - Data Health next action
+   - Proof History
+   - provider setup/source-boundary surface
+3. Improve proof clarity:
+   - decision proof queue
+   - reviewed-batch proof ledger
+   - optional-context boundary
+   - peer candidate vs trusted peer wording
+   - generated artifact hygiene
+4. Run one narrow source-backed coverage slice only if the source gate says it
+   is executable:
+   - inspect packet
+   - stage source-backed rows
+   - validate
+   - preview
+   - apply only after the gate passes
+   - rebuild readiness/report
+   - record supported, still_blocked, skipped, excluded, or
+     candidate_context_only
+5. If no coverage slice is executable, continue with tested product/docs/QA
+   improvements that reduce operator confusion and pilot risk.
+
+Verification after every code/docs/product slice:
+- python3 -m pytest tests -q
+- make public-wording-check
+- make pilot-readiness-check TOP_N=10
+- make readiness-ops-center
+- make coverage-frontier TOP_N=10
+- make diff-hygiene-summary
 - git diff --check
 - make staged-hygiene-check if anything is staged
 
-Final response each turn:
-1. Current coverage by lane
-2. Session source availability
-3. Candidate or lane worked
-4. Source proof inspected
-5. Rows staged/applied or not applied
-6. Validation/preview/apply result
-7. Rebuilt readiness/report result
-8. Outcome state
-9. Exact next executable lane
-10. Whether safe to push/share
+Commit rule:
+- Stage only intentional product/code/docs/test files or reviewed proof/evidence
+  artifacts.
+- Keep broad generated CSV/JSON/report churn excluded.
+- Commit locally when tests and hygiene pass.
+- Do not push unless explicitly asked.
+
+Final response every turn:
+1. Current repo/GitHub status
+2. Current pilot status
+3. Coverage by lane
+4. Source/provider availability
+5. Product/proof slice worked
+6. Rows staged/applied, if any
+7. Tests/checks run
+8. Commits created
+9. Generated artifacts excluded
+10. Exact next executable step
+11. Whether safe to push/share
 ```
 
-Plain-English rule:
+Plain-English contract:
 
-- SEC unavailable should remove SEC-backed lanes from the current session, not stop the overall workflow.
-- yfinance unavailable should remove Yahoo-backed fundamentals from the current session, not stop the overall workflow.
-- Candidate peers are allowed as research context and planning help.
-- Trusted peers still require the reviewed source-proof path.
-- No-human-intervention mode means the automation run should keep advancing on truthful, executable paths.
-- Truthful autonomous progress is allowed.
-- Fabricated coverage is not.
+- If coverage data is available, expand coverage through the source-backed gate.
+- If coverage data is not available, improve the product so operators stop
+  wasting time on blocked loops.
+- Do not stop for provider gaps.
+- Do not fabricate data.
+- Do not push without explicit approval.
