@@ -1,5 +1,6 @@
 from src.auto_refresh_orchestrator import (
     AutoGateInput,
+    build_auto_refresh_status_payload,
     build_default_lane_policies,
     build_scheduler_plan,
     evaluate_auto_apply_gate,
@@ -182,3 +183,35 @@ def test_auto_refresh_status_combines_source_activation_and_next_runbook():
     assert "free_public_available: stooq, yahoo, sec, sec_submissions" in status
     assert "free_tier_batch_limits: fmp<=250/day and <=25/run; alpha_vantage<=25/day and <=5/run; finnhub<=60/day and <=10/run" in status
     assert "generated CSV/JSON/report churn stays excluded" in status
+
+
+def test_auto_refresh_status_payload_is_scheduler_parseable():
+    preflight = {
+        "source_activation": {"status": "not_required", "reason": "executable_source_available"},
+        "source_categories": {
+            "free_public_available": ["stooq", "sec"],
+            "keyed_free_tier_available": [],
+            "optional_broker_disabled": ["ibkr"],
+            "paid_or_locked": ["fmp"],
+        },
+        "source_activation_console_v2": {
+            "next_executable_lane": "coverage_workflow_evidence",
+            "next_executable_command": "make project-status",
+            "operator_summary": {
+                "needs_setup": "fmp",
+                "avoid_repeating": "fundamentals_share_count_source_ladder",
+                "next_step_reason": "No unreviewed source-backed rows.",
+            },
+        },
+    }
+
+    payload = build_auto_refresh_status_payload(preflight, build_scheduler_plan(schedule="weekly"))
+
+    assert payload["source_activation"] == "not_required"
+    assert payload["can_run_now"] == "coverage_workflow_evidence"
+    assert payload["needs_setup"] == "fmp"
+    assert payload["avoid_repeating"] == "fundamentals_share_count_source_ladder"
+    assert payload["next_executable_command"] == "make project-status"
+    assert payload["next_runbook"] == "make auto-refresh-runbook SCHEDULE=weekly"
+    assert payload["source_categories"]["free_public_available"] == "stooq, sec"
+    assert payload["artifact_policy"] == "generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence."
