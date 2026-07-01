@@ -78,6 +78,7 @@ class DataCoverageExpansionStep:
     stop_condition: str
     generated_churn_policy: str
     outcome_boundary: str
+    reviewed_proof_status: str = ""
 
 
 @dataclass(frozen=True)
@@ -1022,6 +1023,7 @@ def build_data_coverage_expansion_plan(
                 stop_condition=_expansion_stop_condition(lane),
                 generated_churn_policy=lane.generated_churn_policy,
                 outcome_boundary=_expansion_outcome_boundary(lane),
+                reviewed_proof_status=lane.reviewed_proof_status,
             )
         )
     return steps
@@ -1229,6 +1231,8 @@ def render_data_coverage_expansion_plan(steps: list[DataCoverageExpansionStep]) 
                 f"   outcome_boundary: {step.outcome_boundary}",
             ]
         )
+        if step.reviewed_proof_status:
+            lines.append(f"   reviewed_proof_status: {step.reviewed_proof_status}")
     return "\n".join(lines)
 
 

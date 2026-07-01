@@ -579,6 +579,19 @@ def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tm
     assert "buy/sell" not in rendered.lower()
 
 
+def test_data_coverage_expansion_plan_surfaces_reviewed_proof_status(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write_reviewed_batch_proofs(root)
+    lanes = build_readiness_ops_lanes(root)
+    steps = build_data_coverage_expansion_plan(lanes, top_n=10)
+    rendered = render_data_coverage_expansion_plan(steps)
+    by_lane = {step.lane: step for step in steps}
+
+    assert by_lane["peer_mapping"].reviewed_proof_status
+    assert "reviewed_proof_status:" in rendered
+    assert "do not repeat this proof loop unless new source-backed rows" in rendered
+
+
 def test_data_coverage_proof_queues_connect_next_batches_without_applying_data(tmp_path: Path):
     rows = build_data_coverage_proof_queues(_sample_root(tmp_path), top_n=3)
     rendered = render_data_coverage_proof_queues(rows)
