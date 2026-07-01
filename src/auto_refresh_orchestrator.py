@@ -235,6 +235,9 @@ def build_scheduler_plan(
             "No broker integration.",
             "No auto-trading, order routing, or direct buy/sell instructions.",
             "No fabricated prices, fundamentals, shares, peers, earnings, estimates, or valuation inputs.",
+            "Run make session-source-preflight before scheduler batches.",
+            "Free-tier fallback caps: fmp<=250/day and <=25/run; alpha_vantage<=25/day and <=5/run; finnhub<=60/day and <=10/run.",
+            "Do not repeat exhausted source-proof queues; run make coverage-expansion-loop TOP_N=10 and pivot to workflow evidence until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers appear.",
             "Generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
         ),
     )
@@ -247,6 +250,11 @@ def render_scheduler_plan(plan: SchedulerPlan) -> str:
         "Research-only: no broker integration, no auto-trading, no order routing, and no direct buy/sell instructions.",
         "",
         "Proof outcomes: auto_supported, human_reviewed_supported, candidate_context_only, still_blocked, skipped, excluded.",
+        "",
+        "Source activation boundaries:",
+        "- make session-source-preflight",
+        "- Free-tier fallback caps: fmp<=250/day and <=25/run; alpha_vantage<=25/day and <=5/run; finnhub<=60/day and <=10/run.",
+        "- Do not repeat exhausted source-proof queues; run make coverage-expansion-loop TOP_N=10 and pivot to workflow evidence until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers appear.",
         "",
         "Daily commands:",
     ]

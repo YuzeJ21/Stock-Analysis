@@ -67,3 +67,9 @@ def test_scheduler_plan_separates_daily_weekly_and_optional_lanes():
     assert "research-only" in rendered.lower()
     assert "no broker integration" in rendered.lower()
     assert "auto_supported" in rendered
+    assert "make session-source-preflight" in rendered
+    assert "Free-tier fallback caps: fmp<=250/day and <=25/run" in rendered
+    assert "alpha_vantage<=25/day and <=5/run" in rendered
+    assert "finnhub<=60/day and <=10/run" in rendered
+    assert "Do not repeat exhausted source-proof queues" in rendered
+    assert "make coverage-expansion-loop TOP_N=10" in rendered
