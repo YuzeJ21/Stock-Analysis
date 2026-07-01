@@ -201,6 +201,7 @@ def test_decision_proof_queue_drawer_cards_show_top_row_before_table():
                 "data_confidence": "medium",
                 "what_can_be_reviewed_now": "Standalone DCF scenario analysis can be reviewed.",
                 "what_stays_locked": "Peer-relative valuation stays locked until source-backed peers exist.",
+                "next_action_summary": "Add source-backed peer rows, then validate and preview.",
                 "copy_only_command": "make focus-peers TICKER=META",
                 "proof_after_unlock": "Proof after data changes: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `make stock-report-md TICKER=META`.",
             }
@@ -211,8 +212,10 @@ def test_decision_proof_queue_drawer_cards_show_top_row_before_table():
     cards = build_decision_proof_queue_drawer_cards(queue, freshness)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["QUEUE STATUS", "TOP PROOF ROW", "REVIEW NOW", "LOCKED", "PROOF AFTER UNLOCK"]
+    assert [card["kicker"] for card in cards] == ["QUEUE STATUS", "TOP PROOF ROW", "NEXT ACTION", "REVIEW NOW", "LOCKED", "PROOF AFTER UNLOCK"]
     assert cards[1]["command"] == "make focus-peers TICKER=META"
+    assert cards[2]["command"] == "make focus-peers TICKER=META"
+    assert "add source-backed peer rows" in rendered
     assert "standalone dcf scenario analysis" in rendered
     assert "peer-relative valuation stays locked" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered

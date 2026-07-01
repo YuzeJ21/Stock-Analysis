@@ -411,6 +411,13 @@ def build_decision_proof_queue_drawer_cards(
                 "command": _format_missing(top.get("copy_only_command"), "make project-status"),
             },
             {
+                "kicker": "NEXT ACTION",
+                "title": "Copy-only proof route",
+                "body": _compact_reason(top.get("next_action_summary"), max_sentences=2, max_chars=260),
+                "badges": ["next proof", "copy-only"],
+                "command": _format_missing(top.get("copy_only_command"), "make project-status"),
+            },
+            {
                 "kicker": "REVIEW NOW",
                 "title": "What can be reviewed",
                 "body": _compact_reason(top.get("what_can_be_reviewed_now"), max_sentences=2, max_chars=240),
