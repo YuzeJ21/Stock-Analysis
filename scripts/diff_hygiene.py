@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import subprocess
 from shlex import quote
 from dataclasses import dataclass
@@ -37,6 +38,16 @@ ROOT_PRODUCT_FILES = {
 
 GENERATED_MARKDOWN_ARTIFACTS = {
     "outputs/decision_proof_queue.md",
+}
+
+REVIEWED_CANONICAL_DATA_PATHS = {
+    "data/peers.csv": "peers",
+}
+
+SUPPORTED_REVIEW_OUTCOMES = {
+    "supported",
+    "auto_supported",
+    "human_reviewed_supported",
 }
 
 REVIEWED_SCREENSHOT_ASSET_PATHS = (
@@ -116,6 +127,22 @@ def load_staged_status(repo_root: Path) -> list[StatusEntry]:
         text=True,
     )
     return [parse_name_status_line(line) for line in result.stdout.splitlines() if line]
+
+
+def load_staged_added_lines(repo_root: Path, path: str) -> list[str]:
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--unified=0", "--", path],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    rows: list[str] = []
+    for line in result.stdout.splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        rows.append(line[1:])
+    return rows
 
 
 def load_branch_status(repo_root: Path) -> str:
@@ -324,6 +351,70 @@ def build_summary_report(entries: list[StatusEntry]) -> str:
 def staged_hygiene_has_blockers(entries: list[StatusEntry]) -> bool:
     groups = group_entries(entries)
     return bool(groups["generated_csv_churn"] or groups["review_manually"])
+
+
+def staged_reviewed_data_tickers(repo_root: Path, entry: StatusEntry) -> set[str]:
+    if entry.path not in REVIEWED_CANONICAL_DATA_PATHS:
+        return set()
+    tickers: set[str] = set()
+    for line in load_staged_added_lines(repo_root, entry.path):
+        if not line.strip() or line.lower().startswith("ticker,"):
+            continue
+        ticker = line.split(",", 1)[0].strip().upper()
+        if ticker:
+            tickers.add(ticker)
+    return tickers
+
+
+def staged_supported_proof_tickers(repo_root: Path, *, lane: str, path: str) -> set[str]:
+    supported: set[str] = set()
+    for line in load_staged_added_lines(repo_root, "data/reviewed_batch_proofs.csv"):
+        parts = next(csv.reader([line]), [])
+        if len(parts) < 15:
+            continue
+        row_lane = parts[3].strip().lower()
+        ticker = parts[5].strip().upper()
+        outcome = parts[-2].strip().lower()
+        if row_lane != lane or outcome not in SUPPORTED_REVIEW_OUTCOMES:
+            continue
+        if path not in line:
+            continue
+        if ticker:
+            supported.add(ticker)
+    return supported
+
+
+def is_staged_reviewed_canonical_data(repo_root: Path, entry: StatusEntry) -> bool:
+    lane = REVIEWED_CANONICAL_DATA_PATHS.get(entry.path)
+    if lane is None:
+        return False
+    tickers = staged_reviewed_data_tickers(repo_root, entry)
+    if not tickers:
+        return False
+    supported_tickers = staged_supported_proof_tickers(repo_root, lane=lane, path=entry.path)
+    return tickers.issubset(supported_tickers)
+
+
+def staged_hygiene_blockers(entries: list[StatusEntry], repo_root: Path) -> dict[str, list[StatusEntry]]:
+    groups = group_entries(entries)
+    reviewed_generated = [
+        entry
+        for entry in groups["generated_csv_churn"]
+        if is_staged_reviewed_canonical_data(repo_root, entry)
+    ]
+    reviewed_paths = {entry.path for entry in reviewed_generated}
+    return {
+        "generated_csv_churn": [
+            entry for entry in groups["generated_csv_churn"] if entry.path not in reviewed_paths
+        ],
+        "reviewed_canonical_data": reviewed_generated,
+        "review_manually": groups["review_manually"],
+    }
+
+
+def staged_hygiene_has_blockers_for_repo(entries: list[StatusEntry], repo_root: Path) -> bool:
+    blockers = staged_hygiene_blockers(entries, repo_root)
+    return bool(blockers["generated_csv_churn"] or blockers["review_manually"])
 
 
 def tracked_entries(entries: list[StatusEntry]) -> list[StatusEntry]:
@@ -676,8 +767,10 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
     return "\n".join(lines)
 
 
-def build_staged_check_report(entries: list[StatusEntry]) -> str:
+def build_staged_check_report(entries: list[StatusEntry], repo_root: Path | None = None) -> str:
     groups = group_entries(entries)
+    repo_root = repo_root or Path.cwd()
+    blockers = staged_hygiene_blockers(entries, repo_root)
     lines = [
         "Staged Hygiene Check",
         "Read-only: this command inspects the staged diff and does not stage, delete, reset, refresh, or rewrite files.",
@@ -692,30 +785,34 @@ def build_staged_check_report(entries: list[StatusEntry]) -> str:
             format_count_line("Staged product/code/docs/test files", groups["product_candidate"]),
             format_count_line("Staged Markdown sample reports", groups["sample_report_candidate"]),
             format_count_line("Staged generated CSV/JSON churn", groups["generated_csv_churn"]),
+            format_count_line("Staged reviewed canonical data", blockers["reviewed_canonical_data"]),
             format_count_line("Staged manual-review paths", groups["review_manually"]),
             "",
         ]
     )
-    if staged_hygiene_has_blockers(entries):
+    if staged_hygiene_has_blockers_for_repo(entries, repo_root):
         lines.extend(
             [
                 "Staged hygiene check failed.",
                 "Generated CSV/JSON churn or manual-review paths are staged. Unstage or explicitly review them before committing.",
             ]
         )
-        if groups["generated_csv_churn"]:
+        if blockers["generated_csv_churn"]:
             lines.extend(["", "Generated CSV/JSON churn currently staged:"])
-            lines.extend(format_paths(groups["generated_csv_churn"], limit=40))
-        if groups["review_manually"]:
+            lines.extend(format_paths(blockers["generated_csv_churn"], limit=40))
+        if blockers["review_manually"]:
             lines.extend(["", "Manual-review paths currently staged:"])
-            lines.extend(format_paths(groups["review_manually"], limit=40))
+            lines.extend(format_paths(blockers["review_manually"], limit=40))
     else:
         lines.extend(
             [
                 "Staged hygiene check passed.",
-                "Only product/code/docs/tests and reviewed Markdown sample reports are staged.",
+                "Only product/code/docs/tests, reviewed Markdown sample reports, proof artifacts, and proof-backed canonical data are staged.",
             ]
         )
+        if blockers["reviewed_canonical_data"]:
+            lines.extend(["", "Reviewed canonical data accepted by proof ledger:"])
+            lines.extend(format_paths(blockers["reviewed_canonical_data"], limit=40))
     lines.extend(
         [
             "",
@@ -821,8 +918,8 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parents[1]
     if args.staged_check:
         entries = load_staged_status(repo_root)
-        print(build_staged_check_report(entries))
-        return 1 if staged_hygiene_has_blockers(entries) else 0
+        print(build_staged_check_report(entries, repo_root))
+        return 1 if staged_hygiene_has_blockers_for_repo(entries, repo_root) else 0
     entries = load_status(repo_root)
     if args.public_release_package:
         print(build_public_release_package_report(entries, branch_status=load_branch_status(repo_root)))

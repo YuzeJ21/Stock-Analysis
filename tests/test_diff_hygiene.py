@@ -434,3 +434,60 @@ def test_staged_hygiene_check_handles_empty_stage():
 
     assert module.staged_hygiene_has_blockers([]) is False
     assert "No staged changes. Nothing to commit yet." in report
+
+
+def test_staged_hygiene_accepts_proof_backed_peer_data(monkeypatch):
+    module = load_diff_hygiene_module()
+    staged_lines = {
+        "data/peers.csv": [
+            "SNDK,MU,Memory and storage semiconductors,Information Technology,Memory chips and storage,https://example.com/source,2026-06-24",
+            "SNDK,WDC,Memory and storage hardware,Information Technology,Data storage and flash memory,https://example.com/source,2026-06-24",
+        ],
+        "data/reviewed_batch_proofs.csv": [
+            "RB-1,2026-07-01,Codex source review,peers,reviewed scope,SNDK,validate,valid,preview,apply,pre,post,Peer Mapping Proof ready 27->28,SNDK,data/imports/peers.csv; data/peers.csv,human_reviewed_supported,source reviewed",
+        ],
+    }
+    monkeypatch.setattr(
+        module,
+        "load_staged_added_lines",
+        lambda _root, path: staged_lines.get(path, []),
+    )
+    entries = [
+        module.StatusEntry("M", "data/peers.csv"),
+        module.StatusEntry("M", "data/reviewed_batch_proofs.csv"),
+    ]
+
+    report = module.build_staged_check_report(entries, Path("."))
+
+    assert module.staged_hygiene_has_blockers_for_repo(entries, Path(".")) is False
+    assert "Staged hygiene check passed." in report
+    assert "Reviewed canonical data accepted by proof ledger:" in report
+    assert "data/peers.csv" in report
+
+
+def test_staged_hygiene_blocks_peer_data_without_supported_proof(monkeypatch):
+    module = load_diff_hygiene_module()
+    staged_lines = {
+        "data/peers.csv": [
+            "SNDK,MU,Memory and storage semiconductors,Information Technology,Memory chips and storage,https://example.com/source,2026-06-24",
+        ],
+        "data/reviewed_batch_proofs.csv": [
+            "RB-1,2026-07-01,Codex source review,peers,reviewed scope,SNDK,validate,valid,preview,not applied,pre,post,none,SNDK,data/imports/peers.csv; data/peers.csv,still_blocked,source not sufficient",
+        ],
+    }
+    monkeypatch.setattr(
+        module,
+        "load_staged_added_lines",
+        lambda _root, path: staged_lines.get(path, []),
+    )
+    entries = [
+        module.StatusEntry("M", "data/peers.csv"),
+        module.StatusEntry("M", "data/reviewed_batch_proofs.csv"),
+    ]
+
+    report = module.build_staged_check_report(entries, Path("."))
+
+    assert module.staged_hygiene_has_blockers_for_repo(entries, Path(".")) is True
+    assert "Staged hygiene check failed." in report
+    assert "Generated CSV/JSON churn currently staged:" in report
+    assert "data/peers.csv" in report
