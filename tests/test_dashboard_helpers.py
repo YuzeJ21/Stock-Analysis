@@ -18994,6 +18994,11 @@ def test_data_health_coverage_summary_includes_cached_source_activation_context(
                         "fmp": "export FMP_API_KEY='<key>'",
                         "stooq": "no key required for public daily OHLCV",
                     },
+                    "free_tier_batch_limits": {
+                        "fmp": {"recommended_daily_request_limit": 250, "recommended_batch_size": 25},
+                        "alpha_vantage": {"recommended_daily_request_limit": 25, "recommended_batch_size": 5},
+                        "finnhub": {"recommended_daily_request_limit": 60, "recommended_batch_size": 10},
+                    },
                 }
             }
         ),
@@ -19022,8 +19027,12 @@ def test_data_health_coverage_summary_includes_cached_source_activation_context(
     assert "export FMP_API_KEY='<key>'" in source_row["proof_to_unlock"]
     assert "last tried: sec=ok" in source_row["stop_rule"].lower()
     assert "do not retry this session: fmp" in source_row["stop_rule"].lower()
+    assert "free-tier limits: fmp<=250/day and <=25/run" in source_row["stop_rule"].lower()
+    assert "alpha_vantage<=25/day and <=5/run" in source_row["stop_rule"].lower()
+    assert "finnhub<=60/day and <=10/run" in source_row["stop_rule"].lower()
     assert "cached session source preflight" in rendered
     assert "export fmp_api_key='<key>'" in rendered
+    assert "free-tier limits" in rendered
     assert "do not retry this session: fmp" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

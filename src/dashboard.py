@@ -8664,6 +8664,23 @@ def _cached_source_activation_console(root: Path | None = None) -> dict[str, obj
     return console if isinstance(console, dict) else None
 
 
+def _source_activation_free_tier_limit_summary(console: dict[str, object]) -> str:
+    limits = console.get("free_tier_batch_limits", {})
+    if not isinstance(limits, dict):
+        return ""
+    pieces: list[str] = []
+    for provider in ("fmp", "alpha_vantage", "finnhub"):
+        policy = limits.get(provider)
+        if not isinstance(policy, dict):
+            continue
+        daily = policy.get("recommended_daily_request_limit")
+        batch = policy.get("recommended_batch_size")
+        if daily in (None, "") or batch in (None, ""):
+            continue
+        pieces.append(f"{provider}<={daily}/day and <={batch}/run")
+    return ", ".join(pieces)
+
+
 def _source_activation_summary_row(console: dict[str, object]) -> dict[str, object]:
     free_public = [str(value).strip() for value in console.get("free_public_available", []) if str(value).strip()]
     keyed_available = [str(value).strip() for value in console.get("keyed_free_tier_available", []) if str(value).strip()]
@@ -8688,7 +8705,15 @@ def _source_activation_summary_row(console: dict[str, object]) -> dict[str, obje
     else:
         last_tried_items = []
     do_not_retry = [str(value).strip() for value in console.get("do_not_retry_this_session", []) if str(value).strip()]
+    free_tier_limits = _source_activation_free_tier_limit_summary(console)
     state = "supported" if free_public or keyed_available else "blocked"
+    stop_rule_parts = [
+        "Stop before broad source batches if the cached preflight shows unavailable providers or missing keys.",
+        f"Last tried: {', '.join(last_tried_items) or 'not recorded'}.",
+        f"Do not retry this session: {', '.join(do_not_retry) or '-'}.",
+    ]
+    if free_tier_limits:
+        stop_rule_parts.append(f"Free-tier limits: {free_tier_limits}.")
     return {
         "lane": "Source activation",
         "coverage_tier": "source_activation_context",
@@ -8713,9 +8738,7 @@ def _source_activation_summary_row(console: dict[str, object]) -> dict[str, obje
             else "Refresh cached session source preflight, then use validate/preview/apply gates for any source-backed rows."
         ),
         "stop_rule": (
-            "Stop before broad source batches if the cached preflight shows unavailable providers or missing keys. "
-            f"Last tried: {', '.join(last_tried_items) or 'not recorded'}. "
-            f"Do not retry this session: {', '.join(do_not_retry) or '-'}."
+            " ".join(stop_rule_parts)
         ),
         "operator_step": "make session-source-preflight",
     }
