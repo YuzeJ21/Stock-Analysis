@@ -85,7 +85,7 @@ make coverage-frontier TOP_N=10
 
 ## Operator Summary
 
-`make session-source-preflight` also prints `operator_summary` inside the Source Activation Console. Use that compact block before starting a long coverage run:
+`make session-source-preflight` prints `operator_summary` inside the Source Activation Console, and `make provider-setup-checklist` repeats the saved current source gate when a session preflight artifact exists. Use that compact block before starting a long coverage run:
 
 - `can_run_now` is the lane that is executable in the current session.
 - `needs_setup` lists missing provider keys or optional sources that could unlock more rows.
