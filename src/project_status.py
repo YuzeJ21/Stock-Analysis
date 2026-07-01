@@ -868,7 +868,7 @@ def _scope_and_risk_context_command_rows() -> list[dict[str, str]]:
             "make universe-scope TOP_N=10",
             (
                 "When source-proof queues are exhausted, choose active-universe, ticker-list, sector/theme, "
-                "ready-only, or missing-data scope before opening broad tables."
+                "ready-only, or missing-data scope before opening broad tables or risk context."
             ),
             source_context="ticker readiness report and universe scope runbook",
             freshness_context="copy-only scope guide; does not refresh, import, apply, or infer missing values",
@@ -877,8 +877,8 @@ def _scope_and_risk_context_command_rows() -> list[dict[str, str]]:
             "Review risk context readiness",
             "make risk-context",
             (
-                "Check liquidity, correlation, and proxy-risk readiness from current local outputs before treating "
-                "risk context as usable."
+                "Choose scope before treating liquidity, correlation, or proxy-risk rows as usable context. "
+                "Risk context is not a research conclusion and does not unlock missing fundamentals, peers, earnings, or estimates."
             ),
             source_context="outputs/liquidity_risk.csv and outputs/correlation_risk.csv",
             freshness_context="read-only risk context; not a research conclusion or source-proof unlock",

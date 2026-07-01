@@ -660,6 +660,20 @@ def test_project_status_labels_preview_available_source_command_as_review_bounda
     assert rows[0]["FreshnessContext"] == "preview available; review source rows before apply"
 
 
+def test_project_status_scope_and_risk_rows_keep_scope_before_context():
+    rows = project_status._scope_and_risk_context_command_rows()
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+
+    assert [row["Command"] for row in rows] == ["make universe-scope TOP_N=10", "make risk-context"]
+    assert "choose safe universe scope" in rendered
+    assert "scope before treating liquidity, correlation, or proxy-risk rows as usable context" in rendered
+    assert "risk context is not a research conclusion" in rendered
+    assert "does not refresh, import, apply, or infer missing values" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_project_status_cli_check_uses_fast_generated_artifacts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
