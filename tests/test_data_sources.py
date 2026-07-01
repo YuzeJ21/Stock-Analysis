@@ -83,7 +83,8 @@ def test_data_source_registry_contains_required_datasets():
     analyst_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "analyst_estimates")
     assert "make templates" in analyst_entry.fallback_action
     smh_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "smh_holdings")
-    assert "make templates" in smh_entry.fallback_action
+    assert "make universe-preview" in smh_entry.fallback_action
+    assert "StockAnalysis public holdings fallback" in smh_entry.fallback_action
     assert "data/custom_universe.csv" in smh_entry.fallback_action
     universe_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "universe")
     assert "make universe-preview" in universe_entry.fallback_action
@@ -113,8 +114,9 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert source_lookup["fundamentals"]["focus_command"] == "make status"
     assert source_lookup["fundamentals"]["example_command"] == "make runbook-fundamentals-broader"
     assert source_lookup["fundamentals"]["target_file"] == "data/imports/fundamentals.csv"
-    assert source_lookup["smh_holdings"]["focus_command"] == "make templates"
-    assert source_lookup["smh_holdings"]["target_file"] == "data/custom_universe.csv"
+    assert source_lookup["smh_holdings"]["focus_command"] == "make universe-preview"
+    assert source_lookup["smh_holdings"]["example_command"] == "make universe-preview"
+    assert source_lookup["smh_holdings"]["target_file"] == "data/imports/universe.csv"
     assert source_lookup["sp500_constituents"]["focus_command"] == "make universe-preview"
     assert source_lookup["sp500_constituents"]["example_command"] == "make universe-preview"
     assert source_lookup["sp500_constituents"]["target_file"] == "data/imports/universe.csv"
