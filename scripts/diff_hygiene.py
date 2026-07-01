@@ -280,9 +280,12 @@ def group_entries(entries: list[StatusEntry]) -> dict[str, list[StatusEntry]]:
 
 
 def package_status_for_groups(groups: dict[str, list[StatusEntry]]) -> str:
-    stage_candidates = groups["product_candidate"] + groups["sample_report_candidate"]
-    if stage_candidates:
+    if groups["product_candidate"]:
         return "product package pending commit; commit this package before starting another feature slice"
+    if groups["sample_report_candidate"]:
+        if groups["generated_csv_churn"]:
+            return "generated/sample report churn only; keep it local unless intentionally reviewed as evidence"
+        return "sample report churn only; keep it local unless intentionally reviewed as evidence"
     if groups["generated_csv_churn"]:
         return "generated churn only; keep it local unless intentionally reviewed as evidence"
     return "clean; ready for the next reviewed work slice"

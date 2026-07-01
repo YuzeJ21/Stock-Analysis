@@ -193,6 +193,24 @@ def test_diff_hygiene_summary_marks_generated_only_and_clean_states():
     assert "Package status: clean; ready for the next reviewed work slice" in clean
 
 
+def test_diff_hygiene_summary_keeps_sample_reports_out_of_product_package_status():
+    module = load_diff_hygiene_module()
+
+    report = module.build_summary_report(
+        [
+            module.StatusEntry("M", "outputs/stock_reports/apld.md"),
+            module.StatusEntry("??", "outputs/stock_reports/newco.md"),
+            module.StatusEntry("M", "data/prices.csv"),
+        ]
+    )
+
+    assert "Product/code/docs/test candidates: 0 (0 changed, 0 new)" in report
+    assert "Markdown sample report candidates: 2 (1 changed, 1 new)" in report
+    assert "Generated CSV/JSON churn to avoid by default: 1 (1 changed, 0 new)" in report
+    assert "Package status: generated/sample report churn only; keep it local unless intentionally reviewed as evidence" in report
+    assert "product package pending commit" not in report
+
+
 def test_data_release_decision_reports_clean_public_state():
     module = load_diff_hygiene_module()
 
