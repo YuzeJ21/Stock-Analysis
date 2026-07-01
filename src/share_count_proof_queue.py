@@ -235,8 +235,18 @@ def build_share_count_proof_queue(
         missing = _missing_fields(row.get("missing_dcf_fields"))
         row_status = _dcf_input_status(row)
         source_command, source_note = _source_action_for_share_count(ticker, missing, session_preflight)
+        manual_source_path = "data/imports/fundamentals.csv"
+        validation_sequence = (
+            f"make imports-validate IMPORT_TICKERS={ticker} -> "
+            f"make imports-preview IMPORT_TICKERS={ticker} -> "
+            f"make imports-apply IMPORT_TICKERS={ticker}"
+        )
+        proof_after_update = f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}"
         if ticker in reviewed_non_actionable_tickers:
             source_command = "wait for new SEC facts, keyed provider data, or reviewed manual source rows"
+            manual_source_path = "no executable source path until new evidence"
+            validation_sequence = "no validate/preview/apply path until new source-backed rows exist"
+            proof_after_update = "make project-status"
             source_note = (
                 "Reviewed proof ledger already records this share-count/DCF source path as non-actionable; "
                 "do not repeat it unless new SEC facts, keyed provider data, reviewed manual source rows, "
@@ -250,13 +260,9 @@ def build_share_count_proof_queue(
                 missing_field="shares_outstanding",
                 dcf_input_status=row_status,
                 sec_stage_command=source_command,
-                manual_source_path="data/imports/fundamentals.csv",
-                validation_sequence=(
-                    f"make imports-validate IMPORT_TICKERS={ticker} -> "
-                    f"make imports-preview IMPORT_TICKERS={ticker} -> "
-                    f"make imports-apply IMPORT_TICKERS={ticker}"
-                ),
-                proof_after_update=f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}",
+                manual_source_path=manual_source_path,
+                validation_sequence=validation_sequence,
+                proof_after_update=proof_after_update,
                 stop_rule=(
                     "Stop if SEC/manual source proof cannot verify shares_outstanding; keep DCF blocked and do not infer "
                     "share count from price, market cap, or placeholder rows."

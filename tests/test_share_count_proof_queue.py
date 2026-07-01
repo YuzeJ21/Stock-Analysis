@@ -204,6 +204,9 @@ def test_share_count_queue_deprioritizes_reviewed_non_actionable_tickers(tmp_pat
     assert [row.ticker for row in rows] == ["HOOD", "AMD"]
     amd = next(row for row in rows if row.ticker == "AMD")
     assert "reviewed proof ledger already records" in amd.source_note.lower()
+    assert amd.manual_source_path == "no executable source path until new evidence"
+    assert amd.validation_sequence == "no validate/preview/apply path until new source-backed rows exist"
+    assert amd.proof_after_update == "make project-status"
     rendered = render_share_count_proof_queue(rows)
     assert "Next safest action: make sec-stage TICKERS=HOOD" in rendered
 
@@ -238,3 +241,4 @@ def test_share_count_queue_renderer_pivots_when_every_row_is_reviewed_non_action
     assert "Next safest action: No unreviewed executable share-count blockers are shown" in rendered
     assert "do not repeat these source paths unless new SEC facts" in rendered
     assert "Do not repeat reviewed share-count source paths" in rendered
+    assert "no executable source path until new evidence" in rendered
