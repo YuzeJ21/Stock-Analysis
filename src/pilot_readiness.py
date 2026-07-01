@@ -789,6 +789,7 @@ def _provider_setup_checklist_rows() -> list[list[object]]:
                 row["setup_state"],
                 row["unlock_lanes"],
                 row["usage"],
+                row.get("post_setup_smoke_command", "") or "not_applicable",
                 row["cannot_unlock"],
                 row["safe_next_step"],
             ]
@@ -809,7 +810,9 @@ def _share_brief_provider_setup_lines() -> list[str]:
         setup_state = str(row.get("setup_state") or "").strip()
         unlock_lanes = str(row.get("unlock_lanes") or "").strip()
         cannot_unlock = str(row.get("cannot_unlock") or "").strip()
-        lines.append(f"- {provider}: {setup_state} -> {unlock_lanes}; cannot unlock {cannot_unlock}")
+        smoke_command = str(row.get("post_setup_smoke_command") or "").strip()
+        smoke_fragment = f"; smoke: `{smoke_command}`" if smoke_command else ""
+        lines.append(f"- {provider}: {setup_state} -> {unlock_lanes}{smoke_fragment}; cannot unlock {cannot_unlock}")
     return lines
 
 
@@ -918,7 +921,7 @@ def render_pilot_readiness_packet(
         "Use `make provider-setup-checklist` for the current checklist-style setup view. Real key values are never printed.",
         "",
         *_markdown_table(
-            ["Provider", "Setup state", "Unlock lanes", "Usage", "Cannot unlock", "Safe next step"],
+            ["Provider", "Setup state", "Unlock lanes", "Usage", "Smoke command", "Cannot unlock", "Safe next step"],
             _provider_setup_checklist_rows(),
         ),
         "",
