@@ -61,7 +61,7 @@ Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`. It is a rea
 - Open `outputs/stock_reports/meta.md` to show price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
 - Open `outputs/stock_reports/apld.md` or `outputs/stock_reports/crdo.md` to show how the product handles blocked data without inventing valuation conclusions, including the exact copyable local commands for the next proof step and one-company pilot packet.
-- Run `make trusted-data-pilot-candidates TOP_N=10` to show which company blockers the current local data suggests improving next; use `VERBOSE=1` only when you want local proof detail.
+- Run `make project-status` first, then only run `make trusted-data-pilot-candidates TOP_N=10` when it shows executable company candidates; if source-proof queues are exhausted, use `make provider-setup-checklist` instead.
 - Run `make readiness-ops-center` and `make coverage-frontier TOP_N=10` to show the lane-level operator view before drilling into one ticker.
 - Run `DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10` to preview a copy-only reviewed batch packet with dry-run, capped execution, validation, rollback, and proof fields before intentionally writing packet artifacts.
 - Run `make trusted-data-pilot-packet TICKER=CRDO` to show the one-company evidence packet without importing or applying rows.

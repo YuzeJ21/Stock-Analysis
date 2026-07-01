@@ -1895,6 +1895,9 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Missing trusted rows are a product signal." in data_strategy
     assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
     assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
+    assert "run `make project-status` first" in data_strategy
+    assert "Only run `make trusted-data-pilot-candidates TOP_N=10` when project-status shows executable company candidates" in data_strategy
+    assert "run `make provider-setup-checklist` instead" in data_strategy
     assert "make universe-scope TICKERS=NVDA,META TOP_N=10" in readme
     assert "make risk-context" in readme
     assert "make universe-scope TICKERS=NVDA,META TOP_N=10" in data_strategy
@@ -2096,6 +2099,9 @@ def test_public_docs_do_not_reference_stale_github_or_internal_thread_links():
 
     linkedin_brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
     assert "https://github.com/YuzeJ21/Stock-Analysis" in linkedin_brief
+    assert "Run `make project-status` first" in linkedin_brief
+    assert "only run `make trusted-data-pilot-candidates TOP_N=10` when it shows executable company candidates" in linkedin_brief
+    assert "use `make provider-setup-checklist` instead" in linkedin_brief
 
 
 def test_shell_launchers_anchor_to_repo_root():
