@@ -107,6 +107,15 @@ def test_command_bundle_runbook_cards_normalize_and_keep_review_gates_visible():
     assert "make price-apply" in rendered
 
 
+def test_command_console_normalizes_universe_preview_to_compact_summary():
+    assert (
+        command_console.normalize_operator_command(
+            "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50"
+        )
+        == "make universe-preview-summary"
+    )
+
+
 def test_overview_command_bundle_cards_use_lane_runbook_fallback():
     bundles = pd.DataFrame(
         [

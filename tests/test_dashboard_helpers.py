@@ -6398,8 +6398,8 @@ def test_theme_unlock_cards_fall_back_to_universe_preview_when_only_holdings_con
 
     assert len(cards) == 1
     assert cards[0]["title"] == "No grouped theme unlocks yet"
-    assert cards[0]["command"] == "make universe-preview"
-    assert "make universe-preview" in rendered
+    assert cards[0]["command"] == "make universe-preview-summary"
+    assert "make universe-preview-summary" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -18495,7 +18495,7 @@ def test_universe_preset_cards_include_preview_commands():
     rendered = " ".join(str(value) for card in cards for value in card.values())
 
     assert cards
-    assert "make universe-preview" in rendered
+    assert "make universe-preview-summary" in rendered
     assert "apply-import" not in rendered
 
 
@@ -18559,7 +18559,7 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
     assert "draft csv" not in rendered
     assert "cli-only" not in rendered
     assert "terminal-only" not in rendered
-    assert "make universe-preview" not in rendered
+    assert all(card.get("command") != "make universe-preview" for card in cards)
     assert "make universe-apply" in " ".join(str(card["command"]) for card in cards).lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -18588,9 +18588,9 @@ def test_universe_manager_summary_cards_surface_make_preview_and_apply():
     assert len(cards) == 3
     assert cards[1]["command"] == "make universe-apply"
     assert cards[1]["kicker"] == "PREVIEW FILE"
-    assert cards[2]["command"] == "make universe-preview"
+    assert cards[2]["command"] == "make universe-preview-summary"
     assert "review the preview before applying changes" in rendered
-    assert "make universe-preview" not in visible_rendered
+    assert "make universe-preview-summary" not in visible_rendered
     assert "make universe-apply" in " ".join(str(card.get("command", "")) for card in cards).lower()
     assert "universe preview ready" in rendered
     assert "import draft" not in rendered
@@ -25729,11 +25729,11 @@ def test_normalize_operator_command_rewrites_legacy_price_and_universe_commands(
     )
     assert (
         dashboard.normalize_operator_command("python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50")
-        == "make universe-preview"
+        == "make universe-preview-summary"
     )
     assert (
         dashboard.normalize_operator_command("python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100")
-        == "make universe-preview"
+        == "make universe-preview-summary"
     )
     assert (
         dashboard.normalize_operator_command("python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50")

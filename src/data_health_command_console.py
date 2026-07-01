@@ -112,9 +112,9 @@ def normalize_operator_command(command: object) -> str:
         if tickers:
             return f"make price-refresh TICKERS={tickers}"
     if re.fullmatch(r"python3 -m src\.universe_builder --preview --preset .+", command_text):
-        return "make universe-preview"
+        return "make universe-preview-summary"
     if re.fullmatch(r"python3 -m src\.universe_builder --preview --sources .+", command_text):
-        return "make universe-preview"
+        return "make universe-preview-summary"
     if re.fullmatch(r"python3 -m src\.universe_builder --write-import .+", command_text):
         return "make universe-apply"
     if command_text == "python3 -m src.universe_builder --apply-import":

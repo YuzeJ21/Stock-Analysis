@@ -35,6 +35,22 @@ def test_project_status_command_rows_prefer_structured_rows_and_normalize_comman
     assert rows[1]["Command"] == "make status-check TOP_N=5"
 
 
+def test_project_status_command_rows_normalize_universe_preview_to_compact_summary():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Preview universe",
+                "Command": "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50",
+                "Reason": "Review source row counts before any apply step.",
+            },
+        ],
+    }
+
+    rows = workflow_console.project_status_command_rows(payload)
+
+    assert rows[0]["Command"] == "make universe-preview-summary"
+
+
 def test_top_priority_signals_keep_review_gates_visible():
     queue = pd.DataFrame(
         [

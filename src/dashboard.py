@@ -606,7 +606,7 @@ IMPORT_HEALTH_DATASETS = [
         "staged_folder": "data/staged/universe/",
         "canonical_import_file": "data/imports/universe.csv",
         "rejected_report": "data/rejected/universe_rejected.csv",
-        "next_command": "make universe-preview",
+        "next_command": "make universe-preview-summary",
     },
 ]
 IMPORT_HEALTH_COLUMNS = [
@@ -1121,8 +1121,8 @@ def load_data_source_status_tables(
                 expected_example = "make runbook-peers-broader"
             elif dataset in {"earnings", "analyst_estimates", "smh_holdings"}:
                 expected_example = "make templates"
-            elif dataset in {"sp500_constituents", "nasdaq_symbols", "universe"} and focus_command == "make universe-preview":
-                expected_example = "make universe-preview"
+            elif dataset in {"sp500_constituents", "nasdaq_symbols", "universe"} and focus_command == "make universe-preview-summary":
+                expected_example = "make universe-preview-summary"
             elif dataset == "local_outputs" and focus_command == "make status":
                 expected_example = "make status"
             if expected_example and example_command != expected_example:
@@ -1145,8 +1145,8 @@ def load_data_source_status_tables(
                 expected_example = "make runbook-peers-broader"
             elif dataset in {"earnings", "analyst_estimates", "smh_holdings"}:
                 expected_example = "make templates"
-            elif dataset in {"sp500_constituents", "nasdaq_symbols", "universe"} and focus_command == "make universe-preview":
-                expected_example = "make universe-preview"
+            elif dataset in {"sp500_constituents", "nasdaq_symbols", "universe"} and focus_command == "make universe-preview-summary":
+                expected_example = "make universe-preview-summary"
             elif dataset == "local_outputs" and focus_command == "make status":
                 expected_example = "make status"
             if expected_example and example_command != expected_example:
@@ -4320,9 +4320,9 @@ def normalize_operator_command(command: object) -> str:
         if tickers:
             return f"make price-refresh TICKERS={tickers}"
     if re.fullmatch(r"python3 -m src\.universe_builder --preview --preset .+", command_text):
-        return "make universe-preview"
+        return "make universe-preview-summary"
     if re.fullmatch(r"python3 -m src\.universe_builder --preview --sources .+", command_text):
-        return "make universe-preview"
+        return "make universe-preview-summary"
     if re.fullmatch(r"python3 -m src\.universe_builder --write-import .+", command_text):
         return "make universe-apply"
     if command_text == "python3 -m src.universe_builder --apply-import":
@@ -20547,9 +20547,9 @@ def output_tab_chart_sections(title: str, frame: pd.DataFrame) -> list[tuple[str
 
 def universe_preset_cards() -> list[dict[str, object]]:
     preset_descriptions = {
-        "core": "Current local universe plus holdings. Safest and quickest workflow; start with make universe-preview.",
-        "sp500_smh": "S&P 500 community list, SMH holdings if available, plus holdings. Start with make universe-preview before make universe-apply.",
-        "broad": "Adds Nasdaq-listed common stocks. Larger and slower; run make universe-preview before make universe-apply.",
+        "core": "Current local universe plus holdings. Safest and quickest workflow; start with make universe-preview-summary.",
+        "sp500_smh": "S&P 500 community list, SMH holdings if available, plus holdings. Start with make universe-preview-summary before any full row review or apply.",
+        "broad": "Adds Nasdaq-listed common stocks. Larger and slower; run make universe-preview-summary before any full row review or apply.",
     }
     cards = []
     for name, sources in SOURCE_PRESETS.items():
@@ -20559,10 +20559,10 @@ def universe_preset_cards() -> list[dict[str, object]]:
                 "title": name,
                 "body": preset_descriptions.get(
                     name,
-                    "Source-driven universe preset. Run make universe-preview before make universe-apply.",
+                    "Source-driven universe preset. Run make universe-preview-summary before any full row review or apply.",
                 ),
                 "badges": [", ".join(sources)],
-                "command": "make universe-preview",
+                "command": "make universe-preview-summary",
             }
         )
     return cards
@@ -20582,12 +20582,12 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
             "kicker": "BEST NEXT",
             "title": "Preview universe update" if not staged_exists else "Review universe preview",
             "body": (
-                "Start with a preview so larger source-driven changes stay reviewable before any apply step."
+                "Start with a compact preview summary so larger source-driven changes stay reviewable before any full row review or apply step."
                 if not staged_exists
                 else f"{staged_rows} preview ticker rows are already visible in the dashboard; apply only after reviewing the preview and notes."
             ),
             "badges": ["preview first", "read-only"],
-            "command": "make universe-preview" if not staged_exists else "make universe-apply",
+            "command": "make universe-preview-summary" if not staged_exists else "make universe-apply",
         },
         {
             "kicker": "CURRENT FILE",
@@ -20596,7 +20596,7 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
                 f"{duplicate_count} duplicate ticker rows and {missing_theme_total} missing or unclassified themes are still visible in the main universe file."
             ),
             "badges": ["local universe", "coverage"],
-            "command": "make templates" if missing_theme_total else "make universe-preview",
+            "command": "make templates" if missing_theme_total else "make universe-preview-summary",
         },
         {
             "kicker": "REVIEW FLOW",
@@ -20634,9 +20634,9 @@ def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, An
         {
             "kicker": "WORKFLOW",
             "title": "Preview first",
-            "body": "Use source presets to build a candidate universe, then apply only after reviewing the preview.",
+            "body": "Use source presets to build a compact candidate summary, inspect full rows only when needed, then apply only after review.",
             "badges": ["CSV-first", "backup on apply"],
-            "command": "make universe-preview",
+            "command": "make universe-preview-summary",
         },
     ]
 
@@ -20707,7 +20707,7 @@ def workflow_command_rows() -> list[dict[str, str]]:
         {"Step": "Manual price normalization", "Command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"},
         {"Step": "Price import safety", "Command": "make price-validate && make price-preview && make price-apply"},
         {"Step": "SEC fundamentals staging workflow", "Command": "make focus-fundamentals TICKER=NVDA"},
-        {"Step": "Universe preview", "Command": "make universe-preview"},
+        {"Step": "Universe preview summary", "Command": "make universe-preview-summary"},
     ]
 
 
@@ -21506,9 +21506,9 @@ def theme_unlock_cards(
             {
                 "kicker": "THEME FIRST",
                 "title": "No grouped theme unlocks yet",
-                "body": "Create a local universe preview before grouped theme and sector ETF unlock rows can appear here.",
+                "body": "Create a compact local universe preview summary before grouped theme and sector ETF unlock rows can appear here.",
                 "badges": ["read-only"],
-                "command": "make universe-preview",
+                "command": "make universe-preview-summary",
             }
         ]
 
@@ -21527,7 +21527,7 @@ def theme_unlock_cards(
                 normalize_operator_command(format_missing(theme_rows.iloc[0].get("example_command"), ""))
                 or preferred_row_command(
                     theme_rows.iloc[0],
-                    unlock_stage_command(theme_rows.iloc[0].get("top_priority_stage"), "make universe-preview"),
+                    unlock_stage_command(theme_rows.iloc[0].get("top_priority_stage"), "make universe-preview-summary"),
                 )
             ),
         }
@@ -21548,7 +21548,7 @@ def theme_unlock_cards(
                     normalize_operator_command(format_missing(row.get("example_command"), ""))
                     or preferred_row_command(
                         row,
-                        unlock_stage_command(row.get("top_priority_stage"), "make universe-preview"),
+                        unlock_stage_command(row.get("top_priority_stage"), "make universe-preview-summary"),
                     )
                 )
             )
@@ -29624,7 +29624,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
             render_notice_card(
                 "Current universe is empty",
                 "Create and review a local universe preview before running broader screening, monthly picks, or larger price refresh workflows.",
-                "make universe-preview",
+                "make universe-preview-summary",
                 tone="warning",
             )
 
@@ -29638,6 +29638,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
         st.code(
             "\n".join(
                 [
+                    "make universe-preview-summary",
                     "make universe-preview",
                     "make universe-apply",
                 ]
