@@ -482,12 +482,13 @@ def public_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "kicker": "PILOT PATH",
             "title": "Improve 5-10 companies first",
             "body": (
-                "Do not try to make the full universe analysis-ready at once. Start with the read-only candidate list for a small "
-                "trusted-data pilot, then improve prices, fundamentals, DCF fields, and peers only where source proof exists. "
+                "Do not try to make the full universe analysis-ready at once. For a small trusted-data pilot, start with the status gate. Run project status first, then open the read-only "
+                "candidate list only when executable company candidates exist; use the provider setup checklist when source-proof queues are exhausted. "
+                "Improve prices, fundamentals, DCF fields, and peers only where source proof exists. "
                 "Inspect one company packet before applying rows; if source proof is missing, keep the ticker visibly blocked "
                 "and move to the next candidate."
             ),
             "badges": ["trusted data", "pilot"],
-            "command": "make trusted-data-pilot-candidates TOP_N=10",
+            "command": "make project-status",
         },
     ]

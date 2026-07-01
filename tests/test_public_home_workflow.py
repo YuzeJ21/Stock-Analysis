@@ -140,9 +140,10 @@ def test_public_home_next_step_cards_are_copyable_and_readiness_gated():
     assert price_gap_cards[2]["command"] == "make data-wizard TOP_N=10"
     assert price_gap_cards[3]["command"] == "make optional-context-worklist TOP_N=25"
     assert price_gap_cards[4]["command"] == "make readiness && make status-check TOP_N=5"
-    assert price_gap_cards[5]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert price_gap_cards[5]["command"] == "make project-status"
     assert price_gap_cards[5]["title"] == "Improve 5-10 companies first"
-    assert "read-only candidate list" in price_gap_cards[5]["body"]
+    assert "Run project status first" in price_gap_cards[5]["body"]
+    assert "provider setup checklist" in price_gap_cards[5]["body"]
     assert "Inspect one company packet before applying rows" in price_gap_cards[5]["body"]
     assert "keep the ticker visibly blocked" in price_gap_cards[5]["body"]
     assert "make trusted-data-pilot-candidates TOP_N=10" not in price_gap_cards[5]["body"]
