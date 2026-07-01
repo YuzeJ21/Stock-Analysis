@@ -265,6 +265,9 @@ def test_public_release_package_reports_clean_push_path():
     assert "make browser-qa-capture-plan" not in report
     assert "git push origin main" in report
     assert "only when explicitly asked" in report
+    assert "License gate: no root LICENSE file found" in report
+    assert "portfolio/demo only" in report
+    assert "docs/LICENSE_DECISION_GUIDE.md" in report
     assert "investment advice" in report
 
 
@@ -307,6 +310,9 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "git status --short --branch" in report
     assert "git push origin main" in report
     assert "only when explicitly asked" in report
+    assert "License gate: no root LICENSE file found" in report
+    assert "portfolio/demo only" in report
+    assert "docs/LICENSE_DECISION_GUIDE.md" in report
     assert "source proof, validate, preview" in report
     assert "real Streamlit route review" in report
     assert "Research-only guardrail" in report
@@ -358,6 +364,9 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
     assert "Branch status: ## main...origin/main" in report
     assert "Package status: product package pending commit; commit this package before starting another feature slice" in report
+    assert "License gate: no root LICENSE file found" in report
+    assert "portfolio/demo only" in report
+    assert "docs/LICENSE_DECISION_GUIDE.md" in report
     assert "Step 1 - verify before staging" in report
     assert "make public-check" in report
     assert "make pilot-readiness-check TOP_N=10" in report

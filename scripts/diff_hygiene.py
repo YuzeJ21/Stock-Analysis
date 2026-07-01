@@ -178,6 +178,20 @@ def reviewed_screenshot_asset_stage_command() -> str:
     return "git add -- " + " ".join(quote(path) for path in REVIEWED_SCREENSHOT_ASSET_PATHS)
 
 
+def format_license_gate(repo_root: Path | None = None) -> list[str]:
+    root = repo_root or Path(".")
+    if (root / "LICENSE").exists():
+        return [
+            "License gate: root LICENSE file found.",
+            "  Confirm README License wording matches the selected license before public reuse claims.",
+        ]
+    return [
+        "License gate: no root LICENSE file found.",
+        "  Share as portfolio/demo only; do not describe as open source or reusable software until a license is selected.",
+        "  See docs/LICENSE_DECISION_GUIDE.md before adding reuse-rights language.",
+    ]
+
+
 def format_sample_report_review_block(entries: list[StatusEntry], *, limit: int = 30) -> list[str]:
     rows = [
         "Sample reports are evidence-only by default:",
@@ -599,6 +613,8 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
         "Research-only: release packaging must preserve data-readiness gates, not investment advice or execution language.",
         f"Branch status: {branch_status or 'not checked'}",
         "",
+        *format_license_gate(),
+        "",
     ]
     if not entries:
         lines.extend(
@@ -744,6 +760,8 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
         format_count_line("Manual-review paths", manual),
         f"Branch status: {branch_status or 'not checked'}",
         f"Package status: {package_status}",
+        "",
+        *format_license_gate(),
         "",
     ]
     if manual:
