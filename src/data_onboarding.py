@@ -1139,6 +1139,15 @@ def _scoped_import_sequence(ticker: str) -> str:
     )
 
 
+def _scoped_import_review_sequence(ticker: str) -> str:
+    ticker_arg = ticker or "<ticker>"
+    return (
+        f"make imports-validate IMPORT_TICKERS={ticker_arg} -> "
+        f"make imports-preview IMPORT_TICKERS={ticker_arg}; "
+        "apply only after validation passes, preview scope is intended, and rejected rows are zero"
+    )
+
+
 def _action_for_coverage(row: TickerCoverage) -> str:
     if not row.has_prices:
         return _price_action_text(row.ticker)
@@ -2160,7 +2169,7 @@ def build_peer_mapping_queue(
                     "Candidate context only from local classification fallback; not trusted peer proof and not peer valuation input."
                 )
                 next_input_file = "data/imports/peers.csv"
-                validation_sequence = f"make templates -> fill source-backed peers -> {_scoped_import_sequence(coverage.ticker)}"
+                validation_sequence = f"make templates -> fill source-backed peers -> {_scoped_import_review_sequence(coverage.ticker)}"
                 trusted_source_requirement = (
                     "Each row needs ticker, peer_ticker, peer_group, source, and as_of_date from a trusted research source; "
                     "do not use sector/theme fallback as trusted manual peer data."
@@ -2179,7 +2188,7 @@ def build_peer_mapping_queue(
                 next_action_summary = "Add at least two trusted, source-backed peer rows; no candidate context is available yet."
                 fallback_context_note = "No candidate context is available; add only source-backed peer mappings."
                 next_input_file = "data/imports/peers.csv"
-                validation_sequence = f"make templates -> fill source-backed peers -> {_scoped_import_sequence(coverage.ticker)}"
+                validation_sequence = f"make templates -> fill source-backed peers -> {_scoped_import_review_sequence(coverage.ticker)}"
                 trusted_source_requirement = (
                     "Each row needs ticker, peer_ticker, peer_group, source, and as_of_date from a trusted research source; "
                     "do not use sector/theme fallback as trusted manual peer data."
@@ -2192,7 +2201,7 @@ def build_peer_mapping_queue(
             candidate_context_count = 0
             candidate_context_peers = ""
             next_input_file = "data/imports/fundamentals.csv, data/imports/prices.csv"
-            validation_sequence = f"make focus-peers TICKER={coverage.ticker} -> add verified peer metrics -> {_scoped_import_sequence(coverage.ticker)}"
+            validation_sequence = f"make focus-peers TICKER={coverage.ticker} -> add verified peer metrics -> {_scoped_import_review_sequence(coverage.ticker)}"
             trusted_source_requirement = (
                 "Existing mappings still need verified peer fundamentals and price context before peer valuation is ready."
             )
@@ -2203,7 +2212,7 @@ def build_peer_mapping_queue(
         example_command = "make templates"
         safe_next_step = (
             "Run make templates, fill only manually researched peers in data/imports/peers.csv, then run "
-            f"{_scoped_import_sequence(coverage.ticker)} before make status refreshes readiness."
+            f"{_scoped_import_review_sequence(coverage.ticker)} before make status refreshes readiness."
         )
         if not coverage.has_peer_mapping and candidate_context_state == "excluded":
             recommended_action = (
@@ -2222,7 +2231,7 @@ def build_peer_mapping_queue(
                 example_command = coverage.example_command
                 safe_next_step = "Finish the peer-data import file follow-through for this mapped peer set before relying on peer-relative valuation."
                 next_input_file = target_file
-                validation_sequence = f"{_scoped_import_sequence(coverage.ticker)} -> make status"
+                validation_sequence = f"{_scoped_import_review_sequence(coverage.ticker)} -> make status"
             else:
                 recommended_action, target_file, focus_command, example_command = _peer_support_follow_through(
                     coverage.ticker,

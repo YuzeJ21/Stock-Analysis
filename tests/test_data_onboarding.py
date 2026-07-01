@@ -1044,7 +1044,10 @@ def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
     assert "make templates" in queue["AMD"]["safe_next_step"]
     assert "make imports-validate" in queue["AMD"]["safe_next_step"]
     assert "make imports-preview" in queue["AMD"]["safe_next_step"]
-    assert "make imports-apply" in queue["AMD"]["safe_next_step"]
+    assert "make imports-apply" not in queue["AMD"]["safe_next_step"]
+    assert "apply only after validation passes" in queue["AMD"]["safe_next_step"]
+    assert "make imports-apply" not in queue["AMD"]["validation_sequence"]
+    assert "apply only after validation passes" in queue["AMD"]["validation_sequence"]
 
 
 def test_peer_mapping_queue_labels_sector_theme_matches_as_candidate_context_only(tmp_path: Path):
