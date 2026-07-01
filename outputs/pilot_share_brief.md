@@ -4,7 +4,7 @@
 
 Use this as research-only product evidence. It summarizes what can be shown now, what is blocked by missing proof, and what must stay out of a share package.
 
-## Current Pilot State: blocked
+## Current Pilot State: pilot-ready with manual gates
 
 ## What can be used now
 
