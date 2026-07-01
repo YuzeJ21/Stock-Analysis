@@ -19074,6 +19074,15 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
         "Trusted analyst-estimate CSV rows that pass validation, preview, and optional-context readiness.",
         "Current app screenshot evidence plus public-check; data freshness still comes from readiness commands.",
     ]
+    assert dict(zip(frame["lane"], frame["operator_step"], strict=True)) == {
+        "Metadata / identity": "make trusted-data-pilot-packet TICKER=<ticker>",
+        "Price / setup": "make status-check TOP_N=5",
+        "Fundamentals / DCF": "make project-status",
+        "Peers": "make project-status",
+        "Earnings": "make project-status",
+        "Analyst estimates": "make project-status",
+        "Proof / demo evidence": "make browser-qa-evidence",
+    }
     assert list(frame["stop_rule"]) == [
         "Stop before analysis if only metadata evidence exists.",
         "Stop if price rows are missing, too short, stale, or unreviewed.",

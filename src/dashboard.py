@@ -8817,7 +8817,7 @@ def data_health_coverage_summary_frame(
             "why_blocked_or_limited": "Missing trusted fundamentals, shares, or DCF inputs keep valuation withheld.",
             "proof_to_unlock": "Validated fundamentals imports, preview, rejected-row review, apply decision, and rebuilt readiness.",
             "stop_rule": "Stop if any required DCF input is missing or not source-backed.",
-            "operator_step": "make trusted-data-pilot-candidates TOP_N=10",
+            "operator_step": "make project-status",
         },
         {
             "lane": "Peers",
@@ -8830,7 +8830,7 @@ def data_health_coverage_summary_frame(
             "why_blocked_or_limited": "Candidate peers are context only; trusted peers need source-backed mappings plus trusted peer inputs.",
             "proof_to_unlock": "Reviewed trusted peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
             "stop_rule": "Stop if candidate peers are promoted to trusted peers or mapped-peer inputs are missing.",
-            "operator_step": "make peer-mapping-queue TOP_N=25",
+            "operator_step": "make project-status",
         },
         {
             "lane": "Earnings",
@@ -8843,7 +8843,7 @@ def data_health_coverage_summary_frame(
             "why_blocked_or_limited": "Trusted local earnings rows have not been reviewed for most tickers.",
             "proof_to_unlock": "Trusted earnings CSV rows that pass validation, preview, and optional-context readiness.",
             "stop_rule": "Stop if rows are empty, stale, or not trusted local evidence.",
-            "operator_step": "make optional-context-worklist TOP_N=10",
+            "operator_step": "make project-status",
         },
         {
             "lane": "Analyst estimates",
@@ -8856,7 +8856,7 @@ def data_health_coverage_summary_frame(
             "why_blocked_or_limited": "Trusted local analyst-estimate rows have not been reviewed for most tickers.",
             "proof_to_unlock": "Trusted analyst-estimate CSV rows that pass validation, preview, and optional-context readiness.",
             "stop_rule": "Stop if estimates are absent, scraped without review, or treated as a recommendation.",
-            "operator_step": "make optional-context-worklist TOP_N=10",
+            "operator_step": "make project-status",
         },
         {
             "lane": "Proof / demo evidence",
