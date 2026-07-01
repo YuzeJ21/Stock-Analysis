@@ -361,6 +361,27 @@ def _reviewed_non_actionable_pilot_tickers(root: Path) -> set[str]:
     return tickers
 
 
+def _reviewed_non_actionable_pilot_summary(root: Path) -> str:
+    rows = _read_csv(root / "data" / "reviewed_batch_proofs.csv")
+    relevant_lanes = {"fundamentals", "fundamentals_dcf", "share_count"}
+    non_actionable = {"candidate_context_only", "still_blocked", "skipped", "excluded"}
+    reviewed_rows = [
+        row
+        for row in rows
+        if _clean(row.get("lane"), "").lower() in relevant_lanes
+        and _clean(row.get("final_outcome"), "").lower() in non_actionable
+    ]
+    if not reviewed_rows:
+        return ""
+    tickers = sorted(_reviewed_non_actionable_pilot_tickers(root))
+    sample = ", ".join(tickers[:5]) if tickers else "current proof rows"
+    return (
+        f"{len(reviewed_rows)} reviewed non-actionable fundamentals/share-count outcome(s) "
+        f"already cover {sample}. Wait for new provider data, keyed sources, reviewed manual source rows, "
+        "or changed blockers before repeating those same proof paths."
+    )
+
+
 def _csv_ticker_set(path: Path) -> set[str]:
     rows = _read_csv(path)
     return {
@@ -1281,9 +1302,17 @@ def render_trusted_data_pilot_candidates(
         "",
     ]
     if not candidates:
+        reviewed_context = _reviewed_non_actionable_pilot_summary(root) if root is not None else ""
         lines.extend(
             [
                 "No operating-company pilot candidates matched the current filters.",
+                *([reviewed_context] if reviewed_context else []),
+                (
+                    "Next proof check: make dcf-input-proof-queue TOP_N=10. "
+                    "Use make session-source-preflight before trying new source rows."
+                    if reviewed_context
+                    else "Next proof check: make dcf-input-proof-queue TOP_N=10."
+                ),
                 "ETF/index monitor examples such as QQQ and SMH remain useful demos, but they are not company DCF pilot targets.",
                 "Try: make trusted-data-pilot-candidates TOP_N=10",
             ]

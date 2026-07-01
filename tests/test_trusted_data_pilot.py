@@ -1516,6 +1516,26 @@ def test_load_trusted_data_pilot_candidates_skips_reviewed_non_actionable_fundam
     assert [candidate.ticker for candidate in candidates] == ["ABOS"]
 
 
+def test_render_trusted_data_pilot_candidates_explains_exhausted_reviewed_blockers(tmp_path):
+    _write_text(
+        tmp_path / "data" / "reviewed_batch_proofs.csv",
+        "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,"
+        "pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,"
+        "generated_artifacts_reviewed,final_outcome,notes\n"
+        "RB-AEC,2026-07-01,local reviewer,fundamentals,reviewed ticker scope,AEC,cmd,valid,preview,not_applied,"
+        "before,after,none,none,data/imports/fundamentals.csv,excluded,still_blocked,missing source-backed fundamentals bundle\n",
+    )
+
+    rendered = render_trusted_data_pilot_candidates([], root=tmp_path).lower()
+
+    assert "no operating-company pilot candidates matched the current filters" in rendered
+    assert "reviewed non-actionable fundamentals/share-count outcome" in rendered
+    assert "new provider data, keyed sources, reviewed manual source rows, or changed blockers" in rendered
+    assert "make dcf-input-proof-queue top_n=10" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_render_trusted_data_pilot_candidates_uses_local_review_path_when_sec_unavailable(tmp_path):
     candidate = build_trusted_data_pilot_candidates(
         [
