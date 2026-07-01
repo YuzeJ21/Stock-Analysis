@@ -797,6 +797,14 @@ def _provider_setup_checklist_rows() -> list[list[object]]:
     return rows
 
 
+def _provider_activation_plan_lines() -> list[str]:
+    checklist = build_provider_setup_checklist()
+    steps = checklist.get("activation_plan", [])
+    if not isinstance(steps, list) or not steps:
+        return ["- Run `make project-status` before reopening broad proof loops."]
+    return [f"- {step}" for step in steps]
+
+
 def _share_brief_provider_setup_lines() -> list[str]:
     checklist = build_provider_setup_checklist()
     lines = [
@@ -919,6 +927,10 @@ def render_pilot_readiness_packet(
         "## Provider Setup Checklist",
         "",
         "Use `make provider-setup-checklist` for the current checklist-style setup view. Real key values are never printed.",
+        "",
+        "### Provider Activation Plan",
+        "",
+        *_provider_activation_plan_lines(),
         "",
         *_markdown_table(
             ["Provider", "Setup state", "Unlock lanes", "Usage", "Smoke command", "Cannot unlock", "Safe next step"],

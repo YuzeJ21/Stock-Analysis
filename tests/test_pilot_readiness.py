@@ -453,6 +453,9 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Source-Proof Queue Summary" in body
     assert "Provider Setup Checklist" in body
     assert "make provider-setup-checklist" in body
+    assert "Provider Activation Plan" in body
+    assert "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops." in body
+    assert "Run that provider's one-ticker smoke command only; do not start a broad batch from setup." in body
     assert "| Provider | Setup state | Unlock lanes | Usage | Smoke command | Cannot unlock | Safe next step |" in body
     assert "FMP free tier" in body
     assert "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in body
