@@ -38,17 +38,17 @@ Leave IBKR unset unless you intentionally run IBKR Gateway/TWS for read-only dai
 
 ## Provider Capabilities
 
-| Source | Setup | Can help cover | Cannot unlock by itself |
-| --- | --- | --- | --- |
-| SEC Companyfacts | `SEC_USER_AGENT` | fundamentals, share count when explicit facts exist | peers, earnings estimates, recommendations |
-| SEC submissions | `SEC_USER_AGENT` | CIK, entity, SIC, filing recency metadata only | DCF, valuation, earnings, analyst estimates |
-| SEC filing documents | `SEC_USER_AGENT` | explicit filing-document share count facts | inferred shares, revenue, free cash flow |
-| Stooq | no key or `STOOQ_API_KEY` if required | price daily OHLCV | fundamentals, share count, peers |
-| Yahoo/yfinance | optional dependency | price, provider-assisted fundamentals, optional context | trusted proof without validate/preview/apply |
-| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | full-universe refresh without caps |
-| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | full-universe refresh without caps |
-| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | full-universe refresh without caps |
-| IBKR read-only | `IBKR_HOST`, `IBKR_PORT`, `IBKR_CLIENT_ID` | price read-only daily OHLCV | fundamentals, recommendations, broker actions |
+| Source | Setup | Can help cover | Batch policy | Cannot unlock by itself |
+| --- | --- | --- | --- | --- |
+| SEC Companyfacts | `SEC_USER_AGENT` | fundamentals, share count when explicit facts exist | not applicable | peers, earnings estimates, recommendations |
+| SEC submissions | `SEC_USER_AGENT` | CIK, entity, SIC, filing recency metadata only | not applicable | DCF, valuation, earnings, analyst estimates |
+| SEC filing documents | `SEC_USER_AGENT` | explicit filing-document share count facts | not applicable | inferred shares, revenue, free cash flow |
+| Stooq | no key or `STOOQ_API_KEY` if required | price daily OHLCV | not applicable | fundamentals, share count, peers |
+| Yahoo/yfinance | optional dependency | price, provider-assisted fundamentals, optional context | not applicable | trusted proof without validate/preview/apply |
+| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | <=250 requests/day; <=25 tickers/run | full-universe refresh without caps |
+| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | <=25 requests/day; <=5 tickers/run | full-universe refresh without caps |
+| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | <=60 requests/day; <=10 tickers/run | full-universe refresh without caps |
+| IBKR read-only | `IBKR_HOST`, `IBKR_PORT`, `IBKR_CLIENT_ID` | price read-only daily OHLCV | not applicable | fundamentals, recommendations, broker actions |
 
 Free-tier fallbacks are capped by product policy and should be treated as small batch sources, not full-universe coverage switches:
 

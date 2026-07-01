@@ -525,9 +525,14 @@ def test_source_activation_guide_documents_provider_setup_without_real_keys():
     assert "fundamentals" in guide
     assert "share count" in guide
     assert "metadata only" in guide
+    assert "| Source | Setup | Can help cover | Batch policy | Cannot unlock by itself |" in guide
     assert "broad unlimited refresh" not in guide.lower()
     assert "unlimited batch coverage" not in guide.lower()
+    assert "full-universe refresh without caps" in guide
     assert "FMP free tier" in guide and "small batch" in guide
+    assert "| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | <=250 requests/day; <=25 tickers/run | full-universe refresh without caps |" in guide
+    assert "| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | <=25 requests/day; <=5 tickers/run | full-universe refresh without caps |" in guide
+    assert "| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | <=60 requests/day; <=10 tickers/run | full-universe refresh without caps |" in guide
     assert "Alpha Vantage free tier" in guide and "25 requests/day" in guide
     assert "Finnhub free tier" in guide and "60 requests/day" in guide
     assert "not investment advice" in guide
