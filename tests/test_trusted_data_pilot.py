@@ -1122,16 +1122,17 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" not in rendered
     assert "Trusted input target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." not in rendered
-    assert "Validate/apply only reviewed rows: make imports-validate IMPORT_TICKERS=META && make imports-preview IMPORT_TICKERS=META && make imports-apply IMPORT_TICKERS=META" in rendered
-    assert "make imports-validate IMPORT_TICKERS=META && make imports-preview IMPORT_TICKERS=META && make imports-apply IMPORT_TICKERS=META" in rendered
+    assert "Validate/apply only reviewed rows: make imports-validate IMPORT_TICKERS=META && make imports-preview IMPORT_TICKERS=META && make imports-apply IMPORT_TICKERS=META" not in rendered
+    assert "5. Validate and preview first: make imports-validate IMPORT_TICKERS=META && make imports-preview IMPORT_TICKERS=META" in rendered
+    assert "7. Apply only if the gate passes: make imports-apply IMPORT_TICKERS=META" in rendered
     assert "2. make trusted-data-pilot-packet TICKER=META" in rendered
     assert "3. Review the lane blocker: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
     assert "4. Prepare trusted rows only if the source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
-    assert "7. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
+    assert "8. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
     assert "Evidence expectation: Evidence required: before report, lane review output" not in rendered
     assert "Do not call META available until the rebuilt report proves the lane changed." not in rendered
-    assert "8. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
+    assert "9. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "8. make stock-report-md" not in rendered
     assert "QQQ and SMH are excluded from this company pilot list" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
@@ -1192,7 +1193,7 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
     )
     assert "Decision gate: Decision gate:" not in rendered
     assert "leave peer valuation blocked and show peer context only when supported" not in rendered
-    assert "7. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
+    assert "8. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
     assert "8. make readiness && make dcf-readiness" not in rendered
     assert "sector or industry fallback" not in rendered.lower()
 
@@ -1388,12 +1389,13 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "2. Before report: make stock-report-md TICKER=CRDO" in rendered
     assert "3. Focused blocker check: make focus-fundamentals TICKER=CRDO" in rendered
     assert "4. Prepare or stage trusted rows only if source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
-    assert "5. Validate/apply only reviewed rows: make imports-validate IMPORT_TICKERS=CRDO && make imports-preview IMPORT_TICKERS=CRDO && make imports-apply IMPORT_TICKERS=CRDO" in rendered
+    assert "5. Validate and preview first: make imports-validate IMPORT_TICKERS=CRDO && make imports-preview IMPORT_TICKERS=CRDO" in rendered
     assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
+    assert "7. Apply only if the gate passes: make imports-apply IMPORT_TICKERS=CRDO" in rendered
     assert "make readiness && make dcf-readiness && make stock-report-md TICKER=CRDO" in rendered
-    assert "7. Rebuild proof and after report:" in rendered
+    assert "8. Rebuild proof and after report:" in rendered
     assert "8. After report:" not in rendered
-    assert "8. Record the evidence row and keep any remaining blocker visible." in rendered
+    assert "9. Record the evidence row and keep any remaining blocker visible." in rendered
     assert "Evidence required: before report, lane review output, trusted source row or source note" in rendered
     assert "Do not call CRDO available until the rebuilt report proves the lane changed." in rendered
     assert "Evidence table row to record:" in rendered
