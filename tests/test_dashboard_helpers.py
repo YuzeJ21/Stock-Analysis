@@ -11993,7 +11993,7 @@ def test_data_health_controlled_pilot_outcome_cards_use_reviewed_batch_ledger():
     assert "5 / 5 minimum reviewed ticker outcome" in rendered
     assert "controlled pilot can exit" in rendered
     assert "not a coverage unlock" in rendered
-    assert "make trusted-data-pilot-candidates top_n=10" in rendered
+    assert "make pilot-readiness-packet output=outputs/pilot_readiness_packet.md" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

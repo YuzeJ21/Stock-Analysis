@@ -220,6 +220,7 @@ def test_controlled_pilot_outcome_tracker_counts_reviewed_ticker_outcomes():
 
     assert frame.iloc[0]["Status"] == "pilot_exit_ready"
     assert frame.iloc[0]["Answer"] == "5 / 5 minimum reviewed ticker outcome(s)"
+    assert frame.iloc[0]["Next Safe Action"] == "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md"
     assert "supported=1" in frame.iloc[1]["Evidence"]
     assert "candidate_context_only=1" in frame.iloc[1]["Evidence"]
     assert "still_blocked=1" in frame.iloc[1]["Evidence"]
@@ -244,7 +245,8 @@ def test_controlled_pilot_outcome_tracker_stays_open_until_five_tickers():
 
     assert frame.iloc[0]["Status"] == "needs_more_packets"
     assert frame.iloc[0]["Answer"] == "2 / 5 minimum reviewed ticker outcome(s)"
-    assert "run the next trusted-data pilot packet" in rendered
+    assert frame.iloc[0]["Next Safe Action"] == "make project-status"
+    assert "provider setup" in rendered
     assert "do not call unsupported lanes ready" in rendered
 
 

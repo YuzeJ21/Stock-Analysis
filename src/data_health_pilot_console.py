@@ -134,6 +134,10 @@ def controlled_pilot_outcome_frame(
         count_answer = f"{reviewed_count} reviewed ticker outcome(s); select {target_min} to {target_max} for this pilot"
     else:
         count_answer = f"{reviewed_count} / {target_min} minimum reviewed ticker outcome(s)"
+    if status == "pilot_exit_ready":
+        next_packet_action = "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md"
+    else:
+        next_packet_action = "make project-status"
     outcome_counts = reviewed["_outcome"].value_counts().to_dict() if not reviewed.empty else {}
     outcome_mix = ", ".join(
         f"{outcome}={int(outcome_counts[outcome])}"
@@ -163,13 +167,16 @@ def controlled_pilot_outcome_frame(
                     (
                         "Select a 5 to 10 company pilot set from reviewed outcomes before calling the controlled pilot complete. "
                         if status == "pilot_scope_review"
-                        else "Run the next trusted-data pilot packet; do not call unsupported lanes ready. "
+                        else (
+                            "Run project-status first; use provider setup when source-proof queues are exhausted; "
+                            "do not call unsupported lanes ready. "
+                        )
                     )
                     + f"Reviewed tickers: {', '.join(unique_tickers[:target_max]) or '-'}. "
                     + f"Ignored broad/non-pilot proof rows: {ignored_rows}."
                 )
             ),
-            "Next Safe Action": "make trusted-data-pilot-candidates TOP_N=10",
+            "Next Safe Action": next_packet_action,
             "Stop Rule": "Pilot outcome counts are not a coverage unlock; source-proof gates still control every lane.",
         },
         {
