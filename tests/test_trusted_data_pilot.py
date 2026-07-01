@@ -1758,6 +1758,14 @@ def test_render_trusted_data_pilot_board_summarizes_batch_without_writing_files(
     assert "recommend" not in rendered.lower()
 
 
+def test_render_trusted_data_pilot_board_empty_state_avoids_candidate_retry_loop(tmp_path):
+    rendered = render_trusted_data_pilot_board([], root=tmp_path).lower()
+
+    assert "no operating-company pilot candidates matched the current filters" in rendered
+    assert "next source setup check: make session-source-preflight" in rendered
+    assert "next command: make trusted-data-pilot-candidates" not in rendered
+
+
 def test_render_trusted_data_pilot_lane_prints_ordered_evidence_summary_without_writing_files(tmp_path):
     candidates = build_trusted_data_pilot_candidates(
         [

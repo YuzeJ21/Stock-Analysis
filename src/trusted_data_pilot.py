@@ -1599,7 +1599,7 @@ def render_trusted_data_pilot_board(
         lines.extend(
             [
                 "No operating-company pilot candidates matched the current filters.",
-                "Next command: make trusted-data-pilot-candidates TOP_N=10",
+                "Next source setup check: make session-source-preflight",
             ]
         )
         return "\n".join(lines)
