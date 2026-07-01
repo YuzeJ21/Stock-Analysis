@@ -208,8 +208,8 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
         str(checklist["research_boundary"]),
         str(checklist["secret_policy"]),
         "",
-        "Provider | Setup state | Unlock lanes | Usage | Batch policy | Safe next step",
-        "--- | --- | --- | --- | --- | ---",
+        "Provider | Setup state | Unlock lanes | Usage | Batch policy | Cannot unlock | Safe next step",
+        "--- | --- | --- | --- | --- | --- | ---",
     ]
     for row in checklist["rows"]:
         lines.append(
@@ -220,6 +220,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                     str(row["unlock_lanes"]),
                     str(row["usage"]),
                     str(row.get("batch_policy") or "not_applicable"),
+                    str(row["cannot_unlock"]),
                     str(row["safe_next_step"]),
                 ]
             )

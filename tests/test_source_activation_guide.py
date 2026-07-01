@@ -76,12 +76,16 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert rows["IBKR read-only"]["safe_next_step"] == (
         "Leave disabled unless intentionally using read-only daily OHLCV."
     )
+    assert rows["SEC submissions"]["cannot_unlock"] == (
+        "DCF, valuation, earnings, analyst estimates, or share count unless a filing document has an explicit fact."
+    )
     assert checklist["secret_policy"] == "Real key values are never printed."
     assert "secret-fmp-key" not in json.dumps(checklist)
     assert "secret-fmp-key" not in rendered
     assert "FMP free tier | configured | price, fundamentals, share_count" in rendered
     assert "Alpha Vantage free tier | needs_key" in rendered
-    assert "Provider | Setup state | Unlock lanes | Usage | Batch policy | Safe next step" in rendered
+    assert "Provider | Setup state | Unlock lanes | Usage | Batch policy | Cannot unlock | Safe next step" in rendered
+    assert "SEC submissions | available | metadata | metadata_evidence_only | not_applicable | DCF, valuation, earnings, analyst estimates, or share count unless a filing document has an explicit fact." in rendered
     assert "FMP free tier | configured | price, fundamentals, share_count | keyed_free_tier_fallback | small_batch_only; recommended <=250 requests/day and <=25 tickers/run" in rendered
     assert "Alpha Vantage free tier | needs_key | price, fundamentals, share_count | keyed_free_tier_fallback | small_batch_only; recommended <=25 requests/day and <=5 tickers/run" in rendered
     assert "Finnhub free tier | needs_key | price, fundamentals, share_count | keyed_free_tier_fallback | small_batch_only; recommended <=60 requests/day and <=10 tickers/run" in rendered
