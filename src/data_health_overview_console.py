@@ -525,8 +525,12 @@ def _checklist_next_steps_by_state(rows: list[dict[str, object]], states: set[st
             continue
         provider = _format_missing(row.get("provider"), "Unnamed source")
         next_step = _format_missing(row.get("safe_next_step"), "")
+        smoke_command = _format_missing(row.get("post_setup_smoke_command"), "")
         if next_step:
-            fragments.append(f"{provider}: {next_step}")
+            if smoke_command:
+                fragments.append(f"{provider}: {next_step} Smoke test: {smoke_command}")
+            else:
+                fragments.append(f"{provider}: {next_step}")
     return " | ".join(fragments)
 
 

@@ -33,6 +33,7 @@ def _provider_row(
     cannot_unlock: str,
     setup: str,
     batch_policy: str = "",
+    post_setup_smoke_command: str = "",
 ) -> dict[str, Any]:
     return {
         "provider": provider,
@@ -43,6 +44,7 @@ def _provider_row(
         "cannot_unlock": cannot_unlock,
         "setup": setup,
         "batch_policy": batch_policy,
+        "post_setup_smoke_command": post_setup_smoke_command,
     }
 
 
@@ -59,6 +61,20 @@ def build_source_activation_guide() -> dict[str, Any]:
                 cannot_unlock="Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.",
                 setup=f"Set {env_name} in config/provider_keys.env, then rerun make session-source-preflight.",
                 batch_policy=KEYED_PROVIDER_BATCH_POLICIES[provider],
+                post_setup_smoke_command={
+                    "FMP free tier": (
+                        "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+                        "&& make imports-preview IMPORT_TICKERS=<ticker>"
+                    ),
+                    "Alpha Vantage free tier": (
+                        "make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+                        "&& make imports-preview IMPORT_TICKERS=<ticker>"
+                    ),
+                    "Finnhub free tier": (
+                        "make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+                        "&& make imports-preview IMPORT_TICKERS=<ticker>"
+                    ),
+                }[provider],
             )
         )
 
@@ -99,6 +115,7 @@ def build_source_activation_guide() -> dict[str, Any]:
             usage="free_public_daily_ohlcv",
             cannot_unlock="Fundamentals, shares, peers, earnings, estimates, or valuation inputs.",
             setup="Use PROVIDER=auto; set STOOQ_API_KEY only if unauthenticated Stooq access is unavailable.",
+            post_setup_smoke_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=1 TOP_N=1 PROVIDER=stooq",
         ),
         _provider_row(
             "Yahoo/yfinance",
@@ -118,6 +135,7 @@ def build_source_activation_guide() -> dict[str, Any]:
             usage="read_only_daily_ohlcv",
             cannot_unlock="Broker actions, order routing, auto-trading, fundamentals, shares, peers, earnings, or estimates.",
             setup="Leave disabled unless IBKR Gateway/TWS is intentionally running for read-only daily bars.",
+            post_setup_smoke_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=1 TOP_N=1 PROVIDER=ibkr",
         ),
     ]
 
@@ -190,6 +208,7 @@ def build_provider_setup_checklist() -> dict[str, Any]:
                 "batch_policy": row.get("batch_policy", ""),
                 "cannot_unlock": row["cannot_unlock"],
                 "safe_next_step": _safe_next_step_for_provider(row),
+                "post_setup_smoke_command": row.get("post_setup_smoke_command", ""),
             }
         )
     return {
@@ -220,8 +239,8 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
     )
     lines.extend(
         [
-        "Provider | Setup state | Unlock lanes | Usage | Batch policy | Cannot unlock | Safe next step",
-        "--- | --- | --- | --- | --- | --- | ---",
+        "Provider | Setup state | Unlock lanes | Usage | Batch policy | Smoke command | Cannot unlock | Safe next step",
+        "--- | --- | --- | --- | --- | --- | --- | ---",
         ]
     )
     for row in checklist["rows"]:
@@ -233,6 +252,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                     str(row["unlock_lanes"]),
                     str(row["usage"]),
                     str(row.get("batch_policy") or "not_applicable"),
+                    str(row.get("post_setup_smoke_command") or "not_applicable"),
                     str(row["cannot_unlock"]),
                     str(row["safe_next_step"]),
                 ]
@@ -268,6 +288,8 @@ def render_source_activation_guide(guide: dict[str, Any]) -> str:
         lines.append(f"  setup: {row['setup']}")
         if row.get("batch_policy"):
             lines.append(f"  batch_policy: {row['batch_policy']}")
+        if row.get("post_setup_smoke_command"):
+            lines.append(f"  post_setup_smoke_command: {row['post_setup_smoke_command']}")
         lines.append(f"  cannot_unlock: {row['cannot_unlock']}")
     lines.append("")
     lines.append("Validate / preview / apply gate:")

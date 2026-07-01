@@ -38,17 +38,17 @@ Leave IBKR unset unless you intentionally run IBKR Gateway/TWS for read-only dai
 
 ## Provider Capabilities
 
-| Source | Setup | Can help cover | Batch policy | Cannot unlock by itself |
-| --- | --- | --- | --- | --- |
-| SEC Companyfacts | `SEC_USER_AGENT` | fundamentals, share count when explicit facts exist | not applicable | peers, earnings estimates, recommendations |
-| SEC submissions | `SEC_USER_AGENT` | CIK, entity, SIC, filing recency metadata only | not applicable | DCF, valuation, earnings, analyst estimates |
-| SEC filing documents | `SEC_USER_AGENT` | explicit filing-document share count facts | not applicable | inferred shares, revenue, free cash flow |
-| Stooq | no key or `STOOQ_API_KEY` if required | price daily OHLCV | not applicable | fundamentals, share count, peers |
-| Yahoo/yfinance | optional dependency | price, provider-assisted fundamentals, optional context | not applicable | trusted proof without validate/preview/apply |
-| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | <=250 requests/day; <=25 tickers/run | full-universe refresh without caps |
-| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | <=25 requests/day; <=5 tickers/run | full-universe refresh without caps |
-| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | <=60 requests/day; <=10 tickers/run | full-universe refresh without caps |
-| IBKR read-only | `IBKR_HOST`, `IBKR_PORT`, `IBKR_CLIENT_ID` | price read-only daily OHLCV | not applicable | fundamentals, recommendations, broker actions |
+| Source | Setup | Can help cover | Batch policy | Smoke command | Cannot unlock by itself |
+| --- | --- | --- | --- | --- | --- |
+| SEC Companyfacts | `SEC_USER_AGENT` | fundamentals, share count when explicit facts exist | not applicable | `make session-source-preflight` | peers, earnings estimates, recommendations |
+| SEC submissions | `SEC_USER_AGENT` | CIK, entity, SIC, filing recency metadata only | not applicable | `make session-source-preflight` | DCF, valuation, earnings, analyst estimates |
+| SEC filing documents | `SEC_USER_AGENT` | explicit filing-document share count facts | not applicable | `make session-source-preflight` | inferred shares, revenue, free cash flow |
+| Stooq | no key or `STOOQ_API_KEY` if required | price daily OHLCV | not applicable | `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=1 TOP_N=1 PROVIDER=stooq` | fundamentals, share count, peers |
+| Yahoo/yfinance | optional dependency | price, provider-assisted fundamentals, optional context | not applicable | `make session-source-preflight` | trusted proof without validate/preview/apply |
+| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | <=250 requests/day; <=25 tickers/run | `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>` | full-universe refresh without caps |
+| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | <=25 requests/day; <=5 tickers/run | `make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>` | full-universe refresh without caps |
+| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | <=60 requests/day; <=10 tickers/run | `make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>` | full-universe refresh without caps |
+| IBKR read-only | `IBKR_HOST`, `IBKR_PORT`, `IBKR_CLIENT_ID` | price read-only daily OHLCV | not applicable | `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=1 TOP_N=1 PROVIDER=ibkr` | fundamentals, recommendations, broker actions |
 
 Free-tier fallbacks are capped by product policy and should be treated as small batch sources, not full-universe coverage switches:
 
@@ -56,7 +56,7 @@ Free-tier fallbacks are capped by product policy and should be treated as small 
 - Alpha Vantage free tier: recommended <=25 requests/day and <=5 tickers/run.
 - Finnhub free tier: recommended <=60 requests/day and <=10 tickers/run.
 
-Start with `make session-source-preflight`, then use the lane-specific dry-run/validate/preview/apply gates.
+Start with `make session-source-preflight`, then run only the one-source smoke command before any broad batch. Smoke commands stage or dry-run only; they still require validate, preview, rejected-row review, and an intentional apply decision before data can change readiness.
 
 Optional earnings and analyst-estimate rows have an extra boundary. Provider-assisted rows may supply only earnings timing or price-target context. Those rows can be recorded as `candidate_context_only`, but they do not unlock the full optional readiness lane unless the row also contains the required earnings metrics or EPS/revenue estimate fields. Price-target context is research context only and must not be rendered as a recommendation.
 
