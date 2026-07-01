@@ -2195,6 +2195,8 @@ def test_stock_report_cli_optional_context_source_ladder_writes_import_files(mon
     assert "only after validation passes" in payload["apply_gate_boundary"]
     assert payload["has_staged_changes"] is True
     assert payload["no_apply_needed"] is False
+    assert "do not automatically unlock analysis" in payload["readiness_boundary"]
+    assert "make optional-context-readiness" in payload["readiness_boundary"]
 
 
 def test_stock_report_cli_optional_context_source_ladder_marks_unchanged_rows_no_apply(
@@ -2248,6 +2250,7 @@ def test_stock_report_cli_optional_context_source_ladder_marks_unchanged_rows_no
     assert payload["has_staged_changes"] is False
     assert payload["no_apply_needed"] is True
     assert payload["recommended_next_commands"] == ["make optional-context-readiness"]
+    assert "can validate and still remain locked" in payload["readiness_boundary"]
 
 
 def test_stock_report_cli_optional_context_source_ladder_dry_run_does_not_write_import_files(
@@ -2401,6 +2404,8 @@ def test_stock_report_cli_optional_context_source_ladder_prints_no_apply_for_unc
         os.chdir(previous_cwd)
 
     assert "apply gate: no apply needed" in rendered
+    assert "readiness_boundary:" in rendered
+    assert "can validate and still remain locked" in rendered
     assert "make imports-apply" not in rendered
 
 

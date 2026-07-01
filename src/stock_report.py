@@ -4334,6 +4334,12 @@ def main() -> None:
             **result,
             **write_result,
             "dry_run": bool(args.optional_context_dry_run),
+            "readiness_boundary": (
+                "Valid optional-context import rows do not automatically unlock analysis. "
+                "Optional readiness still requires supported earnings or estimate fields; unchanged, date-only, "
+                "target-only, or otherwise insufficient provider rows can validate and still remain locked. "
+                "Run make optional-context-readiness to confirm."
+            ),
             "recommended_next_commands": (
                 [
                     "make optional-context-source-ladder TICKERS=<resolved_tickers>",
@@ -4384,6 +4390,7 @@ def main() -> None:
                 )
             if payload["warnings"]:
                 print(f"warnings: {'; '.join(payload['warnings'])}")
+            print(f"readiness_boundary: {payload['readiness_boundary']}")
             print("next:")
             for command in payload["recommended_next_commands"]:
                 print(f"- {command}")
