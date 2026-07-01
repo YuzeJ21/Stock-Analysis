@@ -46,6 +46,8 @@ Leave IBKR unset unless you intentionally run IBKR Gateway/TWS for read-only dai
 
 Free-tier fallbacks are capped by product policy. Start with `make session-source-preflight`, then use the lane-specific dry-run/validate/preview/apply gates.
 
+Optional earnings and analyst-estimate rows have an extra boundary. Provider-assisted rows may supply only earnings timing or price-target context. Those rows can be recorded as `candidate_context_only`, but they do not unlock the full optional readiness lane unless the row also contains the required earnings metrics or EPS/revenue estimate fields. Price-target context is research context only and must not be rendered as a recommendation.
+
 ## Non-Retry Rule
 
 If a source path fails in a session, record the reason once and pivot:

@@ -142,7 +142,10 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
                 "make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness"
             ),
             proof_command="make optional-context-readiness && make readiness",
-            source_boundary="Optional provider rows only; empty or unavailable estimates stay locked.",
+            source_boundary=(
+                "Optional provider rows only; earnings timing or price-target-only rows are candidate_context_only "
+                "until earnings metrics or EPS/revenue estimate fields unlock readiness."
+            ),
         ),
     )
 

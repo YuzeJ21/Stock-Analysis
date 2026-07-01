@@ -61,6 +61,9 @@ def test_scheduler_plan_separates_daily_weekly_and_optional_lanes():
     assert "make auto-apply-gate" in rendered
     assert any("peer" in command for command in plan.weekly_commands)
     assert any("optional" in command for command in plan.optional_commands)
+    optional_policy = next(policy for policy in policies if policy.lane == "optional_earnings_estimates")
+    assert "candidate_context_only" in optional_policy.source_boundary
+    assert "EPS/revenue estimate fields" in optional_policy.source_boundary
     assert "research-only" in rendered.lower()
     assert "no broker integration" in rendered.lower()
     assert "auto_supported" in rendered
