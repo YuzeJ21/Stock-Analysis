@@ -1841,6 +1841,12 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Missing trusted rows are a product signal." in data_strategy
     assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
     assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
+    assert "make universe-scope TICKERS=NVDA,META TOP_N=10" in readme
+    assert "make risk-context" in readme
+    assert "make universe-scope TICKERS=NVDA,META TOP_N=10" in data_strategy
+    assert "make risk-context" in data_strategy
+    assert "active, ticker-list, sector/theme, ready-only, and missing-data scopes" in data_strategy
+    assert "liquidity, correlation, and proxy-risk readiness" in data_strategy
     assert "make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1" in data_strategy
     assert "default candidate output is compact" in data_strategy
     assert "row-level proof detail" in data_strategy

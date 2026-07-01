@@ -119,13 +119,15 @@ Optional local proof checks:
 
 ```bash
 make project-status && make data-coverage-proof-queues TOP_N=10
+make universe-scope TICKERS=NVDA,META TOP_N=10
+make risk-context
 make trusted-data-pilot-candidates TOP_N=10  # only when status shows executable company candidates
 make metric-readiness TOP_N=5 BENCHMARK=SPY
 make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKER=CRDO
 make stock-report-md TICKER=SMH && make stock-report-md TICKER=APLD
 ```
 
-The shortest public walkthrough is: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History, with NVDA, META, QQQ, MU, and CRDO available as optional state examples. That shows the core idea quickly: the product can filter candidates by readiness, analyze ready data, explain blocked data, exclude methods that do not apply, show peer-limited DCF, and print the trusted-data proof path without pretending missing rows exist.
+The shortest public walkthrough is: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History, with NVDA, META, QQQ, MU, and CRDO available as optional state examples. That shows the core idea quickly: the product can filter candidates by readiness, analyze ready data, explain blocked data, separate master/active/ready/missing-data scopes, show liquidity/correlation context without turning it into a conclusion, exclude methods that do not apply, show peer-limited DCF, and print the trusted-data proof path without pretending missing rows exist.
 
 Example map:
 
