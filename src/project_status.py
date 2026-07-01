@@ -182,6 +182,10 @@ def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
     step = str(row.get("Step") or "")
     reason = str(row.get("Reason") or "")
     freshness = str(row.get("FreshnessContext") or "")
+    command = str(row.get("Command") or "").strip()
+    if command == "make project-status" and "workflow evidence" in step.lower():
+        row.update(_workflow_evidence_command_row())
+        return row
     if step:
         row["Step"] = (
             step.replace("Review import drafts", "Review import files")
@@ -818,15 +822,17 @@ def _trusted_data_pilot_command_row() -> dict[str, str]:
 
 def _workflow_evidence_command_row() -> dict[str, str]:
     return _command_row(
-        "Review workflow evidence",
-        "make project-status",
+        "Review source setup guide",
+        "make source-activation-guide",
         (
             "Current source-proof queues have no unreviewed executable company candidates. "
-            "Review the workflow/status evidence and wait for new provider data, keyed sources, "
-            "reviewed manual rows, or changed blockers before repeating the trusted-data pilot loop."
+            "Review provider setup, source boundaries, and validate/preview/apply gates before repeating "
+            "the trusted-data pilot loop."
         ),
-        source_context="project status, proof ledger, and source preflight",
-        freshness_context="workflow evidence only; no import/apply step is available from the current queue",
+        source_context="source activation guide, project status, proof ledger, and source preflight",
+        freshness_context=(
+            "source setup evidence only; no import/apply step is available from the current queue"
+        ),
     )
 
 
@@ -1454,7 +1460,14 @@ def _print_human(payload: dict[str, Any]) -> None:
         "- Still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates "
         "stay locked where source-backed rows are missing."
     )
-    if first_command == "make project-status":
+    if first_command == "make source-activation-guide":
+        print(
+            "- Best next proof: make source-activation-guide for provider setup and source-boundary evidence; "
+            "current source-proof queues have no unreviewed executable company candidates, so wait for new "
+            "provider data, keyed sources, reviewed manual rows, or changed blockers before repeating the "
+            "trusted-data pilot loop."
+        )
+    elif first_command == "make project-status":
         print(
             "- Best next proof: make project-status for workflow evidence; current source-proof queues have "
             "no unreviewed executable company candidates, so wait for new provider data, keyed sources, "

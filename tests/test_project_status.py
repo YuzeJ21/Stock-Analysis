@@ -946,7 +946,7 @@ def test_project_status_fast_check_pivots_when_dcf_source_ladder_has_no_unreview
 
     assert payload is not None
     commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
-    assert commands[0] == "make project-status"
+    assert commands[0] == "make source-activation-guide"
     assert "make trusted-data-pilot-candidates TOP_N=10" not in commands
     assert "make focus-fundamentals TICKER=AMD" not in commands
     assert "make runbook-fundamentals-broader" not in commands
@@ -968,9 +968,9 @@ def test_project_status_routes_exhausted_proof_queues_to_workflow_evidence(
 
     assert payload is not None
     commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
-    assert commands[0] == "make project-status"
+    assert commands[0] == "make source-activation-guide"
     assert "make trusted-data-pilot-candidates TOP_N=10" not in commands
-    assert payload["recommended_next_command_rows"][0]["Step"] == "Review workflow evidence"
+    assert payload["recommended_next_command_rows"][0]["Step"] == "Review source setup guide"
     assert payload["top_onboarding_actions"] == []
 
 
@@ -993,7 +993,7 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
                         "can_run_now": ["coverage_workflow_evidence"],
                         "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
                         "avoid_repeating": ["fundamentals_share_count_source_ladder"],
-                        "next_step": "make project-status",
+                        "next_step": "make source-activation-guide",
                         "next_step_reason": "Current blockers already have reviewed non-actionable proof.",
                     }
                 }
@@ -1009,7 +1009,7 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
     project_status._print_human(payload)
     output = capsys.readouterr().out.lower()
 
-    assert "best next proof: make project-status" in output
+    assert "best next proof: make source-activation-guide" in output
     assert "best next proof: make trusted-data-pilot-candidates" not in output
     assert "source setup to unlock more: fmp, alpha_vantage, finnhub" in output
     assert "avoid repeating now: fundamentals_share_count_source_ladder" in output
