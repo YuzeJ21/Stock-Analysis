@@ -133,6 +133,8 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "Commit Package Handoff" in rendered
     assert "Browser QA evidence" in rendered
     assert "License status" in rendered
+    assert "What license boundary applies?" in rendered
+    assert "No root LICENSE file found" in rendered
     assert "do not describe as open source" in rendered
     assert "make browser-qa-evidence" in rendered
     assert "Reviewed asset staging command is available" in rendered
@@ -268,6 +270,7 @@ def test_pilot_handoff_summary_surfaces_reviewer_next_steps(tmp_path: Path, monk
         "What must be reviewed first?",
         "What blocks deeper analysis?",
         "What stays out of staging?",
+        "What license boundary applies?",
         "What should the reviewer run next?",
     ]
     assert "pilot-ready with manual gates" in rendered
@@ -278,6 +281,8 @@ def test_pilot_handoff_summary_surfaces_reviewer_next_steps(tmp_path: Path, monk
     assert "data/reports/*.csv" in rendered
     assert "outputs/*.csv" in rendered
     assert "ticker_readiness_report.previous.csv" in rendered
+    assert "no root license file found" in rendered
+    assert "docs/license_decision_guide.md" in rendered
     assert "make pilot-readiness-packet output=outputs/pilot_readiness_packet.md" in rendered
     assert "not an analysis or recommendation unlock" in rendered
     assert "buy" not in rendered

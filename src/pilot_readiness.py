@@ -528,6 +528,15 @@ def build_pilot_handoff_summary(
     gate_answer = priority.area if priority is not None else "Run pilot readiness check"
     gate_command = priority.command if priority is not None else "make pilot-readiness-check TOP_N=10"
     gate_boundary = priority.stop_rule if priority is not None else "Stop before sharing until the pilot gate has been run."
+    license_check = next((check for check in checks if check.area == "License status"), None)
+    license_status = license_check.status if license_check is not None else "manual"
+    license_answer = license_check.title if license_check is not None else "Review license status"
+    license_command = license_check.command if license_check is not None else "docs/LICENSE_DECISION_GUIDE.md"
+    license_boundary = (
+        license_check.stop_rule
+        if license_check is not None
+        else "Do not claim reuse rights until license status is reviewed."
+    )
 
     if leading_queue is None:
         proof_answer = "Load source-proof queues"
@@ -585,6 +594,13 @@ def build_pilot_handoff_summary(
             answer=churn_answer,
             next_safe_command="make diff-hygiene-summary",
             boundary=churn_boundary,
+        ),
+        PilotHandoffItem(
+            question="What license boundary applies?",
+            status=license_status,
+            answer=license_answer,
+            next_safe_command=license_command,
+            boundary=license_boundary,
         ),
         PilotHandoffItem(
             question="What should the reviewer run next?",
