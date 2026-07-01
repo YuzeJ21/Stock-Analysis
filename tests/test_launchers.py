@@ -480,6 +480,11 @@ def test_operator_guide_documents_local_provider_env_loading():
     assert "FMP_API_KEY=" in example
     assert "ALPHA_VANTAGE_API_KEY=" in example
     assert "FINNHUB_API_KEY=" in example
+    assert "IBKR is optional read-only daily OHLCV and disabled by default" in example
+    assert "IBKR_HOST=" in example
+    assert "IBKR_PORT=" in example
+    assert "IBKR_CLIENT_ID=" in example
+    assert "No broker trading, account actions, order routing, or auto-trading" in example
 
 
 def test_source_activation_guide_documents_provider_setup_without_real_keys():
