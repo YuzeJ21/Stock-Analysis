@@ -243,6 +243,7 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
 
     assert "Universe Preview" in output
     assert "status: ok" in output
+    assert "does not unlock fundamentals, share count, DCF, peer valuation, earnings, analyst estimates, or recommendations" in output
     assert "row_count:" in output
     assert "sources:" in output
     assert "smh: loaded" in output

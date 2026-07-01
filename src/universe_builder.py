@@ -964,6 +964,10 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     print("Universe Preview")
     print("Read-only: this preview does not write, apply, stage, commit, push, or rewrite local universe files.")
     print("Research-only: universe membership is source metadata, not investment advice or a trade instruction.")
+    print(
+        "Boundary: universe membership does not unlock fundamentals, share count, DCF, peer valuation, "
+        "earnings, analyst estimates, or recommendations."
+    )
     print(f"status: {payload.get('status', '-')}")
     print(f"row_count: {summary.get('row_count', 0)}")
     print(
