@@ -78,6 +78,8 @@ def test_decision_proof_queue_translates_decisions_without_recommendations():
     assert "peer-relative valuation" in queue.iloc[0]["what_stays_locked"].lower()
     assert "make peer-mapping-queue top_n=25" in queue.iloc[0]["proof_after_unlock"].lower()
     assert queue.iloc[1]["copy_only_command"] == "make focus-price TICKER=APLD"
+    assert "make price-history-proof-queue top_n=25" in queue.iloc[1]["next_action_summary"].lower()
+    assert "price worklist" not in queue.iloc[1]["next_action_summary"].lower()
     assert queue.iloc[2]["copy_only_command"] == "make stock-report-md TICKER=QQQ"
     assert cards[0]["command"] == "DRY_RUN=1 make decision-proof-queue TOP_N=12"
     assert "what can be reviewed now" in rendered_cards

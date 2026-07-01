@@ -33,6 +33,7 @@ QUEUE_COLUMNS = [
     "data_confidence",
     "what_can_be_reviewed_now",
     "what_stays_locked",
+    "next_action_summary",
     "copy_only_command",
     "proof_after_unlock",
     "source_note",
@@ -131,7 +132,11 @@ def _decision_next_action_summary(row: pd.Series) -> str:
     if blocker == "fundamentals":
         return f"Import trusted fundamentals for {ticker}; use SEC staging workflow when configured or data/imports/fundamentals.csv, then validate and preview."
     if blocker == "price":
-        return "Refresh a capped price worklist before deeper analysis; start with make price-refresh-loop DRY_RUN=1, then review the planned batches."
+        return (
+            "Inspect the price-history proof queue before deeper analysis; start with "
+            "make price-history-proof-queue TOP_N=25, then preview make price-refresh-loop DRY_RUN=1 "
+            "only if a capped provider refresh is still needed."
+        )
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
         return f"Optional context for {ticker} stays unavailable until trusted local CSV rows are staged, validated, previewed, and applied."
     return _compact_reason(row.get("next_best_action"), max_sentences=1, max_chars=180)
@@ -272,6 +277,7 @@ def build_decision_proof_queue_frame(
                 "data_confidence": _format_missing(row.get("data_confidence"), "Not available"),
                 "what_can_be_reviewed_now": _compact_reason(supported, max_sentences=2, max_chars=220),
                 "what_stays_locked": _compact_reason(locked, max_sentences=2, max_chars=220),
+                "next_action_summary": action,
                 "copy_only_command": command,
                 "proof_after_unlock": _decision_next_action_proof(row),
                 "source_note": (
@@ -816,8 +822,8 @@ def _write_markdown(path: Path, queue: pd.DataFrame, freshness: FreshnessStatus)
         f"- Freshness: {freshness.status}",
         f"- Source note: {freshness.message}",
         "",
-        "| Priority | Ticker | Review detail | Main blocker | Copy-only command | Proof after unlock |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Priority | Ticker | Review detail | Main blocker | Next action summary | Copy-only command | Proof after unlock |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for _, row in queue.iterrows():
         lines.append(
@@ -829,6 +835,7 @@ def _write_markdown(path: Path, queue: pd.DataFrame, freshness: FreshnessStatus)
                     "ticker",
                     "decision_subtype",
                     "primary_blocker",
+                    "next_action_summary",
                     "copy_only_command",
                     "proof_after_unlock",
                 ]
