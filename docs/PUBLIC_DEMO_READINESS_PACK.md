@@ -7,6 +7,8 @@ This pack is research-only. It shows readiness states, blocked inputs, and proof
 | Slot | Artifact / command | What it proves |
 | --- | --- | --- |
 | Home | `make dashboard` then open Home | First-screen coverage snapshot and visitor routes. |
+| Status gate | `make project-status` | Current safest proof path, provider setup boundary, and whether company candidates are executable. |
+| Provider setup | `make provider-setup-checklist` | Source setup steps when source-proof queues are exhausted; no imports or generated data are applied. |
 | Data Health lane board | `make readiness-ops-center`, `make coverage-frontier TOP_N=10`, or dashboard `Data Health` | Lane counts, blocker themes, next safe commands, and locked/manual lanes. |
 | Ready report | `make stock-report-md TICKER=NVDA` | Ready company report with local DCF review and source-readiness boundaries. |
 | Blocked report | `make stock-report-md TICKER=META` | Blocked/missing-input report that keeps valuation gated. |

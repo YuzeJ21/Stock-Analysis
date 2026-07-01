@@ -228,7 +228,7 @@ Checked pages and docs:
 - Home: confirmed the demo walkthrough points visitors to `make project-status` first, then `make provider-setup-checklist` when source-proof queues are exhausted, before any ticker-scoped trusted-data pilot checklist.
 - Home: confirmed the next-step cards describe the status gate as read-only and keep the candidate list available only when executable company candidates exist.
 - Portfolio Review: confirmed the page renders plain-language capability and limit cards after Streamlit finishes loading, with review-only wording and no portfolio action instruction.
-- Public docs: confirmed the release checklist and LinkedIn brief explain candidate ranking first, then the selected-company evidence loop.
+- Public docs: confirmed the release checklist and LinkedIn brief explain project status first, provider setup when queues are exhausted, then the selected-company evidence loop only when executable candidates exist.
 
 Boundary checked:
 
@@ -296,7 +296,7 @@ Checked commands and docs:
 
 - Trusted Data Pilot CLI: confirmed `make trusted-data-pilot-candidates TOP_N=10` prints a compact visitor-friendly shortlist, quick path, and short review board instead of a full row-by-row diagnostics wall.
 - Trusted Data Pilot CLI: confirmed `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` remains available for local proof detail, including file status, decision gates, rejected-row paths, and evidence expectations.
-- Public docs: confirmed README, Data Strategy, Public Release Checklist, LinkedIn brief, and `make demo` present compact candidate ranking first, then verbose detail only as an optional follow-up.
+- Public docs: confirmed README, Data Strategy, Public Release Checklist, LinkedIn brief, and `make demo` present compact project-status routing first, then candidate ranking only when executable company candidates exist; verbose detail remains an optional follow-up.
 - Public release flow: confirmed the compact default points to one-company evidence packets before validate/preview gate, apply boundary, and rebuild proof, so visitors see the workflow without needing to import data.
 
 Boundary checked:

@@ -126,7 +126,10 @@ def test_public_demo_readiness_pack_names_required_shareable_artifacts():
 
     assert "Public Demo Readiness Pack" in rendered
     assert "`make dashboard` then open Home" in rendered
-    assert "`make trusted-data-pilot-board` or dashboard `Data Health`" in rendered
+    assert "`make project-status`" in rendered
+    assert "`make provider-setup-checklist`" in rendered
+    assert "when source-proof queues are exhausted" in rendered
+    assert "`make readiness-ops-center`, `make coverage-frontier TOP_N=10`, or dashboard `Data Health`" in rendered
     assert "`make stock-report-md TICKER=NVDA`" in rendered
     assert "`make stock-report-md TICKER=META`" in rendered
     assert "`make stock-report-md TICKER=QQQ`" in rendered
