@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -366,6 +366,16 @@ def _load_remote_text(source_name: str, url: str, loader: SourceLoader) -> tuple
         return None, [f"{source_name}: source fetch failed ({exc}).{fallback_hint}"]
 
 
+def _fallback_loaded_warnings(source_name: str, warnings: Sequence[str]) -> list[str]:
+    normalized: list[str] = []
+    for warning in warnings:
+        text = str(warning)
+        text = text.replace(f"{source_name}: remote source unavailable", f"{source_name}: primary source unavailable")
+        text = text.replace(f"{source_name}: source fetch failed", f"{source_name}: primary source unavailable")
+        normalized.append(text)
+    return normalized
+
+
 def _parse_sp500_source(text: str) -> pd.DataFrame:
     frame = pd.read_csv(StringIO(text))
     frame.columns = _normalize_columns(list(frame.columns))
@@ -552,6 +562,7 @@ def _read_remote_source(
         text, candidate_warnings = _load_remote_text(source_name, candidate_url, loader)
         if text is not None:
             if warnings:
+                warnings = _fallback_loaded_warnings(source_name, warnings)
                 warnings.append(f"{source_name}: using fallback source {candidate_url}.")
             break
         warnings.extend(candidate_warnings)

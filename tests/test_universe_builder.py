@@ -154,6 +154,8 @@ def test_build_universe_preview_uses_smh_fallback_when_primary_source_fails(tmp_
     assert result["sources"][0]["status"] == "loaded"
     assert result["sources"][0]["source_url"] == SOURCE_FALLBACK_URLS["smh"][1]
     assert any("using fallback source" in warning for warning in result["sources"][0]["warnings"])
+    assert any("primary source unavailable" in warning for warning in result["sources"][0]["warnings"])
+    assert not any("remote source unavailable" in warning for warning in result["sources"][0]["warnings"])
     assert set(rows["ticker"]) == {"MU", "NVDA"}
     assert rows.loc[rows["ticker"] == "NVDA", "company_name"].iloc[0] == "NVIDIA Corporation"
     assert rows.loc[rows["ticker"] == "NVDA", "source_detail"].iloc[0] == "SMH weight: 18.16%"
