@@ -70,6 +70,17 @@ make session-source-preflight
 make coverage-frontier TOP_N=10
 ```
 
+## Operator Summary
+
+`make session-source-preflight` also prints `operator_summary` inside the Source Activation Console. Use that compact block before starting a long coverage run:
+
+- `can_run_now` is the lane that is executable in the current session.
+- `needs_setup` lists missing provider keys or optional sources that could unlock more rows.
+- `avoid_repeating` lists source paths or lanes that already have session failure evidence or reviewed non-actionable proof.
+- `next_step` is the exact command to run next.
+
+When `avoid_repeating` names the fundamentals/share-count source ladder, do not run another broad proof loop for that lane until new provider data, keyed sources, reviewed manual rows, or changed blockers appear.
+
 ## Readiness Boundary
 
 Source activation only makes a lane executable. It does not mark data as ready. Rows still need:

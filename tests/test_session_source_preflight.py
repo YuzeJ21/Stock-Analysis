@@ -500,6 +500,13 @@ def test_session_source_preflight_renders_source_activation_console_v2(tmp_path:
     assert console["provider_capabilities"]["sec_submissions"]["usage"] == "metadata_evidence_only"
     assert console["provider_capabilities"]["fmp"]["can_cover"] == ["price", "fundamentals", "share_count"]
     assert console["provider_capabilities"]["ibkr"]["default_state"] == "optional_broker_disabled"
+    assert console["operator_summary"] == {
+        "can_run_now": ["peer_mapping_proof"],
+        "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
+        "avoid_repeating": ["sec", "yfinance_fundamentals"],
+        "next_step": "make coverage-frontier TOP_N=10",
+        "next_step_reason": "Use the next executable lane; unavailable source paths are recorded for this session.",
+    }
 
     rendered = render_session_source_preflight(preflight)
 
@@ -514,6 +521,11 @@ def test_session_source_preflight_renders_source_activation_console_v2(tmp_path:
     assert "provider_capabilities:" in rendered
     assert "sec_submissions: can_cover=metadata usage=metadata_evidence_only" in rendered
     assert "ibkr: can_cover=price usage=read_only_daily_ohlcv default=optional_broker_disabled" in rendered
+    assert "operator_summary:" in rendered
+    assert "can_run_now: peer_mapping_proof" in rendered
+    assert "needs_setup: fmp, alpha_vantage, finnhub" in rendered
+    assert "avoid_repeating: sec, yfinance_fundamentals" in rendered
+    assert "next_step: make coverage-frontier TOP_N=10" in rendered
 
 
 def test_session_source_preflight_distinguishes_reachable_sources_from_actionable_blockers(tmp_path: Path, monkeypatch):
@@ -583,10 +595,18 @@ def test_session_source_preflight_distinguishes_reachable_sources_from_actionabl
     assert actionability["next_action"] == "Wait for new provider data, keyed sources, reviewed manual source rows, or changed blockers before repeating fundamentals/share-count paths."
     assert preflight["source_activation_console_v2"]["next_executable_lane"] == "coverage_workflow_evidence"
     assert preflight["source_activation_console_v2"]["next_executable_command"] == "make project-status"
+    assert preflight["source_activation_console_v2"]["operator_summary"] == {
+        "can_run_now": ["coverage_workflow_evidence"],
+        "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
+        "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+        "next_step": "make project-status",
+        "next_step_reason": "Current fundamentals/share-count blockers already have reviewed non-actionable proof; wait for new source data or improve workflow evidence.",
+    }
     assert "source_actionability:" in rendered
     assert "unreviewed_fundamentals_share_count_candidates: 0" in rendered
     assert "do_not_repeat_without_new_source: yes" in rendered
     assert "next_executable_lane: coverage_workflow_evidence" in rendered
+    assert "avoid_repeating: fundamentals_share_count_source_ladder" in rendered
 
 
 def test_source_actionability_uses_dcf_queue_reviewed_signal(tmp_path: Path, monkeypatch):

@@ -848,6 +848,14 @@ def build_source_activation_console_v2(
     if source_actionability and source_actionability.get("do_not_repeat_without_new_source"):
         next_executable_lane = "coverage_workflow_evidence"
         next_executable_command = "make project-status"
+    avoid_repeating = list(do_not_retry_paths)
+    next_step_reason = "Use the next executable lane; unavailable source paths are recorded for this session."
+    if source_actionability and source_actionability.get("do_not_repeat_without_new_source"):
+        avoid_repeating = ["fundamentals_share_count_source_ladder"]
+        next_step_reason = (
+            "Current fundamentals/share-count blockers already have reviewed non-actionable proof; "
+            "wait for new source data or improve workflow evidence."
+        )
 
     return {
         "free_public_available": source_categories.get("free_public_available", []),
@@ -861,6 +869,13 @@ def build_source_activation_console_v2(
         "provider_capabilities": provider_capabilities,
         "next_executable_lane": next_executable_lane,
         "next_executable_command": next_executable_command,
+        "operator_summary": {
+            "can_run_now": [next_executable_lane],
+            "needs_setup": source_categories.get("paid_or_locked", []),
+            "avoid_repeating": avoid_repeating,
+            "next_step": next_executable_command,
+            "next_step_reason": next_step_reason,
+        },
         "non_retry_rule": "Record unavailable source paths once, then pivot to the next executable lane in this session.",
     }
 
@@ -1244,6 +1259,18 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         non_retry_rule = str(console.get("non_retry_rule", "")).strip()
         if non_retry_rule:
             lines.append(f"  non_retry_rule: {non_retry_rule}")
+        operator_summary = console.get("operator_summary", {})
+        if isinstance(operator_summary, dict) and operator_summary:
+            lines.extend(
+                [
+                    "  operator_summary:",
+                    f"    can_run_now: {', '.join(operator_summary.get('can_run_now', [])) or '-'}",
+                    f"    needs_setup: {', '.join(operator_summary.get('needs_setup', [])) or '-'}",
+                    f"    avoid_repeating: {', '.join(operator_summary.get('avoid_repeating', [])) or '-'}",
+                    f"    next_step: {operator_summary.get('next_step', 'make coverage-frontier TOP_N=10')}",
+                    f"    next_step_reason: {operator_summary.get('next_step_reason', '-')}",
+                ]
+            )
     lines.append(
         "non_blocking_rule: if a remote path is unavailable in this session, record the lane outcome and continue to the next executable lane."
     )

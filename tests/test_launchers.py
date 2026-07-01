@@ -509,6 +509,11 @@ def test_source_activation_guide_documents_provider_setup_without_real_keys():
     assert "metadata only" in guide
     assert "not investment advice" in guide
     assert "REPLACE_WITH" in guide
+    assert "Operator Summary" in guide
+    assert "`can_run_now`" in guide
+    assert "`needs_setup`" in guide
+    assert "`avoid_repeating`" in guide
+    assert "`next_step`" in guide
 
 
 def test_makefile_exposes_optional_context_source_ladder_targets():
