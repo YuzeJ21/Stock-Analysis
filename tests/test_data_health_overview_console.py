@@ -253,6 +253,53 @@ def test_overview_source_activation_setup_cards_show_provider_boundaries():
     assert "sell" not in rendered
 
 
+def test_overview_provider_setup_checklist_cards_show_setup_states():
+    cards = overview_console.provider_setup_checklist_cards(
+        {
+            "secret_policy": "Real key values are never printed.",
+            "rows": [
+                {
+                    "provider": "FMP free tier",
+                    "setup_state": "configured",
+                    "unlock_lanes": "price, fundamentals, share_count",
+                    "usage": "keyed_free_tier_fallback",
+                    "safe_next_step": "Run make session-source-preflight, then dry-run the matching source ladder.",
+                },
+                {
+                    "provider": "Alpha Vantage free tier",
+                    "setup_state": "needs_key",
+                    "unlock_lanes": "price, fundamentals, share_count",
+                    "usage": "keyed_free_tier_fallback",
+                    "safe_next_step": "Set ALPHA_VANTAGE_API_KEY in config/provider_keys.env, then rerun make session-source-preflight.",
+                },
+                {
+                    "provider": "IBKR read-only",
+                    "setup_state": "optional_disabled",
+                    "unlock_lanes": "price",
+                    "usage": "read_only_daily_ohlcv",
+                    "safe_next_step": "Leave disabled unless intentionally using read-only daily OHLCV.",
+                },
+            ],
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "PROVIDER SETUP CHECKLIST",
+        "KEYED FALLBACKS",
+        "OPTIONAL BROKER",
+        "NEXT SAFE STEP",
+    ]
+    assert cards[0]["command"] == "make provider-setup-checklist"
+    assert "fmp free tier: configured" in rendered
+    assert "alpha vantage free tier: needs_key" in rendered
+    assert "ibkr read-only: optional_disabled" in rendered
+    assert "real key values are never printed" in rendered
+    assert "dry-run the matching source ladder" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_freshness_routine_cards_are_dry_run_first():
     cards = overview_console.freshness_routine_cards({"master_universe": 3538, "price_ready": 265})
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()

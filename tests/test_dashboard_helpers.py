@@ -233,6 +233,32 @@ def test_data_health_source_activation_setup_cards_use_guide_without_secrets(mon
     assert "make imports-preview import_tickers=<ticker>" in rendered
 
 
+def test_data_health_provider_setup_checklist_cards_use_checklist_without_secrets(monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "secret-fmp-key")
+    monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+    monkeypatch.delenv("IBKR_HOST", raising=False)
+    monkeypatch.delenv("IBKR_PORT", raising=False)
+    monkeypatch.delenv("IBKR_CLIENT_ID", raising=False)
+
+    cards = dashboard.data_health_provider_setup_checklist_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "PROVIDER SETUP CHECKLIST",
+        "KEYED FALLBACKS",
+        "OPTIONAL BROKER",
+        "NEXT SAFE STEP",
+    ]
+    assert cards[0]["command"] == "make provider-setup-checklist"
+    assert "fmp free tier: configured" in rendered
+    assert "alpha vantage free tier: needs_key" in rendered
+    assert "finnhub free tier: needs_key" in rendered
+    assert "ibkr read-only: optional_disabled" in rendered
+    assert "secret-fmp-key" not in rendered
+    assert "real key values are never printed" in rendered
+
+
 def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations():
     frame = dashboard._plain_home_demo_example_frame()
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
@@ -2166,7 +2192,7 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "Auto Refresh Status" in source
     assert "data_health_auto_refresh_status_cards(root=BASE_DIR, schedule=\"daily\")" in source
     assert "Source Setup Guide" in source
-    assert "data_health_source_activation_setup_cards()" in source
+    assert "data_health_provider_setup_checklist_cards()" in source
     assert source.index("Auto Refresh Status") < source.index("Source Setup Guide")
     assert source.index("Source Setup Guide") < source.index("Source Readiness Guidance")
     assert source.index("Auto Refresh Status") < source.index("Source Readiness Guidance")

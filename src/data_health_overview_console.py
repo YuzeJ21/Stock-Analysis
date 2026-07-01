@@ -500,6 +500,95 @@ def source_activation_setup_cards(guide: dict[str, object] | None) -> list[dict[
     ]
 
 
+def _checklist_rows(checklist: dict[str, object] | None) -> list[dict[str, object]]:
+    rows_value = (checklist or {}).get("rows", [])
+    return [row for row in rows_value if isinstance(row, dict)] if isinstance(rows_value, list) else []
+
+
+def _checklist_rows_by_state(rows: list[dict[str, object]], states: set[str]) -> str:
+    fragments = []
+    for row in rows:
+        state = str(row.get("setup_state") or "").strip()
+        if state not in states:
+            continue
+        provider = _format_missing(row.get("provider"), "Unnamed source")
+        lanes = _format_missing(row.get("unlock_lanes"), "unlock lanes not reported")
+        fragments.append(f"{provider}: {state}; unlocks {lanes}")
+    return " | ".join(fragments) if fragments else "No matching provider setup state reported"
+
+
+def _checklist_next_steps_by_state(rows: list[dict[str, object]], states: set[str]) -> str:
+    fragments = []
+    for row in rows:
+        state = str(row.get("setup_state") or "").strip()
+        if state not in states:
+            continue
+        provider = _format_missing(row.get("provider"), "Unnamed source")
+        next_step = _format_missing(row.get("safe_next_step"), "")
+        if next_step:
+            fragments.append(f"{provider}: {next_step}")
+    return " | ".join(fragments)
+
+
+def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[dict[str, object]]:
+    payload = checklist or {}
+    rows = _checklist_rows(payload)
+    secret_policy = _format_missing(payload.get("secret_policy"), "Real key values are never printed.")
+    keyed_summary = _checklist_rows_by_state(rows, {"configured", "needs_key"})
+    keyed_next_steps = _checklist_next_steps_by_state(rows, {"configured", "needs_key"})
+    broker_summary = _checklist_rows_by_state(rows, {"optional_disabled", "optional_configured"})
+    all_summary = _checklist_rows_by_state(
+        rows,
+        {"available", "configured", "needs_key", "optional_disabled", "optional_configured"},
+    )
+    next_step = next(
+        (
+            str(row.get("safe_next_step") or "").strip()
+            for row in rows
+            if str(row.get("setup_state") or "").strip() == "needs_key"
+            and str(row.get("safe_next_step") or "").strip()
+        ),
+        "Run make session-source-preflight, then dry-run the matching source ladder.",
+    )
+
+    return [
+        {
+            "kicker": "PROVIDER SETUP CHECKLIST",
+            "title": "Source setup states without secrets",
+            "body": f"{all_summary}. {secret_policy}",
+            "badges": ["setup states", "no secrets"],
+            "command": "make provider-setup-checklist",
+        },
+        {
+            "kicker": "KEYED FALLBACKS",
+            "title": "Configured or needs key",
+            "body": (
+                f"{keyed_summary}. Keyed fallbacks remain small-batch source paths; they do not bypass validate, "
+                f"preview, rejected-row review, or source provenance. {keyed_next_steps}"
+            ),
+            "badges": ["small batch", "source-backed"],
+            "command": "make provider-setup-checklist",
+        },
+        {
+            "kicker": "OPTIONAL BROKER",
+            "title": "Read-only price data boundary",
+            "body": (
+                f"{broker_summary}. Optional broker data stays read-only daily OHLCV and does not unlock broker "
+                "actions, order routing, auto-trading, fundamentals, shares, peers, earnings, or estimates."
+            ),
+            "badges": ["read-only", "disabled by default"],
+            "command": "make provider-setup-checklist",
+        },
+        {
+            "kicker": "NEXT SAFE STEP",
+            "title": "Set up one source path, then preflight",
+            "body": next_step,
+            "badges": ["preflight first", "no broad retry"],
+            "command": "make session-source-preflight",
+        },
+    ]
+
+
 def source_readiness_guidance_cards(
     freshness: Any,
     *,

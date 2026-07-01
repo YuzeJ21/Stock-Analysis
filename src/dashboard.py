@@ -15,7 +15,7 @@ import streamlit as st
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
-from src.source_activation_guide import build_source_activation_guide
+from src.source_activation_guide import build_provider_setup_checklist, build_source_activation_guide
 from src.data_onboarding import write_onboarding_outputs
 from src.data_health_console import (
     DATA_HEALTH_OPERATOR_LANES,
@@ -9045,6 +9045,10 @@ def data_health_auto_refresh_status_cards(
 
 def data_health_source_activation_setup_cards() -> list[dict[str, object]]:
     return overview_console.source_activation_setup_cards(build_source_activation_guide())
+
+
+def data_health_provider_setup_checklist_cards() -> list[dict[str, object]]:
+    return overview_console.provider_setup_checklist_cards(build_provider_setup_checklist())
 
 
 def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
@@ -27571,7 +27575,7 @@ def render_data_health(
         "Free/public providers, keyed free-tier gaps, broker-data boundaries, and apply gates without exposing secrets.",
     )
     render_signal_cards(
-        data_health_source_activation_setup_cards(),
+        data_health_provider_setup_checklist_cards(),
         show_commands=False,
         variant="queue",
     )
