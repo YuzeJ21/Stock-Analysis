@@ -440,6 +440,9 @@ def test_public_share_final_gate_combines_release_checks_without_data_writes():
     assert "packet generation is read-only" in rendered
     assert "portfolio/demo only" in rendered
     assert "do not describe as open source" in rendered
+    assert "license decision options" in rendered
+    assert "let others reuse with attribution" in rendered
+    assert "keep stronger control" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
@@ -465,6 +468,9 @@ def test_public_share_final_gate_deferred_state_names_all_release_gates():
     assert "make diff-hygiene-summary" in rendered
     assert "make license-status" in rendered
     assert "portfolio/demo only" in rendered
+    assert "license decision options" in rendered
+    assert "add mit or apache-2.0" in rendered
+    assert "custom or proprietary notice" in rendered
     assert "make public-wording-check" in rendered
     assert "trade instructions" in rendered
     assert "buy" not in rendered

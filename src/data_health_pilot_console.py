@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.license_status import DECISION_OPTIONS
+
 
 DEFAULT_PACKET_PATH = Path("outputs/pilot_readiness_packet.md")
 CONTROLLED_PILOT_OUTCOMES = {
@@ -78,6 +80,15 @@ def _compact_fragment(value: object, fallback: str = "Not available", *, max_cha
 def _public_status_label(value: object, fallback: str = "Not available") -> str:
     text = _format_missing(value, fallback=fallback)
     return text.replace("_", " ").replace("-", " ").title()
+
+
+def _license_decision_options_summary() -> str:
+    options = []
+    for option in DECISION_OPTIONS:
+        goal = _format_missing(option.get("goal"), "License goal")
+        path = _format_missing(option.get("path"), "License path")
+        options.append(f"{goal} | {path}")
+    return "License decision options: " + "; ".join(options)
 
 
 def _card_sentence(label: str, fragment: object) -> str:
@@ -815,9 +826,11 @@ def public_share_final_gate_frame(
             "Gate": "License status",
             "Status": "portfolio_demo_only" if not Path("LICENSE").exists() else "license_present",
             "Review": (
-                "No root LICENSE file is present; share as portfolio/demo only and do not describe as open source."
+                "No root LICENSE file is present; share as portfolio/demo only and do not describe as open source. "
+                f"{_license_decision_options_summary()}"
                 if not Path("LICENSE").exists()
-                else "Root LICENSE file is present; confirm README wording matches the selected license."
+                else "Root LICENSE file is present; confirm README wording matches the selected license. "
+                f"{_license_decision_options_summary()}"
             ),
             "Command": "make license-status",
             "Stop Rule": (
@@ -873,7 +886,8 @@ def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 7)
     for _, row in frame.head(max(limit, 0)).iterrows():
         gate = _format_missing(row.get("Gate"), "Public gate")
         status = _public_status_label(row.get("Status"))
-        review = _compact_fragment(row.get("Review"), max_chars=150)
+        review_max_chars = 420 if gate == "License status" else 150
+        review = _compact_fragment(row.get("Review"), max_chars=review_max_chars)
         stop_rule = _compact_fragment(row.get("Stop Rule"), max_chars=150)
         command = _format_missing(row.get("Command"), "make public-check")
         cards.append(
