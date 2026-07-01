@@ -81,6 +81,10 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "secret-fmp-key" not in rendered
     assert "FMP free tier | configured | price, fundamentals, share_count" in rendered
     assert "Alpha Vantage free tier | needs_key" in rendered
+    assert "Provider | Setup state | Unlock lanes | Usage | Batch policy | Safe next step" in rendered
+    assert "FMP free tier | configured | price, fundamentals, share_count | keyed_free_tier_fallback | small_batch_only; recommended <=250 requests/day and <=25 tickers/run" in rendered
+    assert "Alpha Vantage free tier | needs_key | price, fundamentals, share_count | keyed_free_tier_fallback | small_batch_only; recommended <=25 requests/day and <=5 tickers/run" in rendered
+    assert "Finnhub free tier | needs_key | price, fundamentals, share_count | keyed_free_tier_fallback | small_batch_only; recommended <=60 requests/day and <=10 tickers/run" in rendered
     assert "IBKR read-only | optional_disabled | price" in rendered
     assert "No investment advice" in rendered
     assert "direct buy/sell instructions" in rendered
