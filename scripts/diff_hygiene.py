@@ -178,6 +178,18 @@ def reviewed_screenshot_asset_stage_command() -> str:
     return "git add -- " + " ".join(quote(path) for path in REVIEWED_SCREENSHOT_ASSET_PATHS)
 
 
+def format_sample_report_review_block(entries: list[StatusEntry], *, limit: int = 30) -> list[str]:
+    rows = [
+        "Sample reports are evidence-only by default:",
+        "  Stage a specific report only after reviewing that exact artifact.",
+    ]
+    if entries:
+        rows.extend(format_paths(entries, limit=limit))
+    else:
+        rows.append("  none")
+    return rows
+
+
 def write_path_file(path: Path, entries: list[StatusEntry]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     body = "".join(f"{entry.path}\n" for entry in entries)
@@ -579,7 +591,6 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
     sample_reports = groups["sample_report_candidate"]
     generated = groups["generated_csv_churn"]
     manual = groups["review_manually"]
-    stage_candidates = product + sample_reports
     package_status = package_status_for_groups(groups)
 
     lines = [
@@ -626,22 +637,24 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
             "Release verdict:",
             (
                 "  Ready to stage product files after public-check and local dashboard smoke pass."
-                if stage_candidates and not manual
+                if product and not manual
                 else "  Not ready to stage automatically; resolve manual-review paths or confirm the clean tree first."
             ),
             "",
-            "Stage only reviewed product/docs/tests and reviewed Markdown sample reports:",
-            *format_git_add_command(stage_candidates, label="Stage public release package"),
+            "Stage only reviewed product/docs/tests by default:",
+            *format_git_add_command(product, label="Stage public release package"),
             "  make staged-hygiene-check",
             "  git diff --cached --stat",
             "  git diff --cached --check",
             "  git diff --cached --name-only",
             "",
+            *format_sample_report_review_block(sample_reports),
+            "",
             "If git staging is environment-blocked:",
             "  # Do not stage generated churn as a workaround.",
             "  make diff-hygiene-files",
             "  # In a normal local terminal, run:",
-            "  git add --pathspec-from-file=outputs/staging/product_plus_reports.txt",
+            "  git add --pathspec-from-file=outputs/staging/product_files.txt",
             "  make staged-hygiene-check",
             "",
             "Do not stage generated churn by default:",
@@ -690,7 +703,6 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
     sample_reports = groups["sample_report_candidate"]
     generated = groups["generated_csv_churn"]
     manual = groups["review_manually"]
-    stage_candidates = product + sample_reports
     package_status = package_status_for_groups(groups)
 
     lines = [
@@ -725,10 +737,12 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
             "  make browser-qa-capture-plan  # only needed before replacing screenshots",
             "  git diff --check",
             "",
-            "Step 2 - stage only reviewed product/docs/tests and reviewed Markdown reports:",
-            *format_git_add_command(stage_candidates, label="Stage public release handoff"),
+            "Step 2 - stage only reviewed product/docs/tests by default:",
+            *format_git_add_command(product, label="Stage public release handoff"),
             "  # If screenshots were recaptured and visually reviewed, stage only those evidence assets:",
             f"  {reviewed_screenshot_asset_stage_command()}",
+            "",
+            *format_sample_report_review_block(sample_reports),
             "",
             "Step 3 - inspect staged package:",
             "  make staged-hygiene-check",

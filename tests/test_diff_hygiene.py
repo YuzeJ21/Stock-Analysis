@@ -300,7 +300,8 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "If git staging is environment-blocked:" in report
     assert "Do not stage generated churn as a workaround." in report
     assert "make diff-hygiene-files" in report
-    assert "git add --pathspec-from-file=outputs/staging/product_plus_reports.txt" in report
+    assert "git add --pathspec-from-file=outputs/staging/product_files.txt" in report
+    assert "git add --pathspec-from-file=outputs/staging/product_plus_reports.txt" not in report
     assert "git commit -m \"Improve pilot handoff and workflow continuity\"" in report
     assert "git status --short --branch" in report
     assert "git push origin main" in report
@@ -308,6 +309,32 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "real Streamlit route review" in report
     assert "Research-only guardrail" in report
     assert "direct buy/sell" in report
+
+
+def test_public_release_package_does_not_stage_broad_sample_reports_by_default():
+    module = load_diff_hygiene_module()
+    entries = [
+        module.StatusEntry("M", "src/dashboard.py"),
+        module.StatusEntry("M", "outputs/stock_reports/apld.md"),
+        module.StatusEntry("??", "outputs/stock_reports/new_name.md"),
+    ]
+
+    report = module.build_public_release_package_report(entries)
+
+    assert "Markdown sample report candidates: 2 (1 changed, 1 new)" in report
+    assert "Stage only reviewed product/docs/tests by default:" in report
+    staging_block = report.split("Stage only reviewed product/docs/tests by default:", 1)[1].split(
+        "Sample reports are evidence-only by default:", 1
+    )[0]
+    assert "git add -- src/dashboard.py" in staging_block
+    assert "outputs/stock_reports/apld.md" not in staging_block
+    assert "outputs/stock_reports/new_name.md" not in staging_block
+    sample_block = report.split("Sample reports are evidence-only by default:", 1)[1].split(
+        "Do not stage generated churn by default:", 1
+    )[0]
+    assert "outputs/stock_reports/apld.md" in sample_block
+    assert "outputs/stock_reports/new_name.md" in sample_block
+    assert "Stage a specific report only after reviewing that exact artifact." in sample_block
 
 
 def test_public_release_handoff_prints_terminal_safe_sequence():
@@ -349,6 +376,31 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "real Streamlit route review" in report
     assert "Research-only guardrail" in report
     assert "direct buy/sell" in report
+
+
+def test_public_release_handoff_does_not_stage_broad_sample_reports_by_default():
+    module = load_diff_hygiene_module()
+    entries = [
+        module.StatusEntry("M", "src/dashboard.py"),
+        module.StatusEntry("M", "outputs/stock_reports/apld.md"),
+        module.StatusEntry("??", "outputs/stock_reports/new_name.md"),
+    ]
+
+    report = module.build_public_release_handoff_report(entries)
+
+    assert "Markdown sample report candidates: 2 (1 changed, 1 new)" in report
+    assert "Step 2 - stage only reviewed product/docs/tests by default:" in report
+    staging_block = report.split("Step 2 - stage only reviewed product/docs/tests by default:", 1)[1].split(
+        "Sample reports are evidence-only by default:", 1
+    )[0]
+    assert "git add -- src/dashboard.py" in staging_block
+    assert "outputs/stock_reports/apld.md" not in staging_block
+    assert "outputs/stock_reports/new_name.md" not in staging_block
+    sample_block = report.split("Sample reports are evidence-only by default:", 1)[1].split(
+        "Step 3 - inspect staged package:", 1
+    )[0]
+    assert "outputs/stock_reports/apld.md" in sample_block
+    assert "outputs/stock_reports/new_name.md" in sample_block
 
 
 def test_public_release_handoff_defaults_branch_status_when_not_checked():
