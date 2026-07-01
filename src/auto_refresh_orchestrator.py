@@ -201,7 +201,21 @@ def build_scheduler_plan(
     *,
     schedule: str = "all",
 ) -> SchedulerPlan:
-    selected = tuple(policies or build_default_lane_policies())
+    all_policies = tuple(policies or build_default_lane_policies())
+
+    def _policy_matches_schedule(policy: LanePolicy) -> bool:
+        if schedule == "all":
+            return True
+        if schedule == "daily":
+            return policy.cadence.startswith("daily") and "optional" not in policy.lane
+        if schedule == "weekly":
+            return policy.cadence.startswith("weekly")
+        if schedule == "optional":
+            return "optional" in policy.lane
+        return True
+
+    selected = tuple(policy for policy in all_policies if _policy_matches_schedule(policy))
+
     def _commands_for(policy: LanePolicy) -> tuple[str, str]:
         return (policy.dry_run_command, policy.gated_apply_command)
 

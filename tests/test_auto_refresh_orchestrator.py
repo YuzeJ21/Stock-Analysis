@@ -73,3 +73,24 @@ def test_scheduler_plan_separates_daily_weekly_and_optional_lanes():
     assert "finnhub<=60/day and <=10/run" in rendered
     assert "Do not repeat exhausted source-proof queues" in rendered
     assert "make coverage-expansion-loop TOP_N=10" in rendered
+
+
+def test_schedule_specific_plans_only_render_selected_lane_policies():
+    policies = build_default_lane_policies()
+
+    daily = render_scheduler_plan(build_scheduler_plan(policies, schedule="daily"))
+    assert "Daily Price Coverage" in daily
+    assert "Daily SEC Filing Share Count" in daily
+    assert "Daily Fundamentals / DCF Source Ladder" in daily
+    assert "Weekly Peer Candidate Context" not in daily
+    assert "Optional Earnings / Analyst Estimates" not in daily
+
+    weekly = render_scheduler_plan(build_scheduler_plan(policies, schedule="weekly"))
+    assert "Weekly Peer Candidate Context" in weekly
+    assert "Daily Price Coverage" not in weekly
+    assert "Optional Earnings / Analyst Estimates" not in weekly
+
+    optional = render_scheduler_plan(build_scheduler_plan(policies, schedule="optional"))
+    assert "Optional Earnings / Analyst Estimates" in optional
+    assert "Daily Price Coverage" not in optional
+    assert "Weekly Peer Candidate Context" not in optional
