@@ -527,6 +527,15 @@ def test_source_activation_guide_documents_provider_setup_without_real_keys():
     assert "`next_step`" in guide
 
 
+def test_provider_setup_checklist_launcher_is_available():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "provider-setup-checklist" in makefile
+    assert "provider-setup-checklist:\n\t@python3 -m src.source_activation_guide --checklist" in makefile
+    assert "make provider-setup-checklist" in makefile
+    assert "Print checklist-style provider setup states without exposing keys" in makefile
+
+
 def test_makefile_exposes_optional_context_source_ladder_targets():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 

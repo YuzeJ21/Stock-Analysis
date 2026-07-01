@@ -147,6 +147,90 @@ def build_source_activation_guide() -> dict[str, Any]:
     }
 
 
+def _setup_state_for_provider(row: dict[str, Any]) -> str:
+    category = str(row.get("category") or "").strip()
+    if category == "keyed_free_tier_available":
+        return "configured"
+    if category == "keyed_free_tier_missing":
+        return "needs_key"
+    if category == "optional_broker_configured":
+        return "optional_configured"
+    if category == "optional_broker_disabled":
+        return "optional_disabled"
+    if category == "free_public_available":
+        return "available"
+    return "unknown"
+
+
+def _safe_next_step_for_provider(row: dict[str, Any]) -> str:
+    state = _setup_state_for_provider(row)
+    if state == "needs_key":
+        return str(row.get("setup") or "Set the provider key locally, then rerun make session-source-preflight.")
+    if state == "optional_disabled":
+        return "Leave disabled unless intentionally using read-only daily OHLCV."
+    if state == "optional_configured":
+        return "Run make session-source-preflight, then use read-only daily OHLCV only."
+    if state == "configured":
+        return "Run make session-source-preflight, then dry-run the matching source ladder."
+    return "Run make session-source-preflight before using this source path."
+
+
+def build_provider_setup_checklist() -> dict[str, Any]:
+    guide = build_source_activation_guide()
+    rows = []
+    for row in guide["providers"]:
+        rows.append(
+            {
+                "provider": row["provider"],
+                "category": row["category"],
+                "setup_state": _setup_state_for_provider(row),
+                "env_vars": ", ".join(row["env_vars"]) if row["env_vars"] else "none",
+                "unlock_lanes": ", ".join(row["can_cover"]),
+                "usage": row["usage"],
+                "batch_policy": row.get("batch_policy", ""),
+                "cannot_unlock": row["cannot_unlock"],
+                "safe_next_step": _safe_next_step_for_provider(row),
+            }
+        )
+    return {
+        "title": "Provider Setup Checklist",
+        "research_boundary": guide["research_boundary"],
+        "secret_policy": "Real key values are never printed.",
+        "rows": rows,
+        "apply_gate": guide["apply_gate"],
+        "non_retry_rule": guide["non_retry_rule"],
+    }
+
+
+def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
+    lines = [
+        str(checklist["title"]),
+        str(checklist["research_boundary"]),
+        str(checklist["secret_policy"]),
+        "",
+        "Provider | Setup state | Unlock lanes | Usage | Safe next step",
+        "--- | --- | --- | --- | ---",
+    ]
+    for row in checklist["rows"]:
+        lines.append(
+            " | ".join(
+                [
+                    str(row["provider"]),
+                    str(row["setup_state"]),
+                    str(row["unlock_lanes"]),
+                    str(row["usage"]),
+                    str(row["safe_next_step"]),
+                ]
+            )
+        )
+    lines.append("")
+    lines.append("Validate / preview / apply gate:")
+    lines.extend(f"- {command}" for command in checklist["apply_gate"])
+    lines.append("")
+    lines.append(f"Non-retry rule: {checklist['non_retry_rule']}")
+    return "\n".join(lines)
+
+
 def render_source_activation_guide(guide: dict[str, Any]) -> str:
     lines = [
         str(guide["title"]),
@@ -184,7 +268,16 @@ def render_source_activation_guide(guide: dict[str, Any]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Print read-only source activation setup guidance.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    parser.add_argument("--checklist", action="store_true", help="Print checklist-style provider setup states.")
     args = parser.parse_args(argv)
+
+    if args.checklist:
+        checklist = build_provider_setup_checklist()
+        if args.json:
+            print(json.dumps(checklist, indent=2, sort_keys=True))
+        else:
+            print(render_provider_setup_checklist(checklist))
+        return 0
 
     guide = build_source_activation_guide()
     if args.json:

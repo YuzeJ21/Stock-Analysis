@@ -1,6 +1,11 @@
 import json
 
-from src.source_activation_guide import build_source_activation_guide, render_source_activation_guide
+from src.source_activation_guide import (
+    build_provider_setup_checklist,
+    build_source_activation_guide,
+    render_provider_setup_checklist,
+    render_source_activation_guide,
+)
 
 
 def test_source_activation_guide_lists_public_sources_without_secrets(monkeypatch):
@@ -45,3 +50,37 @@ def test_source_activation_guide_prints_exact_next_commands(monkeypatch):
     assert guide["non_retry_rule"] == (
         "Record unavailable source paths once, then pivot to the next executable lane in this session."
     )
+
+
+def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "secret-fmp-key")
+    monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+    monkeypatch.delenv("IBKR_HOST", raising=False)
+    monkeypatch.delenv("IBKR_PORT", raising=False)
+    monkeypatch.delenv("IBKR_CLIENT_ID", raising=False)
+
+    checklist = build_provider_setup_checklist()
+    rendered = render_provider_setup_checklist(checklist)
+
+    rows = {row["provider"]: row for row in checklist["rows"]}
+    assert rows["FMP free tier"]["setup_state"] == "configured"
+    assert rows["Alpha Vantage free tier"]["setup_state"] == "needs_key"
+    assert rows["Finnhub free tier"]["setup_state"] == "needs_key"
+    assert rows["IBKR read-only"]["setup_state"] == "optional_disabled"
+    assert rows["FMP free tier"]["unlock_lanes"] == "price, fundamentals, share_count"
+    assert rows["FMP free tier"]["safe_next_step"] == "Run make session-source-preflight, then dry-run the matching source ladder."
+    assert rows["Alpha Vantage free tier"]["safe_next_step"] == (
+        "Set ALPHA_VANTAGE_API_KEY in config/provider_keys.env, then rerun make session-source-preflight."
+    )
+    assert rows["IBKR read-only"]["safe_next_step"] == (
+        "Leave disabled unless intentionally using read-only daily OHLCV."
+    )
+    assert checklist["secret_policy"] == "Real key values are never printed."
+    assert "secret-fmp-key" not in json.dumps(checklist)
+    assert "secret-fmp-key" not in rendered
+    assert "FMP free tier | configured | price, fundamentals, share_count" in rendered
+    assert "Alpha Vantage free tier | needs_key" in rendered
+    assert "IBKR read-only | optional_disabled | price" in rendered
+    assert "No investment advice" in rendered
+    assert "direct buy/sell instructions" in rendered
