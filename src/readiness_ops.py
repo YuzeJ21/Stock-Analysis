@@ -887,14 +887,19 @@ def build_coverage_frontier(lanes: list[ReadinessLane], *, top_n: int = 10) -> l
     for rank, lane in enumerate(ranked_lanes[: max(top_n, 0)], start=1):
         if lane.reviewed_proof_status:
             move = "reviewed proof already recorded -> wait for new source-backed rows, new tickers, or changed blockers"
+            next_safe_command = "make project-status"
         elif lane.workflow_mode == "source_activation_required":
             move = "source unavailable -> source activation gate before more coverage expansion"
+            next_safe_command = lane.next_safe_command
         elif lane.workflow_mode == "dry_run_first":
             move = "blocked/partial price coverage -> reviewed price-ready coverage after capped run proof"
+            next_safe_command = lane.next_safe_command
         elif lane.workflow_mode in {"locked_manual", "optional_source_ladder"}:
             move = "locked optional context -> partial/ready only after trusted local/provider rows are reviewed"
+            next_safe_command = lane.next_safe_command
         else:
             move = "blocked/partial analysis lane -> supported only after source proof and rebuilt readiness"
+            next_safe_command = lane.next_safe_command
         rows.append(
             CoverageFrontierOpportunity(
                 rank=rank,
@@ -904,7 +909,7 @@ def build_coverage_frontier(lanes: list[ReadinessLane], *, top_n: int = 10) -> l
                 possible_state_move=move,
                 source_lane=lane.source_lane,
                 workflow_mode=lane.workflow_mode,
-                next_safe_command=lane.next_safe_command,
+                next_safe_command=next_safe_command,
                 proof_command=lane.proof_command,
                 generated_churn_policy=lane.generated_churn_policy,
                 guardrail="This rank is an operations queue, not a security recommendation or evidence that data is already available.",

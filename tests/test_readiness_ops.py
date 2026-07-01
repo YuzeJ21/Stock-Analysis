@@ -271,6 +271,8 @@ def test_readiness_ops_uses_reviewed_price_ledger_to_stop_repeating_exhausted_re
     assert "1 reviewed ticker(s) for 1 current scope ticker(s)" in by_lane["price_coverage"].reviewed_proof_status
     assert "/1 ticker(s)" not in by_lane["price_coverage"].reviewed_proof_status
     assert by_lane["price_coverage"].next_safe_command == "make price-history-proof-queue TOP_N=25"
+    price_frontier = next(row for row in build_coverage_frontier(lanes, top_n=10) if row.lane == "price_coverage")
+    assert price_frontier.next_safe_command == "make project-status"
     assert "reviewed proof already recorded" in frontier_rendered
     assert "do not repeat this proof loop" in frontier_rendered
 
