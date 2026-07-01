@@ -176,7 +176,7 @@ class YFinanceProvider(MarketDataProvider):
         if isinstance(earnings_dates, pd.DataFrame) and not earnings_dates.empty:
             earnings_dates = earnings_dates.reset_index()
             latest = earnings_dates.iloc[0]
-            last_earnings_date = self._clean_str(latest.get("Earnings Date") or latest.get("date"))
+            last_earnings_date = self._clean_date(latest.get("Earnings Date") or latest.get("date"))
             eps_actual = self._clean_float(latest.get("Reported EPS"))
             eps_estimate = self._clean_float(latest.get("EPS Estimate"))
             surprise_pct = self._clean_float(latest.get("Surprise(%)"))
@@ -185,9 +185,9 @@ class YFinanceProvider(MarketDataProvider):
         calendar = getattr(asset, "calendar", None)
         if isinstance(calendar, pd.DataFrame) and not calendar.empty:
             possible = calendar.iloc[0].to_dict()
-            next_date = self._clean_str(possible.get("Earnings Date"))
+            next_date = self._clean_date(possible.get("Earnings Date"))
         if next_date is None:
-            next_date = self._clean_str(info.get("earningsTimestampStart"))
+            next_date = self._clean_date(info.get("earningsTimestampStart"))
 
         return EarningsSummary(
             ticker=ticker.upper(),

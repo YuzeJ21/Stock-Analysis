@@ -2,6 +2,7 @@ import builtins
 import sys
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
 from src.providers.yfinance_provider import YFinanceProvider, build_yfinance_fundamentals_rows
@@ -34,3 +35,19 @@ def test_yfinance_fundamentals_rows_normalize_epoch_most_recent_quarter(monkeypa
     result = build_yfinance_fundamentals_rows(["ABVE"])
 
     assert result["rows"][0]["as_of_date"] == "2024-07-31"
+
+
+def test_yfinance_earnings_dates_normalize_epoch_timestamps(monkeypatch: pytest.MonkeyPatch):
+    class FakeTicker:
+        info = {"earningsTimestampStart": 1785441600}
+        calendar = pd.DataFrame()
+
+        def get_earnings_dates(self, limit=4):
+            assert limit == 4
+            return pd.DataFrame()
+
+    monkeypatch.setitem(sys.modules, "yfinance", SimpleNamespace(Ticker=lambda _ticker: FakeTicker()))
+
+    summary = YFinanceProvider().get_earnings("AAPL")
+
+    assert summary.next_earnings_date == "2026-07-30"
