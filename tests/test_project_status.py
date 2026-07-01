@@ -877,6 +877,23 @@ def test_project_status_fast_check_pivots_from_reviewed_non_actionable_fundament
     assert payload["top_onboarding_actions"] == []
 
 
+def test_project_status_fast_check_pivots_when_dcf_source_ladder_has_no_unreviewed_rows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _write_fast_status_artifacts(tmp_path)
+    monkeypatch.setattr(project_status, "_dcf_source_ladder_has_unreviewed_rows", lambda _root, _data_path: False)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
+    assert commands[0] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert "make focus-fundamentals TICKER=AMD" not in commands
+    assert "make runbook-fundamentals-broader" not in commands
+    assert payload["top_onboarding_actions"] == []
+
+
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
 

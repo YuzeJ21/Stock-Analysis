@@ -15,6 +15,7 @@ from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame, refresh_price_update_status_output
 from src.data_sources import build_data_source_payload, write_data_source_outputs
 from src.action_queue import write_action_queue_output
+from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.dcf_input_proof_queue import _reviewed_non_actionable_tickers as _reviewed_non_actionable_dcf_tickers
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
@@ -386,8 +387,11 @@ def _fast_status_payload_from_outputs(
     reviewed_non_actionable_fundamentals_tickers = _reviewed_non_actionable_dcf_tickers(root).intersection(
         _fundamentals_action_tickers(normalized_actions)
     )
+    dcf_source_ladder_has_unreviewed = _dcf_source_ladder_has_unreviewed_rows(root, data_path)
     normalized_actions = _drop_reviewed_non_actionable_price_actions(root, normalized_actions)
     normalized_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, normalized_actions)
+    if dcf_source_ladder_has_unreviewed is False:
+        normalized_actions = _drop_all_fundamentals_actions(normalized_actions)
     sorted_actions = sorted(normalized_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
@@ -431,13 +435,19 @@ def _fast_status_payload_from_outputs(
         command_rows,
         reviewed_non_actionable_fundamentals_tickers,
     )
+    if dcf_source_ladder_has_unreviewed is False:
+        command_rows = _drop_all_fundamentals_actions(command_rows)
     if allowed:
         command_rows = _recommended_next_command_rows(
             sorted_actions,
             bundles,
             [],
             price_coverage_complete=price_complete,
-            include_guided_batches=bool(sorted_actions) or not had_actions_before_review_filter,
+            include_guided_batches=_include_guided_batches(
+                sorted_actions,
+                had_actions_before_review_filter=had_actions_before_review_filter,
+                dcf_source_ladder_has_unreviewed=dcf_source_ladder_has_unreviewed,
+            ),
         )
     if not command_rows:
         command_rows = _recommended_next_command_rows(
@@ -445,7 +455,11 @@ def _fast_status_payload_from_outputs(
             bundles,
             [] if allowed else problem_sources,
             price_coverage_complete=price_complete,
-            include_guided_batches=bool(sorted_actions) or not had_actions_before_review_filter,
+            include_guided_batches=_include_guided_batches(
+                sorted_actions,
+                had_actions_before_review_filter=had_actions_before_review_filter,
+                dcf_source_ladder_has_unreviewed=dcf_source_ladder_has_unreviewed,
+            ),
         )
     elif not allowed and not any(
         str(row.get("Command") or "").strip() == TRUSTED_DATA_PILOT_CANDIDATES_COMMAND
@@ -862,6 +876,46 @@ def _drop_reviewed_non_actionable_fundamentals_actions(
     ]
 
 
+def _drop_all_fundamentals_actions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    filtered: list[dict[str, Any]] = []
+    for row in rows:
+        command = str(row.get("Command") or row.get("focus_command") or row.get("example_command") or "").strip()
+        dataset = str(row.get("dataset") or "").strip().lower()
+        if dataset in {"fundamentals", "share_count", "shares_outstanding"}:
+            continue
+        if command.startswith("make focus-fundamentals"):
+            continue
+        filtered.append(row)
+    return filtered
+
+
+def _dcf_source_ladder_has_unreviewed_rows(root: Path, data_path: Path) -> bool | None:
+    universe_path = data_path / "universe_master.csv"
+    if not universe_path.exists():
+        universe_path = data_path / "universe.csv"
+    if not universe_path.exists() or not (data_path / "fundamentals.csv").exists() or not (data_path / "prices.csv").exists():
+        return None
+    try:
+        rows = build_dcf_input_proof_queue_from_files(root, data_dir=data_path, top_n=10)
+    except Exception:
+        return None
+    return any(
+        "reviewed proof ledger already records" not in str(getattr(row, "source_note", "") or "").lower()
+        for row in rows
+    )
+
+
+def _include_guided_batches(
+    actions: list[dict[str, Any]],
+    *,
+    had_actions_before_review_filter: bool,
+    dcf_source_ladder_has_unreviewed: bool | None,
+) -> bool:
+    if dcf_source_ladder_has_unreviewed is False:
+        return False
+    return bool(actions) or not had_actions_before_review_filter
+
+
 def _prioritize_public_command_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     """Keep the public next-step order aligned with the product roadmap."""
     deduped: list[dict[str, str]] = []
@@ -1036,8 +1090,11 @@ def build_project_status_payload(
     if tickers:
         enriched_actions = [row for row in enriched_actions if str(row.get("ticker", "")).upper().strip() in allowed]
     had_actions_before_review_filter = bool(enriched_actions)
+    dcf_source_ladder_has_unreviewed = _dcf_source_ladder_has_unreviewed_rows(root, data_path)
     filtered_actions = _drop_reviewed_non_actionable_price_actions(root, enriched_actions)
     filtered_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, filtered_actions)
+    if dcf_source_ladder_has_unreviewed is False:
+        filtered_actions = _drop_all_fundamentals_actions(filtered_actions)
     actions = sorted(filtered_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
@@ -1068,7 +1125,11 @@ def build_project_status_payload(
         onboarding_payload.get("command_bundles", []),
         command_problem_sources,
         price_coverage_complete=_price_coverage_complete(summary),
-        include_guided_batches=bool(actions) or not had_actions_before_review_filter,
+        include_guided_batches=_include_guided_batches(
+            actions,
+            had_actions_before_review_filter=had_actions_before_review_filter,
+            dcf_source_ladder_has_unreviewed=dcf_source_ladder_has_unreviewed,
+        ),
     )
     return {
         "project_root": str(root),
