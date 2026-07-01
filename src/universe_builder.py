@@ -994,8 +994,8 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     print("next:")
     print("- Review source warnings and row counts before writing any universe import.")
     print("- To inspect raw rows, rerun with --json.")
-    print("- To stage reviewed rows only: make universe-refresh")
-    print("- To apply reviewed staged rows only: make universe-apply")
+    print("- To inspect full preview rows without writing: make universe-preview")
+    print("- To write and apply reviewed rows only after row-scope review: make universe-apply")
 
 
 def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -1018,8 +1018,8 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
             "next_steps": [
                 "Review source warnings and row counts before writing any universe import.",
                 "Use full --json only for intentionally reviewed row inspection.",
-                "To stage reviewed rows only: make universe-refresh.",
-                "To apply reviewed staged rows only: make universe-apply.",
+                "To inspect full preview rows without writing: make universe-preview.",
+                "To write and apply reviewed rows only after row-scope review: make universe-apply.",
             ],
         }
     return payload

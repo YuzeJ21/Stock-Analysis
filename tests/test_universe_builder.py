@@ -279,8 +279,8 @@ def test_universe_preview_summary_json_keeps_raw_rows_hidden(
     assert payload["next_steps"] == [
         "Review source warnings and row counts before writing any universe import.",
         "Use full --json only for intentionally reviewed row inspection.",
-        "To stage reviewed rows only: make universe-refresh.",
-        "To apply reviewed staged rows only: make universe-apply.",
+        "To inspect full preview rows without writing: make universe-preview.",
+        "To write and apply reviewed rows only after row-scope review: make universe-apply.",
     ]
     assert "rows" not in payload
     assert "NVDA" not in output
