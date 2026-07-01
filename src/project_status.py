@@ -331,6 +331,21 @@ def _stale_generated_artifact_warnings(data_path: Path, output_path: Path) -> li
     return [warning]
 
 
+def _load_source_operator_summary(output_path: Path) -> dict[str, Any]:
+    path = output_path / "session_source_preflight.json"
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    console = payload.get("source_activation_console_v2", {})
+    if not isinstance(console, dict):
+        return {}
+    summary = console.get("operator_summary", {})
+    return summary if isinstance(summary, dict) else {}
+
+
 def _fast_status_payload_from_outputs(
     project_root: Path | str | None = None,
     *,
@@ -499,6 +514,7 @@ def _fast_status_payload_from_outputs(
         "recommended_next_command_rows": command_rows,
         "recommended_next_commands": [row["Command"] for row in command_rows if row.get("Command")],
         "purpose_evaluation_summary": purpose_evaluation_rows,
+        "source_operator_summary": _load_source_operator_summary(output_path),
         "warnings": _stale_generated_artifact_warnings(data_path, output_path),
         "status_source": "generated_artifacts",
     }
@@ -1307,6 +1323,7 @@ def build_project_status_payload(
         "recommended_next_command_rows": command_rows,
         "recommended_next_commands": [row["Command"] for row in command_rows],
         "purpose_evaluation_summary": purpose_evaluation_rows,
+        "source_operator_summary": _load_source_operator_summary(output_path),
     }
 
 
@@ -1436,6 +1453,18 @@ def _print_human(payload: dict[str, Any]) -> None:
             f"- Best next proof: {TRUSTED_DATA_PILOT_CANDIDATES_COMMAND} for company-depth work, "
             "or make price-refresh-loop DRY_RUN=1 for price coverage planning."
         )
+    source_operator_summary = payload.get("source_operator_summary", {})
+    if isinstance(source_operator_summary, dict) and source_operator_summary:
+        needs_setup = [str(item).strip() for item in source_operator_summary.get("needs_setup", []) if str(item).strip()]
+        avoid_repeating = [
+            str(item).strip()
+            for item in source_operator_summary.get("avoid_repeating", [])
+            if str(item).strip()
+        ]
+        if needs_setup:
+            print(f"- Source setup to unlock more: {', '.join(needs_setup)}.")
+        if avoid_repeating:
+            print(f"- Avoid repeating now: {', '.join(avoid_repeating)}.")
     print("- Details below are capped and copy-only.")
     print("Top locked inputs to review:")
     price_complete = _price_coverage_complete(summary)

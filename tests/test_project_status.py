@@ -985,15 +985,34 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
         tmp_path / "outputs" / "project_status_next_steps.csv",
         index=False,
     )
+    (tmp_path / "outputs" / "session_source_preflight.json").write_text(
+        json.dumps(
+            {
+                "source_activation_console_v2": {
+                    "operator_summary": {
+                        "can_run_now": ["coverage_workflow_evidence"],
+                        "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
+                        "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                        "next_step": "make project-status",
+                        "next_step_reason": "Current blockers already have reviewed non-actionable proof.",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
 
     payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
     assert payload is not None
+    assert payload["source_operator_summary"]["needs_setup"] == ["fmp", "alpha_vantage", "finnhub"]
 
     project_status._print_human(payload)
     output = capsys.readouterr().out.lower()
 
     assert "best next proof: make project-status" in output
     assert "best next proof: make trusted-data-pilot-candidates" not in output
+    assert "source setup to unlock more: fmp, alpha_vantage, finnhub" in output
+    assert "avoid repeating now: fundamentals_share_count_source_ladder" in output
 
 
 def test_project_status_fast_check_pivots_from_reviewed_non_actionable_peers(tmp_path: Path):
