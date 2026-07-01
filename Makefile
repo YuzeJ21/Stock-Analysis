@@ -517,7 +517,7 @@ auto-refresh-optional:
 	@python3 -m src.auto_refresh_orchestrator --root . --schedule optional
 
 auto-apply-gate:
-	@python3 -m src.auto_refresh_orchestrator --root . --gate-lane "$(or $(LANE),fundamentals_dcf)" --changed-rows $(or $(CHANGED_ROWS),0) --max-batch-size $(or $(MAX_BATCH_SIZE),25) --validation-status "$(or $(VALIDATION_STATUS),not_run)" --preview-status "$(or $(PREVIEW_STATUS),not_run)" --rejected-rows $(or $(REJECTED_ROWS),0) --source-provenance "$(or $(SOURCE_PROVENANCE),missing)" --fabricated-values "$(or $(FABRICATED_VALUES),none)" --scope-change "$(or $(SCOPE_CHANGE),expected)" --provider-status "$(or $(PROVIDER_STATUS),available)"
+	@python3 -m src.auto_refresh_orchestrator --root . --gate-lane "$(or $(LANE),fundamentals_dcf)" --changed-rows $(or $(CHANGED_ROWS),0) --max-batch-size $(or $(MAX_BATCH_SIZE),25) --validation-status "$(or $(VALIDATION_STATUS),not_run)" --preview-status "$(or $(PREVIEW_STATUS),not_run)" --rejected-rows $(or $(REJECTED_ROWS),0) --source-provenance "$(or $(SOURCE_PROVENANCE),missing)" --fabricated-values "$(or $(FABRICATED_VALUES),none)" --scope-change "$(or $(SCOPE_CHANGE),expected)" --provider-status "$(or $(PROVIDER_STATUS),available)" $(if $(ALLOW_BLOCKED_GATE),--blocked-exit-zero,)
 
 reviewed-batch-proof-record:
 ifndef BATCH_ID

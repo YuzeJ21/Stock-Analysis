@@ -3,6 +3,7 @@ from src.auto_refresh_orchestrator import (
     build_default_lane_policies,
     build_scheduler_plan,
     evaluate_auto_apply_gate,
+    main,
     render_scheduler_plan,
 )
 
@@ -94,3 +95,29 @@ def test_schedule_specific_plans_only_render_selected_lane_policies():
     assert "Optional Earnings / Analyst Estimates" in optional
     assert "Daily Price Coverage" not in optional
     assert "Weekly Peer Candidate Context" not in optional
+
+
+def test_blocked_gate_can_be_report_only_for_scheduler_pivot(capsys):
+    exit_code = main(
+        [
+            "--gate-lane",
+            "fundamentals_dcf",
+            "--changed-rows",
+            "0",
+            "--validation-status",
+            "not_run",
+            "--preview-status",
+            "not_run",
+            "--source-provenance",
+            "missing",
+            "--provider-status",
+            "unavailable",
+            "--blocked-exit-zero",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "status: blocked" in output
+    assert "outcome: still_blocked" in output
+    assert "pivot to the next executable lane" in output

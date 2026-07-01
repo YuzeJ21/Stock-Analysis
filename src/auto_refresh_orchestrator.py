@@ -321,6 +321,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fabricated-values", choices=("none", "detected"), default="none")
     parser.add_argument("--scope-change", choices=("expected", "unexpected"), default="expected")
     parser.add_argument("--provider-status", choices=("available", "unavailable"), default="available")
+    parser.add_argument(
+        "--blocked-exit-zero",
+        action="store_true",
+        help=(
+            "Return zero for blocked gate reports so a scheduler can record the outcome and pivot. "
+            "Do not use in a shell chain that continues directly to imports-apply."
+        ),
+    )
     args = parser.parse_args(argv)
     Path(args.root).resolve()
 
@@ -338,7 +346,9 @@ def main(argv: list[str] | None = None) -> int:
             print("required_next_commands:")
             for command in decision.required_next_commands:
                 print(f"- {command}")
-        return 0 if decision.status == "auto_apply_ready" else 2
+        if decision.status == "auto_apply_ready" or args.blocked_exit_zero:
+            return 0
+        return 2
 
     plan = build_scheduler_plan(schedule=args.schedule)
     if args.json:

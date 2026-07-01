@@ -110,7 +110,7 @@ make auto-refresh-optional
 
 The auto-refresh plan is scheduler-ready but still gate-first. `auto_supported` means the deterministic gate passed validation, preview, rejected-row, source-provenance, scope, and no-fabrication checks. `human_reviewed_supported` means a person reviewed the evidence. `candidate_context_only` can route research, especially peer candidates, but it is not trusted proof. Rows that fail a source path should be recorded as `still_blocked`, `skipped`, or `excluded` and the workflow should pivot instead of retrying the same unavailable provider.
 
-Use `make auto-apply-gate` before any unattended apply step. The gate must see valid validation/preview results, zero rejected rows, source provenance, no fabricated values, expected scope, and a batch size within the lane policy. If any condition fails, it returns `still_blocked` and the next scheduler step should move to another executable lane.
+Use `make auto-apply-gate` before any unattended apply step. The gate must see valid validation/preview results, zero rejected rows, source provenance, no fabricated values, expected scope, and a batch size within the lane policy. If any condition fails, it returns `still_blocked` and exits nonzero by default so an unsafe `&& make imports-apply` chain stops before applying. Scheduler/report loops that only need to record the blocked outcome and pivot can use `ALLOW_BLOCKED_GATE=1 make auto-apply-gate ...`; do not use that option in the same shell chain as `imports-apply`.
 
 For larger price refreshes, dry-run first and keep batches capped:
 
