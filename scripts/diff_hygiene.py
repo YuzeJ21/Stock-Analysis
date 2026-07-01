@@ -57,6 +57,12 @@ REVIEWED_SCREENSHOT_ASSET_PATHS = (
     "docs/assets/operator-data-health-queue-routing-real.jpg",
 )
 
+LICENSE_DECISION_OPTIONS = (
+    "  - Portfolio showcase only | Keep no license for now | Visitors can read the code, but reuse rights are not granted.",
+    "  - Let others reuse with attribution | Add MIT or Apache-2.0 | Visitors can reuse under the selected license terms.",
+    "  - Keep stronger control | Add a custom or proprietary notice | Visitors should ask before reuse; use legal review for custom wording.",
+)
+
 
 @dataclass(frozen=True)
 class StatusEntry:
@@ -192,6 +198,8 @@ def format_license_gate(repo_root: Path | None = None) -> list[str]:
         "  Share as portfolio/demo only; do not describe as open source or reusable software until a license is selected.",
         "  Run make license-status before public sharing.",
         "  See docs/LICENSE_DECISION_GUIDE.md before adding reuse-rights language.",
+        "  License decision options:",
+        *LICENSE_DECISION_OPTIONS,
     ]
 
 
