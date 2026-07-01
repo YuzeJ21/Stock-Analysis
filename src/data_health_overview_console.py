@@ -405,6 +405,101 @@ def auto_refresh_status_cards(status_payload: dict[str, object] | None) -> list[
     ]
 
 
+def _provider_names_by_category(providers: list[dict[str, object]], categories: set[str]) -> str:
+    names = [
+        _format_missing(row.get("provider"), "Unnamed source")
+        for row in providers
+        if str(row.get("category") or "").strip() in categories
+    ]
+    return ", ".join(names) if names else "None reported"
+
+
+def _provider_detail_for_category(providers: list[dict[str, object]], categories: set[str]) -> str:
+    fragments = []
+    for row in providers:
+        if str(row.get("category") or "").strip() not in categories:
+            continue
+        provider = _format_missing(row.get("provider"), "Unnamed source")
+        category = _format_missing(row.get("category"), "category not reported")
+        usage = _format_missing(row.get("usage"), "source usage not reported")
+        can_cover = _format_missing(row.get("can_cover"), "coverage not reported")
+        batch_policy = _format_missing(row.get("batch_policy"), "")
+        fragment = f"{provider}: {category}; {usage}; can cover {can_cover}"
+        if batch_policy:
+            fragment = f"{fragment}; {batch_policy}"
+        fragments.append(fragment)
+    return " | ".join(fragments) if fragments else "No provider detail reported"
+
+
+def source_activation_setup_cards(guide: dict[str, object] | None) -> list[dict[str, object]]:
+    payload = guide or {}
+    providers_value = payload.get("providers", [])
+    providers = [row for row in providers_value if isinstance(row, dict)] if isinstance(providers_value, list) else []
+    setup_commands = payload.get("setup_commands", [])
+    setup_command = (
+        str(setup_commands[0]).strip()
+        if isinstance(setup_commands, list) and setup_commands and str(setup_commands[0]).strip()
+        else "make source-activation-guide"
+    )
+    apply_gate = payload.get("apply_gate", [])
+    apply_gate_text = _format_missing(apply_gate, "Run validate and preview before apply.")
+
+    free_detail = _provider_detail_for_category(providers, {"free_public_available"})
+    keyed_detail = _provider_detail_for_category(
+        providers,
+        {"keyed_free_tier_missing", "keyed_free_tier_available"},
+    )
+    broker_names = _provider_names_by_category(
+        providers,
+        {"optional_broker_disabled", "optional_broker_configured"},
+    )
+
+    return [
+        {
+            "kicker": "FREE PUBLIC SOURCES",
+            "title": _provider_names_by_category(providers, {"free_public_available"}),
+            "body": (
+                f"{free_detail}. Use these as source-backed or metadata-only lanes according to their usage labels; "
+                "they do not turn missing proof into analysis-ready data."
+            ),
+            "badges": ["free public", "source boundary"],
+            "command": "make source-activation-guide",
+        },
+        {
+            "kicker": "KEYED FREE-TIER SETUP",
+            "title": _provider_names_by_category(
+                providers,
+                {"keyed_free_tier_missing", "keyed_free_tier_available"},
+            ),
+            "body": (
+                f"{keyed_detail}. Keep keys outside GitHub and use small capped batches before validate and preview."
+            ),
+            "badges": ["no secrets", "small batches"],
+            "command": setup_command,
+        },
+        {
+            "kicker": "BROKER DATA BOUNDARY",
+            "title": f"{broker_names} stays disabled unless configured",
+            "body": (
+                f"{broker_names} stays disabled by default. If configured, it is for daily OHLCV only, with no "
+                "broker actions, order routing, auto-trading, fundamentals, shares, peers, earnings, or estimates."
+            ),
+            "badges": ["read-only", "disabled by default"],
+            "command": "make session-source-preflight",
+        },
+        {
+            "kicker": "APPLY GATE",
+            "title": "Validate and preview before any data-changing step",
+            "body": (
+                f"{apply_gate_text}. Apply only when validation passes, preview scope is intended, rejected rows are "
+                "zero, and source provenance exists."
+            ),
+            "badges": ["validate", "preview", "proof"],
+            "command": "make imports-preview IMPORT_TICKERS=<ticker>",
+        },
+    ]
+
+
 def source_readiness_guidance_cards(
     freshness: Any,
     *,

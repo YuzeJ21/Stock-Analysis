@@ -187,6 +187,72 @@ def test_overview_auto_refresh_status_cards_show_scheduler_next_step():
     assert "sell" not in rendered
 
 
+def test_overview_source_activation_setup_cards_show_provider_boundaries():
+    cards = overview_console.source_activation_setup_cards(
+        {
+            "setup_commands": [
+                "cp config/provider_keys.env.example config/provider_keys.env",
+                "chmod 600 config/provider_keys.env",
+                "edit config/provider_keys.env locally; do not commit real keys",
+            ],
+            "providers": [
+                {
+                    "provider": "SEC Companyfacts",
+                    "category": "free_public_available",
+                    "env_vars": ["SEC_USER_AGENT"],
+                    "can_cover": ["fundamentals", "share_count"],
+                    "usage": "source_backed_companyfacts",
+                    "cannot_unlock": "Peers, earnings estimates, recommendations, or inferred missing values.",
+                    "setup": "Set SEC_USER_AGENT in config/provider_keys.env or the shell.",
+                },
+                {
+                    "provider": "FMP free tier",
+                    "category": "keyed_free_tier_missing",
+                    "env_vars": ["FMP_API_KEY"],
+                    "can_cover": ["price", "fundamentals", "share_count"],
+                    "usage": "keyed_free_tier_fallback",
+                    "cannot_unlock": "Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.",
+                    "setup": "Set FMP_API_KEY in config/provider_keys.env, then rerun make session-source-preflight.",
+                    "batch_policy": "small_batch_only; recommended <=250 requests/day and <=25 tickers/run",
+                },
+                {
+                    "provider": "IBKR read-only",
+                    "category": "optional_broker_disabled",
+                    "env_vars": ["IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"],
+                    "can_cover": ["price"],
+                    "usage": "read_only_daily_ohlcv",
+                    "cannot_unlock": "Broker actions, order routing, auto-trading, fundamentals, shares, peers, earnings, or estimates.",
+                    "setup": "Leave disabled unless IBKR Gateway/TWS is intentionally running for read-only daily bars.",
+                },
+            ],
+            "apply_gate": [
+                "make imports-validate IMPORT_TICKERS=<ticker>",
+                "make imports-preview IMPORT_TICKERS=<ticker>",
+                "make imports-apply IMPORT_TICKERS=<ticker> only when validation passes, preview scope is intended, rejected rows are zero, and source provenance exists",
+            ],
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "FREE PUBLIC SOURCES",
+        "KEYED FREE-TIER SETUP",
+        "BROKER DATA BOUNDARY",
+        "APPLY GATE",
+    ]
+    assert cards[0]["command"] == "make source-activation-guide"
+    assert cards[1]["command"] == "cp config/provider_keys.env.example config/provider_keys.env"
+    assert "sec companyfacts" in rendered
+    assert "fmp free tier" in rendered
+    assert "small_batch_only" in rendered
+    assert "ibkr read-only stays disabled" in rendered
+    assert "validate" in rendered
+    assert "preview" in rendered
+    assert "rejected rows are zero" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_freshness_routine_cards_are_dry_run_first():
     cards = overview_console.freshness_routine_cards({"master_universe": 3538, "price_ready": 265})
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
