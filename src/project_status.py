@@ -401,6 +401,7 @@ def _fast_status_payload_from_outputs(
         normalized_actions = _drop_all_fundamentals_actions(normalized_actions)
     if optional_context_covered:
         normalized_actions = _drop_optional_context_actions(normalized_actions)
+    normalized_actions = _drop_preview_available_source_actions(normalized_actions)
     sorted_actions = sorted(normalized_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
@@ -990,6 +991,17 @@ def _drop_optional_context_actions(rows: list[dict[str, Any]]) -> list[dict[str,
     return [row for row in rows if not _is_optional_context_action(row)]
 
 
+def _is_preview_available_source_action(row: dict[str, Any]) -> bool:
+    dataset = str(row.get("dataset") or "").strip().lower()
+    status = str(row.get("status") or "").strip().lower()
+    command = str(row.get("focus_command") or row.get("example_command") or row.get("Command") or "").strip()
+    return dataset == "smh_holdings" and status == "preview_available" and command == "make universe-preview"
+
+
+def _drop_preview_available_source_actions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [row for row in rows if not _is_preview_available_source_action(row)]
+
+
 def _drop_optional_context_problem_sources(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         row
@@ -1209,6 +1221,7 @@ def build_project_status_payload(
         filtered_actions = _drop_all_fundamentals_actions(filtered_actions)
     if optional_context_covered:
         filtered_actions = _drop_optional_context_actions(filtered_actions)
+    filtered_actions = _drop_preview_available_source_actions(filtered_actions)
     actions = sorted(filtered_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]

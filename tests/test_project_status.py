@@ -604,6 +604,25 @@ def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: py
     assert "wrote:" not in output
 
 
+def test_project_status_filters_preview_available_source_actions_from_blocker_counts():
+    rows = [
+        {
+            "dataset": "smh_holdings",
+            "status": "preview_available",
+            "focus_command": "make universe-preview",
+        },
+        {
+            "dataset": "fundamentals",
+            "status": "partial",
+            "focus_command": "make focus-fundamentals TICKER=AMD",
+        },
+    ]
+
+    filtered = project_status._drop_preview_available_source_actions(rows)
+
+    assert [row["dataset"] for row in filtered] == ["fundamentals"]
+
+
 def test_project_status_cli_check_uses_fast_generated_artifacts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
