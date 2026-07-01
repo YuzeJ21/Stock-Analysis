@@ -50,7 +50,7 @@ def test_dashboard_launchers_force_viewer_mode_for_public_demo():
 def test_universe_preview_summary_uses_compact_human_output():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
-    target = makefile.split("universe-preview-summary:", 1)[1].split("\nuniverse-apply:", 1)[0]
+    target = makefile.split("universe-preview-summary:", 1)[1].split("\nuniverse-stage:", 1)[0]
 
     assert "\t@python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" in target
     assert "--summary-json" not in target
@@ -123,6 +123,7 @@ def test_makefile_contains_convenience_targets():
         "import-staging",
         "universe-preview",
         "universe-preview-summary",
+        "universe-stage",
         "universe-apply",
         "coverage",
         "data-wizard",
@@ -553,6 +554,16 @@ def test_provider_setup_checklist_launcher_is_available():
     assert "provider-setup-checklist:\n\t@python3 -m src.source_activation_guide --checklist" in makefile
     assert "make provider-setup-checklist" in makefile
     assert "Print checklist-style provider setup states without exposing keys" in makefile
+
+
+def test_universe_stage_launcher_splits_stage_from_apply():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "universe-stage" in makefile
+    assert "universe-stage:\n\tpython3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50" in makefile
+    apply_target = makefile.split("universe-apply:", 1)[1].split("\nuniverse-refresh:", 1)[0]
+    assert "--write-import" not in apply_target
+    assert "python3 -m src.universe_builder --apply-import" in apply_target
 
 
 def test_makefile_exposes_optional_context_source_ladder_targets():

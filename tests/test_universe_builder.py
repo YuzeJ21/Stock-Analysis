@@ -256,6 +256,7 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert "stage data/imports/universe.csv as the manual SMH fallback" not in output
     assert "next:" in output
     assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json" in output
+    assert "make universe-stage" in output
     assert "make universe-apply" in output
     assert '"rows"' not in output
     assert '"ticker": "NVDA"' not in output
@@ -288,7 +289,8 @@ def test_universe_preview_summary_json_keeps_raw_rows_hidden(
         "Review source warnings and row counts before writing any universe import.",
         "Use full --json only for intentionally reviewed row inspection.",
         "To inspect full preview rows without writing: make universe-preview.",
-        "To write and apply reviewed rows only after row-scope review: make universe-apply.",
+        "To stage reviewed rows only after row-scope review: make universe-stage.",
+        "To apply staged rows after review: make universe-apply.",
     ]
     assert "rows" not in payload
     assert "NVDA" not in output

@@ -143,7 +143,7 @@ make universe-preview
 Use the full preview only for intentionally reviewed row inspection. To stage reviewed source-driven rows:
 
 ```bash
-make universe-refresh
+make universe-stage
 ```
 
 Apply only after reviewing the staged universe rows and source warnings:

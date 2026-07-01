@@ -1019,7 +1019,8 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     print("- Review source warnings and row counts before writing any universe import.")
     print("- To inspect raw rows intentionally: python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json")
     print("- To inspect full preview rows without writing: make universe-preview")
-    print("- To write and apply reviewed rows only after row-scope review: make universe-apply")
+    print("- To stage reviewed rows only after row-scope review: make universe-stage")
+    print("- To apply staged rows after review: make universe-apply")
 
 
 def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -1079,7 +1080,8 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 "Review source warnings and row counts before writing any universe import.",
                 "Use full --json only for intentionally reviewed row inspection.",
                 "To inspect full preview rows without writing: make universe-preview.",
-                "To write and apply reviewed rows only after row-scope review: make universe-apply.",
+                "To stage reviewed rows only after row-scope review: make universe-stage.",
+                "To apply staged rows after review: make universe-apply.",
             ],
         }
     return payload
