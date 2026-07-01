@@ -682,7 +682,7 @@ def test_research_health_cli_check_uses_read_only_summary_wording(tmp_path: Path
     assert str(tmp_path).lower() not in output
 
 
-def test_research_health_warnings_recommend_worklist_or_dry_run_before_refresh():
+def test_research_health_warnings_recommend_price_history_proof_queue_before_dry_run_refresh():
     printable = _printable_warnings(
         ["Missing OHLCV data for APLD", "Missing OHLCV data for APLM"],
         max_warnings=5,
@@ -690,7 +690,8 @@ def test_research_health_warnings_recommend_worklist_or_dry_run_before_refresh()
 
     rendered = "\n".join(printable)
     assert "2 tickers are missing OHLCV coverage" in rendered
-    assert "make price-worklist TOP_N=25" in rendered
+    assert "make price-history-proof-queue TOP_N=25" in rendered
     assert "make price-refresh-loop DRY_RUN=1" in rendered
-    assert rendered.index("make price-refresh-loop DRY_RUN=1") < rendered.index("make price-worklist TOP_N=25")
+    assert rendered.index("make price-history-proof-queue TOP_N=25") < rendered.index("make price-refresh-loop DRY_RUN=1")
+    assert "make price-worklist TOP_N=25" not in rendered
     assert "make price-refresh TOP_N=25" not in rendered
