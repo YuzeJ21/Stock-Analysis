@@ -2189,9 +2189,10 @@ def test_stock_report_cli_optional_context_source_ladder_writes_import_files(mon
     assert payload["recommended_next_commands"] == [
         "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
         "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
-        "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
         "make optional-context-readiness",
     ]
+    assert payload["apply_gate_command"] == "make imports-apply IMPORT_TICKERS=<resolved_tickers>"
+    assert "only after validation passes" in payload["apply_gate_boundary"]
 
 
 def test_resolve_dcf_input_queue_tickers_returns_unique_ordered_blocker_tickers(monkeypatch, tmp_path: Path):

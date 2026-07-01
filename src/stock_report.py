@@ -4308,9 +4308,13 @@ def main() -> None:
             "recommended_next_commands": [
                 "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
                 "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
-                "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
                 "make optional-context-readiness",
             ],
+            "apply_gate_command": "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
+            "apply_gate_boundary": (
+                "Run only after validation passes, preview scope is intended, rejected rows are zero, "
+                "and optional-context source provenance is present."
+            ),
         }
         if args.json:
             print(json.dumps(payload, indent=2))
@@ -4333,6 +4337,8 @@ def main() -> None:
             print("next:")
             for command in payload["recommended_next_commands"]:
                 print(f"- {command}")
+            print("apply gate:")
+            print(f"- {payload['apply_gate_command']} only after validation passes, preview scope is intended, rejected rows are zero, and source provenance is present.")
         return
 
     if args.list_local_tickers:
