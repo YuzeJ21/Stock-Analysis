@@ -334,7 +334,7 @@ Goal: prove fundamentals readiness without fabricating company data.
   - `fcf_margin`
   - `shares_outstanding`
 - Generate or update `fundamentals_coverage_report.csv`.
-- Improve `fundamentals_ready` from the current broad baseline of 23/3,538.
+- Continue improving `fundamentals_ready` from the original trusted-data baseline of 23/3,538; current live status should be checked with `make project-status` before quoting coverage.
 
 Acceptance notes:
 
@@ -408,7 +408,7 @@ Rules:
 Goal: clarify risk readiness and reduce avoidable warnings.
 
 - [x] Classify missing sector/theme ETF OHLCV, such as `ARKF`, as optional benchmark/proxy context rather than a core ticker price blocker.
-- Improve liquidity/correlation readiness from the current broad baseline of 232/3,538 where appropriate.
+- Continue improving liquidity/correlation readiness from the original broad baseline of 232/3,538 where appropriate; current live counts should be checked with `make risk-context`.
 - [x] Add ATR versus volatility-proxy provenance to momentum outputs, dashboard cards, monthly-pick reasons, and stock-report Markdown.
 - [x] Surface liquidity, correlation, and proxy-risk readiness cards in Data Health before detailed tables.
 - Keep proxy-based risk notes clearly labeled as approximations in generated outputs after the next pipeline/report refresh.
