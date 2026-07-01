@@ -2313,6 +2313,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
     assert "@echo \"   make project-status\"" in makefile
+    assert "@echo \"   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted\"" in makefile
     assert "@echo \"   make universe-scope TICKERS=NVDA,META TOP_N=10\"" in makefile
     assert "@echo \"   make risk-context\"" in makefile
     assert "@echo \"   make data-coverage-proof-queues TOP_N=10\"" in makefile
@@ -2323,8 +2324,11 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   Proves: coverage improves through source proof, validation, rejected-row review, rebuild proof, and still-blocked evidence, not fake rows.\"" in makefile
     demo_block = makefile.split("\ndemo:\n", 1)[1].split("\nbrowser-qa-evidence:", 1)[0]
     assert '@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"' in demo_block
+    assert '@echo "   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted"' in demo_block
     assert '@echo "   make risk-context"' in demo_block
     assert demo_block.index('@echo "   make project-status"') < demo_block.index('@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"')
+    assert demo_block.index('@echo "   make project-status"') < demo_block.index('@echo "   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted"')
+    assert demo_block.index('@echo "   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted"') < demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"')
     assert demo_block.index('@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"') < demo_block.index('@echo "   make risk-context"')
     assert demo_block.index('@echo "   make risk-context"') < demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"')
     assert demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"') < demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"')

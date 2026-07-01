@@ -326,6 +326,7 @@ demo:
 	@echo ""
 	@echo "5. Optional: see the safe coverage-improvement path:"
 	@echo "   make project-status"
+	@echo "   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted"
 	@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"
 	@echo "   make risk-context"
 	@echo "   make data-coverage-proof-queues TOP_N=10"
