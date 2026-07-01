@@ -422,6 +422,7 @@ def _fast_status_payload_from_outputs(
         "tickers_total": len(readiness),
         "tickers_with_prices": readiness_count("price_ready"),
         "tickers_usable_for_momentum": readiness_count("momentum_ready"),
+        "tickers_fundamentals_ready": readiness_count("fundamentals_ready"),
         "tickers_dcf_ready": readiness_count("dcf_ready"),
         "tickers_peer_ready": readiness_count("peer_ready"),
         "onboarding_actions": len(sorted_actions),
@@ -1253,6 +1254,7 @@ def build_project_status_payload(
     command_problem_sources = [] if tickers else problem_sources
     if optional_context_covered:
         command_problem_sources = _drop_optional_context_problem_sources(command_problem_sources)
+    readiness_fundamentals_ready = None if tickers else _count_readiness_true(data_path, "fundamentals_ready")
     readiness_dcf_ready = None if tickers else _count_readiness_true(data_path, "dcf_ready")
     purpose_evaluation_rows = [] if tickers else _load_purpose_evaluation_summary(output_path, top_n)
     summary = {
@@ -1264,6 +1266,11 @@ def build_project_status_payload(
         "tickers_total": len(coverage),
         "tickers_with_prices": _count_true(coverage, "has_prices"),
         "tickers_usable_for_momentum": _count_true(coverage, "usable_for_momentum"),
+        "tickers_fundamentals_ready": (
+            readiness_fundamentals_ready
+            if readiness_fundamentals_ready is not None
+            else _count_true(coverage, "fundamentals_ready")
+        ),
         "tickers_dcf_ready": readiness_dcf_ready if readiness_dcf_ready is not None else _count_true(coverage, "dcf_ready"),
         "tickers_peer_ready": _count_true(coverage, "peer_ready"),
         "onboarding_actions": len(actions),
@@ -1384,7 +1391,8 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- Locked input rows: {summary['data_gaps']}")
     print(f"- Tickers with prices: {summary['tickers_with_prices']}/{summary['tickers_total']}")
     print(f"- Tickers usable for momentum: {summary['tickers_usable_for_momentum']}/{summary['tickers_total']}")
-    print(f"- DCF-ready tickers: {summary['tickers_dcf_ready']}/{summary['tickers_total']}")
+    print(f"- Fundamentals/input-ready tickers: {summary.get('tickers_fundamentals_ready', 0)}/{summary['tickers_total']}")
+    print(f"- Operating-company DCF-ready tickers: {summary['tickers_dcf_ready']}/{summary['tickers_total']}")
     print(f"- Peer-ready tickers: {summary['tickers_peer_ready']}/{summary['tickers_total']}")
     print(f"- Missing-data steps: {summary['onboarding_actions']} ({summary['critical_actions']} urgent)")
     print(f"- Research-purpose groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
@@ -1399,7 +1407,9 @@ def _print_human(payload: dict[str, Any]) -> None:
         ready_label = "Ready in saved snapshot"
     print(
         f"- {ready_label}: {summary['tickers_with_prices']} price-ready, "
-        f"{summary['tickers_dcf_ready']} DCF-ready, {summary['tickers_peer_ready']} peer-ready."
+        f"{summary.get('tickers_fundamentals_ready', 0)} fundamentals/input-ready, "
+        f"{summary['tickers_dcf_ready']} operating-company DCF-ready, "
+        f"{summary['tickers_peer_ready']} peer-ready."
     )
     if has_stale_snapshot_warning:
         print("- Refresh needed: run make readiness or make status before using exact readiness counts.")

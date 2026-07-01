@@ -43,8 +43,22 @@ def _write_fast_status_artifacts(root: Path) -> None:
     (root / "config.yaml").write_text(Path("config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
     pd.DataFrame(
         [
-            {"ticker": "NVDA", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": False},
-            {"ticker": "AMD", "price_ready": False, "momentum_ready": False, "dcf_ready": False, "peer_ready": False},
+            {
+                "ticker": "NVDA",
+                "price_ready": True,
+                "momentum_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+            },
+            {
+                "ticker": "AMD",
+                "price_ready": False,
+                "momentum_ready": False,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+            },
         ]
     ).to_csv(reports_dir / "ticker_readiness_report.csv", index=False)
     pd.DataFrame(
@@ -121,13 +135,14 @@ def test_project_status_prefers_central_readiness_dcf_count(tmp_path: Path):
     reports_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(
         [
-            {"ticker": "NVDA", "dcf_ready": False},
-            {"ticker": "AMD", "dcf_ready": True},
+            {"ticker": "NVDA", "fundamentals_ready": True, "dcf_ready": False},
+            {"ticker": "AMD", "fundamentals_ready": True, "dcf_ready": True},
         ]
     ).to_csv(reports_dir / "ticker_readiness_report.csv", index=False)
 
     payload = build_project_status_payload(tmp_path, top_n=3)
 
+    assert payload["summary"]["tickers_fundamentals_ready"] == 2
     assert payload["summary"]["tickers_dcf_ready"] == 1
 
 
@@ -666,7 +681,9 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
 
     assert "Project status summary:" in output
     assert "First read:" in output
-    assert "Ready now: 1 price-ready, 1 DCF-ready, 0 peer-ready." in output
+    assert "Ready now: 1 price-ready, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready." in output
+    assert "Fundamentals/input-ready tickers: 1/2" in output
+    assert "Operating-company DCF-ready tickers: 1/2" in output
     assert "Best next proof: make trusted-data-pilot-candidates TOP_N=10" in output
     assert "Read-only project snapshot." in output
     assert "Read-only operator snapshot." not in output
@@ -678,7 +695,7 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "outputs: outputs" in output
     assert str(tmp_path) not in output
     assert "Tickers with prices: 1/2" in output
-    assert "DCF-ready tickers: 1/2" in output
+    assert "Operating-company DCF-ready tickers: 1/2" in output
     assert "Required data sources needing attention: 0" in output
     assert "Optional/manual lanes locked: 2" in output
     assert "make focus-fundamentals TICKER=AMD" in output
@@ -1225,7 +1242,9 @@ def test_project_status_cli_check_labels_stale_generated_snapshot_before_counts(
     freshness_index = output.index("Snapshot freshness: generated snapshot may be stale")
     warning_index = output.index("Warning: Generated status artifacts may be stale")
     summary_index = output.index("Project status summary (stale generated snapshot):")
-    ready_index = output.index("Ready in saved snapshot: 1 price-ready, 1 DCF-ready, 0 peer-ready.")
+    ready_index = output.index(
+        "Ready in saved snapshot: 1 price-ready, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready."
+    )
 
     assert freshness_index < warning_index < summary_index < ready_index
     assert "Ready now: 1 price-ready" not in output
