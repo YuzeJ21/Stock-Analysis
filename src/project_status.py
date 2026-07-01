@@ -20,6 +20,7 @@ from src.dcf_input_proof_queue import _reviewed_non_actionable_tickers as _revie
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
+from src.readiness_ops import build_reviewed_batch_ledger_summaries
 from src.research_health import research_health_outputs_current
 from src.research_health import run as run_research_health
 
@@ -392,11 +393,14 @@ def _fast_status_payload_from_outputs(
         _peer_action_tickers(normalized_actions),
     )
     dcf_source_ladder_has_unreviewed = _dcf_source_ladder_has_unreviewed_rows(root, data_path)
+    optional_context_covered = _optional_context_ledger_covers_current_universe(root, len(readiness))
     normalized_actions = _drop_reviewed_non_actionable_price_actions(root, normalized_actions)
     normalized_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, normalized_actions)
     normalized_actions = _drop_reviewed_non_actionable_peer_actions(root, normalized_actions)
     if dcf_source_ladder_has_unreviewed is False:
         normalized_actions = _drop_all_fundamentals_actions(normalized_actions)
+    if optional_context_covered:
+        normalized_actions = _drop_optional_context_actions(normalized_actions)
     sorted_actions = sorted(normalized_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
@@ -446,6 +450,8 @@ def _fast_status_payload_from_outputs(
     )
     if dcf_source_ladder_has_unreviewed is False:
         command_rows = _drop_all_fundamentals_actions(command_rows)
+    if optional_context_covered:
+        command_rows = _drop_optional_context_actions(command_rows)
     if allowed:
         command_rows = _recommended_next_command_rows(
             sorted_actions,
@@ -962,6 +968,37 @@ def _drop_reviewed_non_actionable_peer_actions(
     ]
 
 
+def _optional_context_ledger_covers_current_universe(root: Path, expected_count: int) -> bool:
+    if expected_count <= 0:
+        return False
+    summary = build_reviewed_batch_ledger_summaries(root).get("optional_context")
+    if summary is None:
+        return False
+    return summary.unique_ticker_count >= expected_count
+
+
+def _is_optional_context_action(row: dict[str, Any]) -> bool:
+    dataset = str(row.get("dataset") or "").strip().lower()
+    if dataset in {"earnings", "analyst_estimates", "analyst estimates", "optional_context"}:
+        return True
+    command = str(row.get("Command") or row.get("focus_command") or row.get("example_command") or "").strip()
+    step = str(row.get("Step") or "").strip().lower()
+    return command == "make templates" and any(token in step for token in ("earnings", "analyst", "optional"))
+
+
+def _drop_optional_context_actions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [row for row in rows if not _is_optional_context_action(row)]
+
+
+def _drop_optional_context_problem_sources(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        row
+        for row in rows
+        if str(row.get("dataset") or "").strip().lower()
+        not in {"earnings", "analyst_estimates", "analyst estimates", "optional_context"}
+    ]
+
+
 def _dcf_source_ladder_has_unreviewed_rows(root: Path, data_path: Path) -> bool | None:
     universe_path = data_path / "universe_master.csv"
     if not universe_path.exists():
@@ -1164,16 +1201,21 @@ def build_project_status_payload(
         enriched_actions = [row for row in enriched_actions if str(row.get("ticker", "")).upper().strip() in allowed]
     had_actions_before_review_filter = bool(enriched_actions)
     dcf_source_ladder_has_unreviewed = _dcf_source_ladder_has_unreviewed_rows(root, data_path)
+    optional_context_covered = _optional_context_ledger_covers_current_universe(root, len(coverage))
     filtered_actions = _drop_reviewed_non_actionable_price_actions(root, enriched_actions)
     filtered_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, filtered_actions)
     filtered_actions = _drop_reviewed_non_actionable_peer_actions(root, filtered_actions)
     if dcf_source_ladder_has_unreviewed is False:
         filtered_actions = _drop_all_fundamentals_actions(filtered_actions)
+    if optional_context_covered:
+        filtered_actions = _drop_optional_context_actions(filtered_actions)
     actions = sorted(filtered_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
     optional_locked_sources = [row for row in problem_sources if _source_is_optional_locked(row)]
     command_problem_sources = [] if tickers else problem_sources
+    if optional_context_covered:
+        command_problem_sources = _drop_optional_context_problem_sources(command_problem_sources)
     readiness_dcf_ready = None if tickers else _count_readiness_true(data_path, "dcf_ready")
     purpose_evaluation_rows = [] if tickers else _load_purpose_evaluation_summary(output_path, top_n)
     summary = {

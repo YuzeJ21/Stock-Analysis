@@ -992,6 +992,57 @@ def test_project_status_fast_check_pivots_from_reviewed_non_actionable_dotted_pe
     assert payload["top_onboarding_actions"] == []
 
 
+def test_project_status_fast_check_pivots_from_ledger_covered_optional_context(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": True},
+            {"ticker": "AMD", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": True},
+        ]
+    ).to_csv(tmp_path / "data" / "reports" / "ticker_readiness_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "priority": 4,
+                "ticker": "NVDA",
+                "dataset": "earnings",
+                "status": "missing_optional_context",
+                "reason": "No local earnings row is configured.",
+                "recommended_action": "Use make templates only if a trusted source row exists.",
+                "focus_command": "make templates",
+                "example_command": "make templates",
+            },
+        ]
+    ).to_csv(tmp_path / "outputs" / "data_onboarding_actions.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "Step": "Fix top earnings blocker (NVDA)",
+                "Command": "make templates",
+                "Reason": "No local earnings row is configured.",
+                "SourceContext": "data/imports/earnings.csv",
+                "FreshnessContext": "optional_missing",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "project_status_next_steps.csv", index=False)
+    (tmp_path / "data" / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-OPT-NVDA,optional_context,NVDA,still_blocked,none,"
+        "\"No trusted optional earnings or estimates row exists.\"\n"
+        "RB-OPT-AMD,optional_context,AMD,still_blocked,none,"
+        "\"No trusted optional earnings or estimates row exists.\"\n",
+        encoding="utf-8",
+    )
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
+    assert "make templates" not in commands
+    assert commands[0] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert payload["top_onboarding_actions"] == []
+
+
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
 
