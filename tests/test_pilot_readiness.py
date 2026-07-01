@@ -466,6 +466,11 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Real key values are never printed." in body
     assert "Latest Reviewed Batch Proof" in body
     assert "Manual Gates Still Required" in body
+    assert "License Decision Options" in body
+    assert "Portfolio showcase only" in body
+    assert "Keep no license for now" in body
+    assert "Let others reuse with attribution" in body
+    assert "Add MIT or Apache-2.0" in body
     assert "Generated Artifacts Excluded From Staging" in body
     assert "Default broad exclusion patterns" in body
     assert "Currently dirty generated artifacts" in body

@@ -27,6 +27,7 @@ except ModuleNotFoundError:
 
 from src.readiness_ops import build_data_coverage_proof_queues
 from src.browser_qa_evidence import browser_qa_evidence_payload
+from src.license_status import build_license_status
 from src.reviewed_batch import readiness_freshness_status
 from src.source_activation_guide import build_provider_setup_checklist
 
@@ -824,8 +825,28 @@ def _share_brief_provider_setup_lines() -> list[str]:
     return lines
 
 
+def _license_decision_option_rows(root: Path) -> list[list[object]]:
+    status = build_license_status(root)
+    options = status.get("decision_options", [])
+    rows: list[list[object]] = []
+    if not isinstance(options, list):
+        return rows
+    for option in options:
+        if not isinstance(option, dict):
+            continue
+        rows.append(
+            [
+                option.get("goal", "-"),
+                option.get("path", "-"),
+                option.get("visitor_expectation", "-"),
+            ]
+        )
+    return rows
+
+
 def render_pilot_readiness_packet(
     *,
+    root: Path | str = ".",
     checks: list[PilotReadinessCheck],
     snapshot: ReadinessSnapshot,
     source_queues: list[object],
@@ -833,6 +854,7 @@ def render_pilot_readiness_packet(
     excluded_artifacts: list[str],
     commit_handoff: list[PilotCommitPackageItem] | None = None,
 ) -> str:
+    root_path = Path(root)
     verdict = pilot_readiness_verdict(checks)
     manual_gates = [check for check in checks if check.status == "manual"]
     blocked_gates = [check for check in checks if check.status == "blocked"]
@@ -950,6 +972,13 @@ def render_pilot_readiness_packet(
         lines.append("- None from the current checklist.")
     lines.extend(
         [
+            "",
+            "## License Decision Options",
+            "",
+            *_markdown_table(
+                ["Goal", "Path", "Visitor expectation"],
+                _license_decision_option_rows(root_path),
+            ),
             "",
             "## Stop Rules",
             "",
@@ -1084,6 +1113,7 @@ def write_pilot_readiness_packet(
     source_queues = build_data_coverage_proof_queues(root, top_n=top_n)
     checks = build_pilot_readiness_checks(root, top_n=top_n, source_queues=source_queues)
     packet = render_pilot_readiness_packet(
+        root=root,
         checks=checks,
         snapshot=build_readiness_snapshot(root),
         source_queues=source_queues,
