@@ -25451,6 +25451,7 @@ def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     metric_queue_build_index = source.index("data_health_metric_readiness_queue_frame(top_n=10)", metric_load_status_index)
     metric_queue_gate_index = source.index('if metric_detail_status["status"] == "ready_to_load"', metric_load_status_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
+    scope_risk_cards_index = source.index("universe_scope_risk_handoff_cards(readiness_summary, ticker_readiness_frame)", lane_selector_index)
     risk_cards_index = source.index("data_health_risk_context_cards(liquidity_frame, correlation_frame)", lane_selector_index)
     metric_console_index = source.index("render_data_health_metric_operator_console(metric_queue_frame, readiness_freshness)", lane_selector_index)
     metric_selector_index = source.index('label="Metric detail level"', metric_console_index)
@@ -25467,7 +25468,7 @@ def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     assert metric_console_index < metric_selector_index < metric_load_cards_index
     assert metric_load_cards_index < metric_queue_expander_index
     assert metric_console_index < metric_queue_expander_index < metric_summary_index < metric_queue_index < metric_cards_index
-    assert risk_cards_index < liquidity_expander_index < correlation_expander_index
+    assert scope_risk_cards_index < risk_cards_index < liquidity_expander_index < correlation_expander_index
     assert metric_summary_table_index < metric_summary_index
 
 

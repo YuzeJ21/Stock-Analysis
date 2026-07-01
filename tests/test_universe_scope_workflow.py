@@ -1,6 +1,7 @@
 import pandas as pd
 
 from src.universe_scope_workflow import (
+    universe_scope_risk_handoff_cards,
     universe_scope_counts,
     universe_scope_review_plan,
     universe_scope_workflow_cards,
@@ -102,6 +103,30 @@ def test_universe_scope_review_plan_gives_lazy_copy_only_scope_commands():
     assert "make coverage-frontier top_n=12" in rendered
     assert "copy-only" in rendered
     assert "does not refresh, import, apply, or infer missing values" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_universe_scope_risk_handoff_cards_keep_scope_before_risk_context():
+    cards = universe_scope_risk_handoff_cards(
+        {"master_universe": 3538, "active_universe": 12, "price_ready": 3538, "dcf_ready": 2691, "peer_ready": 29},
+        pd.DataFrame(),
+    )
+    rendered = _render(cards)
+
+    assert [card["kicker"] for card in cards] == [
+        "SCOPE BEFORE RISK",
+        "RISK CONTEXT BOUNDARY",
+        "NEXT SAFE REVIEW",
+    ]
+    assert "12 active-review rows before the 3538-row master universe" in rendered
+    assert "risk context is not a research conclusion" in rendered
+    assert "liquidity and correlation after scope selection" in rendered
+    assert "blocked rows route back to price history or source proof" in rendered
+    assert cards[0]["command"] == "make universe-scope TOP_N=10"
+    assert cards[1]["command"] == "make risk-context"
+    assert cards[2]["command"] == "make coverage-frontier TOP_N=10"
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered

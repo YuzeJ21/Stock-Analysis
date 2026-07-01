@@ -268,7 +268,7 @@ from src.single_stock_workflow import (
     single_stock_workflow_fit_cards,
     single_stock_workflow_loop_cards,
 )
-from src.universe_scope_workflow import universe_scope_workflow_cards
+from src.universe_scope_workflow import universe_scope_risk_handoff_cards, universe_scope_workflow_cards
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28111,6 +28111,7 @@ def render_data_health(
             render_section_header("Price Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
             render_signal_cards(
                 data_health_coverage_frontier_cards(coverage_frontier, limit=2)
+                + universe_scope_risk_handoff_cards(readiness_summary, ticker_readiness_frame)
                 + data_health_risk_context_cards(liquidity_frame, correlation_frame),
                 show_commands=False,
             )

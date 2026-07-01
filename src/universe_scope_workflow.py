@@ -134,6 +134,52 @@ def universe_scope_workflow_cards(
     ]
 
 
+def universe_scope_risk_handoff_cards(
+    summary: dict[str, object],
+    ticker_readiness_frame: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    """Return cards that keep risk context behind an explicit scope choice."""
+
+    counts = universe_scope_counts(summary, ticker_readiness_frame)
+    master = counts["master"]
+    active = counts["active"]
+    price_ready = counts["price_ready"]
+    dcf_ready = counts["dcf_ready"]
+    peer_ready = counts["peer_ready"]
+    return [
+        {
+            "kicker": "SCOPE BEFORE RISK",
+            "title": "Choose the review set first",
+            "body": (
+                f"Start with {active} active-review rows before the {master}-row master universe. "
+                "Then narrow by ticker, sector, theme, or ready-only state before opening liquidity or correlation context."
+            ),
+            "badges": ["scope first", "row-limited"],
+            "command": "make universe-scope TOP_N=10",
+        },
+        {
+            "kicker": "RISK CONTEXT BOUNDARY",
+            "title": f"{price_ready} price-ready rows feed risk context",
+            "body": (
+                "Review liquidity and correlation after scope selection. Risk context is not a research conclusion, "
+                "and it does not unlock DCF, peers, earnings, analyst estimates, valuation inputs, or recommendations."
+            ),
+            "badges": ["context only", "price-history gated"],
+            "command": "make risk-context",
+        },
+        {
+            "kicker": "NEXT SAFE REVIEW",
+            "title": f"{dcf_ready} DCF-ready; {peer_ready} peer-ready",
+            "body": (
+                "Blocked rows route back to price history or source proof, not broad conclusions. "
+                "Use the coverage frontier to decide whether the next executable lane is data proof, provider setup, or workflow evidence."
+            ),
+            "badges": ["blocked stays visible", "proof-gated"],
+            "command": "make coverage-frontier TOP_N=10",
+        },
+    ]
+
+
 def universe_scope_review_plan(
     summary: dict[str, object],
     ticker_readiness_frame: pd.DataFrame | None,
