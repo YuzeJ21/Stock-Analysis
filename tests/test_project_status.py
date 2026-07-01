@@ -894,6 +894,55 @@ def test_project_status_fast_check_pivots_when_dcf_source_ladder_has_no_unreview
     assert payload["top_onboarding_actions"] == []
 
 
+def test_project_status_fast_check_pivots_from_reviewed_non_actionable_peers(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    pd.DataFrame(
+        [
+            {"ticker": "AACB", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "NVDA", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": True},
+        ]
+    ).to_csv(tmp_path / "data" / "reports" / "ticker_readiness_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "priority": 3,
+                "ticker": "AACB",
+                "dataset": "peers",
+                "status": "missing_or_incomplete",
+                "reason": "No local peer mapping is configured for this ticker.",
+                "recommended_action": "Run make focus-peers TICKER=AACB first.",
+                "focus_command": "make focus-peers TICKER=AACB",
+                "example_command": "make templates",
+            },
+        ]
+    ).to_csv(tmp_path / "outputs" / "data_onboarding_actions.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "Step": "Fix top peers blocker (AACB)",
+                "Command": "make focus-peers TICKER=AACB",
+                "Reason": "No local peer mapping is configured for this ticker.",
+                "SourceContext": "data/imports/peers.csv",
+                "FreshnessContext": "manual_input_needed",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "project_status_next_steps.csv", index=False)
+    (tmp_path / "data" / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-PEER-AACB,peers,AACB,still_blocked,none,"
+        "\"AACB peer source review already found no source-backed mapping rows.\"\n",
+        encoding="utf-8",
+    )
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
+    assert commands[0] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert "make focus-peers TICKER=AACB" not in commands
+    assert payload["top_onboarding_actions"] == []
+
+
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
 

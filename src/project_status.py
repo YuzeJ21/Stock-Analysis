@@ -387,9 +387,14 @@ def _fast_status_payload_from_outputs(
     reviewed_non_actionable_fundamentals_tickers = _reviewed_non_actionable_dcf_tickers(root).intersection(
         _fundamentals_action_tickers(normalized_actions)
     )
+    reviewed_non_actionable_peer_tickers = _reviewed_non_actionable_peer_tickers(
+        root,
+        _peer_action_tickers(normalized_actions),
+    )
     dcf_source_ladder_has_unreviewed = _dcf_source_ladder_has_unreviewed_rows(root, data_path)
     normalized_actions = _drop_reviewed_non_actionable_price_actions(root, normalized_actions)
     normalized_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, normalized_actions)
+    normalized_actions = _drop_reviewed_non_actionable_peer_actions(root, normalized_actions)
     if dcf_source_ladder_has_unreviewed is False:
         normalized_actions = _drop_all_fundamentals_actions(normalized_actions)
     sorted_actions = sorted(normalized_actions, key=_action_rank)
@@ -434,6 +439,10 @@ def _fast_status_payload_from_outputs(
     command_rows = _drop_reviewed_non_actionable_fundamentals_rows(
         command_rows,
         reviewed_non_actionable_fundamentals_tickers,
+    )
+    command_rows = _drop_reviewed_non_actionable_peer_rows(
+        command_rows,
+        reviewed_non_actionable_peer_tickers,
     )
     if dcf_source_ladder_has_unreviewed is False:
         command_rows = _drop_all_fundamentals_actions(command_rows)
@@ -889,6 +898,70 @@ def _drop_all_fundamentals_actions(rows: list[dict[str, Any]]) -> list[dict[str,
     return filtered
 
 
+def _peer_action_tickers(actions: list[dict[str, Any]]) -> set[str]:
+    return {
+        str(row.get("ticker") or "").strip().upper()
+        for row in actions
+        if str(row.get("dataset") or "").strip().lower() == "peers"
+        and str(row.get("ticker") or "").strip()
+    }
+
+
+def _reviewed_non_actionable_peer_tickers(root: Path, possible_tickers: set[str]) -> set[str]:
+    path = root / "data" / "reviewed_batch_proofs.csv"
+    if not path.exists() or not possible_tickers:
+        return set()
+    reviewed: set[str] = set()
+    rows = _read_csv_records(path)
+    lanes = {"peers", "peer_mapping"}
+    outcomes = {"candidate_context_only", "still_blocked", "skipped", "excluded"}
+    for row in rows:
+        if str(row.get("lane") or "").strip().lower() not in lanes:
+            continue
+        if str(row.get("final_outcome") or "").strip().lower() not in outcomes:
+            continue
+        text = " ".join(str(row.get(name) or "") for name in ("tickers", "changed_tickers", "notes")).upper()
+        for token in re.findall(r"\b[A-Z][A-Z0-9.]{0,9}\b", text):
+            ticker = token.replace(".", "-")
+            if ticker in possible_tickers:
+                reviewed.add(ticker)
+    return reviewed
+
+
+def _drop_reviewed_non_actionable_peer_rows(
+    rows: list[dict[str, str]],
+    reviewed_tickers: set[str],
+) -> list[dict[str, str]]:
+    if not reviewed_tickers:
+        return rows
+    filtered: list[dict[str, str]] = []
+    for row in rows:
+        command = str(row.get("Command") or "").strip()
+        ticker = _command_row_ticker(row)
+        if command.startswith("make focus-peers") and ticker in reviewed_tickers:
+            continue
+        filtered.append(row)
+    return filtered
+
+
+def _drop_reviewed_non_actionable_peer_actions(
+    root: Path,
+    actions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    possible_tickers = _peer_action_tickers(actions)
+    reviewed_tickers = _reviewed_non_actionable_peer_tickers(root, possible_tickers)
+    if not reviewed_tickers:
+        return actions
+    return [
+        row
+        for row in actions
+        if not (
+            str(row.get("dataset") or "").strip().lower() == "peers"
+            and str(row.get("ticker") or "").strip().upper() in reviewed_tickers
+        )
+    ]
+
+
 def _dcf_source_ladder_has_unreviewed_rows(root: Path, data_path: Path) -> bool | None:
     universe_path = data_path / "universe_master.csv"
     if not universe_path.exists():
@@ -1093,6 +1166,7 @@ def build_project_status_payload(
     dcf_source_ladder_has_unreviewed = _dcf_source_ladder_has_unreviewed_rows(root, data_path)
     filtered_actions = _drop_reviewed_non_actionable_price_actions(root, enriched_actions)
     filtered_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, filtered_actions)
+    filtered_actions = _drop_reviewed_non_actionable_peer_actions(root, filtered_actions)
     if dcf_source_ladder_has_unreviewed is False:
         filtered_actions = _drop_all_fundamentals_actions(filtered_actions)
     actions = sorted(filtered_actions, key=_action_rank)
