@@ -326,7 +326,7 @@ def _reviewed_batch_coverage_status(
     outcomes = ", ".join(f"{outcome}={count}" for outcome, count in sorted(summary.outcome_counts.items()))
     return (
         f"reviewed proof ledger covers current {lane_label} scope "
-        f"({summary.unique_ticker_count}/{expected_count} ticker(s); outcomes {outcomes}); "
+        f"({summary.unique_ticker_count} reviewed ticker(s) for {expected_count} current scope ticker(s); outcomes {outcomes}); "
         "do not repeat this proof loop unless new source-backed rows, new tickers, or changed blockers appear."
     )
 
