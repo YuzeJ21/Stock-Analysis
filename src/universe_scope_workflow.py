@@ -277,6 +277,13 @@ def _print_plan(plan: pd.DataFrame) -> None:
     if plan.empty:
         print("No scope rows available. Run make readiness before relying on counts.")
         return
+    active_rows = plan[plan["scope"].eq("active_universe")]
+    recommended = active_rows.iloc[0] if not active_rows.empty and _safe_int(active_rows.iloc[0]["matching_rows"]) else plan.iloc[0]
+    print(
+        f"Recommended first scope: {recommended['scope']} | {recommended['matching_rows']} row(s) | "
+        f"{recommended['copy_only_command']}"
+    )
+    print("Boundary: do not treat master-universe coverage as analysis readiness; widen only after proof gates.")
     for row in plan.to_dict("records"):
         print(
             f"- {row['scope']}: {row['matching_rows']} row(s) | {row['what_it_answers']} | "

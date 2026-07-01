@@ -1,6 +1,7 @@
 import pandas as pd
 
 from src.universe_scope_workflow import (
+    _print_plan,
     universe_scope_risk_handoff_cards,
     universe_scope_counts,
     universe_scope_review_plan,
@@ -106,6 +107,40 @@ def test_universe_scope_review_plan_gives_lazy_copy_only_scope_commands():
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
+
+
+def test_universe_scope_print_plan_starts_with_recommended_scope(capsys):
+    plan = pd.DataFrame(
+        [
+            {
+                "scope": "active_universe",
+                "matching_rows": 2,
+                "what_it_answers": "Which focused rows first?",
+                "copy_only_command": "make readiness-queue TOP_N=10",
+                "scope_boundary": "copy-only",
+                "stop_rule": "Use active rows first.",
+            },
+            {
+                "scope": "missing_data",
+                "matching_rows": 5,
+                "what_it_answers": "Which rows route to proof?",
+                "copy_only_command": "make coverage-frontier TOP_N=10",
+                "scope_boundary": "copy-only",
+                "stop_rule": "Widen only after proof gates.",
+            },
+        ]
+    )
+
+    _print_plan(plan)
+    output = capsys.readouterr().out.lower()
+
+    assert "recommended first scope: active_universe" in output
+    assert "make readiness-queue top_n=10" in output
+    assert "do not treat master-universe coverage as analysis readiness" in output
+    assert output.index("recommended first scope") < output.index("- active_universe")
+    assert "buy" not in output
+    assert "sell" not in output
+    assert "broker" not in output
 
 
 def test_universe_scope_risk_handoff_cards_keep_scope_before_risk_context():
