@@ -101,6 +101,44 @@ def test_proof_closeout_frame_uses_record_gate_when_no_final_outcome_exists():
     assert frame.iloc[0]["Next Safest Action"] == "DRY_RUN=1 make reviewed-batch-proof-record ..."
 
 
+def test_proof_closeout_frame_uses_proof_source_language_for_completed_closeout():
+    outcome = pd.DataFrame(
+        [
+            {
+                "Proof Loop Step": "Before / after readiness comparison",
+                "Status": "ready",
+                "Detail": "comparison reviewed",
+                "Next Safe Action": "make readiness",
+            },
+            {
+                "Proof Loop Step": "Latest peer ledger outcome",
+                "Status": "supported",
+                "Detail": "reviewed proof row complete",
+                "Next Safe Action": "make reviewed-batch-proof",
+            },
+        ]
+    )
+
+    frame = proof_closeout_frame_from_outcome(
+        outcome,
+        latest_step="Latest peer ledger outcome",
+        empty_evidence="Open the peer proof outcome loop before closeout.",
+        empty_action="make peer-mapping-source-review TOP_N=10",
+        empty_boundary="Do not close without proof.",
+        fallback_action="make peer-mapping-source-review TOP_N=10",
+        complete_action="make reviewed-batch-proof",
+        record_action="DRY_RUN=1 make reviewed-batch-proof-record ...",
+        record_evidence="Record a reviewed ledger outcome.",
+        boundary="Closeout is proof state only.",
+    )
+
+    evidence = frame.iloc[0]["Evidence Remaining"]
+
+    assert frame.iloc[0]["Closeout Status"] == "supported"
+    assert evidence == "No open proof-source, comparison, or proof-record gates in this closeout view."
+    assert "No open source" not in evidence
+
+
 def test_proof_closeout_frame_uses_empty_fallbacks():
     frame = proof_closeout_frame_from_outcome(
         None,

@@ -107,7 +107,7 @@ def proof_closeout_frame_from_outcome(
         )
         next_action = _format_missing(open_gates.iloc[0].get("Next Safe Action"), fallback_action)
     elif latest_status in FINAL_CLOSEOUT_STATES:
-        evidence = "No open source, comparison, or proof-record gates in this closeout view."
+        evidence = "No open proof-source, comparison, or proof-record gates in this closeout view."
         next_action = complete_action
     else:
         evidence = record_evidence
