@@ -150,9 +150,10 @@ Pilot exit criteria:
 
 Immediate pilot priorities:
 
-1. Run the controlled pilot on a small company set from `make trusted-data-pilot-candidates TOP_N=10`.
-2. Close one reviewed source-proof lane at a time, starting with the top executable DCF/share-count/peer blocker.
-3. Keep the pilot package clean: reviewed docs/code/evidence only, broad generated churn excluded by default.
+1. Provider setup/source-boundary review: run `make provider-setup-checklist` when current source-proof queues have no unreviewed executable company candidates. Use it to confirm which free public, keyed free-tier, optional broker-disabled, and locked/manual sources can truthfully unlock the next coverage stage.
+2. Run `make trusted-data-pilot-candidates TOP_N=10` only after `make project-status` or `make coverage-frontier TOP_N=10` shows new provider data, keyed sources, reviewed manual rows, new tickers, or changed blockers.
+3. Close one reviewed source-proof lane at a time, starting with the top executable DCF/share-count/peer blocker.
+4. Keep the pilot package clean: reviewed docs/code/evidence only, broad generated churn excluded by default.
 
 Post-pilot priorities:
 

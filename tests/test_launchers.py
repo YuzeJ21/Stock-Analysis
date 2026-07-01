@@ -1215,6 +1215,18 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
     ):
         assert phrase in roadmap
 
+
+def test_roadmap_routes_exhausted_proof_queues_to_provider_setup_before_candidate_loops():
+    roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
+
+    assert "Provider setup/source-boundary review" in roadmap
+    assert "`make provider-setup-checklist`" in roadmap
+    assert "current source-proof queues have no unreviewed executable company candidates" in roadmap
+    assert "`make trusted-data-pilot-candidates TOP_N=10` only after" in roadmap
+    assert roadmap.index("Provider setup/source-boundary review") < roadmap.index(
+        "`make trusted-data-pilot-candidates TOP_N=10` only after"
+    )
+
     assert "### B. Single Stock Research Mode\n\nGoal: produce a data-honest single-ticker research report" not in roadmap
     assert "- Add ticker search in the dashboard." not in roadmap
     assert "`make price-refresh-loop BATCHES=... TOP_N=... PROVIDER=auto`" not in roadmap
