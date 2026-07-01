@@ -439,7 +439,9 @@ def test_public_release_package_marks_generated_only_tree_as_local_churn():
     assert "Product/code/docs/test candidates: 0 (0 changed, 0 new)" in report
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
     assert "Package status: generated churn only; keep it local unless intentionally reviewed as evidence" in report
-    assert "Not ready to stage automatically" in report
+    assert "Release verdict:" in report
+    assert "No reviewed product package to stage; keep generated churn local unless intentionally selected as evidence." in report
+    assert "Not ready to stage automatically" not in report
 
 
 def test_staged_hygiene_check_passes_clean_product_and_sample_report_stage():

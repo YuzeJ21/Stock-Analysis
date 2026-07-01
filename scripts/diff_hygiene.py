@@ -638,7 +638,11 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
             (
                 "  Ready to stage product files after public-check and local dashboard smoke pass."
                 if product and not manual
-                else "  Not ready to stage automatically; resolve manual-review paths or confirm the clean tree first."
+                else (
+                    "  Stop first: resolve manual-review paths before staging."
+                    if manual
+                    else "  No reviewed product package to stage; keep generated churn local unless intentionally selected as evidence."
+                )
             ),
             "",
             "Stage only reviewed product/docs/tests by default:",
