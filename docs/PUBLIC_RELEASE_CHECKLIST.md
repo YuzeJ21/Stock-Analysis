@@ -123,6 +123,8 @@ make browser-qa-evidence
 make browser-qa-capture-plan
 make public-release-handoff
 make status-check TOP_N=5
+make project-status
+make provider-setup-checklist
 make demo
 make trusted-data-pilot-candidates TOP_N=10
 make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail

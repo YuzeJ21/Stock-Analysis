@@ -762,7 +762,11 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert public_demo_commands.index("make project-status") < public_demo_commands.index(
         "make trusted-data-pilot-candidates TOP_N=10"
     )
+    assert public_demo_commands.index("make provider-setup-checklist") < public_demo_commands.index(
+        "make trusted-data-pilot-candidates TOP_N=10"
+    )
     assert "only when project-status shows executable company candidates" in public_demo_commands
+    assert "use when project-status says source-proof queues are exhausted" in public_demo_commands
     assert "make trusted-data-pilot-packet TICKER=MU" in public_demo
     assert "make trusted-data-pilot-packet TICKER=CRDO" in public_demo
     assert "Local file presence, row counts, staged files, and rejected-row reports are inspection cues, not proof" in public_demo
@@ -1377,6 +1381,12 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "make trusted-data-pilot-candidates TOP_N=10" in checklist
     assert "make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1" in checklist
+    assert "make provider-setup-checklist" in checklist
+    checklist_commands = checklist.split("make public-release-handoff", 1)[1].split("make stock-report-md TICKER=NVDA", 1)[0]
+    assert checklist_commands.index("make project-status") < checklist_commands.index("make provider-setup-checklist")
+    assert checklist_commands.index("make provider-setup-checklist") < checklist_commands.index(
+        "make trusted-data-pilot-candidates TOP_N=10"
+    )
     assert "default candidate output stays compact for visitors" in checklist
     assert "make trusted-data-pilot-packet TICKER=CRDO" in checklist
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" in checklist

@@ -41,6 +41,7 @@ make stock-report-md TICKER=MU
 make stock-report-md TICKER=QQQ
 make project-status
 make data-coverage-proof-queues TOP_N=10
+make provider-setup-checklist  # use when project-status says source-proof queues are exhausted
 make trusted-data-pilot-candidates TOP_N=10  # only when project-status shows executable company candidates
 make trusted-data-pilot-packet TICKER=MU
 make trusted-data-pilot-packet TICKER=CRDO
