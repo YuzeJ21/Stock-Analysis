@@ -1,6 +1,10 @@
 import pandas as pd
 
-from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
+from src.risk_context_workflow import (
+    data_health_risk_context_cards,
+    risk_context_summary_lines,
+    split_risk_context_by_price_ready,
+)
 
 
 def test_split_risk_context_by_price_ready_status_keeps_supported_and_unavailable_separate():
@@ -48,6 +52,37 @@ def test_data_health_risk_context_cards_label_proxy_context_without_recommendati
     assert "review context only" in rendered
     assert "concentration review signal, not a research conclusion" in rendered
     assert "volatility-proxy language must stay labeled as an approximation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_risk_context_summary_lines_are_terminal_safe_and_copy_only():
+    liquidity = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD"],
+            "LiquidityStatus": ["Liquid", "Insufficient Price Data"],
+            "LiquidityInputsUsed": ["ATR inputs", ""],
+        }
+    )
+    correlation = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD"],
+            "CorrelationStatus": ["Ready", "Insufficient Overlap"],
+        }
+    )
+
+    lines = risk_context_summary_lines(liquidity, correlation)
+    rendered = " ".join(lines).lower()
+
+    assert lines[0] == "Risk Context Summary"
+    assert "read-only" in rendered
+    assert "liquidity readiness: 1 ready / 2 rows" in rendered
+    assert "correlation readiness: 1 ready / 2 rows" in rendered
+    assert "make price-worklist top_n=25" in rendered
+    assert "make research-health-check top_n=10" in rendered
+    assert "review context only" in rendered
+    assert "not a research conclusion" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered

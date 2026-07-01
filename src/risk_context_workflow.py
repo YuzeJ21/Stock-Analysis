@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import argparse
+from pathlib import Path
+
 import pandas as pd
+
+from src.paths import resolve_outputs_dir, resolve_project_root
 
 
 def split_risk_context_by_price_ready(frame: pd.DataFrame | None, unavailable_statuses: set[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -72,3 +77,45 @@ def data_health_risk_context_cards(
             "command": "make stock-report-md TICKER=NVDA",
         },
     ]
+
+
+def risk_context_summary_lines(
+    liquidity_frame: pd.DataFrame | None,
+    correlation_frame: pd.DataFrame | None,
+) -> list[str]:
+    """Return terminal-safe risk-context summary lines from current local outputs."""
+
+    cards = data_health_risk_context_cards(liquidity_frame, correlation_frame)
+    lines = [
+        "Risk Context Summary",
+        "Read-only: this command does not refresh, import, apply, stage, or infer data.",
+    ]
+    for card in cards:
+        lines.append(
+            f"- {card['kicker'].title()}: {card['title']} | {card['body']} | next: {card['command']}"
+        )
+    return lines
+
+
+def _read_optional_csv(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Print read-only liquidity/correlation risk-context readiness.")
+    parser.add_argument("--root", default=".", help="Project root")
+    args = parser.parse_args(argv)
+
+    root = resolve_project_root(args.root)
+    outputs = resolve_outputs_dir(None, root)
+    liquidity = _read_optional_csv(outputs / "liquidity_risk.csv")
+    correlation = _read_optional_csv(outputs / "correlation_risk.csv")
+    for line in risk_context_summary_lines(liquidity, correlation):
+        print(line)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
