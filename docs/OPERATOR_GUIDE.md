@@ -82,7 +82,7 @@ The dashboard and single-stock report use plain modes before showing detailed ta
 Use targeted proof commands instead of broad refreshes by default:
 
 ```bash
-make price-worklist TOP_N=10
+make price-history-proof-queue TOP_N=10
 make focus-fundamentals TICKER=NVDA
 make peer-mapping-queue TOP_N=10
 make optional-context-worklist TOP_N=10

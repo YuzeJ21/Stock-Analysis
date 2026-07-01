@@ -902,7 +902,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert quick_start.index("make stock-report-md TICKER=NVDA") < quick_start.index("make dashboard")
     operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
     for phrase in (
-        "make price-worklist TOP_N=10",
+        "make price-history-proof-queue TOP_N=10",
         "make price-refresh-loop DRY_RUN=1",
         "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
         "make readiness-snapshot",
@@ -1312,7 +1312,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "make dashboard",
         "make dashboard-smoke",
         "Open the Home page `Example reports` section to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples",
-        "make price-worklist TOP_N=10",
+        "make price-history-proof-queue TOP_N=10",
         "make focus-fundamentals TICKER=NVDA",
         "make peer-mapping-queue TOP_N=10",
         "make optional-context-worklist TOP_N=10",
@@ -1981,7 +1981,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "keep the job in review mode by default" in data_strategy
     assert "Run `make price-refresh-loop DRY_RUN=1` to produce a capped price-refresh plan without changing local files." in data_strategy
     assert "Do not run unattended jobs that apply fundamentals, peer mappings, earnings, analyst estimates, or public commits." in data_strategy
-    assert "make price-worklist TOP_N=10" in data_strategy
+    assert "make price-history-proof-queue TOP_N=10" in data_strategy
     assert "then preview any broader update with `make price-refresh-loop DRY_RUN=1`" in data_strategy
     assert "Pilot Evidence Checklist" in data_strategy
     assert "A company is a useful pilot win only when the evidence is reviewable, not just when a CSV row exists." in data_strategy

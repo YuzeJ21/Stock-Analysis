@@ -166,7 +166,7 @@ Run the matching rebuild proof:
 
 1. Save the baseline with `make readiness-snapshot`.
 2. Confirm blockers with `make status-check TOP_N=10`.
-3. For prices, inspect ticker-level gaps with `make price-worklist TOP_N=10`, then preview any broader update with `make price-refresh-loop DRY_RUN=1`.
+3. For prices, inspect ticker-level proof gaps with `make price-history-proof-queue TOP_N=10`, then preview any broader update with `make price-refresh-loop DRY_RUN=1`.
 4. For fundamentals, use `make dcf-input-proof-queue TOP_N=25`, then `make dcf-input-source-review FAMILY=<family> TOP_N=10` to fill source file, as-of date, reviewer, review date, source proof status, validation result, preview result, and apply decision. Use `make dcf-input-source-guard ...` to block placeholders and preview the exact import row before `make dcf-input-proof-handoff FAMILY=<family> TOP_N=10` groups the packet, validation, preview, apply boundary, readiness proof, comparison, and proof-record dry run.
 5. When the DCF gap is `shares_outstanding`, use `make share-count-proof-queue TOP_N=10` to separate share-count-only blockers from tickers that still need price, revenue, free cash flow, or FCF margin too.
 6. For peers, use `make peer-mapping-queue TOP_N=25` and add only source-backed rows.
