@@ -1311,7 +1311,7 @@ def render_trusted_data_pilot_candidates(
                     else "Next proof check: make dcf-input-proof-queue TOP_N=10."
                 ),
                 "ETF/index monitor examples such as QQQ and SMH remain useful demos, but they are not company DCF pilot targets.",
-                "Try: make trusted-data-pilot-candidates TOP_N=10",
+                "Next source setup check: make session-source-preflight",
             ]
         )
         return "\n".join(lines)

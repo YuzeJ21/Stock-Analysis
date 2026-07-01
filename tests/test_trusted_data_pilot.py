@@ -1570,6 +1570,8 @@ def test_render_trusted_data_pilot_candidates_explains_exhausted_reviewed_blocke
     assert "reviewed non-actionable fundamentals/share-count outcome" in rendered
     assert "new provider data, keyed sources, reviewed manual source rows, or changed blockers" in rendered
     assert "make dcf-input-proof-queue top_n=10" in rendered
+    assert "next source setup check: make session-source-preflight" in rendered
+    assert "try: make trusted-data-pilot-candidates" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
