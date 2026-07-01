@@ -296,6 +296,23 @@ def _count_readiness_true(data_path: Path, field: str) -> int | None:
     return int(values.fillna("").astype(str).str.strip().str.lower().isin({"true", "1", "yes"}).sum())
 
 
+def _count_tickers_with_price_rows(data_path: Path, allowed: set[str] | None = None) -> int | None:
+    path = data_path / "price_coverage_report.csv"
+    if not path.exists():
+        return None
+    try:
+        frame = pd.read_csv(path)
+    except Exception:
+        return None
+    if frame.empty or "ticker" not in frame.columns or "price_rows" not in frame.columns:
+        return None
+    if allowed is not None:
+        tickers = frame["ticker"].fillna("").astype(str).str.upper().str.strip()
+        frame = frame.loc[tickers.isin(allowed)].copy()
+    price_rows = pd.to_numeric(frame["price_rows"], errors="coerce").fillna(0)
+    return int(price_rows.gt(0).sum())
+
+
 def _truthy_series(values: pd.Series) -> pd.Series:
     if pd.api.types.is_bool_dtype(values):
         return values.fillna(False).astype(bool)
@@ -435,7 +452,7 @@ def _fast_status_payload_from_outputs(
         "data_sources_optional_locked": len(optional_locked_sources),
         "data_gaps": len(gaps),
         "tickers_total": len(readiness),
-        "tickers_with_prices": readiness_count("price_ready"),
+        "tickers_with_prices": _count_tickers_with_price_rows(data_path, allowed) or readiness_count("price_ready"),
         "tickers_usable_for_momentum": readiness_count("momentum_ready"),
         "tickers_fundamentals_ready": readiness_count("fundamentals_ready"),
         "tickers_dcf_ready": readiness_count("dcf_ready"),
@@ -1426,7 +1443,7 @@ def _print_human(payload: dict[str, Any]) -> None:
     if has_stale_snapshot_warning:
         ready_label = "Ready in saved snapshot"
     print(
-        f"- {ready_label}: {summary['tickers_with_prices']} price-ready, "
+        f"- {ready_label}: {summary['tickers_with_prices']} with price rows, "
         f"{summary.get('tickers_fundamentals_ready', 0)} fundamentals/input-ready, "
         f"{summary['tickers_dcf_ready']} operating-company DCF-ready, "
         f"{summary['tickers_peer_ready']} peer-ready."

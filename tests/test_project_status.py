@@ -682,7 +682,7 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
 
     assert "Project status summary:" in output
     assert "First read:" in output
-    assert "Ready now: 1 price-ready, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready." in output
+    assert "Ready now: 1 with price rows, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready." in output
     assert "Fundamentals/input-ready tickers: 1/2" in output
     assert "Operating-company DCF-ready tickers: 1/2" in output
     assert "Best next proof: make trusted-data-pilot-candidates TOP_N=10" in output
@@ -1176,6 +1176,28 @@ def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
     assert payload["top_onboarding_actions"] == []
 
 
+def test_project_status_fast_check_distinguishes_price_rows_from_price_ready(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "price_rows": 20, "price_ready": True},
+            {"ticker": "AMD", "price_rows": 1, "price_ready": False},
+        ]
+    ).to_csv(tmp_path / "data" / "price_coverage_report.csv", index=False)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    assert payload["summary"]["tickers_with_prices"] == 2
+    project_status._print_human(payload)
+    output = capsys.readouterr().out
+    assert "Ready now: 2 with price rows" in output
+    assert "2 price-ready" not in output
+
+
 def test_project_status_fast_check_warns_when_source_csv_is_newer(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
     readiness_path = tmp_path / "data" / "reports" / "ticker_readiness_report.csv"
@@ -1263,7 +1285,7 @@ def test_project_status_cli_check_labels_stale_generated_snapshot_before_counts(
     warning_index = output.index("Warning: Generated status artifacts may be stale")
     summary_index = output.index("Project status summary (stale generated snapshot):")
     ready_index = output.index(
-        "Ready in saved snapshot: 1 price-ready, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready."
+        "Ready in saved snapshot: 1 with price rows, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready."
     )
 
     assert freshness_index < warning_index < summary_index < ready_index
