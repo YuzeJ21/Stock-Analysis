@@ -74,6 +74,7 @@ def test_makefile_contains_convenience_targets():
         "lane-outcome-history",
         "price-reviewed-run",
         "public-demo-readiness-pack",
+        "pilot-share-brief",
         "readiness-ops-center",
         "coverage-frontier",
         "data-coverage-planner",
@@ -1463,6 +1464,14 @@ def test_public_docs_avoid_machine_readable_first_read_copy():
         assert "machine-readable" not in text, path
 
 
+def test_readme_points_to_pilot_share_brief_for_concise_public_handoff():
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "make pilot-share-brief" in readme
+    assert "concise public/demo share brief" in readme
+    assert "does not refresh data or unlock blocked inputs" in readme
+
+
 def test_license_decision_guide_is_present_until_license_is_chosen():
     guide = Path("docs/LICENSE_DECISION_GUIDE.md").read_text(encoding="utf-8")
     readme = Path("README.md").read_text(encoding="utf-8")
@@ -2140,6 +2149,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
     assert "trusted-data-pilot-candidates:\n\t@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),) $(if $(filter 1 true TRUE yes YES,$(VERBOSE)),--verbose,)" in makefile
+    assert "pilot-share-brief:\n\t@python3 -m src.pilot_readiness --share-brief --top-n $(or $(TOP_N),10) --output \"$(or $(OUTPUT),outputs/pilot_share_brief.md)\"" in makefile
     assert "trusted-data-pilot-packet:\nifndef TICKER\n\t$(error TICKER is required, for example: make trusted-data-pilot-packet TICKER=CRDO)\nendif\n\t@python3 -m src.trusted_data_pilot --packet $(TICKER)" in makefile
     assert "DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD" in makefile
     assert "DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO" in makefile

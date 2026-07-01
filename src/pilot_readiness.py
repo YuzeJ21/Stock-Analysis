@@ -33,7 +33,9 @@ from src.source_activation_guide import build_provider_setup_checklist
 
 VALID_STATUSES = {"green", "manual", "blocked"}
 DEFAULT_PACKET_PATH = Path("outputs/pilot_readiness_packet.md")
+DEFAULT_SHARE_BRIEF_PATH = Path("outputs/pilot_share_brief.md")
 REVIEWED_PACKET_PATH = DEFAULT_PACKET_PATH.as_posix()
+REVIEWED_SHARE_BRIEF_PATH = DEFAULT_SHARE_BRIEF_PATH.as_posix()
 GENERATED_ARTIFACT_EXCLUSION_PATTERNS = (
     "data/*.csv",
     "data/reports/*.csv",
@@ -172,7 +174,14 @@ def _hygiene_check(root: Path) -> PilotReadinessCheck:
         )
 
     packet_count = sum(1 for entry in groups["product_candidate"] if entry.path == REVIEWED_PACKET_PATH)
-    product_count = len([entry for entry in groups["product_candidate"] if entry.path != REVIEWED_PACKET_PATH])
+    share_brief_count = sum(1 for entry in groups["product_candidate"] if entry.path == REVIEWED_SHARE_BRIEF_PATH)
+    product_count = len(
+        [
+            entry
+            for entry in groups["product_candidate"]
+            if entry.path not in {REVIEWED_PACKET_PATH, REVIEWED_SHARE_BRIEF_PATH}
+        ]
+    )
     report_count = len(groups["sample_report_candidate"])
     generated_count = len(groups["generated_csv_churn"])
     manual_count = len(groups["review_manually"])
@@ -183,12 +192,14 @@ def _hygiene_check(root: Path) -> PilotReadinessCheck:
             f"and {manual_count} manual-review path(s) are dirty."
         )
         stop_rule = "Stop before pilot packaging until product files are staged/committed or intentionally left local."
-    elif generated_count or packet_count or report_count:
+    elif generated_count or packet_count or share_brief_count or report_count:
         status = "manual"
         packet_detail = f"{packet_count} reviewed pilot packet artifact(s) pending; " if packet_count else ""
+        share_brief_detail = f"{share_brief_count} reviewed share brief artifact(s) pending; " if share_brief_count else ""
         report_detail = f"{report_count} broad sample report artifact(s) pending review; " if report_count else ""
         detail = (
             f"{packet_detail}{report_detail}"
+            f"{share_brief_detail}"
             f"{generated_count} generated CSV/JSON/report artifact(s) are dirty and excluded by default."
         )
         stop_rule = (
@@ -943,6 +954,88 @@ def render_pilot_readiness_packet(
     return "\n".join(lines)
 
 
+def render_pilot_share_brief(
+    *,
+    checks: list[PilotReadinessCheck],
+    snapshot: ReadinessSnapshot,
+    source_queues: list[object],
+    excluded_artifacts: list[str],
+) -> str:
+    """Render a concise public/demo pilot brief from the same readiness gates."""
+
+    verdict = pilot_readiness_verdict(checks)
+    leading_queue = _leading_source_queue(source_queues)
+    license_check = next((check for check in checks if check.area == "License status"), None)
+    license_answer = license_check.title if license_check is not None else "Review license status"
+    license_boundary = (
+        license_check.stop_rule
+        if license_check is not None
+        else "Do not claim reuse rights until license status is reviewed."
+    )
+    queue_name = str(_queue_value(leading_queue, "label", "queue", fallback="No source-proof queue loaded"))
+    queue_state = str(_queue_value(leading_queue, "readiness_state", "state", fallback="-"))
+    queue_blocked = _int_value(_queue_value(leading_queue, "blocked_count", "blocked"))
+    queue_top_blockers = str(_queue_value(leading_queue, "top_blockers", "top blockers", fallback="-"))
+    queue_command = str(
+        _queue_value(
+            leading_queue,
+            "next_safe_command",
+            "next safe command",
+            fallback="make data-coverage-proof-queues TOP_N=10",
+        )
+    )
+    artifacts = excluded_artifacts or []
+
+    lines = [
+        "# Pilot Share Brief",
+        "",
+        "> Data readiness first. Analysis second. Research decision last.",
+        "",
+        "Use this as research-only product evidence. It summarizes what can be shown now, what is blocked by missing proof, and what must stay out of a share package.",
+        "",
+        f"## Current Pilot State: {verdict}",
+        "",
+        "## What can be used now",
+        "",
+        f"- Price coverage: {snapshot.price_ready}/{snapshot.total_tickers}.",
+        f"- Momentum usable: {snapshot.momentum_ready}/{snapshot.total_tickers}.",
+        f"- Fundamentals/input-ready coverage: {snapshot.data_sources_available}/{snapshot.data_sources_total} data sources available; {snapshot.optional_manual_lanes_locked} optional/manual lane(s) locked.",
+        f"- DCF-ready operating-company coverage: {snapshot.dcf_ready}/{snapshot.total_tickers}.",
+        f"- Peer-ready coverage: {snapshot.peer_ready}/{snapshot.total_tickers}.",
+        "",
+        "## What is still blocked",
+        "",
+        f"- Leading proof queue: {queue_name} ({queue_state}).",
+        f"- Blocked items in that queue: {queue_blocked:,}.",
+        f"- Top blockers: {queue_top_blockers}.",
+        f"- Next source-proof command: `{queue_command}`.",
+        "",
+        "## What must stay out of the share package",
+        "",
+    ]
+    if artifacts:
+        lines.extend(f"- `{path}`" for path in artifacts)
+    else:
+        lines.append("- No generated CSV/JSON/report churn is currently dirty.")
+    lines.extend(
+        [
+            "",
+            "## License boundary",
+            "",
+            f"- {license_answer}.",
+            f"- {license_boundary}",
+            "",
+            "## Research-only boundary",
+            "",
+            "- This is not investment advice, a ranking, or a recommendation.",
+            "- The product does not connect to brokers, route orders, auto-trade, or give direct trade instructions.",
+            "- Missing fundamentals, shares, peers, earnings, estimates, valuation inputs, and metrics stay blocked until trusted source proof passes.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def write_pilot_readiness_packet(
     root: Path | str = ".",
     *,
@@ -966,18 +1059,43 @@ def write_pilot_readiness_packet(
     return output_path
 
 
+def write_pilot_share_brief(
+    root: Path | str = ".",
+    *,
+    top_n: int = 10,
+    output: Path | str = DEFAULT_SHARE_BRIEF_PATH,
+) -> Path:
+    root = Path(root)
+    output_path = root / Path(output)
+    source_queues = build_data_coverage_proof_queues(root, top_n=top_n)
+    checks = build_pilot_readiness_checks(root, top_n=top_n, source_queues=source_queues)
+    brief = render_pilot_share_brief(
+        checks=checks,
+        snapshot=build_readiness_snapshot(root),
+        source_queues=source_queues,
+        excluded_artifacts=_excluded_generated_artifacts(root),
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(brief, encoding="utf-8")
+    return output_path
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Print a read-only pilot readiness checklist.")
     parser.add_argument("--root", default=".", help="Project root.")
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--packet", action="store_true", help="Write the reviewer-ready pilot packet.")
+    parser.add_argument("--share-brief", action="store_true", help="Write the concise public/demo pilot share brief.")
     parser.add_argument("--output", default=str(DEFAULT_PACKET_PATH), help="Packet output path.")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    if args.packet:
+    if args.share_brief:
+        output = write_pilot_share_brief(args.root, top_n=args.top_n, output=args.output)
+        print(f"Wrote pilot share brief: {output}")
+    elif args.packet:
         output = write_pilot_readiness_packet(args.root, top_n=args.top_n, output=args.output)
         print(f"Wrote pilot readiness packet: {output}")
     else:

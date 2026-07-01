@@ -14,6 +14,7 @@ from src.pilot_readiness import (
     build_readiness_snapshot,
     pilot_readiness_verdict,
     render_pilot_readiness_checks,
+    render_pilot_share_brief,
     write_pilot_readiness_packet,
 )
 
@@ -407,6 +408,23 @@ def test_pilot_readiness_treats_pending_packet_as_manual_reviewed_evidence(tmp_p
     assert pilot_readiness_verdict(checks) == "pilot-ready with manual gates"
 
 
+def test_pilot_readiness_treats_pending_share_brief_as_manual_reviewed_evidence(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
+    monkeypatch.setattr(
+        pilot_readiness,
+        "load_status",
+        lambda _root: [StatusEntry("??", "outputs/pilot_share_brief.md")],
+    )
+
+    checks = build_pilot_readiness_checks(root, top_n=2)
+    by_area = {check.area: check for check in checks}
+
+    assert by_area["Generated artifact hygiene"].status == "manual"
+    assert "reviewed share brief" in by_area["Generated artifact hygiene"].detail
+    assert pilot_readiness_verdict(checks) == "pilot-ready with manual gates"
+
+
 def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes(tmp_path: Path, monkeypatch):
     root = _sample_root(tmp_path)
     output = Path("outputs/pilot_readiness_packet.md")
@@ -454,3 +472,65 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "direct buy/sell instructions" in body
     assert "Blocked source inputs remain blocked" in body
     assert "refresh data, apply imports, record proof, stage files, commit, push" in body
+
+
+def test_pilot_share_brief_writes_concise_markdown_without_data_writes(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    output = Path("outputs/pilot_share_brief.md")
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main [ahead 1]")
+    monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [StatusEntry("M", "data/prices.csv")])
+
+    brief_path = pilot_readiness.write_pilot_share_brief(root, top_n=2, output=output)
+    body = brief_path.read_text(encoding="utf-8")
+
+    assert brief_path == root / output
+    assert "# Pilot Share Brief" in body
+    assert "research-only product evidence" in body
+    assert "What can be used now" in body
+    assert "What is still blocked" in body
+    assert "What must stay out of the share package" in body
+    assert "data/prices.csv" in body
+    assert "No root LICENSE file found" in body
+    assert "refresh data" not in body.lower()
+    assert "apply imports" not in body.lower()
+
+
+def test_pilot_share_brief_summarizes_usable_blocked_and_share_boundary(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main [ahead 1]")
+    monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [StatusEntry("M", "data/prices.csv")])
+    source_queues = [
+        SimpleNamespace(
+            label="DCF Input Proof Batches",
+            readiness_state="partial",
+            ready_count=3,
+            partial_count=2,
+            blocked_count=10,
+            top_blockers="fundamentals_bundle_plus_shares: 10",
+            next_safe_command="make dcf-input-proof-queue TOP_N=10",
+        )
+    ]
+    checks = build_pilot_readiness_checks(root, top_n=2, source_queues=source_queues)
+
+    brief = render_pilot_share_brief(
+        checks=checks,
+        snapshot=build_readiness_snapshot(root),
+        source_queues=source_queues,
+        excluded_artifacts=["data/prices.csv"],
+    )
+
+    assert "# Pilot Share Brief" in brief
+    assert "research-only product evidence" in brief
+    assert "What can be used now" in brief
+    assert "Price coverage: 1/1" in brief
+    assert "DCF-ready operating-company coverage: 0/1" in brief
+    assert "What is still blocked" in brief
+    assert "DCF Input Proof Batches" in brief
+    assert "fundamentals_bundle_plus_shares: 10" in brief
+    assert "What must stay out of the share package" in brief
+    assert "data/prices.csv" in brief
+    assert "License boundary" in brief
+    assert "No root LICENSE file found" in brief
+    assert "not investment advice" in brief
+    assert "buy" not in brief.lower()
+    assert "sell" not in brief.lower()

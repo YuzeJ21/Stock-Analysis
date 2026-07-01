@@ -345,6 +345,13 @@ def test_public_release_package_does_not_stage_broad_sample_reports_by_default()
     assert "Stage a specific report only after reviewing that exact artifact." in sample_block
 
 
+def test_diff_hygiene_treats_pilot_share_brief_as_reviewed_product_artifact():
+    module = load_diff_hygiene_module()
+
+    assert module.classify_path("outputs/pilot_share_brief.md") == "product_candidate"
+    assert module.is_generated_churn("outputs/pilot_share_brief.md") is False
+
+
 def test_public_release_handoff_prints_terminal_safe_sequence():
     module = load_diff_hygiene_module()
     entries = [
