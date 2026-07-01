@@ -18666,6 +18666,9 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
     assert cards[2]["command"] == "make universe-apply"
     assert "12 current rows" in rendered
     assert "apply stays copy-only" in rendered
+    assert "source_review" in rendered
+    assert "fallback evidence" in rendered
+    assert "review_required" in rendered
     assert "preview and review notes" in rendered
     assert "draft csv" not in rendered
     assert "cli-only" not in rendered
@@ -18701,6 +18704,8 @@ def test_universe_manager_summary_cards_surface_make_preview_and_apply():
     assert cards[1]["kicker"] == "PREVIEW FILE"
     assert cards[2]["command"] == "make universe-preview-summary"
     assert "review the preview before applying changes" in rendered
+    assert "source_review" in rendered
+    assert "fallback evidence" in rendered
     assert "make universe-preview-summary" not in visible_rendered
     assert "make universe-apply" in " ".join(str(card.get("command", "")) for card in cards).lower()
     assert "universe preview ready" in rendered

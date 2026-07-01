@@ -20653,9 +20653,10 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
             "kicker": "BEST NEXT",
             "title": "Preview universe update" if not staged_exists else "Review universe preview",
             "body": (
-                "Start with a compact preview summary so larger source-driven changes stay reviewable before any full row review or apply step."
+                "Start with a compact preview summary so larger source-driven changes stay reviewable before any full row review or apply step. "
+                "The summary includes source_review fallback evidence and a review_required apply gate."
                 if not staged_exists
-                else f"{staged_rows} preview ticker rows are already visible in the dashboard; apply only after reviewing the preview and notes."
+                else f"{staged_rows} preview ticker rows are already visible in the dashboard; apply only after reviewing the preview and review notes, source_review fallback evidence, and review_required gate."
             ),
             "badges": ["preview first", "read-only"],
             "command": "make universe-preview-summary" if not staged_exists else "make universe-apply",
@@ -20672,7 +20673,7 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
         {
             "kicker": "REVIEW FLOW",
             "title": "Apply stays copy-only",
-            "body": "Build the preview first, inspect the preview and review notes, then apply only after review.",
+            "body": "Build the preview first, inspect the preview, source_review fallback evidence, and review notes, then apply only after review_required is understood.",
             "badges": ["backup on apply", "csv-first"],
             "command": "make universe-apply",
         },
@@ -20695,9 +20696,9 @@ def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, An
             "kicker": "PREVIEW FILE",
             "title": "Universe preview ready" if staged.get("exists") else "No universe preview file",
             "body": (
-                "Review the preview before applying changes. Dashboard stays read-only for safety."
+                "Review the preview before applying changes. Check source_review fallback evidence and the review_required gate first. Dashboard stays read-only for safety."
                 if staged.get("exists")
-                else "No universe preview is waiting; build a preview before any apply step."
+                else "No universe preview is waiting; build a preview summary with source_review fallback evidence before any apply step."
             ),
             "badges": ["preview first"],
             "command": "make universe-apply",
@@ -20705,7 +20706,7 @@ def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, An
         {
             "kicker": "WORKFLOW",
             "title": "Preview first",
-            "body": "Use source presets to build a compact candidate summary, inspect full rows only when needed, then apply only after review.",
+            "body": "Use source presets to build a compact candidate summary, inspect source_review fallback evidence, open full rows only when needed, then apply only after review_required is understood.",
             "badges": ["CSV-first", "backup on apply"],
             "command": "make universe-preview-summary",
         },
