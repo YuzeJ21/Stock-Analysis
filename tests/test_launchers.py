@@ -109,6 +109,7 @@ def test_makefile_contains_convenience_targets():
         "sec-apply",
         "import-staging",
         "universe-preview",
+        "universe-preview-summary",
         "universe-apply",
         "coverage",
         "data-wizard",
@@ -324,6 +325,7 @@ def test_makefile_help_documents_key_workflows():
         "make imports-apply IMPORT_TICKERS=NVDA only after validation passes, preview scope is intended, rejected rows are zero",
         "Use IMPORT_TICKERS for narrow reviewed slices; broad imports-apply requires ALLOW_BROAD_IMPORT_APPLY=1 after full staged-scope review",
         "make universe-preview",
+        "make universe-preview-summary",
         "Preview-first fundamentals and universe imports",
     ):
         assert phrase in makefile

@@ -998,7 +998,35 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     print("- To apply reviewed staged rows only: make universe-apply")
 
 
-def _print_result(payload: dict[str, Any], as_json: bool) -> None:
+def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    summary = payload.get("summary")
+    sources = payload.get("sources")
+    if isinstance(summary, dict) and isinstance(sources, list):
+        compact_sources: list[dict[str, Any]] = []
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            compact_source = dict(source)
+            compact_source["warnings"] = _unique_texts(compact_source.get("warnings") or [])
+            compact_sources.append(compact_source)
+        return {
+            "status": payload.get("status", "-"),
+            "summary": summary,
+            "sources": compact_sources,
+            "next_steps": [
+                "Review source warnings and row counts before writing any universe import.",
+                "Use full --json only for intentionally reviewed row inspection.",
+                "To stage reviewed rows only: make universe-refresh.",
+                "To apply reviewed staged rows only: make universe-apply.",
+            ],
+        }
+    return payload
+
+
+def _print_result(payload: dict[str, Any], as_json: bool, summary_json: bool = False) -> None:
+    if summary_json:
+        print(json.dumps(_summary_json_payload(payload), indent=2, default=str))
+        return
     if as_json:
         print(json.dumps(payload, indent=2, default=str))
         return
@@ -1022,6 +1050,7 @@ def main() -> None:
     parser.add_argument("--max-tickers", type=int, help="Limit preview/write row count for safer smoke runs.")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing universe import file.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
+    parser.add_argument("--summary-json", action="store_true", help="Print compact JSON without raw preview rows.")
     args = parser.parse_args()
 
     if args.apply_import:
@@ -1053,7 +1082,7 @@ def main() -> None:
             include_nasdaq_all=args.include_nasdaq_all,
             exclude_test_issues=args.exclude_test_issues,
         )
-    _print_result(payload, args.json)
+    _print_result(payload, args.json, summary_json=args.summary_json)
 
 
 if __name__ == "__main__":

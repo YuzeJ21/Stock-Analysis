@@ -253,6 +253,40 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert '"ticker": "NVDA"' not in output
 
 
+def test_universe_preview_summary_json_keeps_raw_rows_hidden(
+    tmp_path: Path,
+    capsys,
+):
+    _setup_base_dir(tmp_path)
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="sp500,smh,holdings",
+        loader=_loader({SOURCE_URLS["sp500"]: SP500_FIXTURE, SOURCE_FALLBACK_URLS["smh"][1]: SMH_HTML_FIXTURE}),
+    )
+    result["sources"][1]["warnings"] = [
+        "smh: remote source unavailable (same redirect).",
+        "smh: remote source unavailable (same redirect).",
+        f"smh: using fallback source {SOURCE_FALLBACK_URLS['smh'][1]}.",
+    ]
+
+    _print_result(result, as_json=False, summary_json=True)
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+
+    assert payload["status"] == "ok"
+    assert payload["summary"]["row_count"] == 3
+    assert payload["sources"][0]["source_name"] == "sp500"
+    assert payload["next_steps"] == [
+        "Review source warnings and row counts before writing any universe import.",
+        "Use full --json only for intentionally reviewed row inspection.",
+        "To stage reviewed rows only: make universe-refresh.",
+        "To apply reviewed staged rows only: make universe-apply.",
+    ]
+    assert "rows" not in payload
+    assert "NVDA" not in output
+    assert payload["sources"][1]["warnings"].count("smh: remote source unavailable (same redirect).") == 1
+
+
 def test_universe_preview_compact_output_deduplicates_source_warnings(
     tmp_path: Path,
     capsys,
