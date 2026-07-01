@@ -16,6 +16,7 @@ from src.data_update import enrich_price_update_status_frame, refresh_price_upda
 from src.data_sources import build_data_source_payload, write_data_source_outputs
 from src.action_queue import write_action_queue_output
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
 from src.research_health import research_health_outputs_current
 from src.research_health import run as run_research_health
@@ -376,6 +377,11 @@ def _fast_status_payload_from_outputs(
         ]
 
     normalized_actions = [_normalize_price_action_row(dict(row)) for row in actions]
+    reviewed_non_actionable_price_tickers = _reviewed_non_actionable_price_tickers(
+        root,
+        _price_action_tickers(normalized_actions),
+    )
+    normalized_actions = _drop_reviewed_non_actionable_price_actions(root, normalized_actions)
     sorted_actions = sorted(normalized_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
@@ -410,6 +416,10 @@ def _fast_status_payload_from_outputs(
     command_rows = _drop_stale_missing_price_batch_rows(
         command_rows,
         price_coverage_complete=price_complete,
+    )
+    command_rows = _drop_reviewed_non_actionable_price_rows(
+        command_rows,
+        reviewed_non_actionable_price_tickers,
     )
     if allowed:
         command_rows = _recommended_next_command_rows(
@@ -744,6 +754,57 @@ def _drop_stale_missing_price_batch_rows(
     ]
 
 
+def _price_action_tickers(actions: list[dict[str, Any]]) -> set[str]:
+    return {
+        str(row.get("ticker") or "").strip().upper()
+        for row in actions
+        if str(row.get("dataset") or "").strip().lower() == "prices"
+        and str(row.get("ticker") or "").strip()
+    }
+
+
+def _command_row_ticker(row: dict[str, Any]) -> str:
+    for value in (row.get("Command"), row.get("Step"), row.get("Reason")):
+        match = re.search(r"\bTICKER=([A-Z][A-Z0-9.-]{0,9})\b", str(value or "").upper())
+        if match:
+            return match.group(1).replace(".", "-")
+    return ""
+
+
+def _drop_reviewed_non_actionable_price_rows(
+    rows: list[dict[str, str]],
+    reviewed_tickers: set[str],
+) -> list[dict[str, str]]:
+    if not reviewed_tickers:
+        return rows
+    filtered: list[dict[str, str]] = []
+    for row in rows:
+        command = str(row.get("Command") or "").strip()
+        ticker = _command_row_ticker(row)
+        if command.startswith("make focus-price") and ticker in reviewed_tickers:
+            continue
+        filtered.append(row)
+    return filtered
+
+
+def _drop_reviewed_non_actionable_price_actions(
+    root: Path,
+    actions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    possible_tickers = _price_action_tickers(actions)
+    reviewed_tickers = _reviewed_non_actionable_price_tickers(root, possible_tickers)
+    if not reviewed_tickers:
+        return actions
+    return [
+        row
+        for row in actions
+        if not (
+            str(row.get("dataset") or "").strip().lower() == "prices"
+            and str(row.get("ticker") or "").strip().upper() in reviewed_tickers
+        )
+    ]
+
+
 def _prioritize_public_command_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     """Keep the public next-step order aligned with the product roadmap."""
     deduped: list[dict[str, str]] = []
@@ -916,7 +977,7 @@ def build_project_status_payload(
     enriched_actions = _enrich_top_actions(onboarding_payload, price_status_lookup)
     if tickers:
         enriched_actions = [row for row in enriched_actions if str(row.get("ticker", "")).upper().strip() in allowed]
-    actions = sorted(enriched_actions, key=_action_rank)
+    actions = sorted(_drop_reviewed_non_actionable_price_actions(root, enriched_actions), key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
     optional_locked_sources = [row for row in problem_sources if _source_is_optional_locked(row)]

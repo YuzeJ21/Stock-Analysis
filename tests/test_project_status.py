@@ -779,6 +779,55 @@ def test_project_status_fast_check_drops_missing_price_batch_when_coverage_is_co
     assert commands[1] == "make trusted-data-pilot-candidates TOP_N=10"
 
 
+def test_project_status_fast_check_pivots_from_reviewed_non_actionable_price_history(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "AMD", "price_ready": True, "momentum_ready": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    ).to_csv(tmp_path / "data" / "reports" / "ticker_readiness_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "dataset": "prices",
+                "status": "missing_or_incomplete",
+                "reason": "This ticker has only 9 verified local price rows.",
+                "recommended_action": "Run make focus-price TICKER=AMD first.",
+                "focus_command": "make focus-price TICKER=AMD",
+                "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+            },
+        ]
+    ).to_csv(tmp_path / "outputs" / "data_onboarding_actions.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "Step": "Review short price-history blocker (AMD)",
+                "Command": "make focus-price TICKER=AMD",
+                "Reason": "This ticker has only 9 verified local price rows.",
+                "SourceContext": "data/imports/prices.csv",
+                "FreshnessContext": "insufficient_history",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "project_status_next_steps.csv", index=False)
+    (tmp_path / "data" / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-PRICE-AMD,price_coverage,AMD,still_blocked,none,"
+        "\"AMD public provider path already tried; do not retry without new verified OHLCV source.\"\n",
+        encoding="utf-8",
+    )
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
+    assert "make trusted-data-pilot-candidates TOP_N=10" in commands
+    assert "make focus-price TICKER=AMD" not in commands
+    assert payload["top_onboarding_actions"] == []
+
+
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
 
