@@ -124,6 +124,34 @@ make diff-hygiene
 
 Run the real capped refresh only after reviewing the dry-run plan.
 
+Universe / source scope:
+
+```bash
+make universe-preview-summary
+```
+
+Use this compact summary before any full universe row review. It shows source row counts, source warnings, fallback source use, and membership counts without dumping raw rows.
+
+If the compact summary is source-backed and intended:
+
+```bash
+make universe-preview
+```
+
+Use the full preview only for intentionally reviewed row inspection. To stage reviewed source-driven rows:
+
+```bash
+make universe-refresh
+```
+
+Apply only after reviewing the staged universe rows and source warnings:
+
+```bash
+make universe-apply
+```
+
+Universe membership is source metadata. It can improve coverage scope, active-vs-master universe routing, and SMH/S&P/Nasdaq source visibility, but it does not unlock fundamentals, share count, DCF, peer valuation, earnings, analyst estimates, or recommendations.
+
 Fundamentals / DCF:
 
 ```bash
