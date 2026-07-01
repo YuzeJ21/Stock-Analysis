@@ -966,6 +966,10 @@ def test_pilot_quick_path_lines_show_first_action_before_detailed_evidence():
     assert "Shortlist: META." in quick_path
     assert "Start with one packet: make trusted-data-pilot-packet TICKER=META" in quick_path
     assert "Review its lane: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in quick_path
+    review_line = next(line for line in quick_path.splitlines() if line.startswith("Review its lane:"))
+    assert "imports-validate" not in review_line
+    assert "imports-preview" not in review_line
+    assert "imports-apply" not in review_line
     assert "Trusted input target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in quick_path
     assert "Stop if source proof is unavailable: keep META visibly blocked" in quick_path
     assert "Evidence required:" not in quick_path
@@ -1127,6 +1131,10 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "7. Apply only if the gate passes: make imports-apply IMPORT_TICKERS=META" in rendered
     assert "2. make trusted-data-pilot-packet TICKER=META" in rendered
     assert "3. Review the lane blocker: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
+    review_step = next(line for line in rendered.splitlines() if line.startswith("3. Review the lane blocker:"))
+    assert "imports-validate" not in review_step
+    assert "imports-preview" not in review_step
+    assert "imports-apply" not in review_step
     assert "4. Prepare trusted rows only if the source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "8. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered

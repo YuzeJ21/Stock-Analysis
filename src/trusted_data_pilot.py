@@ -585,16 +585,12 @@ def pilot_review_path(validation_path: str) -> str:
     """Show lane diagnostics separately from validate/preview/apply commands."""
 
     steps = [step.strip() for step in str(validation_path or "").split("->") if step.strip()]
-    review_steps = [
-        step
-        for step in steps
-        if step
-        not in {
-            "make imports-validate",
-            "make imports-preview",
-            "make imports-apply",
-        }
-    ]
+    import_gate_prefixes = (
+        "make imports-validate",
+        "make imports-preview",
+        "make imports-apply",
+    )
+    review_steps = [step for step in steps if not step.startswith(import_gate_prefixes)]
     return " -> ".join(review_steps or steps) or "make trusted-data-pilot-candidates TOP_N=10"
 
 
