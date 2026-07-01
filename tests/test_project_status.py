@@ -623,6 +623,27 @@ def test_project_status_filters_preview_available_source_actions_from_blocker_co
     assert [row["dataset"] for row in filtered] == ["fundamentals"]
 
 
+def test_project_status_labels_preview_available_source_command_as_review_boundary():
+    rows = project_status._recommended_source_command_rows(
+        [
+            {
+                "dataset": "smh_holdings",
+                "status": "partial",
+                "availability_status": "partial",
+                "focus_command": "make universe-preview",
+                "target_file": "data/imports/universe.csv",
+                "fallback_action": (
+                    "Run make universe-preview first; it tries the VanEck SMH page/download "
+                    "and the StockAnalysis public holdings fallback."
+                ),
+            }
+        ]
+    )
+
+    assert rows[0]["Step"] == "Advance smh holdings source"
+    assert rows[0]["FreshnessContext"] == "preview available; review source rows before apply"
+
+
 def test_project_status_cli_check_uses_fast_generated_artifacts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

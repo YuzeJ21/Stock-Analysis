@@ -629,6 +629,10 @@ def _freshness_context(*rows: dict[str, Any] | None, fallback: str = "") -> str:
     for row in rows:
         if not row:
             continue
+        command = str(row.get("focus_command") or row.get("example_command") or row.get("Command") or "").strip()
+        dataset = str(row.get("dataset") or "").strip().lower()
+        if dataset == "smh_holdings" and command == "make universe-preview":
+            return "preview available; review source rows before apply"
         context = _first_non_empty(
             row.get("updated_at"),
             row.get("last_price_date"),
