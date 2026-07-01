@@ -118,7 +118,9 @@ make stock-report-md TICKER=CRDO  # fundamentals/DCF proof example
 Optional local proof checks:
 
 ```bash
-make trusted-data-pilot-candidates TOP_N=10 && make metric-readiness TOP_N=5 BENCHMARK=SPY
+make project-status && make data-coverage-proof-queues TOP_N=10
+make trusted-data-pilot-candidates TOP_N=10  # only when status shows executable company candidates
+make metric-readiness TOP_N=5 BENCHMARK=SPY
 make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKER=CRDO
 make stock-report-md TICKER=SMH && make stock-report-md TICKER=APLD
 ```

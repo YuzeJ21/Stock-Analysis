@@ -706,6 +706,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "with NVDA, META, QQQ, MU, and CRDO available as optional state examples" in readme
     assert "[Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" not in readme
+    assert "make project-status" in public_demo
+    assert "make data-coverage-proof-queues TOP_N=10" in public_demo
     assert "make trusted-data-pilot-candidates TOP_N=10" in public_demo
     assert "make trusted-data-pilot-packet TICKER=MU" in public_demo
     assert "make trusted-data-pilot-packet TICKER=CRDO" in public_demo
@@ -725,6 +727,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     main_path = readme.split("## Try This Visitor Workflow", 1)[1].split("Optional local proof checks:", 1)[0]
     proof_checks = readme.split("Optional local proof checks:", 1)[1].split("The shortest public walkthrough", 1)[0]
     assert "make trusted-data-pilot-candidates TOP_N=10" not in main_path
+    assert proof_checks.index("make project-status") < proof_checks.index("make trusted-data-pilot-candidates TOP_N=10")
     assert proof_checks.index("make trusted-data-pilot-candidates TOP_N=10") < proof_checks.index("make trusted-data-pilot-packet TICKER=MU")
     assert proof_checks.index("make trusted-data-pilot-packet TICKER=MU") < proof_checks.index("make trusted-data-pilot-packet TICKER=CRDO")
     assert "## Local Data Hygiene" in readme
@@ -2193,13 +2196,16 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"4. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
-    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10\"" in makefile
+    assert "@echo \"   make project-status\"" in makefile
+    assert "@echo \"   make data-coverage-proof-queues TOP_N=10\"" in makefile
+    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates\"" in makefile
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail\"" in makefile
     assert "@echo \"   make trusted-data-pilot-packet TICKER=CRDO\"" in makefile
     assert "@echo \"   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10\"" in makefile
     assert "@echo \"   Proves: coverage improves through source proof, validation, rejected-row review, rebuild proof, and still-blocked evidence, not fake rows.\"" in makefile
-    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
-    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"')
+    assert makefile.index('@echo "   make project-status"') < makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"')
+    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"') < makefile.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
+    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"') < makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"')
     assert "@echo \"6. Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
     assert "@echo \"   make diff-hygiene\"" in makefile
