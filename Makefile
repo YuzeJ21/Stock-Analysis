@@ -262,7 +262,7 @@ help-full:
 	@echo "  make optional-context-source-ladder TICKERS=NVDA"
 	@echo "                        Try yfinance, FMP, Alpha Vantage, then Finnhub for optional earnings/estimate rows"
 	@echo "  make optional-context-source-ladder-queue TOP_N=10"
-	@echo "                        Run optional-context source staging against top locked earnings/estimate rows"
+	@echo "                        Dry-run optional-context source ladder against top locked earnings/estimate rows"
 	@echo "  make dcf-readiness   Write data/dcf_readiness.csv"
 	@echo "  make import-fundamentals Import verified CSVs from data/staged/fundamentals/ into data/imports/fundamentals.csv"
 	@echo "  make import-earnings Import verified CSVs from data/staged/earnings/ into data/imports/earnings.csv"
@@ -920,7 +920,7 @@ endif
 	python3 -m src.stock_report --optional-context-source-ladder --tickers $(TICKERS)
 
 optional-context-source-ladder-queue:
-	python3 -m src.stock_report --optional-context-source-ladder --from-optional-context-queue --top-n $(or $(TOP_N),10)
+	python3 -m src.stock_report --optional-context-source-ladder --optional-context-dry-run --from-optional-context-queue --top-n $(or $(TOP_N),10)
 
 fmp-stage:
 ifndef TICKERS

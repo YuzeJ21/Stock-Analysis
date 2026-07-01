@@ -560,7 +560,10 @@ def test_makefile_exposes_optional_context_source_ladder_targets():
 
     assert "optional-context-source-ladder:\nifndef TICKERS" in makefile
     assert "python3 -m src.stock_report --optional-context-source-ladder --tickers $(TICKERS)" in makefile
-    assert "optional-context-source-ladder-queue:\n\tpython3 -m src.stock_report --optional-context-source-ladder --from-optional-context-queue --top-n $(or $(TOP_N),10)" in makefile
+    assert (
+        "optional-context-source-ladder-queue:\n\tpython3 -m src.stock_report --optional-context-source-ladder "
+        "--optional-context-dry-run --from-optional-context-queue --top-n $(or $(TOP_N),10)"
+    ) in makefile
     assert "make optional-context-source-ladder-queue TOP_N=10" in makefile
 
 

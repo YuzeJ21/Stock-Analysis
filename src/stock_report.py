@@ -3892,6 +3892,7 @@ def main() -> None:
     parser.add_argument("--alternative-fundamentals-stage", action="store_true", help="Fetch configured fallback provider fundamentals and stage candidate rows under data/imports/fundamentals.csv.")
     parser.add_argument("--fundamentals-source-ladder", action="store_true", help="Try SEC, yfinance, FMP, Alpha Vantage, and Finnhub in order, staging the first source-backed fundamentals rows found per ticker.")
     parser.add_argument("--optional-context-source-ladder", action="store_true", help="Try yfinance, FMP, Alpha Vantage, and Finnhub in order, staging source-backed optional earnings/estimate rows under data/imports.")
+    parser.add_argument("--optional-context-dry-run", action="store_true", help="Resolve optional-context source ladder rows without writing data/imports files.")
     parser.add_argument("--alt-provider", choices=["fmp", "alpha_vantage", "finnhub"], default="fmp", help="Fallback fundamentals provider for --alternative-fundamentals-stage.")
     parser.add_argument("--fmp-api-key", help="Optional FMP API key override. Defaults to FMP_API_KEY.")
     parser.add_argument("--alpha-vantage-api-key", help="Optional Alpha Vantage API key override. Defaults to ALPHA_VANTAGE_API_KEY.")
@@ -4294,22 +4295,52 @@ def main() -> None:
                 finnhub_api_key=args.finnhub_api_key,
                 session_preflight=load_session_source_preflight(cli_base_dir, output_dir=cli_output_dir),
             )
-            write_result = write_optional_context_imports(
-                earnings_rows=result["earnings_rows"],
-                analyst_estimate_rows=result["analyst_estimate_rows"],
-                import_dir=cli_data_dir / "imports",
-                overwrite=args.overwrite,
-            )
+            if args.optional_context_dry_run:
+                import_dir = cli_data_dir / "imports"
+                write_result = {
+                    "earnings_write": {
+                        "output_path": str(import_dir / "earnings.csv"),
+                        "rows_written": 0,
+                        "rows_found": len(result["earnings_rows"]),
+                        "staged_row_count": 0,
+                        "status": "dry_run",
+                        "tickers_written": [],
+                    },
+                    "analyst_estimates_write": {
+                        "output_path": str(import_dir / "analyst_estimates.csv"),
+                        "rows_written": 0,
+                        "rows_found": len(result["analyst_estimate_rows"]),
+                        "staged_row_count": 0,
+                        "status": "dry_run",
+                        "tickers_written": [],
+                    },
+                }
+            else:
+                write_result = write_optional_context_imports(
+                    earnings_rows=result["earnings_rows"],
+                    analyst_estimate_rows=result["analyst_estimate_rows"],
+                    import_dir=cli_data_dir / "imports",
+                    overwrite=args.overwrite,
+                )
         except (RuntimeError, ValueError) as exc:
             raise SystemExit(_provider_staging_failure_message("optional context source ladder", exc)) from exc
         payload = {
             **result,
             **write_result,
-            "recommended_next_commands": [
-                "make imports-validate IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
-                "make imports-preview IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
-                "make optional-context-readiness",
-            ],
+            "dry_run": bool(args.optional_context_dry_run),
+            "recommended_next_commands": (
+                [
+                    "make optional-context-source-ladder TICKERS=<resolved_tickers>",
+                    "make imports-validate IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                    "make imports-preview IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                ]
+                if args.optional_context_dry_run
+                else [
+                    "make imports-validate IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                    "make imports-preview IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                    "make optional-context-readiness",
+                ]
+            ),
             "apply_gate_command": "make imports-apply IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
             "apply_gate_boundary": (
                 "Run only after validation passes, preview scope is intended, rejected rows are zero, "
@@ -4323,9 +4354,14 @@ def main() -> None:
             print(f"requested_tickers: {', '.join(payload['requested_tickers']) or '-'}")
             print(f"resolved_tickers: {', '.join(payload['resolved_tickers']) or '-'}")
             print(f"unresolved_tickers: {', '.join(payload['unresolved_tickers']) or '-'}")
+            print(f"dry_run: {str(payload['dry_run']).lower()}")
             print(f"earnings_rows_written: {payload['earnings_write']['rows_written']}")
+            if "rows_found" in payload["earnings_write"]:
+                print(f"earnings_rows_found: {payload['earnings_write']['rows_found']}")
             print(f"earnings_status: {payload['earnings_write']['status']}")
             print(f"analyst_estimates_rows_written: {payload['analyst_estimates_write']['rows_written']}")
+            if "rows_found" in payload["analyst_estimates_write"]:
+                print(f"analyst_estimates_rows_found: {payload['analyst_estimates_write']['rows_found']}")
             print(f"analyst_estimates_status: {payload['analyst_estimates_write']['status']}")
             print(f"earnings_output_path: {payload['earnings_write']['output_path']}")
             print(f"analyst_estimates_output_path: {payload['analyst_estimates_write']['output_path']}")

@@ -2195,6 +2195,70 @@ def test_stock_report_cli_optional_context_source_ladder_writes_import_files(mon
     assert "only after validation passes" in payload["apply_gate_boundary"]
 
 
+def test_stock_report_cli_optional_context_source_ladder_dry_run_does_not_write_import_files(
+    monkeypatch, tmp_path: Path, capsys
+):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    monkeypatch.setattr(
+        "src.stock_report.build_optional_context_source_ladder_rows",
+        lambda requested_tickers, **_kwargs: {
+            "requested_tickers": requested_tickers,
+            "resolved_tickers": requested_tickers,
+            "unresolved_tickers": [],
+            "earnings_rows": [
+                {
+                    "ticker": requested_tickers[0],
+                    "last_earnings_date": "2026-02-18",
+                    "eps_actual": 1.25,
+                    "source": "fmp_research_api",
+                }
+            ],
+            "analyst_estimate_rows": [
+                {
+                    "ticker": requested_tickers[0],
+                    "period": "2026-Q1",
+                    "current_quarter_eps": 1.2,
+                    "source": "fmp_research_api",
+                }
+            ],
+            "warnings": [],
+            "provider_attempts": [{"provider": "fmp", "status": "resolved_rows", "reason_code": "ok"}],
+        },
+    )
+
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--optional-context-source-ladder",
+        "--optional-context-dry-run",
+        "--tickers",
+        "NVDA",
+        "--json",
+    ]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+    assert payload["dry_run"] is True
+    assert payload["earnings_write"]["status"] == "dry_run"
+    assert payload["earnings_write"]["rows_written"] == 0
+    assert payload["earnings_write"]["rows_found"] == 1
+    assert payload["analyst_estimates_write"]["status"] == "dry_run"
+    assert payload["analyst_estimates_write"]["rows_written"] == 0
+    assert payload["analyst_estimates_write"]["rows_found"] == 1
+    assert not (tmp_path / "data" / "imports" / "earnings.csv").exists()
+    assert not (tmp_path / "data" / "imports" / "analyst_estimates.csv").exists()
+    assert payload["recommended_next_commands"][0] == "make optional-context-source-ladder TICKERS=<resolved_tickers>"
+
+
 def test_stock_report_cli_optional_context_source_ladder_prints_staging_status(monkeypatch, tmp_path: Path, capsys):
     (tmp_path / "data").mkdir()
     previous_cwd = Path.cwd()
