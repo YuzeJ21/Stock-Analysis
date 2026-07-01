@@ -359,6 +359,11 @@ def test_coverage_expansion_loop_pivots_to_workflow_evidence_when_preflight_exha
         "source_activation_console_v2": {
             "next_executable_lane": "coverage_workflow_evidence",
             "next_executable_command": "make project-status",
+            "free_tier_batch_limits": {
+                "fmp": {"recommended_daily_request_limit": 250, "recommended_batch_size": 25},
+                "alpha_vantage": {"recommended_daily_request_limit": 25, "recommended_batch_size": 5},
+                "finnhub": {"recommended_daily_request_limit": 60, "recommended_batch_size": 10},
+            },
         },
     }
 
@@ -375,6 +380,9 @@ def test_coverage_expansion_loop_pivots_to_workflow_evidence_when_preflight_exha
     assert loop.next_safe_action == "make project-status"
     assert "current source-proof queues have no unreviewed executable company candidates" in rendered
     assert "make project-status" in rendered
+    assert "Free-tier limits: fmp<=250/day and <=25/run" in rendered
+    assert "alpha_vantage<=25/day and <=5/run" in rendered
+    assert "finnhub<=60/day and <=10/run" in rendered
     assert "make fundamentals-source-ladder-queue" not in rendered
     assert "DRY_RUN=1 make reviewed-batch LANE=share_count" not in rendered
 

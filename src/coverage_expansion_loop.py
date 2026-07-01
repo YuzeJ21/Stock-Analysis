@@ -195,6 +195,28 @@ def _source_activation_required(preflight: dict[str, Any] | None) -> bool:
     )
 
 
+def _free_tier_limit_summary(preflight: dict[str, Any] | None) -> str:
+    if not isinstance(preflight, dict):
+        return ""
+    console = preflight.get("source_activation_console_v2", {})
+    if not isinstance(console, dict):
+        return ""
+    limits = console.get("free_tier_batch_limits", {})
+    if not isinstance(limits, dict):
+        return ""
+    pieces: list[str] = []
+    for provider in ("fmp", "alpha_vantage", "finnhub"):
+        policy = limits.get(provider)
+        if not isinstance(policy, dict):
+            continue
+        daily = policy.get("recommended_daily_request_limit")
+        batch = policy.get("recommended_batch_size")
+        if daily in (None, "") or batch in (None, ""):
+            continue
+        pieces.append(f"{provider}<={daily}/day and <={batch}/run")
+    return ", ".join(pieces)
+
+
 def _preflight_routes_to_workflow_evidence(preflight: dict[str, Any] | None) -> bool:
     if not isinstance(preflight, dict):
         return False
@@ -712,6 +734,7 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
             ]
         )
     if loop.status == "source_activation_required":
+        free_tier_limits = _free_tier_limit_summary(loop.session_source_preflight)
         preferred = [
             str(item).strip()
             for item in (loop.session_source_preflight or {}).get("preferred_lane_order", [])
@@ -742,10 +765,14 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
             pivot_commands.append("make public-wording-check && make diff-hygiene-summary")
         pivot_commands = list(dict.fromkeys(pivot_commands))
         if pivot_commands or loop.pivot_notes:
-            lines.extend(
+            pivot_lines = [
+                "Executable pivot path while source activation is blocked:",
+                "- Remote provider-backed coverage remains gated; do not run broad price/fundamentals/share-count batches.",
+            ]
+            if free_tier_limits:
+                pivot_lines.append(f"- Free-tier limits: {free_tier_limits}.")
+            pivot_lines.extend(
                 [
-                    "Executable pivot path while source activation is blocked:",
-                    "- Remote provider-backed coverage remains gated; do not run broad price/fundamentals/share-count batches.",
                     *[f"- {note}" for note in loop.pivot_notes],
                     "- Use these copy-only commands to continue peer/proof workflow work without fabricating trusted data:",
                     *[f"  {index}. {command}" for index, command in enumerate(pivot_commands, start=1)],
@@ -753,16 +780,23 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
                     "",
                 ]
             )
+            lines.extend(pivot_lines)
     if loop.status == "workflow_evidence_only":
-        lines.extend(
+        free_tier_limits = _free_tier_limit_summary(loop.session_source_preflight)
+        pivot_lines = [
+            "Workflow evidence pivot:",
+            "- Current source-proof queues have no unreviewed executable company candidates.",
+            "- Do not repeat reviewed dry-run loops until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers appear.",
+        ]
+        if free_tier_limits:
+            pivot_lines.append(f"- Free-tier limits: {free_tier_limits}.")
+        pivot_lines.extend(
             [
-                "Workflow evidence pivot:",
-                "- Current source-proof queues have no unreviewed executable company candidates.",
-                "- Do not repeat reviewed dry-run loops until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers appear.",
                 "- Use workflow/status evidence to keep the pilot path clear without fabricating trusted data.",
                 "",
             ]
         )
+        lines.extend(pivot_lines)
     lines.extend(["Copy-only loop:"])
     lines.extend(f"{index}. {command}" for index, command in enumerate(loop.copy_only_sequence, start=1))
     lines.extend(
