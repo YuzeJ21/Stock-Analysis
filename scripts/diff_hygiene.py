@@ -607,7 +607,7 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
                 f"Package status: {package_status}",
                 "Next safe action:",
                 "  make public-check",
-                "  git push origin main  # only after confirming the branch is ready to publish",
+                "  git push origin main  # only when explicitly asked and after confirming the branch is ready to publish",
             ]
         )
         return "\n".join(lines)
@@ -685,7 +685,7 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
             "Commit and push only after staged hygiene passes:",
             "  git commit -m \"Improve pilot handoff and workflow continuity\"",
             "  git status --short --branch",
-            "  git push origin main",
+            "  git push origin main  # only when explicitly asked",
         ]
         if product
         else [
@@ -792,9 +792,9 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
             "",
             *commit_step,
             "",
-            "Step 5 - push only after the local commit is reviewed:",
+            "Step 5 - push only when explicitly asked after the local commit is reviewed:",
             "  git status --short --branch",
-            "  git push origin main",
+            "  git push origin main  # only when explicitly asked",
             "",
             "Generated churn to leave unstaged by default:",
         ]

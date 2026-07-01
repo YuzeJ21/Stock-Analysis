@@ -264,6 +264,7 @@ def test_public_release_package_reports_clean_push_path():
     assert "make public-check" in report
     assert "make browser-qa-capture-plan" not in report
     assert "git push origin main" in report
+    assert "only when explicitly asked" in report
     assert "investment advice" in report
 
 
@@ -305,6 +306,7 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "git commit -m \"Improve pilot handoff and workflow continuity\"" in report
     assert "git status --short --branch" in report
     assert "git push origin main" in report
+    assert "only when explicitly asked" in report
     assert "source proof, validate, preview" in report
     assert "real Streamlit route review" in report
     assert "Research-only guardrail" in report
@@ -369,6 +371,7 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "git diff --cached --check" in report
     assert "git commit -m \"Improve pilot handoff and workflow continuity\"" in report
     assert "git push origin main" in report
+    assert "only when explicitly asked" in report
     staging_block = report.split("Step 2 - stage only", 1)[1].split("Step 3 - inspect", 1)[0]
     assert "data/prices.csv" not in staging_block
     assert "ticker_readiness_report.previous.csv" not in staging_block
