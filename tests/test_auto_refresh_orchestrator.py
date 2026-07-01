@@ -127,10 +127,28 @@ def test_blocked_gate_can_be_report_only_for_scheduler_pivot(capsys):
 
 
 def test_scheduler_runbook_is_compact_and_pivot_oriented():
-    runbook = render_scheduler_runbook(build_scheduler_plan(schedule="daily"))
+    preflight = {
+        "source_activation": {"status": "not_required", "reason": "queues_reviewed"},
+        "source_activation_console_v2": {
+            "next_executable_lane": "coverage_workflow_evidence",
+            "next_executable_command": "make project-status",
+            "operator_summary": {
+                "needs_setup": "fmp, alpha_vantage, finnhub",
+                "avoid_repeating": "fundamentals_share_count_source_ladder",
+                "next_step_reason": "Use provider setup before reopening broad ticker proof loops.",
+            },
+        },
+    }
+    runbook = render_scheduler_runbook(build_scheduler_plan(schedule="daily"), preflight)
 
     assert "Auto Refresh Daily Runbook" in runbook
     assert "make session-source-preflight" in runbook
+    assert "Current source gate:" in runbook
+    assert "can_run_now: coverage_workflow_evidence" in runbook
+    assert "needs_setup: fmp, alpha_vantage, finnhub" in runbook
+    assert "avoid_repeating: fundamentals_share_count_source_ladder" in runbook
+    assert "next_executable_command: make project-status" in runbook
+    assert "do not open broad lane loops" in runbook
     assert "1. Daily Price Coverage" in runbook
     assert "2. Daily SEC Filing Share Count" in runbook
     assert "3. Daily Fundamentals / DCF Source Ladder" in runbook

@@ -293,7 +293,7 @@ def render_scheduler_plan(plan: SchedulerPlan) -> str:
     return "\n".join(lines)
 
 
-def render_scheduler_runbook(plan: SchedulerPlan) -> str:
+def render_scheduler_runbook(plan: SchedulerPlan, preflight: dict[str, object] | None = None) -> str:
     schedule_label = plan.schedule.replace("_", " ").title()
     lines = [
         f"Auto Refresh {schedule_label} Runbook",
@@ -304,8 +304,22 @@ def render_scheduler_runbook(plan: SchedulerPlan) -> str:
         "- make readiness-ops-center",
         "- make coverage-frontier TOP_N=10",
         "",
-        "Lane loop:",
     ]
+    if preflight is not None:
+        payload = build_auto_refresh_status_payload(preflight, plan)
+        lines.extend(
+            [
+                "Current source gate:",
+                f"- can_run_now: {payload['can_run_now']}",
+                f"- needs_setup: {payload['needs_setup']}",
+                f"- avoid_repeating: {payload['avoid_repeating']}",
+                f"- next_executable_command: {payload['next_executable_command']}",
+                f"- next_step_reason: {payload['next_step_reason']}",
+                "- If the next executable command is project-status/provider setup, do not open broad lane loops until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers appear.",
+                "",
+            ]
+        )
+    lines.append("Lane loop:")
     for index, policy in enumerate(plan.policies, start=1):
         gate_mode = (
             "Run the deterministic gate before apply; if blocked, use "
@@ -494,7 +508,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(asdict(plan), indent=2, sort_keys=True))
     elif args.runbook:
-        print(render_scheduler_runbook(plan))
+        preflight = build_session_source_preflight(Path(args.root).resolve())
+        print(render_scheduler_runbook(plan, preflight))
     else:
         print(render_scheduler_plan(plan))
     return 0
