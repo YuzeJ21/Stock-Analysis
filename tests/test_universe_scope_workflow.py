@@ -107,6 +107,8 @@ def test_universe_scope_review_plan_gives_lazy_copy_only_scope_commands():
     ).lower()
     assert "make trusted-data-pilot-candidates top_n=12" not in rendered
     assert "make coverage-frontier top_n=12" in rendered
+    assert "make provider-setup-checklist" in rendered
+    assert "before reopening trusted-data pilot candidates" in rendered
     assert "copy-only" in rendered
     assert "does not refresh, import, apply, or infer missing values" in rendered
     assert "buy" not in rendered
@@ -142,6 +144,8 @@ def test_universe_scope_print_plan_starts_with_recommended_scope(capsys):
     assert "recommended first scope: active_universe" in output
     assert "make readiness-queue top_n=10" in output
     assert "do not treat master-universe coverage as analysis readiness" in output
+    assert "if source-proof queues are exhausted, run make provider-setup-checklist" in output
+    assert "one-provider smoke command before any broader batch" in output
     assert output.index("recommended first scope") < output.index("- active_universe")
     assert "buy" not in output
     assert "sell" not in output

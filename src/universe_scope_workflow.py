@@ -268,7 +268,10 @@ def universe_scope_review_plan(
             "what_it_answers": "Which rows should route back to source proof instead of analysis?",
             "copy_only_command": f"make coverage-frontier TOP_N={top_n}",
             "scope_boundary": boundary,
-            "stop_rule": stop_rule,
+            "stop_rule": (
+                f"{stop_rule} If coverage-frontier reports reviewed/exhausted proof queues, run "
+                "`make provider-setup-checklist` before reopening trusted-data pilot candidates."
+            ),
         },
     ]
     return pd.DataFrame(rows, columns=UNIVERSE_SCOPE_REVIEW_COLUMNS)
@@ -287,6 +290,10 @@ def _print_plan(plan: pd.DataFrame) -> None:
         f"{recommended['copy_only_command']}"
     )
     print("Boundary: do not treat master-universe coverage as analysis readiness; widen only after proof gates.")
+    print(
+        "Provider setup boundary: if source-proof queues are exhausted, run make provider-setup-checklist "
+        "and its one-provider smoke command before any broader batch."
+    )
     for row in plan.to_dict("records"):
         print(
             f"- {row['scope']}: {row['matching_rows']} row(s) | {row['what_it_answers']} | "
