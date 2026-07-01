@@ -25,9 +25,9 @@ This packet is a read-only reviewer summary. It does not refresh data, apply imp
 
 | Step | Status | Copy-only command | Boundary |
 | --- | --- | --- | --- |
-| Stage reviewed product package | no_product_changes | # no product/code/docs/test files to stage | 0 product/code/docs/test file(s) are eligible for staging. 2876 sample report artifact(s) stay excluded unless individually reviewed. Review the diff first; do not use git add -A. |
+| Stage reviewed product package | ready_to_stage | git add -- outputs/pilot_readiness_packet.md | 1 product/code/docs/test file(s) are eligible for staging. 2876 sample report artifact(s) stay excluded unless individually reviewed. Review the diff first; do not use git add -A. |
 | Verify staged package | copy-only | make staged-hygiene-check && git diff --cached --check | Stop if staged hygiene shows generated CSV/JSON churn or manual-review paths. |
-| Commit reviewed package | copy-only | # no reviewed product package to commit | Do not create a release commit just for excluded generated churn. |
+| Commit reviewed package | copy-only | git commit -m "Package reviewed product changes" | Commit only after tests, public wording, and staged hygiene pass. |
 | Keep generated churn out | excluded | make diff-hygiene-summary | 35 generated CSV/JSON/report artifact(s) and 2876 broad generated stock report artifact(s) remain excluded by default. Keep these patterns out by default: data/*.csv; data/reports/*.csv; outputs/*.csv; data/reports/ticker_readiness_report.previous.csv. Stage only a specific reviewed evidence artifact if intentionally selected. |
 
 ## Readiness Snapshot
@@ -48,8 +48,8 @@ This packet is a read-only reviewer summary. It does not refresh data, apply imp
 
 | Area | Status | Gate | Detail | Command |
 | --- | --- | --- | --- | --- |
-| GitHub sync | manual | GitHub branch state | ## main...origin/main [ahead 103]; reviewed local commits still need a push before the GitHub pilot link is current. | git push origin main |
-| Generated artifact hygiene | manual | Dirty tree classification | 2876 broad sample report artifact(s) pending review; 35 generated CSV/JSON/report artifact(s) are dirty and excluded by default. | make diff-hygiene-summary |
+| GitHub sync | manual | GitHub branch state | ## main...origin/main [ahead 107]; reviewed local commits still need a push before the GitHub pilot link is current. | git push origin main |
+| Generated artifact hygiene | manual | Dirty tree classification | 1 reviewed pilot packet artifact(s) pending; 2876 broad sample report artifact(s) pending review; 35 generated CSV/JSON/report artifact(s) are dirty and excluded by default. | make diff-hygiene-summary |
 | Readiness freshness | green | Readiness artifacts are current | Readiness artifacts are current relative to watched source files. | make status-check TOP_N=5 |
 | Source proof gates | manual | DCF Input Proof Batches leads the source-review queue | 3,778 blocked and 486 partial proof item(s) remain across DCF inputs, trusted fundamentals, share count, peer mapping, and peer valuation inputs. That is acceptable for pilot review only if missing inputs stay visible. | make data-coverage-proof-queues TOP_N=10 |
 | Proof ledger | green | 1151 reviewed batch proof row(s) | Latest outcome: candidate_context_only; lane: optional_context; batch: RB-20260701-OPTIONAL-YF-CONTEXT-NOAPPLY-002. | make reviewed-batch-proof |
@@ -66,6 +66,22 @@ This packet is a read-only reviewer summary. It does not refresh data, apply imp
 | Trusted Fundamentals Proof Queue | partial | 2691 | 243 | 90 | fundamentals_bundle: 242, fundamentals_bundle_plus_shares: 91 | make dcf-input-source-command-plan FAMILY=fundamentals_bundle TOP_N=10 |
 | Peer Mapping Proof Queue | partial | 29 | 0 | 3507 | source-backed peer mappings: 3507 | DRY_RUN=1 make peer-mapping-source-review TOP_N=10 |
 | Peer Valuation Input Proof Queue | ready | 29 | 0 | 0 | peer prices: 0; peer fundamentals: 0; mapped-peer valuation blockers: 0 | make peer-mapping-queue TOP_N=25 |
+
+## Provider Setup Checklist
+
+Use `make provider-setup-checklist` for the current checklist-style setup view. Real key values are never printed.
+
+| Provider | Setup state | Unlock lanes | Usage | Safe next step |
+| --- | --- | --- | --- | --- |
+| SEC Companyfacts | available | fundamentals, share_count | source_backed_companyfacts | Run make session-source-preflight before using this source path. |
+| SEC submissions | available | metadata | metadata_evidence_only | Run make session-source-preflight before using this source path. |
+| SEC filing documents | available | share_count | explicit_filing_document_evidence | Run make session-source-preflight before using this source path. |
+| Stooq | available | price | free_public_daily_ohlcv | Run make session-source-preflight before using this source path. |
+| Yahoo/yfinance | available | price, fundamentals, optional_context | provider_assisted_research_data | Run make session-source-preflight before using this source path. |
+| FMP free tier | needs_key | price, fundamentals, share_count | keyed_free_tier_fallback | Set FMP_API_KEY in config/provider_keys.env, then rerun make session-source-preflight. |
+| Alpha Vantage free tier | needs_key | price, fundamentals, share_count | keyed_free_tier_fallback | Set ALPHA_VANTAGE_API_KEY in config/provider_keys.env, then rerun make session-source-preflight. |
+| Finnhub free tier | needs_key | price, fundamentals, share_count | keyed_free_tier_fallback | Set FINNHUB_API_KEY in config/provider_keys.env, then rerun make session-source-preflight. |
+| IBKR read-only | optional_disabled | price | read_only_daily_ohlcv | Leave disabled unless intentionally using read-only daily OHLCV. |
 
 ## Latest Reviewed Batch Proof
 
