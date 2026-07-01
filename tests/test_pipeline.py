@@ -230,12 +230,13 @@ def test_printable_warnings_summarizes_broad_universe_missing_prices():
     assert any("3 tickers have no daily price history available" in warning for warning in printable)
     assert any("1 optional benchmark/proxy tickers are missing OHLCV context" in warning for warning in printable)
     assert any("each stock's own readiness state is unchanged" in warning for warning in printable)
-    assert any("make price-worklist TOP_N=25" in warning for warning in printable)
+    assert any("make price-history-proof-queue TOP_N=25" in warning for warning in printable)
     assert any("make price-refresh-loop DRY_RUN=1" in warning for warning in printable)
     price_guidance = "\n".join(printable)
-    assert price_guidance.index("make price-refresh-loop DRY_RUN=1") < price_guidance.index(
-        "make price-worklist TOP_N=25"
+    assert price_guidance.index("make price-history-proof-queue TOP_N=25") < price_guidance.index(
+        "make price-refresh-loop DRY_RUN=1"
     )
+    assert not any("make price-worklist TOP_N=25" in warning for warning in printable)
     assert not any("make price-refresh TOP_N=25" in warning for warning in printable)
     assert len(printable) <= 5
 

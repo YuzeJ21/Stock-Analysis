@@ -26,8 +26,8 @@ MISSING_OHLCV_PREFIX = "Missing OHLCV data for "
 OPTIONAL_PROXY_OHLCV_PREFIX = "Optional benchmark/proxy OHLCV context unavailable for "
 MAX_PRINTED_WARNINGS = 50
 PRICE_REFRESH_GUIDANCE = (
-    "; start with make price-refresh-loop DRY_RUN=1, then inspect "
-    "make price-worklist TOP_N=25 if you need the row-level missing-price queue before any capped refresh."
+    "; start with make price-history-proof-queue TOP_N=25, then preview "
+    "make price-refresh-loop DRY_RUN=1 before any capped refresh."
 )
 
 

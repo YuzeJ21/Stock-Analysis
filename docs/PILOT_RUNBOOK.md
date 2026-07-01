@@ -115,6 +115,7 @@ Use 5 to 10 operating companies for the controlled pilot. ETF/index examples suc
 Prices:
 
 ```bash
+make price-history-proof-queue TOP_N=25
 make price-refresh-loop DRY_RUN=1
 make readiness-snapshot
 make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30
