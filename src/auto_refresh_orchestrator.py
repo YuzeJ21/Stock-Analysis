@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.session_source_preflight import build_session_source_preflight
+
 
 AUTO_REFRESH_OUTCOMES = {
     "auto_supported",
@@ -339,6 +341,63 @@ def render_scheduler_runbook(plan: SchedulerPlan) -> str:
     return "\n".join(lines)
 
 
+def _join_values(value: object) -> str:
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(item) for item in value if str(item).strip()) or "-"
+    if isinstance(value, dict):
+        formatted_limits = []
+        for provider, limits in value.items():
+            if not isinstance(limits, dict):
+                continue
+            daily_limit = limits.get("recommended_daily_request_limit")
+            batch_size = limits.get("recommended_batch_size")
+            if daily_limit and batch_size:
+                formatted_limits.append(f"{provider}<={daily_limit}/day and <={batch_size}/run")
+        if formatted_limits:
+            return "; ".join(formatted_limits)
+    text = str(value or "").strip()
+    return text or "-"
+
+
+def render_auto_refresh_status(preflight: dict[str, object], plan: SchedulerPlan) -> str:
+    activation = preflight.get("source_activation", {})
+    activation = activation if isinstance(activation, dict) else {}
+    categories = preflight.get("source_categories", {})
+    categories = categories if isinstance(categories, dict) else {}
+    console = preflight.get("source_activation_console_v2", {})
+    console = console if isinstance(console, dict) else {}
+    operator_summary = console.get("operator_summary", {})
+    operator_summary = operator_summary if isinstance(operator_summary, dict) else {}
+
+    next_command = _join_values(console.get("next_executable_command") or operator_summary.get("next_step"))
+    schedule = plan.schedule
+    lines = [
+        "Auto Refresh Status",
+        "Read-only scheduler summary. It does not refresh, import, apply, or rewrite local data.",
+        "Research-only: no investment advice, broker actions, auto-trading, order routing, or direct buy/sell instructions.",
+        "",
+        f"source_activation: {_join_values(activation.get('status'))}",
+        f"source_activation_reason: {_join_values(activation.get('reason'))}",
+        f"can_run_now: {_join_values(operator_summary.get('can_run_now') or console.get('next_executable_lane'))}",
+        f"needs_setup: {_join_values(operator_summary.get('needs_setup'))}",
+        f"avoid_repeating: {_join_values(operator_summary.get('avoid_repeating'))}",
+        f"next_executable_command: {next_command}",
+        f"next_step_reason: {_join_values(operator_summary.get('next_step_reason') or activation.get('next_action'))}",
+        f"next_runbook: make auto-refresh-runbook SCHEDULE={schedule}",
+        "",
+        "source_categories:",
+        f"- free_public_available: {_join_values(categories.get('free_public_available'))}",
+        f"- keyed_free_tier_available: {_join_values(categories.get('keyed_free_tier_available'))}",
+        f"- optional_broker_disabled: {_join_values(categories.get('optional_broker_disabled'))}",
+        f"- paid_or_locked: {_join_values(categories.get('paid_or_locked'))}",
+        "",
+        f"free_tier_batch_limits: {_join_values(console.get('free_tier_batch_limits'))}",
+        "pivot_rule: if a source path is unavailable or already reviewed non-actionable, record the outcome once and move to the next executable lane.",
+        "artifact_policy: generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
+    ]
+    return "\n".join(lines)
+
+
 def _build_gate_from_args(args: argparse.Namespace) -> AutoGateInput:
     return AutoGateInput(
         lane=args.gate_lane,
@@ -360,6 +419,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--schedule", choices=("all", "daily", "weekly", "optional"), default="all")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--runbook", action="store_true")
+    parser.add_argument("--status", action="store_true")
     parser.add_argument("--gate-lane", default="")
     parser.add_argument("--changed-rows", type=int, default=0)
     parser.add_argument("--max-batch-size", type=int, default=25)
@@ -400,6 +460,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     plan = build_scheduler_plan(schedule=args.schedule)
+    if args.status:
+        preflight = build_session_source_preflight(Path(args.root).resolve())
+        print(render_auto_refresh_status(preflight, plan))
+        return 0
     if args.json:
         print(json.dumps(asdict(plan), indent=2, sort_keys=True))
     elif args.runbook:

@@ -4,6 +4,7 @@ from src.auto_refresh_orchestrator import (
     build_scheduler_plan,
     evaluate_auto_apply_gate,
     main,
+    render_auto_refresh_status,
     render_scheduler_runbook,
     render_scheduler_plan,
 )
@@ -136,3 +137,48 @@ def test_scheduler_runbook_is_compact_and_pivot_oriented():
     assert "record still_blocked and pivot" in runbook
     assert "Weekly Peer Candidate Context" not in runbook
     assert "Optional Earnings / Analyst Estimates" not in runbook
+
+
+def test_auto_refresh_status_combines_source_activation_and_next_runbook():
+    preflight = {
+        "source_activation": {
+            "status": "not_required",
+            "reason": "executable_source_available",
+            "next_action": "Use the relevant reviewed dry-run, validate, preview, and apply gate.",
+        },
+        "source_categories": {
+            "free_public_available": ["stooq", "yahoo", "sec", "sec_submissions"],
+            "keyed_free_tier_available": [],
+            "optional_broker_disabled": ["ibkr"],
+            "paid_or_locked": ["fmp", "alpha_vantage", "finnhub"],
+        },
+        "source_activation_console_v2": {
+            "next_executable_lane": "coverage_workflow_evidence",
+            "next_executable_command": "make project-status",
+            "free_tier_batch_limits": {
+                "fmp": {"recommended_daily_request_limit": 250, "recommended_batch_size": 25},
+                "alpha_vantage": {"recommended_daily_request_limit": 25, "recommended_batch_size": 5},
+                "finnhub": {"recommended_daily_request_limit": 60, "recommended_batch_size": 10},
+            },
+            "operator_summary": {
+                "can_run_now": "coverage_workflow_evidence",
+                "needs_setup": "fmp, alpha_vantage, finnhub",
+                "avoid_repeating": "fundamentals_share_count_source_ladder",
+                "next_step": "make project-status",
+                "next_step_reason": "Wait for new source data or improve workflow evidence.",
+            },
+        },
+    }
+
+    status = render_auto_refresh_status(preflight, build_scheduler_plan(schedule="daily"))
+
+    assert "Auto Refresh Status" in status
+    assert "source_activation: not_required" in status
+    assert "can_run_now: coverage_workflow_evidence" in status
+    assert "needs_setup: fmp, alpha_vantage, finnhub" in status
+    assert "avoid_repeating: fundamentals_share_count_source_ladder" in status
+    assert "next_executable_command: make project-status" in status
+    assert "next_runbook: make auto-refresh-runbook SCHEDULE=daily" in status
+    assert "free_public_available: stooq, yahoo, sec, sec_submissions" in status
+    assert "free_tier_batch_limits: fmp<=250/day and <=25/run; alpha_vantage<=25/day and <=5/run; finnhub<=60/day and <=10/run" in status
+    assert "generated CSV/JSON/report churn stays excluded" in status
