@@ -15,6 +15,7 @@ from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame, refresh_price_update_status_output
 from src.data_sources import build_data_source_payload, write_data_source_outputs
 from src.action_queue import write_action_queue_output
+from src.dcf_input_proof_queue import _reviewed_non_actionable_tickers as _reviewed_non_actionable_dcf_tickers
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
@@ -377,11 +378,16 @@ def _fast_status_payload_from_outputs(
         ]
 
     normalized_actions = [_normalize_price_action_row(dict(row)) for row in actions]
+    had_actions_before_review_filter = bool(normalized_actions)
     reviewed_non_actionable_price_tickers = _reviewed_non_actionable_price_tickers(
         root,
         _price_action_tickers(normalized_actions),
     )
+    reviewed_non_actionable_fundamentals_tickers = _reviewed_non_actionable_dcf_tickers(root).intersection(
+        _fundamentals_action_tickers(normalized_actions)
+    )
     normalized_actions = _drop_reviewed_non_actionable_price_actions(root, normalized_actions)
+    normalized_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, normalized_actions)
     sorted_actions = sorted(normalized_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
@@ -421,12 +427,17 @@ def _fast_status_payload_from_outputs(
         command_rows,
         reviewed_non_actionable_price_tickers,
     )
+    command_rows = _drop_reviewed_non_actionable_fundamentals_rows(
+        command_rows,
+        reviewed_non_actionable_fundamentals_tickers,
+    )
     if allowed:
         command_rows = _recommended_next_command_rows(
             sorted_actions,
             bundles,
             [],
             price_coverage_complete=price_complete,
+            include_guided_batches=bool(sorted_actions) or not had_actions_before_review_filter,
         )
     if not command_rows:
         command_rows = _recommended_next_command_rows(
@@ -434,6 +445,7 @@ def _fast_status_payload_from_outputs(
             bundles,
             [] if allowed else problem_sources,
             price_coverage_complete=price_complete,
+            include_guided_batches=bool(sorted_actions) or not had_actions_before_review_filter,
         )
     elif not allowed and not any(
         str(row.get("Command") or "").strip() == TRUSTED_DATA_PILOT_CANDIDATES_COMMAND
@@ -805,6 +817,51 @@ def _drop_reviewed_non_actionable_price_actions(
     ]
 
 
+def _fundamentals_action_tickers(actions: list[dict[str, Any]]) -> set[str]:
+    return {
+        str(row.get("ticker") or "").strip().upper()
+        for row in actions
+        if str(row.get("dataset") or "").strip().lower() in {"fundamentals", "share_count", "shares_outstanding"}
+        and str(row.get("ticker") or "").strip()
+    }
+
+
+def _drop_reviewed_non_actionable_fundamentals_rows(
+    rows: list[dict[str, str]],
+    reviewed_tickers: set[str],
+) -> list[dict[str, str]]:
+    if not reviewed_tickers:
+        return rows
+    filtered: list[dict[str, str]] = []
+    for row in rows:
+        command = str(row.get("Command") or "").strip()
+        ticker = _command_row_ticker(row)
+        if command.startswith("make focus-fundamentals") and ticker in reviewed_tickers:
+            continue
+        filtered.append(row)
+    return filtered
+
+
+def _drop_reviewed_non_actionable_fundamentals_actions(
+    root: Path,
+    actions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    possible_tickers = _fundamentals_action_tickers(actions)
+    if not possible_tickers:
+        return actions
+    reviewed_tickers = _reviewed_non_actionable_dcf_tickers(root).intersection(possible_tickers)
+    if not reviewed_tickers:
+        return actions
+    return [
+        row
+        for row in actions
+        if not (
+            str(row.get("dataset") or "").strip().lower() in {"fundamentals", "share_count", "shares_outstanding"}
+            and str(row.get("ticker") or "").strip().upper() in reviewed_tickers
+        )
+    ]
+
+
 def _prioritize_public_command_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     """Keep the public next-step order aligned with the product roadmap."""
     deduped: list[dict[str, str]] = []
@@ -837,6 +894,7 @@ def _recommended_next_command_rows(
     problem_sources: list[dict[str, Any]],
     *,
     price_coverage_complete: bool = False,
+    include_guided_batches: bool = True,
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
 
@@ -893,7 +951,7 @@ def _recommended_next_command_rows(
                     )
                 )
 
-    top_bundle = _select_top_bundle(actions, bundles)
+    top_bundle = _select_top_bundle(actions, bundles) if include_guided_batches else None
     if top_bundle:
         command = _first_non_empty(
             top_bundle.get("runbook_shortcut_command"),
@@ -977,7 +1035,10 @@ def build_project_status_payload(
     enriched_actions = _enrich_top_actions(onboarding_payload, price_status_lookup)
     if tickers:
         enriched_actions = [row for row in enriched_actions if str(row.get("ticker", "")).upper().strip() in allowed]
-    actions = sorted(_drop_reviewed_non_actionable_price_actions(root, enriched_actions), key=_action_rank)
+    had_actions_before_review_filter = bool(enriched_actions)
+    filtered_actions = _drop_reviewed_non_actionable_price_actions(root, enriched_actions)
+    filtered_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, filtered_actions)
+    actions = sorted(filtered_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
     optional_locked_sources = [row for row in problem_sources if _source_is_optional_locked(row)]
@@ -1007,6 +1068,7 @@ def build_project_status_payload(
         onboarding_payload.get("command_bundles", []),
         command_problem_sources,
         price_coverage_complete=_price_coverage_complete(summary),
+        include_guided_batches=bool(actions) or not had_actions_before_review_filter,
     )
     return {
         "project_root": str(root),

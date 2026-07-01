@@ -828,6 +828,55 @@ def test_project_status_fast_check_pivots_from_reviewed_non_actionable_price_his
     assert payload["top_onboarding_actions"] == []
 
 
+def test_project_status_fast_check_pivots_from_reviewed_non_actionable_fundamentals(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    pd.DataFrame(
+        [
+            {"ticker": "AACB", "price_ready": True, "momentum_ready": True, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "NVDA", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": False},
+        ]
+    ).to_csv(tmp_path / "data" / "reports" / "ticker_readiness_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "ticker": "AACB",
+                "dataset": "fundamentals",
+                "status": "missing_or_incomplete",
+                "reason": "DCF inputs are still incomplete: free_cash_flow, revenue, fcf_margin.",
+                "recommended_action": "Run make focus-fundamentals TICKER=AACB first.",
+                "focus_command": "make focus-fundamentals TICKER=AACB",
+                "example_command": "make sec-stage TICKERS=AACB",
+            },
+        ]
+    ).to_csv(tmp_path / "outputs" / "data_onboarding_actions.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "Step": "Fix top fundamentals blocker (AACB)",
+                "Command": "make focus-fundamentals TICKER=AACB",
+                "Reason": "DCF inputs are still incomplete: free_cash_flow, revenue, fcf_margin.",
+                "SourceContext": "data/imports/fundamentals.csv",
+                "FreshnessContext": "missing_or_incomplete",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "project_status_next_steps.csv", index=False)
+    (tmp_path / "data" / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-FUND-AACB,fundamentals,AACB,still_blocked,none,"
+        "\"AACB SEC/yfinance source ladder already reviewed; wait for new provider data or reviewed manual rows.\"\n",
+        encoding="utf-8",
+    )
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
+    assert commands[0] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert "make focus-fundamentals TICKER=AACB" not in commands
+    assert payload["top_onboarding_actions"] == []
+
+
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
 
