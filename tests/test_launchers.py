@@ -320,7 +320,8 @@ def test_makefile_help_documents_key_workflows():
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
         "export SEC_USER_AGENT='Name email@example.com'",
         "make sec-stage TICKERS=NVDA,MSFT",
-        "make imports-validate IMPORT_TICKERS=NVDA && make imports-preview IMPORT_TICKERS=NVDA && make imports-apply IMPORT_TICKERS=NVDA",
+        "make imports-validate IMPORT_TICKERS=NVDA && make imports-preview IMPORT_TICKERS=NVDA",
+        "make imports-apply IMPORT_TICKERS=NVDA only after validation passes, preview scope is intended, rejected rows are zero",
         "Use IMPORT_TICKERS for narrow reviewed slices; broad imports-apply requires ALLOW_BROAD_IMPORT_APPLY=1 after full staged-scope review",
         "make universe-preview",
         "Preview-first fundamentals and universe imports",
@@ -1113,7 +1114,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "`make focus-peers TICKER=A`",
         "`data/imports/fundamentals.csv`",
         "`data/imports/peers.csv`",
-        "`make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>`, then `make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>`, then `make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>`",
+        "`make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>`, then `make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>`; apply only after validation passes, preview scope is intended, and rejected rows are zero",
         "they show the first trustworthy proof step instead of hiding the gap behind a weak conclusion",
         "Where This Lives In Code",
         "`src/readiness_engine.py`",
@@ -1313,14 +1314,14 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "read-only first step for ranking current company blockers" in checklist
     assert "choose 5-10 operating companies only when source proof exists" in checklist
     assert "file presence, row counts, staged-folder counts, or rejected-row report existence are not proof" in checklist
-    assert "source review, validation, preview/apply, readiness rebuild, and the regenerated report prove the lane changed" in checklist
+    assert "source review, validation, preview, apply boundary, readiness rebuild, and the regenerated report prove the lane changed" in checklist
     assert "define a useful pilot win as before report, lane review, trusted source row" in checklist
     assert "Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in checklist
     assert "Treat `QQQ` and `SMH` as ETF/index monitor demos" in checklist
     assert "Keep the pilot evidence packet visible" in checklist
-    assert "before report, review path, validate/apply, rejected-row, and rebuild-proof packet" in checklist
+    assert "before report, review path, validate/preview gate, apply boundary, rejected-row, and rebuild-proof packet" in checklist
     assert "baseline readiness, before report, focused blocker check, lane review path" in checklist
-    assert "validate/preview/apply, rejected-row check, rebuild proof" in checklist
+    assert "validate/preview gate, apply boundary, rejected-row check, rebuild proof" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
     assert "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Proof Commands`" in checklist
     assert "small pilot" in checklist
@@ -1563,7 +1564,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "`make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` remains available for local proof detail",
         "file status, decision gates, rejected-row paths, and evidence expectations",
         "README, Data Strategy, Public Release Checklist, LinkedIn brief, and `make demo`",
-        "compact default points to one-company evidence packets before validate/preview/apply and rebuild proof",
+        "compact default points to one-company evidence packets before validate/preview gate, apply boundary, and rebuild proof",
         "The compact candidate command is read-only",
         "`VERBOSE=1` exposes local proof detail only",
     ):
@@ -1831,12 +1832,13 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Run the lane-specific review command printed by the packet:" in data_strategy
     assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in data_strategy
     assert "peer lane: make focus-peers TICKER=<ticker>" in data_strategy
-    assert "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker>" in data_strategy
+    assert "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in data_strategy
+    assert "make imports-apply IMPORT_TICKERS=<ticker> only after validation passes, preview scope is intended, rejected rows are zero" in data_strategy
     assert "Check the rejected-row report printed by the packet before treating the lane as available." in data_strategy
     assert "Run the matching rebuild proof:" in data_strategy
     assert "fundamentals lane: make readiness && make dcf-readiness" in data_strategy
     assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in data_strategy
-    assert "lane review path, validate/apply step, rejected-row report path, rebuild proof, and evidence row to record" in data_strategy
+    assert "lane review path, validate/preview gate, apply boundary, rejected-row report path, rebuild proof, and evidence row to record" in data_strategy
     assert "The candidate list and one-company packet also print local file status" in data_strategy
     assert "A file with rows is not automatically trusted coverage" in data_strategy
     assert "Every pilot packet follows the same proof loop" in data_strategy
@@ -2116,12 +2118,12 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Company-by-company loop: open one report, choose the matching lane, then validate trusted rows before reading any new valuation." in makefile
     assert "Starter loop example: make stock-report-md TICKER=CRDO -> make trusted-data-pilot-packet TICKER=CRDO -> run the packet's lane-specific review command" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
-    assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, the exact review, validate/apply, rejected-row report, and proof commands that changed the state." in makefile
+    assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, the exact review, validate/preview gate, apply boundary, rejected-row report, and proof commands that changed the state." in makefile
     assert "SEC credential state: SEC_USER_AGENT is configured for local staging checks." in makefile
     assert "SEC credential state: SEC_USER_AGENT is not configured; use manual trusted fundamentals or stop at diagnostics." in makefile
     assert "Evidence table columns to record: ticker | before_mode | after_mode | outcome_state | changed_inputs | validation_commands | report_path | still_blocked_reason." in makefile
     assert "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker visibly blocked by missing data and record the missing input." in makefile
-    assert "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview/apply, rejected-row check, rebuild proof, and still-blocked evidence row." in makefile
+    assert "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview gate, apply boundary, rejected-row check, rebuild proof, and still-blocked evidence row." in makefile
     assert "One-company packet example:" in makefile
     assert "make trusted-data-pilot-candidates TOP_N=10" in makefile
     assert "make trusted-data-pilot-packet TICKER=<ticker>" in makefile
@@ -2129,7 +2131,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Run the lane-specific review command printed by the packet:" in makefile
     assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in makefile
     assert "peer lane: make focus-peers TICKER=<ticker>" in makefile
-    assert "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker>" in makefile
+    assert "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in makefile
+    assert "make imports-apply IMPORT_TICKERS=<ticker> only after validation passes, preview scope is intended, rejected rows are zero" in makefile
     assert "Use the broad imports-apply sequence only after every staged row is source-reviewed and intended." in makefile
     assert "ifndef IMPORT_TICKERS\nifndef ALLOW_BROAD_IMPORT_APPLY" in makefile
     assert "$(error IMPORT_TICKERS is required for imports-apply; use ALLOW_BROAD_IMPORT_APPLY=1 only after full staged-scope review)" in makefile
