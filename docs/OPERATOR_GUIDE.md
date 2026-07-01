@@ -149,7 +149,7 @@ make optional-context-readiness
 
 The optional-context source ladder tries yfinance, FMP, Alpha Vantage, then Finnhub when the session and configured keys allow it. Provider rows are research context only and are staged into `data/imports/earnings.csv` and `data/imports/analyst_estimates.csv`; they are not public data freshness proof and do not unlock analysis without the normal import review gates.
 
-To avoid retyping credentials every session, copy `config/provider_keys.env.example` to `config/provider_keys.env` or create `.env` in the project root. The command-line workflows load those local files automatically, while `.gitignore` keeps the real key files out of GitHub. Exported terminal variables still win over local files when both are present.
+To avoid retyping credentials every session, copy `config/provider_keys.env.example` to `config/provider_keys.env` or create `.env` in the project root. The command-line workflows load those local files automatically, while `.gitignore` keeps the real key files out of GitHub. Exported terminal variables still win over local files when both are present. For the provider-by-provider setup boundary, use `docs/SOURCE_ACTIVATION_GUIDE.md`.
 
 ## Function Quality Checklist
 

@@ -459,6 +459,61 @@ def test_session_source_preflight_reports_price_ladder_keyed_fallbacks(tmp_path:
     assert "missing_price_keys: STOOQ_API_KEY, ALPHA_VANTAGE_API_KEY" in rendered
 
 
+def test_session_source_preflight_renders_source_activation_console_v2(tmp_path: Path, monkeypatch):
+    _clear_provider_env(monkeypatch)
+
+    preflight = build_session_source_preflight(
+        tmp_path,
+        sec_probe=lambda _user_agent: {
+            "status": "unavailable",
+            "reason_code": "network_error",
+            "detail": "dns failed",
+            "next_action": "Do not retry SEC-backed fundamentals in this session.",
+        },
+        sec_submissions_probe=lambda _user_agent: {
+            "status": "available",
+            "reason_code": "ok",
+            "detail": "Reached SEC submissions metadata.",
+            "next_action": "Use SEC submissions metadata for ticker/entity/SIC/filing-recency evidence only.",
+            "source_usage": "metadata_evidence_only",
+        },
+        yfinance_import_probe=lambda: {
+            "status": "unavailable",
+            "reason_code": "missing_dependency",
+            "detail": "No module named 'yfinance'",
+            "next_action": "python3 -m pip install -e '.[research]'",
+        },
+    )
+
+    console = preflight["source_activation_console_v2"]
+
+    assert console["next_executable_lane"] == "peer_mapping_proof"
+    assert console["source_path_last_tried"]["sec"] == "network_error"
+    assert console["source_path_last_tried"]["yfinance_fundamentals"] == "missing_dependency"
+    assert console["do_not_retry_this_session"] == ["sec", "yfinance_fundamentals"]
+    assert console["setup_commands"]["fmp"] == "Set FMP_API_KEY in config/provider_keys.env; rerun make session-source-preflight."
+    assert console["setup_commands"]["alpha_vantage"] == "Set ALPHA_VANTAGE_API_KEY in config/provider_keys.env; rerun make session-source-preflight."
+    assert console["setup_commands"]["finnhub"] == "Set FINNHUB_API_KEY in config/provider_keys.env; rerun make session-source-preflight."
+    assert console["setup_commands"]["ibkr"] == "Optional read-only broker data only: set IBKR_HOST, IBKR_PORT, IBKR_CLIENT_ID and run Gateway/TWS; otherwise leave disabled."
+    assert console["provider_capabilities"]["sec_submissions"]["usage"] == "metadata_evidence_only"
+    assert console["provider_capabilities"]["fmp"]["can_cover"] == ["price", "fundamentals", "share_count"]
+    assert console["provider_capabilities"]["ibkr"]["default_state"] == "optional_broker_disabled"
+
+    rendered = render_session_source_preflight(preflight)
+
+    assert "source_activation_console_v2:" in rendered
+    assert "next_executable_lane: peer_mapping_proof" in rendered
+    assert "source_path_last_tried:" in rendered
+    assert "sec: network_error" in rendered
+    assert "do_not_retry_this_session: sec, yfinance_fundamentals" in rendered
+    assert "setup_commands:" in rendered
+    assert "fmp: Set FMP_API_KEY in config/provider_keys.env; rerun make session-source-preflight." in rendered
+    assert "ibkr: Optional read-only broker data only" in rendered
+    assert "provider_capabilities:" in rendered
+    assert "sec_submissions: can_cover=metadata usage=metadata_evidence_only" in rendered
+    assert "ibkr: can_cover=price usage=read_only_daily_ohlcv default=optional_broker_disabled" in rendered
+
+
 def test_session_source_preflight_prefers_fmp_when_local_rows_do_not_fix_current_blockers(tmp_path: Path):
     _write_fundamentals(
         tmp_path,

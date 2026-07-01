@@ -660,6 +660,117 @@ def build_source_categories(
     }
 
 
+def build_source_activation_console_v2(
+    *,
+    sources: dict[str, dict[str, Any]],
+    source_categories: dict[str, list[str]],
+    do_not_retry_paths: list[str],
+    preferred_lane_order: list[str],
+) -> dict[str, Any]:
+    def reason(source_name: str) -> str:
+        source = sources.get(source_name, {})
+        return str(source.get("reason_code") or "unknown").strip()
+
+    yfinance_reason = reason("yfinance_stage")
+    if yfinance_reason == "dependency_unavailable":
+        yfinance_reason = reason("yfinance_import")
+    source_path_last_tried = {
+        "sec": reason("sec"),
+        "sec_submissions": reason("sec_submissions"),
+        "yfinance_fundamentals": yfinance_reason,
+        "price_ladder": reason("price_ladder"),
+        "fmp": reason("fmp"),
+        "alpha_vantage": reason("alpha_vantage"),
+        "finnhub": reason("finnhub"),
+        "ibkr": reason("ibkr_price"),
+    }
+    provider_capabilities = {
+        "sec": {
+            "can_cover": ["fundamentals", "share_count"],
+            "usage": "source_backed_companyfacts",
+            "default_state": "free_public_available" if sources["sec"].get("status") == "available" else "unavailable",
+        },
+        "sec_submissions": {
+            "can_cover": ["metadata"],
+            "usage": "metadata_evidence_only",
+            "default_state": (
+                "free_public_available" if sources["sec_submissions"].get("status") == "available" else "unavailable"
+            ),
+        },
+        "yfinance": {
+            "can_cover": ["price", "fundamentals", "optional_context"],
+            "usage": "provider_assisted_research_data",
+            "default_state": (
+                "free_public_available" if sources["yfinance_stage"].get("status") == "available" else "unavailable"
+            ),
+        },
+        "stooq": {
+            "can_cover": ["price"],
+            "usage": "free_public_daily_ohlcv",
+            "default_state": "free_public_available",
+        },
+        "fmp": {
+            "can_cover": ["price", "fundamentals", "share_count"],
+            "usage": "keyed_free_tier_fallback",
+            "default_state": (
+                "keyed_free_tier_available" if sources["fmp"].get("status") == "available" else "keyed_free_tier_missing"
+            ),
+        },
+        "alpha_vantage": {
+            "can_cover": ["price", "fundamentals", "share_count"],
+            "usage": "keyed_free_tier_fallback",
+            "default_state": (
+                "keyed_free_tier_available"
+                if sources["alpha_vantage"].get("status") == "available"
+                else "keyed_free_tier_missing"
+            ),
+        },
+        "finnhub": {
+            "can_cover": ["price", "fundamentals", "share_count"],
+            "usage": "keyed_free_tier_fallback",
+            "default_state": (
+                "keyed_free_tier_available"
+                if sources["finnhub"].get("status") == "available"
+                else "keyed_free_tier_missing"
+            ),
+        },
+        "ibkr": {
+            "can_cover": ["price"],
+            "usage": "read_only_daily_ohlcv",
+            "default_state": (
+                "optional_broker_configured"
+                if sources["ibkr_price"].get("status") == "available"
+                else "optional_broker_disabled"
+            ),
+        },
+    }
+    setup_commands = {
+        "provider_env_file": "cp config/provider_keys.env.example config/provider_keys.env && chmod 600 config/provider_keys.env",
+        "fmp": "Set FMP_API_KEY in config/provider_keys.env; rerun make session-source-preflight.",
+        "alpha_vantage": "Set ALPHA_VANTAGE_API_KEY in config/provider_keys.env; rerun make session-source-preflight.",
+        "finnhub": "Set FINNHUB_API_KEY in config/provider_keys.env; rerun make session-source-preflight.",
+        "stooq": "Set STOOQ_API_KEY only if unauthenticated Stooq CSV access is unavailable; rerun make session-source-preflight.",
+        "ibkr": (
+            "Optional read-only broker data only: set IBKR_HOST, IBKR_PORT, IBKR_CLIENT_ID and run Gateway/TWS; "
+            "otherwise leave disabled."
+        ),
+    }
+    return {
+        "free_public_available": source_categories.get("free_public_available", []),
+        "optional_broker_disabled": source_categories.get("optional_broker_disabled", []),
+        "keyed_free_tier_missing": source_categories.get("paid_or_locked", []),
+        "keyed_free_tier_available": source_categories.get("keyed_free_tier_available", []),
+        "paid_or_locked": source_categories.get("paid_or_locked", []),
+        "source_path_last_tried": source_path_last_tried,
+        "do_not_retry_this_session": do_not_retry_paths,
+        "setup_commands": setup_commands,
+        "provider_capabilities": provider_capabilities,
+        "next_executable_lane": preferred_lane_order[0] if preferred_lane_order else "coverage_workflow_evidence",
+        "next_executable_command": "make coverage-frontier TOP_N=10",
+        "non_retry_rule": "Record unavailable source paths once, then pivot to the next executable lane in this session.",
+    }
+
+
 def _dedupe_preserve_order(items: list[str]) -> list[str]:
     ordered: list[str] = []
     seen: set[str] = set()
@@ -818,6 +929,24 @@ def build_session_source_preflight(
     preferred_lane_order.extend(ALWAYS_EXECUTABLE_LANES)
     available_lanes = _dedupe_preserve_order(source_lanes + ALWAYS_EXECUTABLE_LANES)
     preferred_lane_order = _dedupe_preserve_order(preferred_lane_order)
+    sources = {
+        "sec": sec_status,
+        "sec_submissions": sec_submissions_status,
+        "yfinance_import": yfinance_import_status,
+        "yfinance_stage": yfinance_stage_status,
+        "price_ladder": price_ladder_status,
+        "ibkr_price": ibkr_status,
+        "fmp": fmp_status,
+        "alpha_vantage": alpha_vantage_status,
+        "finnhub": finnhub_status,
+        "local_fundamentals": local_fundamentals_status,
+    }
+    source_activation_console_v2 = build_source_activation_console_v2(
+        sources=sources,
+        source_categories=source_categories,
+        do_not_retry_paths=do_not_retry_paths,
+        preferred_lane_order=preferred_lane_order,
+    )
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -828,18 +957,8 @@ def build_session_source_preflight(
         "available_lanes": available_lanes,
         "preferred_lane_order": preferred_lane_order,
         "source_categories": source_categories,
-        "sources": {
-            "sec": sec_status,
-            "sec_submissions": sec_submissions_status,
-            "yfinance_import": yfinance_import_status,
-            "yfinance_stage": yfinance_stage_status,
-            "price_ladder": price_ladder_status,
-            "ibkr_price": ibkr_status,
-            "fmp": fmp_status,
-            "alpha_vantage": alpha_vantage_status,
-            "finnhub": finnhub_status,
-            "local_fundamentals": local_fundamentals_status,
-        },
+        "source_activation_console_v2": source_activation_console_v2,
+        "sources": sources,
         "source_activation": source_activation_status,
     }
 
@@ -961,6 +1080,48 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         if commands:
             lines.append("  activation_commands:")
             lines.extend(f"  - {command}" for command in commands)
+    console = preflight.get("source_activation_console_v2", {})
+    if isinstance(console, dict) and console:
+        lines.extend(
+            [
+                "source_activation_console_v2:",
+                f"  next_executable_lane: {console.get('next_executable_lane', 'coverage_workflow_evidence')}",
+                f"  next_executable_command: {console.get('next_executable_command', 'make coverage-frontier TOP_N=10')}",
+                "  source_path_last_tried:",
+            ]
+        )
+        source_path_last_tried = console.get("source_path_last_tried", {})
+        if isinstance(source_path_last_tried, dict):
+            for source_name in ("sec", "sec_submissions", "yfinance_fundamentals", "price_ladder", "fmp", "alpha_vantage", "finnhub", "ibkr"):
+                if source_name in source_path_last_tried:
+                    lines.append(f"    {source_name}: {source_path_last_tried[source_name]}")
+        lines.append(
+            "  do_not_retry_this_session: "
+            f"{', '.join(console.get('do_not_retry_this_session', [])) or '-'}"
+        )
+        lines.append("  setup_commands:")
+        setup_commands = console.get("setup_commands", {})
+        if isinstance(setup_commands, dict):
+            for source_name in ("provider_env_file", "fmp", "alpha_vantage", "finnhub", "stooq", "ibkr"):
+                command = str(setup_commands.get(source_name, "")).strip()
+                if command:
+                    lines.append(f"    {source_name}: {command}")
+        lines.append("  provider_capabilities:")
+        capabilities = console.get("provider_capabilities", {})
+        if isinstance(capabilities, dict):
+            for source_name in ("sec", "sec_submissions", "yfinance", "stooq", "fmp", "alpha_vantage", "finnhub", "ibkr"):
+                capability = capabilities.get(source_name, {})
+                if not isinstance(capability, dict):
+                    continue
+                can_cover = ", ".join(capability.get("can_cover", [])) or "-"
+                usage = str(capability.get("usage", "")).strip() or "-"
+                default_state = str(capability.get("default_state", "")).strip() or "-"
+                lines.append(
+                    f"    {source_name}: can_cover={can_cover} usage={usage} default={default_state}"
+                )
+        non_retry_rule = str(console.get("non_retry_rule", "")).strip()
+        if non_retry_rule:
+            lines.append(f"  non_retry_rule: {non_retry_rule}")
     lines.append(
         "non_blocking_rule: if a remote path is unavailable in this session, record the lane outcome and continue to the next executable lane."
     )

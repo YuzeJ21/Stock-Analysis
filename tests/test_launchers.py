@@ -481,6 +481,28 @@ def test_operator_guide_documents_local_provider_env_loading():
     assert "FINNHUB_API_KEY=" in example
 
 
+def test_source_activation_guide_documents_provider_setup_without_real_keys():
+    guide = Path("docs/SOURCE_ACTIVATION_GUIDE.md").read_text(encoding="utf-8")
+
+    assert "Source Activation Guide" in guide
+    assert "FMP_API_KEY" in guide
+    assert "ALPHA_VANTAGE_API_KEY" in guide
+    assert "FINNHUB_API_KEY" in guide
+    assert "STOOQ_API_KEY" in guide
+    assert "IBKR_HOST" in guide
+    assert "IBKR_PORT" in guide
+    assert "IBKR_CLIENT_ID" in guide
+    assert "read-only daily OHLCV" in guide
+    assert "disabled by default" in guide
+    assert "Do not commit" in guide
+    assert "price" in guide
+    assert "fundamentals" in guide
+    assert "share count" in guide
+    assert "metadata only" in guide
+    assert "not investment advice" in guide
+    assert "REPLACE_WITH" in guide
+
+
 def test_makefile_exposes_optional_context_source_ladder_targets():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
