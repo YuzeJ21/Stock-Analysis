@@ -441,6 +441,11 @@ def source_activation_setup_cards(guide: dict[str, object] | None) -> list[dict[
         if isinstance(setup_commands, list) and setup_commands and str(setup_commands[0]).strip()
         else "make source-activation-guide"
     )
+    activation_plan = payload.get("activation_plan", [])
+    activation_plan_text = _format_missing(
+        activation_plan,
+        "Run project-status first; if source-proof queues are exhausted, use provider setup before reopening broad loops.",
+    )
     apply_gate = payload.get("apply_gate", [])
     apply_gate_text = _format_missing(apply_gate, "Run validate and preview before apply.")
 
@@ -455,6 +460,13 @@ def source_activation_setup_cards(guide: dict[str, object] | None) -> list[dict[
     )
 
     return [
+        {
+            "kicker": "ACTIVATION PLAN",
+            "title": "Start with status, then one provider smoke test",
+            "body": activation_plan_text,
+            "badges": ["no broad loops", "one source first"],
+            "command": "make project-status",
+        },
         {
             "kicker": "FREE PUBLIC SOURCES",
             "title": _provider_names_by_category(providers, {"free_public_available"}),

@@ -195,6 +195,11 @@ def test_overview_source_activation_setup_cards_show_provider_boundaries():
                 "chmod 600 config/provider_keys.env",
                 "edit config/provider_keys.env locally; do not commit real keys",
             ],
+            "activation_plan": [
+                "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops.",
+                "Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight.",
+                "Run that provider's one-ticker smoke command only; do not start a broad batch from setup.",
+            ],
             "providers": [
                 {
                     "provider": "SEC Companyfacts",
@@ -235,13 +240,17 @@ def test_overview_source_activation_setup_cards_show_provider_boundaries():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
+        "ACTIVATION PLAN",
         "FREE PUBLIC SOURCES",
         "KEYED FREE-TIER SETUP",
         "BROKER DATA BOUNDARY",
         "APPLY GATE",
     ]
-    assert cards[0]["command"] == "make source-activation-guide"
-    assert cards[1]["command"] == "cp config/provider_keys.env.example config/provider_keys.env"
+    assert cards[0]["command"] == "make project-status"
+    assert cards[1]["command"] == "make source-activation-guide"
+    assert cards[2]["command"] == "cp config/provider_keys.env.example config/provider_keys.env"
+    assert "do not reopen broad proof loops" in rendered
+    assert "one-ticker smoke command only" in rendered
     assert "sec companyfacts" in rendered
     assert "fmp free tier" in rendered
     assert "small_batch_only" in rendered

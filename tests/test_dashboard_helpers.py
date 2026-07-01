@@ -220,11 +220,14 @@ def test_data_health_source_activation_setup_cards_use_guide_without_secrets(mon
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
+        "ACTIVATION PLAN",
         "FREE PUBLIC SOURCES",
         "KEYED FREE-TIER SETUP",
         "BROKER DATA BOUNDARY",
         "APPLY GATE",
     ]
+    assert "run make project-status first" in rendered
+    assert "one-ticker smoke command only" in rendered
     assert "sec companyfacts" in rendered
     assert "fmp free tier" in rendered
     assert "keyed_free_tier_available" in rendered
