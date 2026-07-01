@@ -1375,7 +1375,9 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "default candidate output stays compact for visitors" in checklist
     assert "make trusted-data-pilot-packet TICKER=CRDO" in checklist
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" in checklist
-    assert "read-only first step for ranking current company blockers" in checklist
+    assert "only after `make project-status` shows executable company candidates" in checklist
+    assert "If project-status says current source-proof queues are exhausted" in checklist
+    assert "start with `make provider-setup-checklist` instead" in checklist
     assert "choose 5-10 operating companies only when source proof exists" in checklist
     assert "file presence, row counts, staged-folder counts, or rejected-row report existence are not proof" in checklist
     assert "source review, validation, preview, apply boundary, readiness rebuild, and the regenerated report prove the lane changed" in checklist
