@@ -366,7 +366,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/universe.csv",
         fallback_action=(
             "Run make universe-preview-summary first, inspect full rows with make universe-preview only when needed, "
-            "then run make universe-apply only after reviewing the source-driven build."
+            "then run make universe-stage after row-scope review and make universe-apply only after staged rows are reviewed."
         ),
         notes="Missing theme/sector metadata is labeled Unclassified rather than fabricated.",
     ),
@@ -405,7 +405,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
             "Run make universe-preview-summary first, then review the S&P 500 / SMH "
-            "universe import file before make universe-apply."
+            "universe build, run make universe-stage, and apply only after reviewing staged rows with make universe-apply."
         ),
         notes="Local optional S&P preset source; verify source and license before redistribution. No live check is performed here.",
     ),
@@ -424,7 +424,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
             "Run make universe-preview-summary first, then review the broader universe import file "
-            "before make universe-apply; all-Nasdaq mode can be large."
+            "with make universe-stage before make universe-apply; all-Nasdaq mode can be large."
         ),
         notes="No live check is performed by data_sources; universe_builder handles parsing when explicitly invoked.",
     ),
@@ -503,7 +503,11 @@ def _remote_source_status(entry: DataSourceRegistryEntry, data_dir: Path) -> tup
             return "partial", "Manual universe fallback file is present.", 1
         return "source_unavailable", "Remote SMH source is not checked here; use the documented manual fallback if it fails.", 0
     if staged_universe.exists():
-        return "partial", "A universe import file exists; run make universe-preview-summary before make universe-apply.", 1
+        return (
+            "partial",
+            "A universe import file exists; run make universe-preview-summary, make universe-stage, then make universe-apply after review.",
+            1,
+        )
     return "optional_unofficial" if entry.is_unofficial else "partial", "Remote source is available only when universe_builder is explicitly run.", 0
 
 
