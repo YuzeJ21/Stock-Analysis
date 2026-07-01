@@ -147,8 +147,8 @@ One-company evidence packet:
 ```bash
 make readiness-snapshot
 make project-status
-make trusted-data-pilot-candidates TOP_N=10  # only when project-status shows executable company candidates
 make provider-setup-checklist  # use instead when source-proof queues are exhausted
+make trusted-data-pilot-candidates TOP_N=10  # only when project-status shows executable company candidates
 make trusted-data-pilot-lane LANE=fundamentals_dcf
 make trusted-data-pilot-packet TICKER=<ticker>
 make trusted-data-pilot-evidence TICKERS=MU,CRDO
