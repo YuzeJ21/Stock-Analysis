@@ -6,6 +6,25 @@ import argparse
 from pathlib import Path
 
 
+DECISION_OPTIONS = [
+    {
+        "goal": "Portfolio showcase only",
+        "path": "Keep no license for now",
+        "visitor_expectation": "Visitors can read the code, but reuse rights are not granted.",
+    },
+    {
+        "goal": "Let others reuse with attribution",
+        "path": "Add MIT or Apache-2.0",
+        "visitor_expectation": "Visitors can reuse under the selected license terms.",
+    },
+    {
+        "goal": "Keep stronger control",
+        "path": "Add a custom or proprietary notice",
+        "visitor_expectation": "Visitors should ask before reuse; use legal review for custom wording.",
+    },
+]
+
+
 def build_license_status(root: Path) -> dict[str, object]:
     license_path = root / "LICENSE"
     has_license = license_path.exists()
@@ -25,6 +44,7 @@ def build_license_status(root: Path) -> dict[str, object]:
         "next_decision": next_decision,
         "safe_to_share_boundary": boundary,
         "next_safe_command": "docs/LICENSE_DECISION_GUIDE.md",
+        "decision_options": DECISION_OPTIONS,
         "stop_rule": stop_rule,
         "research_boundary": (
             "License status is a sharing/reuse gate only; it does not refresh data, "
@@ -42,9 +62,23 @@ def render_license_status(status: dict[str, object]) -> str:
         f"next_decision: {status.get('next_decision')}",
         f"safe_to_share_boundary: {status.get('safe_to_share_boundary')}",
         f"next_safe_command: {status.get('next_safe_command')}",
+        "Decision options:",
+    ]
+    decision_options = status.get("decision_options", [])
+    if isinstance(decision_options, list):
+        for option in decision_options:
+            if not isinstance(option, dict):
+                continue
+            lines.append(
+                "- "
+                f"{option.get('goal')} | "
+                f"{option.get('path')} | "
+                f"{option.get('visitor_expectation')}"
+            )
+    lines.extend([
         f"stop_rule: {status.get('stop_rule')}",
         f"research_boundary: {status.get('research_boundary')}",
-    ]
+    ])
     return "\n".join(lines)
 
 
