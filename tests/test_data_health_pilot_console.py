@@ -190,7 +190,7 @@ def test_controlled_pilot_outcome_tracker_counts_reviewed_ticker_outcomes():
             {
                 "Batch ID": "RB-3",
                 "Lane": "peer_mapping",
-                "Tickers": "CCC/DDD",
+                "Tickers": "CCC",
                 "Changed Tickers": "",
                 "Final Outcome": "candidate_context_only",
                 "Notes": "candidate peers only",
@@ -246,6 +246,61 @@ def test_controlled_pilot_outcome_tracker_stays_open_until_five_tickers():
     assert frame.iloc[0]["Answer"] == "2 / 5 minimum reviewed ticker outcome(s)"
     assert "run the next trusted-data pilot packet" in rendered
     assert "do not call unsupported lanes ready" in rendered
+
+
+def test_controlled_pilot_outcome_tracker_ignores_broad_batch_records():
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-PRICE-BROAD",
+                "Lane": "prices",
+                "Scope": "capped Yahoo missing-price refresh across remaining broad-universe price queue",
+                "Tickers": "3289 changed tickers; sample A,AAL,AAME,AAON,ABBV",
+                "Final Outcome": "supported",
+            },
+            {
+                "Batch ID": "RB-OPTIONAL-BROAD",
+                "Lane": "optional_context",
+                "Scope": "all-universe optional context source ladder",
+                "Tickers": "3538 tickers",
+                "Final Outcome": "still_blocked",
+            },
+            {
+                "Batch ID": "RB-A",
+                "Lane": "fundamentals",
+                "Scope": "one-company trusted-data pilot packet",
+                "Tickers": "AAA",
+                "Final Outcome": "supported",
+            },
+        ]
+    )
+
+    frame = pilot_console.controlled_pilot_outcome_frame(ledger)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert frame.iloc[0]["Status"] == "needs_more_packets"
+    assert frame.iloc[0]["Answer"] == "1 / 5 minimum reviewed ticker outcome(s)"
+    assert "ignored broad/non-pilot proof rows: 2" in rendered
+    assert "aaa" in rendered
+    assert "3289" not in frame.iloc[0]["Answer"]
+
+
+def test_controlled_pilot_outcome_tracker_flags_oversized_historical_scope():
+    ledger = pd.DataFrame(
+        [
+            {"Batch ID": f"RB-{i}", "Lane": "fundamentals", "Tickers": f"A{i:02d}", "Final Outcome": "supported"}
+            for i in range(12)
+        ]
+    )
+
+    frame = pilot_console.controlled_pilot_outcome_frame(ledger, target_min=5, target_max=10)
+    cards = pilot_console.controlled_pilot_outcome_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert frame.iloc[0]["Status"] == "pilot_scope_review"
+    assert frame.iloc[0]["Answer"] == "12 reviewed ticker outcome(s); select 5 to 10 for this pilot"
+    assert "select a 5 to 10 company pilot set" in rendered
+    assert "not a coverage unlock" in rendered
 
 
 def test_pilot_evidence_review_combines_screenshots_packet_public_gate_and_churn():

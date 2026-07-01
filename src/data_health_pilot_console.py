@@ -8,6 +8,7 @@ read-only module that never refreshes data or writes canonical CSV rows.
 from __future__ import annotations
 
 import html
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -22,6 +23,34 @@ CONTROLLED_PILOT_OUTCOMES = {
     "still_blocked",
     "skipped",
     "excluded",
+}
+CONTROLLED_PILOT_LANES = {
+    "fundamentals",
+    "fundamentals_dcf",
+    "share_count",
+    "share_count_proof",
+    "peers",
+    "peer_mapping",
+    "peer_mapping_proof",
+    "peer_valuation_inputs",
+}
+CONTROLLED_PILOT_BROAD_MARKERS = {
+    "all-universe",
+    "broad-universe",
+    "broad universe",
+    "capped ",
+    "changed tickers",
+    "coverage",
+    "missing-price",
+    "optional context",
+    "price refresh",
+    "queue",
+    "refreshed",
+}
+CONTROLLED_PILOT_SINGLE_SCOPE_MARKERS = {
+    "one-company",
+    "reviewed ticker",
+    "trusted-data pilot packet",
 }
 
 
@@ -82,11 +111,29 @@ def controlled_pilot_outcome_frame(
         reviewed = ledger_frame.copy()
         reviewed["_outcome"] = reviewed["Final Outcome"].fillna("").astype(str).str.strip().str.lower()
         reviewed = reviewed[reviewed["_outcome"].isin(CONTROLLED_PILOT_OUTCOMES)]
+        controlled_mask = reviewed.apply(_is_controlled_pilot_row, axis=1)
+        reviewed = reviewed[controlled_mask].copy()
 
-    reviewed_count = int(len(reviewed))
+    ignored_rows = 0
+    if ledger_frame is not None and not ledger_frame.empty and "Final Outcome" in ledger_frame.columns:
+        outcome_rows = ledger_frame["Final Outcome"].fillna("").astype(str).str.strip().str.lower().isin(CONTROLLED_PILOT_OUTCOMES)
+        ignored_rows = max(int(outcome_rows.sum()) - int(len(reviewed)), 0)
+
+    reviewed_tickers: list[str] = []
+    for _, row in reviewed.iterrows():
+        tickers = _pilot_ticker_tokens(_cell_text(row, "Tickers", "tickers"))
+        if not tickers:
+            tickers = _pilot_ticker_tokens(_cell_text(row, "Changed Tickers", "changed_tickers"))
+        reviewed_tickers.extend(tickers[:10])
+    unique_tickers = sorted(dict.fromkeys(reviewed_tickers))
+    reviewed_count = int(len(unique_tickers))
     status = "pilot_exit_ready" if reviewed_count >= target_min else "needs_more_packets"
     if reviewed_count > target_max:
         status = "pilot_scope_review"
+    if status == "pilot_scope_review":
+        count_answer = f"{reviewed_count} reviewed ticker outcome(s); select {target_min} to {target_max} for this pilot"
+    else:
+        count_answer = f"{reviewed_count} / {target_min} minimum reviewed ticker outcome(s)"
     outcome_counts = reviewed["_outcome"].value_counts().to_dict() if not reviewed.empty else {}
     outcome_mix = ", ".join(
         f"{outcome}={int(outcome_counts[outcome])}"
@@ -106,11 +153,21 @@ def controlled_pilot_outcome_frame(
         {
             "Question": "Can the controlled pilot exit?",
             "Status": status,
-            "Answer": f"{reviewed_count} / {target_min} minimum reviewed ticker outcome(s)",
+            "Answer": count_answer,
             "Evidence": (
-                "Controlled pilot can exit when reviewed packet outcomes cover the selected 5 to 10 company set."
+                f"Controlled pilot can exit when reviewed packet outcomes cover the selected 5 to 10 company set. "
+                f"Reviewed tickers: {', '.join(unique_tickers[:target_max]) or '-'}. "
+                f"Ignored broad/non-pilot proof rows: {ignored_rows}."
                 if status == "pilot_exit_ready"
-                else "Run the next trusted-data pilot packet; do not call unsupported lanes ready."
+                else (
+                    (
+                        "Select a 5 to 10 company pilot set from reviewed outcomes before calling the controlled pilot complete. "
+                        if status == "pilot_scope_review"
+                        else "Run the next trusted-data pilot packet; do not call unsupported lanes ready. "
+                    )
+                    + f"Reviewed tickers: {', '.join(unique_tickers[:target_max]) or '-'}. "
+                    + f"Ignored broad/non-pilot proof rows: {ignored_rows}."
+                )
             ),
             "Next Safe Action": "make trusted-data-pilot-candidates TOP_N=10",
             "Stop Rule": "Pilot outcome counts are not a coverage unlock; source-proof gates still control every lane.",
@@ -174,6 +231,42 @@ def _pilot_verdict(counts: dict[str, int]) -> tuple[str, str]:
     if counts["green"] > 0:
         return "Pilot-ready", "green"
     return "Run pilot readiness check", "read-only"
+
+
+def _cell_text(row: pd.Series, *names: str) -> str:
+    for name in names:
+        if name in row:
+            return _format_missing(row.get(name), "").strip()
+    return ""
+
+
+def _pilot_ticker_tokens(value: object) -> list[str]:
+    text = _format_missing(value, "").upper()
+    tokens = re.findall(r"\b[A-Z][A-Z0-9.]{0,9}\b", text)
+    return [token for token in tokens if token not in {"NONE", "NULL", "NAN", "TOP", "TICKERS", "TICKER"}]
+
+
+def _is_controlled_pilot_row(row: pd.Series) -> bool:
+    lane = _cell_text(row, "Lane", "lane").lower()
+    if lane not in CONTROLLED_PILOT_LANES:
+        return False
+    scope = _cell_text(row, "Scope", "scope").lower()
+    tickers = _pilot_ticker_tokens(_cell_text(row, "Tickers", "tickers"))
+    changed_tickers = _pilot_ticker_tokens(_cell_text(row, "Changed Tickers", "changed_tickers"))
+    explicit_single_scope = any(marker in scope for marker in CONTROLLED_PILOT_SINGLE_SCOPE_MARKERS)
+    explicit_single_ticker = len(tickers) == 1 or len(changed_tickers) == 1
+    if not explicit_single_scope and not explicit_single_ticker:
+        return False
+    if "batch" in scope and not explicit_single_scope and not explicit_single_ticker:
+        return False
+    scope_text = " ".join(
+        [
+            scope,
+            _cell_text(row, "Tickers", "tickers").lower(),
+            _cell_text(row, "Changed Tickers", "changed_tickers").lower(),
+        ]
+    )
+    return not any(marker in scope_text for marker in CONTROLLED_PILOT_BROAD_MARKERS)
 
 
 def _priority_gate(frame: pd.DataFrame | None) -> pd.Series | None:
