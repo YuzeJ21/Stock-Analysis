@@ -900,7 +900,7 @@ def _drop_all_fundamentals_actions(rows: list[dict[str, Any]]) -> list[dict[str,
 
 def _peer_action_tickers(actions: list[dict[str, Any]]) -> set[str]:
     return {
-        str(row.get("ticker") or "").strip().upper()
+        str(row.get("ticker") or "").strip().upper().replace(".", "-")
         for row in actions
         if str(row.get("dataset") or "").strip().lower() == "peers"
         and str(row.get("ticker") or "").strip()
@@ -957,7 +957,7 @@ def _drop_reviewed_non_actionable_peer_actions(
         for row in actions
         if not (
             str(row.get("dataset") or "").strip().lower() == "peers"
-            and str(row.get("ticker") or "").strip().upper() in reviewed_tickers
+            and str(row.get("ticker") or "").strip().upper().replace(".", "-") in reviewed_tickers
         )
     ]
 
