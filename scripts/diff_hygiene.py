@@ -632,6 +632,23 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
             ]
         )
 
+    environment_blocked_lines = (
+        [
+            "If git staging is environment-blocked:",
+            "  # Do not stage generated churn as a workaround.",
+            "  make diff-hygiene-files",
+            "  # In a normal local terminal, run:",
+            "  git add --pathspec-from-file=outputs/staging/product_files.txt",
+            "  make staged-hygiene-check",
+        ]
+        if product
+        else [
+            "If git staging is environment-blocked:",
+            "  # No product files are queued; do not stage generated churn as a workaround.",
+            "  make diff-hygiene-files",
+        ]
+    )
+
     lines.extend(
         [
             "Release verdict:",
@@ -654,12 +671,7 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
             "",
             *format_sample_report_review_block(sample_reports),
             "",
-            "If git staging is environment-blocked:",
-            "  # Do not stage generated churn as a workaround.",
-            "  make diff-hygiene-files",
-            "  # In a normal local terminal, run:",
-            "  git add --pathspec-from-file=outputs/staging/product_files.txt",
-            "  make staged-hygiene-check",
+            *environment_blocked_lines,
             "",
             "Do not stage generated churn by default:",
         ]

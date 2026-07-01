@@ -446,6 +446,7 @@ def test_public_release_package_marks_generated_only_tree_as_local_churn():
     assert "No reviewed product package to stage; keep generated churn local unless intentionally selected as evidence." in report
     assert "No reviewed product package to commit; generated churn remains local." in report
     assert 'git commit -m "Improve pilot handoff and workflow continuity"' not in report
+    assert "git add --pathspec-from-file=outputs/staging/product_files.txt" not in report
     assert "Not ready to stage automatically" not in report
 
 
