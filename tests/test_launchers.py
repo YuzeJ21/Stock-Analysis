@@ -2232,15 +2232,23 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
     assert "@echo \"   make project-status\"" in makefile
+    assert "@echo \"   make universe-scope TICKERS=NVDA,META TOP_N=10\"" in makefile
+    assert "@echo \"   make risk-context\"" in makefile
     assert "@echo \"   make data-coverage-proof-queues TOP_N=10\"" in makefile
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates\"" in makefile
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail\"" in makefile
     assert "@echo \"   make trusted-data-pilot-packet TICKER=CRDO\"" in makefile
     assert "@echo \"   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10\"" in makefile
     assert "@echo \"   Proves: coverage improves through source proof, validation, rejected-row review, rebuild proof, and still-blocked evidence, not fake rows.\"" in makefile
-    assert makefile.index('@echo "   make project-status"') < makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"')
-    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"') < makefile.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
-    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"') < makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"')
+    demo_block = makefile.split("\ndemo:\n", 1)[1].split("\nbrowser-qa-evidence:", 1)[0]
+    assert '@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"' in demo_block
+    assert '@echo "   make risk-context"' in demo_block
+    assert demo_block.index('@echo "   make project-status"') < demo_block.index('@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"')
+    assert demo_block.index('@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"') < demo_block.index('@echo "   make risk-context"')
+    assert demo_block.index('@echo "   make risk-context"') < demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"')
+    assert demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"') < demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"')
+    assert demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"') < demo_block.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
+    assert demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"') < demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"')
     assert "@echo \"6. Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
     assert "@echo \"   make diff-hygiene\"" in makefile

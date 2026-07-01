@@ -320,6 +320,8 @@ demo:
 	@echo ""
 	@echo "5. Optional: see the safe coverage-improvement path:"
 	@echo "   make project-status"
+	@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"
+	@echo "   make risk-context"
 	@echo "   make data-coverage-proof-queues TOP_N=10"
 	@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"
 	@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"
