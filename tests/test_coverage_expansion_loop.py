@@ -333,6 +333,52 @@ def test_coverage_expansion_loop_requires_source_activation_when_no_executable_s
     assert "make fundamentals-source-ladder-queue" not in rendered
 
 
+def test_coverage_expansion_loop_pivots_to_workflow_evidence_when_preflight_exhausts_source_queues(tmp_path: Path):
+    session_preflight = {
+        "session_flags": [],
+        "preferred_lane_order": ["sec_fundamentals_share_count", "peer_mapping_proof", "coverage_workflow_evidence"],
+        "sources": {
+            "sec": {"status": "available", "detail": "HTTP 200"},
+            "yfinance_stage": {"status": "available", "detail": "Resolved MSFT"},
+            "price_ladder": {"status": "planned", "configured_keyed_providers": []},
+            "local_fundamentals": {
+                "status": "available",
+                "detail": "Found local rows.",
+                "share_count_fixable_ticker_count": 0,
+                "fundamentals_fixable_ticker_count": 0,
+            },
+        },
+        "source_actionability": {
+            "fundamentals_share_count_candidates": 548,
+            "reviewed_non_actionable_fundamentals_share_count": 548,
+            "unreviewed_fundamentals_share_count_candidates": 0,
+            "dcf_queue_reviewed_non_actionable": True,
+            "do_not_repeat_without_new_source": True,
+            "next_action": "Wait for new provider data, keyed sources, reviewed manual source rows, or changed blockers before repeating fundamentals/share-count paths.",
+        },
+        "source_activation_console_v2": {
+            "next_executable_lane": "coverage_workflow_evidence",
+            "next_executable_command": "make project-status",
+        },
+    }
+
+    loop = build_coverage_expansion_loop(
+        _sample_root(tmp_path, prior_snapshot=True),
+        lane="auto",
+        top_n=5,
+        session_preflight=session_preflight,
+    )
+    rendered = render_coverage_expansion_loop(loop)
+
+    assert loop.status == "workflow_evidence_only"
+    assert loop.selected_lane == "coverage_workflow_evidence"
+    assert loop.next_safe_action == "make project-status"
+    assert "current source-proof queues have no unreviewed executable company candidates" in rendered
+    assert "make project-status" in rendered
+    assert "make fundamentals-source-ladder-queue" not in rendered
+    assert "DRY_RUN=1 make reviewed-batch LANE=share_count" not in rendered
+
+
 def test_coverage_expansion_loop_does_not_repeat_optional_worklist_when_ledger_covers_universe(tmp_path: Path):
     session_preflight = {
         "session_flags": ["session_sec_unavailable", "session_yfinance_unavailable"],

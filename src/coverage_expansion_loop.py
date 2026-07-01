@@ -195,6 +195,15 @@ def _source_activation_required(preflight: dict[str, Any] | None) -> bool:
     )
 
 
+def _preflight_routes_to_workflow_evidence(preflight: dict[str, Any] | None) -> bool:
+    if not isinstance(preflight, dict):
+        return False
+    console = preflight.get("source_activation_console_v2")
+    if not isinstance(console, dict):
+        return False
+    return str(console.get("next_executable_lane") or "").strip() == "coverage_workflow_evidence"
+
+
 def _optional_context_ledger_covers_lanes(root: Path, lanes: list[ReadinessLane]) -> bool:
     summary = build_reviewed_batch_ledger_summaries(root).get("optional_context")
     if summary is None:
@@ -451,6 +460,32 @@ def build_coverage_expansion_loop(
         "earnings_locked",
         "analyst_estimates_locked",
     }
+    if _preflight_routes_to_workflow_evidence(session_preflight) and normalized_requested_lane in source_activation_lanes:
+        console = session_preflight.get("source_activation_console_v2", {}) if isinstance(session_preflight, dict) else {}
+        next_command = str(console.get("next_executable_command") or "make project-status").strip() or "make project-status"
+        return CoverageExpansionLoop(
+            status="workflow_evidence_only",
+            selected_lane="coverage_workflow_evidence",
+            selected_label="Coverage Workflow Evidence",
+            reviewed_batch_lane="-",
+            planner_step=None,
+            preflight=None,
+            next_safe_action=next_command,
+            copy_only_sequence=(
+                next_command,
+                "make session-source-preflight",
+                "make coverage-frontier TOP_N=10",
+                "make diff-hygiene-summary",
+            ),
+            do_not_proceed_if=(
+                "current source-proof queues have no unreviewed executable company candidates",
+                "new provider data, keyed sources, reviewed manual source rows, or changed blockers are not present",
+            ),
+            session_source_preflight=session_preflight,
+            pivot_notes=(
+                "current source-proof queues have no unreviewed executable company candidates; do not repeat reviewed dry-run loops until new source-backed rows, keyed providers, manual rows, or changed blockers appear.",
+            ),
+        )
     if _source_activation_required(session_preflight) and normalized_requested_lane in source_activation_lanes:
         pivot_notes: tuple[str, ...] = ()
         if _peer_mapping_ledger_covers_review_queue(root, lanes):
@@ -718,6 +753,16 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
                     "",
                 ]
             )
+    if loop.status == "workflow_evidence_only":
+        lines.extend(
+            [
+                "Workflow evidence pivot:",
+                "- Current source-proof queues have no unreviewed executable company candidates.",
+                "- Do not repeat reviewed dry-run loops until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers appear.",
+                "- Use workflow/status evidence to keep the pilot path clear without fabricating trusted data.",
+                "",
+            ]
+        )
     lines.extend(["Copy-only loop:"])
     lines.extend(f"{index}. {command}" for index, command in enumerate(loop.copy_only_sequence, start=1))
     lines.extend(
