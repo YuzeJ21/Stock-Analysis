@@ -19019,6 +19019,31 @@ def test_data_health_coverage_summary_includes_cached_source_activation_context(
     assert "order routing" not in rendered
 
 
+def test_data_health_coverage_summary_reads_current_source_activation_key_names(tmp_path):
+    root = tmp_path
+    outputs_dir = root / "outputs"
+    outputs_dir.mkdir()
+    (outputs_dir / "session_source_preflight.json").write_text(
+        json.dumps(
+            {
+                "source_activation_console_v2": {
+                    "next_executable_lane": "sec_fundamentals_share_count",
+                    "free_public_available": ["sec", "stooq"],
+                    "keyed_free_tier_available": [],
+                    "keyed_free_tier_missing": ["fmp", "alpha_vantage", "finnhub"],
+                    "optional_broker_disabled": ["ibkr"],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    frame = dashboard.data_health_coverage_summary_frame({"master_universe": 10}, root=root)
+
+    source_row = frame.loc[frame["lane"].eq("Source activation")].iloc[0]
+    assert source_row["blocked_or_limited"] == "Missing keyed free-tier providers: fmp, alpha_vantage, finnhub"
+
+
 def test_data_health_coverage_summary_renders_before_public_and_operator_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

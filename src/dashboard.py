@@ -8667,7 +8667,8 @@ def _cached_source_activation_console(root: Path | None = None) -> dict[str, obj
 def _source_activation_summary_row(console: dict[str, object]) -> dict[str, object]:
     free_public = [str(value).strip() for value in console.get("free_public_available", []) if str(value).strip()]
     keyed_available = [str(value).strip() for value in console.get("keyed_free_tier_available", []) if str(value).strip()]
-    keyed_missing = [str(value).strip() for value in console.get("missing_keyed_free_tier", []) if str(value).strip()]
+    keyed_missing_values = console.get("keyed_free_tier_missing", console.get("missing_keyed_free_tier", []))
+    keyed_missing = [str(value).strip() for value in keyed_missing_values if str(value).strip()]
     broker_disabled = [str(value).strip() for value in console.get("optional_broker_disabled", []) if str(value).strip()]
     next_lane = str(console.get("next_executable_lane") or "coverage_workflow_evidence").strip()
     state = "supported" if free_public or keyed_available else "blocked"
