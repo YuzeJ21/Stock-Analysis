@@ -805,6 +805,21 @@ def public_share_final_gate_frame(
             "Stop Rule": "Packet generation is read-only; do not treat the packet as a data or source-proof unlock.",
         },
         {
+            "Gate": "License status",
+            "Status": "portfolio_demo_only" if not Path("LICENSE").exists() else "license_present",
+            "Review": (
+                "No root LICENSE file is present; share as portfolio/demo only and do not describe as open source."
+                if not Path("LICENSE").exists()
+                else "Root LICENSE file is present; confirm README wording matches the selected license."
+            ),
+            "Command": "docs/LICENSE_DECISION_GUIDE.md",
+            "Stop Rule": (
+                "Do not claim reuse rights until a root LICENSE is selected and README wording is updated."
+                if not Path("LICENSE").exists()
+                else "Stop if README License wording conflicts with the selected license."
+            ),
+        },
+        {
             "Gate": "Research-only boundary",
             "Status": row_status(guardrail_row, "green"),
             "Review": row_detail(
@@ -824,7 +839,7 @@ def public_share_final_gate_frame(
     return pd.DataFrame(rows)
 
 
-def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 6) -> list[dict[str, object]]:
+def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 7) -> list[dict[str, object]]:
     if frame is None or frame.empty:
         return [
             {
