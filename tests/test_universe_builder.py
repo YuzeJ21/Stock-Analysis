@@ -255,6 +255,7 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert "HTTP Error" not in output
     assert "stage data/imports/universe.csv as the manual SMH fallback" not in output
     assert "next:" in output
+    assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json" in output
     assert "make universe-apply" in output
     assert '"rows"' not in output
     assert '"ticker": "NVDA"' not in output

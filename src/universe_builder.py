@@ -1017,7 +1017,7 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
             print(f"- {warning}")
     print("next:")
     print("- Review source warnings and row counts before writing any universe import.")
-    print("- To inspect raw rows, rerun with --json.")
+    print("- To inspect raw rows intentionally: python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json")
     print("- To inspect full preview rows without writing: make universe-preview")
     print("- To write and apply reviewed rows only after row-scope review: make universe-apply")
 
