@@ -464,6 +464,7 @@ def _fast_status_payload_from_outputs(
                 had_actions_before_review_filter=had_actions_before_review_filter,
                 dcf_source_ladder_has_unreviewed=dcf_source_ladder_has_unreviewed,
             ),
+            include_trusted_data_pilot=bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False,
         )
     if not command_rows:
         command_rows = _recommended_next_command_rows(
@@ -476,11 +477,12 @@ def _fast_status_payload_from_outputs(
                 had_actions_before_review_filter=had_actions_before_review_filter,
                 dcf_source_ladder_has_unreviewed=dcf_source_ladder_has_unreviewed,
             ),
+            include_trusted_data_pilot=bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False,
         )
     elif not allowed and not any(
         str(row.get("Command") or "").strip() == TRUSTED_DATA_PILOT_CANDIDATES_COMMAND
         for row in command_rows
-    ):
+    ) and (bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False):
         command_rows.append(_trusted_data_pilot_command_row())
     command_rows = _prioritize_public_command_rows(command_rows)
 
@@ -780,6 +782,20 @@ def _trusted_data_pilot_command_row() -> dict[str, str]:
     )
 
 
+def _workflow_evidence_command_row() -> dict[str, str]:
+    return _command_row(
+        "Review workflow evidence",
+        "make project-status",
+        (
+            "Current source-proof queues have no unreviewed executable company candidates. "
+            "Review the workflow/status evidence and wait for new provider data, keyed sources, "
+            "reviewed manual rows, or changed blockers before repeating the trusted-data pilot loop."
+        ),
+        source_context="project status, proof ledger, and source preflight",
+        freshness_context="workflow evidence only; no import/apply step is available from the current queue",
+    )
+
+
 def _price_coverage_complete(summary: dict[str, Any]) -> bool:
     total = int(summary.get("tickers_total") or 0)
     with_prices = int(summary.get("tickers_with_prices") or 0)
@@ -1075,6 +1091,7 @@ def _recommended_next_command_rows(
     *,
     price_coverage_complete: bool = False,
     include_guided_batches: bool = True,
+    include_trusted_data_pilot: bool = True,
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
 
@@ -1161,7 +1178,10 @@ def _recommended_next_command_rows(
                 )
             )
 
-    rows.append(_trusted_data_pilot_command_row())
+    if include_trusted_data_pilot:
+        rows.append(_trusted_data_pilot_command_row())
+    elif not rows:
+        rows.append(_workflow_evidence_command_row())
 
     problem_source_rows = _recommended_source_command_rows(problem_sources)
     if problem_source_rows:
@@ -1263,6 +1283,7 @@ def build_project_status_payload(
             had_actions_before_review_filter=had_actions_before_review_filter,
             dcf_source_ladder_has_unreviewed=dcf_source_ladder_has_unreviewed,
         ),
+        include_trusted_data_pilot=bool(actions) or dcf_source_ladder_has_unreviewed is not False,
     )
     return {
         "project_root": str(root),
@@ -1367,6 +1388,11 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- Peer-ready tickers: {summary['tickers_peer_ready']}/{summary['tickers_total']}")
     print(f"- Missing-data steps: {summary['onboarding_actions']} ({summary['critical_actions']} urgent)")
     print(f"- Research-purpose groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
+    command_rows = payload.get("recommended_next_command_rows") or [
+        {"Step": f"Next {index}", "Command": command}
+        for index, command in enumerate(payload.get("recommended_next_commands", []), start=1)
+    ]
+    first_command = str(command_rows[0].get("Command") or "").strip() if command_rows else ""
     print("First read:")
     ready_label = "Ready now"
     if has_stale_snapshot_warning:
@@ -1381,7 +1407,13 @@ def _print_human(payload: dict[str, Any]) -> None:
         "- Still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates "
         "stay locked where source-backed rows are missing."
     )
-    if _price_coverage_complete(summary):
+    if first_command == "make project-status":
+        print(
+            "- Best next proof: make project-status for workflow evidence; current source-proof queues have "
+            "no unreviewed executable company candidates, so wait for new provider data, keyed sources, "
+            "reviewed manual rows, or changed blockers before repeating the trusted-data pilot loop."
+        )
+    elif _price_coverage_complete(summary):
         print(
             f"- Best next proof: {TRUSTED_DATA_PILOT_CANDIDATES_COMMAND} for company-depth work; "
             "price coverage is complete, so remaining price work is short-history review, not missing-price batch planning."
@@ -1414,10 +1446,6 @@ def _print_human(payload: dict[str, Any]) -> None:
         if row.get("manual_fallback_command"):
             print(f"  fallback: {row['manual_fallback_command']}")
     print("Recommended next local steps:")
-    command_rows = payload.get("recommended_next_command_rows") or [
-        {"Step": f"Next {index}", "Command": command}
-        for index, command in enumerate(payload.get("recommended_next_commands", []), start=1)
-    ]
     for row in command_rows:
         print(f"- {row.get('Step', 'Next')}: {row.get('Command', '')}")
         if row.get("Reason"):

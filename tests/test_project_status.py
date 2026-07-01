@@ -928,10 +928,54 @@ def test_project_status_fast_check_pivots_when_dcf_source_ladder_has_no_unreview
 
     assert payload is not None
     commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
-    assert commands[0] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert commands[0] == "make project-status"
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in commands
     assert "make focus-fundamentals TICKER=AMD" not in commands
     assert "make runbook-fundamentals-broader" not in commands
     assert payload["top_onboarding_actions"] == []
+
+
+def test_project_status_routes_exhausted_proof_queues_to_workflow_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _write_fast_status_artifacts(tmp_path)
+    monkeypatch.setattr(project_status, "_dcf_source_ladder_has_unreviewed_rows", lambda _root, _data_path: False)
+    pd.DataFrame([], columns=["Step", "Command", "Reason"]).to_csv(
+        tmp_path / "outputs" / "project_status_next_steps.csv",
+        index=False,
+    )
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
+    assert commands[0] == "make project-status"
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in commands
+    assert payload["recommended_next_command_rows"][0]["Step"] == "Review workflow evidence"
+    assert payload["top_onboarding_actions"] == []
+
+
+def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_are_exhausted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    monkeypatch.setattr(project_status, "_dcf_source_ladder_has_unreviewed_rows", lambda _root, _data_path: False)
+    pd.DataFrame([], columns=["Step", "Command", "Reason"]).to_csv(
+        tmp_path / "outputs" / "project_status_next_steps.csv",
+        index=False,
+    )
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+    assert payload is not None
+
+    project_status._print_human(payload)
+    output = capsys.readouterr().out.lower()
+
+    assert "best next proof: make project-status" in output
+    assert "best next proof: make trusted-data-pilot-candidates" not in output
 
 
 def test_project_status_fast_check_pivots_from_reviewed_non_actionable_peers(tmp_path: Path):
