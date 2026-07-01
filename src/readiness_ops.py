@@ -792,10 +792,12 @@ def build_readiness_ops_lanes(
             next_safe_command=optional_context_next_command,
             proof_command=(
                 "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && "
-                "make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness"
+                "make imports-preview IMPORT_TICKERS=<ticker> && make optional-context-readiness"
             ),
-            generated_churn_policy="Do not apply or publish earnings rows unless trusted local/provider source rows were reviewed.",
+            generated_churn_policy=(
+                "Do not apply or publish earnings rows unless trusted local/provider source rows were reviewed; "
+                "apply only after validation passes, preview scope is intended, and rejected rows are zero."
+            ),
             stale_proof_warning=stale_warning,
             notes=(
                 "Optional context stays locked until trusted local or reviewed provider-assisted rows exist."
@@ -823,10 +825,12 @@ def build_readiness_ops_lanes(
             next_safe_command=optional_context_next_command,
             proof_command=(
                 "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && "
-                "make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness"
+                "make imports-preview IMPORT_TICKERS=<ticker> && make optional-context-readiness"
             ),
-            generated_churn_policy="Do not apply or publish estimates unless trusted local/provider source rows were reviewed.",
+            generated_churn_policy=(
+                "Do not apply or publish estimates unless trusted local/provider source rows were reviewed; "
+                "apply only after validation passes, preview scope is intended, and rejected rows are zero."
+            ),
             stale_proof_warning=stale_warning,
             notes=(
                 "Optional context is unavailable by design when trusted local or reviewed provider-assisted rows are missing."

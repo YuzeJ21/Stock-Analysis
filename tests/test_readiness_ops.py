@@ -211,6 +211,10 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert by_lane["earnings_locked"].workflow_mode == "optional_source_ladder"
     assert by_lane["analyst_estimates_locked"].workflow_mode == "optional_source_ladder"
     assert by_lane["earnings_locked"].next_safe_command == "make optional-context-source-ladder-queue TOP_N=10"
+    assert "make imports-apply" not in by_lane["earnings_locked"].proof_command
+    assert "make imports-apply" not in by_lane["analyst_estimates_locked"].proof_command
+    assert "apply only after validation passes" in by_lane["earnings_locked"].generated_churn_policy
+    assert "apply only after validation passes" in by_lane["analyst_estimates_locked"].generated_churn_policy
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"
     assert "trusted local or reviewed provider-assisted rows" in by_lane["earnings_locked"].notes
 
