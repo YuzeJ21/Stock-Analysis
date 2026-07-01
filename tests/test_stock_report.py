@@ -2193,6 +2193,61 @@ def test_stock_report_cli_optional_context_source_ladder_writes_import_files(mon
     ]
     assert payload["apply_gate_command"] == "make imports-apply IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv"
     assert "only after validation passes" in payload["apply_gate_boundary"]
+    assert payload["has_staged_changes"] is True
+    assert payload["no_apply_needed"] is False
+
+
+def test_stock_report_cli_optional_context_source_ladder_marks_unchanged_rows_no_apply(
+    monkeypatch, tmp_path: Path, capsys
+):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    monkeypatch.setattr(
+        "src.stock_report.build_optional_context_source_ladder_rows",
+        lambda requested_tickers, **_kwargs: {
+            "requested_tickers": requested_tickers,
+            "resolved_tickers": requested_tickers,
+            "unresolved_tickers": [],
+            "earnings_rows": [{"ticker": requested_tickers[0], "source": "yfinance_research_api"}],
+            "analyst_estimate_rows": [{"ticker": requested_tickers[0], "source": "yfinance_research_api"}],
+            "warnings": [],
+            "provider_attempts": [{"provider": "yfinance", "status": "resolved_rows", "reason_code": "ok"}],
+        },
+    )
+    monkeypatch.setattr(
+        "src.stock_report.write_optional_context_imports",
+        lambda **_kwargs: {
+            "earnings_write": {
+                "output_path": str(tmp_path / "data" / "imports" / "earnings.csv"),
+                "rows_written": 1,
+                "staged_row_count": 1,
+                "status": "unchanged",
+                "tickers_written": ["NVDA"],
+            },
+            "analyst_estimates_write": {
+                "output_path": str(tmp_path / "data" / "imports" / "analyst_estimates.csv"),
+                "rows_written": 1,
+                "staged_row_count": 1,
+                "status": "unchanged",
+                "tickers_written": ["NVDA"],
+            },
+        },
+    )
+
+    sys.argv = ["python", "--project-root", str(tmp_path), "--optional-context-source-ladder", "--tickers", "NVDA", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+    assert payload["has_staged_changes"] is False
+    assert payload["no_apply_needed"] is True
+    assert payload["recommended_next_commands"] == ["make optional-context-readiness"]
 
 
 def test_stock_report_cli_optional_context_source_ladder_dry_run_does_not_write_import_files(
@@ -2295,6 +2350,58 @@ def test_stock_report_cli_optional_context_source_ladder_prints_staging_status(m
 
     assert "earnings_status: staged" in rendered
     assert "analyst_estimates_status: no_rows" in rendered
+
+
+def test_stock_report_cli_optional_context_source_ladder_prints_no_apply_for_unchanged(
+    monkeypatch, tmp_path: Path, capsys
+):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    monkeypatch.setattr(
+        "src.stock_report.build_optional_context_source_ladder_rows",
+        lambda requested_tickers, **_kwargs: {
+            "requested_tickers": requested_tickers,
+            "resolved_tickers": requested_tickers,
+            "unresolved_tickers": [],
+            "earnings_rows": [{"ticker": requested_tickers[0], "source": "yfinance_research_api"}],
+            "analyst_estimate_rows": [],
+            "warnings": [],
+            "provider_attempts": [{"provider": "yfinance", "status": "resolved_rows", "reason_code": "ok"}],
+        },
+    )
+    monkeypatch.setattr(
+        "src.stock_report.write_optional_context_imports",
+        lambda **_kwargs: {
+            "earnings_write": {
+                "output_path": str(tmp_path / "data" / "imports" / "earnings.csv"),
+                "rows_written": 1,
+                "staged_row_count": 1,
+                "status": "unchanged",
+                "tickers_written": ["NVDA"],
+            },
+            "analyst_estimates_write": {
+                "output_path": str(tmp_path / "data" / "imports" / "analyst_estimates.csv"),
+                "rows_written": 0,
+                "staged_row_count": 0,
+                "status": "no_rows",
+                "tickers_written": [],
+            },
+        },
+    )
+
+    sys.argv = ["python", "--project-root", str(tmp_path), "--optional-context-source-ladder", "--tickers", "NVDA"]
+    try:
+        main()
+        rendered = capsys.readouterr().out
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+    assert "apply gate: no apply needed" in rendered
+    assert "make imports-apply" not in rendered
 
 
 def test_resolve_dcf_input_queue_tickers_returns_unique_ordered_blocker_tickers(monkeypatch, tmp_path: Path):

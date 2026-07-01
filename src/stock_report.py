@@ -4324,6 +4324,12 @@ def main() -> None:
                 )
         except (RuntimeError, ValueError) as exc:
             raise SystemExit(_provider_staging_failure_message("optional context source ladder", exc)) from exc
+        write_statuses = {
+            str(write_result["earnings_write"].get("status", "")).strip().lower(),
+            str(write_result["analyst_estimates_write"].get("status", "")).strip().lower(),
+        }
+        has_staged_changes = (not args.optional_context_dry_run) and "staged" in write_statuses
+        no_apply_needed = (not args.optional_context_dry_run) and not has_staged_changes
         payload = {
             **result,
             **write_result,
@@ -4336,6 +4342,10 @@ def main() -> None:
                 ]
                 if args.optional_context_dry_run
                 else [
+                    "make optional-context-readiness",
+                ]
+                if no_apply_needed
+                else [
                     "make imports-validate IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
                     "make imports-preview IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
                     "make optional-context-readiness",
@@ -4346,6 +4356,8 @@ def main() -> None:
                 "Run only after validation passes, preview scope is intended, rejected rows are zero, "
                 "and optional-context source provenance is present."
             ),
+            "has_staged_changes": has_staged_changes,
+            "no_apply_needed": no_apply_needed,
         }
         if args.json:
             print(json.dumps(payload, indent=2))
@@ -4375,8 +4387,11 @@ def main() -> None:
             print("next:")
             for command in payload["recommended_next_commands"]:
                 print(f"- {command}")
-            print("apply gate:")
-            print(f"- {payload['apply_gate_command']} only after validation passes, preview scope is intended, rejected rows are zero, and source provenance is present.")
+            if payload["no_apply_needed"]:
+                print("apply gate: no apply needed; optional-context import rows are unchanged or empty.")
+            else:
+                print("apply gate:")
+                print(f"- {payload['apply_gate_command']} only after validation passes, preview scope is intended, rejected rows are zero, and source provenance is present.")
         return
 
     if args.list_local_tickers:
