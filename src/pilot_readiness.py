@@ -997,7 +997,7 @@ def render_pilot_share_brief(
         "",
         "## What can be used now",
         "",
-        f"- Price coverage: {snapshot.price_ready}/{snapshot.total_tickers}.",
+        f"- Price-ready setup coverage: {snapshot.price_ready}/{snapshot.total_tickers}.",
         f"- Momentum usable: {snapshot.momentum_ready}/{snapshot.total_tickers}.",
         f"- Fundamentals/input-ready coverage: {snapshot.data_sources_available}/{snapshot.data_sources_total} data sources available; {snapshot.optional_manual_lanes_locked} optional/manual lane(s) locked.",
         f"- DCF-ready operating-company coverage: {snapshot.dcf_ready}/{snapshot.total_tickers}.",

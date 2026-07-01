@@ -487,6 +487,7 @@ def test_pilot_share_brief_writes_concise_markdown_without_data_writes(tmp_path:
     assert "# Pilot Share Brief" in body
     assert "research-only product evidence" in body
     assert "What can be used now" in body
+    assert "Price-ready setup coverage" in body
     assert "What is still blocked" in body
     assert "What must stay out of the share package" in body
     assert "data/prices.csv" in body
@@ -522,7 +523,8 @@ def test_pilot_share_brief_summarizes_usable_blocked_and_share_boundary(tmp_path
     assert "# Pilot Share Brief" in brief
     assert "research-only product evidence" in brief
     assert "What can be used now" in brief
-    assert "Price coverage: 1/1" in brief
+    assert "Price-ready setup coverage: 1/1" in brief
+    assert "Price coverage: 1/1" not in brief
     assert "DCF-ready operating-company coverage: 0/1" in brief
     assert "What is still blocked" in brief
     assert "DCF Input Proof Batches" in brief
