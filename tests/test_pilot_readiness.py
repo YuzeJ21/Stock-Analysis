@@ -423,6 +423,12 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "pending workflow capture" in body.lower()
     assert "Readiness Snapshot" in body
     assert "Source-Proof Queue Summary" in body
+    assert "Provider Setup Checklist" in body
+    assert "make provider-setup-checklist" in body
+    assert "FMP free tier" in body
+    assert "Alpha Vantage free tier" in body
+    assert "Finnhub free tier" in body
+    assert "Real key values are never printed." in body
     assert "Latest Reviewed Batch Proof" in body
     assert "Manual Gates Still Required" in body
     assert "Generated Artifacts Excluded From Staging" in body

@@ -28,6 +28,7 @@ except ModuleNotFoundError:
 from src.readiness_ops import build_data_coverage_proof_queues
 from src.browser_qa_evidence import browser_qa_evidence_payload
 from src.reviewed_batch import readiness_freshness_status
+from src.source_activation_guide import build_provider_setup_checklist
 
 
 VALID_STATUSES = {"green", "manual", "blocked"}
@@ -727,6 +728,22 @@ def _markdown_table(headers: list[str], rows: list[list[object]]) -> list[str]:
     return lines
 
 
+def _provider_setup_checklist_rows() -> list[list[object]]:
+    checklist = build_provider_setup_checklist()
+    rows = []
+    for row in checklist["rows"]:
+        rows.append(
+            [
+                row["provider"],
+                row["setup_state"],
+                row["unlock_lanes"],
+                row["usage"],
+                row["safe_next_step"],
+            ]
+        )
+    return rows
+
+
 def render_pilot_readiness_packet(
     *,
     checks: list[PilotReadinessCheck],
@@ -825,6 +842,15 @@ def render_pilot_readiness_packet(
                 ]
                 for row in source_queues
             ],
+        ),
+        "",
+        "## Provider Setup Checklist",
+        "",
+        "Use `make provider-setup-checklist` for the current checklist-style setup view. Real key values are never printed.",
+        "",
+        *_markdown_table(
+            ["Provider", "Setup state", "Unlock lanes", "Usage", "Safe next step"],
+            _provider_setup_checklist_rows(),
         ),
         "",
         "## Latest Reviewed Batch Proof",
