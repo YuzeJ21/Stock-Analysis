@@ -89,6 +89,11 @@ def risk_context_summary_lines(
     lines = [
         "Risk Context Summary",
         "Read-only: this command does not refresh, import, apply, stage, or infer data.",
+        (
+            "Choose scope first: run make universe-scope TOP_N=10 before treating liquidity, correlation, "
+            "or proxy-risk rows as usable context; risk context does not unlock missing fundamentals, peers, "
+            "earnings, or estimates."
+        ),
     ]
     for card in cards:
         lines.append(

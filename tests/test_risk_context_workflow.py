@@ -77,6 +77,9 @@ def test_risk_context_summary_lines_are_terminal_safe_and_copy_only():
 
     assert lines[0] == "Risk Context Summary"
     assert "read-only" in rendered
+    assert "choose scope first" in rendered
+    assert "make universe-scope top_n=10" in rendered
+    assert "does not unlock missing fundamentals, peers, earnings, or estimates" in rendered
     assert "liquidity readiness: 1 ready / 2 rows" in rendered
     assert "correlation readiness: 1 ready / 2 rows" in rendered
     assert "make price-worklist top_n=25" in rendered
