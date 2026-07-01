@@ -1008,6 +1008,8 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 continue
             compact_source = dict(source)
             compact_source["warnings"] = _unique_texts(compact_source.get("warnings") or [])
+            available_columns = compact_source.pop("available_columns", [])
+            compact_source["available_column_count"] = len(available_columns) if isinstance(available_columns, list) else 0
             compact_sources.append(compact_source)
         return {
             "status": payload.get("status", "-"),

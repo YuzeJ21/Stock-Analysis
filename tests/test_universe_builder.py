@@ -285,6 +285,8 @@ def test_universe_preview_summary_json_keeps_raw_rows_hidden(
     assert "rows" not in payload
     assert "NVDA" not in output
     assert payload["sources"][1]["warnings"].count("smh: remote source unavailable (same redirect).") == 1
+    assert "available_columns" not in payload["sources"][0]
+    assert payload["sources"][0]["available_column_count"] > 0
 
 
 def test_universe_preview_compact_output_deduplicates_source_warnings(
