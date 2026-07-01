@@ -812,7 +812,7 @@ def public_share_final_gate_frame(
                 if not Path("LICENSE").exists()
                 else "Root LICENSE file is present; confirm README wording matches the selected license."
             ),
-            "Command": "docs/LICENSE_DECISION_GUIDE.md",
+            "Command": "make license-status",
             "Stop Rule": (
                 "Do not claim reuse rights until a root LICENSE is selected and README wording is updated."
                 if not Path("LICENSE").exists()

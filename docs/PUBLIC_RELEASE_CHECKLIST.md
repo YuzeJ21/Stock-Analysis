@@ -62,7 +62,7 @@ Internal build-process notes are not part of the public product surface. Keep pr
 
 ## License And Legal Basics
 
-- Read `docs/LICENSE_DECISION_GUIDE.md`, then add a root-level `LICENSE` file before claiming the project is open source or granting reuse rights.
+- Run `make license-status`, then read `docs/LICENSE_DECISION_GUIDE.md` and add a root-level `LICENSE` file before claiming the project is open source or granting reuse rights.
 - Until a `LICENSE` file exists, describe the repository as a portfolio/demo project rather than reusable open-source software.
 - If the goal is visibility only, keep the no-license state explicit in the README: visitors can review the project, but reuse, copying, redistribution, or adaptation rights are not granted.
 - If the repo includes copied third-party code, keep required attribution and license notices.

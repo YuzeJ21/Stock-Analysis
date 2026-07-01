@@ -377,7 +377,7 @@ def _license_status_check(root: Path) -> PilotReadinessCheck:
             status="green",
             title="Root LICENSE file is present",
             detail="Confirm README License wording matches the selected license before public reuse claims.",
-            command="docs/LICENSE_DECISION_GUIDE.md",
+            command="make license-status",
             stop_rule="Stop if README License wording conflicts with the selected license.",
         )
     return PilotReadinessCheck(
@@ -388,7 +388,7 @@ def _license_status_check(root: Path) -> PilotReadinessCheck:
             "Share as portfolio/demo only; do not describe as open source or reusable software "
             "until a license is selected."
         ),
-        command="docs/LICENSE_DECISION_GUIDE.md",
+        command="make license-status",
         stop_rule="Do not claim reuse rights until a root LICENSE is selected and README wording is updated.",
     )
 

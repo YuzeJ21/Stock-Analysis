@@ -124,7 +124,7 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "Single-stock workflow fit screenshot" in by_area["Browser QA evidence"].detail
     assert "Reviewed asset staging command is available" in by_area["Browser QA evidence"].detail
     assert by_area["License status"].status == "manual"
-    assert by_area["License status"].command == "docs/LICENSE_DECISION_GUIDE.md"
+    assert by_area["License status"].command == "make license-status"
     assert "portfolio/demo only" in by_area["License status"].detail
     assert by_area["Public safety"].command == "make public-check"
     assert pilot_readiness_verdict(checks) == "pilot-ready with manual gates"
@@ -283,7 +283,7 @@ def test_pilot_handoff_summary_surfaces_reviewer_next_steps(tmp_path: Path, monk
     assert "outputs/*.csv" in rendered
     assert "ticker_readiness_report.previous.csv" in rendered
     assert "no root license file found" in rendered
-    assert "docs/license_decision_guide.md" in rendered
+    assert "make license-status" in rendered
     assert "make pilot-readiness-packet output=outputs/pilot_readiness_packet.md" in rendered
     assert "not an analysis or recommendation unlock" in rendered
     assert "buy" not in rendered

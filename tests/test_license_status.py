@@ -1,0 +1,35 @@
+from pathlib import Path
+
+from src.license_status import build_license_status, render_license_status
+
+
+def test_build_license_status_without_root_license_keeps_portfolio_demo_boundary(tmp_path: Path):
+    (tmp_path / "README.md").write_text(
+        "Reuse rights are not granted until a license is added.\n",
+        encoding="utf-8",
+    )
+
+    status = build_license_status(tmp_path)
+
+    assert status["license_present"] is False
+    assert status["share_status"] == "portfolio_demo_only"
+    assert status["next_decision"] == "choose_license_before_open_source_claim"
+    assert status["safe_to_share_boundary"] == (
+        "Share as portfolio/demo only; do not describe as open source or grant reuse rights."
+    )
+    assert status["next_safe_command"] == "docs/LICENSE_DECISION_GUIDE.md"
+
+
+def test_render_license_status_names_owner_decision_and_stop_rule(tmp_path: Path):
+    (tmp_path / "README.md").write_text(
+        "Reuse rights are not granted until a license is added.\n",
+        encoding="utf-8",
+    )
+
+    rendered = render_license_status(build_license_status(tmp_path))
+
+    assert "License Status" in rendered
+    assert "share_status: portfolio_demo_only" in rendered
+    assert "next_decision: choose_license_before_open_source_claim" in rendered
+    assert "next_safe_command: docs/LICENSE_DECISION_GUIDE.md" in rendered
+    assert "Do not claim open-source or reuse rights until a root LICENSE is selected" in rendered

@@ -1517,6 +1517,7 @@ def test_readme_points_to_pilot_share_brief_for_concise_public_handoff():
 def test_license_decision_guide_is_present_until_license_is_chosen():
     guide = Path("docs/LICENSE_DECISION_GUIDE.md").read_text(encoding="utf-8")
     readme = Path("README.md").read_text(encoding="utf-8")
+    release_checklist = Path("docs/PUBLIC_RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
 
     assert not Path("LICENSE").exists()
     for phrase in (
@@ -1527,8 +1528,31 @@ def test_license_decision_guide_is_present_until_license_is_chosen():
     ):
         assert phrase in guide
     assert "reuse rights are not granted until a license is added" in readme
+    assert "make license-status" in readme
+    assert "make license-status" in release_checklist
     assert "MIT License" not in readme
     assert "Apache License" not in readme
+
+
+def test_license_status_launcher_prints_current_share_boundary():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "license-status" in makefile
+    assert "license-status:\n\t@python3 -m src.license_status --root ." in makefile
+    assert "make license-status" in makefile
+    assert "Print the read-only license/reuse gate before public sharing" in makefile
+
+    result = subprocess.run(
+        ["make", "license-status"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "License Status" in result.stdout
+    assert "share_status: portfolio_demo_only" in result.stdout
+    assert "next_decision: choose_license_before_open_source_claim" in result.stdout
+    assert "next_safe_command: docs/LICENSE_DECISION_GUIDE.md" in result.stdout
 
 
 def test_stock_report_cli_data_unlock_fallback_uses_product_language():

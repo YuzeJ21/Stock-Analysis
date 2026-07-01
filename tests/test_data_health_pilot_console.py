@@ -430,7 +430,7 @@ def test_public_share_final_gate_combines_release_checks_without_data_writes():
     assert frame.iloc[2]["Command"] == "make browser-qa-evidence"
     assert frame.iloc[3]["Command"] == "make diff-hygiene-summary"
     assert frame.iloc[4]["Command"] == "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md"
-    assert frame.iloc[5]["Command"] == "docs/LICENSE_DECISION_GUIDE.md"
+    assert frame.iloc[5]["Command"] == "make license-status"
     assert frame.iloc[6]["Command"] == "make public-wording-check"
     assert "one final review before github or linkedin" in rendered
     assert "real screenshots" in rendered
@@ -461,7 +461,7 @@ def test_public_share_final_gate_deferred_state_names_all_release_gates():
     assert "make public-check" in rendered
     assert "make browser-qa-evidence" in rendered
     assert "make diff-hygiene-summary" in rendered
-    assert "docs/license_decision_guide.md" in rendered
+    assert "make license-status" in rendered
     assert "portfolio/demo only" in rendered
     assert "make public-wording-check" in rendered
     assert "trade instructions" in rendered
