@@ -316,6 +316,25 @@ def test_blank_staged_import_is_unchanged_for_existing_canonical_row(tmp_path: P
     assert preview["preview"][0]["unchanged_rows"] == 1
 
 
+def test_optional_context_preview_ignores_timestamp_only_updates(tmp_path: Path):
+    data_dir, imports_dir = _setup_dirs(tmp_path)
+    (data_dir / "earnings.csv").write_text(
+        "ticker,next_earnings_date,source,updated_at\n"
+        "NVDA,2026-08-26,yfinance_research_api,2026-07-01T08:00:00+00:00\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "earnings.csv").write_text(
+        "ticker,next_earnings_date,source,updated_at\n"
+        "NVDA,2026-08-26,yfinance_research_api,2026-07-01T09:00:00+00:00\n",
+        encoding="utf-8",
+    )
+
+    preview = preview_import_merge(base_dir=tmp_path, files=["earnings.csv"])
+
+    assert preview["preview"][0]["updated_rows"] == 0
+    assert preview["preview"][0]["unchanged_rows"] == 1
+
+
 def test_apply_import_merge_preserves_canonical_when_validation_fails(tmp_path: Path):
     data_dir, imports_dir = _setup_dirs(tmp_path)
     canonical = data_dir / "fundamentals.csv"

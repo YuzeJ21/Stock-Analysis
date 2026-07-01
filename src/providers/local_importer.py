@@ -315,7 +315,11 @@ def preview_import_merge(
 
         canonical_lookup = canonical_normalized.assign(_merge_key=canonical_keys).set_index("_merge_key") if not canonical_normalized.empty else pd.DataFrame()
         allowed_columns = _dataset_allowed_columns(dataset_name)
-        compare_columns = [column for column in allowed_columns if column not in merge_keys and column in staged_normalized.columns]
+        compare_columns = [
+            column
+            for column in allowed_columns
+            if column not in {*merge_keys, "updated_at"} and column in staged_normalized.columns
+        ]
 
         for idx, staged_row in staged_normalized.assign(_merge_key=staged_keys).iterrows():
             merge_key = staged_row["_merge_key"]
