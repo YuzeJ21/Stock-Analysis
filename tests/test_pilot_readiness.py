@@ -146,6 +146,49 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "trade instruction" in rendered
 
 
+def test_pilot_readiness_keeps_broad_sample_report_churn_manual_not_blocking(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
+    monkeypatch.setattr(
+        pilot_readiness,
+        "load_status",
+        lambda _root: [
+            StatusEntry("M", "outputs/stock_reports/apld.md"),
+            StatusEntry("??", "outputs/stock_reports/newco.md"),
+            StatusEntry("M", "data/prices.csv"),
+        ],
+    )
+
+    checks = build_pilot_readiness_checks(root, top_n=2)
+    by_area = {check.area: check for check in checks}
+    handoff = build_pilot_commit_package_handoff(root)
+    rendered = render_pilot_readiness_checks(
+        checks,
+        source_queues=[
+            {
+                "queue": "Trusted Fundamentals Proof Queue",
+                "state": "partial",
+                "blocked": 90,
+                "top_blockers": "fundamentals_bundle_plus_shares: 90",
+                "next_safe_command": "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10",
+            }
+        ],
+        excluded_artifacts=[
+            "outputs/stock_reports/apld.md",
+            "outputs/stock_reports/newco.md",
+            "data/prices.csv",
+        ],
+        commit_handoff=handoff,
+    )
+
+    assert by_area["Generated artifact hygiene"].status == "manual"
+    assert "sample report" in by_area["Generated artifact hygiene"].detail
+    assert pilot_readiness_verdict(checks) == "pilot-ready with manual gates"
+    assert handoff[0].status == "no_product_changes"
+    assert handoff[0].command == "# no product/code/docs/test files to stage"
+    assert "do not stage broad generated stock reports" in rendered.lower()
+
+
 def test_pilot_commit_package_handoff_prints_product_stage_and_generated_exclusion(tmp_path: Path, monkeypatch):
     root = _sample_root(tmp_path)
     monkeypatch.setattr(

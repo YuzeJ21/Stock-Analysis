@@ -175,18 +175,25 @@ def _hygiene_check(root: Path) -> PilotReadinessCheck:
     report_count = len(groups["sample_report_candidate"])
     generated_count = len(groups["generated_csv_churn"])
     manual_count = len(groups["review_manually"])
-    if product_count or report_count or manual_count:
+    if product_count or manual_count:
         status = "blocked"
         detail = (
             f"{product_count} product/code/docs/test file(s), {report_count} sample report(s), "
             f"and {manual_count} manual-review path(s) are dirty."
         )
         stop_rule = "Stop before pilot packaging until product files are staged/committed or intentionally left local."
-    elif generated_count or packet_count:
+    elif generated_count or packet_count or report_count:
         status = "manual"
         packet_detail = f"{packet_count} reviewed pilot packet artifact(s) pending; " if packet_count else ""
-        detail = f"{packet_detail}{generated_count} generated CSV/JSON/report artifact(s) are dirty and excluded by default."
-        stop_rule = "Do not stage broad generated churn unless those exact artifacts are reviewed pilot evidence."
+        report_detail = f"{report_count} broad sample report artifact(s) pending review; " if report_count else ""
+        detail = (
+            f"{packet_detail}{report_detail}"
+            f"{generated_count} generated CSV/JSON/report artifact(s) are dirty and excluded by default."
+        )
+        stop_rule = (
+            "Do not stage broad generated stock reports or broad generated churn unless those exact artifacts "
+            "are reviewed pilot evidence."
+        )
     else:
         status = "green"
         detail = "Working tree has no dirty product files or generated churn."
@@ -580,7 +587,8 @@ def build_pilot_commit_package_handoff(root: Path | str = ".") -> list[PilotComm
             )
         ]
 
-    product_entries = groups["product_candidate"] + groups["sample_report_candidate"]
+    product_entries = groups["product_candidate"]
+    sample_report_entries = groups["sample_report_candidate"]
     generated_entries = groups["generated_csv_churn"]
     manual_entries = groups["review_manually"]
     product_status = "ready_to_stage" if product_entries and not manual_entries else "manual_review" if manual_entries else "no_product_changes"
@@ -602,7 +610,8 @@ def build_pilot_commit_package_handoff(root: Path | str = ".") -> list[PilotComm
             status=product_status,
             command=_git_add_command(product_entries),
             boundary=(
-                f"{len(product_entries)} product/code/docs/test or reviewed Markdown file(s) are eligible for staging. "
+                f"{len(product_entries)} product/code/docs/test file(s) are eligible for staging. "
+                f"{len(sample_report_entries)} sample report artifact(s) stay excluded unless individually reviewed. "
                 "Review the diff first; do not use git add -A."
             ),
         ),
@@ -623,7 +632,8 @@ def build_pilot_commit_package_handoff(root: Path | str = ".") -> list[PilotComm
             status=generated_status,
             command="make diff-hygiene-summary",
             boundary=(
-                f"{len(generated_entries)} generated CSV/JSON/report artifact(s) remain excluded by default. "
+                f"{len(generated_entries)} generated CSV/JSON/report artifact(s) and "
+                f"{len(sample_report_entries)} broad generated stock report artifact(s) remain excluded by default. "
                 f"Keep these patterns out by default: {_generated_exclusion_pattern_text()}. "
                 "Stage only a specific reviewed evidence artifact if intentionally selected."
             ),
