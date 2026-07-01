@@ -621,11 +621,11 @@ def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: py
 
 def test_project_status_filters_preview_available_source_actions_from_blocker_counts():
     rows = [
-        {
-            "dataset": "smh_holdings",
-            "status": "preview_available",
-            "focus_command": "make universe-preview",
-        },
+            {
+                "dataset": "smh_holdings",
+                "status": "preview_available",
+                "focus_command": "make universe-preview-summary",
+            },
         {
             "dataset": "fundamentals",
             "status": "partial",
@@ -645,10 +645,10 @@ def test_project_status_labels_preview_available_source_command_as_review_bounda
                 "dataset": "smh_holdings",
                 "status": "partial",
                 "availability_status": "partial",
-                "focus_command": "make universe-preview",
+                "focus_command": "make universe-preview-summary",
                 "target_file": "data/imports/universe.csv",
                 "fallback_action": (
-                    "Run make universe-preview first; it tries the VanEck SMH page/download "
+                    "Run make universe-preview-summary first; it tries the VanEck SMH page/download "
                     "and the StockAnalysis public holdings fallback."
                 ),
             }
@@ -656,6 +656,7 @@ def test_project_status_labels_preview_available_source_command_as_review_bounda
     )
 
     assert rows[0]["Step"] == "Advance smh holdings source"
+    assert rows[0]["Command"] == "make universe-preview-summary"
     assert rows[0]["FreshnessContext"] == "preview available; review source rows before apply"
 
 

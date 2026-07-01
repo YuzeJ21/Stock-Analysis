@@ -136,9 +136,9 @@ def _gap_focus_command(dataset: str, ticker: str) -> str:
     if dataset in {"earnings", "analyst_estimates"}:
         return "make templates"
     if dataset in {"sp500_constituents", "nasdaq_symbols", "universe"}:
-        return "make universe-preview"
+        return "make universe-preview-summary"
     if dataset == "smh_holdings":
-        return "make universe-preview"
+        return "make universe-preview-summary"
     return "make status"
 
 
@@ -159,7 +159,7 @@ def _gap_example_command(dataset: str, ticker: str) -> str:
     if dataset in {"earnings", "analyst_estimates"}:
         return "make templates"
     if dataset in {"sp500_constituents", "nasdaq_symbols", "universe", "smh_holdings"}:
-        return "make universe-preview"
+        return "make universe-preview-summary"
     return "make status"
 
 
@@ -365,8 +365,8 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/universe.csv",
         fallback_action=(
-            "Run make universe-preview first, then run make universe-apply only "
-            "after previewing the source-driven build."
+            "Run make universe-preview-summary first, inspect full rows with make universe-preview only when needed, "
+            "then run make universe-apply only after reviewing the source-driven build."
         ),
         notes="Missing theme/sector metadata is labeled Unclassified rather than fabricated.",
     ),
@@ -384,8 +384,9 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/custom_universe.csv or data/imports/universe.csv",
         fallback_action=(
-            "Run make universe-preview first; it tries the VanEck SMH page/download and the StockAnalysis public "
-            "holdings fallback. Fill data/custom_universe.csv with verified tickers only if every remote source is unavailable."
+            "Run make universe-preview-summary first; it tries the VanEck SMH page/download and the StockAnalysis public "
+            "holdings fallback. Use make universe-preview for full row review. Fill data/custom_universe.csv with verified "
+            "tickers only if every remote source is unavailable."
         ),
         notes="The VanEck SMH page can require redirect/cookie/location handling; the universe preview has a public fallback source.",
     ),
@@ -403,7 +404,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
-            "Run make universe-preview first, then review the S&P 500 / SMH "
+            "Run make universe-preview-summary first, then review the S&P 500 / SMH "
             "universe import file before make universe-apply."
         ),
         notes="Local optional S&P preset source; verify source and license before redistribution. No live check is performed here.",
@@ -422,7 +423,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
-            "Run make universe-preview first, then review the broader universe import file "
+            "Run make universe-preview-summary first, then review the broader universe import file "
             "before make universe-apply; all-Nasdaq mode can be large."
         ),
         notes="No live check is performed by data_sources; universe_builder handles parsing when explicitly invoked.",
@@ -502,7 +503,7 @@ def _remote_source_status(entry: DataSourceRegistryEntry, data_dir: Path) -> tup
             return "partial", "Manual universe fallback file is present.", 1
         return "source_unavailable", "Remote SMH source is not checked here; use the documented manual fallback if it fails.", 0
     if staged_universe.exists():
-        return "partial", "A universe import file exists; run make universe-preview before make universe-apply.", 1
+        return "partial", "A universe import file exists; run make universe-preview-summary before make universe-apply.", 1
     return "optional_unofficial" if entry.is_unofficial else "partial", "Remote source is available only when universe_builder is explicitly run.", 0
 
 

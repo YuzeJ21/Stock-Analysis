@@ -913,18 +913,18 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     assert earnings_row.source_file == "data/imports/earnings.csv"
 
     smh_row = next(row for row in rows if row.action_type == "smh_holdings" and not row.ticker)
-    assert smh_row.focus_command == "make universe-preview"
-    assert smh_row.example_command == "make universe-preview"
+    assert smh_row.focus_command == "make universe-preview-summary"
+    assert smh_row.example_command == "make universe-preview-summary"
     assert smh_row.target_file == "data/imports/universe.csv"
     assert smh_row.source_file == "data/imports/universe.csv"
 
     sp500_row = next(row for row in rows if row.action_type == "sp500_constituents" and not row.ticker)
-    assert sp500_row.focus_command == "make universe-preview"
-    assert sp500_row.example_command == "make universe-preview"
+    assert sp500_row.focus_command == "make universe-preview-summary"
+    assert sp500_row.example_command == "make universe-preview-summary"
 
     nasdaq_row = next(row for row in rows if row.action_type == "nasdaq_symbols" and not row.ticker)
-    assert nasdaq_row.focus_command == "make universe-preview"
-    assert nasdaq_row.example_command == "make universe-preview"
+    assert nasdaq_row.focus_command == "make universe-preview-summary"
+    assert nasdaq_row.example_command == "make universe-preview-summary"
 
 
 def test_action_queue_prefers_explicit_data_gap_commands_when_present():
@@ -1139,9 +1139,9 @@ def test_action_queue_payload_refreshes_stale_smh_onboarding_row(tmp_path: Path)
     payload = build_action_queue_payload(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
 
     smh_row = next(row for row in payload["action_queue"] if row["action_type"] == "smh_holdings")
-    assert smh_row["focus_command"] == "make universe-preview"
-    assert smh_row["example_command"] == "make universe-preview"
-    assert "make universe-preview" in smh_row["recommended_action"]
+    assert smh_row["focus_command"] == "make universe-preview-summary"
+    assert smh_row["example_command"] == "make universe-preview-summary"
+    assert "make universe-preview-summary" in smh_row["recommended_action"]
     assert "data/imports/universe.csv" in smh_row["target_file"]
 
 

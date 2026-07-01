@@ -613,9 +613,9 @@ def _global_gap_command(dataset: str, command_bundles: pd.DataFrame) -> str:
     if dataset == "peers":
         return _bundle_runbook_shortcut(command_bundles, "peers") or "make templates"
     if dataset == "smh_holdings":
-        return "make universe-preview"
+        return "make universe-preview-summary"
     if dataset in {"sp500_constituents", "nasdaq_symbols", "universe"}:
-        return "make universe-preview"
+        return "make universe-preview-summary"
     if dataset in {"earnings", "analyst_estimates"}:
         return "make templates"
     return "make status"
@@ -625,7 +625,7 @@ def _global_gap_example_command(dataset: str, command_bundles: pd.DataFrame) -> 
     if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"}:
         return _global_gap_command(dataset, command_bundles)
     if dataset in {"sp500_constituents", "nasdaq_symbols", "universe", "smh_holdings"}:
-        return "make universe-preview"
+        return "make universe-preview-summary"
     return "make status"
 
 

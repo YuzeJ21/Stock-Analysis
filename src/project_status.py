@@ -634,7 +634,7 @@ def _freshness_context(*rows: dict[str, Any] | None, fallback: str = "") -> str:
             continue
         command = str(row.get("focus_command") or row.get("example_command") or row.get("Command") or "").strip()
         dataset = str(row.get("dataset") or "").strip().lower()
-        if dataset == "smh_holdings" and command == "make universe-preview":
+        if dataset == "smh_holdings" and command in {"make universe-preview", "make universe-preview-summary"}:
             return "preview available; review source rows before apply"
         context = _first_non_empty(
             row.get("updated_at"),
@@ -1016,7 +1016,10 @@ def _is_preview_available_source_action(row: dict[str, Any]) -> bool:
     dataset = str(row.get("dataset") or "").strip().lower()
     status = str(row.get("status") or "").strip().lower()
     command = str(row.get("focus_command") or row.get("example_command") or row.get("Command") or "").strip()
-    return dataset == "smh_holdings" and status == "preview_available" and command == "make universe-preview"
+    return dataset == "smh_holdings" and status == "preview_available" and command in {
+        "make universe-preview",
+        "make universe-preview-summary",
+    }
 
 
 def _drop_preview_available_source_actions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
