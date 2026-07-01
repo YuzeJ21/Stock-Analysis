@@ -212,7 +212,7 @@ def peer_function_quality_frame(
                 "Supported Today": "Finding whether peer blockers are price rows, fundamentals rows, or peer metrics.",
                 "Not Supported Yet": "Treating sector or industry fallback as trusted manual peer valuation.",
                 "Methodology / Provenance": "Project blocker classification with explicit fallback labeling.",
-                "Next Step": "make price-worklist TOP_N=25",
+                "Next Step": "make price-history-proof-queue TOP_N=25",
             },
             {
                 "Peer Area": "Dependencies",

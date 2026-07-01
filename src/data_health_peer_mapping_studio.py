@@ -63,7 +63,7 @@ def peer_mapping_studio_summary_cards(
             "title": f"{int(peer_price_missing.sum())} tickers",
             "body": "Mapped peers exist, but at least one peer lacks enough price rows for trend comparison.",
             "badges": ["prices", "follow-through"],
-            "command": "make price-worklist TOP_N=25",
+            "command": "make price-history-proof-queue TOP_N=25",
         },
         {
             "kicker": "PEER FUNDAMENTALS",

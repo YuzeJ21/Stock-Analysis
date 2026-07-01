@@ -13153,7 +13153,7 @@ def peer_input_ladder_frame(
             "locked": "Peer valuation remains locked until peer fundamentals and valuation inputs pass readiness.",
             "path": "data/imports/prices.csv or data/staged/prices/",
             "validation": "make focus-price TICKER=<peer> -> make price-validate -> make price-preview -> make price-apply -> make readiness",
-            "command": "make price-worklist TOP_N=25",
+            "command": "make price-history-proof-queue TOP_N=25",
         },
         {
             "label": "3. Add peer fundamentals",
