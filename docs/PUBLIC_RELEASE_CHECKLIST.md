@@ -17,6 +17,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep `make trusted-data-pilot-candidates TOP_N=10` visible as the read-only first step for ranking current company blockers before improving 5-10 trusted companies without broad generated data churn.
 - Keep `make readiness-ops-center`, `make coverage-frontier TOP_N=10`, and `make reviewed-batch LANE=prices TOP_N=10` visible as the batch-planning path after the visitor understands the trusted-data pilot. These commands should remain copy-only planning/proof workflows, not automatic refresh/apply steps.
 - Run `make pilot-readiness-check TOP_N=10` before calling a public/demo pilot ready. It should show GitHub sync, generated-artifact hygiene, readiness freshness, source-proof gates, proof-ledger status, Browser QA screenshot evidence, public-check boundary, and research-only guardrails before the operator chooses a lane.
+- Use `make pilot-share-brief` when you want the concise public/demo handoff at `outputs/pilot_share_brief.md`. It does not refresh data or unlock blocked inputs.
 - Use `make pilot-readiness-packet` when you want one reviewed Markdown packet for a pilot reviewer. Treat `outputs/pilot_readiness_packet.md` as intentional pilot evidence only; keep broad generated CSV/report churn excluded unless selected separately.
 - Confirm the default candidate output stays compact for visitors; use `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` only when local proof file status, decision gates, rejected-row paths, and evidence expectations are needed.
 - Keep `make trusted-data-pilot-packet TICKER=CRDO` visible as the one-company before report, review path, validate/preview gate, apply boundary, rejected-row, and rebuild-proof packet after a candidate is chosen.
@@ -116,6 +117,7 @@ make pipeline
 make readiness
 make public-check
 make pilot-readiness-check TOP_N=10
+make pilot-share-brief
 make pilot-readiness-packet
 make browser-qa-evidence
 make browser-qa-capture-plan

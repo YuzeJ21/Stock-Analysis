@@ -1468,10 +1468,16 @@ def test_public_docs_avoid_machine_readable_first_read_copy():
 
 def test_readme_points_to_pilot_share_brief_for_concise_public_handoff():
     readme = Path("README.md").read_text(encoding="utf-8")
+    data_strategy = Path("docs/DATA_STRATEGY.md").read_text(encoding="utf-8")
+    public_release = Path("docs/PUBLIC_RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
 
     assert "make pilot-share-brief" in readme
     assert "concise public/demo share brief" in readme
     assert "does not refresh data or unlock blocked inputs" in readme
+    for doc in (data_strategy, public_release):
+        assert "make pilot-share-brief" in doc
+        assert "outputs/pilot_share_brief.md" in doc
+        assert "does not refresh data" in doc
 
 
 def test_license_decision_guide_is_present_until_license_is_chosen():
