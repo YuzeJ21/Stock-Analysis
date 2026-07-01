@@ -153,6 +153,40 @@ def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible(
     assert "sell" not in rendered
 
 
+def test_overview_auto_refresh_status_cards_show_scheduler_next_step():
+    cards = overview_console.auto_refresh_status_cards(
+        {
+            "source_activation": "not_required",
+            "can_run_now": "coverage_workflow_evidence",
+            "needs_setup": "fmp, alpha_vantage, finnhub",
+            "avoid_repeating": "fundamentals_share_count_source_ladder",
+            "next_executable_command": "make project-status",
+            "next_runbook": "make auto-refresh-runbook SCHEDULE=daily",
+            "source_categories": {
+                "free_public_available": "stooq, yahoo, sec",
+                "paid_or_locked": "fmp, alpha_vantage, finnhub",
+            },
+            "free_tier_batch_limits": "fmp<=250/day and <=25/run; alpha_vantage<=25/day and <=5/run; finnhub<=60/day and <=10/run",
+            "artifact_policy": "generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "AUTO REFRESH STATUS",
+        "SOURCE SETUP",
+        "NEXT SCHEDULER STEP",
+    ]
+    assert cards[0]["command"] == "make auto-refresh-status SCHEDULE=daily"
+    assert cards[2]["command"] == "make auto-refresh-runbook SCHEDULE=daily"
+    assert "can run now: coverage_workflow_evidence" in rendered
+    assert "avoid repeating: fundamentals_share_count_source_ladder" in rendered
+    assert "needs setup: fmp, alpha vantage, finnhub" in rendered
+    assert "generated csv/json/report churn stays excluded" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_freshness_routine_cards_are_dry_run_first():
     cards = overview_console.freshness_routine_cards({"master_universe": 3538, "price_ready": 265})
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()

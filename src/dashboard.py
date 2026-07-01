@@ -14,6 +14,7 @@ import streamlit as st
 
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
+from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
 from src.data_onboarding import write_onboarding_outputs
 from src.data_health_console import (
     DATA_HEALTH_OPERATOR_LANES,
@@ -8664,6 +8665,17 @@ def _cached_source_activation_console(root: Path | None = None) -> dict[str, obj
     return console if isinstance(console, dict) else None
 
 
+def _cached_session_source_preflight_payload(root: Path | None = None) -> dict[str, object] | None:
+    path = (root or BASE_DIR) / "outputs" / "session_source_preflight.json"
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def _source_activation_free_tier_limit_summary(console: dict[str, object]) -> str:
     limits = console.get("free_tier_batch_limits", {})
     if not isinstance(limits, dict):
@@ -9001,6 +9013,33 @@ def data_health_source_readiness_guidance_cards(
         research_health_summary=summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame),
         generated_churn_cards=data_health_generated_churn_review_cards(base_dir),
     )
+
+
+def data_health_auto_refresh_status_cards(
+    *,
+    root: Path | None = None,
+    schedule: str = "daily",
+) -> list[dict[str, object]]:
+    preflight = _cached_session_source_preflight_payload(root)
+    if preflight is None:
+        return overview_console.auto_refresh_status_cards(
+            {
+                "source_activation": "missing_cached_preflight",
+                "can_run_now": "Run source preflight first.",
+                "needs_setup": "Unknown until preflight runs",
+                "avoid_repeating": "Unknown until preflight runs",
+                "next_executable_command": "make session-source-preflight",
+                "next_runbook": f"make auto-refresh-runbook SCHEDULE={schedule}",
+                "source_categories": {
+                    "free_public_available": "Unknown until preflight runs",
+                    "paid_or_locked": "Unknown until preflight runs",
+                },
+                "free_tier_batch_limits": "Run make auto-refresh-status after preflight.",
+                "artifact_policy": "generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
+            }
+        )
+    status_payload = build_auto_refresh_status_payload(preflight, build_scheduler_plan(schedule=schedule))
+    return overview_console.auto_refresh_status_cards(status_payload)
 
 
 def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
@@ -27512,6 +27551,15 @@ def render_data_health(
         readiness_freshness=readiness_freshness,
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
+    )
+    render_section_header(
+        "Auto Refresh Status",
+        "Cached source activation, setup gaps, avoid-repeat lane, and next scheduler command before proof details.",
+    )
+    render_signal_cards(
+        data_health_auto_refresh_status_cards(root=BASE_DIR, schedule="daily"),
+        show_commands=False,
+        variant="queue",
     )
     render_section_header(
         "Source Readiness Guidance",

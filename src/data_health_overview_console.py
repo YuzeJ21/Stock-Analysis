@@ -48,6 +48,10 @@ def _card_sentence(label: str, fragment: str) -> str:
     return f"{clean_label}: {clean_fragment}{terminal}"
 
 
+def _humanize_list_text(value: object, fallback: str = "Not available") -> str:
+    return _format_missing(value, fallback).replace("_", " ")
+
+
 def _trusted_ready_count(frame: pd.DataFrame | None, column: str) -> int:
     if frame is None or frame.empty or column not in frame.columns:
         return 0
@@ -344,6 +348,59 @@ def operations_cockpit_cards(
             ),
             "badges": ["validate", "preview", "apply"],
             "command": "make diff-hygiene",
+        },
+    ]
+
+
+def auto_refresh_status_cards(status_payload: dict[str, object] | None) -> list[dict[str, object]]:
+    payload = status_payload or {}
+    categories = payload.get("source_categories", {})
+    categories = categories if isinstance(categories, dict) else {}
+    source_activation = _format_missing(payload.get("source_activation"), "unknown")
+    can_run_now = _format_missing(payload.get("can_run_now"), "No executable lane reported")
+    needs_setup = _humanize_list_text(payload.get("needs_setup"), "No setup gaps reported")
+    avoid_repeating = _format_missing(payload.get("avoid_repeating"), "No avoid-repeat lane reported")
+    next_command = _format_missing(payload.get("next_executable_command"), "make auto-refresh-status SCHEDULE=daily")
+    next_runbook = _format_missing(payload.get("next_runbook"), "make auto-refresh-runbook SCHEDULE=daily")
+    free_public = _format_missing(categories.get("free_public_available"), "No free public source reported")
+    paid_or_locked = _humanize_list_text(categories.get("paid_or_locked"), "No locked providers reported")
+    free_tier_limits = _format_missing(payload.get("free_tier_batch_limits"), "No free-tier limits reported")
+    artifact_policy = _compact_fragment(
+        payload.get("artifact_policy"),
+        "Generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
+        max_chars=190,
+    )
+
+    return [
+        {
+            "kicker": "AUTO REFRESH STATUS",
+            "title": f"Source activation: {source_activation}",
+            "body": (
+                f"Can run now: {can_run_now}. Avoid repeating: {avoid_repeating}. "
+                f"{artifact_policy}"
+            ),
+            "badges": ["read-only", "pivot-safe"],
+            "command": "make auto-refresh-status SCHEDULE=daily",
+        },
+        {
+            "kicker": "SOURCE SETUP",
+            "title": f"Needs setup: {needs_setup}",
+            "body": (
+                f"Free public available: {free_public}. Paid or locked: {paid_or_locked}. "
+                f"Free-tier limits: {free_tier_limits}."
+            ),
+            "badges": ["free-public first", "keyed fallbacks"],
+            "command": "make session-source-preflight",
+        },
+        {
+            "kicker": "NEXT SCHEDULER STEP",
+            "title": next_command,
+            "body": (
+                "Use the compact runbook for the selected schedule. It keeps validation, preview, apply boundary, "
+                "proof, and pivot rules visible before any data-changing step."
+            ),
+            "badges": ["runbook", "no broad retry loops"],
+            "command": next_runbook,
         },
     ]
 

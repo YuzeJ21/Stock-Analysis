@@ -160,6 +160,54 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert "workflow_scope" not in rendered_columns
 
 
+def test_data_health_auto_refresh_status_cards_read_cached_preflight(tmp_path: Path):
+    outputs = tmp_path / "outputs"
+    outputs.mkdir()
+    (outputs / "session_source_preflight.json").write_text(
+        json.dumps(
+            {
+                "source_activation": {"status": "not_required", "reason": "executable_source_available"},
+                "source_categories": {
+                    "free_public_available": ["stooq", "yahoo", "sec"],
+                    "keyed_free_tier_available": [],
+                    "optional_broker_disabled": ["ibkr"],
+                    "paid_or_locked": ["fmp", "alpha_vantage", "finnhub"],
+                },
+                "source_activation_console_v2": {
+                    "next_executable_lane": "coverage_workflow_evidence",
+                    "next_executable_command": "make project-status",
+                    "free_tier_batch_limits": {
+                        "fmp": {"recommended_daily_request_limit": 250, "recommended_batch_size": 25},
+                        "alpha_vantage": {"recommended_daily_request_limit": 25, "recommended_batch_size": 5},
+                        "finnhub": {"recommended_daily_request_limit": 60, "recommended_batch_size": 10},
+                    },
+                    "operator_summary": {
+                        "can_run_now": "coverage_workflow_evidence",
+                        "needs_setup": "fmp, alpha_vantage, finnhub",
+                        "avoid_repeating": "fundamentals_share_count_source_ladder",
+                        "next_step": "make project-status",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cards = dashboard.data_health_auto_refresh_status_cards(root=tmp_path, schedule="weekly")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "AUTO REFRESH STATUS",
+        "SOURCE SETUP",
+        "NEXT SCHEDULER STEP",
+    ]
+    assert cards[2]["command"] == "make auto-refresh-runbook SCHEDULE=weekly"
+    assert "can run now: coverage_workflow_evidence" in rendered
+    assert "needs setup: fmp, alpha vantage, finnhub" in rendered
+    assert "avoid repeating: fundamentals_share_count_source_ladder" in rendered
+    assert "generated csv/json/report churn stays excluded" in rendered
+
+
 def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations():
     frame = dashboard._plain_home_demo_example_frame()
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
@@ -2085,6 +2133,14 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Start with the saved local report" not in source
     assert "Start with the saved local report; optional online lookup stays off by default" not in source
     assert "Optional online research mode stays off by default" not in source
+
+
+def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_guidance():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Auto Refresh Status" in source
+    assert "data_health_auto_refresh_status_cards(root=BASE_DIR, schedule=\"daily\")" in source
+    assert source.index("Auto Refresh Status") < source.index("Source Readiness Guidance")
     assert "Local CSV-backed data is the default" not in source
     assert "Optional yfinance mode stays off by default" not in source
     assert "Online lookup (off by default)" in source
