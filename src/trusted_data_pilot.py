@@ -1200,17 +1200,18 @@ def load_trusted_data_pilot_candidates(
     tickers: str | Iterable[str] | None = None,
     top_n: int = DEFAULT_TOP_N,
 ) -> list[PilotCandidate]:
+    candidate_pool_size = max(top_n * 25, top_n + 100, DEFAULT_TOP_N)
     candidates = build_trusted_data_pilot_candidates(
         _read_csv(root / "outputs" / "fundamentals_peer_worklist.csv"),
         _read_csv(root / "outputs" / "peer_unlock_worklist.csv"),
         _read_csv(root / "data" / "reports" / "ticker_readiness_report.csv"),
         tickers=tickers,
-        top_n=top_n,
+        top_n=candidate_pool_size,
     )
     reviewed_non_actionable = _reviewed_non_actionable_pilot_tickers(root)
     if reviewed_non_actionable:
         candidates = [candidate for candidate in candidates if candidate.ticker not in reviewed_non_actionable]
-    return _session_sorted_candidates(candidates, root=root)
+    return _session_sorted_candidates(candidates, root=root)[: max(top_n, 0)]
 
 
 def load_trusted_data_pilot_evidence_candidates(

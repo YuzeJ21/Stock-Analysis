@@ -514,6 +514,75 @@ def test_session_source_preflight_renders_source_activation_console_v2(tmp_path:
     assert "ibkr: can_cover=price usage=read_only_daily_ohlcv default=optional_broker_disabled" in rendered
 
 
+def test_session_source_preflight_distinguishes_reachable_sources_from_actionable_blockers(tmp_path: Path, monkeypatch):
+    _clear_provider_env(monkeypatch)
+    (tmp_path / "outputs").mkdir(parents=True)
+    (tmp_path / "data" / "reports").mkdir(parents=True)
+    (tmp_path / "data").mkdir(exist_ok=True)
+    (tmp_path / "outputs" / "fundamentals_peer_worklist.csv").write_text(
+        "ticker,priority,dcf_ready,missing_required_for_dcf,focus_command\n"
+        "AEC,1,False,\"free_cash_flow, shares_outstanding, revenue, fcf_margin\",make focus-fundamentals TICKER=AEC\n"
+        "BOT,2,False,\"free_cash_flow, shares_outstanding, revenue, fcf_margin\",make focus-fundamentals TICKER=BOT\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "reports" / "ticker_readiness_report.csv").write_text(
+        "ticker,asset_type,missing_data\n"
+        "AEC,company,\"dcf: revenue; free cash flow; fcf margin; shares_outstanding\"\n"
+        "BOT,company,\"dcf: revenue; free cash flow; fcf margin; shares_outstanding\"\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,"
+        "pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,"
+        "generated_artifacts_reviewed,final_outcome,notes\n"
+        "RB-AEC,2026-07-01,local reviewer,fundamentals,reviewed ticker scope,AEC,cmd,valid,preview,not_applied,"
+        "before,after,none,none,data/imports/fundamentals.csv,excluded,still_blocked,missing source-backed fundamentals bundle\n"
+        "RB-BOT,2026-07-01,local reviewer,fundamentals,reviewed ticker scope,BOT,cmd,valid,preview,not_applied,"
+        "before,after,none,none,data/imports/fundamentals.csv,excluded,skipped,missing source-backed fundamentals bundle\n",
+        encoding="utf-8",
+    )
+
+    preflight = build_session_source_preflight(
+        tmp_path,
+        sec_probe=lambda _user_agent: {
+            "status": "available",
+            "reason_code": "ok",
+            "detail": "Reached SEC ticker map with HTTP 200.",
+            "next_action": "",
+        },
+        sec_submissions_probe=lambda _user_agent: {
+            "status": "available",
+            "reason_code": "ok",
+            "detail": "Reached SEC submissions metadata.",
+            "next_action": "Use metadata only.",
+            "source_usage": "metadata_evidence_only",
+        },
+        yfinance_import_probe=lambda: {
+            "status": "available",
+            "reason_code": "installed",
+            "detail": "yfinance 1.4.1",
+            "next_action": "",
+        },
+        yfinance_stage_probe=lambda: {
+            "status": "available",
+            "reason_code": "probe_succeeded",
+            "detail": "Resolved MSFT through yfinance.",
+            "next_action": "",
+        },
+    )
+
+    actionability = preflight["source_actionability"]
+    rendered = render_session_source_preflight(preflight)
+
+    assert actionability["fundamentals_share_count_candidates"] == 2
+    assert actionability["reviewed_non_actionable_fundamentals_share_count"] == 2
+    assert actionability["unreviewed_fundamentals_share_count_candidates"] == 0
+    assert actionability["next_action"] == "Wait for new provider data, keyed sources, reviewed manual source rows, or changed blockers before repeating fundamentals/share-count paths."
+    assert "source_actionability:" in rendered
+    assert "unreviewed_fundamentals_share_count_candidates: 0" in rendered
+    assert "do_not_repeat_without_new_source: yes" in rendered
+
+
 def test_session_source_preflight_prefers_fmp_when_local_rows_do_not_fix_current_blockers(tmp_path: Path):
     _write_fundamentals(
         tmp_path,

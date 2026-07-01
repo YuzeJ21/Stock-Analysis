@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import importlib
 import json
 import os
@@ -39,6 +40,17 @@ ALWAYS_EXECUTABLE_LANES = [
     "analyst_estimates_optional_manual",
     "coverage_workflow_evidence",
 ]
+
+
+def _read_csv(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as handle:
+        return [dict(row) for row in csv.DictReader(handle)]
+
+
+def _truthy(value: object) -> bool:
+    return str(value).strip().lower() in {"true", "1", "yes", "y"}
 
 
 def _status_payload(
@@ -612,6 +624,66 @@ def inspect_local_fundamentals(root: Path, *, data_dir: Path | None = None) -> d
     )
 
 
+def build_source_actionability(root: Path) -> dict[str, Any]:
+    fundamentals_rows = _read_csv(root / "outputs" / "fundamentals_peer_worklist.csv")
+    readiness_rows = {
+        str(row.get("ticker") or "").upper().strip(): row
+        for row in _read_csv(root / "data" / "reports" / "ticker_readiness_report.csv")
+        if str(row.get("ticker") or "").strip()
+    }
+
+    def is_operating_company_candidate(ticker: str) -> bool:
+        if ticker in {"QQQ", "SMH"}:
+            return False
+        row = readiness_rows.get(ticker, {})
+        asset_type = str(row.get("asset_type") or "company").strip().lower()
+        if asset_type != "company":
+            return False
+        if _truthy(row.get("dcf_ready")):
+            return False
+        name = str(row.get("name") or "").strip().lower()
+        return not any(marker in name for marker in ("acquisition", "spac", "blank check"))
+
+    candidate_tickers = {
+        str(row.get("ticker") or "").upper().strip()
+        for row in fundamentals_rows
+        if str(row.get("ticker") or "").strip()
+        and str(row.get("missing_required_for_dcf") or "").strip()
+        and not _truthy(row.get("dcf_ready"))
+    }
+    candidate_tickers = {ticker for ticker in candidate_tickers if is_operating_company_candidate(ticker)}
+    reviewed_rows = _read_csv(root / "data" / "reviewed_batch_proofs.csv")
+    relevant_lanes = {"fundamentals", "fundamentals_dcf", "share_count"}
+    non_actionable_outcomes = {"candidate_context_only", "still_blocked", "skipped", "excluded"}
+    reviewed_non_actionable: set[str] = set()
+    for row in reviewed_rows:
+        lane = str(row.get("lane") or "").lower().strip()
+        outcome = str(row.get("final_outcome") or "").lower().strip()
+        if lane not in relevant_lanes or outcome not in non_actionable_outcomes:
+            continue
+        tickers = str(row.get("tickers") or "").replace("|", ",").replace(";", ",")
+        for part in tickers.split(","):
+            ticker = part.upper().strip()
+            if ticker and ticker != "-":
+                reviewed_non_actionable.add(ticker)
+    reviewed_candidates = candidate_tickers & reviewed_non_actionable
+    unreviewed_candidates = candidate_tickers - reviewed_non_actionable
+    exhausted = bool(candidate_tickers) and not unreviewed_candidates
+    return {
+        "fundamentals_share_count_candidates": len(candidate_tickers),
+        "reviewed_non_actionable_fundamentals_share_count": len(reviewed_candidates),
+        "unreviewed_fundamentals_share_count_candidates": len(unreviewed_candidates),
+        "do_not_repeat_without_new_source": exhausted,
+        "next_action": (
+            "Wait for new provider data, keyed sources, reviewed manual source rows, or changed blockers before repeating fundamentals/share-count paths."
+            if exhausted
+            else "Use the relevant reviewed dry-run, validate, preview, and apply gate for unreviewed source-backed candidates."
+        ),
+        "sample_unreviewed_tickers": sorted(unreviewed_candidates)[:10],
+        "sample_reviewed_non_actionable_tickers": sorted(reviewed_candidates)[:10],
+    }
+
+
 def build_source_categories(
     *,
     sec_status: dict[str, Any],
@@ -850,6 +922,7 @@ def build_session_source_preflight(
         finnhub_status=finnhub_status,
         local_fundamentals_status=local_fundamentals_status,
     )
+    source_actionability = build_source_actionability(root)
 
     session_flags: list[str] = []
     do_not_retry_paths: list[str] = []
@@ -960,6 +1033,7 @@ def build_session_source_preflight(
         "source_activation_console_v2": source_activation_console_v2,
         "sources": sources,
         "source_activation": source_activation_status,
+        "source_actionability": source_actionability,
     }
 
 
@@ -1080,6 +1154,27 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         if commands:
             lines.append("  activation_commands:")
             lines.extend(f"  - {command}" for command in commands)
+    actionability = preflight.get("source_actionability", {})
+    if isinstance(actionability, dict) and actionability:
+        lines.extend(
+            [
+                "source_actionability:",
+                f"  fundamentals_share_count_candidates: {actionability.get('fundamentals_share_count_candidates', 0)}",
+                (
+                    "  reviewed_non_actionable_fundamentals_share_count: "
+                    f"{actionability.get('reviewed_non_actionable_fundamentals_share_count', 0)}"
+                ),
+                (
+                    "  unreviewed_fundamentals_share_count_candidates: "
+                    f"{actionability.get('unreviewed_fundamentals_share_count_candidates', 0)}"
+                ),
+                (
+                    "  do_not_repeat_without_new_source: "
+                    f"{'yes' if actionability.get('do_not_repeat_without_new_source') else 'no'}"
+                ),
+                f"  next_action: {actionability.get('next_action', '-')}",
+            ]
+        )
     console = preflight.get("source_activation_console_v2", {})
     if isinstance(console, dict) and console:
         lines.extend(
