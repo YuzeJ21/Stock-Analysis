@@ -497,6 +497,11 @@ def test_session_source_preflight_renders_source_activation_console_v2(tmp_path:
     assert console["setup_commands"]["alpha_vantage"] == "Set ALPHA_VANTAGE_API_KEY in config/provider_keys.env; rerun make session-source-preflight."
     assert console["setup_commands"]["finnhub"] == "Set FINNHUB_API_KEY in config/provider_keys.env; rerun make session-source-preflight."
     assert console["setup_commands"]["ibkr"] == "Optional read-only broker data only: set IBKR_HOST, IBKR_PORT, IBKR_CLIENT_ID and run Gateway/TWS; otherwise leave disabled."
+    assert console["free_tier_batch_limits"] == {
+        "fmp": {"recommended_daily_request_limit": 250, "recommended_batch_size": 25},
+        "alpha_vantage": {"recommended_daily_request_limit": 25, "recommended_batch_size": 5},
+        "finnhub": {"recommended_daily_request_limit": 60, "recommended_batch_size": 10},
+    }
     assert console["provider_capabilities"]["sec_submissions"]["usage"] == "metadata_evidence_only"
     assert console["provider_capabilities"]["fmp"]["can_cover"] == ["price", "fundamentals", "share_count"]
     assert console["provider_capabilities"]["ibkr"]["default_state"] == "optional_broker_disabled"
@@ -517,6 +522,7 @@ def test_session_source_preflight_renders_source_activation_console_v2(tmp_path:
     assert "do_not_retry_this_session: sec, yfinance_fundamentals" in rendered
     assert "setup_commands:" in rendered
     assert "fmp: Set FMP_API_KEY in config/provider_keys.env; rerun make session-source-preflight." in rendered
+    assert "free_tier_batch_limits: fmp<=250/day and <=25/run; alpha_vantage<=25/day and <=5/run; finnhub<=60/day and <=10/run" in rendered
     assert "ibkr: Optional read-only broker data only" in rendered
     assert "provider_capabilities:" in rendered
     assert "sec_submissions: can_cover=metadata usage=metadata_evidence_only" in rendered

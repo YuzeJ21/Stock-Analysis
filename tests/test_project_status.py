@@ -1001,7 +1001,12 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
                         "avoid_repeating": ["fundamentals_share_count_source_ladder"],
                         "next_step": "make source-activation-guide",
                         "next_step_reason": "Current blockers already have reviewed non-actionable proof.",
-                    }
+                    },
+                    "free_tier_batch_limits": {
+                        "fmp": {"recommended_daily_request_limit": 250, "recommended_batch_size": 25},
+                        "alpha_vantage": {"recommended_daily_request_limit": 25, "recommended_batch_size": 5},
+                        "finnhub": {"recommended_daily_request_limit": 60, "recommended_batch_size": 10},
+                    },
                 }
             }
         ),
@@ -1020,6 +1025,9 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
     assert "choose safe universe scope: make universe-scope top_n=10" in output
     assert "review risk context readiness: make risk-context" in output
     assert "source setup to unlock more: fmp, alpha_vantage, finnhub" in output
+    assert "free-tier limits: fmp<=250/day and <=25/run" in output
+    assert "alpha_vantage<=25/day and <=5/run" in output
+    assert "finnhub<=60/day and <=10/run" in output
     assert "avoid repeating now: fundamentals_share_count_source_ladder" in output
 
 

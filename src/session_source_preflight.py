@@ -866,6 +866,7 @@ def build_source_activation_console_v2(
         "source_path_last_tried": source_path_last_tried,
         "do_not_retry_this_session": do_not_retry_paths,
         "setup_commands": setup_commands,
+        "free_tier_batch_limits": FREE_TIER_BATCH_LIMITS,
         "provider_capabilities": provider_capabilities,
         "next_executable_lane": next_executable_lane,
         "next_executable_command": next_executable_command,
@@ -1243,6 +1244,20 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
                 command = str(setup_commands.get(source_name, "")).strip()
                 if command:
                     lines.append(f"    {source_name}: {command}")
+        limits = console.get("free_tier_batch_limits", {})
+        if isinstance(limits, dict):
+            limit_pieces = []
+            for provider in ("fmp", "alpha_vantage", "finnhub"):
+                policy = limits.get(provider, {})
+                if not isinstance(policy, dict):
+                    continue
+                daily = policy.get("recommended_daily_request_limit")
+                batch = policy.get("recommended_batch_size")
+                if daily in (None, "") or batch in (None, ""):
+                    continue
+                limit_pieces.append(f"{provider}<={daily}/day and <={batch}/run")
+            if limit_pieces:
+                lines.append(f"  free_tier_batch_limits: {'; '.join(limit_pieces)}")
         lines.append("  provider_capabilities:")
         capabilities = console.get("provider_capabilities", {})
         if isinstance(capabilities, dict):

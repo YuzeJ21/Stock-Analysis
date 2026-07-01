@@ -364,7 +364,30 @@ def _load_source_operator_summary(output_path: Path) -> dict[str, Any]:
     if not isinstance(console, dict):
         return {}
     summary = console.get("operator_summary", {})
-    return summary if isinstance(summary, dict) else {}
+    if not isinstance(summary, dict):
+        return {}
+    enriched = dict(summary)
+    limits = console.get("free_tier_batch_limits", {})
+    if isinstance(limits, dict):
+        enriched["free_tier_batch_limits"] = limits
+    return enriched
+
+
+def _source_operator_free_tier_limit_summary(source_operator_summary: dict[str, Any]) -> str:
+    limits = source_operator_summary.get("free_tier_batch_limits", {})
+    if not isinstance(limits, dict):
+        return ""
+    pieces: list[str] = []
+    for provider in ("fmp", "alpha_vantage", "finnhub"):
+        policy = limits.get(provider)
+        if not isinstance(policy, dict):
+            continue
+        daily = policy.get("recommended_daily_request_limit")
+        batch = policy.get("recommended_batch_size")
+        if daily in (None, "") or batch in (None, ""):
+            continue
+        pieces.append(f"{provider}<={daily}/day and <={batch}/run")
+    return ", ".join(pieces)
 
 
 def _fast_status_payload_from_outputs(
@@ -1546,6 +1569,9 @@ def _print_human(payload: dict[str, Any]) -> None:
         ]
         if needs_setup:
             print(f"- Source setup to unlock more: {', '.join(needs_setup)}.")
+        free_tier_limits = _source_operator_free_tier_limit_summary(source_operator_summary)
+        if free_tier_limits:
+            print(f"- Free-tier limits: {free_tier_limits}.")
         if avoid_repeating:
             print(f"- Avoid repeating now: {', '.join(avoid_repeating)}.")
     print("- Details below are capped and copy-only.")
