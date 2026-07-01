@@ -64,6 +64,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Pilot Screenshot Evidence Gate V1 so `make pilot-readiness-check` includes real screenshot evidence status and pending workflow captures alongside sync, churn, source-proof, public-check, and research-only gates.
 - [x] Pilot Evidence Review V1 so Data Health puts screenshot evidence, reviewer packet, public-check boundary, generated-churn policy, and leading source-proof blocker in one compact strip before detailed pilot tables.
 - [x] Public Share Final Gate V1 so Data Health combines GitHub sync, public-check, browser QA evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing.
+- [x] Source Activation Console V2 so `make session-source-preflight`, `make project-status`, and `make provider-setup-checklist` separate free public sources, keyed free-tier setup, optional broker-disabled paths, last-tried source state, do-not-retry guidance, smoke commands, and the next executable lane before any broad coverage loop.
 - [x] Data Health Workflow Continuity V4 so the operator sees one path from pilot evidence to final share gate, next action, queue route map, proof lane, artifact hygiene, and reviewer packet before raw tables.
 - [x] Public Release Package V1 with `make public-release-package`, a read-only product staging, generated-churn exclusion, final-check, commit, and push checklist.
 - [x] Short Price-History Proof Queue V1 with `make price-history-proof-queue`, separating complete price coverage from short-history blockers for momentum, track-record, and review-metric workflows.
@@ -150,7 +151,7 @@ Pilot exit criteria:
 
 Immediate pilot priorities:
 
-1. Provider setup/source-boundary review: run `make provider-setup-checklist` when current source-proof queues have no unreviewed executable company candidates. Use it to confirm which free public, keyed free-tier, optional broker-disabled, and locked/manual sources can truthfully unlock the next coverage stage.
+1. Provider setup/source-boundary review: run `make provider-setup-checklist` when current source-proof queues have no unreviewed executable company candidates. Use it to confirm which free public, keyed free-tier, optional broker-disabled, and locked/manual sources can truthfully unlock the next coverage stage. After adding a key, run only that provider's smoke command before any broader batch; smoke commands still require validate, preview, rejected-row review, and an intentional apply decision.
 2. Run `make trusted-data-pilot-candidates TOP_N=10` only after `make project-status` or `make coverage-frontier TOP_N=10` shows new provider data, keyed sources, reviewed manual rows, new tickers, or changed blockers.
 3. Close one reviewed source-proof lane at a time, starting with the top executable DCF/share-count/peer blocker.
 4. Keep the pilot package clean: reviewed docs/code/evidence only, broad generated churn excluded by default.

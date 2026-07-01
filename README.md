@@ -56,7 +56,7 @@ The product separates refreshable data from judgment-required data:
 | Peers | Use `DRY_RUN=1 make peer-batch-proof TOP_N=10` to preview source-backed peer mappings separately from mapped-peer valuation inputs; use `DRY_RUN=1 make peer-mapping-source-review TOP_N=10` before editing `data/imports/peers.csv`; use `make peer-mapping-writeback-guard ...` to block placeholders, self-peers, and duplicate peer pairs before copy/paste, then dry-run the proof-record scaffold; use the ranked pilot packet first when a peer-input lane leads, such as `make trusted-data-pilot-packet TICKER=MU`. | Peer trend and peer valuation stay separate; guessed peers or file row counts do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
 
-Pilot packaging starts with read-only gates: `make pilot-readiness-check TOP_N=10` for sync, hygiene, freshness, source-proof queues, proof ledger, screenshot evidence, public-check, and guardrails; `make pilot-share-brief` for the concise public/demo share brief at `outputs/pilot_share_brief.md`; `make pilot-readiness-packet` for the full reviewer packet at `outputs/pilot_readiness_packet.md`; and `make diff-hygiene-summary` to keep broad generated patterns such as `data/*.csv`, `data/reports/*.csv`, and `outputs/*.csv` excluded unless a specific artifact is reviewed evidence. The share brief is a snapshot handoff only: it does not refresh data or unlock blocked inputs.
+Pilot packaging starts with read-only gates: `make pilot-readiness-check TOP_N=10` for sync, hygiene, freshness, source-proof queues, proof ledger, screenshot evidence, public-check, and guardrails; `make pilot-share-brief` for the concise public/demo share brief at `outputs/pilot_share_brief.md`; `make pilot-readiness-packet` for the full reviewer packet at `outputs/pilot_readiness_packet.md`; and `make diff-hygiene-summary` to keep broad generated patterns such as `data/*.csv`, `data/reports/*.csv`, and `outputs/*.csv` excluded unless a specific artifact is reviewed evidence. The share brief is a snapshot handoff only: it does not refresh data or unlock blocked inputs. When source-proof queues are exhausted, `make provider-setup-checklist` shows the provider-specific smoke command to run before any broader batch.
 
 Data Health mirrors that same pilot handoff before detailed tables. The Pilot Evidence Review strip puts share status, screenshot evidence, reviewer packet, public-check boundary, generated-churn policy, and the leading source-proof blocker in one place before raw tables. The Public Share Final Gate then combines GitHub sync, public-check, browser evidence, generated-churn exclusion, packet status, and research-only wording before GitHub or LinkedIn sharing. A workflow continuity strip connects that review to the next safe action, queue route map, proof lane, artifact hygiene, and reviewer packet.
 
@@ -121,7 +121,7 @@ Optional local proof checks:
 make project-status && make data-coverage-proof-queues TOP_N=10
 make universe-scope TICKERS=NVDA,META TOP_N=10
 make risk-context
-make provider-setup-checklist  # use when status says source-proof queues are exhausted
+make provider-setup-checklist  # use when queues are exhausted; run the listed provider smoke command before any broad batch
 make trusted-data-pilot-candidates TOP_N=10  # only when status shows executable company candidates
 make metric-readiness TOP_N=5 BENCHMARK=SPY
 make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKER=CRDO
