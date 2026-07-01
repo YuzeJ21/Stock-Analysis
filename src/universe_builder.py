@@ -372,6 +372,14 @@ def _fallback_loaded_warnings(source_name: str, warnings: Sequence[str]) -> list
         text = str(warning)
         text = text.replace(f"{source_name}: remote source unavailable", f"{source_name}: primary source unavailable")
         text = text.replace(f"{source_name}: source fetch failed", f"{source_name}: primary source unavailable")
+        if source_name == "smh" and text.startswith("smh: primary source unavailable"):
+            text = re.sub(
+                r"smh: primary source unavailable \(.+?\)\.",
+                "smh: primary source unavailable (redirect/cookie/location handling).",
+                text,
+                count=1,
+                flags=re.DOTALL,
+            )
         normalized.append(text)
     return normalized
 
