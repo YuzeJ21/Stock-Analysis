@@ -47,6 +47,15 @@ def test_dashboard_launchers_force_viewer_mode_for_public_demo():
     assert "--server.headless true" in launcher
 
 
+def test_universe_preview_summary_uses_compact_human_output():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    target = makefile.split("universe-preview-summary:", 1)[1].split("\nuniverse-apply:", 1)[0]
+
+    assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" in target
+    assert "--summary-json" not in target
+
+
 def test_makefile_contains_convenience_targets():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
