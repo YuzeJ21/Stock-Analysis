@@ -668,6 +668,21 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
         lines.extend(format_paths(generated, limit=40))
     else:
         lines.append("  none")
+    commit_share_lines = (
+        [
+            "Commit and push only after staged hygiene passes:",
+            "  git commit -m \"Improve pilot handoff and workflow continuity\"",
+            "  git status --short --branch",
+            "  git push origin main",
+        ]
+        if product
+        else [
+            "Commit and push:",
+            "  # No reviewed product package to commit; generated churn remains local.",
+            "  git status --short --branch",
+        ]
+    )
+
     lines.extend(
         [
             "",
@@ -681,10 +696,7 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
             "  make dashboard-smoke  # rerun in a normal local terminal if sandbox socket binding is limited",
             "  git diff --check",
             "",
-            "Commit and push only after staged hygiene passes:",
-            "  git commit -m \"Improve pilot handoff and workflow continuity\"",
-            "  git status --short --branch",
-            "  git push origin main",
+            *commit_share_lines,
             "",
             "Do not proceed if:",
             "- public-check fails",
