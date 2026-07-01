@@ -2168,6 +2168,15 @@ def test_stock_report_cli_optional_context_source_ladder_writes_import_files(mon
                     "source": "fmp_research_api",
                 }
             ],
+            "row_summaries": [
+                {
+                    "ticker": "NVDA",
+                    "dataset_name": "earnings",
+                    "source": "fmp_research_api",
+                    "populated_fields": ["eps_actual", "last_earnings_date"],
+                    "warnings": [],
+                }
+            ],
             "warnings": [],
             "provider_attempts": [{"provider": "fmp", "status": "resolved_rows", "reason_code": "ok"}],
         },
@@ -2338,6 +2347,15 @@ def test_stock_report_cli_optional_context_source_ladder_prints_staging_status(m
                 }
             ],
             "analyst_estimate_rows": [],
+            "row_summaries": [
+                {
+                    "ticker": "NVDA",
+                    "dataset_name": "earnings",
+                    "source": "fmp_research_api",
+                    "populated_fields": ["eps_actual", "last_earnings_date"],
+                    "warnings": [],
+                }
+            ],
             "warnings": [],
             "provider_attempts": [{"provider": "fmp", "status": "resolved_rows", "reason_code": "ok"}],
         },
@@ -2353,6 +2371,8 @@ def test_stock_report_cli_optional_context_source_ladder_prints_staging_status(m
 
     assert "earnings_status: staged" in rendered
     assert "analyst_estimates_status: no_rows" in rendered
+    assert "optional_context_row_evidence:" in rendered
+    assert "- NVDA: dataset=earnings source=fmp_research_api populated=eps_actual,last_earnings_date" in rendered
 
 
 def test_stock_report_cli_optional_context_source_ladder_prints_no_apply_for_unchanged(
@@ -2404,6 +2424,8 @@ def test_stock_report_cli_optional_context_source_ladder_prints_no_apply_for_unc
         os.chdir(previous_cwd)
 
     assert "apply gate: no apply needed" in rendered
+    assert "optional_context_row_evidence:" in rendered
+    assert "- none" in rendered
     assert "readiness_boundary:" in rendered
     assert "can validate and still remain locked" in rendered
     assert "make imports-apply" not in rendered

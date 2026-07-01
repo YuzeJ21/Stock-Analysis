@@ -4390,6 +4390,19 @@ def main() -> None:
                 )
             if payload["warnings"]:
                 print(f"warnings: {'; '.join(payload['warnings'])}")
+            print("optional_context_row_evidence:")
+            row_summaries = payload.get("row_summaries", [])
+            if row_summaries:
+                for row in row_summaries:
+                    populated = ",".join(str(field) for field in row.get("populated_fields", []) if str(field).strip())
+                    warnings = "; ".join(str(warning) for warning in row.get("warnings", []) if str(warning).strip())
+                    print(
+                        f"- {row.get('ticker', '-')}: dataset={row.get('dataset_name', '-')} "
+                        f"source={row.get('source', '-') or '-'} populated={populated or '-'}"
+                        + (f" warnings={warnings}" if warnings else "")
+                    )
+            else:
+                print("- none")
             print(f"readiness_boundary: {payload['readiness_boundary']}")
             print("next:")
             for command in payload["recommended_next_commands"]:
