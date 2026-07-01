@@ -4,6 +4,7 @@ from src.auto_refresh_orchestrator import (
     build_scheduler_plan,
     evaluate_auto_apply_gate,
     main,
+    render_scheduler_runbook,
     render_scheduler_plan,
 )
 
@@ -121,3 +122,17 @@ def test_blocked_gate_can_be_report_only_for_scheduler_pivot(capsys):
     assert "status: blocked" in output
     assert "outcome: still_blocked" in output
     assert "pivot to the next executable lane" in output
+
+
+def test_scheduler_runbook_is_compact_and_pivot_oriented():
+    runbook = render_scheduler_runbook(build_scheduler_plan(schedule="daily"))
+
+    assert "Auto Refresh Daily Runbook" in runbook
+    assert "make session-source-preflight" in runbook
+    assert "1. Daily Price Coverage" in runbook
+    assert "2. Daily SEC Filing Share Count" in runbook
+    assert "3. Daily Fundamentals / DCF Source Ladder" in runbook
+    assert "ALLOW_BLOCKED_GATE=1 make auto-apply-gate" in runbook
+    assert "record still_blocked and pivot" in runbook
+    assert "Weekly Peer Candidate Context" not in runbook
+    assert "Optional Earnings / Analyst Estimates" not in runbook

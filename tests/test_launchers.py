@@ -2144,6 +2144,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "reviewed-batch-proof-record:\nifndef BATCH_ID" in makefile
     assert "$(error FINAL_OUTCOME is required: supported, auto_supported, human_reviewed_supported, candidate_context_only, still_blocked, skipped, or excluded)" in makefile
     assert "auto-refresh-plan:\n\t@python3 -m src.auto_refresh_orchestrator --root . --schedule all" in makefile
+    assert "auto-refresh-runbook:\n\t@python3 -m src.auto_refresh_orchestrator --root . --schedule $(or $(SCHEDULE),daily) --runbook" in makefile
     assert "auto-apply-gate:\n\t@python3 -m src.auto_refresh_orchestrator --root ." in makefile
     assert "reviewed-data-proof-record:\nifndef LANE" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile

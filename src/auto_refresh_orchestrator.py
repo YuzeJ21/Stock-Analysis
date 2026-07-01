@@ -291,6 +291,54 @@ def render_scheduler_plan(plan: SchedulerPlan) -> str:
     return "\n".join(lines)
 
 
+def render_scheduler_runbook(plan: SchedulerPlan) -> str:
+    schedule_label = plan.schedule.replace("_", " ").title()
+    lines = [
+        f"Auto Refresh {schedule_label} Runbook",
+        "Compact unattended checklist. Research-only; no broker integration, no auto-trading, no order routing.",
+        "",
+        "Start:",
+        "- make session-source-preflight",
+        "- make readiness-ops-center",
+        "- make coverage-frontier TOP_N=10",
+        "",
+        "Lane loop:",
+    ]
+    for index, policy in enumerate(plan.policies, start=1):
+        gate_mode = (
+            "Run the deterministic gate before apply; if blocked, use "
+            "ALLOW_BLOCKED_GATE=1 make auto-apply-gate to record still_blocked and pivot."
+            if policy.auto_apply
+            else "No auto-apply; keep candidate context separate from trusted proof."
+        )
+        lines.extend(
+            [
+                f"{index}. {policy.label}",
+                f"   dry-run: {policy.dry_run_command}",
+                f"   gated apply: {policy.gated_apply_command}",
+                f"   proof: {policy.proof_command}",
+                f"   gate rule: {gate_mode}",
+                f"   source boundary: {policy.source_boundary}",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "After each slice:",
+            "- make public-wording-check",
+            "- make readiness-ops-center",
+            "- make coverage-frontier TOP_N=10",
+            "- make diff-hygiene-summary",
+            "- git diff --check",
+            "",
+            "Stop/pivot rule:",
+            "- If no source-backed row is available, record still_blocked/skipped/excluded and move to the next executable lane.",
+            "- Keep generated CSV/JSON/report churn excluded unless intentionally reviewed evidence.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _build_gate_from_args(args: argparse.Namespace) -> AutoGateInput:
     return AutoGateInput(
         lane=args.gate_lane,
@@ -311,6 +359,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", default=".")
     parser.add_argument("--schedule", choices=("all", "daily", "weekly", "optional"), default="all")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--runbook", action="store_true")
     parser.add_argument("--gate-lane", default="")
     parser.add_argument("--changed-rows", type=int, default=0)
     parser.add_argument("--max-batch-size", type=int, default=25)
@@ -353,6 +402,8 @@ def main(argv: list[str] | None = None) -> int:
     plan = build_scheduler_plan(schedule=args.schedule)
     if args.json:
         print(json.dumps(asdict(plan), indent=2, sort_keys=True))
+    elif args.runbook:
+        print(render_scheduler_runbook(plan))
     else:
         print(render_scheduler_plan(plan))
     return 0
