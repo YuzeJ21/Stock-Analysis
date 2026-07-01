@@ -3,7 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from pathlib import Path
 from typing import Any
+
+from src.paths import resolve_project_root
+from src.provider_env import load_provider_environment
+from src.session_source_preflight import load_session_source_preflight
 
 
 KEYED_PROVIDER_ENVS = {
@@ -193,7 +198,30 @@ def _safe_next_step_for_provider(row: dict[str, Any]) -> str:
     return "Run make session-source-preflight before using this source path."
 
 
-def build_provider_setup_checklist() -> dict[str, Any]:
+def _current_gate_from_preflight(preflight: dict[str, Any] | None) -> dict[str, str]:
+    if not isinstance(preflight, dict):
+        return {}
+    console = preflight.get("source_activation_console_v2", {})
+    if not isinstance(console, dict):
+        return {}
+    operator_summary = console.get("operator_summary", {})
+    operator_summary = operator_summary if isinstance(operator_summary, dict) else {}
+
+    def _join(value: object) -> str:
+        if isinstance(value, (list, tuple)):
+            return ", ".join(str(item) for item in value if str(item).strip()) or "-"
+        return str(value or "").strip() or "-"
+
+    return {
+        "can_run_now": _join(operator_summary.get("can_run_now") or console.get("next_executable_lane")),
+        "needs_setup": _join(operator_summary.get("needs_setup")),
+        "avoid_repeating": _join(operator_summary.get("avoid_repeating")),
+        "next_step": _join(operator_summary.get("next_step") or console.get("next_executable_command")),
+        "next_step_reason": _join(operator_summary.get("next_step_reason")),
+    }
+
+
+def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = None) -> dict[str, Any]:
     guide = build_source_activation_guide()
     rows = []
     for row in guide["providers"]:
@@ -219,6 +247,7 @@ def build_provider_setup_checklist() -> dict[str, Any]:
         "rows": rows,
         "apply_gate": guide["apply_gate"],
         "non_retry_rule": guide["non_retry_rule"],
+        "current_gate": _current_gate_from_preflight(current_preflight),
     }
 
 
@@ -231,6 +260,19 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
         "Local setup commands:",
     ]
     lines.extend(f"- {command}" for command in checklist.get("setup_commands", []))
+    current_gate = checklist.get("current_gate", {})
+    if isinstance(current_gate, dict) and current_gate:
+        lines.extend(
+            [
+                "",
+                "Current source gate:",
+                f"- can_run_now: {current_gate.get('can_run_now', '-')}",
+                f"- needs_setup: {current_gate.get('needs_setup', '-')}",
+                f"- avoid_repeating: {current_gate.get('avoid_repeating', '-')}",
+                f"- next_step: {current_gate.get('next_step', '-')}",
+                f"- next_step_reason: {current_gate.get('next_step_reason', '-')}",
+            ]
+        )
     lines.extend(
         [
             "",
@@ -304,12 +346,15 @@ def render_source_activation_guide(guide: dict[str, Any]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Print read-only source activation setup guidance.")
+    parser.add_argument("--root", default=".", help="Project root.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
     parser.add_argument("--checklist", action="store_true", help="Print checklist-style provider setup states.")
     args = parser.parse_args(argv)
 
+    root = resolve_project_root(Path(args.root))
+    load_provider_environment(root)
     if args.checklist:
-        checklist = build_provider_setup_checklist()
+        checklist = build_provider_setup_checklist(load_session_source_preflight(root))
         if args.json:
             print(json.dumps(checklist, indent=2, sort_keys=True))
         else:

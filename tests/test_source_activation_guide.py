@@ -113,3 +113,37 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "IBKR read-only | optional_disabled | price" in rendered
     assert "No investment advice" in rendered
     assert "direct buy/sell instructions" in rendered
+
+
+def test_provider_setup_checklist_includes_current_gate_without_fetching_sources(monkeypatch):
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    current_preflight = {
+        "source_activation_console_v2": {
+            "next_executable_lane": "coverage_workflow_evidence",
+            "next_executable_command": "make project-status",
+            "operator_summary": {
+                "can_run_now": ["coverage_workflow_evidence"],
+                "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
+                "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                "next_step": "make project-status",
+                "next_step_reason": "Wait for new provider data before repeating the source ladder.",
+            },
+        },
+    }
+
+    checklist = build_provider_setup_checklist(current_preflight)
+    rendered = render_provider_setup_checklist(checklist)
+
+    assert checklist["current_gate"] == {
+        "can_run_now": "coverage_workflow_evidence",
+        "needs_setup": "fmp, alpha_vantage, finnhub",
+        "avoid_repeating": "fundamentals_share_count_source_ladder",
+        "next_step": "make project-status",
+        "next_step_reason": "Wait for new provider data before repeating the source ladder.",
+    }
+    assert "Current source gate:" in rendered
+    assert "can_run_now: coverage_workflow_evidence" in rendered
+    assert "needs_setup: fmp, alpha_vantage, finnhub" in rendered
+    assert "avoid_repeating: fundamentals_share_count_source_ladder" in rendered
+    assert "next_step: make project-status" in rendered
+    assert "secret-fmp-key" not in json.dumps(checklist)
