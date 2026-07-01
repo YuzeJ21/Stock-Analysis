@@ -425,6 +425,9 @@ def test_public_release_handoff_marks_generated_only_tree_as_local_churn():
     assert "Product/code/docs/test candidates: 0 (0 changed, 0 new)" in report
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
     assert "Package status: generated churn only; keep it local unless intentionally reviewed as evidence" in report
+    assert "Step 4 - skip commit when no reviewed files are staged:" in report
+    assert "# no commit; generated churn remains local" in report
+    assert 'git commit -m "Improve pilot handoff and workflow continuity"' not in report
 
 
 def test_public_release_package_marks_generated_only_tree_as_local_churn():

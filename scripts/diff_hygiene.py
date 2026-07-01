@@ -731,6 +731,18 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
                 "",
             ]
         )
+    commit_step = (
+        [
+            "Step 4 - commit locally if staged hygiene passes:",
+            "  git commit -m \"Improve pilot handoff and workflow continuity\"",
+        ]
+        if product
+        else [
+            "Step 4 - skip commit when no reviewed files are staged:",
+            "  # no commit; generated churn remains local",
+        ]
+    )
+
     lines.extend(
         [
             "Step 1 - verify before staging:",
@@ -754,8 +766,7 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
             "  git diff --cached --check",
             "  git diff --cached --name-only",
             "",
-            "Step 4 - commit locally if staged hygiene passes:",
-            "  git commit -m \"Improve pilot handoff and workflow continuity\"",
+            *commit_step,
             "",
             "Step 5 - push only after the local commit is reviewed:",
             "  git status --short --branch",
