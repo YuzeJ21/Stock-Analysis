@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 from functools import lru_cache
@@ -8651,9 +8652,53 @@ def _coverage_lane_state(ready: int, total: int, *, locked_when_empty: bool = Fa
     return "blocked"
 
 
+def _cached_source_activation_console(root: Path | None = None) -> dict[str, object] | None:
+    path = (root or BASE_DIR) / "outputs" / "session_source_preflight.json"
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    console = payload.get("source_activation_console_v2")
+    return console if isinstance(console, dict) else None
+
+
+def _source_activation_summary_row(console: dict[str, object]) -> dict[str, object]:
+    free_public = [str(value).strip() for value in console.get("free_public_available", []) if str(value).strip()]
+    keyed_available = [str(value).strip() for value in console.get("keyed_free_tier_available", []) if str(value).strip()]
+    keyed_missing = [str(value).strip() for value in console.get("missing_keyed_free_tier", []) if str(value).strip()]
+    broker_disabled = [str(value).strip() for value in console.get("optional_broker_disabled", []) if str(value).strip()]
+    next_lane = str(console.get("next_executable_lane") or "coverage_workflow_evidence").strip()
+    state = "supported" if free_public or keyed_available else "blocked"
+    return {
+        "lane": "Source activation",
+        "coverage_tier": "source_activation_context",
+        "state": state,
+        "one_clear_answer": f"Use cached session source preflight to route the next executable lane: {next_lane}.",
+        "ready_coverage": "Source status, not coverage count",
+        "supporting_coverage": ", ".join(free_public + keyed_available) or "No executable source path in cached preflight",
+        "blocked_or_limited": (
+            f"Missing keyed free-tier providers: {', '.join(keyed_missing)}"
+            if keyed_missing
+            else "No missing keyed free-tier providers in cached preflight"
+        ),
+        "why_blocked_or_limited": (
+            f"IBKR disabled unless explicitly configured: {', '.join(broker_disabled)}. "
+            "Broker sources remain optional and read-only."
+            if broker_disabled
+            else "Broker sources remain optional and disabled unless explicitly configured."
+        ),
+        "proof_to_unlock": "Refresh cached session source preflight, then use validate/preview/apply gates for any source-backed rows.",
+        "stop_rule": "Stop before broad source batches if the cached preflight shows unavailable providers or missing keys.",
+        "operator_step": "make session-source-preflight",
+    }
+
+
 def data_health_coverage_summary_frame(
     readiness_summary: dict[str, object],
     peer_readiness_frame: pd.DataFrame | None = None,
+    root: Path | None = None,
 ) -> pd.DataFrame:
     master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
     price_ready = int(readiness_summary.get("price_ready") or 0)
@@ -8765,14 +8810,18 @@ def data_health_coverage_summary_frame(
             "operator_step": "make browser-qa-evidence",
         },
     ]
+    source_activation_console = _cached_source_activation_console(root) if root is not None else None
+    if source_activation_console:
+        rows.insert(1, _source_activation_summary_row(source_activation_console))
     return pd.DataFrame(rows)
 
 
 def data_health_coverage_summary_cards(
     readiness_summary: dict[str, object],
     peer_readiness_frame: pd.DataFrame | None = None,
+    root: Path | None = None,
 ) -> list[dict[str, object]]:
-    frame = data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame)
+    frame = data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame, root=root)
     cards: list[dict[str, object]] = []
     for row in frame.to_dict("records"):
         state = format_missing(row.get("state"), "blocked")
@@ -8803,13 +8852,13 @@ def render_data_health_coverage_summary(
         "One clear answer per lane before operations, proof details, or research conclusions.",
     )
     render_signal_cards(
-        data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame),
+        data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame, root=BASE_DIR),
         show_commands=False,
         variant="queue",
     )
     with st.expander("Coverage lane details", expanded=False):
         st.dataframe(
-            clean_display_frame(data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame)),
+            clean_display_frame(data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame, root=BASE_DIR)),
             width="stretch",
             hide_index=True,
         )

@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from pathlib import Path
@@ -18943,6 +18944,54 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
+    assert "order routing" not in rendered
+
+
+def test_data_health_coverage_summary_includes_cached_source_activation_context(tmp_path):
+    root = tmp_path
+    outputs_dir = root / "outputs"
+    outputs_dir.mkdir()
+    (outputs_dir / "session_source_preflight.json").write_text(
+        json.dumps(
+            {
+                "source_activation_console_v2": {
+                    "next_executable_lane": "sec_fundamentals_share_count",
+                    "free_public_available": ["sec", "sec_submissions", "yfinance_stage", "stooq"],
+                    "keyed_free_tier_available": [],
+                    "missing_keyed_free_tier": ["fmp", "alpha_vantage", "finnhub"],
+                    "optional_broker_disabled": ["ibkr"],
+                    "setup_commands": {
+                        "fmp": "export FMP_API_KEY='<key>'",
+                        "stooq": "no key required for public daily OHLCV",
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    summary = {
+        "master_universe": 100,
+        "price_ready": 99,
+        "fundamentals_ready": 12,
+        "dcf_ready": 9,
+        "peer_ready": 4,
+    }
+
+    frame = dashboard.data_health_coverage_summary_frame(summary, root=root)
+    cards = dashboard.data_health_coverage_summary_cards(summary, root=root)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "Source activation" in set(frame["lane"])
+    source_row = frame.loc[frame["lane"].eq("Source activation")].iloc[0]
+    assert source_row["state"] == "supported"
+    assert source_row["coverage_tier"] == "source_activation_context"
+    assert "sec_fundamentals_share_count" in source_row["one_clear_answer"]
+    assert "sec, sec_submissions, yfinance_stage, stooq" in source_row["supporting_coverage"]
+    assert "fmp, alpha_vantage, finnhub" in source_row["blocked_or_limited"]
+    assert "ibkr disabled unless explicitly configured" in source_row["why_blocked_or_limited"].lower()
+    assert "cached session source preflight" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
     assert "order routing" not in rendered
 
 
