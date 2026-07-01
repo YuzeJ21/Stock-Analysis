@@ -613,7 +613,7 @@ def _global_gap_command(dataset: str, command_bundles: pd.DataFrame) -> str:
     if dataset == "peers":
         return _bundle_runbook_shortcut(command_bundles, "peers") or "make templates"
     if dataset == "smh_holdings":
-        return "make templates"
+        return "make universe-preview"
     if dataset in {"sp500_constituents", "nasdaq_symbols", "universe"}:
         return "make universe-preview"
     if dataset in {"earnings", "analyst_estimates"}:
@@ -622,13 +622,9 @@ def _global_gap_command(dataset: str, command_bundles: pd.DataFrame) -> str:
 
 
 def _global_gap_example_command(dataset: str, command_bundles: pd.DataFrame) -> str:
-    if dataset in {"fundamentals", "peers", "smh_holdings", "earnings", "analyst_estimates"}:
+    if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"}:
         return _global_gap_command(dataset, command_bundles)
-    if dataset == "sp500_constituents":
-        return "make universe-preview"
-    if dataset == "nasdaq_symbols":
-        return "make universe-preview"
-    if dataset == "universe":
+    if dataset in {"sp500_constituents", "nasdaq_symbols", "universe", "smh_holdings"}:
         return "make universe-preview"
     return "make status"
 
@@ -641,7 +637,7 @@ def _global_gap_source_file(dataset: str, source_file: str) -> str:
     if dataset == "analyst_estimates":
         return "data/imports/analyst_estimates.csv"
     if dataset == "smh_holdings":
-        return "data/custom_universe.csv"
+        return "data/imports/universe.csv"
     return source_file
 
 

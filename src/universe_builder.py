@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
+import re
 import shutil
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -47,6 +49,12 @@ SOURCE_URLS = {
     "sp500": "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv",
     "nasdaq": "https://www.nasdaqtrader.com/dynamic/symdir/nasdaqlisted.txt",
     "smh": "https://www.vaneck.com/us/en/investments/semiconductor-etf-smh/",
+}
+SOURCE_FALLBACK_URLS = {
+    "smh": [
+        "https://www.vaneck.com/us/en/investments/semiconductor-etf-smh/downloads/holdings/",
+        "https://stockanalysis.com/etf/smh/holdings/",
+    ],
 }
 SOURCE_PRESETS = {
     "core": ["local", "holdings"],
@@ -436,6 +444,9 @@ def _parse_smh_source(text: str) -> pd.DataFrame:
         frames.extend(html_frames)
     except Exception:
         pass
+    html_frame = _parse_smh_holdings_html(text)
+    if not html_frame.empty:
+        frames.append(html_frame)
 
     selected: pd.DataFrame | None = None
     for frame in frames:
@@ -476,6 +487,41 @@ def _parse_smh_source(text: str) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=CANONICAL_UNIVERSE_COLUMNS + ["_source_priority"])
 
 
+def _strip_html_cell(value: str) -> str:
+    text = re.sub(r"<[^>]+>", "", value)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _parse_smh_holdings_html(text: str) -> pd.DataFrame:
+    rows: list[dict[str, str]] = []
+    for row_html in re.findall(r"<tr\b[^>]*>(.*?)</tr>", text, flags=re.IGNORECASE | re.DOTALL):
+        cells = [
+            _strip_html_cell(cell)
+            for cell in re.findall(r"<t[dh]\b[^>]*>(.*?)</t[dh]>", row_html, flags=re.IGNORECASE | re.DOTALL)
+        ]
+        if len(cells) < 3:
+            continue
+        ticker_index = next(
+            (
+                index
+                for index, cell in enumerate(cells)
+                if re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", cell)
+            ),
+            None,
+        )
+        if ticker_index is None or ticker_index + 1 >= len(cells):
+            continue
+        row: dict[str, str] = {
+            "ticker": cells[ticker_index],
+            "holding_name": cells[ticker_index + 1],
+        }
+        if ticker_index + 2 < len(cells):
+            row["weight"] = cells[ticker_index + 2]
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def _read_remote_source(
     source_name: str,
     *,
@@ -484,8 +530,18 @@ def _read_remote_source(
     include_nasdaq_all: bool,
     exclude_test_issues: bool,
 ) -> tuple[pd.DataFrame, UniverseSourceResult]:
-    url = SOURCE_URLS[source_name]
-    text, warnings = _load_remote_text(source_name, url, loader)
+    urls = [SOURCE_URLS[source_name], *SOURCE_FALLBACK_URLS.get(source_name, [])]
+    text: str | None = None
+    warnings: list[str] = []
+    url = urls[0]
+    for candidate_url in urls:
+        url = candidate_url
+        text, candidate_warnings = _load_remote_text(source_name, candidate_url, loader)
+        if text is not None:
+            if warnings:
+                warnings.append(f"{source_name}: using fallback source {candidate_url}.")
+            break
+        warnings.extend(candidate_warnings)
     if text is None:
         return pd.DataFrame(columns=CANONICAL_UNIVERSE_COLUMNS + ["_source_priority"]), UniverseSourceResult(
             source_name=source_name,

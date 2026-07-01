@@ -5,6 +5,7 @@ from urllib.error import URLError
 import pandas as pd
 
 from src.universe_builder import (
+    SOURCE_FALLBACK_URLS,
     SOURCE_URLS,
     apply_universe_import,
     build_universe_preview,
@@ -30,6 +31,16 @@ File Creation Time|20260511|
 SMH_FIXTURE = """Ticker,Name,Weight,AsOfDate
 NVDA,NVIDIA Corporation,19.2,2026-05-11
 AVGO,Broadcom Inc.,12.5,2026-05-11
+"""
+
+SMH_HTML_FIXTURE = """
+<table>
+  <thead><tr><th>#</th><th>Symbol</th><th>Holding</th><th>% Weight</th><th>Shares</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><a href="/stocks/nvda/">NVDA</a></td><td>NVIDIA Corporation</td><td>18.16%</td><td>66,842,647</td></tr>
+    <tr><td>2</td><td><a href="/stocks/mu/">MU</a></td><td>Micron Technology Inc.</td><td>5.99%</td><td>3,700,000</td></tr>
+  </tbody>
+</table>
 """
 
 
@@ -128,6 +139,23 @@ def test_build_universe_preview_parses_smh_holdings_fixture(tmp_path: Path):
 
     assert set(rows["ticker"]) == {"AVGO", "NVDA"}
     assert rows.loc[rows["ticker"] == "NVDA", "etf_membership"].iloc[0] == "SMH"
+
+
+def test_build_universe_preview_uses_smh_fallback_when_primary_source_fails(tmp_path: Path):
+    _setup_base_dir(tmp_path)
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="smh",
+        loader=_loader({SOURCE_FALLBACK_URLS["smh"][1]: SMH_HTML_FIXTURE}),
+    )
+    rows = pd.DataFrame(result["rows"])
+
+    assert result["sources"][0]["status"] == "loaded"
+    assert result["sources"][0]["source_url"] == SOURCE_FALLBACK_URLS["smh"][1]
+    assert any("using fallback source" in warning for warning in result["sources"][0]["warnings"])
+    assert set(rows["ticker"]) == {"MU", "NVDA"}
+    assert rows.loc[rows["ticker"] == "NVDA", "company_name"].iloc[0] == "NVIDIA Corporation"
+    assert rows.loc[rows["ticker"] == "NVDA", "source_detail"].iloc[0] == "SMH weight: 18.16%"
 
 
 def test_smh_remote_failure_explains_manual_fallback(tmp_path: Path):

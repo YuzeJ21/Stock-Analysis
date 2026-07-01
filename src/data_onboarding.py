@@ -1644,15 +1644,15 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
             priority=6,
             ticker="",
             dataset="smh_holdings",
-            status="manual_fallback_available",
-            reason="SMH remote holdings can be unavailable because of redirect/cookie/location handling.",
+            status="preview_available",
+            reason="SMH holdings can be previewed through the source ladder; VanEck redirect/cookie issues fall back to a public holdings source.",
             recommended_action=(
-                "Run make templates, then fill data/custom_universe.csv with verified tickers only if the SMH "
-                "source is unavailable."
+                "Run make universe-preview first. Fill data/custom_universe.csv with verified tickers only if every "
+                "remote SMH source is unavailable."
             ),
-            target_file="data/custom_universe.csv",
-            focus_command="make templates",
-            example_command="make templates",
+            target_file="data/imports/universe.csv",
+            focus_command="make universe-preview",
+            example_command="make universe-preview",
         )
     )
     return sorted(actions, key=lambda item: (item.priority, item.ticker, item.dataset))

@@ -133,9 +133,11 @@ def _gap_focus_command(dataset: str, ticker: str) -> str:
         return "make status"
     if dataset == "peers":
         return "make status"
-    if dataset in {"earnings", "analyst_estimates", "smh_holdings"}:
+    if dataset in {"earnings", "analyst_estimates"}:
         return "make templates"
     if dataset in {"sp500_constituents", "nasdaq_symbols", "universe"}:
+        return "make universe-preview"
+    if dataset == "smh_holdings":
         return "make universe-preview"
     return "make status"
 
@@ -154,13 +156,9 @@ def _gap_example_command(dataset: str, ticker: str) -> str:
         return "make runbook-fundamentals-broader"
     if dataset == "peers":
         return "make runbook-peers-broader"
-    if dataset in {"earnings", "analyst_estimates", "smh_holdings"}:
+    if dataset in {"earnings", "analyst_estimates"}:
         return "make templates"
-    if dataset == "sp500_constituents":
-        return "make universe-preview"
-    if dataset == "nasdaq_symbols":
-        return "make universe-preview"
-    if dataset == "universe":
+    if dataset in {"sp500_constituents", "nasdaq_symbols", "universe", "smh_holdings"}:
         return "make universe-preview"
     return "make status"
 
@@ -178,7 +176,7 @@ def _gap_target_file(dataset: str, ticker: str) -> str:
     if dataset == "analyst_estimates":
         return "data/imports/analyst_estimates.csv"
     if dataset == "smh_holdings":
-        return "data/custom_universe.csv"
+        return "data/imports/universe.csv"
     if dataset in {"sp500_constituents", "nasdaq_symbols", "universe"}:
         return "data/imports/universe.csv"
     if dataset == "local_outputs":
@@ -386,10 +384,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/custom_universe.csv or data/imports/universe.csv",
         fallback_action=(
-            "Run make templates, then fill data/custom_universe.csv with verified tickers only if the remote "
-            "SMH page is unavailable. Run make universe-preview before make universe-apply for any universe import file."
+            "Run make universe-preview first; it tries the VanEck SMH page/download and the StockAnalysis public "
+            "holdings fallback. Fill data/custom_universe.csv with verified tickers only if every remote source is unavailable."
         ),
-        notes="The remote SMH page can require redirect/cookie/location handling; this check does not fetch it.",
+        notes="The VanEck SMH page can require redirect/cookie/location handling; the universe preview has a public fallback source.",
     ),
     DataSourceRegistryEntry(
         dataset="sp500_constituents",
