@@ -355,7 +355,8 @@ def _load_remote_text(source_name: str, url: str, loader: SourceLoader) -> tuple
     if source_name == "smh":
         fallback_hint = (
             " VanEck may require browser cookies or location handling from this runtime; "
-            "use data/custom_universe.csv or stage data/imports/universe.csv as the manual SMH fallback."
+            "use the public holdings fallback first, and use data/custom_universe.csv or a reviewed "
+            "data/imports/universe.csv row-scope import as the manual SMH fallback only if all remote SMH sources fail."
         )
     try:
         return loader(url), []

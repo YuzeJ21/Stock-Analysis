@@ -247,6 +247,8 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert "sources:" in output
     assert "smh: loaded" in output
     assert "using fallback source" in output
+    assert "manual SMH fallback only if all remote SMH sources fail" in output
+    assert "stage data/imports/universe.csv as the manual SMH fallback" not in output
     assert "next:" in output
     assert "make universe-apply" in output
     assert '"rows"' not in output
