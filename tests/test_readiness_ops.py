@@ -622,6 +622,8 @@ def test_data_coverage_proof_queues_connect_next_batches_without_applying_data(t
 
     assert "Data Coverage Proof Queues" in rendered
     assert "does not refresh data, apply imports, record proof, or rewrite local CSVs" in rendered
+    assert "Status gate: run make project-status first" in rendered
+    assert "use make provider-setup-checklist before reopening ticker proof loops" in rendered
     assert "DCF Input Proof Batches" in rendered
     assert "Shares Outstanding Proof" in rendered
     assert "Trusted Fundamentals Proof Queue" in rendered

@@ -1415,6 +1415,7 @@ def render_data_coverage_proof_queues(rows: list[DataCoverageProofQueueRow]) -> 
         "Data Coverage Proof Queues",
         "Read-only: this queue portfolio does not refresh data, apply imports, record proof, or rewrite local CSVs.",
         "Research-only: these are data-readiness proof queues, not rankings, recommendations, or trade instructions.",
+        "Status gate: run make project-status first. If current source-proof queues are reviewed or exhausted, use make provider-setup-checklist before reopening ticker proof loops.",
         "",
     ]
     if not rows:
