@@ -453,9 +453,12 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Source-Proof Queue Summary" in body
     assert "Provider Setup Checklist" in body
     assert "make provider-setup-checklist" in body
+    assert "| Provider | Setup state | Unlock lanes | Usage | Cannot unlock | Safe next step |" in body
     assert "FMP free tier" in body
     assert "Alpha Vantage free tier" in body
     assert "Finnhub free tier" in body
+    assert "Full-universe refresh without caps" in body
+    assert "Broker actions, order routing, auto-trading" in body
     assert "Real key values are never printed." in body
     assert "Latest Reviewed Batch Proof" in body
     assert "Manual Gates Still Required" in body

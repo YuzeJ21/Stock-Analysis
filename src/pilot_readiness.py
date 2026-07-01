@@ -789,6 +789,7 @@ def _provider_setup_checklist_rows() -> list[list[object]]:
                 row["setup_state"],
                 row["unlock_lanes"],
                 row["usage"],
+                row["cannot_unlock"],
                 row["safe_next_step"],
             ]
         )
@@ -917,7 +918,7 @@ def render_pilot_readiness_packet(
         "Use `make provider-setup-checklist` for the current checklist-style setup view. Real key values are never printed.",
         "",
         *_markdown_table(
-            ["Provider", "Setup state", "Unlock lanes", "Usage", "Safe next step"],
+            ["Provider", "Setup state", "Unlock lanes", "Usage", "Cannot unlock", "Safe next step"],
             _provider_setup_checklist_rows(),
         ),
         "",

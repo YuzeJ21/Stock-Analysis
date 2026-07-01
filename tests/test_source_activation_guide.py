@@ -76,12 +76,21 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert rows["IBKR read-only"]["safe_next_step"] == (
         "Leave disabled unless intentionally using read-only daily OHLCV."
     )
+    assert checklist["setup_commands"] == [
+        "cp config/provider_keys.env.example config/provider_keys.env",
+        "chmod 600 config/provider_keys.env",
+        "edit config/provider_keys.env locally; do not commit real keys",
+    ]
     assert rows["SEC submissions"]["cannot_unlock"] == (
         "DCF, valuation, earnings, analyst estimates, or share count unless a filing document has an explicit fact."
     )
     assert checklist["secret_policy"] == "Real key values are never printed."
     assert "secret-fmp-key" not in json.dumps(checklist)
     assert "secret-fmp-key" not in rendered
+    assert "Local setup commands:" in rendered
+    assert "- cp config/provider_keys.env.example config/provider_keys.env" in rendered
+    assert "- chmod 600 config/provider_keys.env" in rendered
+    assert "- edit config/provider_keys.env locally; do not commit real keys" in rendered
     assert "FMP free tier | configured | price, fundamentals, share_count" in rendered
     assert "Alpha Vantage free tier | needs_key" in rendered
     assert "Provider | Setup state | Unlock lanes | Usage | Batch policy | Cannot unlock | Safe next step" in rendered

@@ -196,6 +196,7 @@ def build_provider_setup_checklist() -> dict[str, Any]:
         "title": "Provider Setup Checklist",
         "research_boundary": guide["research_boundary"],
         "secret_policy": "Real key values are never printed.",
+        "setup_commands": guide["setup_commands"],
         "rows": rows,
         "apply_gate": guide["apply_gate"],
         "non_retry_rule": guide["non_retry_rule"],
@@ -208,9 +209,21 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
         str(checklist["research_boundary"]),
         str(checklist["secret_policy"]),
         "",
+        "Local setup commands:",
+    ]
+    lines.extend(f"- {command}" for command in checklist.get("setup_commands", []))
+    lines.extend(
+        [
+            "",
+            "Provider setup and boundaries:",
+        ]
+    )
+    lines.extend(
+        [
         "Provider | Setup state | Unlock lanes | Usage | Batch policy | Cannot unlock | Safe next step",
         "--- | --- | --- | --- | --- | --- | ---",
-    ]
+        ]
+    )
     for row in checklist["rows"]:
         lines.append(
             " | ".join(
