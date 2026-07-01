@@ -1012,10 +1012,46 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
             available_columns = compact_source.pop("available_columns", [])
             compact_source["available_column_count"] = len(available_columns) if isinstance(available_columns, list) else 0
             compact_sources.append(compact_source)
+        source_status_counts: dict[str, int] = {}
+        fallback_sources_used: list[dict[str, str]] = []
+        unavailable_sources: list[dict[str, str]] = []
+        for source in compact_sources:
+            source_name = str(source.get("source_name") or "-")
+            status = str(source.get("status") or "-")
+            source_url = str(source.get("source_url") or "-")
+            source_status_counts[status] = source_status_counts.get(status, 0) + 1
+            warning_text = " ".join(str(warning) for warning in source.get("warnings") or [])
+            if "using fallback source" in warning_text:
+                fallback_sources_used.append(
+                    {
+                        "source_name": source_name,
+                        "source_url": source_url,
+                        "status": status,
+                    }
+                )
+            if status in {"source_unavailable", "missing_file", "empty"}:
+                unavailable_sources.append(
+                    {
+                        "source_name": source_name,
+                        "source_url": source_url,
+                        "status": status,
+                    }
+                )
         return {
             "status": payload.get("status", "-"),
             "summary": summary,
             "sources": compact_sources,
+            "source_review": {
+                "apply_gate": "review_required",
+                "raw_rows_hidden": True,
+                "source_status_counts": source_status_counts,
+                "fallback_sources_used": fallback_sources_used,
+                "unavailable_sources": unavailable_sources,
+                "next_safe_step": (
+                    "Review source warnings and row counts before writing any universe import; "
+                    "inspect full rows only when intentionally reviewing row scope."
+                ),
+            },
             "next_steps": [
                 "Review source warnings and row counts before writing any universe import.",
                 "Use full --json only for intentionally reviewed row inspection.",

@@ -291,6 +291,60 @@ def test_universe_preview_summary_json_keeps_raw_rows_hidden(
     assert payload["sources"][0]["available_column_count"] > 0
 
 
+def test_universe_preview_summary_json_surfaces_fallback_and_apply_gate(
+    tmp_path: Path,
+    capsys,
+):
+    _setup_base_dir(tmp_path)
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="sp500,smh,holdings",
+        loader=_loader({SOURCE_URLS["sp500"]: SP500_FIXTURE, SOURCE_FALLBACK_URLS["smh"][1]: SMH_HTML_FIXTURE}),
+    )
+
+    _print_result(result, as_json=False, summary_json=True)
+    payload = json.loads(capsys.readouterr().out)
+    review = payload["source_review"]
+
+    assert review["apply_gate"] == "review_required"
+    assert review["raw_rows_hidden"] is True
+    assert review["source_status_counts"]["loaded"] == 3
+    assert review["fallback_sources_used"] == [
+        {
+            "source_name": "smh",
+            "source_url": SOURCE_FALLBACK_URLS["smh"][1],
+            "status": "loaded",
+        }
+    ]
+    assert review["unavailable_sources"] == []
+    assert "review source warnings and row counts" in review["next_safe_step"].lower()
+    assert "rows" not in payload
+
+
+def test_universe_preview_summary_json_surfaces_unavailable_sources(
+    tmp_path: Path,
+    capsys,
+):
+    _setup_base_dir(tmp_path)
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="sp500,smh",
+        loader=_loader({}),
+    )
+
+    _print_result(result, as_json=False, summary_json=True)
+    payload = json.loads(capsys.readouterr().out)
+    review = payload["source_review"]
+
+    assert review["source_status_counts"]["source_unavailable"] == 2
+    assert review["fallback_sources_used"] == []
+    assert review["unavailable_sources"] == [
+        {"source_name": "sp500", "source_url": SOURCE_URLS["sp500"], "status": "source_unavailable"},
+        {"source_name": "smh", "source_url": SOURCE_FALLBACK_URLS["smh"][1], "status": "source_unavailable"},
+    ]
+    assert review["apply_gate"] == "review_required"
+
+
 def test_universe_preview_compact_output_deduplicates_source_warnings(
     tmp_path: Path,
     capsys,
