@@ -18984,6 +18984,12 @@ def test_data_health_coverage_summary_includes_cached_source_activation_context(
                     "keyed_free_tier_available": [],
                     "missing_keyed_free_tier": ["fmp", "alpha_vantage", "finnhub"],
                     "optional_broker_disabled": ["ibkr"],
+                    "source_path_last_tried": {
+                        "sec": "ok",
+                        "yfinance_fundamentals": "probe_succeeded",
+                        "fmp": "provider_key_missing",
+                    },
+                    "do_not_retry_this_session": ["fmp"],
                     "setup_commands": {
                         "fmp": "export FMP_API_KEY='<key>'",
                         "stooq": "no key required for public daily OHLCV",
@@ -19013,7 +19019,12 @@ def test_data_health_coverage_summary_includes_cached_source_activation_context(
     assert "sec, sec_submissions, yfinance_stage, stooq" in source_row["supporting_coverage"]
     assert "fmp, alpha_vantage, finnhub" in source_row["blocked_or_limited"]
     assert "ibkr disabled unless explicitly configured" in source_row["why_blocked_or_limited"].lower()
+    assert "export FMP_API_KEY='<key>'" in source_row["proof_to_unlock"]
+    assert "last tried: sec=ok" in source_row["stop_rule"].lower()
+    assert "do not retry this session: fmp" in source_row["stop_rule"].lower()
     assert "cached session source preflight" in rendered
+    assert "export fmp_api_key='<key>'" in rendered
+    assert "do not retry this session: fmp" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "order routing" not in rendered

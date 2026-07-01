@@ -8671,6 +8671,23 @@ def _source_activation_summary_row(console: dict[str, object]) -> dict[str, obje
     keyed_missing = [str(value).strip() for value in keyed_missing_values if str(value).strip()]
     broker_disabled = [str(value).strip() for value in console.get("optional_broker_disabled", []) if str(value).strip()]
     next_lane = str(console.get("next_executable_lane") or "coverage_workflow_evidence").strip()
+    setup_commands = console.get("setup_commands", {})
+    if not isinstance(setup_commands, dict):
+        setup_commands = {}
+    first_setup_key = keyed_missing[0] if keyed_missing else ""
+    next_setup_command = str(setup_commands.get(first_setup_key, "")).strip() if first_setup_key else ""
+    if not next_setup_command:
+        next_setup_command = str(setup_commands.get("provider_env_file", "")).strip()
+    source_path_last_tried = console.get("source_path_last_tried", {})
+    if isinstance(source_path_last_tried, dict):
+        last_tried_items = [
+            f"{source}={reason}"
+            for source, reason in source_path_last_tried.items()
+            if str(source).strip() and str(reason).strip()
+        ]
+    else:
+        last_tried_items = []
+    do_not_retry = [str(value).strip() for value in console.get("do_not_retry_this_session", []) if str(value).strip()]
     state = "supported" if free_public or keyed_available else "blocked"
     return {
         "lane": "Source activation",
@@ -8690,8 +8707,16 @@ def _source_activation_summary_row(console: dict[str, object]) -> dict[str, obje
             if broker_disabled
             else "Broker sources remain optional and disabled unless explicitly configured."
         ),
-        "proof_to_unlock": "Refresh cached session source preflight, then use validate/preview/apply gates for any source-backed rows.",
-        "stop_rule": "Stop before broad source batches if the cached preflight shows unavailable providers or missing keys.",
+        "proof_to_unlock": (
+            f"Next setup: {next_setup_command}"
+            if next_setup_command
+            else "Refresh cached session source preflight, then use validate/preview/apply gates for any source-backed rows."
+        ),
+        "stop_rule": (
+            "Stop before broad source batches if the cached preflight shows unavailable providers or missing keys. "
+            f"Last tried: {', '.join(last_tried_items) or 'not recorded'}. "
+            f"Do not retry this session: {', '.join(do_not_retry) or '-'}."
+        ),
         "operator_step": "make session-source-preflight",
     }
 
