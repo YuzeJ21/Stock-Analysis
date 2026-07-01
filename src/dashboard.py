@@ -9548,6 +9548,14 @@ def data_health_pilot_handoff_summary_cards(frame: pd.DataFrame | None, *, limit
     return pilot_console.pilot_handoff_summary_cards(frame, limit=limit)
 
 
+def data_health_controlled_pilot_outcome_frame(batch_proof_frame: pd.DataFrame | None) -> pd.DataFrame:
+    return pilot_console.controlled_pilot_outcome_frame(batch_proof_frame)
+
+
+def data_health_controlled_pilot_outcome_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
+    return pilot_console.controlled_pilot_outcome_cards(frame, limit=limit)
+
+
 def data_health_pilot_commit_package_frame(root: Path | None = None) -> pd.DataFrame:
     items = build_pilot_commit_package_handoff(root or BASE_DIR)
     return pd.DataFrame(
@@ -27653,6 +27661,18 @@ def render_data_health(
     )
     with st.expander("Pilot handoff review detail", expanded=False):
         st.dataframe(clean_display_frame(pilot_handoff_summary), width="stretch", hide_index=True)
+    controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame(batch_proof_summary_frame)
+    render_section_header(
+        "Controlled Pilot Outcomes",
+        "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers.",
+    )
+    render_signal_cards(
+        data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome),
+        show_commands=True,
+        variant="queue",
+    )
+    with st.expander("Controlled pilot outcome detail", expanded=False):
+        st.dataframe(clean_display_frame(controlled_pilot_outcome), width="stretch", hide_index=True)
     render_section_header(
         "Commit Package Handoff",
         "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing.",

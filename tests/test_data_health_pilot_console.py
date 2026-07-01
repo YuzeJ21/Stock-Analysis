@@ -168,6 +168,86 @@ def test_operator_next_action_summary_deferred_state_stays_copy_only():
     assert "sell" not in rendered
 
 
+def test_controlled_pilot_outcome_tracker_counts_reviewed_ticker_outcomes():
+    ledger = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-1",
+                "Lane": "fundamentals",
+                "Tickers": "AAA",
+                "Changed Tickers": "AAA",
+                "Final Outcome": "supported",
+                "Notes": "source-backed row reviewed",
+            },
+            {
+                "Batch ID": "RB-2",
+                "Lane": "share_count",
+                "Tickers": "BBB",
+                "Changed Tickers": "BBB",
+                "Final Outcome": "still_blocked",
+                "Notes": "explicit share-count proof unavailable",
+            },
+            {
+                "Batch ID": "RB-3",
+                "Lane": "peer_mapping",
+                "Tickers": "CCC/DDD",
+                "Changed Tickers": "",
+                "Final Outcome": "candidate_context_only",
+                "Notes": "candidate peers only",
+            },
+            {
+                "Batch ID": "RB-4",
+                "Lane": "fundamentals",
+                "Tickers": "EEE",
+                "Changed Tickers": "EEE",
+                "Final Outcome": "skipped",
+                "Notes": "not an operating company target",
+            },
+            {
+                "Batch ID": "RB-5",
+                "Lane": "fundamentals",
+                "Tickers": "FFF",
+                "Changed Tickers": "FFF",
+                "Final Outcome": "excluded",
+                "Notes": "not applicable",
+            },
+        ]
+    )
+
+    frame = pilot_console.controlled_pilot_outcome_frame(ledger)
+    cards = pilot_console.controlled_pilot_outcome_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert frame.iloc[0]["Status"] == "pilot_exit_ready"
+    assert frame.iloc[0]["Answer"] == "5 / 5 minimum reviewed ticker outcome(s)"
+    assert "supported=1" in frame.iloc[1]["Evidence"]
+    assert "candidate_context_only=1" in frame.iloc[1]["Evidence"]
+    assert "still_blocked=1" in frame.iloc[1]["Evidence"]
+    assert "skipped=1" in frame.iloc[1]["Evidence"]
+    assert "excluded=1" in frame.iloc[1]["Evidence"]
+    assert "controlled pilot can exit" in rendered
+    assert "not a coverage unlock" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_controlled_pilot_outcome_tracker_stays_open_until_five_tickers():
+    ledger = pd.DataFrame(
+        [
+            {"Batch ID": "RB-1", "Lane": "fundamentals", "Tickers": "AAA", "Final Outcome": "supported"},
+            {"Batch ID": "RB-2", "Lane": "share_count", "Tickers": "BBB", "Final Outcome": "still_blocked"},
+        ]
+    )
+
+    frame = pilot_console.controlled_pilot_outcome_frame(ledger)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert frame.iloc[0]["Status"] == "needs_more_packets"
+    assert frame.iloc[0]["Answer"] == "2 / 5 minimum reviewed ticker outcome(s)"
+    assert "run the next trusted-data pilot packet" in rendered
+    assert "do not call unsupported lanes ready" in rendered
+
+
 def test_pilot_evidence_review_combines_screenshots_packet_public_gate_and_churn():
     pilot_frame = pd.concat(
         [

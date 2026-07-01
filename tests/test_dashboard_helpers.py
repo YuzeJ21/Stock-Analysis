@@ -11851,6 +11851,30 @@ def test_data_health_reviewed_proof_cards_show_latest_proof_and_history(tmp_path
     assert "source-controlled" in rendered
 
 
+def test_data_health_controlled_pilot_outcome_cards_use_reviewed_batch_ledger():
+    batch_proofs = pd.DataFrame(
+        [
+            {"Batch ID": "RB-1", "Lane": "fundamentals", "Tickers": "AAA", "Final Outcome": "supported"},
+            {"Batch ID": "RB-2", "Lane": "share_count", "Tickers": "BBB", "Final Outcome": "still_blocked"},
+            {"Batch ID": "RB-3", "Lane": "peer_mapping", "Tickers": "CCC", "Final Outcome": "candidate_context_only"},
+            {"Batch ID": "RB-4", "Lane": "fundamentals", "Tickers": "DDD", "Final Outcome": "skipped"},
+            {"Batch ID": "RB-5", "Lane": "fundamentals", "Tickers": "EEE", "Final Outcome": "excluded"},
+        ]
+    )
+
+    frame = dashboard.data_health_controlled_pilot_outcome_frame(batch_proofs)
+    cards = dashboard.data_health_controlled_pilot_outcome_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert frame.iloc[0]["Status"] == "pilot_exit_ready"
+    assert "5 / 5 minimum reviewed ticker outcome" in rendered
+    assert "controlled pilot can exit" in rendered
+    assert "not a coverage unlock" in rendered
+    assert "make trusted-data-pilot-candidates top_n=10" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_readiness_ops_center_frame_groups_broad_lanes():
     frame = dashboard.data_health_readiness_ops_center_frame()
     rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
@@ -19081,6 +19105,10 @@ def test_data_health_pilot_handoff_summary_renders_before_packaging_and_walkthro
     handoff_header_index = source.index('render_section_header(\n        "Pilot Handoff Summary"', handoff_frame_index)
     handoff_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", handoff_header_index)
     handoff_detail_index = source.index('st.expander("Pilot handoff review detail"', handoff_cards_index)
+    controlled_outcome_index = source.index("controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame", handoff_frame_index)
+    controlled_header_index = source.index('render_section_header(\n        "Controlled Pilot Outcomes"', controlled_outcome_index)
+    controlled_cards_index = source.index("data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome)", controlled_header_index)
+    controlled_detail_index = source.index('st.expander("Controlled pilot outcome detail"', controlled_cards_index)
     commit_frame_index = source.index("pilot_commit_package = data_health_pilot_commit_package_frame", handoff_frame_index)
     commit_header_index = source.index('render_section_header(\n        "Commit Package Handoff"', commit_frame_index)
     commit_cards_index = source.index("data_health_pilot_commit_package_cards(pilot_commit_package)", commit_header_index)
@@ -19106,6 +19134,10 @@ def test_data_health_pilot_handoff_summary_renders_before_packaging_and_walkthro
         < handoff_header_index
         < handoff_cards_index
         < handoff_detail_index
+        < controlled_outcome_index
+        < controlled_header_index
+        < controlled_cards_index
+        < controlled_detail_index
         < commit_header_index
         < commit_cards_index
         < commit_detail_index
@@ -19119,6 +19151,7 @@ def test_data_health_pilot_handoff_summary_renders_before_packaging_and_walkthro
     assert "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing." in source
     assert "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables." in source
     assert "Verdict, manual gate, source-proof blocker, generated-churn boundary, and reviewer packet before detailed pilot tables." in source
+    assert "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers." in source
     assert "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing." in source
     assert "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary." in source
 

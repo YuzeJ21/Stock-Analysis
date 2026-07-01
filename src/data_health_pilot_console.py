@@ -14,6 +14,15 @@ import pandas as pd
 
 
 DEFAULT_PACKET_PATH = Path("outputs/pilot_readiness_packet.md")
+CONTROLLED_PILOT_OUTCOMES = {
+    "supported",
+    "human_reviewed_supported",
+    "auto_supported",
+    "candidate_context_only",
+    "still_blocked",
+    "skipped",
+    "excluded",
+}
 
 
 def _format_missing(value: object, fallback: str = "Not available") -> str:
@@ -57,6 +66,104 @@ def _status_counts(frame: pd.DataFrame | None) -> dict[str, int]:
         "manual": int((statuses == "manual").sum()),
         "blocked": int((statuses == "blocked").sum()),
     }
+
+
+def controlled_pilot_outcome_frame(
+    ledger_frame: pd.DataFrame | None,
+    *,
+    target_min: int = 5,
+    target_max: int = 10,
+) -> pd.DataFrame:
+    """Summarize whether the controlled pilot has enough reviewed outcomes."""
+
+    if ledger_frame is None or ledger_frame.empty or "Final Outcome" not in ledger_frame.columns:
+        reviewed = pd.DataFrame()
+    else:
+        reviewed = ledger_frame.copy()
+        reviewed["_outcome"] = reviewed["Final Outcome"].fillna("").astype(str).str.strip().str.lower()
+        reviewed = reviewed[reviewed["_outcome"].isin(CONTROLLED_PILOT_OUTCOMES)]
+
+    reviewed_count = int(len(reviewed))
+    status = "pilot_exit_ready" if reviewed_count >= target_min else "needs_more_packets"
+    if reviewed_count > target_max:
+        status = "pilot_scope_review"
+    outcome_counts = reviewed["_outcome"].value_counts().to_dict() if not reviewed.empty else {}
+    outcome_mix = ", ".join(
+        f"{outcome}={int(outcome_counts[outcome])}"
+        for outcome in sorted(outcome_counts)
+        if int(outcome_counts[outcome]) > 0
+    )
+    latest = reviewed.iloc[0] if not reviewed.empty else None
+    latest_summary = (
+        f"{_format_missing(latest.get('Batch ID'), 'latest batch')} / "
+        f"{_format_missing(latest.get('Lane'), 'lane')} / "
+        f"{_format_missing(latest.get('Final Outcome'), 'outcome')}"
+        if latest is not None
+        else "No reviewed pilot packet outcome yet."
+    )
+
+    rows = [
+        {
+            "Question": "Can the controlled pilot exit?",
+            "Status": status,
+            "Answer": f"{reviewed_count} / {target_min} minimum reviewed ticker outcome(s)",
+            "Evidence": (
+                "Controlled pilot can exit when reviewed packet outcomes cover the selected 5 to 10 company set."
+                if status == "pilot_exit_ready"
+                else "Run the next trusted-data pilot packet; do not call unsupported lanes ready."
+            ),
+            "Next Safe Action": "make trusted-data-pilot-candidates TOP_N=10",
+            "Stop Rule": "Pilot outcome counts are not a coverage unlock; source-proof gates still control every lane.",
+        },
+        {
+            "Question": "What outcome states are recorded?",
+            "Status": "reviewed" if reviewed_count else "manual",
+            "Answer": outcome_mix or "No reviewed outcomes recorded",
+            "Evidence": outcome_mix or "Record supported, candidate_context_only, still_blocked, skipped, or excluded after proof review.",
+            "Next Safe Action": "make reviewed-batch-proof",
+            "Stop Rule": "Do not record supported outcomes without validation, preview, rejected-row review, source proof, and artifact review.",
+        },
+        {
+            "Question": "What was the latest packet outcome?",
+            "Status": "reviewed" if reviewed_count else "manual",
+            "Answer": latest_summary,
+            "Evidence": _compact_fragment(latest.get("Notes"), fallback="No notes recorded.", max_chars=190) if latest is not None else "No latest outcome.",
+            "Next Safe Action": "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md",
+            "Stop Rule": "Keep broad generated CSV/JSON/report churn excluded unless the exact packet artifact is reviewed evidence.",
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def controlled_pilot_outcome_cards(frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "PILOT OUTCOMES",
+                "title": "Load reviewed pilot outcomes",
+                "body": "Use reviewed batch proof rows to see whether the controlled 5 to 10 company pilot has enough outcomes.",
+                "badges": ["read-only", "pilot exit"],
+                "command": "make reviewed-batch-proof",
+            }
+        ]
+    cards: list[dict[str, object]] = []
+    for _, row in frame.head(max(limit, 0)).iterrows():
+        question = _format_missing(row.get("Question"), "Pilot outcome")
+        status = _format_missing(row.get("Status"), "manual")
+        answer = _compact_fragment(row.get("Answer"), max_chars=150)
+        evidence = _compact_fragment(row.get("Evidence"), max_chars=170)
+        stop_rule = _compact_fragment(row.get("Stop Rule"), max_chars=160)
+        command = _format_missing(row.get("Next Safe Action"), "make reviewed-batch-proof")
+        cards.append(
+            {
+                "kicker": "PILOT OUTCOMES",
+                "title": question,
+                "body": f"{_card_sentence('Answer', answer)} {_card_sentence('Evidence', evidence)} {_card_sentence('Stop rule', stop_rule)}",
+                "badges": [status, "read-only"],
+                "command": command,
+            }
+        )
+    return cards
 
 
 def _pilot_verdict(counts: dict[str, int]) -> tuple[str, str]:
