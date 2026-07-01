@@ -942,7 +942,7 @@ def pilot_quick_path_lines(
     if not candidates:
         return [
             "Quick path: no company pilot is available from the current filters.",
-            "Next command: make trusted-data-pilot-candidates TOP_N=10 after rebuilding readiness outputs.",
+            "Next command: make project-status; use make provider-setup-checklist when current source-proof queues are exhausted.",
         ]
     shortlist = pilot_public_shortlist(candidates, limit=10)
     first = shortlist[0]
@@ -1433,7 +1433,8 @@ def render_trusted_data_pilot_packet(
         lines.extend(
             [
                 f"No operating-company pilot candidate matched {ticker}.",
-                "Run `make trusted-data-pilot-candidates TOP_N=10` to choose from current local blockers.",
+                "Run `make project-status` first; only run `make trusted-data-pilot-candidates TOP_N=10` when it shows executable company candidates.",
+                "If source-proof queues are exhausted, use `make provider-setup-checklist` instead.",
                 "ETF/index monitor examples such as QQQ and SMH are not operating-company DCF pilot targets.",
             ]
         )

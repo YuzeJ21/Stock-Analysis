@@ -28144,7 +28144,7 @@ def render_data_health(
         if pilot_preview.empty:
             render_context_note(
                 "Pilot preview unavailable.",
-                "Run `make trusted-data-pilot-candidates TOP_N=10` after rebuilding readiness outputs to rank current company blockers.",
+                "Run `make project-status` first. Only open trusted-data candidates when it shows executable company blockers; otherwise use `make provider-setup-checklist`.",
             )
         else:
             fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)

@@ -204,9 +204,9 @@ def trusted_pilot_lane_cards(lane_frame: pd.DataFrame | None, *, limit: int = 3)
             {
                 "kicker": "LANE BOARD",
                 "title": "Lane groups need current readiness rows",
-                "body": "Run the read-only pilot candidate command after rebuilding readiness outputs; do not force a lane when source proof is unavailable.",
+                "body": "Run project-status first. If source-proof queues are exhausted, use provider setup instead of reopening stale pilot candidates.",
                 "badges": ["read-only", "no fake rows"],
-                "command": "make trusted-data-pilot-candidates TOP_N=10",
+                "command": "make project-status",
             }
         ]
     cards: list[dict[str, object]] = []

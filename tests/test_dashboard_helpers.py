@@ -11925,6 +11925,15 @@ def test_data_health_trusted_pilot_lane_cards_show_next_safe_command_and_locked_
     assert "sell" not in rendered
 
 
+def test_data_health_trusted_pilot_lane_cards_empty_state_routes_to_project_status():
+    cards = dashboard.data_health_trusted_pilot_lane_cards(pd.DataFrame(), limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make project-status"
+    assert "provider setup" in rendered
+    assert "trusted-data-pilot-candidates top_n=10 after rebuilding readiness outputs" not in rendered
+
+
 def test_data_health_reviewed_proof_timeline_frame_reads_durable_ledger(tmp_path):
     ledger = tmp_path / "reviewed_data_proofs.csv"
     ledger.write_text(
@@ -15170,7 +15179,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert 'st.expander("Proof history evidence drawer", expanded=False)' in source
     assert '"Pilot selection rule."' in source
     assert "fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)" in source
-    assert "`make trusted-data-pilot-candidates TOP_N=10`" in source
+    assert "`make project-status` first" in source
+    assert "`make provider-setup-checklist`" in source
     assert "broad raw table" not in source
     assert "st.dataframe(clean_display_frame(pilot_preview), width=\"stretch\", hide_index=True)" in source
 

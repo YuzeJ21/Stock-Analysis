@@ -975,6 +975,15 @@ def test_pilot_quick_path_lines_show_first_action_before_detailed_evidence():
     assert "Evidence required:" not in quick_path
 
 
+def test_pilot_quick_path_lines_empty_queue_routes_to_project_status():
+    quick_path = "\n".join(pilot_quick_path_lines([]))
+
+    assert "Quick path: no company pilot is available from the current filters." in quick_path
+    assert "Next command: make project-status" in quick_path
+    assert "make provider-setup-checklist" in quick_path
+    assert "trusted-data-pilot-candidates TOP_N=10 after rebuilding readiness outputs" not in quick_path
+
+
 def test_pilot_proof_story_lines_explain_loop_without_claiming_data_changed():
     candidate = build_trusted_data_pilot_candidates(
         [
@@ -1456,7 +1465,8 @@ def test_render_trusted_data_pilot_packet_handles_non_candidate_without_inventin
     rendered = render_trusted_data_pilot_packet(None, requested_ticker="QQQ")
 
     assert "No operating-company pilot candidate matched QQQ." in rendered
-    assert "make trusted-data-pilot-candidates TOP_N=10" in rendered
+    assert "Run `make project-status` first" in rendered
+    assert "make provider-setup-checklist" in rendered
     assert "QQQ and SMH are not operating-company DCF pilot targets" in rendered
 
 

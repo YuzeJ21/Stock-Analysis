@@ -130,6 +130,15 @@ def test_trusted_pilot_lane_board_and_cards_keep_locked_lanes_visible():
     assert "sell" not in rendered + card_rendered
 
 
+def test_trusted_pilot_lane_cards_empty_state_routes_to_project_status():
+    cards = pilot_console.trusted_pilot_lane_cards(pd.DataFrame(), limit=3)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make project-status"
+    assert "provider setup" in rendered
+    assert "trusted-data-pilot-candidates top_n=10 after rebuilding readiness outputs" not in rendered
+
+
 def test_trusted_pilot_preview_cards_summarize_top_candidate_without_advice():
     preview = pd.DataFrame(
         [
