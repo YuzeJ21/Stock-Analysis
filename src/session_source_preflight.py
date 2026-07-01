@@ -753,6 +753,7 @@ def build_source_activation_console_v2(
     source_categories: dict[str, list[str]],
     do_not_retry_paths: list[str],
     preferred_lane_order: list[str],
+    source_actionability: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     def reason(source_name: str) -> str:
         source = sources.get(source_name, {})
@@ -842,6 +843,12 @@ def build_source_activation_console_v2(
             "otherwise leave disabled."
         ),
     }
+    next_executable_lane = preferred_lane_order[0] if preferred_lane_order else "coverage_workflow_evidence"
+    next_executable_command = "make coverage-frontier TOP_N=10"
+    if source_actionability and source_actionability.get("do_not_repeat_without_new_source"):
+        next_executable_lane = "coverage_workflow_evidence"
+        next_executable_command = "make project-status"
+
     return {
         "free_public_available": source_categories.get("free_public_available", []),
         "optional_broker_disabled": source_categories.get("optional_broker_disabled", []),
@@ -852,8 +859,8 @@ def build_source_activation_console_v2(
         "do_not_retry_this_session": do_not_retry_paths,
         "setup_commands": setup_commands,
         "provider_capabilities": provider_capabilities,
-        "next_executable_lane": preferred_lane_order[0] if preferred_lane_order else "coverage_workflow_evidence",
-        "next_executable_command": "make coverage-frontier TOP_N=10",
+        "next_executable_lane": next_executable_lane,
+        "next_executable_command": next_executable_command,
         "non_retry_rule": "Record unavailable source paths once, then pivot to the next executable lane in this session.",
     }
 
@@ -1034,6 +1041,7 @@ def build_session_source_preflight(
         source_categories=source_categories,
         do_not_retry_paths=do_not_retry_paths,
         preferred_lane_order=preferred_lane_order,
+        source_actionability=source_actionability,
     )
 
     return {

@@ -57,6 +57,12 @@ If a source path fails in a session, record the reason once and pivot:
 - keyed provider missing: mark the source as `keyed_free_tier_missing` and show the setup command.
 - IBKR not configured: keep it `optional_broker_disabled`; do not treat it as a blocker.
 
+If a source path is reachable but the current queue is already covered by reviewed
+`still_blocked`, `skipped`, `excluded`, or `candidate_context_only` proof rows,
+do not run the same lane again. The Source Activation Console should route to
+workflow evidence or source setup until new provider data, keyed sources,
+reviewed manual rows, or changed blockers appear.
+
 The next safe command is usually:
 
 ```bash
