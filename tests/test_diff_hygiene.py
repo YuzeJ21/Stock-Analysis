@@ -267,6 +267,7 @@ def test_public_release_package_reports_clean_push_path():
     assert "only when explicitly asked" in report
     assert "License gate: no root LICENSE file found" in report
     assert "portfolio/demo only" in report
+    assert "make license-status" in report
     assert "docs/LICENSE_DECISION_GUIDE.md" in report
     assert "investment advice" in report
 
@@ -312,6 +313,7 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "only when explicitly asked" in report
     assert "License gate: no root LICENSE file found" in report
     assert "portfolio/demo only" in report
+    assert "make license-status" in report
     assert "docs/LICENSE_DECISION_GUIDE.md" in report
     assert "source proof, validate, preview" in report
     assert "real Streamlit route review" in report
@@ -373,6 +375,7 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "Package status: product package pending commit; commit this package before starting another feature slice" in report
     assert "License gate: no root LICENSE file found" in report
     assert "portfolio/demo only" in report
+    assert "make license-status" in report
     assert "docs/LICENSE_DECISION_GUIDE.md" in report
     assert "Step 1 - verify before staging" in report
     assert "make public-check" in report

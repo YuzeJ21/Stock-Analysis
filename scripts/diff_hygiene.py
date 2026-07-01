@@ -184,11 +184,13 @@ def format_license_gate(repo_root: Path | None = None) -> list[str]:
     if (root / "LICENSE").exists():
         return [
             "License gate: root LICENSE file found.",
+            "  Run make license-status before public sharing.",
             "  Confirm README License wording matches the selected license before public reuse claims.",
         ]
     return [
         "License gate: no root LICENSE file found.",
         "  Share as portfolio/demo only; do not describe as open source or reusable software until a license is selected.",
+        "  Run make license-status before public sharing.",
         "  See docs/LICENSE_DECISION_GUIDE.md before adding reuse-rights language.",
     ]
 
