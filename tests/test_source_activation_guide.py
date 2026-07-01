@@ -20,6 +20,11 @@ def test_source_activation_guide_lists_public_sources_without_secrets(monkeypatc
     assert providers["FMP free tier"]["category"] == "keyed_free_tier_available"
     assert providers["Alpha Vantage free tier"]["category"] == "keyed_free_tier_missing"
     assert providers["IBKR read-only"]["category"] == "optional_broker_disabled"
+    assert providers["FMP free tier"]["batch_policy"] == "small_batch_only; recommended <=250 requests/day and <=25 tickers/run"
+    assert providers["Alpha Vantage free tier"]["batch_policy"] == "small_batch_only; recommended <=25 requests/day and <=5 tickers/run"
+    assert providers["Finnhub free tier"]["batch_policy"] == "small_batch_only; recommended <=60 requests/day and <=10 tickers/run"
+    assert "broad unlimited refresh" not in rendered
+    assert "small_batch_only" in rendered
     assert "secret-fmp-key" not in json.dumps(guide)
     assert "secret-fmp-key" not in rendered
     assert "No provider key values are printed or stored by this guide." in rendered

@@ -11,6 +11,11 @@ KEYED_PROVIDER_ENVS = {
     "Alpha Vantage free tier": "ALPHA_VANTAGE_API_KEY",
     "Finnhub free tier": "FINNHUB_API_KEY",
 }
+KEYED_PROVIDER_BATCH_POLICIES = {
+    "FMP free tier": "small_batch_only; recommended <=250 requests/day and <=25 tickers/run",
+    "Alpha Vantage free tier": "small_batch_only; recommended <=25 requests/day and <=5 tickers/run",
+    "Finnhub free tier": "small_batch_only; recommended <=60 requests/day and <=10 tickers/run",
+}
 IBKR_ENVS = ["IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"]
 
 
@@ -27,6 +32,7 @@ def _provider_row(
     usage: str,
     cannot_unlock: str,
     setup: str,
+    batch_policy: str = "",
 ) -> dict[str, Any]:
     return {
         "provider": provider,
@@ -36,6 +42,7 @@ def _provider_row(
         "usage": usage,
         "cannot_unlock": cannot_unlock,
         "setup": setup,
+        "batch_policy": batch_policy,
     }
 
 
@@ -49,8 +56,9 @@ def build_source_activation_guide() -> dict[str, Any]:
                 env_vars=[env_name],
                 can_cover=["price", "fundamentals", "share_count"],
                 usage="keyed_free_tier_fallback",
-                cannot_unlock="Unlimited batch coverage, recommendations, order routing, or unreviewed valuation inputs.",
+                cannot_unlock="Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.",
                 setup=f"Set {env_name} in config/provider_keys.env, then rerun make session-source-preflight.",
+                batch_policy=KEYED_PROVIDER_BATCH_POLICIES[provider],
             )
         )
 
@@ -159,6 +167,8 @@ def render_source_activation_guide(guide: dict[str, Any]) -> str:
             f"usage={row['usage']}"
         )
         lines.append(f"  setup: {row['setup']}")
+        if row.get("batch_policy"):
+            lines.append(f"  batch_policy: {row['batch_policy']}")
         lines.append(f"  cannot_unlock: {row['cannot_unlock']}")
     lines.append("")
     lines.append("Validate / preview / apply gate:")

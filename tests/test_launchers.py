@@ -513,6 +513,11 @@ def test_source_activation_guide_documents_provider_setup_without_real_keys():
     assert "fundamentals" in guide
     assert "share count" in guide
     assert "metadata only" in guide
+    assert "broad unlimited refresh" not in guide.lower()
+    assert "unlimited batch coverage" not in guide.lower()
+    assert "FMP free tier" in guide and "small batch" in guide
+    assert "Alpha Vantage free tier" in guide and "25 requests/day" in guide
+    assert "Finnhub free tier" in guide and "60 requests/day" in guide
     assert "not investment advice" in guide
     assert "REPLACE_WITH" in guide
     assert "Operator Summary" in guide

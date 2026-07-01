@@ -45,12 +45,18 @@ Leave IBKR unset unless you intentionally run IBKR Gateway/TWS for read-only dai
 | SEC filing documents | `SEC_USER_AGENT` | explicit filing-document share count facts | inferred shares, revenue, free cash flow |
 | Stooq | no key or `STOOQ_API_KEY` if required | price daily OHLCV | fundamentals, share count, peers |
 | Yahoo/yfinance | optional dependency | price, provider-assisted fundamentals, optional context | trusted proof without validate/preview/apply |
-| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | unlimited batch coverage |
-| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | broad unlimited refresh |
-| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | broad unlimited refresh |
+| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | full-universe refresh without caps |
+| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | full-universe refresh without caps |
+| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | full-universe refresh without caps |
 | IBKR read-only | `IBKR_HOST`, `IBKR_PORT`, `IBKR_CLIENT_ID` | price read-only daily OHLCV | fundamentals, recommendations, broker actions |
 
-Free-tier fallbacks are capped by product policy. Start with `make session-source-preflight`, then use the lane-specific dry-run/validate/preview/apply gates.
+Free-tier fallbacks are capped by product policy and should be treated as small batch sources, not full-universe coverage switches:
+
+- FMP free tier: recommended <=250 requests/day and <=25 tickers/run.
+- Alpha Vantage free tier: recommended <=25 requests/day and <=5 tickers/run.
+- Finnhub free tier: recommended <=60 requests/day and <=10 tickers/run.
+
+Start with `make session-source-preflight`, then use the lane-specific dry-run/validate/preview/apply gates.
 
 Optional earnings and analyst-estimate rows have an extra boundary. Provider-assisted rows may supply only earnings timing or price-target context. Those rows can be recorded as `candidate_context_only`, but they do not unlock the full optional readiness lane unless the row also contains the required earnings metrics or EPS/revenue estimate fields. Price-target context is research context only and must not be rendered as a recommendation.
 
