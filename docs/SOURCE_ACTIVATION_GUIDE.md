@@ -6,6 +6,12 @@ This guide explains how to unlock more source-backed coverage without turning th
 
 Real provider keys must stay local. Do not commit `config/provider_keys.env`, `.env`, `.env.local`, account identifiers, tokens, or broker session files.
 
+For a copy-only setup summary that never prints real key values, run:
+
+```bash
+make source-activation-guide
+```
+
 ```bash
 cp config/provider_keys.env.example config/provider_keys.env
 chmod 600 config/provider_keys.env
@@ -66,6 +72,7 @@ reviewed manual rows, or changed blockers appear.
 The next safe command is usually:
 
 ```bash
+make source-activation-guide
 make session-source-preflight
 make coverage-frontier TOP_N=10
 ```

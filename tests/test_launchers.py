@@ -78,6 +78,7 @@ def test_makefile_contains_convenience_targets():
         "data-release-decision",
         "public-release-package",
         "public-release-handoff",
+        "source-activation-guide",
         "staged-hygiene-check",
         "public-wording-check",
         "public-check",
