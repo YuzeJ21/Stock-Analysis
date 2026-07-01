@@ -847,11 +847,11 @@ def _trusted_data_pilot_command_row() -> dict[str, str]:
 
 def _workflow_evidence_command_row() -> dict[str, str]:
     return _command_row(
-        "Review source setup guide",
-        "make source-activation-guide",
+        "Review provider setup checklist",
+        "make provider-setup-checklist",
         (
             "Current source-proof queues have no unreviewed executable company candidates. "
-            "Review provider setup, source boundaries, and validate/preview/apply gates before repeating "
+            "Review provider setup states, source boundaries, and validate/preview/apply gates before repeating "
             "the trusted-data pilot loop."
         ),
         source_context="source activation guide, project status, proof ledger, and source preflight",
@@ -890,7 +890,7 @@ def _ensure_exhausted_source_scope_rows(rows: list[dict[str, str]]) -> list[dict
     if not rows:
         return rows
     commands = [str(row.get("Command") or "").strip() for row in rows]
-    if "make source-activation-guide" not in commands:
+    if "make provider-setup-checklist" not in commands:
         return rows
     wanted = _scope_and_risk_context_command_rows()
     wanted_commands = {str(row.get("Command") or "").strip() for row in wanted}
@@ -903,7 +903,7 @@ def _ensure_exhausted_source_scope_rows(rows: list[dict[str, str]]) -> list[dict
         (
             index + 1
             for index, row in enumerate(filtered)
-            if str(row.get("Command") or "").strip() == "make source-activation-guide"
+            if str(row.get("Command") or "").strip() == "make provider-setup-checklist"
         ),
         1,
     )
@@ -1536,9 +1536,9 @@ def _print_human(payload: dict[str, Any]) -> None:
         "- Still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates "
         "stay locked where source-backed rows are missing."
     )
-    if first_command == "make source-activation-guide":
+    if first_command == "make provider-setup-checklist":
         print(
-            "- Best next proof: make source-activation-guide for provider setup and source-boundary evidence; "
+            "- Best next proof: make provider-setup-checklist for provider setup and source-boundary evidence; "
             "current source-proof queues have no unreviewed executable company candidates, so wait for new "
             "provider data, keyed sources, reviewed manual rows, or changed blockers before repeating the "
             "trusted-data pilot loop."

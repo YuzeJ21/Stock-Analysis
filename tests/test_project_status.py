@@ -946,7 +946,7 @@ def test_project_status_fast_check_pivots_when_dcf_source_ladder_has_no_unreview
 
     assert payload is not None
     commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
-    assert commands[0] == "make source-activation-guide"
+    assert commands[0] == "make provider-setup-checklist"
     assert commands[1] == "make universe-scope TOP_N=10"
     assert commands[2] == "make risk-context"
     assert "make trusted-data-pilot-candidates TOP_N=10" not in commands
@@ -970,11 +970,11 @@ def test_project_status_routes_exhausted_proof_queues_to_workflow_evidence(
 
     assert payload is not None
     commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
-    assert commands[0] == "make source-activation-guide"
+    assert commands[0] == "make provider-setup-checklist"
     assert commands[1] == "make universe-scope TOP_N=10"
     assert commands[2] == "make risk-context"
     assert "make trusted-data-pilot-candidates TOP_N=10" not in commands
-    assert payload["recommended_next_command_rows"][0]["Step"] == "Review source setup guide"
+    assert payload["recommended_next_command_rows"][0]["Step"] == "Review provider setup checklist"
     assert payload["recommended_next_command_rows"][1]["Step"] == "Choose safe universe scope"
     assert payload["recommended_next_command_rows"][2]["Step"] == "Review risk context readiness"
     assert payload["top_onboarding_actions"] == []
@@ -1020,7 +1020,7 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
     project_status._print_human(payload)
     output = capsys.readouterr().out.lower()
 
-    assert "best next proof: make source-activation-guide" in output
+    assert "best next proof: make provider-setup-checklist" in output
     assert "best next proof: make trusted-data-pilot-candidates" not in output
     assert "choose safe universe scope: make universe-scope top_n=10" in output
     assert "review risk context readiness: make risk-context" in output
