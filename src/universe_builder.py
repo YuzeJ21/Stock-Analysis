@@ -978,8 +978,50 @@ def summarize_universe_manager(base_dir: Path | None = None) -> dict[str, Any]:
     }
 
 
+def _source_review_payload(sources: list[dict[str, Any]]) -> dict[str, Any]:
+    source_status_counts: dict[str, int] = {}
+    fallback_sources_used: list[dict[str, str]] = []
+    unavailable_sources: list[dict[str, str]] = []
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        source_name = str(source.get("source_name") or "-")
+        status = str(source.get("status") or "-")
+        source_url = str(source.get("source_url") or "-")
+        source_status_counts[status] = source_status_counts.get(status, 0) + 1
+        warning_text = " ".join(str(warning) for warning in source.get("warnings") or [])
+        if "using fallback source" in warning_text:
+            fallback_sources_used.append(
+                {
+                    "source_name": source_name,
+                    "source_url": source_url,
+                    "status": status,
+                }
+            )
+        if status in {"source_unavailable", "missing_file", "empty"}:
+            unavailable_sources.append(
+                {
+                    "source_name": source_name,
+                    "source_url": source_url,
+                    "status": status,
+                }
+            )
+    return {
+        "apply_gate": "review_required",
+        "raw_rows_hidden": True,
+        "source_status_counts": source_status_counts,
+        "fallback_sources_used": fallback_sources_used,
+        "unavailable_sources": unavailable_sources,
+        "next_safe_step": (
+            "Review source warnings and row counts before writing any universe import; "
+            "inspect full rows only when intentionally reviewing row scope."
+        ),
+    }
+
+
 def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     summary = payload.get("summary") or {}
+    source_review = _source_review_payload(payload.get("sources") or [])
     print("Universe Preview")
     print("Read-only: this preview does not write, apply, stage, commit, push, or rewrite local universe files.")
     print("Research-only: universe membership is source metadata, not investment advice or a trade instruction.")
@@ -1015,6 +1057,15 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
         print("warnings:")
         for warning in warnings:
             print(f"- {warning}")
+    print(
+        "source_review: "
+        f"apply_gate={source_review['apply_gate']}; "
+        f"fallback_sources_used={len(source_review['fallback_sources_used'])}; "
+        f"unavailable_sources={len(source_review['unavailable_sources'])}; "
+        f"raw_rows_hidden={str(source_review['raw_rows_hidden']).lower()}"
+    )
+    if source_review["fallback_sources_used"]:
+        print("fallback boundary: review fallback source row counts before staging; use manual CSV only if all remote sources fail")
     print("next:")
     print("- Review source warnings and row counts before writing any universe import.")
     print("- To inspect raw rows intentionally: python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json")
@@ -1036,46 +1087,12 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
             available_columns = compact_source.pop("available_columns", [])
             compact_source["available_column_count"] = len(available_columns) if isinstance(available_columns, list) else 0
             compact_sources.append(compact_source)
-        source_status_counts: dict[str, int] = {}
-        fallback_sources_used: list[dict[str, str]] = []
-        unavailable_sources: list[dict[str, str]] = []
-        for source in compact_sources:
-            source_name = str(source.get("source_name") or "-")
-            status = str(source.get("status") or "-")
-            source_url = str(source.get("source_url") or "-")
-            source_status_counts[status] = source_status_counts.get(status, 0) + 1
-            warning_text = " ".join(str(warning) for warning in source.get("warnings") or [])
-            if "using fallback source" in warning_text:
-                fallback_sources_used.append(
-                    {
-                        "source_name": source_name,
-                        "source_url": source_url,
-                        "status": status,
-                    }
-                )
-            if status in {"source_unavailable", "missing_file", "empty"}:
-                unavailable_sources.append(
-                    {
-                        "source_name": source_name,
-                        "source_url": source_url,
-                        "status": status,
-                    }
-                )
+        source_review = _source_review_payload(compact_sources)
         return {
             "status": payload.get("status", "-"),
             "summary": summary,
             "sources": compact_sources,
-            "source_review": {
-                "apply_gate": "review_required",
-                "raw_rows_hidden": True,
-                "source_status_counts": source_status_counts,
-                "fallback_sources_used": fallback_sources_used,
-                "unavailable_sources": unavailable_sources,
-                "next_safe_step": (
-                    "Review source warnings and row counts before writing any universe import; "
-                    "inspect full rows only when intentionally reviewing row scope."
-                ),
-            },
+            "source_review": source_review,
             "next_steps": [
                 "Review source warnings and row counts before writing any universe import.",
                 "Use full --json only for intentionally reviewed row inspection.",
