@@ -1015,7 +1015,7 @@ universe-preview:
 	python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
 
 universe-preview-summary:
-	python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
+	@python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
 
 universe-apply:
 	python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50

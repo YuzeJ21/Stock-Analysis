@@ -52,7 +52,7 @@ def test_universe_preview_summary_uses_compact_human_output():
 
     target = makefile.split("universe-preview-summary:", 1)[1].split("\nuniverse-apply:", 1)[0]
 
-    assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" in target
+    assert "\t@python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" in target
     assert "--summary-json" not in target
 
 
