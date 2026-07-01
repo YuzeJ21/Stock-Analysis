@@ -93,6 +93,35 @@ STALE_DATA_GAP_ACTIONS = {
 }
 
 
+def _apply_gated_import_action(text: str) -> str:
+    """Keep import review actions from presenting apply as an automatic next step."""
+
+    value = str(text or "").strip()
+    if not value:
+        return value
+    value = re.sub(
+        r"Run make imports-validate(?P<scope>[^,]*), then make imports-preview(?P=scope), then make imports-apply(?P=scope), then make status to confirm the live local (?P<context>[^.]+?) inputs\.?",
+        (
+            r"Run make imports-validate\g<scope>, then make imports-preview\g<scope>; apply only after "
+            r"validation passes, preview scope is intended, and rejected rows are zero. Then make status "
+            r"to confirm the live local \g<context> inputs."
+        ),
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(
+        r"run make imports-validate(?P<scope>[^,]*), make imports-preview(?P=scope), make imports-apply(?P=scope), and make status before relying on peer-relative valuation\.?",
+        (
+            r"run make imports-validate\g<scope>, make imports-preview\g<scope>; apply only after validation "
+            r"passes, preview scope is intended, and rejected rows are zero. Then make status before relying "
+            r"on peer-relative valuation."
+        ),
+        value,
+        flags=re.IGNORECASE,
+    )
+    return value
+
+
 def _normalize_global_gap_recommended_action(dataset: str, focus_command: str, recommended_action: str) -> str:
     normalized_dataset = str(dataset or "").strip().lower()
     normalized_focus = str(focus_command or "").strip().lower()
@@ -105,8 +134,8 @@ def _normalize_global_gap_recommended_action(dataset: str, focus_command: str, r
         if "make imports-validate" not in normalized_recommended.lower():
             return (
                 "Run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
-                "then make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
-                "then make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>, then make status "
+                "then make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>; apply only after "
+                "validation passes, preview scope is intended, and rejected rows are zero. Then make status "
                 "to confirm the live local fundamentals and DCF inputs."
             )
     if normalized_dataset == "peers" and (
@@ -118,11 +147,11 @@ def _normalize_global_gap_recommended_action(dataset: str, focus_command: str, r
             return (
                 "Run make templates, then fill data/imports/peers.csv manually with transparent peer mappings. "
                 "After that, run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
-                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
-                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>, and make status "
+                "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>; apply only after validation "
+                "passes, preview scope is intended, and rejected rows are zero. Then make status "
                 "before relying on peer-relative valuation."
             )
-    return normalized_recommended
+    return _apply_gated_import_action(normalized_recommended)
 
 
 @dataclass
@@ -524,10 +553,12 @@ def _normalize_data_quality_coverage_action(
             if "make imports-validate" not in normalized_recommended:
                 normalized_recommended = (
                     f"Run make imports-validate IMPORT_TICKERS={ticker}, "
-                    f"then make imports-preview IMPORT_TICKERS={ticker}, "
-                    f"then make imports-apply IMPORT_TICKERS={ticker}, then make status "
+                    f"then make imports-preview IMPORT_TICKERS={ticker}; apply only after validation passes, "
+                    "preview scope is intended, and rejected rows are zero. Then make status "
                     "to confirm the live local fundamentals and DCF inputs."
                 )
+            else:
+                normalized_recommended = _apply_gated_import_action(normalized_recommended)
         elif ticker and "make focus-fundamentals" not in normalized_recommended:
             normalized_recommended = _fundamentals_focus_recommended_action(ticker)
         if not normalized_focus:
@@ -538,7 +569,9 @@ def _normalize_data_quality_coverage_action(
 
     if lane == "peers":
         missing_mapping = "peer mapping" in str(missing_fields or "").strip().lower()
-        if normalized_focus != "make imports-validate" and ticker and "make focus-peers" not in normalized_recommended:
+        if normalized_focus == "make imports-validate":
+            normalized_recommended = _apply_gated_import_action(normalized_recommended)
+        elif ticker and "make focus-peers" not in normalized_recommended:
             normalized_recommended = _peer_focus_recommended_action(ticker, missing_mapping=missing_mapping)
         if not normalized_focus:
             normalized_focus = focus_command_for_ticker("peers", ticker)

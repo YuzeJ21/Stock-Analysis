@@ -662,6 +662,8 @@ def test_action_queue_payload_refreshes_stale_staged_fundamentals_gap_reason(tmp
     )
     assert staged_row["title"] == "Review fundamentals import file"
     assert "data/imports/fundamentals.csv" in staged_row["reason"]
+    assert "apply only after validation passes, preview scope is intended, and rejected rows are zero" in staged_row["recommended_action"]
+    assert "then make imports-apply" not in staged_row["recommended_action"]
 
 
 def test_data_quality_refresh_detector_accepts_staged_peer_enrichment_rows():
@@ -886,8 +888,8 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     assert fundamentals_row.example_command == "make runbook-fundamentals-broader"
     assert fundamentals_row.recommended_action == (
         "Run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
-        "then make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
-        "then make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>, then make status "
+        "then make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>; apply only after "
+        "validation passes, preview scope is intended, and rejected rows are zero. Then make status "
         "to confirm the live local fundamentals and DCF inputs."
     )
 
@@ -895,8 +897,8 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     assert peers_row.recommended_action == (
         "Run make templates, then fill data/imports/peers.csv manually with transparent peer mappings. "
         "After that, run make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
-        "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>, "
-        "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>, and make status "
+        "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>; apply only after validation "
+        "passes, preview scope is intended, and rejected rows are zero. Then make status "
         "before relying on peer-relative valuation."
     )
     assert peers_row.focus_command == "make runbook-peers-broader"
@@ -1378,7 +1380,8 @@ def test_action_queue_rows_preserve_staged_fundamentals_data_quality_actions():
     assert nvda_row.action_type == "coverage"
     assert nvda_row.focus_command == "make imports-validate"
     assert nvda_row.example_command == "make imports-preview"
-    assert "make imports-apply" in nvda_row.recommended_action
+    assert "apply only after validation passes, preview scope is intended, and rejected rows are zero" in nvda_row.recommended_action
+    assert "then make imports-apply" not in nvda_row.recommended_action
 
 
 def test_data_quality_needs_refresh_rejects_stale_example_commands():

@@ -368,7 +368,8 @@ def test_project_status_surfaces_staged_fundamentals_follow_through_in_next_step
     assert "make imports-validate" in commands
     staged_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate")
     assert staged_row["Step"] == "Review fundamentals import file"
-    assert "make imports-apply" in staged_row["Reason"]
+    assert "apply only after validation passes, preview scope is intended, and rejected rows are zero" in staged_row["Reason"]
+    assert "then make imports-apply" not in staged_row["Reason"]
     assert staged_row["SourceContext"] == "data/imports/fundamentals.csv"
     assert staged_row["FreshnessContext"]
 
@@ -481,7 +482,8 @@ def test_project_status_combines_staged_fundamentals_and_peer_imports_into_one_f
     assert "data/imports/fundamentals.csv" in staged_row["Reason"]
     assert "data/imports/peers.csv" in staged_row["Reason"]
     assert "fundamentals and peers" in staged_row["Reason"]
-    assert "make imports-apply" in staged_row["Reason"]
+    assert "apply only after validation passes, preview scope is intended, and rejected rows are zero" in staged_row["Reason"]
+    assert "then make imports-apply" not in staged_row["Reason"]
 
 
 def test_project_status_normalizes_legacy_parse_error_reason_from_price_status(tmp_path: Path):
@@ -695,7 +697,11 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
             {
                 "Step": "Review import drafts",
                 "Command": "make imports-validate",
-                "Reason": "Staged rows are already present in data/imports/fundamentals.csv; run make imports-apply after previewing import drafts.",
+                "Reason": (
+                    "Local import files already have rows in data/imports/fundamentals.csv. "
+                    "Use make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                    "to confirm the live local fundamentals inputs."
+                ),
                 "SourceContext": "data/imports/fundamentals.csv",
                 "FreshnessContext": "local import draft workflow rows present",
             }
@@ -733,6 +739,9 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
     import_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate")
     assert import_row["Step"] == "Review import files"
     assert "Local import files already have rows" in import_row["Reason"]
+    assert "apply only after validation passes, preview scope is intended, and rejected rows are zero" in import_row["Reason"]
+    assert "then make imports-apply" not in import_row["Reason"]
+    assert "run make imports-apply after previewing" not in import_row["Reason"].lower()
     assert "import files" in import_row["Reason"]
     assert "import drafts" not in import_row["Reason"]
     assert import_row["FreshnessContext"] == "local import files present; preview before apply"

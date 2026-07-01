@@ -197,6 +197,19 @@ def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
             .replace("import draft", "import file")
             .replace("Staged rows are already present", "Local import files already have rows")
         )
+        if str(row.get("Command") or "").strip() == "make imports-validate":
+            row["Reason"] = re.sub(
+                r";\s*run make imports-apply after previewing import files\.?",
+                "; apply only after validation passes, preview scope is intended, and rejected rows are zero.",
+                str(row["Reason"]),
+                flags=re.IGNORECASE,
+            )
+            row["Reason"] = re.sub(
+                r"(?:Use|Run) make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local ([^.]+?) inputs\.?",
+                r"Run make imports-validate, then make imports-preview; apply only after validation passes, preview scope is intended, and rejected rows are zero. Then make status to confirm the live local \1 inputs.",
+                str(row["Reason"]),
+                flags=re.IGNORECASE,
+            )
         if str(row.get("Command") or "").strip().startswith("make price-refresh-loop"):
             row["Reason"] = (
                 "Preview the broad-universe price frontier first; PROVIDER=auto tries Stooq, Yahoo, "
@@ -594,6 +607,17 @@ def _command_row(
     }
 
 
+def _import_review_reason(file_text: str, dataset_text: str) -> str:
+    """Describe import-file review without making apply sound automatic."""
+
+    return (
+        f"Local import files already have rows in {file_text}. "
+        "Run make imports-validate, then make imports-preview; apply only after validation passes, "
+        "preview scope is intended, and rejected rows are zero. Then make status to confirm the live local "
+        f"{dataset_text} inputs."
+    )
+
+
 def _select_top_bundle(actions: list[dict[str, Any]], bundles: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not bundles:
         return None
@@ -650,11 +674,7 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
             ]
             dataset_text = " and ".join(datasets[:-1] + [datasets[-1]]) if len(datasets) <= 2 else ", ".join(datasets[:-1]) + f", and {datasets[-1]}"
             file_text = " and ".join(target_files[:-1] + [target_files[-1]]) if len(target_files) <= 2 else ", ".join(target_files[:-1]) + f", and {target_files[-1]}"
-            reason = (
-                f"Local import files already have rows in {file_text}. "
-                "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
-                f"to confirm the live local {dataset_text} inputs."
-            )
+            reason = _import_review_reason(file_text, dataset_text)
             rows.append(
                 _command_row(
                     "Review import files",
@@ -676,6 +696,8 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
         else:
             step = f"Advance {dataset} source"
         reason = _first_non_empty(row.get("fallback_action"), row.get("validation_warnings"), row.get("notes"))
+        if command == "make imports-validate":
+            reason = _import_review_reason(_source_context(row), dataset)
         rows.append(
             _command_row(
                 step,
