@@ -40,6 +40,7 @@ def test_ibkr_references_stay_read_only_price_data_scoped():
         Path("src/data_onboarding.py"),
         Path("src/data_update.py"),
         Path("src/dcf_input_proof_queue.py"),
+        Path("src/pilot_readiness.py"),
         Path("src/project_status.py"),
         Path("src/session_source_preflight.py"),
         Path("src/source_activation_guide.py"),

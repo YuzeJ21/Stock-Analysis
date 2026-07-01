@@ -795,6 +795,23 @@ def _provider_setup_checklist_rows() -> list[list[object]]:
     return rows
 
 
+def _share_brief_provider_setup_lines() -> list[str]:
+    checklist = build_provider_setup_checklist()
+    lines = [
+        "- Next setup view: `make provider-setup-checklist`.",
+        "- Real key values are never printed.",
+    ]
+    for row in checklist["rows"]:
+        provider = str(row.get("provider") or "").strip()
+        if provider not in {"FMP free tier", "Alpha Vantage free tier", "Finnhub free tier", "IBKR read-only"}:
+            continue
+        setup_state = str(row.get("setup_state") or "").strip()
+        unlock_lanes = str(row.get("unlock_lanes") or "").strip()
+        cannot_unlock = str(row.get("cannot_unlock") or "").strip()
+        lines.append(f"- {provider}: {setup_state} -> {unlock_lanes}; cannot unlock {cannot_unlock}")
+    return lines
+
+
 def render_pilot_readiness_packet(
     *,
     checks: list[PilotReadinessCheck],
@@ -1009,6 +1026,10 @@ def render_pilot_share_brief(
         f"- Blocked items in that queue: {queue_blocked:,}.",
         f"- Top blockers: {queue_top_blockers}.",
         f"- Next source-proof command: `{queue_command}`.",
+        "",
+        "## How coverage expands next",
+        "",
+        *_share_brief_provider_setup_lines(),
         "",
         "## What must stay out of the share package",
         "",

@@ -536,3 +536,31 @@ def test_pilot_share_brief_summarizes_usable_blocked_and_share_boundary(tmp_path
     assert "not investment advice" in brief
     assert "buy" not in brief.lower()
     assert "sell" not in brief.lower()
+
+
+def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main [ahead 1]")
+    monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [StatusEntry("M", "data/prices.csv")])
+    monkeypatch.setenv("FMP_API_KEY", "secret-fmp-key")
+    monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+    monkeypatch.delenv("IBKR_HOST", raising=False)
+    monkeypatch.delenv("IBKR_PORT", raising=False)
+    monkeypatch.delenv("IBKR_CLIENT_ID", raising=False)
+
+    brief = render_pilot_share_brief(
+        checks=build_pilot_readiness_checks(root, top_n=2),
+        snapshot=build_readiness_snapshot(root),
+        source_queues=[],
+        excluded_artifacts=["data/prices.csv"],
+    )
+
+    assert "How coverage expands next" in brief
+    assert "make provider-setup-checklist" in brief
+    assert "FMP free tier: configured -> price, fundamentals, share_count" in brief
+    assert "Alpha Vantage free tier: needs_key -> price, fundamentals, share_count" in brief
+    assert "Finnhub free tier: needs_key -> price, fundamentals, share_count" in brief
+    assert "IBKR read-only: optional_disabled -> price" in brief
+    assert "Real key values are never printed" in brief
+    assert "secret-fmp-key" not in brief
