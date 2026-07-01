@@ -22,6 +22,13 @@ KEYED_PROVIDER_BATCH_POLICIES = {
     "Finnhub free tier": "small_batch_only; recommended <=60 requests/day and <=10 tickers/run",
 }
 IBKR_ENVS = ["IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"]
+ACTIVATION_PLAN = [
+    "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops.",
+    "Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight.",
+    "Run that provider's one-ticker smoke command only; do not start a broad batch from setup.",
+    "Continue only through validate, preview, rejected-row review, and source-provenance checks.",
+    "If no source-backed row is staged, record still_blocked/skipped/excluded and pivot.",
+]
 
 
 def _configured(env_name: str) -> bool:
@@ -153,6 +160,7 @@ def build_source_activation_guide() -> dict[str, Any]:
             "chmod 600 config/provider_keys.env",
             "edit config/provider_keys.env locally; do not commit real keys",
         ],
+        "activation_plan": ACTIVATION_PLAN,
         "providers": providers,
         "apply_gate": [
             "make imports-validate IMPORT_TICKERS=<ticker>",
@@ -244,6 +252,7 @@ def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = No
         "research_boundary": guide["research_boundary"],
         "secret_policy": "Real key values are never printed.",
         "setup_commands": guide["setup_commands"],
+        "activation_plan": guide["activation_plan"],
         "rows": rows,
         "apply_gate": guide["apply_gate"],
         "non_retry_rule": guide["non_retry_rule"],
@@ -260,6 +269,8 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
         "Local setup commands:",
     ]
     lines.extend(f"- {command}" for command in checklist.get("setup_commands", []))
+    lines.extend(["", "Activation plan:"])
+    lines.extend(f"- {step}" for step in checklist.get("activation_plan", []))
     current_gate = checklist.get("current_gate", {})
     if isinstance(current_gate, dict) and current_gate:
         lines.extend(
@@ -318,6 +329,9 @@ def render_source_activation_guide(guide: dict[str, Any]) -> str:
         "Setup commands:",
     ]
     lines.extend(f"- {command}" for command in guide["setup_commands"])
+    lines.append("")
+    lines.append("Activation plan:")
+    lines.extend(f"- {step}" for step in guide["activation_plan"])
     lines.append("")
     lines.append("Provider setup and boundaries:")
     for row in guide["providers"]:

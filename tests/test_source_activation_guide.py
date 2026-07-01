@@ -51,6 +51,13 @@ def test_source_activation_guide_prints_exact_next_commands(monkeypatch):
     guide = build_source_activation_guide()
 
     assert guide["setup_commands"][0] == "cp config/provider_keys.env.example config/provider_keys.env"
+    assert guide["activation_plan"] == [
+        "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops.",
+        "Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight.",
+        "Run that provider's one-ticker smoke command only; do not start a broad batch from setup.",
+        "Continue only through validate, preview, rejected-row review, and source-provenance checks.",
+        "If no source-backed row is staged, record still_blocked/skipped/excluded and pivot.",
+    ]
     assert "make session-source-preflight" in guide["next_commands"]
     assert "make coverage-frontier TOP_N=10" in guide["next_commands"]
     assert "make imports-validate IMPORT_TICKERS=<ticker>" in guide["apply_gate"]
@@ -92,6 +99,8 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         "chmod 600 config/provider_keys.env",
         "edit config/provider_keys.env locally; do not commit real keys",
     ]
+    assert checklist["activation_plan"][0].startswith("Run make project-status first")
+    assert "Configure at most one missing keyed free-tier provider locally" in checklist["activation_plan"][1]
     assert rows["SEC submissions"]["cannot_unlock"] == (
         "DCF, valuation, earnings, analyst estimates, or share count unless a filing document has an explicit fact."
     )
@@ -102,6 +111,9 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- cp config/provider_keys.env.example config/provider_keys.env" in rendered
     assert "- chmod 600 config/provider_keys.env" in rendered
     assert "- edit config/provider_keys.env locally; do not commit real keys" in rendered
+    assert "Activation plan:" in rendered
+    assert "- Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight." in rendered
+    assert "- Run that provider's one-ticker smoke command only; do not start a broad batch from setup." in rendered
     assert "FMP free tier | configured | price, fundamentals, share_count" in rendered
     assert "Alpha Vantage free tier | needs_key" in rendered
     assert "Provider | Setup state | Unlock lanes | Usage | Batch policy | Smoke command | Cannot unlock | Safe next step" in rendered

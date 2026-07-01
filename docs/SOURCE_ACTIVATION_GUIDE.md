@@ -36,6 +36,18 @@ IBKR_CLIENT_ID=REPLACE_WITH_LOCAL_CLIENT_ID
 
 Leave IBKR unset unless you intentionally run IBKR Gateway/TWS for read-only daily OHLCV. The product must not use broker order, account trading, order routing, or auto-trading APIs.
 
+## Activation Plan
+
+When `make project-status` says source-proof queues are exhausted, do not reopen
+broad proof loops just to get another blocked ledger row. Use the provider setup
+flow as the next evidence step:
+
+1. Run `make project-status` first; if it says queues are exhausted, do not reopen broad proof loops.
+2. Configure at most one missing keyed free-tier provider locally, then rerun `make session-source-preflight`.
+3. Run that provider's one-ticker smoke command only; do not start a broad batch from setup.
+4. Continue only through validate, preview, rejected-row review, and source-provenance checks.
+5. If no source-backed row is staged, record `still_blocked`, `skipped`, or `excluded` and pivot.
+
 ## Provider Capabilities
 
 | Source | Setup | Can help cover | Batch policy | Smoke command | Cannot unlock by itself |
