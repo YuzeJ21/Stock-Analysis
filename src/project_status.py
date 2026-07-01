@@ -521,6 +521,8 @@ def _fast_status_payload_from_outputs(
         for row in command_rows
     ) and (bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False):
         command_rows.append(_trusted_data_pilot_command_row())
+    if dcf_source_ladder_has_unreviewed is False:
+        command_rows = _ensure_exhausted_source_scope_rows(command_rows)
     command_rows = _prioritize_public_command_rows(command_rows)
 
     return {
@@ -834,6 +836,55 @@ def _workflow_evidence_command_row() -> dict[str, str]:
             "source setup evidence only; no import/apply step is available from the current queue"
         ),
     )
+
+
+def _scope_and_risk_context_command_rows() -> list[dict[str, str]]:
+    return [
+        _command_row(
+            "Choose safe universe scope",
+            "make universe-scope TOP_N=10",
+            (
+                "When source-proof queues are exhausted, choose active-universe, ticker-list, sector/theme, "
+                "ready-only, or missing-data scope before opening broad tables."
+            ),
+            source_context="ticker readiness report and universe scope runbook",
+            freshness_context="copy-only scope guide; does not refresh, import, apply, or infer missing values",
+        ),
+        _command_row(
+            "Review risk context readiness",
+            "make risk-context",
+            (
+                "Check liquidity, correlation, and proxy-risk readiness from current local outputs before treating "
+                "risk context as usable."
+            ),
+            source_context="outputs/liquidity_risk.csv and outputs/correlation_risk.csv",
+            freshness_context="read-only risk context; not a research conclusion or source-proof unlock",
+        ),
+    ]
+
+
+def _ensure_exhausted_source_scope_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    if not rows:
+        return rows
+    commands = [str(row.get("Command") or "").strip() for row in rows]
+    if "make source-activation-guide" not in commands:
+        return rows
+    wanted = _scope_and_risk_context_command_rows()
+    wanted_commands = {str(row.get("Command") or "").strip() for row in wanted}
+    filtered = [
+        row
+        for row in rows
+        if str(row.get("Command") or "").strip() not in wanted_commands
+    ]
+    insert_at = next(
+        (
+            index + 1
+            for index, row in enumerate(filtered)
+            if str(row.get("Command") or "").strip() == "make source-activation-guide"
+        ),
+        1,
+    )
+    return [*filtered[:insert_at], *wanted, *filtered[insert_at:]]
 
 
 def _price_coverage_complete(summary: dict[str, Any]) -> bool:
@@ -1225,6 +1276,8 @@ def _recommended_next_command_rows(
         rows.append(_trusted_data_pilot_command_row())
     elif not rows:
         rows.append(_workflow_evidence_command_row())
+    if not include_trusted_data_pilot:
+        rows.extend(_scope_and_risk_context_command_rows())
 
     problem_source_rows = _recommended_source_command_rows(problem_sources)
     if problem_source_rows:
