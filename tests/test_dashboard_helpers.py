@@ -24872,7 +24872,7 @@ def test_data_health_risk_context_cards_surface_readiness_without_recommendation
     assert cards[0]["title"] == "2 ready / 3 rows"
     assert cards[1]["title"] == "1 ready / 3 rows"
     assert cards[2]["title"] == "1 approximation row(s)"
-    assert cards[0]["command"] == "make price-worklist TOP_N=25"
+    assert cards[0]["command"] == "make price-history-proof-queue TOP_N=25"
     assert cards[1]["command"] == "make research-health-check TOP_N=10"
     assert "review context only" in rendered
     assert "concentration review signal, not a research conclusion" in rendered

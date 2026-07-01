@@ -80,9 +80,11 @@ def test_risk_context_summary_lines_are_terminal_safe_and_copy_only():
     assert "choose scope first" in rendered
     assert "make universe-scope top_n=10" in rendered
     assert "does not unlock missing fundamentals, peers, earnings, or estimates" in rendered
+    assert "use the price-history proof queue before any capped provider refresh" in rendered
     assert "liquidity readiness: 1 ready / 2 rows" in rendered
     assert "correlation readiness: 1 ready / 2 rows" in rendered
-    assert "make price-worklist top_n=25" in rendered
+    assert "make price-history-proof-queue top_n=25" in rendered
+    assert "make price-worklist top_n=25" not in rendered
     assert "make research-health-check top_n=10" in rendered
     assert "review context only" in rendered
     assert "not a research conclusion" in rendered

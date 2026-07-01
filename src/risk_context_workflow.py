@@ -54,7 +54,7 @@ def data_health_risk_context_cards(
                 "Use liquidity rows as review context only; blocked rows stay visible instead of becoming scores."
             ),
             "badges": ["price history", "volume-gated"],
-            "command": "make price-worklist TOP_N=25",
+            "command": "make price-history-proof-queue TOP_N=25",
         },
         {
             "kicker": "CORRELATION READINESS",
@@ -92,7 +92,8 @@ def risk_context_summary_lines(
         (
             "Choose scope first: run make universe-scope TOP_N=10 before treating liquidity, correlation, "
             "or proxy-risk rows as usable context; risk context does not unlock missing fundamentals, peers, "
-            "earnings, or estimates."
+            "earnings, or estimates. If short price-history blockers remain, use the price-history proof queue "
+            "before any capped provider refresh."
         ),
     ]
     for card in cards:
