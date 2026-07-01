@@ -122,6 +122,9 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "3 committed screenshot asset" in by_area["Browser QA evidence"].detail
     assert "Single-stock workflow fit screenshot" in by_area["Browser QA evidence"].detail
     assert "Reviewed asset staging command is available" in by_area["Browser QA evidence"].detail
+    assert by_area["License status"].status == "manual"
+    assert by_area["License status"].command == "docs/LICENSE_DECISION_GUIDE.md"
+    assert "portfolio/demo only" in by_area["License status"].detail
     assert by_area["Public safety"].command == "make public-check"
     assert pilot_readiness_verdict(checks) == "pilot-ready with manual gates"
     assert "does not refresh data, apply imports, stage files, commit, push, or rewrite CSVs" in rendered
@@ -129,6 +132,8 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10" in rendered
     assert "Commit Package Handoff" in rendered
     assert "Browser QA evidence" in rendered
+    assert "License status" in rendered
+    assert "do not describe as open source" in rendered
     assert "make browser-qa-evidence" in rendered
     assert "Reviewed asset staging command is available" in rendered
     assert "Stage reviewed product package" in rendered

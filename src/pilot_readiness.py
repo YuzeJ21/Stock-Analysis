@@ -359,6 +359,29 @@ def _public_check_gate() -> PilotReadinessCheck:
     )
 
 
+def _license_status_check(root: Path) -> PilotReadinessCheck:
+    if (root / "LICENSE").exists():
+        return PilotReadinessCheck(
+            area="License status",
+            status="green",
+            title="Root LICENSE file is present",
+            detail="Confirm README License wording matches the selected license before public reuse claims.",
+            command="docs/LICENSE_DECISION_GUIDE.md",
+            stop_rule="Stop if README License wording conflicts with the selected license.",
+        )
+    return PilotReadinessCheck(
+        area="License status",
+        status="manual",
+        title="No root LICENSE file found",
+        detail=(
+            "Share as portfolio/demo only; do not describe as open source or reusable software "
+            "until a license is selected."
+        ),
+        command="docs/LICENSE_DECISION_GUIDE.md",
+        stop_rule="Do not claim reuse rights until a root LICENSE is selected and README wording is updated.",
+    )
+
+
 def _browser_qa_evidence_check(root: Path) -> PilotReadinessCheck:
     try:
         payload = browser_qa_evidence_payload(root)
@@ -448,6 +471,7 @@ def build_pilot_readiness_checks(
         _proof_ledger_check(root),
         _browser_qa_evidence_check(root),
         _public_check_gate(),
+        _license_status_check(root),
         _guardrail_check(),
     ]
     return checks
