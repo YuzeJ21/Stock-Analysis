@@ -17,11 +17,12 @@ def test_trusted_pilot_cards_bridge_blockers_to_small_ranked_pilot():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["PILOT STEP 1", "PILOT STEP 2", "PILOT STEP 3"]
-    assert cards[0]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert cards[0]["command"] == "make project-status"
     assert cards[1]["command"] == "make trusted-data-pilot-packet TICKER=<ticker>"
     assert cards[2]["command"] == "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"
     assert "217 price-ready company row(s) still need trusted fundamentals or dcf inputs" in rendered
-    assert "small ranked pilot instead of the full universe" in rendered
+    assert "route to provider setup instead of reopening stale candidate loops" in rendered
+    assert "ranked pilot only when status shows executable company candidates" in rendered
     assert "only the rebuilt readiness and stock report can prove the lane changed" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

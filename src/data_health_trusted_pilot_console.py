@@ -85,20 +85,20 @@ def trusted_pilot_cards(readiness_summary: dict[str, object]) -> list[dict[str, 
     return [
         {
             "kicker": "PILOT STEP 1",
-            "title": "Rank 5-10 companies first",
+            "title": "Check the status gate first",
             "body": (
                 f"{depth_gap:,} price-ready company row(s) still need trusted fundamentals or DCF inputs, and "
-                f"{peer_gap:,} DCF-ready row(s) still need source-backed peer context. Start with a small ranked pilot instead of the full universe; "
-                "the candidate output explains each rank reason from scope, demo relevance, lane, priority, and missing input."
+                f"{peer_gap:,} DCF-ready row(s) still need source-backed peer context. Start with project status so exhausted source-proof queues "
+                "route to provider setup instead of reopening stale candidate loops. Open the ranked pilot only when status shows executable company candidates."
             ),
-            "badges": ["rank reason", "read-only"],
-            "command": "make trusted-data-pilot-candidates TOP_N=10",
+            "badges": ["status gate", "read-only"],
+            "command": "make project-status",
         },
         {
             "kicker": "PILOT STEP 2",
             "title": "Inspect one proof packet",
             "body": (
-                "Use the first shortlisted ticker packet to see the current report, missing input, review lane, trusted input target, and rebuild proof. "
+                "When project status shows executable company candidates, use the first shortlisted ticker packet to see the current report, missing input, review lane, trusted input target, and rebuild proof. "
                 "It explains the baseline, source proof, validation, rejected-row check, rebuild, and stop rule before any conclusion changes."
             ),
             "badges": ["one company", "no fake rows"],

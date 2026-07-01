@@ -11685,15 +11685,15 @@ def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["PILOT STEP 1", "PILOT STEP 2", "PILOT STEP 3"]
-    assert cards[0]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert cards[0]["command"] == "make project-status"
     assert cards[1]["command"] == "make trusted-data-pilot-packet TICKER=<ticker>"
     assert cards[2]["command"] == "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"
-    assert "rank reason" in cards[0]["badges"]
+    assert "status gate" in cards[0]["badges"]
     assert "supported / blocked / skip" in cards[2]["badges"]
     assert "217 price-ready company row(s) still need trusted fundamentals or dcf inputs" in rendered
     assert "14 dcf-ready row(s) still need source-backed peer context" in rendered
-    assert "small ranked pilot instead of the full universe" in rendered
-    assert "candidate output explains each rank reason from scope, demo relevance, lane, priority, and missing input" in rendered
+    assert "route to provider setup instead of reopening stale candidate loops" in rendered
+    assert "ranked pilot only when status shows executable company candidates" in rendered
     assert "current report, missing input, review lane, trusted input target, and rebuild proof" in rendered
     assert "baseline, source proof, validation, rejected-row check, rebuild, and stop rule" in rendered
     assert "optional context remains locked at 0 earnings-ready and 0 estimate-ready row(s)" in rendered
@@ -11723,13 +11723,14 @@ def test_data_health_freshness_routine_cards_separate_read_only_from_review_requ
     ]
     assert cards[0]["command"] == "make status-check TOP_N=5 && make readiness && make dashboard-smoke && make price-refresh-loop DRY_RUN=1"
     assert cards[1]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3300 TOP_N=100 PROVIDER=auto"
-    assert cards[2]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert cards[2]["command"] == "make project-status"
     assert "without changing files" in rendered
     assert "without hand-refreshing every ticker every day" in rendered
     assert "prices are the only broad lane designed for capped refresh loops" in rendered
     assert "run a real loop only after reviewing the dry-run plan" in rendered
     assert "inspect generated csv diffs before committing" in rendered
     assert "fundamentals, peer mappings, earnings, and analyst estimates stay review-required" in rendered
+    assert "provider setup instead of repeating trusted-data candidate loops" in rendered
     assert "validation, preview, rejected-row checks, and readiness rebuilds" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

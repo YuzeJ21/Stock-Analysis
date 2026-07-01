@@ -686,12 +686,13 @@ def freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[s
         },
         {
             "kicker": "REVIEW-REQUIRED LANES",
-            "title": "Do not automate source judgment",
+            "title": "Check source setup before proof loops",
             "body": (
                 "Fundamentals, peer mappings, earnings, and analyst estimates stay review-required. "
-                "Use trusted-data pilot packets, validation, preview, rejected-row checks, and readiness rebuilds before analysis changes."
+                "Run project status first; if source-proof queues are exhausted, use provider setup instead of repeating trusted-data candidate loops. "
+                "Use validation, preview, rejected-row checks, and readiness rebuilds before analysis changes."
             ),
-            "badges": ["trusted source", "no unattended apply"],
-            "command": "make trusted-data-pilot-candidates TOP_N=10",
+            "badges": ["status gate", "no unattended apply"],
+            "command": "make project-status",
         },
     ]

@@ -121,6 +121,7 @@ Optional local proof checks:
 make project-status && make data-coverage-proof-queues TOP_N=10
 make universe-scope TICKERS=NVDA,META TOP_N=10
 make risk-context
+make provider-setup-checklist  # use when status says source-proof queues are exhausted
 make trusted-data-pilot-candidates TOP_N=10  # only when status shows executable company candidates
 make metric-readiness TOP_N=5 BENCHMARK=SPY
 make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKER=CRDO
