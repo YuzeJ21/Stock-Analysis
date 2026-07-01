@@ -100,7 +100,12 @@ def test_universe_scope_review_plan_gives_lazy_copy_only_scope_commands():
     assert plan.loc[plan["scope"].eq("ticker_list"), "matching_rows"].iloc[0] == 2
     assert plan.loc[plan["scope"].eq("sector_theme"), "matching_rows"].iloc[0] == 2
     assert "make status-check tickers=meta,broad top_n=12" in rendered
-    assert "make trusted-data-pilot-candidates top_n=12" in rendered
+    ready_only = plan.loc[plan["scope"].eq("ready_only")].iloc[0]
+    assert ready_only["copy_only_command"] == "make project-status"
+    assert "project-status first so exhausted proof queues do not reopen stale trusted-data candidate loops" in str(
+        ready_only["stop_rule"]
+    ).lower()
+    assert "make trusted-data-pilot-candidates top_n=12" not in rendered
     assert "make coverage-frontier top_n=12" in rendered
     assert "copy-only" in rendered
     assert "does not refresh, import, apply, or infer missing values" in rendered

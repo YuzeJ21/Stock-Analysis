@@ -255,9 +255,12 @@ def universe_scope_review_plan(
             "scope": "ready_only",
             "matching_rows": ready_rows,
             "what_it_answers": "Which rows have at least one ready analysis layer to review now?",
-            "copy_only_command": f"make trusted-data-pilot-candidates TOP_N={top_n}",
+            "copy_only_command": "make project-status",
             "scope_boundary": boundary,
-            "stop_rule": "Ready price or DCF subsets do not unlock blocked peer, earnings, or estimate lanes.",
+            "stop_rule": (
+                "Run project-status first so exhausted proof queues do not reopen stale trusted-data candidate loops; "
+                "ready price or DCF subsets do not unlock blocked peer, earnings, or estimate lanes."
+            ),
         },
         {
             "scope": "missing_data",
