@@ -253,6 +253,30 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert '"ticker": "NVDA"' not in output
 
 
+def test_universe_preview_compact_output_deduplicates_source_warnings(
+    tmp_path: Path,
+    capsys,
+):
+    _setup_base_dir(tmp_path)
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="smh",
+        loader=_loader({SOURCE_FALLBACK_URLS["smh"][1]: SMH_HTML_FIXTURE}),
+    )
+    duplicate_warning = "smh: remote source unavailable (same redirect)."
+    result["sources"][0]["warnings"] = [
+        duplicate_warning,
+        duplicate_warning,
+        f"smh: using fallback source {SOURCE_FALLBACK_URLS['smh'][1]}.",
+    ]
+
+    _print_result(result, as_json=False)
+    output = capsys.readouterr().out
+
+    assert output.count(duplicate_warning) == 1
+    assert output.count("using fallback source") == 1
+
+
 def test_summarize_universe_manager_reports_current_and_staged_status(tmp_path: Path):
     _setup_base_dir(tmp_path)
     summary = summarize_universe_manager(base_dir=tmp_path)

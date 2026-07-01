@@ -118,6 +118,18 @@ def _normalize_text(value: Any) -> str:
     return str(value).strip()
 
 
+def _unique_texts(values: list[Any]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for value in values:
+        text = _normalize_text(value)
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        unique.append(text)
+    return unique
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -964,15 +976,17 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
         membership_text = "; ".join(f"{key}={value}" for key, value in memberships.items())
         print(f"membership_counts: {membership_text}")
     print("sources:")
+    printed_warnings: set[str] = set()
     for source in payload.get("sources") or []:
         source_name = source.get("source_name", "-")
         status = source.get("status", "-")
         row_count = source.get("row_count", 0)
         source_url = source.get("source_url") or "-"
         print(f"- {source_name}: {status}; rows={row_count}; source={source_url}")
-        for warning in source.get("warnings") or []:
+        for warning in _unique_texts(source.get("warnings") or []):
             print(f"  warning: {warning}")
-    warnings = summary.get("warnings") or []
+            printed_warnings.add(warning)
+    warnings = [warning for warning in _unique_texts(summary.get("warnings") or []) if warning not in printed_warnings]
     if warnings:
         print("warnings:")
         for warning in warnings:
