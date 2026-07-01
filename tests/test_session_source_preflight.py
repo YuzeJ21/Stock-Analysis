@@ -1,11 +1,13 @@
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.error import URLError
 
 import pandas as pd
 
 from src.session_source_preflight import (
+    build_source_actionability,
     build_session_source_preflight,
     probe_ibkr_price,
     load_session_source_preflight,
@@ -577,10 +579,51 @@ def test_session_source_preflight_distinguishes_reachable_sources_from_actionabl
     assert actionability["fundamentals_share_count_candidates"] == 2
     assert actionability["reviewed_non_actionable_fundamentals_share_count"] == 2
     assert actionability["unreviewed_fundamentals_share_count_candidates"] == 0
+    assert "dcf_queue_reviewed_non_actionable" in actionability
     assert actionability["next_action"] == "Wait for new provider data, keyed sources, reviewed manual source rows, or changed blockers before repeating fundamentals/share-count paths."
     assert "source_actionability:" in rendered
     assert "unreviewed_fundamentals_share_count_candidates: 0" in rendered
     assert "do_not_repeat_without_new_source: yes" in rendered
+
+
+def test_source_actionability_uses_dcf_queue_reviewed_signal(tmp_path: Path, monkeypatch):
+    (tmp_path / "outputs").mkdir(parents=True)
+    (tmp_path / "data" / "reports").mkdir(parents=True)
+    (tmp_path / "outputs" / "fundamentals_peer_worklist.csv").write_text(
+        "ticker,dcf_ready,missing_required_for_dcf\n"
+        "AEC,False,\"free_cash_flow, shares_outstanding, revenue, fcf_margin\"\n"
+        "BOT,False,\"free_cash_flow, shares_outstanding, revenue, fcf_margin\"\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "reports" / "ticker_readiness_report.csv").write_text(
+        "ticker,asset_type,dcf_ready,name\nAEC,company,false,Aec Co\nBOT,company,false,Bot Co\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,"
+        "pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,"
+        "generated_artifacts_reviewed,final_outcome,notes\n",
+        encoding="utf-8",
+    )
+
+    import src.dcf_input_proof_queue as dcf_input_proof_queue
+
+    monkeypatch.setattr(
+        dcf_input_proof_queue,
+        "build_dcf_input_proof_queue_from_files",
+        lambda *_args, **_kwargs: [
+            SimpleNamespace(source_note="Reviewed proof ledger already records this ticker as non-actionable."),
+            SimpleNamespace(source_note="Reviewed proof ledger already records this ticker as non-actionable."),
+        ],
+    )
+
+    actionability = build_source_actionability(tmp_path)
+
+    assert actionability["fundamentals_share_count_candidates"] == 2
+    assert actionability["reviewed_non_actionable_fundamentals_share_count"] == 2
+    assert actionability["unreviewed_fundamentals_share_count_candidates"] == 0
+    assert actionability["dcf_queue_reviewed_non_actionable"] is True
+    assert actionability["do_not_repeat_without_new_source"] is True
 
 
 def test_session_source_preflight_prefers_fmp_when_local_rows_do_not_fix_current_blockers(tmp_path: Path):

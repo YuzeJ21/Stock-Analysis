@@ -668,12 +668,27 @@ def build_source_actionability(root: Path) -> dict[str, Any]:
                 reviewed_non_actionable.add(ticker)
     reviewed_candidates = candidate_tickers & reviewed_non_actionable
     unreviewed_candidates = candidate_tickers - reviewed_non_actionable
+    dcf_queue_reviewed_non_actionable = False
+    try:
+        from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
+
+        dcf_rows = build_dcf_input_proof_queue_from_files(root, top_n=25)
+        dcf_queue_reviewed_non_actionable = bool(dcf_rows) and all(
+            "reviewed proof ledger already records" in str(getattr(row, "source_note", "") or "").lower()
+            for row in dcf_rows
+        )
+    except Exception:
+        dcf_queue_reviewed_non_actionable = False
+    if dcf_queue_reviewed_non_actionable:
+        reviewed_candidates = set(candidate_tickers)
+        unreviewed_candidates = set()
     exhausted = bool(candidate_tickers) and not unreviewed_candidates
     return {
         "fundamentals_share_count_candidates": len(candidate_tickers),
         "reviewed_non_actionable_fundamentals_share_count": len(reviewed_candidates),
         "unreviewed_fundamentals_share_count_candidates": len(unreviewed_candidates),
         "do_not_repeat_without_new_source": exhausted,
+        "dcf_queue_reviewed_non_actionable": dcf_queue_reviewed_non_actionable,
         "next_action": (
             "Wait for new provider data, keyed sources, reviewed manual source rows, or changed blockers before repeating fundamentals/share-count paths."
             if exhausted
@@ -1167,6 +1182,10 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
                 (
                     "  unreviewed_fundamentals_share_count_candidates: "
                     f"{actionability.get('unreviewed_fundamentals_share_count_candidates', 0)}"
+                ),
+                (
+                    "  dcf_queue_reviewed_non_actionable: "
+                    f"{'yes' if actionability.get('dcf_queue_reviewed_non_actionable') else 'no'}"
                 ),
                 (
                     "  do_not_repeat_without_new_source: "
