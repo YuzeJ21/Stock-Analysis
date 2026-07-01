@@ -4306,11 +4306,11 @@ def main() -> None:
             **result,
             **write_result,
             "recommended_next_commands": [
-                "make imports-validate IMPORT_TICKERS=<resolved_tickers>",
-                "make imports-preview IMPORT_TICKERS=<resolved_tickers>",
+                "make imports-validate IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                "make imports-preview IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
                 "make optional-context-readiness",
             ],
-            "apply_gate_command": "make imports-apply IMPORT_TICKERS=<resolved_tickers>",
+            "apply_gate_command": "make imports-apply IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
             "apply_gate_boundary": (
                 "Run only after validation passes, preview scope is intended, rejected rows are zero, "
                 "and optional-context source provenance is present."
