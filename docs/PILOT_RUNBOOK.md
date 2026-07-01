@@ -101,7 +101,8 @@ Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health 
 Operator path:
 
 ```bash
-make trusted-data-pilot-candidates TOP_N=10
+make project-status
+make trusted-data-pilot-candidates TOP_N=10  # only when project-status shows executable company candidates
 make trusted-data-pilot-packet TICKER=<ticker>
 make stock-report-md TICKER=<ticker>
 ```

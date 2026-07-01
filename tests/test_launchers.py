@@ -709,6 +709,11 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "make project-status" in public_demo
     assert "make data-coverage-proof-queues TOP_N=10" in public_demo
     assert "make trusted-data-pilot-candidates TOP_N=10" in public_demo
+    public_demo_commands = public_demo.split("## Local Commands", 1)[1].split("The dashboard defaults", 1)[0]
+    assert public_demo_commands.index("make project-status") < public_demo_commands.index(
+        "make trusted-data-pilot-candidates TOP_N=10"
+    )
+    assert "only when project-status shows executable company candidates" in public_demo_commands
     assert "make trusted-data-pilot-packet TICKER=MU" in public_demo
     assert "make trusted-data-pilot-packet TICKER=CRDO" in public_demo
     assert "Local file presence, row counts, staged files, and rejected-row reports are inspection cues, not proof" in public_demo
@@ -2118,6 +2123,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "ETF/index examples such as QQQ and SMH are monitor-context demos, not operating-company DCF targets." in makefile
     assert "Ticker-scoped example: make trusted-data-pilot TICKERS=NVDA,AVGO,AMD,MU,CRDO TOP_N=10" in makefile
     assert "Candidate list: make trusted-data-pilot-candidates TOP_N=10" in makefile
+    assert "Status gate: make project-status before choosing candidate tickers" in makefile
+    assert "Candidate list: make trusted-data-pilot-candidates TOP_N=10 only when project-status shows executable company candidates" in makefile
     assert "Company-by-company loop: open one report, choose the matching lane, then validate trusted rows before reading any new valuation." in makefile
     assert "Starter loop example: make stock-report-md TICKER=CRDO -> make trusted-data-pilot-packet TICKER=CRDO -> run the packet's lane-specific review command" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
@@ -2129,6 +2136,10 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview gate, apply boundary, rejected-row check, rebuild proof, and still-blocked evidence row." in makefile
     assert "One-company packet example:" in makefile
     assert "make trusted-data-pilot-candidates TOP_N=10" in makefile
+    trusted_pilot_target = makefile.split("trusted-data-pilot:", 1)[1].split("trusted-data-pilot-candidates:", 1)[0]
+    assert trusted_pilot_target.index("make project-status") < trusted_pilot_target.index(
+        "make trusted-data-pilot-candidates TOP_N=10"
+    )
     assert "make trusted-data-pilot-packet TICKER=<ticker>" in makefile
     assert "make stock-report-md TICKER=<ticker>" in makefile
     assert "Run the lane-specific review command printed by the packet:" in makefile
