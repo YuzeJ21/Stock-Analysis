@@ -241,6 +241,8 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates",
         "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan",
         "make public-demo-readiness-pack Print the small shareable public demo proof set",
+        "make pilot-share-brief",
+        "Write the concise public/demo share brief without refreshing or applying data",
         "make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data",
         "make coverage-frontier [TOP_N=10] Rank broad batch opportunities by unlock impact and safe command",
         "make data-coverage-planner [TOP_N=10] Print repeatable coverage expansion lanes with dry-run, proof, stop, and churn gates",

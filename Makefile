@@ -97,6 +97,8 @@ help-full:
 	@echo "                        Print DCF, share-count, fundamentals, peer mapping, and peer valuation proof queues"
 	@echo "  make pilot-readiness-check"
 	@echo "                        Print sync, hygiene, freshness, proof-gate, public-check, and guardrail status"
+	@echo "  make pilot-share-brief"
+	@echo "                        Write the concise public/demo share brief without refreshing or applying data"
 	@echo "  make pilot-readiness-packet"
 	@echo "                        Write the reviewer-ready pilot packet without refreshing or applying data"
 	@echo "  make coverage-frontier"
