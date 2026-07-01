@@ -946,9 +946,50 @@ def summarize_universe_manager(base_dir: Path | None = None) -> dict[str, Any]:
     }
 
 
+def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
+    summary = payload.get("summary") or {}
+    print("Universe Preview")
+    print("Read-only: this preview does not write, apply, stage, commit, push, or rewrite local universe files.")
+    print("Research-only: universe membership is source metadata, not investment advice or a trade instruction.")
+    print(f"status: {payload.get('status', '-')}")
+    print(f"row_count: {summary.get('row_count', 0)}")
+    print(
+        "changes: "
+        f"new={summary.get('new_tickers', 0)}; "
+        f"updated={summary.get('updated_tickers', 0)}; "
+        f"unchanged={summary.get('unchanged_tickers', 0)}"
+    )
+    memberships = summary.get("membership_counts") or {}
+    if memberships:
+        membership_text = "; ".join(f"{key}={value}" for key, value in memberships.items())
+        print(f"membership_counts: {membership_text}")
+    print("sources:")
+    for source in payload.get("sources") or []:
+        source_name = source.get("source_name", "-")
+        status = source.get("status", "-")
+        row_count = source.get("row_count", 0)
+        source_url = source.get("source_url") or "-"
+        print(f"- {source_name}: {status}; rows={row_count}; source={source_url}")
+        for warning in source.get("warnings") or []:
+            print(f"  warning: {warning}")
+    warnings = summary.get("warnings") or []
+    if warnings:
+        print("warnings:")
+        for warning in warnings:
+            print(f"- {warning}")
+    print("next:")
+    print("- Review source warnings and row counts before writing any universe import.")
+    print("- To inspect raw rows, rerun with --json.")
+    print("- To stage reviewed rows only: make universe-refresh")
+    print("- To apply reviewed staged rows only: make universe-apply")
+
+
 def _print_result(payload: dict[str, Any], as_json: bool) -> None:
     if as_json:
         print(json.dumps(payload, indent=2, default=str))
+        return
+    if "rows" in payload and "summary" in payload:
+        _print_universe_preview_summary(payload)
         return
     print(json.dumps(payload, indent=2, default=str))
 

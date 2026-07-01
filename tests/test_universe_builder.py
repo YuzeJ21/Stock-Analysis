@@ -7,6 +7,7 @@ import pandas as pd
 from src.universe_builder import (
     SOURCE_FALLBACK_URLS,
     SOURCE_URLS,
+    _print_result,
     apply_universe_import,
     build_universe_preview,
     summarize_universe_manager,
@@ -224,6 +225,32 @@ def test_universe_builder_results_are_json_serializable(tmp_path: Path):
 
     payload = json.dumps(result, default=str)
     assert "NVDA" in payload
+
+
+def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
+    tmp_path: Path,
+    capsys,
+):
+    _setup_base_dir(tmp_path)
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="sp500,smh,holdings",
+        loader=_loader({SOURCE_URLS["sp500"]: SP500_FIXTURE, SOURCE_FALLBACK_URLS["smh"][1]: SMH_HTML_FIXTURE}),
+    )
+
+    _print_result(result, as_json=False)
+    output = capsys.readouterr().out
+
+    assert "Universe Preview" in output
+    assert "status: ok" in output
+    assert "row_count:" in output
+    assert "sources:" in output
+    assert "smh: loaded" in output
+    assert "using fallback source" in output
+    assert "next:" in output
+    assert "make universe-apply" in output
+    assert '"rows"' not in output
+    assert '"ticker": "NVDA"' not in output
 
 
 def test_summarize_universe_manager_reports_current_and_staged_status(tmp_path: Path):
