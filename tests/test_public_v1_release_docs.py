@@ -37,11 +37,11 @@ def test_readme_and_roadmap_name_pilot_operator_runbook():
 
     assert "Pilot Operator Runbook" in readme
     assert "navigation-only queue route map" in readme
-    assert "share gate -> source gate -> provider setup -> reviewed one-provider smoke -> validate/preview -> packet and hygiene" in readme
+    assert "share gate -> source gate -> provider setup -> reviewed one-ticker smoke command -> validate/preview -> packet and hygiene" in readme
     assert "does not refresh data, apply imports, or promote metadata into fundamentals proof" in readme
 
     assert "Pilot Operator Runbook V1" in roadmap
-    assert "share gate, source gate, provider setup, reviewed one-provider smoke, validate/preview, packet, and hygiene" in roadmap
+    assert "share gate, source gate, provider setup, reviewed one-ticker smoke command, validate/preview, packet, and hygiene" in roadmap
     assert "without reopening broad proof loops" in roadmap
 
 
@@ -51,7 +51,7 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     assert "## Pilot Share Status" in readme
     assert "Share as portfolio/demo evidence only; do not describe the repository as open source until a root `LICENSE` exists." in readme
     assert "Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence." in readme
-    assert "`make project-status` -> `make provider-setup-checklist` -> one reviewed ticker smoke command" in readme
+    assert "`make project-status` -> `make provider-setup-checklist` -> one reviewed one-ticker smoke command" in readme
     assert "No broad coverage batch should run from setup alone." in readme
     assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
 
@@ -66,7 +66,10 @@ def test_public_docs_share_same_coverage_gate_rule():
         assert "Provider setup only makes a source executable" in doc
         assert "readiness changes still require validate, preview, rejected-row review" in doc
         assert "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist" in doc
-    assert "run only the listed reviewed one-provider smoke command before any broader batch" in checklist
+    assert "run only the listed reviewed one-ticker smoke command before any broader batch" in checklist
+    audit = _read("docs/PILOT_READINESS_AUDIT.md")
+    assert "reviewed one-ticker smoke command" in audit
+    assert "provider smoke command" not in audit
 
 
 def test_public_walkthrough_uses_stock_selector_before_single_stock_report():

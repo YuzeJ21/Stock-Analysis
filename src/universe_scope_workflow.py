@@ -331,7 +331,7 @@ def _print_plan(plan: pd.DataFrame) -> None:
     print("Boundary: do not treat master-universe coverage as analysis readiness; widen only after proof gates.")
     print(
         "Provider setup boundary: if source-proof queues are exhausted, run make provider-setup-checklist "
-        "and its reviewed one-provider smoke command before any broader batch."
+        "and its reviewed one-ticker smoke command before any broader batch."
     )
     for row in plan.to_dict("records"):
         print(

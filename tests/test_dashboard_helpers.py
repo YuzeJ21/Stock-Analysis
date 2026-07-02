@@ -268,13 +268,13 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     assert "what key is missing" in rendered
     assert "what should not be retried" in rendered
     assert "setup prerequisite" in rendered
-    assert "fmp free tier is configured; choose one reviewed ticker before running the smoke command" in rendered
+    assert "fmp free tier is configured; choose one reviewed ticker before running the reviewed one-ticker smoke command" in rendered
     assert "review boundary" in rendered
     assert "one safe smoke test" not in rendered
     assert "no broad coverage batch should run from setup alone" in rendered
     assert "provider setup only makes a source executable" in rendered
     assert "do not retry fundamentals_share_count_source_ladder" in rendered
-    assert "project-status -> provider setup -> reviewed one-provider smoke -> validate/preview" in rendered
+    assert "project-status -> provider setup -> reviewed one-ticker smoke command -> validate/preview" in rendered
     assert "when proof queues are exhausted, pivot to source setup and scoped review" in rendered
     assert "make universe-scope top_n=10" in rendered
     assert "make risk-context" in rendered
@@ -19874,7 +19874,7 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     assert "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables." in source
     assert "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing." in source
     assert "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables." in source
-    assert "Share gate, source gate, provider setup, reviewed one-provider smoke, validate/preview, packet, and hygiene in one compact path." in source
+    assert "Share gate, source gate, provider setup, reviewed one-ticker smoke command, validate/preview, packet, and hygiene in one compact path." in source
     assert "data_health_pilot_operator_runbook_cards(pilot_operator_runbook)" in source
     assert "data_health_pilot_handoff_summary_cards(pilot_handoff_summary)" in source
     assert "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers." in source

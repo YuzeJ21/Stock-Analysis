@@ -344,7 +344,7 @@ def _coverage_unlock_decision(rows: list[dict[str, Any]], current_gate: dict[str
     return {
         "answer": "No broad coverage batch should run from setup alone.",
         "can_use_now": f"Use free/public sources for already executable proof paths; current gate says {can_run_now}.",
-        "configure_first": f"Configure {provider} first only if you want a keyed fallback, then run one reviewed ticker smoke.",
+        "configure_first": f"Configure {provider} first only if you want a keyed fallback, then run one reviewed one-ticker smoke command.",
         "do_not_retry": do_not_retry,
         "proof_boundary": (
             "Provider setup only makes a source executable; readiness changes still require validate, preview, "
@@ -372,12 +372,12 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
         setup_prerequisite = (
             f"Configure {first_setup.get('provider')} with {first_setup.get('setup_env')} before running its reviewed one-ticker smoke command."
             if first_setup
-            else "Run make session-source-preflight before any provider smoke command."
+            else "Run make session-source-preflight before any reviewed one-ticker smoke command."
         )
     else:
         smoke_command = str(smoke_row.get("post_setup_smoke_command") or "").strip()
         setup_prerequisite = (
-            f"{smoke_row.get('provider')} is configured; choose one reviewed ticker before running the smoke command."
+            f"{smoke_row.get('provider')} is configured; choose one reviewed ticker before running the reviewed one-ticker smoke command."
         )
     if not smoke_command:
         smoke_command = "make session-source-preflight"
@@ -392,7 +392,7 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
         "setup_prerequisite": setup_prerequisite,
         "ticker_scope_rule": (
             "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; "
-            "do not run the smoke command across a broad list."
+            "do not run the reviewed one-ticker smoke command across a broad list."
         ),
         "reviewed_one_ticker_smoke": smoke_command,
         "one_safe_smoke": smoke_command,
@@ -548,7 +548,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                     f"- why: {first.get('why_first', '-')}",
                     f"- setup_env: {first.get('setup_env', '-')}",
                     f"- reviewed_smoke_command: {first.get('smoke_command', '-')}",
-                    "- Do not configure all missing providers at once; configure one, rerun preflight, run one reviewed ticker smoke, then validate/preview before any apply.",
+                    "- Do not configure all missing providers at once; configure one, rerun preflight, run one reviewed one-ticker smoke command, then validate/preview before any apply.",
                 ]
             )
     lines.extend(

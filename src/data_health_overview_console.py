@@ -924,7 +924,7 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
                 f"What key is missing: {_format_missing(first_answer.get('missing_key'), '-')}. "
                 f"What should not be retried: {_format_missing(first_answer.get('do_not_retry'), '-')}. "
                 f"Setup prerequisite: {_format_missing(first_answer.get('setup_prerequisite'), 'Run preflight before provider reviewed smoke commands')}. "
-                "Review boundary: reviewed one-provider smoke checks stay in source setup details; "
+                "Review boundary: reviewed one-ticker smoke commands stay in source setup details; "
                 "do not treat source reachability as a coverage unlock. "
                 f"{_format_missing(first_answer.get('boundary'), 'Provider setup does not change readiness by itself.')}"
             ),
@@ -977,7 +977,7 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
             "kicker": "SAFE SETUP PATH",
             "title": "Project status before any provider work",
             "body": (
-                "Project-status -> provider setup -> reviewed one-provider smoke -> validate/preview. "
+                "Project-status -> provider setup -> reviewed one-ticker smoke command -> validate/preview. "
                 "Do not reopen broad proof loops from setup; use this path only when source-proof queues are exhausted "
                 "or new source-backed rows/provider keys change the gate."
             ),

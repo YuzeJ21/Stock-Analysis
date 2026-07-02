@@ -578,7 +578,7 @@ def test_pilot_operator_runbook_connects_share_provider_and_exhausted_queues():
         "1. Share gate",
         "2. Source gate",
         "3. Provider setup",
-        "4. Reviewed one-provider smoke",
+        "4. Reviewed one-ticker smoke command",
         "5. Validate / preview",
         "6. Packet and hygiene",
     ]
@@ -589,7 +589,7 @@ def test_pilot_operator_runbook_connects_share_provider_and_exhausted_queues():
     assert "pilot operator runbook" in rendered
     assert "share-readiness, provider setup, and exhausted proof queues" in rendered
     assert "do not reopen broad proof loops" in rendered
-    assert "reviewed one-provider smoke" in rendered
+    assert "reviewed one-ticker smoke command" in rendered
     assert "validate / preview" in rendered
     assert "generated churn stays excluded" in rendered
     assert "buy" not in rendered

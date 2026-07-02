@@ -317,7 +317,7 @@ def test_data_health_pilot_operator_runbook_wraps_share_and_source_gates():
         "1. Share gate",
         "2. Source gate",
         "3. Provider setup",
-        "4. Reviewed one-provider smoke",
+        "4. Reviewed one-ticker smoke command",
         "5. Validate / preview",
         "6. Packet and hygiene",
     ]
