@@ -28,7 +28,7 @@ Use this as research-only product evidence. It summarizes what can be shown now,
 - Source buckets:
   - Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance
   - Keyed free-tier fallbacks: configured -; needs key FMP free tier, Alpha Vantage free tier, Finnhub free tier
-  - Optional broker boundary: IBKR read-only
+  - Optional broker boundary: IBKR read-only (disabled unless explicitly configured)
 - Coverage unlock decision:
   - No broad coverage batch should run from setup alone.
   - Use free/public sources for already executable proof paths; current gate says coverage_workflow_evidence.
@@ -51,6 +51,14 @@ Use this as research-only product evidence. It summarizes what can be shown now,
 - Review liquidity/correlation context only after scope selection: `make risk-context`.
 - Run the explicit public gate before sharing: `make public-check`.
 - Screenshots and scope/risk context do not update saved data or unlock blocked inputs.
+
+## Final share gate sequence
+
+- GitHub sync: confirm the branch state before using the GitHub pilot link.
+- generated artifact hygiene: keep broad CSV/JSON/report churn excluded unless exact artifacts are reviewed evidence.
+- Public-check: run the explicit public share gate before sharing.
+- license boundary: keep portfolio/demo wording until license status is selected.
+- source-proof blockers stay visible; the share gate does not unlock blocked analysis inputs.
 
 ## What must stay out of the share package
 

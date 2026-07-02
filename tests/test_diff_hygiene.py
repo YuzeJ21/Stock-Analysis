@@ -264,7 +264,7 @@ def test_public_release_package_reports_clean_push_path():
     assert "If source-proof queues are exhausted, use provider setup before broad proof loops." in report
     assert "Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in report
     assert "Keyed free-tier fallbacks: configured -; needs key FMP free tier, Alpha Vantage free tier, Finnhub free tier" in report
-    assert "Optional broker boundary: IBKR read-only" in report
+    assert "Optional broker boundary: IBKR read-only (disabled unless explicitly configured)" in report
     assert "Read-only: this command does not stage, delete, reset, refresh, rewrite files, commit, or push." in report
     assert "Branch status: not checked" in report
     assert "Working tree is clean." in report

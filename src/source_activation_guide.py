@@ -279,12 +279,26 @@ def _provider_names_for_state(rows: list[dict[str, Any]], states: set[str]) -> s
     return ", ".join(names) if names else "-"
 
 
+def _optional_broker_summary(rows: list[dict[str, Any]]) -> str:
+    names: list[str] = []
+    for row in rows:
+        provider = str(row.get("provider") or "").strip()
+        setup_state = str(row.get("setup_state") or "").strip()
+        if not provider or setup_state not in {"optional_disabled", "optional_configured"}:
+            continue
+        if setup_state == "optional_disabled":
+            names.append(f"{provider} (disabled unless explicitly configured)")
+        else:
+            names.append(f"{provider} (configured for read-only daily OHLCV)")
+    return ", ".join(names) if names else "-"
+
+
 def _provider_source_answer(rows: list[dict[str, Any]]) -> dict[str, str]:
     return {
         "free_public_now": _provider_names_for_state(rows, {"available"}),
         "needs_key": _provider_names_for_state(rows, {"needs_key"}),
         "configured_keyed": _provider_names_for_state(rows, {"configured"}),
-        "optional_broker": _provider_names_for_state(rows, {"optional_disabled", "optional_configured"}),
+        "optional_broker": _optional_broker_summary(rows),
         "answer": (
             "Use the free/public baseline first; configure at most one keyed free-tier fallback only when "
             "project-status says source-proof queues are exhausted. Optional broker data remains disabled unless "

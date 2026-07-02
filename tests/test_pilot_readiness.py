@@ -554,7 +554,7 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Source Buckets" in body
     assert "Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in body
     assert "Keyed free-tier fallbacks: configured -; needs key FMP free tier, Alpha Vantage free tier, Finnhub free tier" in body
-    assert "Optional broker boundary: IBKR read-only" in body
+    assert "Optional broker boundary: IBKR read-only (disabled unless explicitly configured)" in body
     assert "Provider Activation Plan" in body
     assert "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops." in body
     assert "Run that provider's one-ticker smoke command only; do not start a broad batch from setup." in body
@@ -744,7 +744,7 @@ def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: P
     assert "Source buckets:" in brief
     assert "Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in brief
     assert "Keyed free-tier fallbacks: configured FMP free tier; needs key Alpha Vantage free tier, Finnhub free tier" in brief
-    assert "Optional broker boundary: IBKR read-only" in brief
+    assert "Optional broker boundary: IBKR read-only (disabled unless explicitly configured)" in brief
     assert "No broad coverage batch should run from setup alone" in brief
     assert "Provider setup only makes a source executable" in brief
     assert "readiness changes still require validate, preview, rejected-row review" in brief
