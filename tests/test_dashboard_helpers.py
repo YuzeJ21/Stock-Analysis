@@ -26950,6 +26950,36 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     )
 
 
+def test_market_command_single_stock_drilldown_collapses_review_evidence_after_quick_read():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_market_command_center(")
+
+    drilldown_index = source.index('render_section_header("Single-Stock Drilldown"', render_index)
+    quick_read_index = source.index('render_section_header("Single-Stock Quick Read"', drilldown_index)
+    quick_read_cards_index = source.index("render_signal_cards(single_stock_quick_read_cards(snapshot))", quick_read_index)
+    evidence_drawer_index = source.index(
+        'st.expander("Single-stock review evidence drawer", expanded=False)',
+        quick_read_cards_index,
+    )
+    guide_index = source.index('render_section_header("Single-Stock Review Guide"', evidence_drawer_index)
+    methodology_index = source.index('render_section_header(\n            "How The App Uses Trusted Data"', guide_index)
+    source_audit_index = source.index('render_section_header(\n            "Single-Stock Source Readiness Check"', methodology_index)
+    detail_fields_index = source.index('st.expander("Single-stock detailed fields", expanded=False)', source_audit_index)
+    data_health_index = source.index("def render_data_health(", detail_fields_index)
+
+    assert (
+        drilldown_index
+        < quick_read_index
+        < quick_read_cards_index
+        < evidence_drawer_index
+        < guide_index
+        < methodology_index
+        < source_audit_index
+        < detail_fields_index
+        < data_health_index
+    )
+
+
 def test_stock_selector_saved_filter_and_compare_controls_are_product_surface():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

@@ -27524,25 +27524,26 @@ def render_market_command_center(
         )
     render_section_header("Single-Stock Quick Read", "The first interpretation path before tables: what this page can support, what stays locked, and the next proof step.")
     render_signal_cards(single_stock_quick_read_cards(snapshot))
-    render_section_header("Single-Stock Review Guide", "Plain-English answer for what is ready, what is locked, and the next proof step.")
-    render_signal_cards(single_stock_reader_guide_cards(snapshot))
-    with st.expander("Single-stock reader guide table", expanded=False):
-        st.dataframe(clean_display_frame(single_stock_reader_guide_frame(snapshot)), width="stretch", hide_index=True)
-    render_section_header(
-        "How The App Uses Trusted Data",
-        "Plain-English bridge from trusted source rows to product-calculated readiness, DCF, peer gates, and optional context.",
-    )
-    render_signal_cards(single_stock_methodology_bridge_cards(snapshot))
-    render_section_header(
-        "Single-Stock Source Readiness Check",
-        "Trusted local files, import status, credential state, and rejected-row reports for the selected ticker.",
-    )
-    render_signal_cards(single_stock_source_audit_cards(snapshot))
-    with st.expander("Single-stock source readiness table", expanded=False):
-        st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)
-    detail_frame = single_stock_detail_frame(snapshot)
-    with st.expander("Single-stock detailed fields", expanded=False):
-        st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)
+    with st.expander("Single-stock review evidence drawer", expanded=False):
+        render_section_header("Single-Stock Review Guide", "Plain-English answer for what is ready, what is locked, and the next proof step.")
+        render_signal_cards(single_stock_reader_guide_cards(snapshot))
+        with st.expander("Single-stock reader guide table", expanded=False):
+            st.dataframe(clean_display_frame(single_stock_reader_guide_frame(snapshot)), width="stretch", hide_index=True)
+        render_section_header(
+            "How The App Uses Trusted Data",
+            "Plain-English bridge from trusted source rows to product-calculated readiness, DCF, peer gates, and optional context.",
+        )
+        render_signal_cards(single_stock_methodology_bridge_cards(snapshot))
+        render_section_header(
+            "Single-Stock Source Readiness Check",
+            "Trusted local files, import status, credential state, and rejected-row reports for the selected ticker.",
+        )
+        render_signal_cards(single_stock_source_audit_cards(snapshot))
+        with st.expander("Single-stock source readiness table", expanded=False):
+            st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)
+        detail_frame = single_stock_detail_frame(snapshot)
+        with st.expander("Single-stock detailed fields", expanded=False):
+            st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)
 
 
 def render_data_health(
