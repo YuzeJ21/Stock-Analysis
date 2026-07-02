@@ -11133,7 +11133,7 @@ def data_health_readiness_ops_center_cards(ops_frame: pd.DataFrame | None, *, li
             {
                 "kicker": "OPS CENTER",
                 "title": "Lane operations need readiness reports",
-                "body": "Refresh readiness first, then use the read-only operations center to choose a batch lane before drilling into individual tickers. Open operator details for the copy-only command.",
+                "body": "Refresh readiness first, then use the read-only operations center to choose a batch lane before drilling into individual tickers. Open operator details for read-only proof steps.",
                 "badges": ["read-only", "lane-level"],
                 "command": "make readiness-ops-center",
             }
@@ -11154,7 +11154,7 @@ def data_health_readiness_ops_center_cards(ops_frame: pd.DataFrame | None, *, li
             f"{impact} row(s) or feature states could be improved by this lane. "
             f"{card_sentence('Source readiness', source)} "
             f"{card_sentence('Churn policy', churn)} "
-            "Next safe action: open operator details for the copy-only command."
+            "Next safe action: open operator details for read-only proof steps."
         )
         cards.append(
             {
@@ -11176,7 +11176,7 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
             {
                 "kicker": "PEER READINESS V2",
                 "title": "Peer sub-states need readiness rows",
-                "body": "Refresh readiness, then reopen Data Health to separate peer mapping, peer price, peer fundamentals, and peer valuation readiness. Open operator details for the copy-only command.",
+                "body": "Refresh readiness, then reopen Data Health to separate peer mapping, peer price, peer fundamentals, and peer valuation readiness. Open operator details for read-only proof steps.",
                 "badges": ["read-only", "peer gates"],
                 "command": "make readiness && make peer-mapping-queue TOP_N=25",
             }
@@ -11189,7 +11189,7 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
             {
                 "kicker": "PEER READINESS V2",
                 "title": "Peer lanes are not in this snapshot",
-                "body": "Refresh the operations center after readiness reports exist. Peer valuation stays locked until mapped peer inputs are trusted. Open operator details for the copy-only command.",
+                "body": "Refresh the operations center after readiness reports exist. Peer valuation stays locked until mapped peer inputs are trusted. Open operator details for read-only proof steps.",
                 "badges": ["read-only", "blocked"],
                 "command": "make readiness-ops-center",
             }

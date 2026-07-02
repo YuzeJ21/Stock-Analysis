@@ -548,6 +548,7 @@ def test_data_health_readiness_ops_and_peer_cards_keep_commands_out_of_bodies():
     assert "make " not in body_rendered
     assert "next safe command:" not in body_rendered
     assert "proof command:" not in body_rendered
+    assert "copy-only command" not in body_rendered
     assert "open operator details" in body_rendered
     assert any(card["command"] == "make peer-mapping-queue TOP_N=25" for card in cards)
 
