@@ -25705,6 +25705,51 @@ def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_ex
     assert "sell" not in rendered
 
 
+def test_data_health_selected_lane_answer_cards_include_lane_specific_inspection_cue():
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "fundamentals",
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+        project_status_payload={
+            "summary": {
+                "dcf_ready": 2691,
+                "fundamentals_ready": 2808,
+                "data_gaps": 207,
+            },
+            "recommended_next_command_rows": [
+                {
+                    "Step": "Review provider setup checklist",
+                    "Command": "make provider-setup-checklist",
+                    "Reason": "Current source-proof queues have no unreviewed executable company candidates.",
+                }
+            ],
+            "top_data_gaps": [
+                {
+                    "dataset": "fundamentals",
+                    "ticker": "BOT",
+                    "status": "partial",
+                    "focus_command": "make focus-fundamentals TICKER=BOT",
+                    "reason": "No local fundamentals row was found for BOT.",
+                },
+                {
+                    "dataset": "smh_holdings",
+                    "status": "partial",
+                    "focus_command": "make universe-preview-summary",
+                    "reason": "Review optional universe scope first.",
+                },
+            ],
+        },
+    )
+
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[2]["kicker"] == "SOURCE GATE"
+    assert "lane-specific inspection: make focus-fundamentals ticker=bot" in rendered
+    assert "this only opens review context; it does not stage, apply, or unlock blocked inputs" in rendered
+    assert "universe-preview-summary" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_source_readiness_guidance_renders_before_operator_next_action():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

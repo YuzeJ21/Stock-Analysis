@@ -20419,6 +20419,35 @@ def data_health_selected_lane_answer_cards(
         if isinstance(first_recommendation, dict)
         else "Review the current source gate before opening proof details."
     )
+    lane_gap_dataset_keys = {
+        "prices": {"prices", "price_history"},
+        "fundamentals": {"fundamentals", "shares_outstanding"},
+        "peers": {"peers", "peer_mapping", "mapped_peer_inputs"},
+        "optional": {"earnings", "analyst_estimates", "optional_context"},
+    }.get(selected_lane_key, set())
+    lane_inspection_note = ""
+    if isinstance(project_status_payload, dict) and lane_gap_dataset_keys:
+        for gap_row in project_status_payload.get("top_data_gaps", []) or []:
+            if not isinstance(gap_row, dict):
+                continue
+            dataset_key = str(gap_row.get("dataset") or "").strip().lower()
+            if dataset_key not in lane_gap_dataset_keys:
+                continue
+            focus_command = str(gap_row.get("focus_command") or gap_row.get("example_command") or "").strip()
+            if not focus_command:
+                continue
+            ticker = str(gap_row.get("ticker") or "").strip().upper()
+            reason = compact_card_fragment(
+                gap_row.get("reason"),
+                fallback="Inspect the lane blocker before choosing any source path.",
+                max_chars=110,
+            )
+            ticker_fragment = f" for {ticker}" if ticker else ""
+            lane_inspection_note = (
+                f" Lane-specific inspection: {focus_command}{ticker_fragment}. {reason} "
+                "This only opens review context; it does not stage, apply, or unlock blocked inputs."
+            )
+            break
     if not next_command:
         next_command = "make project-status"
     source_gate_reason = next_reason.lower()
@@ -20484,6 +20513,7 @@ def data_health_selected_lane_answer_cards(
             "body": (
                 f"{next_reason} Do not repeat broad proof queues until new source-backed rows, keyed providers, "
                 "reviewed manual rows, or changed blockers exist. This is not a recommendation and does not run imports from the dashboard."
+                f"{lane_inspection_note}"
             ),
             "badges": ["source gate", "no repeat loops"],
             "command": next_command,
