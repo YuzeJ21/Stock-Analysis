@@ -11599,7 +11599,7 @@ def proof_history_first_answer_frame(
             },
             {
                 "Question": "Where is the evidence?",
-                "Answer": "Reviewed lane proof and reviewed batch proof rows; details stay collapsed until opened.",
+                "Answer": "Reviewed lane proof and reviewed batch proof rows; generated CSV/report churn stays excluded unless intentionally reviewed evidence. Details stay collapsed until opened.",
                 "Boundary": "Ledger details are for audit; they are not a second analysis page or command center.",
             },
             {
