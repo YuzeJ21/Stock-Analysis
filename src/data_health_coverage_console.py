@@ -83,7 +83,10 @@ def coverage_frontier_cards(frontier_frame: pd.DataFrame | None, *, limit: int =
             {
                 "kicker": "COVERAGE FRONTIER",
                 "title": "No batch frontier rows yet",
-                "body": "Run make coverage-frontier TOP_N=10 after readiness outputs exist. The frontier ranks data operations, not securities.",
+                "body": (
+                    "Refresh the coverage frontier after readiness outputs exist. "
+                    "The frontier ranks data operations, not securities; open operator details for the copy-only command."
+                ),
                 "badges": ["read-only", "not a ranking"],
                 "command": "make coverage-frontier TOP_N=10",
             }

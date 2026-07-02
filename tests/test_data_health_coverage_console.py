@@ -93,10 +93,13 @@ def test_coverage_frontier_frame_and_cards_rank_data_operations_not_securities()
 def test_coverage_frontier_cards_handle_empty_frame_with_copy_only_command():
     cards = coverage_console.coverage_frontier_cards(pd.DataFrame())
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    body = str(cards[0]["body"]).lower()
 
     assert cards[0]["title"] == "No batch frontier rows yet"
     assert cards[0]["command"] == "make coverage-frontier TOP_N=10"
     assert "ranks data operations, not securities" in rendered
+    assert "open operator details" in body
+    assert "make " not in body
 
 
 def test_coverage_expansion_loop_ready_state_keeps_proof_boundary_visible():
