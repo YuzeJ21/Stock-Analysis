@@ -253,7 +253,7 @@ class DcfInputSourceCommandPlan:
 def _read_csv(path: Path) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
-    frame = pd.read_csv(path)
+    frame = pd.read_csv(path, dtype=str, low_memory=False)
     frame.columns = normalize_columns(list(frame.columns))
     return frame
 

@@ -442,6 +442,34 @@ def test_dcf_input_queue_from_files_prefers_master_universe_scope_metadata(tmp_p
     assert [row.ticker for row in rows] == ["OPCO"]
 
 
+def test_dcf_input_queue_from_files_reads_large_generated_numeric_tokens(tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "BIGID", "asset_type": "company"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "BIGID", "name": "Big Identifier Corp.", "asset_type": "company"},
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame(columns=["ticker", "revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"]).to_csv(
+        data_dir / "fundamentals.csv",
+        index=False,
+    )
+    (data_dir / "prices.csv").write_text(
+        "ticker,date,close,provider_reference\n"
+        "BIGID,2026-01-01,10,123456789012345678901234567890\n",
+        encoding="utf-8",
+    )
+
+    rows = build_dcf_input_proof_queue_from_files(tmp_path, data_dir=data_dir, top_n=10)
+
+    assert [row.ticker for row in rows] == ["BIGID"]
+
+
 def test_dcf_input_queue_respects_top_n_and_ticker_scope(monkeypatch):
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)
 
