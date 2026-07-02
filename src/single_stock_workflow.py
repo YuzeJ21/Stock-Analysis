@@ -420,7 +420,8 @@ def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[
             "kicker": "ANSWER FIRST",
             "title": "Use this report first",
             "body": (
-                f"Read the supported sections here first. Open Data Health only for {route_label}, "
+                f"Use now: {current_read} Blocked: {blocked_state} "
+                f"Next proof: open Data Health only for {route_label}. "
                 "Proof History is evidence review, not a second report."
             ),
             "badges": ["one path", "details collapsed"],

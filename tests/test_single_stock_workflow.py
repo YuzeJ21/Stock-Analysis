@@ -83,6 +83,9 @@ def test_single_stock_data_health_handoff_cards_route_locked_inputs_to_matching_
         "STOP RULE",
     ]
     assert cards[0]["title"] == "Use this report first"
+    assert "use now: standalone dcf context can be reviewed from trusted local inputs" in rendered
+    assert "blocked: peer-relative context stays blocked until mappings and peer valuation inputs are source-backed" in rendered
+    assert "next proof: open data health only for peers source-proof lane" in rendered
     assert "open data health only for peers source-proof lane" in rendered
     assert "proof history is evidence review, not a second report" in rendered
     assert cards[1]["title"] == "MU: partial"
