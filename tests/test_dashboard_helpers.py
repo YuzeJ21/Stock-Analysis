@@ -24865,7 +24865,9 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
     assert cards[0]["title"] == "NVDA - partial"
     assert "use now:" in rendered
     assert "blocked/context:" in rendered
-    assert "next safe action:" in rendered
+    assert "data health handoff:" in rendered
+    assert "manual review boundary:" in rendered
+    assert "next safe action:" not in rendered
     assert "read this first before detailed review" in rendered
     assert "previous proof comes from the saved readiness checks" in rendered
     assert "standalone dcf assumptions and source readiness can be reviewed" in rendered
@@ -24874,6 +24876,8 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
     assert "data health handoff: peers source-proof lane" in rendered
     assert "stop if peer mappings or peer valuation inputs lack source-backed rows" in rendered
     assert "manual proof" in rendered
+    assert "commands stay in operator details" in rendered
+    assert "copy-only" not in rendered
     assert "do not treat locked, partial, or excluded sections as conclusions" in rendered
     assert "make focus-peers ticker=nvda" in rendered
     assert "broker" not in rendered

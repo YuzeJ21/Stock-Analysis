@@ -319,7 +319,8 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
             "kicker": "ANSWER FIRST",
             "title": f"{ticker} - {state}",
             "body": (
-                f"Use now: {review_now} Blocked/context: {blocked} Next safe action: {handoff} "
+                f"Use now: {review_now} Blocked/context: {blocked} Data Health handoff: {handoff} "
+                f"Manual review boundary: {route_stop_rule} "
                 "Read this first before detailed review. Previous proof comes from the saved readiness checks. "
                 f"Decision context: {decision}."
             ),
@@ -345,7 +346,7 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
             "title": "Where Data Health fits",
             "body": (
                 f"{handoff} Data Health handoff: {route_label}. "
-                f"{route_stop_rule} The next proof step stays manual and copy-only; the dashboard does not run imports or refreshes."
+                f"{route_stop_rule} Commands stay in operator details; the dashboard does not run imports or refreshes."
             ),
             "badges": ["manual proof", "manual gate"],
             "command": command,
@@ -353,7 +354,7 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
         {
             "kicker": "STOP RULE",
             "title": "Stop before interpretation",
-            "body": "Do not treat locked, partial, or excluded sections as conclusions. Reopen this report only after the matching proof command passes.",
+            "body": "Do not treat locked, partial, or excluded sections as conclusions. Reopen this report only after the matching source-proof gate passes.",
             "badges": ["research only", "proof first"],
             "command": "make readiness",
         },
