@@ -28671,7 +28671,7 @@ def render_data_health(
         )
         peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)
         with st.expander("Peer evidence drawer", expanded=False):
-            render_section_header("Peer Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+            render_section_header("Peer Evidence Answer", "One peer lane answer before source-review intake, proof planners, closeout, or peer matrix details.")
             render_signal_cards(
                 data_health_peer_readiness_v2_cards(ops_center) + data_health_trusted_pilot_lane_cards(lane_board),
                 show_commands=False,

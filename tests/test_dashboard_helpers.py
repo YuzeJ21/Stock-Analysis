@@ -15386,7 +15386,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_dcf_proof_source_review_checklist_cards(" in source
     assert "data_health_dcf_proof_source_review_checklist_frame(" in source
     assert "render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)" in source
-    assert "Peer Queue Snapshot" in source
+    assert "Peer Evidence Answer" in source
     assert "render_data_health_optional_operator_console(readiness_summary, optional_context_worklist_frame)" in source
     assert "Optional Context Queue Snapshot" in source
     assert "render_data_health_proof_history_operator_console(proof_timeline, batch_proof_frame, readiness_comparison)" in source
@@ -22498,6 +22498,20 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
     assert "Peer Proof Closeout" in source
     assert "data_health_peer_proof_closeout_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)" in source
     assert "data_health_peer_proof_closeout_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)" in source
+
+
+def test_data_health_peer_drawer_starts_with_peer_evidence_answer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)')
+    answer_index = source.index('render_section_header("Peer Evidence Answer"', peer_drawer_index)
+    answer_cards_index = source.index("data_health_peer_readiness_v2_cards(ops_center)", answer_index)
+    answer_command_visibility_index = source.index("show_commands=False", answer_cards_index)
+    source_review_index = source.index('render_section_header("Peer Source-Review Intake"', answer_command_visibility_index)
+    matrix_index = source.index('render_section_header("Peer Readiness Sub-State Matrix"', source_review_index)
+
+    assert peer_drawer_index < answer_index < answer_cards_index < answer_command_visibility_index < source_review_index < matrix_index
+    assert "One peer lane answer before source-review intake, proof planners, closeout, or peer matrix details." in source
 
 
 def test_data_health_peer_drawer_hides_summary_commands_by_default():
