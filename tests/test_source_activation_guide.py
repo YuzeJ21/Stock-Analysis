@@ -78,6 +78,17 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     rendered = render_provider_setup_checklist(checklist)
 
     rows = {row["provider"]: row for row in checklist["rows"]}
+    assert checklist["source_answer"] == {
+        "free_public_now": "SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance",
+        "needs_key": "Alpha Vantage free tier, Finnhub free tier",
+        "configured_keyed": "FMP free tier",
+        "optional_broker": "IBKR read-only",
+        "answer": (
+            "Use the free/public baseline first; configure at most one keyed free-tier fallback only when "
+            "project-status says source-proof queues are exhausted. Optional broker data remains disabled unless "
+            "explicitly configured for read-only daily OHLCV."
+        ),
+    }
     assert rows["FMP free tier"]["setup_state"] == "configured"
     assert rows["Alpha Vantage free tier"]["setup_state"] == "needs_key"
     assert rows["Finnhub free tier"]["setup_state"] == "needs_key"
@@ -108,6 +119,12 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "secret-fmp-key" not in json.dumps(checklist)
     assert "secret-fmp-key" not in rendered
     assert "Local setup commands:" in rendered
+    assert "What can run now?" in rendered
+    assert "free_public_now: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in rendered
+    assert "configured_keyed: FMP free tier" in rendered
+    assert "needs_key: Alpha Vantage free tier, Finnhub free tier" in rendered
+    assert "optional_broker: IBKR read-only" in rendered
+    assert "Use the free/public baseline first" in rendered
     assert "- cp config/provider_keys.env.example config/provider_keys.env" in rendered
     assert "- chmod 600 config/provider_keys.env" in rendered
     assert "- edit config/provider_keys.env locally; do not commit real keys" in rendered

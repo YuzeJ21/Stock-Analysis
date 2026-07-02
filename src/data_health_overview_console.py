@@ -563,6 +563,18 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
     payload = checklist or {}
     rows = _checklist_rows(payload)
     secret_policy = _format_missing(payload.get("secret_policy"), "Real key values are never printed.")
+    source_answer = payload.get("source_answer")
+    source_answer = source_answer if isinstance(source_answer, dict) else {}
+    concise_answer = _format_missing(
+        source_answer.get("answer"),
+        "Use the free/public baseline first; configure keyed fallbacks only when project-status says source-proof queues are exhausted.",
+    )
+    source_state = (
+        f"Free now: {_format_missing(source_answer.get('free_public_now'), 'see provider rows')}. "
+        f"Configured keyed: {_format_missing(source_answer.get('configured_keyed'), '-')}. "
+        f"Needs key: {_format_missing(source_answer.get('needs_key'), '-')}. "
+        f"Optional broker: {_format_missing(source_answer.get('optional_broker'), '-')}"
+    )
     free_public_summary = _checklist_rows_by_category(rows, {"free_public_available"})
     keyed_summary = _checklist_rows_by_state(rows, {"configured", "needs_key"})
     keyed_next_steps = _checklist_next_steps_by_state(rows, {"configured", "needs_key"})
@@ -585,7 +597,7 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
         {
             "kicker": "PROVIDER SETUP CHECKLIST",
             "title": "Source setup states without secrets",
-            "body": f"{all_summary}. {secret_policy}",
+            "body": f"{concise_answer} {source_state}. {secret_policy} Detailed rows: {all_summary}.",
             "badges": ["setup states", "no secrets"],
             "command": "make provider-setup-checklist",
         },

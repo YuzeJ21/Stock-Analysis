@@ -229,6 +229,29 @@ def _current_gate_from_preflight(preflight: dict[str, Any] | None) -> dict[str, 
     }
 
 
+def _provider_names_for_state(rows: list[dict[str, Any]], states: set[str]) -> str:
+    names = [
+        str(row.get("provider") or "").strip()
+        for row in rows
+        if str(row.get("setup_state") or "").strip() in states and str(row.get("provider") or "").strip()
+    ]
+    return ", ".join(names) if names else "-"
+
+
+def _provider_source_answer(rows: list[dict[str, Any]]) -> dict[str, str]:
+    return {
+        "free_public_now": _provider_names_for_state(rows, {"available"}),
+        "needs_key": _provider_names_for_state(rows, {"needs_key"}),
+        "configured_keyed": _provider_names_for_state(rows, {"configured"}),
+        "optional_broker": _provider_names_for_state(rows, {"optional_disabled", "optional_configured"}),
+        "answer": (
+            "Use the free/public baseline first; configure at most one keyed free-tier fallback only when "
+            "project-status says source-proof queues are exhausted. Optional broker data remains disabled unless "
+            "explicitly configured for read-only daily OHLCV."
+        ),
+    }
+
+
 def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = None) -> dict[str, Any]:
     guide = build_source_activation_guide()
     rows = []
@@ -254,6 +277,7 @@ def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = No
         "setup_commands": guide["setup_commands"],
         "activation_plan": guide["activation_plan"],
         "rows": rows,
+        "source_answer": _provider_source_answer(rows),
         "apply_gate": guide["apply_gate"],
         "non_retry_rule": guide["non_retry_rule"],
         "current_gate": _current_gate_from_preflight(current_preflight),
@@ -266,8 +290,23 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
         str(checklist["research_boundary"]),
         str(checklist["secret_policy"]),
         "",
-        "Local setup commands:",
+        "What can run now?",
     ]
+    source_answer = checklist.get("source_answer", {})
+    if isinstance(source_answer, dict) and source_answer:
+        lines.extend(
+            [
+                f"- free_public_now: {source_answer.get('free_public_now', '-')}",
+                f"- configured_keyed: {source_answer.get('configured_keyed', '-')}",
+                f"- needs_key: {source_answer.get('needs_key', '-')}",
+                f"- optional_broker: {source_answer.get('optional_broker', '-')}",
+                f"- answer: {source_answer.get('answer', '-')}",
+                "",
+            ]
+        )
+    lines.extend([
+        "Local setup commands:",
+    ])
     lines.extend(f"- {command}" for command in checklist.get("setup_commands", []))
     lines.extend(["", "Activation plan:"])
     lines.extend(f"- {step}" for step in checklist.get("activation_plan", []))

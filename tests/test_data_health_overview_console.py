@@ -266,6 +266,13 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     cards = overview_console.provider_setup_checklist_cards(
         {
             "secret_policy": "Real key values are never printed.",
+            "source_answer": {
+                "free_public_now": "SEC Companyfacts, SEC submissions, Stooq",
+                "configured_keyed": "FMP free tier",
+                "needs_key": "Alpha Vantage free tier",
+                "optional_broker": "IBKR read-only",
+                "answer": "Use the free/public baseline first; configure at most one keyed free-tier fallback only when project-status says source-proof queues are exhausted.",
+            },
             "rows": [
                 {
                     "provider": "SEC Companyfacts",
@@ -321,6 +328,11 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
         "NEXT SAFE STEP",
     ]
     assert cards[0]["command"] == "make provider-setup-checklist"
+    assert "use the free/public baseline first" in rendered
+    assert "free now: sec companyfacts, sec submissions, stooq" in rendered
+    assert "configured keyed: fmp free tier" in rendered
+    assert "needs key: alpha vantage free tier" in rendered
+    assert "optional broker: ibkr read-only" in rendered
     assert "free/public baseline works before keys" in rendered
     assert "sec companyfacts: available" in rendered
     assert "stooq daily prices: available" in rendered
