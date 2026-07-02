@@ -28999,10 +28999,10 @@ def render_data_health(
             show_commands=False,
         )
     if show_details:
-        with st.expander("Detailed market-wide review", expanded=False):
+        with st.expander("Last-resort market review", expanded=False):
             render_section_header(
-                "Detailed Proof Map",
-                "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context.",
+                "Last-resort Proof Map",
+                "Use only after the selected lane answer, lane evidence drawer, and last-resort diagnostic context do not answer the reviewer question.",
             )
             render_signal_cards(
                 data_health_advanced_unlock_map_cards(
