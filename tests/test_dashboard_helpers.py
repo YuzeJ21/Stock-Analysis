@@ -26992,6 +26992,22 @@ def test_stock_selector_saved_filter_and_compare_controls_are_product_surface():
     assert proof_href == "?mode=public&page=data-health&ticker=NVDA&lane=peers&drawer=proof"
 
 
+def test_stock_selector_next_reading_path_uses_selected_ticker_not_fixed_demo_name():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    shortlist_index = source.index("selected_shortlist = st.multiselect(", render_index)
+    next_ticker_index = source.index("next_review_ticker =", shortlist_index)
+    next_route_index = source.index("next_review_route =", next_ticker_index)
+    next_path_index = source.index('render_section_header("Next Reading Path"', next_route_index)
+    open_review_index = source.index('"Open one review"', next_path_index)
+    open_review_route_index = source.index("next_review_route", open_review_index)
+    data_health_index = source.index("def price_refresh_operator_plan_cards(", open_review_route_index)
+    selector_source = source[render_index:data_health_index]
+
+    assert shortlist_index < next_ticker_index < next_route_index < next_path_index < open_review_index < open_review_route_index
+    assert '?mode=public&page=single-stock-report&ticker=NVDA&open=1' not in selector_source
+
+
 def test_data_health_public_proof_map_cards_use_plain_readiness_labels():
     freshness = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     cards = dashboard.data_health_public_proof_map_cards(

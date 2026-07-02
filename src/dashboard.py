@@ -7,7 +7,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import pandas as pd
 import streamlit as st
@@ -25703,6 +25703,16 @@ def render_stock_selector(
         stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=30),
         unsafe_allow_html=True,
     )
+    next_review_ticker = (
+        str(selected_shortlist[0]).upper().strip()
+        if selected_shortlist
+        else (str(shortlist_options[0]).upper().strip() if shortlist_options else "")
+    )
+    next_review_route = (
+        f"?mode=public&page=single-stock-report&ticker={quote(next_review_ticker)}&open=1"
+        if next_review_ticker
+        else "?mode=public&page=single-stock-report"
+    )
     with st.expander("Full filtered selector rows", expanded=False):
         render_context_note(
             "Detailed selector evidence.",
@@ -25717,7 +25727,7 @@ def render_stock_selector(
                 (
                     "Open one review",
                     "Use the selected ticker action above to open the one-stock review.",
-                    "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
+                    next_review_route,
                     "neutral",
                 ),
                 (
