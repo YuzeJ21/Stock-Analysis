@@ -28,7 +28,7 @@ def peer_analysis_boundary_cards(
             {
                 "kicker": "PEER ANALYSIS",
                 "title": "Peer readiness not loaded",
-                "body": "Run make readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked.",
+                "body": "Refresh peer readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked. Open operator details for the copy-only command.",
                 "badges": ["readiness first", "no inferred peers"],
                 "command": "make readiness",
             }

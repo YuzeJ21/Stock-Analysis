@@ -80,12 +80,14 @@ def test_peer_analysis_boundary_cards_explain_trend_vs_valuation_boundaries():
 
 def test_peer_analysis_boundary_cards_handle_missing_report_without_fake_peer_counts():
     cards = peer_analysis.peer_analysis_boundary_cards(None)
-    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    body = str(cards[0]["body"]).lower()
 
     assert len(cards) == 1
-    assert "peer readiness not loaded" in rendered
-    assert "missing peer output means peer analysis stays locked" in rendered
-    assert "make readiness" in rendered
+    assert cards[0]["title"] == "Peer readiness not loaded"
+    assert cards[0]["command"] == "make readiness"
+    assert "missing peer output means peer analysis stays locked" in body
+    assert "open operator details" in body
+    assert "make " not in body
 
 
 def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance():
