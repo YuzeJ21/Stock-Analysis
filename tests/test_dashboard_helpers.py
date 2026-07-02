@@ -26712,6 +26712,24 @@ def test_optional_context_evidence_drawer_nests_detailed_workflow():
     assert detailed_workflow_index < queue_snapshot_index < freshness_routine_index < copy_only_steps_index < proof_history_index
 
 
+def test_proof_history_evidence_drawer_nests_detailed_workflow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    proof_drawer_index = source.index('st.expander("Proof evidence review drawer", expanded=False)')
+    proof_context_index = source.index('"One proof evidence drawer."', proof_drawer_index)
+    detailed_workflow_index = source.index('st.expander("Proof history detailed workflow", expanded=False)', proof_context_index)
+    snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', detailed_workflow_index)
+    outcome_recorder_index = source.index('render_section_header("Outcome Recorder"', snapshot_gate_index)
+    proof_loop_index = source.index('render_section_header("Reviewed Batch Proof Loop"', outcome_recorder_index)
+    proof_ledger_index = source.index('render_section_header("Reviewed Data Proof Ledger"', proof_loop_index)
+    before_after_index = source.index('render_section_header("Before / After Batch Proof"', proof_ledger_index)
+    last_resort_index = source.index('if show_details:', before_after_index)
+
+    assert proof_drawer_index < proof_context_index < detailed_workflow_index
+    assert detailed_workflow_index < snapshot_gate_index < outcome_recorder_index < proof_loop_index
+    assert proof_loop_index < proof_ledger_index < before_after_index < last_resort_index
+
+
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():
     frame = pd.DataFrame(
         {

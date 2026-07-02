@@ -29133,91 +29133,100 @@ def render_data_health(
                     "One proof evidence drawer.",
                     "One evidence drawer keeps snapshot gate, proof-record fields, reviewed ledgers, and before/after proof together.",
                 )
-                render_section_header("Snapshot Gate", "Confirm the saved baseline before recording changed readiness counts.")
-                render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight), show_commands=False)
-                st.dataframe(clean_display_frame(data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)), width="stretch", hide_index=True)
-                render_section_header("Apply Guard", "Supported batch outcomes require reviewed validation, preview, rejected-row status, and apply decision.")
-                render_signal_cards(data_health_reviewed_batch_apply_guard_cards(batch_preflight), show_commands=False)
-                st.dataframe(clean_display_frame(data_health_reviewed_batch_apply_guard_frame(batch_preflight)), width="stretch", hide_index=True)
-                render_section_header("Outcome Recorder", "Required proof-row fields before recording supported, candidate_context_only, still_blocked, skipped, or excluded.")
-                render_signal_cards(
-                    data_health_reviewed_batch_outcome_recorder_cards(batch_packet_frame, readiness_comparison),
-                    show_commands=True,
-                )
-                st.dataframe(
-                    clean_display_frame(data_health_reviewed_batch_outcome_recorder_frame(batch_packet_frame, readiness_comparison)),
-                    width="stretch",
-                    hide_index=True,
-                )
-                render_section_header("Proof Record Command Builder", "Copy-ready command with reviewed values filled and unresolved fields kept visible.")
-                render_signal_cards(
-                    data_health_reviewed_batch_proof_record_command_cards(batch_packet_frame, readiness_comparison),
-                    show_commands=True,
-                )
-                render_signal_cards(
-                    data_health_reviewed_batch_proof_completion_cards(batch_packet_frame, readiness_comparison),
-                    show_commands=False,
-                )
-                st.dataframe(
-                    clean_display_frame(data_health_reviewed_batch_proof_completion_frame(batch_packet_frame, readiness_comparison)),
-                    width="stretch",
-                    hide_index=True,
-                )
-                render_signal_cards(
-                    data_health_reviewed_batch_proof_ledger_preview_cards(batch_packet_frame, readiness_comparison),
-                    show_commands=False,
-                )
-                st.dataframe(
-                    clean_display_frame(data_health_reviewed_batch_proof_ledger_preview_frame(batch_packet_frame, readiness_comparison)),
-                    width="stretch",
-                    hide_index=True,
-                )
-                with st.expander("Detailed proof command fields", expanded=False):
+                with st.expander("Proof history detailed workflow", expanded=False):
+                    render_section_header("Snapshot Gate", "Confirm the saved baseline before recording changed readiness counts.")
+                    render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight), show_commands=False)
                     st.dataframe(
-                        clean_display_frame(data_health_reviewed_batch_proof_record_command_frame(batch_packet_frame, readiness_comparison)),
+                        clean_display_frame(data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)),
                         width="stretch",
                         hide_index=True,
                     )
+                    render_section_header("Apply Guard", "Supported batch outcomes require reviewed validation, preview, rejected-row status, and apply decision.")
+                    render_signal_cards(data_health_reviewed_batch_apply_guard_cards(batch_preflight), show_commands=False)
                     st.dataframe(
-                        clean_display_frame(data_health_reviewed_batch_proof_record_validation_frame(batch_packet_frame, readiness_comparison)),
+                        clean_display_frame(data_health_reviewed_batch_apply_guard_frame(batch_preflight)),
                         width="stretch",
                         hide_index=True,
                     )
+                    render_section_header("Outcome Recorder", "Required proof-row fields before recording supported, candidate_context_only, still_blocked, skipped, or excluded.")
+                    render_signal_cards(
+                        data_health_reviewed_batch_outcome_recorder_cards(batch_packet_frame, readiness_comparison),
+                        show_commands=True,
+                    )
                     st.dataframe(
-                        clean_display_frame(data_health_reviewed_batch_proof_record_command_arguments_frame(batch_packet_frame, readiness_comparison)),
+                        clean_display_frame(data_health_reviewed_batch_outcome_recorder_frame(batch_packet_frame, readiness_comparison)),
                         width="stretch",
                         hide_index=True,
                     )
-                render_section_header("Reviewed Batch Proof Loop", "Latest packet, comparison status, and proof-record scaffold in one compact completion view.")
-                render_signal_cards(
-                    data_health_reviewed_batch_proof_loop_cards(batch_packet_frame, readiness_comparison),
-                    show_commands=True,
-                )
-                st.dataframe(
-                    clean_display_frame(data_health_reviewed_batch_proof_loop_frame(batch_packet_frame, readiness_comparison)),
-                    width="stretch",
-                    hide_index=True,
-                )
-                render_section_header("Proof History Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
-                render_signal_cards(
-                    data_health_reviewed_proof_cards()
-                    + data_health_reviewed_batch_proof_cards()
-                    + data_health_readiness_comparison_cards(readiness_comparison),
-                    show_commands=False,
-                )
-                render_section_header("Reviewed Data Proof Ledger", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
-                render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)
-                if proof_timeline.empty:
-                    st.caption("No reviewed proof rows are recorded yet.")
-                else:
-                    st.dataframe(clean_display_frame(proof_timeline), width="stretch", hide_index=True)
-                render_section_header("Reviewed Batch Proof Rows", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
-                if batch_proof_frame.empty:
-                    st.caption("No reviewed batch proof rows are recorded yet.")
-                else:
-                    st.dataframe(clean_display_frame(batch_proof_frame), width="stretch", hide_index=True)
-                render_section_header("Before / After Batch Proof", "Readiness snapshot comparison for proof-ledger changed counts and changed tickers.")
-                st.dataframe(clean_display_frame(data_health_readiness_comparison_frame(readiness_comparison)), width="stretch", hide_index=True)
+                    render_section_header("Proof Record Command Builder", "Copy-ready command with reviewed values filled and unresolved fields kept visible.")
+                    render_signal_cards(
+                        data_health_reviewed_batch_proof_record_command_cards(batch_packet_frame, readiness_comparison),
+                        show_commands=True,
+                    )
+                    render_signal_cards(
+                        data_health_reviewed_batch_proof_completion_cards(batch_packet_frame, readiness_comparison),
+                        show_commands=False,
+                    )
+                    st.dataframe(
+                        clean_display_frame(data_health_reviewed_batch_proof_completion_frame(batch_packet_frame, readiness_comparison)),
+                        width="stretch",
+                        hide_index=True,
+                    )
+                    render_signal_cards(
+                        data_health_reviewed_batch_proof_ledger_preview_cards(batch_packet_frame, readiness_comparison),
+                        show_commands=False,
+                    )
+                    st.dataframe(
+                        clean_display_frame(data_health_reviewed_batch_proof_ledger_preview_frame(batch_packet_frame, readiness_comparison)),
+                        width="stretch",
+                        hide_index=True,
+                    )
+                    with st.expander("Detailed proof command fields", expanded=False):
+                        st.dataframe(
+                            clean_display_frame(data_health_reviewed_batch_proof_record_command_frame(batch_packet_frame, readiness_comparison)),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                        st.dataframe(
+                            clean_display_frame(data_health_reviewed_batch_proof_record_validation_frame(batch_packet_frame, readiness_comparison)),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                        st.dataframe(
+                            clean_display_frame(data_health_reviewed_batch_proof_record_command_arguments_frame(batch_packet_frame, readiness_comparison)),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    render_section_header("Reviewed Batch Proof Loop", "Latest packet, comparison status, and proof-record scaffold in one compact completion view.")
+                    render_signal_cards(
+                        data_health_reviewed_batch_proof_loop_cards(batch_packet_frame, readiness_comparison),
+                        show_commands=True,
+                    )
+                    st.dataframe(
+                        clean_display_frame(data_health_reviewed_batch_proof_loop_frame(batch_packet_frame, readiness_comparison)),
+                        width="stretch",
+                        hide_index=True,
+                    )
+                    render_section_header("Proof History Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+                    render_signal_cards(
+                        data_health_reviewed_proof_cards()
+                        + data_health_reviewed_batch_proof_cards()
+                        + data_health_readiness_comparison_cards(readiness_comparison),
+                        show_commands=False,
+                    )
+                    render_section_header("Reviewed Data Proof Ledger", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
+                    render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)
+                    if proof_timeline.empty:
+                        st.caption("No reviewed proof rows are recorded yet.")
+                    else:
+                        st.dataframe(clean_display_frame(proof_timeline), width="stretch", hide_index=True)
+                    render_section_header("Reviewed Batch Proof Rows", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
+                    if batch_proof_frame.empty:
+                        st.caption("No reviewed batch proof rows are recorded yet.")
+                    else:
+                        st.dataframe(clean_display_frame(batch_proof_frame), width="stretch", hide_index=True)
+                    render_section_header("Before / After Batch Proof", "Readiness snapshot comparison for proof-ledger changed counts and changed tickers.")
+                    st.dataframe(clean_display_frame(data_health_readiness_comparison_frame(readiness_comparison)), width="stretch", hide_index=True)
 
     if show_details:
         with st.expander("Last-resort diagnostic context", expanded=False):
