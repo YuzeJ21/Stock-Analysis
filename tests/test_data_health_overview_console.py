@@ -368,6 +368,9 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     assert "project-status -> provider setup -> one-provider smoke -> validate/preview" in rendered
     assert "do not reopen broad proof loops from setup" in rendered
     assert "use the free/public baseline first" in rendered
+    assert "free public sources: sec companyfacts, sec submissions, stooq" in rendered
+    assert "keyed free-tier fallbacks: configured fmp free tier; needs key alpha vantage free tier" in rendered
+    assert "optional broker boundary: ibkr read-only" in rendered
     assert "free now: sec companyfacts, sec submissions, stooq" in rendered
     assert "configured keyed: fmp free tier" in rendered
     assert "needs key: alpha vantage free tier" in rendered

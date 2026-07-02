@@ -589,11 +589,16 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
         source_answer.get("answer"),
         "Use the free/public baseline first; configure keyed fallbacks only when project-status says source-proof queues are exhausted.",
     )
+    free_public_now = _format_missing(source_answer.get("free_public_now"), "see provider rows")
+    configured_keyed = _format_missing(source_answer.get("configured_keyed"), "-")
+    needs_key = _format_missing(source_answer.get("needs_key"), "-")
+    optional_broker = _format_missing(source_answer.get("optional_broker"), "-")
     source_state = (
-        f"Free now: {_format_missing(source_answer.get('free_public_now'), 'see provider rows')}. "
-        f"Configured keyed: {_format_missing(source_answer.get('configured_keyed'), '-')}. "
-        f"Needs key: {_format_missing(source_answer.get('needs_key'), '-')}. "
-        f"Optional broker: {_format_missing(source_answer.get('optional_broker'), '-')}"
+        f"Free public sources: {free_public_now}. "
+        f"Keyed free-tier fallbacks: configured {configured_keyed}; needs key {needs_key}. "
+        f"Optional broker boundary: {optional_broker}. "
+        f"Free now: {free_public_now}. Configured keyed: {configured_keyed}. "
+        f"Needs key: {needs_key}. Optional broker: {optional_broker}"
     )
     current_gate = payload.get("current_gate")
     current_gate = current_gate if isinstance(current_gate, dict) else {}
