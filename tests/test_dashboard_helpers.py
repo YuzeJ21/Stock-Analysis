@@ -25882,9 +25882,17 @@ def test_data_health_optional_context_drawer_hides_summary_commands():
         'st.expander("Optional context evidence drawer", expanded=False)',
         optional_lane_index,
     )
+    answer_index = source.index('"Optional Context Answer"', drawer_index)
+    answer_copy_index = source.index(
+        "One optional-context answer before freshness routines, copy-only next steps, or locked optional lane details.",
+        answer_index,
+    )
+    answer_cards_index = source.index("data_health_advanced_unlock_map_cards(", answer_copy_index)
+    answer_command_visibility_index = source.index("show_commands=False", answer_cards_index)
+    queue_snapshot_index = source.index('"Optional Context Queue Snapshot"', answer_command_visibility_index)
     freshness_routine_index = source.index(
         "data_health_freshness_routine_cards(readiness_summary)",
-        drawer_index,
+        queue_snapshot_index,
     )
     freshness_command_visibility_index = source.index("show_commands=False", freshness_routine_index)
     action_path_index = source.index(
@@ -25897,6 +25905,11 @@ def test_data_health_optional_context_drawer_hides_summary_commands():
     assert (
         optional_lane_index
         < drawer_index
+        < answer_index
+        < answer_copy_index
+        < answer_cards_index
+        < answer_command_visibility_index
+        < queue_snapshot_index
         < freshness_routine_index
         < freshness_command_visibility_index
         < action_path_index

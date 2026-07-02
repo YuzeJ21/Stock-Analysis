@@ -28800,6 +28800,15 @@ def render_data_health(
         )[3:4]
         render_data_health_optional_operator_console(readiness_summary, optional_context_worklist_frame)
         with st.expander("Optional context evidence drawer", expanded=False):
+            render_section_header(
+                "Optional Context Answer",
+                "One optional-context answer before freshness routines, copy-only next steps, or locked optional lane details.",
+            )
+            render_signal_cards(
+                data_health_advanced_unlock_map_cards(None, None, optional_context_worklist_frame),
+                show_commands=False,
+                variant="queue",
+            )
             render_section_header("Optional Context Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
             render_signal_cards(
                 optional_cards + data_health_advanced_unlock_map_cards(None, None, optional_context_worklist_frame),
