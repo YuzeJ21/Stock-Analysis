@@ -92,8 +92,9 @@ def test_pilot_reviewer_walkthrough_uses_deferred_proof_queue_when_fast_view():
         "Public boundary",
     ]
     assert frame.iloc[1]["What Reviewer Sees"] == "Generated artifact hygiene"
-    assert frame.iloc[2]["What Reviewer Sees"] == "Load source-proof queues"
-    assert "switch readiness queue detail level to review details" in rendered
+    assert frame.iloc[2]["What Reviewer Sees"] == "Check source-proof gate"
+    assert "run project-status first" in rendered
+    assert "provider setup" in rendered
     assert "raw csv rows" in rendered
     assert "recommendation" not in rendered
     assert "buy" not in rendered
@@ -160,10 +161,11 @@ def test_operator_next_action_summary_deferred_state_stays_copy_only():
     cards = pilot_console.operator_next_action_summary_cards(frame)
     rendered = " ".join(str(card) for card in cards).lower()
 
-    assert frame.iloc[2]["Answer"] == "Load source-proof queues"
+    assert frame.iloc[2]["Answer"] == "Check source-proof gate"
     assert frame.iloc[2]["Status"] == "deferred"
-    assert "review details before editing any data rows" in rendered
-    assert "make data-coverage-proof-queues top_n=10" in rendered
+    assert "run project-status first" in rendered
+    assert "provider setup" in rendered
+    assert "make project-status" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -372,9 +374,11 @@ def test_pilot_evidence_review_deferred_state_still_names_safe_commands():
     assert frame.iloc[0]["Review State"] == "Run pilot readiness check"
     assert frame.iloc[1]["Next Safe Action"] == "make browser-qa-evidence"
     assert frame.iloc[2]["Next Safe Action"] == "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md"
-    assert frame.iloc[5]["Next Safe Action"] == "make data-coverage-proof-queues TOP_N=10"
+    assert frame.iloc[5]["Next Safe Action"] == "make project-status"
     assert "run browser qa evidence" in rendered
     assert "generated csv/json/report churn stays excluded" in rendered
+    assert "run project-status first" in rendered
+    assert "provider setup" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

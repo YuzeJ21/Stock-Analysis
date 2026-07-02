@@ -402,10 +402,10 @@ def pilot_handoff_summary_frame(
         gate_command = _format_missing(priority_gate.get("Command"), gate_command)
         gate_boundary = _compact_fragment(priority_gate.get("Stop Rule"), max_chars=180)
 
-    proof_answer = "Load source-proof queues"
+    proof_answer = "Check source-proof gate"
     proof_status = "manual"
-    proof_command = "make data-coverage-proof-queues TOP_N=10"
-    proof_boundary = "Do not edit source rows until proof queues are loaded and reviewed."
+    proof_command = "make project-status"
+    proof_boundary = "Run project-status first; use provider setup when source-proof queues are exhausted before reopening proof tables."
     if proof_queue is not None:
         proof_answer = _format_missing(proof_queue.get("Queue"), proof_answer)
         proof_status = _format_missing(proof_queue.get("State"), proof_status)
@@ -532,9 +532,9 @@ def pilot_packaging_summary_frame(
         manual_command = _format_missing(priority_gate.get("Command"), manual_command)
         manual_stop = _compact_fragment(priority_gate.get("Stop Rule"), max_chars=170)
 
-    proof_focus = "Load source-proof queues"
-    proof_command = "make data-coverage-proof-queues TOP_N=10"
-    proof_boundary = "Open review details before editing any source rows."
+    proof_focus = "Check source-proof gate"
+    proof_command = "make project-status"
+    proof_boundary = "Run project-status first; use provider setup when source-proof queues are exhausted before reopening proof tables."
     if proof_queue is not None:
         proof_focus = _format_missing(proof_queue.get("Queue"), "Source-proof queue")
         proof_command = _format_missing(proof_queue.get("Next Safe Command"), proof_command)
@@ -656,10 +656,10 @@ def pilot_evidence_review_frame(
         max_chars=190,
     )
 
-    proof_title = "Load source-proof queues"
+    proof_title = "Check source-proof gate"
     proof_status = "deferred"
-    proof_command = "make data-coverage-proof-queues TOP_N=10"
-    proof_boundary = "Open review details before editing source rows."
+    proof_command = "make project-status"
+    proof_boundary = "Run project-status first; use provider setup when source-proof queues are exhausted before reopening proof tables."
     if proof_queue is not None:
         proof_title = _format_missing(proof_queue.get("Queue"), proof_title)
         proof_status = _format_missing(proof_queue.get("State"), proof_status)
@@ -1052,10 +1052,10 @@ def pilot_reviewer_walkthrough_frame(
         gate_stop = _compact_fragment(priority_gate.get("Stop Rule"), max_chars=190)
 
     if proof_queue is None:
-        queue_title = "Load source-proof queues"
-        queue_detail = "DCF, shares, fundamentals, peer mapping, and peer valuation queues are deferred until review details are opened."
-        queue_command = "Switch Readiness queue detail level to Review details."
-        queue_stop = "Do not edit raw CSV rows without a source-proof queue and review gate."
+        queue_title = "Check source-proof gate"
+        queue_detail = "Run project-status first; if source-proof queues are exhausted, use provider setup before reopening proof tables."
+        queue_command = "make project-status"
+        queue_stop = "Do not edit raw CSV rows without a source-proof queue, provider setup pivot, or review gate."
     else:
         queue_title = _format_missing(proof_queue.get("Queue"), "Source-proof queue")
         blocked = int(pd.to_numeric(pd.Series([proof_queue.get("Blocked", 0)]), errors="coerce").fillna(0).iloc[0])
@@ -1177,10 +1177,10 @@ def operator_next_action_summary_frame(
         gate_command = _format_missing(priority_gate.get("Command"), gate_command)
         gate_status = _format_missing(priority_gate.get("Status"), "manual")
 
-    proof_title = "Load source-proof queues"
-    proof_command = "make data-coverage-proof-queues TOP_N=10"
+    proof_title = "Check source-proof gate"
+    proof_command = "make project-status"
     proof_status = "deferred"
-    proof_evidence = "Source-proof queues are not loaded in fast view; open review details before editing any data rows."
+    proof_evidence = "Run project-status first; if source-proof queues are exhausted, use provider setup before reopening proof tables or editing data rows."
     if proof_queue is not None:
         proof_title = _format_missing(proof_queue.get("Queue"), "Source-proof queue")
         proof_status = _format_missing(proof_queue.get("State"), "partial")
