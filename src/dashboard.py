@@ -8944,6 +8944,8 @@ def data_health_coverage_summary_cards(
         use_now = compact_card_fragment(row.get("one_clear_answer"), max_chars=92)
         blocked = compact_card_fragment(row.get("blocked_or_limited"), max_chars=72)
         context = compact_card_fragment(row.get("supporting_coverage"), max_chars=62)
+        next_proof = compact_card_fragment(row.get("proof_to_unlock"), max_chars=82)
+        stop_rule = compact_card_fragment(row.get("stop_rule"), max_chars=78)
         cards.append(
             {
                 "kicker": state.upper(),
@@ -8951,7 +8953,9 @@ def data_health_coverage_summary_cards(
                 "body": (
                     f"Answer: {use_now}. "
                     f"Blocked/limited: {blocked}. "
-                    f"Context: {context}."
+                    f"Context: {context}. "
+                    f"Next proof: {next_proof}. "
+                    f"Stop: {stop_rule}."
                 ),
                 "badges": [state, format_missing(row.get("ready_coverage"))],
             }

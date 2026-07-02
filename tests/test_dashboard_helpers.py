@@ -19537,9 +19537,11 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
     assert "use now for market setup" in rendered
     assert "use only on dcf-ready companies" in rendered
     assert "why limited:" not in rendered
-    assert "proof to unlock:" not in rendered
+    assert "next proof:" in rendered
+    assert "stop:" in rendered
     assert "candidate peers are context only" not in rendered
-    assert "stop if candidate peers are promoted to trusted peers" not in rendered
+    assert "reviewed trusted peer mapping rows" in rendered
+    assert "stop if candidate peers are promoted to trusted peers" in rendered
     assert "Candidate peers are context only" in " ".join(map(str, frame["why_blocked_or_limited"]))
     assert "Reviewed trusted peer mapping rows" in " ".join(map(str, frame["proof_to_unlock"]))
     assert "Stop if candidate peers are promoted to trusted peers" in " ".join(map(str, frame["stop_rule"]))
@@ -27581,11 +27583,12 @@ def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer()
     assert "answer:" in rendered
     assert "blocked/limited:" in rendered
     assert "context:" in rendered
+    assert "next proof:" in rendered
+    assert "stop:" in rendered
     assert "use now: do not use yet" not in rendered
     assert "next safe action:" not in rendered
-    assert "stop rule:" not in rendered
     assert "proof to unlock:" not in rendered
-    assert max(len(str(card["body"])) for card in cards) <= 260
+    assert max(len(str(card["body"])) for card in cards) <= 390
     assert "make " not in rendered
 
 
