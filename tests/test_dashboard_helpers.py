@@ -27881,6 +27881,24 @@ def test_last_resort_legacy_coverage_tab_nests_dcf_readiness_rows():
     assert raw_rows_index < dcf_columns_index < dcf_rows_index < optional_context_index
 
 
+def test_last_resort_legacy_coverage_tab_nests_data_quality_and_ticker_readiness_rows():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
+    data_quality_drawer_index = source.index('st.expander("Legacy data-quality rows", expanded=False)', coverage_tab_index)
+    data_quality_columns_index = source.index("data_quality_columns = [", data_quality_drawer_index)
+    data_quality_frame_index = source.index("st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns]))", data_quality_columns_index)
+    ticker_header_index = source.index('"Ticker Readiness Report"', data_quality_frame_index)
+    ticker_drawer_index = source.index('st.expander("Legacy ticker readiness rows", expanded=False)', ticker_header_index)
+    readiness_columns_index = source.index("readiness_columns = [", ticker_drawer_index)
+    ticker_readiness_frame_index = source.index("st.dataframe(clean_display_frame(ticker_readiness_frame[readiness_columns].head(200))", readiness_columns_index)
+    liquidity_index = source.index('st.expander("Liquidity Context", expanded=False)', ticker_readiness_frame_index)
+
+    assert coverage_tab_index < data_quality_drawer_index < data_quality_columns_index < data_quality_frame_index
+    assert data_quality_frame_index < ticker_header_index < ticker_drawer_index < readiness_columns_index
+    assert readiness_columns_index < ticker_readiness_frame_index < liquidity_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"

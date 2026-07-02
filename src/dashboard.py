@@ -29711,54 +29711,56 @@ def render_data_health(
                     metric_cols[3].metric("Price-Led Groups", summary["price_led_groups"])
                     metric_cols[4].metric("Fundamentals-Led Groups", summary["fundamentals_led_groups"])
 
-                if data_quality_frame is not None and not data_quality_frame.empty:
-                    data_quality_columns = [
-                        column
-                        for column in [
-                            "Ticker",
-                            "ReadinessStatus",
-                            "DataQualityScore",
-                            "MomentumReady",
-                            "DCFReady",
-                            "PeerReady",
-                            "PriceHistoryDays",
-                            "MissingDataFields",
-                            "NextBestAction",
-                            "Reason",
+                with st.expander("Legacy data-quality rows", expanded=False):
+                    if data_quality_frame is not None and not data_quality_frame.empty:
+                        data_quality_columns = [
+                            column
+                            for column in [
+                                "Ticker",
+                                "ReadinessStatus",
+                                "DataQualityScore",
+                                "MomentumReady",
+                                "DCFReady",
+                                "PeerReady",
+                                "PriceHistoryDays",
+                                "MissingDataFields",
+                                "NextBestAction",
+                                "Reason",
+                            ]
+                            if column in data_quality_frame.columns
                         ]
-                        if column in data_quality_frame.columns
-                    ]
-                    st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns])), width="stretch", hide_index=True)
-                else:
-                    st.info(data_quality_message or "No data-quality rows are available.")
+                        st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns])), width="stretch", hide_index=True)
+                    else:
+                        st.info(data_quality_message or "No data-quality rows are available.")
 
                 render_section_header("Ticker Readiness Report", "Central per-feature readiness by ticker. Use this before interpreting any downstream analysis table.")
-                if ticker_readiness_frame is not None and not ticker_readiness_frame.empty:
-                    readiness_columns = [
-                        column
-                        for column in [
-                            "ticker",
-                            "asset_type",
-                            "theme",
-                            "overall_readiness_state",
-                            "price_ready",
-                            "momentum_ready",
-                            "liquidity_ready",
-                            "correlation_ready",
-                            "dcf_ready",
-                            "peer_ready",
-                            "earnings_ready",
-                            "analyst_estimates_ready",
-                            "blocked_features",
-                            "excluded_features",
-                            "missing_data",
-                            "next_action",
+                with st.expander("Legacy ticker readiness rows", expanded=False):
+                    if ticker_readiness_frame is not None and not ticker_readiness_frame.empty:
+                        readiness_columns = [
+                            column
+                            for column in [
+                                "ticker",
+                                "asset_type",
+                                "theme",
+                                "overall_readiness_state",
+                                "price_ready",
+                                "momentum_ready",
+                                "liquidity_ready",
+                                "correlation_ready",
+                                "dcf_ready",
+                                "peer_ready",
+                                "earnings_ready",
+                                "analyst_estimates_ready",
+                                "blocked_features",
+                                "excluded_features",
+                                "missing_data",
+                                "next_action",
+                            ]
+                            if column in ticker_readiness_frame.columns
                         ]
-                        if column in ticker_readiness_frame.columns
-                    ]
-                    st.dataframe(clean_display_frame(ticker_readiness_frame[readiness_columns].head(200)), width="stretch", hide_index=True)
-                else:
-                    st.info(ticker_readiness_message or "Build ticker readiness proof before reviewing this table.")
+                        st.dataframe(clean_display_frame(ticker_readiness_frame[readiness_columns].head(200)), width="stretch", hide_index=True)
+                    else:
+                        st.info(ticker_readiness_message or "Build ticker readiness proof before reviewing this table.")
 
                 with st.expander("Liquidity Context", expanded=False):
                     if liquidity_frame is not None and not liquidity_frame.empty:
