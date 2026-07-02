@@ -694,16 +694,40 @@ def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: P
     monkeypatch.delenv("IBKR_HOST", raising=False)
     monkeypatch.delenv("IBKR_PORT", raising=False)
     monkeypatch.delenv("IBKR_CLIENT_ID", raising=False)
+    outputs_dir = root / "outputs"
+    outputs_dir.mkdir(exist_ok=True)
+    (outputs_dir / "session_source_preflight.json").write_text(
+        json.dumps(
+            {
+                "source_activation_console_v2": {
+                    "operator_summary": {
+                        "can_run_now": ["coverage_workflow_evidence"],
+                        "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
+                        "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                        "next_step": "make project-status",
+                        "next_step_reason": "Current proof queues are exhausted.",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
 
     brief = render_pilot_share_brief(
         checks=build_pilot_readiness_checks(root, top_n=2),
         snapshot=build_readiness_snapshot(root),
         source_queues=[],
         excluded_artifacts=["data/prices.csv"],
+        root=root,
     )
 
     assert "How coverage expands next" in brief
     assert "make provider-setup-checklist" in brief
+    assert "Coverage unlock decision" in brief
+    assert "No broad coverage batch should run from setup alone" in brief
+    assert "Provider setup only makes a source executable" in brief
+    assert "readiness changes still require validate, preview, rejected-row review" in brief
+    assert "Do not retry fundamentals_share_count_source_ladder" in brief
     assert "Configure first: Finnhub free tier" in brief
     assert "Second fallback after FMP" in brief
     assert "Do not configure all missing providers at once" in brief

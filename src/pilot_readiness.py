@@ -904,12 +904,24 @@ def _provider_one_setup_lines() -> list[str]:
     ]
 
 
-def _share_brief_provider_setup_lines() -> list[str]:
-    checklist = build_provider_setup_checklist()
+def _share_brief_provider_setup_lines(root: Path | str = ".") -> list[str]:
+    checklist = build_provider_setup_checklist(load_session_source_preflight(Path(root)))
+    unlock_decision = checklist.get("coverage_unlock_decision", {})
     lines = [
         "- Next setup view: `make provider-setup-checklist`.",
         "- Real key values are never printed.",
     ]
+    if isinstance(unlock_decision, dict) and unlock_decision:
+        lines.extend(
+            [
+                "- Coverage unlock decision:",
+                f"  - {unlock_decision.get('answer', 'No broad coverage batch should run from setup alone.')}",
+                f"  - {unlock_decision.get('can_use_now', 'Use free/public sources for already executable proof paths.')}",
+                f"  - {unlock_decision.get('configure_first', 'Configure one keyed fallback only if needed, then smoke one ticker.')}",
+                f"  - {unlock_decision.get('do_not_retry', 'Do not retry exhausted proof queues until source evidence changes.')}",
+                f"  - {unlock_decision.get('proof_boundary', 'Provider setup only makes a source executable; readiness changes still require proof gates.')}",
+            ]
+        )
     lines.extend(_provider_one_setup_lines())
     for row in checklist["rows"]:
         provider = str(row.get("provider") or "").strip()
@@ -1125,6 +1137,7 @@ def render_pilot_share_brief(
     snapshot: ReadinessSnapshot,
     source_queues: list[object],
     excluded_artifacts: list[str],
+    root: Path | str = ".",
 ) -> str:
     """Render a concise public/demo pilot brief from the same readiness gates."""
 
@@ -1183,7 +1196,7 @@ def render_pilot_share_brief(
         "",
         "## How coverage expands next",
         "",
-        *_share_brief_provider_setup_lines(),
+        *_share_brief_provider_setup_lines(root),
         "",
         "## How to demo or review next",
         "",
@@ -1257,6 +1270,7 @@ def write_pilot_share_brief(
         snapshot=build_readiness_snapshot(root),
         source_queues=source_queues,
         excluded_artifacts=_excluded_generated_artifacts(root),
+        root=root,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(brief, encoding="utf-8")
