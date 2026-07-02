@@ -1111,6 +1111,7 @@ def render_pilot_share_brief(
         if license_check is not None
         else "Do not claim reuse rights until license status is reviewed."
     )
+    source_gate_check = next((check for check in checks if check.area == "Source proof gates"), None)
     queue_name = str(_queue_value(leading_queue, "label", "queue", fallback="No source-proof queue loaded"))
     queue_state = str(_queue_value(leading_queue, "readiness_state", "state", fallback="-"))
     queue_blocked = _int_value(_queue_value(leading_queue, "blocked_count", "blocked"))
@@ -1123,6 +1124,11 @@ def render_pilot_share_brief(
             fallback="make data-coverage-proof-queues TOP_N=10",
         )
     )
+    if source_gate_check is not None and source_gate_check.title == "Source-proof queues reviewed or exhausted":
+        queue_name = source_gate_check.title
+        queue_state = source_gate_check.status
+        queue_top_blockers = source_gate_check.detail
+        queue_command = source_gate_check.command
     artifacts = excluded_artifacts or []
 
     lines = [

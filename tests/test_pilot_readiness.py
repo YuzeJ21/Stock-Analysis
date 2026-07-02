@@ -646,6 +646,41 @@ def test_pilot_share_brief_summarizes_usable_blocked_and_share_boundary(tmp_path
     assert "sell" not in brief.lower()
 
 
+def test_pilot_share_brief_routes_reviewed_source_queues_through_project_status(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
+    monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [])
+    source_queues = [
+        SimpleNamespace(
+            label="DCF Input Proof Batches",
+            readiness_state="partial",
+            ready_count=3,
+            partial_count=2,
+            blocked_count=10,
+            top_blockers="reviewed non-actionable source ladder blockers",
+            next_safe_command="make dcf-input-proof-queue TOP_N=10",
+            reviewed_proof_status=(
+                "current DCF/share-count source ladder has only reviewed non-actionable blockers; "
+                "wait for new provider data before repeating this proof loop."
+            ),
+        )
+    ]
+
+    brief = render_pilot_share_brief(
+        checks=build_pilot_readiness_checks(root, top_n=2, source_queues=source_queues),
+        snapshot=build_readiness_snapshot(root),
+        source_queues=source_queues,
+        excluded_artifacts=[],
+    )
+
+    assert "Source-proof queues reviewed or exhausted" in brief
+    assert "Next source-proof command: `make project-status`" in brief
+    assert "make dcf-input-proof-queue TOP_N=10" not in brief
+    assert "provider setup" in brief.lower()
+    assert "buy" not in brief.lower()
+    assert "sell" not in brief.lower()
+
+
 def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: Path, monkeypatch):
     root = _sample_root(tmp_path)
     monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main [ahead 1]")
