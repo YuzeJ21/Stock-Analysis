@@ -1257,6 +1257,15 @@ def test_roadmap_routes_exhausted_proof_queues_to_provider_setup_before_candidat
     assert "`make price-refresh-loop BATCHES=... TOP_N=... PROVIDER=auto`" not in roadmap
 
 
+def test_roadmap_records_latest_command_visibility_simplification():
+    roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
+
+    assert "Data Health Command Visibility Sweep V1" in roadmap
+    assert "Proof History, Additional operator evidence, and Pilot Share Gate detail summaries" in roadmap
+    assert "hide command snippets by default" in roadmap
+    assert "explicit packet command table remains available" in roadmap
+
+
 def test_product_spec_keeps_execution_features_permanently_out_of_scope():
     spec = Path("PRODUCT_SPEC.md").read_text(encoding="utf-8")
 

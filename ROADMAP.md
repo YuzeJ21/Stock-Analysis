@@ -109,6 +109,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Data Coverage Proof Queue Summary Extraction V1 so post-price readiness queue cards and DCF, shares, fundamentals, peer mapping, and peer valuation proof queue cards live in a focused tested helper while Data Health keeps raw proof rows collapsed.
 - [x] Universe Scope Guide V1 so market-wide review starts with master vs active vs analysis-ready counts, safe row-limited filters, single-stock lookup boundaries, and the no broad-conclusions stop rule before the Readiness Explorer.
 - [x] Risk Context Workflow Extraction V1 so liquidity/correlation readiness and volatility-proxy approximation cards live in a focused tested helper while Data Health keeps raw risk tables collapsed.
+- [x] Data Health Command Visibility Sweep V1 so Proof History, Additional operator evidence, and Pilot Share Gate detail summaries hide command snippets by default while detailed tables and the explicit packet command table remains available only inside opened review drawers.
 
 ## 2. Current Product State
 
