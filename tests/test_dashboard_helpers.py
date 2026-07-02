@@ -2488,14 +2488,14 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', lane_selector_index)
-    details_drawer_index = source.index('st.expander("Secondary diagnostic context"', price_drawer_index)
+    details_drawer_index = source.index('st.expander("Last-resort diagnostic context"', price_drawer_index)
     market_details_gate_index = source.index('if show_details:\n        with st.expander("Detailed market-wide review"')
     market_expander_index = source.index('st.expander("Detailed market-wide review"', market_details_gate_index)
     detailed_map_index = source.index('render_section_header(\n                "Detailed Proof Map"', market_expander_index)
     market_command_index = source.index("render_market_command_center(", market_expander_index)
     next_proof_index = source.index('render_section_header(\n                "Next Data Proof Steps"', details_drawer_index)
     hidden_tables_note_index = source.index('render_context_note(\n            "Detailed tables are hidden."')
-    legacy_tables_drawer_index = source.index('with st.expander("Legacy diagnostic tables", expanded=False):', hidden_tables_note_index)
+    legacy_tables_drawer_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):', hidden_tables_note_index)
     tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])', legacy_tables_drawer_index)
 
     assert hero_index < queue_index < lane_selector_index < price_drawer_index < details_drawer_index
@@ -2504,7 +2504,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Data Health Command Center" in source
     assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in console_source
-    assert "Open the lane evidence drawer or Secondary diagnostic context above for proof tables. Legacy Actions, Coverage, Sources, Price Updates, and Import Checks stay in the legacy diagnostic drawer." in source
+    assert "Open the lane evidence drawer or last-resort diagnostic context above for proof tables. Legacy Actions, Coverage, Sources, Price Updates, and Import Checks stay in the last-resort legacy drawer." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
     assert 'if queue_details_loaded:\n        with st.expander("Queue proof review details", expanded=False)' in source
     assert 'with st.expander("Queue outcome ledger summary", expanded=False)' not in source
@@ -2513,11 +2513,13 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Optional context evidence drawer", expanded=False)' in source
-    assert 'st.expander("Secondary diagnostic context", expanded=False)' in source
+    assert 'st.expander("Last-resort diagnostic context", expanded=False)' in source
     assert 'st.expander("Operator context", expanded=False)' not in source
-    assert "Secondary diagnostic context is hidden" in source
-    assert "Turn on reader tips to review secondary diagnostic context." in source
-    assert 'with st.expander("Legacy diagnostic tables", expanded=False):' in source
+    assert "Last-resort diagnostic context is hidden" in source
+    assert "Turn on reader tips to review last-resort diagnostic context." in source
+    assert 'with st.expander("Last-resort legacy tables", expanded=False):' in source
+    assert 'st.expander("Secondary diagnostic context", expanded=False)' not in source
+    assert 'with st.expander("Legacy diagnostic tables", expanded=False):' not in source
     assert "Additional operator evidence" not in source
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
     assert "Advanced Unlock Map" not in source
@@ -15107,7 +15109,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     proof_command_builder_index = source.index('render_section_header("Proof Record Command Builder"', proof_outcome_recorder_index)
     proof_loop_index = source.index('render_section_header("Reviewed Batch Proof Loop"', proof_command_builder_index)
     proof_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', proof_loop_index)
-    all_details_index = source.index('st.expander("Secondary diagnostic context", expanded=False)', proof_drawer_index)
+    all_details_index = source.index('st.expander("Last-resort diagnostic context", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
     assert public_return_index < prior_snapshot_load_index < secondary_readiness_gate_index < lane_snapshot_index < top_summary_block_index
@@ -27011,7 +27013,7 @@ def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
         "render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)",
         proof_history_drawer_index,
     )
-    additional_operator_index = source.index('st.expander("Secondary diagnostic context", expanded=False)', reviewed_proof_render_index)
+    additional_operator_index = source.index('st.expander("Last-resort diagnostic context", expanded=False)', reviewed_proof_render_index)
 
     assert (
         batch_drawer_index
@@ -27026,7 +27028,7 @@ def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
 
 def test_data_health_additional_operator_evidence_hides_summary_commands_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    additional_operator_index = source.index('st.expander("Secondary diagnostic context", expanded=False)')
+    additional_operator_index = source.index('st.expander("Last-resort diagnostic context", expanded=False)')
     drawer_source = source[additional_operator_index : source.index("if show_details:", additional_operator_index + 1)]
     ops_center_render_index = source.index(
         "render_signal_cards(data_health_readiness_ops_center_cards(ops_center), show_commands=False)",
@@ -27064,7 +27066,7 @@ def test_data_health_additional_operator_evidence_hides_summary_commands_by_defa
         < overview_cards_index
         < overview_command_visibility_index
     )
-    assert "Secondary context only; not the primary workflow." in drawer_source
+    assert "Last-resort context only; not the primary workflow." in drawer_source
     assert "Use after Home, Stock Selector, Single-Stock Report, Data Health lane answer, and Proof History evidence." in drawer_source
     assert "Diagnostic triage only; use this after the lane answer when a reviewer asks what evidence to inspect first." in drawer_source
     assert "Optional diagnostic context for holdings-first coverage planning; not the default next-action workflow." in drawer_source

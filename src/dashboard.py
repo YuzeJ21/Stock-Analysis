@@ -28875,10 +28875,10 @@ def render_data_health(
                 st.dataframe(clean_display_frame(data_health_readiness_comparison_frame(readiness_comparison)), width="stretch", hide_index=True)
 
     if show_details:
-        with st.expander("Secondary diagnostic context", expanded=False):
+        with st.expander("Last-resort diagnostic context", expanded=False):
             render_section_header(
                 "Readiness Operations Center",
-                "Secondary context only; not the primary workflow. Use after Home, Stock Selector, Single-Stock Report, Data Health lane answer, and Proof History evidence.",
+                "Last-resort context only; not the primary workflow. Use after Home, Stock Selector, Single-Stock Report, Data Health lane answer, and Proof History evidence.",
             )
             render_signal_cards(data_health_readiness_ops_center_cards(ops_center), show_commands=False)
             st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
@@ -28988,12 +28988,12 @@ def render_data_health(
     else:
         render_signal_cards(
             data_health_deferred_detail_cards(
-                title="Secondary diagnostic context is hidden",
+                title="Last-resort diagnostic context is hidden",
                 body=(
-                    "Secondary context only; not the primary workflow. Broad operations tables, guided coverage plans, "
+                    "Last-resort context only; not the primary workflow. Broad operations tables, guided coverage plans, "
                     "and full proof maps are deferred from the default operator view."
                 ),
-                command="Turn on reader tips to review secondary diagnostic context.",
+                command="Turn on reader tips to review last-resort diagnostic context.",
                 badges=["fast first view", "details deferred"],
             ),
             show_commands=False,
@@ -29088,11 +29088,11 @@ def render_data_health(
     if not show_details:
         render_context_note(
             "Detailed tables are hidden.",
-            "Open the lane evidence drawer or Secondary diagnostic context above for proof tables. Legacy Actions, Coverage, Sources, Price Updates, and Import Checks stay in the legacy diagnostic drawer.",
+            "Open the lane evidence drawer or last-resort diagnostic context above for proof tables. Legacy Actions, Coverage, Sources, Price Updates, and Import Checks stay in the last-resort legacy drawer.",
         )
         return
 
-    with st.expander("Legacy diagnostic tables", expanded=False):
+    with st.expander("Last-resort legacy tables", expanded=False):
         health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])
 
         with health_tabs[0]:
