@@ -17,6 +17,7 @@ from src.license_status import DECISION_OPTIONS, NO_LICENSE_SHARE_BOUNDARY
 
 
 DEFAULT_PACKET_PATH = Path("outputs/pilot_readiness_packet.md")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CONTROLLED_PILOT_OUTCOMES = {
     "supported",
     "human_reviewed_supported",
@@ -786,9 +787,12 @@ def public_share_final_gate_frame(
     pilot_frame: pd.DataFrame | None,
     *,
     output_path: Path = DEFAULT_PACKET_PATH,
+    root: Path | None = None,
 ) -> pd.DataFrame:
     """Return a compact final public-share checklist for Data Health."""
 
+    license_path = (root or PROJECT_ROOT) / "LICENSE"
+    license_present = license_path.exists()
     sync_row = _area_row(pilot_frame, "GitHub sync")
     public_row = _area_row(pilot_frame, "Public safety")
     browser_row = _area_row(pilot_frame, "Browser QA evidence")
@@ -857,18 +861,18 @@ def public_share_final_gate_frame(
         },
         {
             "Gate": "License status",
-            "Status": "portfolio_demo_only" if not Path("LICENSE").exists() else "license_present",
+            "Status": "portfolio_demo_only" if not license_present else "license_present",
             "Review": (
                 f"No root LICENSE file is present; {NO_LICENSE_SHARE_BOUNDARY} "
                 f"{_license_decision_options_summary()}"
-                if not Path("LICENSE").exists()
+                if not license_present
                 else "Root LICENSE file is present; confirm README wording matches the selected license. "
                 f"{_license_decision_options_summary()}"
             ),
             "Command": "make license-status",
             "Stop Rule": (
                 "Do not claim reuse rights until a root LICENSE is selected and README wording is updated."
-                if not Path("LICENSE").exists()
+                if not license_present
                 else "Stop if README License wording conflicts with the selected license."
             ),
         },

@@ -495,6 +495,19 @@ def test_public_share_final_gate_deferred_state_names_all_release_gates():
     assert "sell" not in rendered
 
 
+def test_public_share_final_gate_uses_project_license_not_process_cwd(tmp_path: Path, monkeypatch):
+    (tmp_path / "LICENSE").write_text("MIT\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    frame = pilot_console.public_share_final_gate_frame(pd.DataFrame())
+    license_row = frame.loc[frame["Gate"].eq("License status")].iloc[0]
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+
+    assert license_row["Status"] == "portfolio_demo_only"
+    assert "no root license file is present" in rendered
+    assert "do not claim reuse rights until a root license is selected" in rendered
+
+
 def test_data_health_workflow_continuity_connects_evidence_queue_proof_and_artifacts():
     frame = pilot_console.data_health_workflow_continuity_frame(
         _pilot_frame(),
