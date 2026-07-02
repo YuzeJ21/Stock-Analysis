@@ -270,6 +270,7 @@ def test_pilot_handoff_summary_surfaces_reviewer_next_steps(tmp_path: Path, monk
     ).lower()
 
     assert [item.question for item in handoff] == [
+        "What is the share package answer?",
         "Can this be shared as a pilot?",
         "What must be reviewed first?",
         "What blocks deeper analysis?",
@@ -277,6 +278,10 @@ def test_pilot_handoff_summary_surfaces_reviewer_next_steps(tmp_path: Path, monk
         "What license boundary applies?",
         "What should the reviewer run next?",
     ]
+    assert "share as portfolio/demo only with manual gates" in rendered
+    assert "keep generated churn excluded" in rendered
+    assert "source-proof blockers stay visible" in rendered
+    assert "license boundary still applies" in rendered
     assert "pilot-ready with manual gates" in rendered
     assert "trusted fundamentals proof queue" in rendered
     assert "make dcf-input-source-command-plan" in rendered

@@ -654,8 +654,19 @@ def build_pilot_handoff_summary(
         "Keep these broad generated patterns out by default: "
         f"{_generated_exclusion_pattern_text()}. Stage only a specific artifact if it is intentionally reviewed evidence."
     )
+    share_answer = (
+        "Share as portfolio/demo only with manual gates; keep generated churn excluded; "
+        "source-proof blockers stay visible; license boundary still applies."
+    )
 
     return [
+        PilotHandoffItem(
+            question="What is the share package answer?",
+            status="manual" if verdict != "blocked" else "blocked",
+            answer=share_answer,
+            next_safe_command="make public-check",
+            boundary="This is a packaging answer only; it does not unlock analysis, source proof, reuse rights, or data freshness.",
+        ),
         PilotHandoffItem(
             question="Can this be shared as a pilot?",
             status="blocked" if verdict == "blocked" else "manual" if "manual" in verdict else "green",
