@@ -27456,13 +27456,20 @@ def test_data_health_operator_route_shows_selected_lane_answer_before_broad_summ
     operator_index = source.index("selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
     selected_answer_header_index = source.index('"Selected Lane Answer"', operator_index)
     selected_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", selected_answer_header_index)
+    one_answer_header_index = source.index('"One Answer Per Lane"', selected_answer_cards_index)
+    one_answer_caption_index = source.index(
+        "One row per lane: usable now, blocked, context-only, excluded, and boundary before detailed operations.",
+        one_answer_header_index,
+    )
     coverage_summary_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", operator_index)
     operator_hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", coverage_summary_index)
     lane_nav_drawer_index = source.index('st.expander("Optional lane navigation details", expanded=False)', operator_hero_index)
     queue_header_index = source.index("render_data_health_operator_queue_header()", lane_nav_drawer_index)
 
-    assert operator_index < selected_answer_header_index < selected_answer_cards_index < coverage_summary_index
+    assert operator_index < selected_answer_header_index < selected_answer_cards_index < one_answer_header_index
+    assert one_answer_header_index < one_answer_caption_index < coverage_summary_index
     assert coverage_summary_index < operator_hero_index < lane_nav_drawer_index < queue_header_index
+    assert "Compact lane states before queue drawers, route maps, raw tables, proof ledgers, or command-heavy operator details." not in source
 
 
 def test_single_stock_public_page_uses_simplified_review_sections():

@@ -27987,7 +27987,7 @@ def render_data_health(
     )
     render_section_header(
         "One Answer Per Lane",
-        "Compact lane states before queue drawers, route maps, raw tables, proof ledgers, or command-heavy operator details.",
+        "One row per lane: usable now, blocked, context-only, excluded, and boundary before detailed operations.",
     )
     st.table(clean_display_frame(overview_console.lane_answer_frame(ops_center)))
     source_gate_next_action = data_health_source_gate_next_action(project_status_payload)
