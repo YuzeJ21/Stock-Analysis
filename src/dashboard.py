@@ -27846,16 +27846,16 @@ def render_data_health(
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
-    render_section_header(
-        "Next Operator Action",
-        "The first decision before opening raw tables or proof commands.",
-    )
-    render_signal_cards(
-        data_health_operator_next_action_summary_cards(operator_next_action_summary),
-        show_commands=False,
-        variant="queue",
-    )
-    with st.expander("Next action review detail", expanded=False):
+    with st.expander("Secondary operator next-action detail", expanded=False):
+        render_section_header(
+            "Secondary Review Cue",
+            "Optional operator detail after the selected lane answer; use it only when a reviewer asks for the underlying queue row.",
+        )
+        render_signal_cards(
+            data_health_operator_next_action_summary_cards(operator_next_action_summary),
+            show_commands=False,
+            variant="queue",
+        )
         st.dataframe(clean_display_frame(operator_next_action_summary), width="stretch", hide_index=True)
     pilot_reviewer_walkthrough = data_health_pilot_reviewer_walkthrough_frame(
         pilot_readiness,

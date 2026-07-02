@@ -19338,7 +19338,7 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     auto_refresh_index = source.index('render_section_header(\n            "Auto Refresh Status"', source_details_index)
     source_setup_index = source.index('render_section_header(\n            "Source Setup Guide"', auto_refresh_index)
     source_guidance_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_setup_index)
-    next_action_index = source.index('render_section_header(\n        "Next Operator Action"', source_guidance_index)
+    next_action_index = source.index('st.expander("Secondary operator next-action detail", expanded=False)', source_guidance_index)
 
     assert ops_index < source_details_index < auto_refresh_index < source_setup_index < source_guidance_index < next_action_index
     assert "show_commands=False" in source[
@@ -25480,7 +25480,7 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     source_details_index = source.index('st.expander("Source setup and refresh details", expanded=False)', mode_strip_index)
     guidance_header_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_details_index)
     guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
-    next_action_index = source.index('render_section_header(\n        "Next Operator Action"', guidance_cards_index)
+    next_action_index = source.index('st.expander("Secondary operator next-action detail", expanded=False)', guidance_cards_index)
 
     assert mode_strip_index < lane_answer_index < lane_answer_cards_index < source_details_index
     assert source_details_index < guidance_header_index < guidance_cards_index < next_action_index
@@ -25488,18 +25488,24 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     assert "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts." in source
 
 
-def test_data_health_next_operator_action_hides_commands_by_default():
+def test_data_health_secondary_operator_action_is_collapsed_after_lane_answer():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    next_action_index = source.index('render_section_header(\n        "Next Operator Action"')
+    public_return_index = source.index("        return\n    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
+    lane_answer_index = source.index('render_section_header(\n        "Selected Lane Answer"', public_return_index)
+    secondary_expander_index = source.index('st.expander("Secondary operator next-action detail", expanded=False)', lane_answer_index)
+    secondary_header_index = source.index('render_section_header(\n            "Secondary Review Cue"', secondary_expander_index)
     next_action_cards_index = source.index(
         "data_health_operator_next_action_summary_cards(operator_next_action_summary)",
-        next_action_index,
+        secondary_header_index,
     )
     command_visibility_index = source.index("show_commands=False", next_action_cards_index)
-    detail_expander_index = source.index('st.expander("Next action review detail", expanded=False)', command_visibility_index)
+    detail_table_index = source.index("st.dataframe(clean_display_frame(operator_next_action_summary)", command_visibility_index)
 
-    assert next_action_index < next_action_cards_index < command_visibility_index < detail_expander_index
+    top_level_after_lane = source[lane_answer_index:secondary_expander_index]
+    assert "Next Operator Action" not in top_level_after_lane
+    assert lane_answer_index < secondary_expander_index < secondary_header_index < next_action_cards_index
+    assert next_action_cards_index < command_visibility_index < detail_table_index
 
 
 def test_data_health_fundamentals_lane_hides_top_level_dcf_commands():
