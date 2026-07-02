@@ -28717,7 +28717,7 @@ def render_data_health(
                 st.dataframe(clean_display_frame(data_health_readiness_comparison_frame(readiness_comparison)), width="stretch", hide_index=True)
 
     if show_details:
-        with st.expander("Additional operator evidence", expanded=False):
+        with st.expander("Operator context", expanded=False):
             render_section_header(
                 "Readiness Operations Center",
                 "Secondary context only; not the primary workflow. Use after Home, Stock Selector, Single-Stock Report, Data Health lane answer, and Proof History evidence.",
@@ -28830,12 +28830,12 @@ def render_data_health(
     else:
         render_signal_cards(
             data_health_deferred_detail_cards(
-                title="Additional operator evidence is hidden",
+                title="Operator context is hidden",
                 body=(
                     "Secondary context only; not the primary workflow. Broad operations tables, guided coverage plans, "
                     "and full proof maps are deferred from the default operator view."
                 ),
-                command="Turn on reader tips to review additional operator evidence.",
+                command="Turn on reader tips to review operator context.",
                 badges=["fast first view", "details deferred"],
             ),
             show_commands=False,
@@ -28930,7 +28930,7 @@ def render_data_health(
     if not show_details:
         render_context_note(
             "Detailed tables are hidden.",
-            "Open the lane evidence drawer or Additional operator evidence above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow.",
+            "Open the lane evidence drawer or Operator context above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow.",
         )
         return
 

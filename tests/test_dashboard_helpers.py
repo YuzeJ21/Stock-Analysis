@@ -2463,7 +2463,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', lane_selector_index)
-    details_drawer_index = source.index('st.expander("Additional operator evidence"', price_drawer_index)
+    details_drawer_index = source.index('st.expander("Operator context"', price_drawer_index)
     market_details_gate_index = source.index('if show_details:\n        with st.expander("Detailed market-wide review"')
     market_expander_index = source.index('st.expander("Detailed market-wide review"', market_details_gate_index)
     detailed_map_index = source.index('render_section_header(\n                "Detailed Proof Map"', market_expander_index)
@@ -2478,14 +2478,15 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Data Health Command Center" in source
     assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in console_source
-    assert "Open the lane evidence drawer or Additional operator evidence above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow." in source
+    assert "Open the lane evidence drawer or Operator context above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
     assert 'if queue_details_loaded:\n        with st.expander("Queue outcome ledger summary", expanded=False)' in source
     assert 'if queue_details_loaded:\n        with st.expander("Readiness queue evidence", expanded=False)' in source
     assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Optional context evidence drawer", expanded=False)' in source
-    assert 'st.expander("Additional operator evidence", expanded=False)' in source
+    assert 'st.expander("Operator context", expanded=False)' in source
+    assert "Additional operator evidence" not in source
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
     assert "Advanced Unlock Map" not in source
     assert "detailed market-wide workspace" not in source
@@ -15010,7 +15011,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     proof_command_builder_index = source.index('render_section_header("Proof Record Command Builder"', proof_outcome_recorder_index)
     proof_loop_index = source.index('render_section_header("Reviewed Batch Proof Loop"', proof_command_builder_index)
     proof_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', proof_loop_index)
-    all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
+    all_details_index = source.index('st.expander("Operator context", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
     assert public_return_index < prior_snapshot_load_index < lane_snapshot_index < top_summary_block_index
@@ -26819,7 +26820,7 @@ def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
         "render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)",
         proof_history_drawer_index,
     )
-    additional_operator_index = source.index('st.expander("Additional operator evidence", expanded=False)', reviewed_proof_render_index)
+    additional_operator_index = source.index('st.expander("Operator context", expanded=False)', reviewed_proof_render_index)
 
     assert (
         batch_drawer_index
@@ -26834,7 +26835,7 @@ def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
 
 def test_data_health_additional_operator_evidence_hides_summary_commands_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    additional_operator_index = source.index('st.expander("Additional operator evidence", expanded=False)')
+    additional_operator_index = source.index('st.expander("Operator context", expanded=False)')
     drawer_source = source[additional_operator_index : source.index("if show_details:", additional_operator_index + 1)]
     ops_center_render_index = source.index(
         "render_signal_cards(data_health_readiness_ops_center_cards(ops_center), show_commands=False)",
