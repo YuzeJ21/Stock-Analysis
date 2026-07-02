@@ -284,6 +284,7 @@ def test_pilot_handoff_summary_surfaces_reviewer_next_steps(tmp_path: Path, monk
     assert "keep generated churn excluded" in rendered
     assert "source-proof blockers stay visible" in rendered
     assert "license boundary still applies" in rendered
+    assert "until a root license exists" in rendered
     assert "pilot-ready with manual gates" in rendered
     assert "trusted fundamentals proof queue" in rendered
     assert "make dcf-input-source-command-plan" in rendered

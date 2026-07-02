@@ -659,7 +659,7 @@ def build_pilot_handoff_summary(
     )
     share_answer = (
         "Share as portfolio/demo only with manual gates; keep generated churn excluded; "
-        "source-proof blockers stay visible; license boundary still applies."
+        "source-proof blockers stay visible; license boundary still applies until a root LICENSE exists."
     )
 
     return [
