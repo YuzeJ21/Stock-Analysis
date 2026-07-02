@@ -24,4 +24,4 @@ This proof review does not refresh data, apply imports, stage files, or unlock b
 
 ## Source-boundary pivot
 
-If `make project-status` says current source-proof queues are exhausted, use `make provider-setup-checklist` before reopening broad proof loops. Configure at most one keyed free-tier provider, run that provider's one-ticker smoke command, then use validate, preview, rejected-row review, and source-provenance checks before any apply step.
+If `make project-status` says current source-proof queues are exhausted, use `make provider-setup-checklist` before reopening broad proof loops. Configure at most one keyed free-tier provider, run that provider's reviewed one-ticker smoke command, then use validate, preview, rejected-row review, and source-provenance checks before any apply step.

@@ -44,7 +44,7 @@ flow as the next evidence step:
 
 1. Run `make project-status` first; if it says queues are exhausted, do not reopen broad proof loops.
 2. Configure at most one missing keyed free-tier provider locally, then rerun `make session-source-preflight`.
-3. Run that provider's one-ticker smoke command only; do not start a broad batch from setup.
+3. Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup.
 4. Continue only through validate, preview, rejected-row review, and source-provenance checks.
 5. If no source-backed row is staged, record `still_blocked`, `skipped`, or `excluded` and pivot.
 
@@ -68,7 +68,7 @@ Free-tier fallbacks are capped by product policy and should be treated as small 
 - Alpha Vantage free tier: recommended <=25 requests/day and <=5 tickers/run.
 - Finnhub free tier: recommended <=60 requests/day and <=10 tickers/run.
 
-Start with `make session-source-preflight`, then run only the one-source smoke command before any broad batch. Smoke commands stage or dry-run only; they still require validate, preview, rejected-row review, and an intentional apply decision before data can change readiness.
+Start with `make session-source-preflight`, then run only the reviewed one-source smoke command before any broad batch. Smoke commands stage or dry-run only; they still require validate, preview, rejected-row review, and an intentional apply decision before data can change readiness.
 
 Optional earnings and analyst-estimate rows have an extra boundary. Provider-assisted rows may supply only earnings timing or price-target context. Those rows can be recorded as `candidate_context_only`, but they do not unlock the full optional readiness lane unless the row also contains the required earnings metrics or EPS/revenue estimate fields. Price-target context is research context only and must not be rendered as a recommendation.
 

@@ -558,9 +558,11 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Optional broker boundary: IBKR read-only (disabled unless explicitly configured)" in body
     assert "Provider Activation Plan" in body
     assert "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops." in body
-    assert "Run that provider's one-ticker smoke command only; do not start a broad batch from setup." in body
+    assert "Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup." in body
     assert "Configure first: FMP free tier" in body
     assert "Broadest keyed fallback here: price, fundamentals, share count, and the largest stated free-tier daily cap." in body
+    assert "Reviewed one-ticker smoke command:" in body
+    assert "One-ticker smoke command:" not in body
     assert "Do not configure all missing providers at once" in body
     assert "| Provider | Setup state | Unlock lanes | Usage | Smoke command | Cannot unlock | Safe next step |" in body
     assert "FMP free tier" in body

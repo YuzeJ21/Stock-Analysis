@@ -920,7 +920,7 @@ def _provider_one_setup_lines() -> list[str]:
         f"- Configure first: {provider}.",
         f"- Why first: {reason}",
         f"- Setup env: `{setup_env}`.",
-        f"- One-ticker smoke command: `{smoke_command}`.",
+        f"- Reviewed one-ticker smoke command: `{smoke_command}`.",
         "- Do not configure all missing providers at once; configure one, rerun preflight, smoke one ticker, then validate/preview before any apply.",
     ]
 

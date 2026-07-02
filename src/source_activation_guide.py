@@ -39,7 +39,7 @@ IBKR_ENVS = ["IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"]
 ACTIVATION_PLAN = [
     "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops.",
     "Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight.",
-    "Run that provider's one-ticker smoke command only; do not start a broad batch from setup.",
+    "Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup.",
     "Continue only through validate, preview, rejected-row review, and source-provenance checks.",
     "If no source-backed row is staged, record still_blocked/skipped/excluded and pivot.",
 ]

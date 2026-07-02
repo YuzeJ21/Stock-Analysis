@@ -153,7 +153,7 @@ Pilot exit criteria:
 
 Immediate pilot priorities:
 
-1. Provider setup/source-boundary review: run `make provider-setup-checklist` when current source-proof queues have no unreviewed executable company candidates. Use it to confirm which free public, keyed free-tier, optional broker-disabled, and locked/manual sources can truthfully unlock the next coverage stage. After adding a key, run only that provider's smoke command before any broader batch; smoke commands still require validate, preview, rejected-row review, and an intentional apply decision.
+1. Provider setup/source-boundary review: run `make provider-setup-checklist` when current source-proof queues have no unreviewed executable company candidates. Use it to confirm which free public, keyed free-tier, optional broker-disabled, and locked/manual sources can truthfully unlock the next coverage stage. After adding a key, run only that provider's reviewed one-ticker smoke command before any broader batch; smoke commands still require validate, preview, rejected-row review, and an intentional apply decision.
 2. Run `make trusted-data-pilot-candidates TOP_N=10` only after `make project-status` or `make coverage-frontier TOP_N=10` shows new provider data, keyed sources, reviewed manual rows, new tickers, or changed blockers.
 3. Close one reviewed source-proof lane at a time, starting with the top executable DCF/share-count/peer blocker.
 4. Keep the pilot package clean: reviewed docs/code/evidence only, broad generated churn excluded by default.

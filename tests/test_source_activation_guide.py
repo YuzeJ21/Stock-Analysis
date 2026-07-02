@@ -54,7 +54,7 @@ def test_source_activation_guide_prints_exact_next_commands(monkeypatch):
     assert guide["activation_plan"] == [
         "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops.",
         "Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight.",
-        "Run that provider's one-ticker smoke command only; do not start a broad batch from setup.",
+        "Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup.",
         "Continue only through validate, preview, rejected-row review, and source-provenance checks.",
         "If no source-backed row is staged, record still_blocked/skipped/excluded and pivot.",
     ]
@@ -183,7 +183,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- edit config/provider_keys.env locally; do not commit real keys" in rendered
     assert "Activation plan:" in rendered
     assert "- Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight." in rendered
-    assert "- Run that provider's one-ticker smoke command only; do not start a broad batch from setup." in rendered
+    assert "- Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup." in rendered
     assert "Workflow pivot when proof queues are exhausted:" in rendered
     assert "make project-status | Confirm whether proof queues have executable company candidates before opening broad proof tables." in rendered
     assert "make provider-setup-checklist | Review missing keyed providers and one-ticker smoke commands when proof queues are exhausted." in rendered
