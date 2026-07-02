@@ -1978,18 +1978,14 @@ def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages(
     assert source.count("data_health_research_loop_context(") >= 2
     proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
     public_first_scan_index = source.index('render_section_header(\n            "First 30 Seconds"', proof_strip_index)
-    home_optional_workflow_index = source.index(
-        'st.expander("Optional: workflow and next-step details", expanded=False)',
-        public_first_scan_index,
-    )
-    home_workflow_index = source.index('render_section_header(\n                "Research Workflow"', home_optional_workflow_index)
+    home_workflow_index = source.index('render_section_header(\n            "Primary Workflow"', public_first_scan_index)
     single_stock_button_index = source.index('open_review_clicked = st.button("Open Review"')
     single_stock_loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
     data_health_nav_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
     data_health_loop_index = source.index("render_research_loop_strip(\n        **data_health_research_loop_context(", data_health_nav_index)
     data_health_mode_index = source.index("render_data_health_current_mode_strip(", data_health_nav_index)
 
-    assert proof_strip_index < public_first_scan_index < home_optional_workflow_index < home_workflow_index
+    assert proof_strip_index < public_first_scan_index < home_workflow_index
     assert single_stock_button_index < single_stock_loop_index
     assert data_health_nav_index < data_health_loop_index < data_health_mode_index
 
@@ -2816,21 +2812,13 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
     first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', proof_strip_index)
     first_30_cards_index = source.index("render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)", first_30_index)
-    connected_workflow_index = source.index('render_section_header(\n            "Connected Workflow"', first_30_cards_index)
+    primary_workflow_index = source.index('render_section_header(\n            "Primary Workflow"', first_30_cards_index)
     review_map_cards_index = source.index(
         'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
-        connected_workflow_index,
+        primary_workflow_index,
     )
-    visitor_path_index = source.index('render_section_header(\n            "Visitor Path"', review_map_cards_index)
-    visitor_path_cards_index = source.index(
-        'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")',
-        visitor_path_index,
-    )
-    where_to_go_index = source.index('render_section_header("Where To Go Next"', visitor_path_cards_index)
+    where_to_go_index = source.index('render_section_header("Where To Go Next"', review_map_cards_index)
     route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", where_to_go_index)
-    optional_workflow_expander_index = source.index('st.expander("Optional: workflow and next-step details", expanded=False)', route_cards_index)
-    workflow_spine_index = source.index('render_section_header(\n                "Research Workflow"', optional_workflow_expander_index)
-    next_step_index = source.index('render_section_header("What To Do Next"', workflow_spine_index)
     example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
     details_gate_index = source.index("if show_details:")
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
@@ -2838,21 +2826,23 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
 
-    assert proof_strip_index < first_30_index < first_30_cards_index < connected_workflow_index < review_map_cards_index < visitor_path_index < visitor_path_cards_index < where_to_go_index < route_cards_index < optional_workflow_expander_index < workflow_spine_index < next_step_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
+    assert proof_strip_index < first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < where_to_go_index < route_cards_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
-    assert "A compact map from readiness snapshot to one-ticker review, source-proof lane, and stop rule." in source
-    assert "A simple four-step path for reading the project without opening operator tables." in source
+    assert "One spine: Home -> choose ticker or scope -> single-stock answer -> Data Health only if blocked -> Proof History only for evidence review." in source
+    assert '"Connected Workflow"' not in source
+    assert '"Visitor Path"' not in source
+    assert 'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")' not in source
+    assert 'st.expander("Optional: workflow and next-step details", expanded=False)' not in source
     assert "One connected loop: readiness snapshot, selector queue, one-ticker report, source-proof lane, then proof history before trusting changed states." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
-    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" not in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)" in source
     assert "render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)" in source
     assert 'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")' in source
-    assert 'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")' in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
-    assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4], show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4], show_commands=False)" not in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)" in source
     assert "render_public_proof_strip(_public_home_snapshot_items(summary))" in source
 
@@ -2935,12 +2925,9 @@ def test_home_route_choice_cards_delegate_to_public_home_workflow_helper():
 def test_home_page_renders_evaluation_workflow_before_next_steps():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    where_to_go_public_index = source.index('render_section_header("Where To Go Next"')
+    primary_workflow_index = source.index('render_section_header(\n            "Primary Workflow"')
+    where_to_go_public_index = source.index('render_section_header("Where To Go Next"', primary_workflow_index)
     public_route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", where_to_go_public_index)
-    optional_workflow_expander_index = source.index('st.expander("Optional: workflow and next-step details", expanded=False)', public_route_cards_index)
-    workflow_spine_index = source.index('render_section_header(\n                "Research Workflow"', optional_workflow_expander_index)
-    next_step_index = source.index('render_section_header("What To Do Next"')
-    where_to_go_index = source.index('render_section_header("Where To Go"', next_step_index)
     examples_public_expander_index = source.index('st.expander("Example state walkthrough", expanded=False)')
     details_gate_index = source.index("if show_details:")
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
@@ -2953,8 +2940,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
     commands_index = source.index('st.expander("Optional: local commands"')
 
-    assert where_to_go_public_index < public_route_cards_index < optional_workflow_expander_index < workflow_spine_index < next_step_index < examples_public_expander_index < details_gate_index
-    assert next_step_index < where_to_go_index
+    assert primary_workflow_index < where_to_go_public_index < public_route_cards_index < examples_public_expander_index < details_gate_index
     assert details_gate_index < coverage_expander_index < workflow_index
     assert workflow_index < price_refresh_expander_index < price_refresh_index
     assert price_refresh_index < examples_expander_index < examples_index
@@ -2970,15 +2956,16 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert 'st.expander("Optional: how evaluation works", expanded=False)' in source
     assert 'st.expander("Optional: price update plan", expanded=False)' in source
     assert 'st.expander("Advanced price refresh workflow", expanded=False)' not in source
+    assert 'st.expander("Optional: workflow and next-step details", expanded=False)' not in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])' in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])' not in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Import Review"])' not in source
     assert 'st.expander("Example state walkthrough", expanded=False)' in source
-    assert 'st.expander("Optional: workflow and next-step details", expanded=False)' in source
+    assert 'st.expander("Optional: workflow and next-step details", expanded=False)' not in source
     assert 'st.expander("Optional: example reports", expanded=False)' in source
     assert 'st.expander("Optional: methodology, roadmap, and transparency", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
-    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" not in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)" in source
     assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source

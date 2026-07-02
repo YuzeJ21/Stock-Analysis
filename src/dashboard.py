@@ -25949,15 +25949,10 @@ def render_home_page(
         )
         render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)
         render_section_header(
-            "Connected Workflow",
-            "A compact map from readiness snapshot to one-ticker review, source-proof lane, and stop rule.",
+            "Primary Workflow",
+            "One spine: Home -> choose ticker or scope -> single-stock answer -> Data Health only if blocked -> Proof History only for evidence review.",
         )
         render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")
-        render_section_header(
-            "Visitor Path",
-            "A simple four-step path for reading the project without opening operator tables.",
-        )
-        render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")
     if generated_stale_warning:
         render_notice_card(
             "Generated status may be stale",
@@ -25977,14 +25972,6 @@ def render_home_page(
     if public_mode:
         render_section_header("Where To Go Next", "Choose the next surface without reading operator tables first.")
         render_action_cards(_plain_home_route_choice_cards(summary))
-        with st.expander("Optional: workflow and next-step details", expanded=False):
-            render_section_header(
-                "Research Workflow",
-                "One connected loop: readiness snapshot, selector queue, one-ticker report, source-proof lane, then proof history before trusting changed states.",
-            )
-            render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)
-            render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
-            render_signal_cards(_plain_home_next_step_cards(summary)[:4], show_commands=False)
     else:
         render_section_header(
             "Research Workflow",
