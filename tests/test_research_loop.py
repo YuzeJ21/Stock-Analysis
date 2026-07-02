@@ -17,6 +17,7 @@ def test_research_loop_strip_links_are_navigation_only_and_guardrail_safe():
 
     assert "research-loop-strip" in html
     assert html.count("research-loop-link") == 4
+    assert "navigation-only; does not run commands or write data" in html
     assert "drawer=proof" in html
     assert "make " not in html
     assert "buy" not in html

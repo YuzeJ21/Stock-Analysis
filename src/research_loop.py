@@ -74,9 +74,10 @@ def research_loop_strip_html(
         class_attr = f"research-loop-item {class_name}".strip()
         if href:
             safe_href = html.escape(href, quote=True)
+            link_title = html.escape("Navigation-only; does not run commands or write data.", quote=True)
             value_html = (
                 "<div class='research-loop-value'>"
-                f"<a class='research-loop-link' href='{safe_href}' target='_self'>{html.escape(value)}</a>"
+                f"<a class='research-loop-link' href='{safe_href}' target='_self' title='{link_title}'>{html.escape(value)}</a>"
                 "</div>"
             )
         else:
