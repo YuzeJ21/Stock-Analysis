@@ -13546,7 +13546,7 @@ def fundamentals_dcf_diagnostic_cards(
             {
                 "kicker": "FUNDAMENTALS / DCF",
                 "title": "Readiness not ready yet",
-                "body": "Run make readiness before reviewing the fundamentals and DCF unlock guide.",
+                "body": "Refresh readiness before reviewing the fundamentals and DCF unlock guide. Open operator details for the copy-only command.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }

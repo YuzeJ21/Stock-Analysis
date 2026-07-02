@@ -23192,12 +23192,22 @@ def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance()
     assert "sell" not in rendered
 
 
+def test_fundamentals_dcf_diagnostic_cards_empty_state_keeps_command_out_of_body():
+    cards = dashboard.fundamentals_dcf_diagnostic_cards(None)
+    body = str(cards[0]["body"]).lower()
+
+    assert cards[0]["title"] == "Readiness not ready yet"
+    assert cards[0]["command"] == "make readiness"
+    assert "open operator details" in body
+    assert "make " not in body
+
+
 def test_fundamentals_dcf_unlock_copy_uses_guide_language_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "Fundamentals / DCF Proof Guide" in source
     assert "waiting on peer context" in source
-    assert "Run make readiness before reviewing the fundamentals and DCF unlock guide." in source
+    assert "Refresh readiness before reviewing the fundamentals and DCF unlock guide." in source
     assert "Fundamentals / DCF Proof Diagnostics" not in source
     assert "fundamentals and DCF unlock diagnostics" not in source
 
