@@ -25744,6 +25744,53 @@ def stock_selector_saved_filter_presets() -> list[dict[str, str]]:
     ]
 
 
+def stock_selector_next_reading_path_cards(
+    frame: pd.DataFrame,
+    selected_tickers: list[str] | tuple[str, ...],
+) -> list[tuple[str, str, str, str]]:
+    """Return the selected ticker handoff from selector to report and proof lane."""
+
+    candidate_frame = stock_selector_shortlist_frame(frame, selected_tickers)
+    if candidate_frame.empty and frame is not None and not frame.empty:
+        candidate_frame = frame.head(1).copy()
+    next_ticker = ""
+    selected_row: pd.Series | dict[str, object] = {}
+    if not candidate_frame.empty:
+        selected_row = candidate_frame.iloc[0]
+        next_ticker = str(selected_row.get("Ticker", "")).upper().strip()
+    next_review_route = (
+        f"?mode=public&page=single-stock-report&ticker={quote(next_ticker)}&open=1"
+        if next_ticker
+        else "?mode=public&page=single-stock-report"
+    )
+    proof_route = (
+        stock_selector_proof_href(next_ticker, selected_row)
+        if next_ticker
+        else "?mode=public&page=data-health&drawer=proof"
+    )
+    selected_label = next_ticker or "the selected ticker"
+    return [
+        (
+            "Open one review",
+            f"Open the selected ticker ({selected_label}) in Single-Stock Report first.",
+            next_review_route,
+            "neutral",
+        ),
+        (
+            "Check selected proof",
+            "Use Data Health only for the selected ticker's blocker lane before deeper interpretation.",
+            proof_route,
+            "neutral",
+        ),
+        (
+            "Inspect proof history",
+            "Review durable proof rows before trusting changed readiness states.",
+            "?mode=public&page=proof-history",
+            "neutral",
+        ),
+    ]
+
+
 def _selector_option_index(options: list[str], preferred: str) -> int:
     preferred_text = str(preferred or "All").strip()
     return options.index(preferred_text) if preferred_text in options else 0
@@ -25879,16 +25926,6 @@ def render_stock_selector(
         stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=30),
         unsafe_allow_html=True,
     )
-    next_review_ticker = (
-        str(selected_shortlist[0]).upper().strip()
-        if selected_shortlist
-        else (str(shortlist_options[0]).upper().strip() if shortlist_options else "")
-    )
-    next_review_route = (
-        f"?mode=public&page=single-stock-report&ticker={quote(next_review_ticker)}&open=1"
-        if next_review_ticker
-        else "?mode=public&page=single-stock-report"
-    )
     with st.expander("Full filtered selector rows", expanded=False):
         render_context_note(
             "Detailed selector evidence.",
@@ -25899,26 +25936,7 @@ def render_stock_selector(
     if public_mode:
         render_section_header("Next Reading Path", "Move from selection to proof without turning the queue into a conclusion.")
         render_action_cards(
-            [
-                (
-                    "Open one review",
-                    "Use the selected ticker action above to open the one-stock review.",
-                    next_review_route,
-                    "neutral",
-                ),
-                (
-                    "Check data proof",
-                    "Use Data Health when the selector row is partial, blocked, or stale.",
-                    "?mode=public&page=data-health&drawer=proof",
-                    "neutral",
-                ),
-                (
-                    "Inspect proof history",
-                    "Review durable proof rows before trusting changed readiness states.",
-                    "?mode=public&page=proof-history",
-                    "neutral",
-                ),
-            ]
+            stock_selector_next_reading_path_cards(filtered, selected_shortlist)
         )
 
 

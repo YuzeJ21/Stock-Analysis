@@ -27343,20 +27343,45 @@ def test_stock_selector_saved_filter_and_compare_controls_are_product_surface():
     assert proof_href == "?mode=public&page=data-health&ticker=NVDA&lane=peers&drawer=proof"
 
 
+def test_stock_selector_next_reading_path_uses_selected_ticker_proof_lane():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "MU",
+                "Research State": "Research Now",
+                "Readiness": "partial",
+                "Review Detail": "Standalone DCF ready; peers gated",
+                "Sector / Theme": "Semiconductors",
+                "Why Included": "DCF is ready, but peer-relative context is limited.",
+                "Supported Now": "standalone DCF",
+                "Blocked / Missing": "peer mapping needs proof",
+                "Next Proof Step": "Review peer mapping proof.",
+                "Proof Freshness": "Current snapshot",
+            }
+        ]
+    )
+
+    cards = dashboard.stock_selector_next_reading_path_cards(frame, ["MU"])
+    rendered = " ".join(str(value) for card in cards for value in card).lower()
+
+    assert cards[0][2] == "?mode=public&page=single-stock-report&ticker=MU&open=1"
+    assert cards[1][2] == "?mode=public&page=data-health&ticker=MU&lane=peers&drawer=proof"
+    assert "selected ticker" in rendered
+    assert "generic proof" not in rendered
+
+
 def test_stock_selector_next_reading_path_uses_selected_ticker_not_fixed_demo_name():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
     shortlist_index = source.index("selected_shortlist = st.multiselect(", render_index)
-    next_ticker_index = source.index("next_review_ticker =", shortlist_index)
-    next_route_index = source.index("next_review_route =", next_ticker_index)
-    next_path_index = source.index('render_section_header("Next Reading Path"', next_route_index)
-    open_review_index = source.index('"Open one review"', next_path_index)
-    open_review_route_index = source.index("next_review_route", open_review_index)
-    data_health_index = source.index("def price_refresh_operator_plan_cards(", open_review_route_index)
+    next_path_index = source.index('render_section_header("Next Reading Path"', shortlist_index)
+    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(filtered, selected_shortlist)", next_path_index)
+    data_health_index = source.index("def price_refresh_operator_plan_cards(", handoff_helper_index)
     selector_source = source[render_index:data_health_index]
 
-    assert shortlist_index < next_ticker_index < next_route_index < next_path_index < open_review_index < open_review_route_index
+    assert shortlist_index < next_path_index < handoff_helper_index
     assert '?mode=public&page=single-stock-report&ticker=NVDA&open=1' not in selector_source
+    assert '"?mode=public&page=data-health&drawer=proof"' not in selector_source
 
 
 def test_data_health_public_proof_map_cards_use_plain_readiness_labels():
