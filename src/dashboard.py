@@ -29444,11 +29444,11 @@ def render_data_health(
     if not show_details:
         render_context_note(
             "Detailed tables are hidden.",
-            "Open the lane evidence drawer or last-resort diagnostic context above for proof tables. Legacy Actions, Coverage, Sources, Price Updates, and Import Checks stay in the last-resort legacy drawer.",
+            "Open the lane evidence drawer or diagnostic context above for proof tables. Actions, Coverage, Sources, Price Updates, and Import Checks stay in the Legacy evidence details drawer.",
         )
         return
 
-    with st.expander("Last-resort legacy tables", expanded=False):
+    with st.expander("Legacy evidence details", expanded=False):
         health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])
 
         with health_tabs[0]:
