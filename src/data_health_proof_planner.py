@@ -196,7 +196,7 @@ def proof_planner_outcome_summary_cards(
                 "title": "Refresh readiness before proof planning",
                 "body": (
                     f"{card_sentence('Freshness', freshness_message)} "
-                    "Refresh before DCF or peer proof planning; stale readiness rows are not proof. Open operator details for the copy-only command."
+                    "Refresh before DCF or peer proof planning; stale readiness rows are not proof. Open operator details for read-only proof steps."
                 ),
                 "badges": ["blocked by freshness", "refresh first"],
                 "command": refresh_command,

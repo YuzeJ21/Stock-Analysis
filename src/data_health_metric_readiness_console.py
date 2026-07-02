@@ -380,7 +380,7 @@ def metric_readiness_queue_cards(frame: pd.DataFrame | None) -> list[dict[str, o
             {
                 "kicker": "METRIC QUEUE",
                 "title": "No queue rows",
-                "body": "Build the capped metric-readiness queue after local provider data exists. This view is a readiness summary, not a security ranking. Open operator details for the copy-only command.",
+                "body": "Build the capped metric-readiness queue after local provider data exists. This view is a readiness summary, not a security ranking. Open operator details for read-only proof steps.",
                 "badges": ["SPY", "QQQ", "readiness-only"],
                 "command": "make metric-readiness TOP_N=10 BENCHMARK=SPY",
             }
@@ -520,7 +520,7 @@ def metric_readiness_family_summary_cards(frame: pd.DataFrame | None) -> list[di
                 "title": "No metric blockers",
                 "body": (
                     "No SPY/QQQ metric-readiness rows are available yet. Build the metric-readiness board after local price "
-                    "and readiness artifacts exist. Open operator details for the copy-only command."
+                    "and readiness artifacts exist. Open operator details for read-only proof steps."
                 ),
                 "badges": ["readiness-only", "not ranking"],
                 "command": "make metric-readiness-board TOP_N=10",

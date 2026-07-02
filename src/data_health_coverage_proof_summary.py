@@ -59,7 +59,7 @@ def fundamentals_peer_metrics_queue_cards(frame: pd.DataFrame | None, *, limit: 
                     f"{card_sentence('Usable now', usable_answer)} "
                     f"{card_sentence('Blocked by', missing)} "
                     f"{card_sentence('Proof gate', proof_gate)} "
-                    "Next: Open the evidence drawer for copy-only commands and row detail."
+                    "Next: Open the evidence drawer for read-only proof steps and row detail."
                 ),
                 "badges": [state, source_mode],
                 "command": command,
@@ -119,7 +119,7 @@ def data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 
                     "Open the exact DCF input, shares-outstanding, trusted fundamentals, peer mapping, or peer valuation "
                     "proof queue before touching raw CSV rows."
                 ),
-                "badges": ["source proof first", "copy-only commands"],
+                "badges": ["source proof first", "read-only proof steps"],
                 "command": "make data-coverage-proof-queues TOP_N=10",
             }
         ]

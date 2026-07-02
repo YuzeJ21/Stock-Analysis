@@ -83,7 +83,8 @@ def test_data_coverage_proof_queue_cards_keep_batch_path_compact_and_copy_only()
     assert "3,512 queued row" in rendered
     assert "3,472 queued row" in rendered
     assert "source proof first" in rendered
-    assert "copy-only commands" in rendered
+    assert "read-only proof steps" in rendered
+    assert "copy-only commands" not in rendered
     assert "dry_run=1 make peer-mapping-source-review" in rendered
     assert "make dcf-input-source-command-plan" in rendered
     assert "buy" not in rendered

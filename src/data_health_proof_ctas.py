@@ -59,7 +59,7 @@ def data_health_dcf_input_proof_queue_dashboard_cards(frame: pd.DataFrame | None
                 "title": "Refresh the DCF proof queue",
                 "body": (
                     "No DCF input proof rows are loaded for this lane. Build the queue after readiness artifacts are current; "
-                    "do not treat missing DCF fields as resolved without source proof. Open operator details for the copy-only command."
+                    "do not treat missing DCF fields as resolved without source proof. Open operator details for read-only proof steps."
                 ),
                 "badges": ["blocked visible", "readiness first"],
                 "command": "make dcf-input-proof-queue TOP_N=10",

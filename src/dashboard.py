@@ -6658,7 +6658,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
             {
                 "kicker": "ACTIVE UNIVERSE",
                 "title": "No active rows",
-                "body": "Refresh readiness and confirm the active-universe scope before using the active-universe unlock cockpit. Open operator details for the copy-only command.",
+                "body": "Refresh readiness and confirm the active-universe scope before using the active-universe unlock cockpit. Open operator details for read-only proof steps.",
                 "badges": ["active only"],
                 "command": "make readiness",
             }
@@ -9252,7 +9252,7 @@ def data_health_valuation_unlock_snapshot_cards(
             {
                 "kicker": "VALUATION SNAPSHOT",
                 "title": "Readiness report not loaded",
-                "body": "Refresh readiness before using the valuation unlock snapshot. Missing readiness output means analysis should stay current-only and blocked. Open operator details for the copy-only command.",
+                "body": "Refresh readiness before using the valuation unlock snapshot. Missing readiness output means analysis should stay current-only and blocked. Open operator details for read-only proof steps.",
                 "badges": ["readiness first", "no guessing"],
                 "command": "make readiness",
             }
@@ -13546,7 +13546,7 @@ def fundamentals_dcf_diagnostic_cards(
             {
                 "kicker": "FUNDAMENTALS / DCF",
                 "title": "Readiness not ready yet",
-                "body": "Refresh readiness before reviewing the fundamentals and DCF unlock guide. Open operator details for the copy-only command.",
+                "body": "Refresh readiness before reviewing the fundamentals and DCF unlock guide. Open operator details for read-only proof steps.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }

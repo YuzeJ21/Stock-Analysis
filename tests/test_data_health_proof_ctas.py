@@ -67,6 +67,7 @@ def test_dcf_input_proof_queue_empty_state_keeps_command_out_of_body():
     assert cards[0]["title"] == "Refresh the DCF proof queue"
     assert cards[0]["command"] == "make dcf-input-proof-queue TOP_N=10"
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 

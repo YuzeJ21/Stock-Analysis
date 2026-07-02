@@ -55,6 +55,7 @@ def test_feature_readiness_cards_use_plain_missing_output_language():
     assert cards[0]["command"] == "make readiness"
     assert "build feature readiness proof" in body
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
     assert "data/reports/feature_readiness_summary.csv" not in body
     assert "not generated" not in body

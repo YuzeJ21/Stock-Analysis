@@ -49,7 +49,7 @@ def peer_readiness_product_cards(
             {
                 "kicker": "PEER READINESS",
                 "title": "Peer readiness not ready yet",
-                "body": "Build peer readiness proof before reviewing peer trend, peer valuation, or source-backed peer blockers. Open operator details for the copy-only command.",
+                "body": "Build peer readiness proof before reviewing peer trend, peer valuation, or source-backed peer blockers. Open operator details for read-only proof steps.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }

@@ -12,6 +12,7 @@ def test_readiness_delta_board_missing_current_keeps_command_out_of_body():
     assert cards[0]["title"] == "Current readiness report missing"
     assert cards[0]["command"] == "make readiness"
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 

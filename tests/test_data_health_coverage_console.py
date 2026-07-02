@@ -99,6 +99,7 @@ def test_coverage_frontier_cards_handle_empty_frame_with_copy_only_command():
     assert cards[0]["command"] == "make coverage-frontier TOP_N=10"
     assert "ranks data operations, not securities" in rendered
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 

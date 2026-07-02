@@ -598,7 +598,8 @@ def test_data_health_data_coverage_proof_queue_cards_keep_batch_proof_path_compa
     assert "peer mapping proof queue" in rendered
     assert "open the exact dcf input" in rendered
     assert "source proof first" in rendered
-    assert "copy-only commands" in rendered
+    assert "read-only proof steps" in rendered
+    assert "copy-only commands" not in rendered
     assert "make dcf-input-source-command-plan" in rendered
     assert "dry_run=1 make peer-mapping-source-review" in rendered
     assert "buy" not in rendered
@@ -15801,6 +15802,7 @@ def test_data_health_valuation_unlock_snapshot_handles_missing_readiness_without
     assert cards[0]["command"] == "make readiness"
     assert "missing readiness output means analysis should stay current-only and blocked" in body
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 
@@ -20742,6 +20744,7 @@ def test_active_universe_unlock_cards_empty_state_keeps_command_out_of_body():
     assert cards[0]["command"] == "make readiness"
     assert "active-universe unlock cockpit" in body
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 
@@ -23215,6 +23218,7 @@ def test_fundamentals_dcf_diagnostic_cards_empty_state_keeps_command_out_of_body
     assert cards[0]["title"] == "Readiness not ready yet"
     assert cards[0]["command"] == "make readiness"
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 

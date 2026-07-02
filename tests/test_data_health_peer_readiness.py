@@ -12,6 +12,7 @@ def test_peer_readiness_product_cards_empty_state_keeps_command_out_of_body():
     assert cards[0]["title"] == "Peer readiness not ready yet"
     assert cards[0]["command"] == "make readiness"
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 

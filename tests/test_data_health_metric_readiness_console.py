@@ -75,6 +75,7 @@ def test_metric_queue_empty_state_keeps_command_out_of_body():
     assert cards[0]["title"] == "No queue rows"
     assert cards[0]["command"] == "make metric-readiness TOP_N=10 BENCHMARK=SPY"
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 
@@ -98,6 +99,7 @@ def test_metric_family_summary_empty_state_keeps_command_out_of_body():
     assert cards[0]["title"] == "No metric blockers"
     assert cards[0]["command"] == "make metric-readiness-board TOP_N=10"
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 

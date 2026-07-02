@@ -87,6 +87,7 @@ def test_peer_analysis_boundary_cards_handle_missing_report_without_fake_peer_co
     assert cards[0]["command"] == "make readiness"
     assert "missing peer output means peer analysis stays locked" in body
     assert "open operator details" in body
+    assert "copy-only command" not in body
     assert "make " not in body
 
 

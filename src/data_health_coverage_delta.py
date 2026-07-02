@@ -225,7 +225,7 @@ def readiness_delta_board_cards(
             {
                 "kicker": "COVERAGE DELTA",
                 "title": "Current readiness report missing",
-                "body": "Refresh readiness before comparing prior and current coverage. Open operator details for the copy-only command.",
+                "body": "Refresh readiness before comparing prior and current coverage. Open operator details for read-only proof steps.",
                 "badges": ["blocked", "read-only"],
                 "command": "make readiness",
             }

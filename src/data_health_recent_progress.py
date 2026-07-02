@@ -52,7 +52,7 @@ def readiness_recent_progress_cards(
             {
                 "kicker": "WHAT CHANGED",
                 "title": "Readiness report missing",
-                "body": "Refresh readiness before comparing current and prior product status. Open operator details for the copy-only command.",
+                "body": "Refresh readiness before comparing current and prior product status. Open operator details for read-only proof steps.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }
