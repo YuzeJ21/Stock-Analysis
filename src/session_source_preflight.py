@@ -385,6 +385,11 @@ def build_price_ladder_status(
         "alpha_vantage": (ALPHA_VANTAGE_API_KEY_ENV, alpha_vantage_status),
         "finnhub": (FINNHUB_API_KEY_ENV, finnhub_status),
     }
+    required_keyed_providers = {
+        "fmp": (FMP_API_KEY_ENV, fmp_status),
+        "alpha_vantage": (ALPHA_VANTAGE_API_KEY_ENV, alpha_vantage_status),
+        "finnhub": (FINNHUB_API_KEY_ENV, finnhub_status),
+    }
     configured = [
         provider
         for provider, (_env_var, status) in keyed_providers.items()
@@ -395,7 +400,7 @@ def build_price_ladder_status(
         available_readonly.append("ibkr")
     missing_envs = [
         env_var
-        for _provider, (env_var, status) in keyed_providers.items()
+        for _provider, (env_var, status) in required_keyed_providers.items()
         if str(status.get("status") or "").strip() != "available"
     ]
     if configured or available_readonly:
