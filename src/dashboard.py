@@ -9697,6 +9697,19 @@ def data_health_pilot_packaging_summary_cards(frame: pd.DataFrame | None, *, lim
     return pilot_console.pilot_packaging_summary_cards(frame, limit=limit)
 
 
+def data_health_pilot_share_first_answer_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    return pilot_console.pilot_share_first_answer_frame(
+        pilot_frame,
+        proof_queue_frame,
+        output_path=output_path,
+    )
+
+
 def data_health_pilot_evidence_review_frame(
     pilot_frame: pd.DataFrame | None,
     proof_queue_frame: pd.DataFrame | None,
@@ -28143,6 +28156,16 @@ def render_data_health(
             "Pilot Share Answer",
             "One compact pilot/share answer before runbooks, packets, commit package, or raw release tables. Can share, manual gates, generated-churn boundary, license boundary, and next safe packet command before release details.",
         )
+        render_section_header(
+            "Pilot Share First Answer",
+            "Share status, sync, public-check, browser evidence, generated churn, license boundary, source blocker, and next packet before release details.",
+        )
+        pilot_share_first_answer = data_health_pilot_share_first_answer_frame(
+            pilot_readiness,
+            data_coverage_proof_queues,
+            output_path=DEFAULT_PACKET_PATH,
+        )
+        st.table(clean_display_frame(pilot_share_first_answer))
         render_signal_cards(
             data_health_pilot_handoff_summary_cards(pilot_handoff_summary),
             show_commands=False,

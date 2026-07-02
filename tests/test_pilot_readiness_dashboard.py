@@ -1,6 +1,7 @@
 import pandas as pd
 
 from src.dashboard import (
+    data_health_pilot_share_first_answer_frame,
     data_health_operator_next_action_summary_cards,
     data_health_operator_next_action_summary_frame,
     data_health_pilot_commit_package_cards,
@@ -130,6 +131,59 @@ def test_data_health_pilot_handoff_summary_answers_reviewer_questions_before_tab
     assert all(str(card["body"]).startswith("One answer:") for card in cards)
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_data_health_pilot_share_first_answer_frame_summarizes_release_gates():
+    pilot = pd.DataFrame(
+        [
+            {"Area": "GitHub sync", "Status": "manual", "Detail": "## main...origin/main [ahead 3]", "Command": "git push origin main", "Stop Rule": "Do not push if generated churn is staged."},
+            {"Area": "Generated artifact hygiene", "Status": "manual", "Detail": "35 generated artifact(s) excluded by default.", "Command": "make diff-hygiene-summary", "Stop Rule": "Do not stage broad generated churn."},
+            {"Area": "Public safety", "Status": "manual", "Detail": "Run public-check before sharing.", "Command": "make public-check", "Stop Rule": "Stop if public-check fails."},
+            {"Area": "Browser QA evidence", "Status": "green", "Detail": "Real screenshot evidence is ready.", "Command": "make browser-qa-evidence", "Stop Rule": "Stop if screenshots are stale."},
+            {"Area": "License status", "Status": "manual", "Detail": "No root LICENSE file found.", "Command": "make license-status", "Stop Rule": "Do not claim reuse rights."},
+        ]
+    )
+    queues = pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "reviewed",
+                "Blocked": 90,
+                "Top Blockers": "fundamentals_bundle_plus_shares: 90",
+                "Next Safe Command": "make project-status",
+            }
+        ]
+    )
+
+    frame = data_health_pilot_share_first_answer_frame(pilot, queues)
+
+    assert frame.to_dict("records") == [
+        {
+            "Question": "Can I share this now?",
+            "Answer": "Portfolio/demo only with manual gates; 0 blocked gate(s), 4 manual gate(s), 1 green gate(s).",
+            "Next Safe Action": "make public-check",
+        },
+        {
+            "Question": "What must be true first?",
+            "Answer": "GitHub sync: manual; generated hygiene: manual; public-check: manual; browser evidence: green.",
+            "Next Safe Action": "make public-check && make browser-qa-evidence",
+        },
+        {
+            "Question": "What stays out?",
+            "Answer": "35 generated artifact(s) excluded by default. License boundary: No root LICENSE file found.",
+            "Next Safe Action": "make diff-hygiene-summary",
+        },
+        {
+            "Question": "What blocks deeper analysis?",
+            "Answer": "Trusted Fundamentals Proof Queue: reviewed; fundamentals_bundle_plus_shares: 90.",
+            "Next Safe Action": "make project-status",
+        },
+        {
+            "Question": "What packet should I create?",
+            "Answer": "outputs/pilot_readiness_packet.md is copy-only evidence; it does not refresh data or unlock blocked inputs.",
+            "Next Safe Action": "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md",
+        },
+    ]
 
 
 def test_data_health_pilot_handoff_summary_preserves_queue_priority_order():

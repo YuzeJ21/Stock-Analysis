@@ -892,6 +892,73 @@ def public_share_final_gate_frame(
     return pd.DataFrame(rows)
 
 
+def pilot_share_first_answer_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    """Return the first pilot/share answer before detailed gate tables."""
+
+    counts = _status_counts(pilot_frame)
+    sync_row = _area_row(pilot_frame, "GitHub sync")
+    churn_row = _area_row(pilot_frame, "Generated artifact hygiene")
+    public_row = _area_row(pilot_frame, "Public safety")
+    browser_row = _area_row(pilot_frame, "Browser QA evidence")
+    license_row = _area_row(pilot_frame, "License status")
+    proof_queue = _leading_proof_queue(proof_queue_frame)
+
+    def status(row: pd.Series | None, fallback: str = "manual") -> str:
+        return _format_missing(row.get("Status") if row is not None else None, fallback).replace("_", " ")
+
+    def detail(row: pd.Series | None, fallback: str) -> str:
+        return _compact_fragment(row.get("Detail") if row is not None else None, fallback=fallback, max_chars=180)
+
+    source_answer = "No source-proof queue loaded."
+    source_command = "make project-status"
+    if proof_queue is not None:
+        source_queue = _format_missing(proof_queue.get("Queue"), "Source-proof queue").replace("_", " ")
+        source_state = _format_missing(proof_queue.get("State"), "manual").replace("_", " ")
+        source_blockers = _compact_fragment(proof_queue.get("Top Blockers"), fallback="No blocker summary reported.", max_chars=130)
+        source_answer = f"{source_queue}: {source_state}; {source_blockers}."
+        source_command = _format_missing(proof_queue.get("Next Safe Command"), source_command)
+
+    rows = [
+        {
+            "Question": "Can I share this now?",
+            "Answer": (
+                "Portfolio/demo only with manual gates; "
+                f"{counts['blocked']} blocked gate(s), {counts['manual']} manual gate(s), {counts['green']} green gate(s)."
+            ),
+            "Next Safe Action": "make public-check",
+        },
+        {
+            "Question": "What must be true first?",
+            "Answer": (
+                f"GitHub sync: {status(sync_row)}; generated hygiene: {status(churn_row)}; "
+                f"public-check: {status(public_row)}; browser evidence: {status(browser_row)}."
+            ),
+            "Next Safe Action": "make public-check && make browser-qa-evidence",
+        },
+        {
+            "Question": "What stays out?",
+            "Answer": f"{detail(churn_row, 'Generated churn stays excluded by default.')} License boundary: {detail(license_row, 'No root LICENSE file found.')}",
+            "Next Safe Action": "make diff-hygiene-summary",
+        },
+        {
+            "Question": "What blocks deeper analysis?",
+            "Answer": source_answer,
+            "Next Safe Action": source_command,
+        },
+        {
+            "Question": "What packet should I create?",
+            "Answer": f"{output_path.as_posix()} is copy-only evidence; it does not refresh data or unlock blocked inputs.",
+            "Next Safe Action": f"make pilot-readiness-packet OUTPUT={output_path.as_posix()}",
+        },
+    ]
+    return pd.DataFrame(rows, columns=["Question", "Answer", "Next Safe Action"])
+
+
 def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 8) -> list[dict[str, object]]:
     if frame is None or frame.empty:
         return [

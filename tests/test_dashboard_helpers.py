@@ -19665,6 +19665,8 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
         packaging_frame_index,
     )
     share_answer_header_index = source.index('render_section_header(\n            "Pilot Share Answer"', secondary_readiness_gate_index)
+    first_answer_frame_index = source.index("pilot_share_first_answer = data_health_pilot_share_first_answer_frame", share_answer_header_index)
+    first_answer_table_index = source.index("st.table(clean_display_frame(pilot_share_first_answer))", first_answer_frame_index)
     share_gate_summary_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", share_answer_header_index)
     share_gate_summary_commands_index = source.index("show_commands=False", share_gate_summary_cards_index)
     reviewed_evidence_drawer_index = source.index(
@@ -19714,6 +19716,8 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     assert (
         secondary_readiness_gate_index
         < share_answer_header_index
+        < first_answer_frame_index
+        < first_answer_table_index
         < share_gate_summary_cards_index
         < share_gate_summary_commands_index
         < reviewed_evidence_drawer_index
@@ -19741,6 +19745,8 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     assert 'render_section_header(\n        "Pilot Packaging Summary"' not in source
     assert 'render_section_header(\n        "Pilot Reviewer Walkthrough"' not in source
     assert "One compact pilot/share answer before runbooks, packets, commit package, or raw release tables." in source
+    assert "Pilot Share First Answer" in source
+    assert "Share status, sync, public-check, browser evidence, generated churn, license boundary, source blocker, and next packet before release details." in source
     assert "Pilot/share reviewed evidence drawer" in source
     assert "Can share, manual gates, generated-churn boundary, license boundary, and next safe packet command before release details." in source
     assert "Release evidence, final gate, workflow continuity, commit package, packaging summary, walkthrough, and packet detail stay here." in source
