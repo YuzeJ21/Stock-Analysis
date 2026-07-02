@@ -15407,7 +15407,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Supported Analysis Ladder" in source
     assert "Freshness Routine" in source
     assert "How to keep data current without daily manual full-universe refreshes." in source
-    assert "render_signal_cards(data_health_freshness_routine_cards(readiness_summary))" in source
+    assert "render_signal_cards(data_health_freshness_routine_cards(readiness_summary), show_commands=False)" in source
     assert "Valuation Proof Snapshot" in source
     assert "Plain-English valuation worklists before the broader market-wide tables." in source
     assert "Plain-English valuation queues before the full command center details." not in source
@@ -25359,6 +25359,37 @@ def test_data_health_data_coverage_proof_queue_hides_top_level_commands():
         < source_review_expander_index
         < source_review_command_cards_index
         < source_review_command_visibility_index
+    )
+
+
+def test_data_health_optional_context_drawer_hides_summary_commands():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    optional_lane_index = source.index('elif selected_lane == "Optional Context":')
+    drawer_index = source.index(
+        'st.expander("Optional context evidence drawer", expanded=False)',
+        optional_lane_index,
+    )
+    freshness_routine_index = source.index(
+        "data_health_freshness_routine_cards(readiness_summary)",
+        drawer_index,
+    )
+    freshness_command_visibility_index = source.index("show_commands=False", freshness_routine_index)
+    action_path_index = source.index(
+        "data_health_action_path_cards(actions_frame, action_queue_frame)",
+        freshness_command_visibility_index,
+    )
+    action_path_command_visibility_index = source.index("show_commands=False", action_path_index)
+    proof_history_index = source.index('elif selected_lane == "Proof History":', action_path_command_visibility_index)
+
+    assert (
+        optional_lane_index
+        < drawer_index
+        < freshness_routine_index
+        < freshness_command_visibility_index
+        < action_path_index
+        < action_path_command_visibility_index
+        < proof_history_index
     )
 
 
