@@ -126,6 +126,29 @@ def _lane_review_boundary(
     return "Open details for the source-backed next step; commands stay in operator drawers."
 
 
+def _lane_next_safe_action(
+    lane: str,
+    mode: str,
+    state: str,
+    ready: int,
+    partial: int,
+    blocked: int,
+    excluded: int,
+) -> str:
+    lane_text = lane.lower()
+    if "optional" in mode or "locked" in mode or "manual" in mode:
+        return "Keep optional context locked until trusted rows exist."
+    if "price" in lane_text and ready > 0 and partial > 0 and blocked == 0:
+        return "Inspect the partial price row only if freshness depth matters."
+    if "peer" in lane_text and blocked > 0:
+        return "Use provider setup before reopening broad proof queues."
+    if blocked > 0 and ready == 0:
+        return "Wait for source proof before treating this lane as usable."
+    if excluded > 0 or state == "excluded":
+        return "Use applicable rows only; keep excluded rows out of analysis."
+    return "Open details for the source-backed next step."
+
+
 def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
     """Return the default Data Health lane answer as one scan-friendly row per lane."""
     columns = [
@@ -135,6 +158,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
         "Blocked",
         "Context Only",
         "Excluded / Not Applicable",
+        "Next Safe Action",
         "Review Boundary",
     ]
     if ops_frame is None or ops_frame.empty:
@@ -147,6 +171,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
                     "Blocked": "lane summary not loaded",
                     "Context Only": "-",
                     "Excluded / Not Applicable": "-",
+                    "Next Safe Action": "Open details for the source-backed next step.",
                     "Review Boundary": "Open details for the source-backed next step; do not infer readiness from missing summary data.",
                 }
             ],
@@ -175,6 +200,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
                 "Blocked": _count_label(blocked, "blocked row(s)"),
                 "Context Only": context_only,
                 "Excluded / Not Applicable": _count_label(excluded, "excluded/not applicable"),
+                "Next Safe Action": _lane_next_safe_action(lane, mode, state, ready, partial, blocked, excluded),
                 "Review Boundary": _lane_review_boundary(lane, mode, state, ready, partial, blocked, excluded),
             }
         )

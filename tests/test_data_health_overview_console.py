@@ -261,6 +261,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
         "Blocked",
         "Context Only",
         "Excluded / Not Applicable",
+        "Next Safe Action",
         "Review Boundary",
     ]
     assert frame.to_dict("records") == [
@@ -271,6 +272,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
             "Blocked": "-",
             "Context Only": "-",
             "Excluded / Not Applicable": "-",
+            "Next Safe Action": "Inspect the partial price row only if freshness depth matters.",
             "Review Boundary": "Use the ready price evidence now; inspect the one partial row only if freshness depth matters.",
         },
         {
@@ -280,6 +282,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
             "Blocked": "3,507 blocked row(s)",
             "Context Only": "-",
             "Excluded / Not Applicable": "2 excluded/not applicable",
+            "Next Safe Action": "Use provider setup before reopening broad proof queues.",
             "Review Boundary": "Treat ready peer rows as usable and blocked rows as locked until trusted source proof exists.",
         },
         {
@@ -289,6 +292,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
             "Blocked": "3,538 blocked row(s)",
             "Context Only": "locked/manual or candidate context",
             "Excluded / Not Applicable": "-",
+            "Next Safe Action": "Keep optional context locked until trusted rows exist.",
             "Review Boundary": "Use as optional context only; keep raw provider/manual setup in collapsed operator drawers.",
         },
     ]

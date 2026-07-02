@@ -15924,7 +15924,7 @@ def test_data_health_lane_answer_frame_hides_commands_in_default_table():
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
 
     assert "Review Boundary" in frame.columns
-    assert "Next Safe Action" not in frame.columns
+    assert "Next Safe Action" in frame.columns
     assert "make " not in rendered
     assert "open details for the source-backed next step" in rendered
 
