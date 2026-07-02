@@ -27927,6 +27927,21 @@ def test_last_resort_legacy_coverage_tab_nests_liquidity_and_correlation_rows():
     assert correlation_rows_index < correlation_ready_index < correlation_unavailable_index < top_actions_index
 
 
+def test_last_resort_legacy_coverage_tab_nests_top_action_rows():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
+    top_actions_index = source.index('st.expander("Top Data Actions", expanded=False)', coverage_tab_index)
+    nested_rows_index = source.index('st.expander("Legacy top action rows", expanded=False)', top_actions_index)
+    top_actions_sort_index = source.index('actions_frame.sort_values(["priority", "ticker", "dataset"]', nested_rows_index)
+    action_columns_index = source.index("action_columns = [", top_actions_sort_index)
+    action_rows_index = source.index("st.dataframe(clean_display_frame(top_actions[action_columns])", action_columns_index)
+    coverage_guide_index = source.index('st.expander("Coverage Guide Rows", expanded=False)', action_rows_index)
+
+    assert top_actions_index < nested_rows_index < top_actions_sort_index < action_columns_index
+    assert action_columns_index < action_rows_index < coverage_guide_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"

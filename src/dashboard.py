@@ -29838,13 +29838,14 @@ def render_data_health(
 
                 if actions_frame is not None and not actions_frame.empty:
                     with st.expander("Top Data Actions", expanded=False):
-                        top_actions = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(10)
-                        action_columns = [
-                            column
-                            for column in ["priority", "ticker", "dataset", "status", "reason", "recommended_action", "focus_command", "target_file"]
-                            if column in top_actions.columns
-                        ]
-                        st.dataframe(clean_display_frame(top_actions[action_columns]), width="stretch", hide_index=True)
+                        with st.expander("Legacy top action rows", expanded=False):
+                            top_actions = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(10)
+                            action_columns = [
+                                column
+                                for column in ["priority", "ticker", "dataset", "status", "reason", "recommended_action", "focus_command", "target_file"]
+                                if column in top_actions.columns
+                            ]
+                            st.dataframe(clean_display_frame(top_actions[action_columns]), width="stretch", hide_index=True)
                 elif actions_message:
                     st.info(actions_message)
 
