@@ -15058,6 +15058,12 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
     assert list(frame.columns) == ["Question", "Answer", "Next Safe Destination", "Boundary"]
     assert frame.to_dict("records") == [
         {
+            "Question": "What is Proof History for?",
+            "Answer": "Evidence review only: verify what was reviewed, what changed, and what still needs proof.",
+            "Next Safe Destination": "Leave Proof History after the evidence question is answered.",
+            "Boundary": "Proof History does not refresh data, apply imports, record outcomes, or unlock blocked inputs.",
+        },
+        {
             "Question": "What was supported?",
             "Answer": "peer mapping: human reviewed supported; trusted peer rows reviewed.",
             "Next Safe Destination": "Single-Stock Report for interpretation.",
@@ -15073,7 +15079,7 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
             "Question": "Where is the evidence?",
             "Answer": "Reviewed lane proof and reviewed batch proof rows; generated CSV/report churn stays excluded unless intentionally reviewed evidence. Details stay collapsed until opened.",
             "Next Safe Destination": "Proof ledger details when evidence inspection is needed.",
-            "Boundary": "Ledger details are for audit; they are not a second analysis page or command center.",
+            "Boundary": "Ledger details are for audit; they are not an analysis or action page.",
         },
         {
             "Question": "Evidence review boundary",
@@ -15090,6 +15096,8 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
     ]
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
     assert "make " not in rendered
+    assert frame.iloc[0]["Question"] == "What is Proof History for?"
+    assert "command center" not in rendered
 
 
 def test_proof_history_public_page_renders_first_answer_frame_before_ledger_details():

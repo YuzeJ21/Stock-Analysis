@@ -11588,6 +11588,12 @@ def proof_history_first_answer_frame(
     return pd.DataFrame(
         [
             {
+                "Question": "What is Proof History for?",
+                "Answer": "Evidence review only: verify what was reviewed, what changed, and what still needs proof.",
+                "Next Safe Destination": "Leave Proof History after the evidence question is answered.",
+                "Boundary": "Proof History does not refresh data, apply imports, record outcomes, or unlock blocked inputs.",
+            },
+            {
                 "Question": "What was supported?",
                 "Answer": f"{latest_proof_lane}: {latest_proof_outcome}; {latest_proof_change}.",
                 "Next Safe Destination": "Single-Stock Report for interpretation.",
@@ -11603,7 +11609,7 @@ def proof_history_first_answer_frame(
                 "Question": "Where is the evidence?",
                 "Answer": "Reviewed lane proof and reviewed batch proof rows; generated CSV/report churn stays excluded unless intentionally reviewed evidence. Details stay collapsed until opened.",
                 "Next Safe Destination": "Proof ledger details when evidence inspection is needed.",
-                "Boundary": "Ledger details are for audit; they are not a second analysis page or command center.",
+                "Boundary": "Ledger details are for audit; they are not an analysis or action page.",
             },
             {
                 "Question": "Evidence review boundary",
