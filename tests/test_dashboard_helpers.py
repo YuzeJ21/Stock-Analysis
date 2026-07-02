@@ -361,7 +361,8 @@ def test_data_health_provider_setup_first_answer_frame_summarizes_current_source
         "What should not be retried?",
         "What boundary stays true?",
     ]
-    assert "coverage_workflow_evidence" in rendered
+    assert "workflow evidence only; current source-proof queues are exhausted" in rendered
+    assert "coverage_workflow_evidence" not in rendered
     assert "alpha_vantage, finnhub" in rendered
     assert "fundamentals_share_count_source_ladder" in rendered
     assert "make " not in rendered

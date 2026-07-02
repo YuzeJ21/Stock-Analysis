@@ -803,15 +803,27 @@ def _checklist_current_gate_value(payload: dict[str, object], name: str, fallbac
     return _format_missing(value, fallback)
 
 
+def _human_provider_gate(value: str) -> str:
+    """Translate source-gate tokens before they reach the operator summary."""
+
+    normalized = value.strip()
+    labels = {
+        "coverage_workflow_evidence": "Workflow evidence only; current source-proof queues are exhausted",
+    }
+    return labels.get(normalized, normalized)
+
+
 def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd.DataFrame:
     """Return a compact source-boundary answer before provider setup details."""
 
     payload = checklist or {}
     first_answer = _checklist_first_answer(payload)
-    current_can_run = _checklist_current_gate_value(
-        payload,
-        "can_run_now",
-        _format_missing(first_answer.get("free_source_now"), "see provider rows"),
+    current_can_run = _human_provider_gate(
+        _checklist_current_gate_value(
+            payload,
+            "can_run_now",
+            _format_missing(first_answer.get("free_source_now"), "see provider rows"),
+        )
     )
     needs_setup = _checklist_current_gate_value(
         payload,
