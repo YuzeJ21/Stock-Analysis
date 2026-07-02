@@ -20563,8 +20563,8 @@ def data_health_selected_lane_answer_cards(
             )
             ticker_fragment = f" for {ticker}" if ticker else ""
             lane_inspection_note = (
-                f" Lane-specific inspection: {focus_command}{ticker_fragment}. {reason} "
-                "This only opens review context; it does not stage, apply, or unlock blocked inputs."
+                f" Lane-specific inspection: {dataset_key.replace('_', ' ')} blocker{ticker_fragment}. {reason} "
+                "Details stay in the lane evidence drawer; this does not stage, apply, or unlock blocked inputs."
             )
             break
     if not next_command:
@@ -20635,7 +20635,6 @@ def data_health_selected_lane_answer_cards(
                 f"{lane_inspection_note}"
             ),
             "badges": ["source gate", "no repeat loops"],
-            "command": next_command,
         }
     else:
         next_action_card = {
@@ -20643,7 +20642,6 @@ def data_health_selected_lane_answer_cards(
             "title": "Open the next proof gate",
             "body": f"{next_reason} This is not a recommendation and does not run imports from the dashboard.",
             "badges": ["copy-only", "research-only"],
-            "command": next_command,
         }
 
     return [

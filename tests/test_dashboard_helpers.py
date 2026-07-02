@@ -25934,9 +25934,10 @@ def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
     assert "context only: metadata, candidate peers, universe membership, and optional rows stay separate from trusted fundamentals proof" in rendered
     assert "excluded/not applicable: etf/index/fund rows keep operating-company dcf excluded instead of failed" in rendered
     assert "source proof remains blocked" in rendered
-    assert cards[2]["command"] == "make provider-setup-checklist"
     assert cards[2]["title"] == "Review provider setup before proof loops"
     assert "do not repeat broad proof queues" in rendered
+    assert "command" not in cards[2]
+    assert "make " not in rendered
     assert "not a recommendation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -25968,9 +25969,10 @@ def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_ex
 
     assert next_action["kicker"] == "SOURCE GATE"
     assert next_action["title"] == "Review provider setup before proof loops"
-    assert next_action["command"] == "make provider-setup-checklist"
+    assert "command" not in next_action
     assert "no unreviewed executable company candidates" in rendered
     assert "do not repeat broad proof queues" in rendered
+    assert "make " not in rendered
     assert "open the next proof gate" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -26014,8 +26016,9 @@ def test_data_health_selected_lane_answer_cards_include_lane_specific_inspection
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[2]["kicker"] == "SOURCE GATE"
-    assert "lane-specific inspection: make focus-fundamentals ticker=bot" in rendered
-    assert "this only opens review context; it does not stage, apply, or unlock blocked inputs" in rendered
+    assert "lane-specific inspection: fundamentals blocker for bot" in rendered
+    assert "details stay in the lane evidence drawer; this does not stage, apply, or unlock blocked inputs" in rendered
+    assert "make " not in rendered
     assert "universe-preview-summary" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
