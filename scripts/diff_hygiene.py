@@ -226,12 +226,14 @@ def format_provider_setup_gate() -> list[str]:
             ]
         )
     if isinstance(source_answer, dict) and source_answer:
+        configured_keyed = source_answer.get("configured_keyed", "-")
+        needs_key = source_answer.get("needs_key", "-")
         lines.extend(
             [
-                f"  Free/public now: {source_answer.get('free_public_now', '-')}",
-                f"  Configured keyed providers: {source_answer.get('configured_keyed', '-')}",
-                f"  Missing keyed providers: {source_answer.get('needs_key', '-')}",
-                f"  Optional broker status: {source_answer.get('optional_broker', '-')}",
+                f"  Free public sources: {source_answer.get('free_public_now', '-')}",
+                f"  Keyed free-tier fallbacks: configured {configured_keyed}; needs key {needs_key}",
+                f"  Optional broker boundary: {source_answer.get('optional_broker', '-')}",
+                "  Provider setup only makes a source executable; it does not run broad batches or apply data.",
             ]
         )
     first = next((row for row in setup_order if isinstance(row, dict)), None) if isinstance(setup_order, list) else None
