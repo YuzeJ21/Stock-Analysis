@@ -23,7 +23,7 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
             {
                 "kicker": "FEATURE READINESS",
                 "title": "Feature readiness not ready yet",
-                "body": "Run readiness to rebuild the feature proof before reviewing which analysis areas are ready, partial, blocked, or excluded.",
+                "body": "Build feature readiness proof before reviewing which analysis areas are ready, partial, blocked, or excluded. Open operator details for the copy-only command.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }

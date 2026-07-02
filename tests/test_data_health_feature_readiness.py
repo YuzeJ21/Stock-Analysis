@@ -49,17 +49,19 @@ def test_feature_readiness_cards_surface_top_blockers_and_price_dry_run():
 
 def test_feature_readiness_cards_use_plain_missing_output_language():
     cards = feature_readiness.feature_readiness_cards(None)
-    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    body = str(cards[0]["body"]).lower()
 
     assert cards[0]["title"] == "Feature readiness not ready yet"
     assert cards[0]["command"] == "make readiness"
-    assert "run readiness to rebuild the feature proof" in rendered
-    assert "data/reports/feature_readiness_summary.csv" not in rendered
-    assert "not generated" not in rendered
-    assert "broker" not in rendered
-    assert "order" not in rendered
-    assert "buy" not in rendered
-    assert "sell" not in rendered
+    assert "build feature readiness proof" in body
+    assert "open operator details" in body
+    assert "make " not in body
+    assert "data/reports/feature_readiness_summary.csv" not in body
+    assert "not generated" not in body
+    assert "broker" not in body
+    assert "order" not in body
+    assert "buy" not in body
+    assert "sell" not in body
 
 
 def test_feature_readiness_cards_show_optional_context_as_locked_workflow():
