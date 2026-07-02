@@ -15691,10 +15691,11 @@ def test_proof_history_public_page_paints_first_answer_before_ledger_reads():
     header_index = source.index("render_section_header(", render_index)
     first_answer_index = source.index('"Proof History First Answer"', header_index)
     first_cards_index = source.index("render_signal_cards(", first_answer_index)
+    first_boundary_index = source.index("not another command center", first_answer_index)
     proof_timeline_index = source.index("proof_timeline = data_health_reviewed_proof_timeline_frame()", first_cards_index)
     batch_frame_index = source.index("batch_proof_frame = data_health_reviewed_batch_proof_frame()", proof_timeline_index)
 
-    assert render_index < header_index < first_answer_index < first_cards_index < proof_timeline_index < batch_frame_index
+    assert render_index < header_index < first_answer_index < first_cards_index < first_boundary_index < proof_timeline_index < batch_frame_index
 
 
 def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():

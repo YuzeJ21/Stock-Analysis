@@ -11572,8 +11572,8 @@ def render_proof_history(*, public_mode: bool = True) -> None:
                     "kicker": "EVIDENCE ONLY",
                     "title": "Use this after Data Health",
                     "body": (
-                        "Proof History shows reviewed outcomes for source-proof work. It does not run refreshes, "
-                        "apply imports, or turn blocked inputs into usable analysis."
+                        "Proof History shows reviewed outcomes for source-proof work; it is not another command center. "
+                        "It does not run refreshes, apply imports, or turn blocked inputs into usable analysis."
                     ),
                     "badges": ["review trail", "no data writes"],
                     "command": "",
