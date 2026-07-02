@@ -14993,23 +14993,27 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
 
     frame = dashboard.proof_history_first_answer_frame(proof_timeline, batch_proof)
 
-    assert list(frame.columns) == ["Question", "Answer"]
+    assert list(frame.columns) == ["Question", "Answer", "Boundary"]
     assert frame.to_dict("records") == [
         {
             "Question": "What was supported?",
             "Answer": "peer mapping: human reviewed supported; trusted peer rows reviewed.",
+            "Boundary": "Evidence only; this does not refresh data, apply imports, or unlock blocked inputs.",
         },
         {
             "Question": "What is still blocked or context only?",
             "Answer": "No remaining peer mapping blocker for reviewed rows. Latest batch optional context: candidate context only.",
+            "Boundary": "Blocked, context-only, skipped, and excluded states stay visible until source proof changes.",
         },
         {
             "Question": "Where is the evidence?",
             "Answer": "Reviewed lane proof and reviewed batch proof rows; details stay collapsed until opened.",
+            "Boundary": "Ledger details are for audit; they are not a second analysis page or command center.",
         },
         {
             "Question": "Next safe action",
             "Answer": "Open proof ledger details only when you need the source row; return to Data Health for remaining blockers.",
+            "Boundary": "Return to Single-Stock or Data Health for interpretation; use Proof History only to verify evidence.",
         },
     ]
 
