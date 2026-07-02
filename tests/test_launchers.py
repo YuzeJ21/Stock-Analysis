@@ -1581,6 +1581,14 @@ def test_license_status_launcher_prints_current_share_boundary():
     assert "next_safe_command: docs/LICENSE_DECISION_GUIDE.md" in result.stdout
 
 
+def test_public_check_runs_license_status_before_sharing():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    public_check = makefile.split("public-check:", 1)[1].split("\ntest:", 1)[0]
+
+    assert 'Public share check: license boundary' in public_check
+    assert "$(MAKE) --silent license-status" in public_check
+
+
 def test_stock_report_cli_data_unlock_fallback_uses_product_language():
     source = Path("src/stock_report.py").read_text(encoding="utf-8")
 

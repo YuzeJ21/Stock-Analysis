@@ -97,7 +97,7 @@ make public-check
 
 That gate includes `make public-wording-check`, a read-only scan for unsupported
 advice, broker/order execution, auto-trading, options recommendation, or direct
-buy/sell instruction language in public-facing surfaces.
+buy/sell instruction language in public-facing surfaces. `make public-check` now includes `make license-status`, so the license/reuse boundary is checked in the same share gate before the visitor-demo handoff prints.
 
 After it passes, run `make public-release-package` for the compact package
 status, branch status, generated-churn exclusion list, reviewed staging command,

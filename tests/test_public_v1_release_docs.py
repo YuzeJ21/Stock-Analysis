@@ -93,6 +93,8 @@ def test_public_release_checklist_names_v1_routes_and_primary_surfaces():
     assert "Proof History evidence is the public proof-inspection surface" in checklist
     assert "Data Health lane answer" in checklist
     assert "Operator context" in checklist
+    assert "`make public-check` now includes `make license-status`" in checklist
+    assert "license/reuse boundary is checked in the same share gate" in checklist
 
 
 def test_dashboard_qa_tracks_v1_replacement_browser_checks():

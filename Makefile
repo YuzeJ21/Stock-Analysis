@@ -610,6 +610,8 @@ public-check:
 	@$(MAKE) --silent dashboard-smoke
 	@echo "Public share check: browser QA evidence"
 	@$(MAKE) --silent browser-qa-evidence
+	@echo "Public share check: license boundary"
+	@$(MAKE) --silent license-status
 	@echo "Public share check: visitor demo"
 	@$(MAKE) --silent demo
 
