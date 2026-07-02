@@ -14811,6 +14811,7 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
     assert "latest lane proof" in rendered
     assert "evidence only" in rendered
     assert "not another command center" in rendered
+    assert "raw proof ledgers and proof-record scaffolds stay collapsed" in rendered
     assert "peer valuation inputs" in rendered
     assert "still blocked" in rendered
     assert "latest batch proof" in rendered

@@ -11531,7 +11531,7 @@ def proof_history_public_detail_cards(
             "body": (
                 "Evidence only; not another command center. "
                 "Use this trail to see whether readiness changes were supported, still blocked, skipped, or excluded after review. "
-                "Detailed proof rows stay available below for audit."
+                "Raw proof ledgers and proof-record scaffolds stay collapsed until review details are explicitly opened."
             ),
             "badges": ["evidence trail", "reviewed changes"],
             "command": "",
