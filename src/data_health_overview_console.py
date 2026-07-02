@@ -75,6 +75,33 @@ def _series_int(row: pd.Series, *names: str) -> int:
         return 0
 
 
+def _lane_one_answer(row: pd.Series) -> str:
+    lane = _format_missing(_series_value(row, "Lane", "lane"), "Lane")
+    mode = _format_missing(_series_value(row, "Workflow Mode", "workflow_mode"), "").lower()
+    ready = _series_int(row, "Ready", "ready")
+    partial = _series_int(row, "Partial", "partial")
+    blocked = _series_int(row, "Blocked", "blocked")
+    excluded = _series_int(row, "Excluded", "excluded")
+    command = _format_missing(_series_value(row, "Next Safe Command", "next_safe_command"), "")
+
+    fragments: list[str] = []
+    if ready:
+        fragments.append(f"use now {ready:,} ready row(s)")
+    if partial:
+        fragments.append(f"partial {partial:,}")
+    if blocked:
+        fragments.append(f"blocked {blocked:,}")
+    if excluded:
+        fragments.append(f"excluded/not applicable {excluded:,}")
+    if "locked" in mode or "manual" in mode:
+        fragments.append("context only locked/manual")
+    if command:
+        fragments.append(f"next {command}")
+    if not fragments:
+        fragments.append("no usable lane state reported")
+    return f"{lane} -> {'; '.join(fragments)}"
+
+
 def _public_status_label(value: object, fallback: str = "Not available") -> str:
     text = _format_missing(value, fallback=fallback)
     return {
@@ -103,9 +130,11 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
     blocked_fragments: list[str] = []
     context_fragments: list[str] = []
     excluded_fragments: list[str] = []
+    lane_answer_fragments: list[str] = []
     next_command = "make readiness-ops-center"
 
     for _, row in ops_frame.iterrows():
+        lane_answer_fragments.append(_lane_one_answer(row))
         lane = _format_missing(_series_value(row, "Lane", "lane"), "Lane")
         mode = _format_missing(_series_value(row, "Workflow Mode", "workflow_mode"), "").lower()
         state = _format_missing(_series_value(row, "State", "state"), "").lower()
@@ -132,6 +161,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
             context_fragments.append(f"{lane} is locked/manual until trusted optional rows exist")
 
     body = (
+        f"One answer per lane: {' | '.join(lane_answer_fragments)}. "
         f"Use now: {'; '.join(ready_fragments) if ready_fragments else 'no ready lane reported'}. "
         f"Partly usable: {'; '.join(partial_fragments) if partial_fragments else 'no partial lane reported'}. "
         f"Blocked: {'; '.join(blocked_fragments) if blocked_fragments else 'no blocked lane reported'}. "

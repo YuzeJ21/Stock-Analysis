@@ -199,6 +199,10 @@ def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible(
     assert cards[1]["title"] == "What can I use now?"
     assert cards[1]["command"] == "make readiness-ops-center"
     assert cards[3]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
+    assert "one answer per lane:" in rendered
+    assert "price coverage -> use now 264 ready row(s); partial 1; next make price-refresh-loop dry_run=1" in rendered
+    assert "fundamentals / dcf proof -> use now 23 ready row(s); partial 217; blocked 25; next make project-status" in rendered
+    assert "earnings locked lane -> blocked 265; context only locked/manual; next make optional-context-source-ladder-queue top_n=10" in rendered
     assert "use now: price coverage has 264 ready row(s)" in rendered
     assert "partly usable: price coverage has 1 partial row(s); fundamentals / dcf proof has 217 partial row(s)" in rendered
     assert "blocked: fundamentals / dcf proof has 25 blocked row(s); earnings locked lane has 265 blocked row(s)" in rendered
