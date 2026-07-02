@@ -137,6 +137,8 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "What license boundary applies?" in rendered
     assert "No root LICENSE file found" in rendered
     assert "do not describe as open source" in rendered
+    assert "portfolio context only" in rendered
+    assert "copying, redistribution, adaptation, or software reuse rights" in rendered
     assert "make browser-qa-evidence" in rendered
     assert "Reviewed asset staging command is available" in rendered
     assert "Stage reviewed product package" in rendered

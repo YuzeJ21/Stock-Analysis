@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.license_status import build_license_status, render_license_status
+from src.license_status import NO_LICENSE_SHARE_BOUNDARY, build_license_status, render_license_status
 
 
 def test_build_license_status_without_root_license_keeps_portfolio_demo_boundary(tmp_path: Path):
@@ -14,9 +14,7 @@ def test_build_license_status_without_root_license_keeps_portfolio_demo_boundary
     assert status["license_present"] is False
     assert status["share_status"] == "portfolio_demo_only"
     assert status["next_decision"] == "choose_license_before_open_source_claim"
-    assert status["safe_to_share_boundary"] == (
-        "Share as portfolio/demo only; do not describe as open source or grant reuse rights."
-    )
+    assert status["safe_to_share_boundary"] == NO_LICENSE_SHARE_BOUNDARY
     assert status["next_safe_command"] == "docs/LICENSE_DECISION_GUIDE.md"
     assert status["decision_options"] == [
         {
@@ -54,3 +52,5 @@ def test_render_license_status_names_owner_decision_and_stop_rule(tmp_path: Path
     assert "- Let others reuse with attribution | Add MIT or Apache-2.0 | Visitors can reuse under the selected license terms." in rendered
     assert "- Keep stronger control | Add a custom or proprietary notice | Visitors should ask before reuse; use legal review for custom wording." in rendered
     assert "Do not claim open-source or reuse rights until a root LICENSE is selected" in rendered
+    assert "Product screenshots and demo evidence may be shared as portfolio context only" in rendered
+    assert "do not grant copying, redistribution, adaptation, or software reuse rights" in rendered

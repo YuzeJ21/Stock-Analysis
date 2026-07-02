@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 
 from src.readiness_ops import build_data_coverage_proof_queues
 from src.browser_qa_evidence import browser_qa_evidence_payload
-from src.license_status import build_license_status
+from src.license_status import NO_LICENSE_SHARE_BOUNDARY, build_license_status
 from src.reviewed_batch import readiness_freshness_status
 from src.source_activation_guide import build_provider_setup_checklist
 
@@ -385,10 +385,7 @@ def _license_status_check(root: Path) -> PilotReadinessCheck:
         area="License status",
         status="manual",
         title="No root LICENSE file found",
-        detail=(
-            "Share as portfolio/demo only; do not describe as open source or reusable software "
-            "until a license is selected."
-        ),
+        detail=NO_LICENSE_SHARE_BOUNDARY,
         command="make license-status",
         stop_rule="Do not claim reuse rights until a root LICENSE is selected and README wording is updated.",
     )

@@ -24,6 +24,12 @@ DECISION_OPTIONS = [
     },
 ]
 
+NO_LICENSE_SHARE_BOUNDARY = (
+    "Share as portfolio/demo only; do not describe as open source or grant reuse rights. "
+    "Product screenshots and demo evidence may be shared as portfolio context only; they do not grant "
+    "copying, redistribution, adaptation, or software reuse rights."
+)
+
 
 def build_license_status(root: Path) -> dict[str, object]:
     license_path = root / "LICENSE"
@@ -36,7 +42,7 @@ def build_license_status(root: Path) -> dict[str, object]:
     else:
         share_status = "portfolio_demo_only"
         next_decision = "choose_license_before_open_source_claim"
-        boundary = "Share as portfolio/demo only; do not describe as open source or grant reuse rights."
+        boundary = NO_LICENSE_SHARE_BOUNDARY
         stop_rule = "Do not claim open-source or reuse rights until a root LICENSE is selected."
     return {
         "license_present": has_license,

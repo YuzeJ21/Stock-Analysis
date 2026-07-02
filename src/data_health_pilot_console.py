@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.license_status import DECISION_OPTIONS
+from src.license_status import DECISION_OPTIONS, NO_LICENSE_SHARE_BOUNDARY
 
 
 DEFAULT_PACKET_PATH = Path("outputs/pilot_readiness_packet.md")
@@ -826,7 +826,7 @@ def public_share_final_gate_frame(
             "Gate": "License status",
             "Status": "portfolio_demo_only" if not Path("LICENSE").exists() else "license_present",
             "Review": (
-                "No root LICENSE file is present; share as portfolio/demo only and do not describe as open source. "
+                f"No root LICENSE file is present; {NO_LICENSE_SHARE_BOUNDARY} "
                 f"{_license_decision_options_summary()}"
                 if not Path("LICENSE").exists()
                 else "Root LICENSE file is present; confirm README wording matches the selected license. "
@@ -886,7 +886,7 @@ def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 7)
     for _, row in frame.head(max(limit, 0)).iterrows():
         gate = _format_missing(row.get("Gate"), "Public gate")
         status = _public_status_label(row.get("Status"))
-        review_max_chars = 420 if gate == "License status" else 150
+        review_max_chars = 700 if gate == "License status" else 150
         review = _compact_fragment(row.get("Review"), max_chars=review_max_chars)
         stop_rule = _compact_fragment(row.get("Stop Rule"), max_chars=150)
         command = _format_missing(row.get("Command"), "make public-check")
