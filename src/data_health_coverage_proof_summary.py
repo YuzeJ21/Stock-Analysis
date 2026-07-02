@@ -85,35 +85,73 @@ def data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 
     work = frame.copy()
     work["_queued"] = pd.to_numeric(work.get("Queued Rows", 0), errors="coerce").fillna(0)
     work = work.sort_values(["_queued", "Queue"], ascending=[False, True])
-    cards: list[dict[str, object]] = [
-        {
-            "kicker": "DATA COVERAGE PROOF",
-            "title": "Proof queues before row work",
-            "body": (
-                "Open the exact DCF input, shares-outstanding, trusted fundamentals, peer mapping, or peer valuation "
-                "proof queue before touching raw CSV rows."
-            ),
-            "badges": ["source proof first", "copy-only commands"],
-            "command": "make data-coverage-proof-queues TOP_N=10",
-        }
-    ]
-    for _, row in work.head(max(limit, 0)).iterrows():
+    visible = work.head(max(limit, 0))
+    reviewed_statuses = (
+        visible["Reviewed Proof Status"].map(format_missing)
+        if "Reviewed Proof Status" in visible.columns
+        else pd.Series(dtype=object)
+    )
+    all_visible_reviewed = bool(
+        not visible.empty
+        and "Reviewed Proof Status" in visible.columns
+        and len(reviewed_statuses) == len(visible)
+        and reviewed_statuses.ne("Not available").all()
+    )
+    if all_visible_reviewed:
+        cards: list[dict[str, object]] = [
+            {
+                "kicker": "SOURCE GATE",
+                "title": "Source gate before proof queues",
+                "body": (
+                    "Visible proof queues are reviewed or exhausted. Run project-status and provider setup before "
+                    "opening broad proof rows again."
+                ),
+                "badges": ["reviewed or exhausted", "provider setup"],
+                "command": "make project-status",
+            }
+        ]
+    else:
+        cards = [
+            {
+                "kicker": "DATA COVERAGE PROOF",
+                "title": "Proof queues before row work",
+                "body": (
+                    "Open the exact DCF input, shares-outstanding, trusted fundamentals, peer mapping, or peer valuation "
+                    "proof queue before touching raw CSV rows."
+                ),
+                "badges": ["source proof first", "copy-only commands"],
+                "command": "make data-coverage-proof-queues TOP_N=10",
+            }
+        ]
+    for _, row in visible.iterrows():
         queue = format_missing(row.get("Queue"), "Proof queue")
         state = _public_status_label(row.get("State"))
         queued = int(row.get("_queued", 0) or 0)
         blockers = compact_card_fragment(row.get("Top Blockers"), max_chars=150)
         stop_rule = compact_card_fragment(row.get("Stop Rule"), max_chars=170)
+        reviewed_status = compact_card_fragment(row.get("Reviewed Proof Status"), max_chars=320)
         command = format_missing(row.get("Next Safe Command"), "make data-coverage-proof-queues TOP_N=10")
+        if reviewed_status != "Not available":
+            body = (
+                f"{card_sentence('Reviewed proof status', reviewed_status)} "
+                f"{card_sentence('Stop rule', stop_rule)} "
+                "Source gate: do not repeat the proof queue until new source-backed rows, keyed provider data, "
+                "reviewed manual rows, or changed blockers appear."
+            )
+            badges = [state, "source gate", "reviewed"]
+        else:
+            body = (
+                f"{queued:,} queued row(s). "
+                f"{card_sentence('Top blockers', blockers)} "
+                f"{card_sentence('Stop rule', stop_rule)}"
+            )
+            badges = [state, "read-only"]
         cards.append(
             {
                 "kicker": "PROOF QUEUE",
                 "title": queue,
-                "body": (
-                    f"{queued:,} queued row(s). "
-                    f"{card_sentence('Top blockers', blockers)} "
-                    f"{card_sentence('Stop rule', stop_rule)}"
-                ),
-                "badges": [state, "read-only"],
+                "body": body,
+                "badges": badges,
                 "command": command,
             }
         )

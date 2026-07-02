@@ -88,6 +88,75 @@ def test_data_coverage_proof_queue_cards_keep_batch_path_compact_and_copy_only()
     assert "broker" not in rendered
 
 
+def test_data_coverage_proof_queue_cards_surface_reviewed_status_before_repeating_queue():
+    frame = pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "partial",
+                "Queued Rows": 333,
+                "Top Blockers": "fundamentals_bundle: 242; fundamentals_bundle_plus_shares: 91",
+                "Next Safe Command": "make project-status",
+                "Stop Rule": "Do not repeat source ladder loops without new source-backed rows.",
+                "Reviewed Proof Status": (
+                    "current DCF/share-count source ladder has only reviewed non-actionable blockers; "
+                    "wait for new provider data, keyed sources, or reviewed manual source rows before repeating this proof loop."
+                ),
+            }
+        ]
+    )
+
+    cards = data_coverage_proof_queue_cards(frame, limit=1)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[1]["command"] == "make project-status"
+    assert "reviewed proof status:" in rendered
+    assert "reviewed non-actionable blockers" in rendered
+    assert "do not repeat the proof queue" in rendered
+    assert "333 queued row" not in rendered
+    assert "source gate" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_data_coverage_proof_queue_cards_start_with_source_gate_when_all_visible_queues_reviewed():
+    frame = pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "partial",
+                "Queued Rows": 333,
+                "Top Blockers": "fundamentals_bundle: 242",
+                "Next Safe Command": "make project-status",
+                "Stop Rule": "Do not repeat source ladder loops without new source-backed rows.",
+                "Reviewed Proof Status": "current source ladder has only reviewed non-actionable blockers.",
+            },
+            {
+                "Queue": "Peer Mapping Proof Queue",
+                "State": "still_blocked",
+                "Queued Rows": 3507,
+                "Top Blockers": "source-backed peer mappings: 3507",
+                "Next Safe Command": "make project-status",
+                "Stop Rule": "Do not repeat peer loops without new source-backed rows.",
+                "Reviewed Proof Status": "reviewed proof ledger covers the current peer mapping scope.",
+            },
+        ]
+    )
+
+    cards = data_coverage_proof_queue_cards(frame, limit=2)
+    rendered_first = " ".join(str(value) for value in cards[0].values()).lower()
+
+    assert cards[0]["title"] == "Source gate before proof queues"
+    assert cards[0]["command"] == "make project-status"
+    assert "reviewed or exhausted" in rendered_first
+    assert "provider setup" in rendered_first
+    assert "data-coverage-proof-queues" not in rendered_first
+    assert "buy" not in rendered_first
+    assert "sell" not in rendered_first
+    assert "broker" not in rendered_first
+
+
 def test_data_coverage_proof_queue_cards_empty_state_keeps_blockers_visible():
     cards = data_coverage_proof_queue_cards(pd.DataFrame())
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
