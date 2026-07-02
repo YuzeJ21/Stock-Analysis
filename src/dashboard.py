@@ -26184,8 +26184,12 @@ def render_home_page(
             public=public_mode,
         )
     if public_mode:
-        render_section_header("Where To Go Next", "Choose the next surface without reading operator tables first.")
-        render_action_cards(_plain_home_route_choice_cards(summary))
+        with st.expander("Optional: choose another public path", expanded=False):
+            render_section_header(
+                "Route Chooser",
+                "Choose another public path only when the primary workflow does not answer the visitor question.",
+            )
+            render_action_cards(_plain_home_route_choice_cards(summary))
     else:
         render_section_header(
             "Research Workflow",

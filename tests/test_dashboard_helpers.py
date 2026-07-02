@@ -2897,8 +2897,9 @@ def test_home_page_renders_current_data_coverage_before_workflow():
         'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
         primary_workflow_index,
     )
-    where_to_go_index = source.index('render_section_header("Where To Go Next"', review_map_cards_index)
-    route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", where_to_go_index)
+    route_expander_index = source.index('st.expander("Optional: choose another public path", expanded=False)', review_map_cards_index)
+    route_header_index = source.index('render_section_header(\n                "Route Chooser"', route_expander_index)
+    route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", route_header_index)
     example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
     details_gate_index = source.index("if show_details:")
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
@@ -2906,7 +2907,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
 
-    assert proof_strip_index < first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < where_to_go_index < route_cards_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
+    assert proof_strip_index < first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
     assert "One spine: Home -> choose ticker or scope -> single-stock answer -> Data Health only if blocked -> Proof History only for evidence review." in source
     assert '"Connected Workflow"' not in source
@@ -3007,8 +3008,9 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     primary_workflow_index = source.index('render_section_header(\n            "Primary Workflow"')
-    where_to_go_public_index = source.index('render_section_header("Where To Go Next"', primary_workflow_index)
-    public_route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", where_to_go_public_index)
+    route_expander_index = source.index('st.expander("Optional: choose another public path", expanded=False)', primary_workflow_index)
+    route_header_index = source.index('render_section_header(\n                "Route Chooser"', route_expander_index)
+    public_route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", route_header_index)
     examples_public_expander_index = source.index('st.expander("Example state walkthrough", expanded=False)')
     details_gate_index = source.index("if show_details:")
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
@@ -3021,7 +3023,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
     commands_index = source.index('st.expander("Optional: local commands"')
 
-    assert primary_workflow_index < where_to_go_public_index < public_route_cards_index < examples_public_expander_index < details_gate_index
+    assert primary_workflow_index < route_expander_index < route_header_index < public_route_cards_index < examples_public_expander_index < details_gate_index
     assert details_gate_index < coverage_expander_index < workflow_index
     assert workflow_index < price_refresh_expander_index < price_refresh_index
     assert price_refresh_index < examples_expander_index < examples_index
@@ -3050,6 +3052,25 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)" in source
     assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source
+
+
+def test_public_home_route_choices_are_collapsed_after_primary_workflow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    primary_workflow_index = source.index('render_section_header(\n            "Primary Workflow"')
+    review_map_cards_index = source.index(
+        'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
+        primary_workflow_index,
+    )
+    route_expander_index = source.index('st.expander("Optional: choose another public path", expanded=False)', review_map_cards_index)
+    route_header_index = source.index('render_section_header(\n                "Route Chooser"', route_expander_index)
+    route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", route_header_index)
+    example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
+    top_level_between_workflow_and_expander = source[review_map_cards_index:route_expander_index]
+
+    assert review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index
+    assert 'render_section_header("Where To Go Next"' not in top_level_between_workflow_and_expander
+    assert "Choose another public path only when the primary workflow does not answer the visitor question." in source
 
 
 def test_home_provenance_cards_separate_repo_rules_libraries_and_plugins():
