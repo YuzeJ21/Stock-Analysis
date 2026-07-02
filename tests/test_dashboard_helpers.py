@@ -27942,6 +27942,27 @@ def test_last_resort_legacy_coverage_tab_nests_top_action_rows():
     assert action_columns_index < action_rows_index < coverage_guide_index
 
 
+def test_last_resort_legacy_coverage_tab_groups_worklist_rows():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
+    top_actions_index = source.index('st.expander("Top Data Actions", expanded=False)', coverage_tab_index)
+    worklists_index = source.index('st.expander("Legacy coverage worklists", expanded=False)', top_actions_index)
+    coverage_guide_index = source.index('st.expander("Coverage Guide Rows", expanded=False)', worklists_index)
+    price_worklist_index = source.index('st.expander("Price Import Worklist", expanded=False)', coverage_guide_index)
+    fundamentals_worklist_index = source.index('st.expander("Fundamentals / Peer Worklist", expanded=False)', price_worklist_index)
+    optional_worklist_index = source.index('st.expander("Optional Context Worklist", expanded=False)', fundamentals_worklist_index)
+    fundamentals_queue_index = source.index('st.expander("Fundamentals Review Queue", expanded=False)', optional_worklist_index)
+    peer_queue_index = source.index('st.expander("Peer Review Queue", expanded=False)', fundamentals_queue_index)
+    unlock_steps_index = source.index('st.expander("Ticker Unlock Steps", expanded=False)', peer_queue_index)
+    unlock_summary_index = source.index('st.expander("Unlock Priority Summary", expanded=False)', unlock_steps_index)
+    sources_tab_index = source.index("with health_tabs[2]:", unlock_summary_index)
+
+    assert top_actions_index < worklists_index < coverage_guide_index < price_worklist_index
+    assert price_worklist_index < fundamentals_worklist_index < optional_worklist_index < fundamentals_queue_index
+    assert fundamentals_queue_index < peer_queue_index < unlock_steps_index < unlock_summary_index < sources_tab_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"

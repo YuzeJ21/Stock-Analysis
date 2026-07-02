@@ -29849,133 +29849,134 @@ def render_data_health(
                 elif actions_message:
                     st.info(actions_message)
 
-                if wizard_frame is not None and not wizard_frame.empty:
-                    with st.expander("Coverage Guide Rows", expanded=False):
-                        wizard_columns = [
-                            column
-                            for column in [
-                                "priority",
-                                "ticker",
-                                "unlock_goal",
-                                "blocking_dataset",
-                                "current_status",
-                                "recommended_action",
-                                "focus_command",
-                                "safe_next_step",
+                with st.expander("Legacy coverage worklists", expanded=False):
+                    if wizard_frame is not None and not wizard_frame.empty:
+                        with st.expander("Coverage Guide Rows", expanded=False):
+                            wizard_columns = [
+                                column
+                                for column in [
+                                    "priority",
+                                    "ticker",
+                                    "unlock_goal",
+                                    "blocking_dataset",
+                                    "current_status",
+                                    "recommended_action",
+                                    "focus_command",
+                                    "safe_next_step",
+                                ]
+                                if column in wizard_frame.columns
                             ]
-                            if column in wizard_frame.columns
-                        ]
-                        st.dataframe(clean_display_frame(wizard_frame[wizard_columns].head(20)), width="stretch", hide_index=True)
-                if price_worklist_frame is not None and not price_worklist_frame.empty:
-                    with st.expander("Price Import Worklist", expanded=False):
-                        worklist_columns = [
-                            column
-                            for column in [
-                                "priority",
-                                "ticker",
-                                "price_history_days",
-                                "first_local_date",
-                                "latest_local_date",
-                                "next_price_goal",
-                                "next_target_history_rows",
-                                "rows_needed_for_next_goal",
-                                "suggested_start_date",
-                                "momentum_ready",
-                                "track_record_ready",
-                                "preferred_history_ready",
-                                "missing_for_momentum",
-                                "missing_for_track_record",
-                                "missing_for_preferred_history",
-                                "focus_command",
-                                "example_command",
+                            st.dataframe(clean_display_frame(wizard_frame[wizard_columns].head(20)), width="stretch", hide_index=True)
+                    if price_worklist_frame is not None and not price_worklist_frame.empty:
+                        with st.expander("Price Import Worklist", expanded=False):
+                            worklist_columns = [
+                                column
+                                for column in [
+                                    "priority",
+                                    "ticker",
+                                    "price_history_days",
+                                    "first_local_date",
+                                    "latest_local_date",
+                                    "next_price_goal",
+                                    "next_target_history_rows",
+                                    "rows_needed_for_next_goal",
+                                    "suggested_start_date",
+                                    "momentum_ready",
+                                    "track_record_ready",
+                                    "preferred_history_ready",
+                                    "missing_for_momentum",
+                                    "missing_for_track_record",
+                                    "missing_for_preferred_history",
+                                    "focus_command",
+                                    "example_command",
+                                ]
+                                if column in price_worklist_frame.columns
                             ]
-                            if column in price_worklist_frame.columns
-                        ]
-                        st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(20)), width="stretch", hide_index=True)
-                if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
-                    with st.expander("Fundamentals / Peer Worklist", expanded=False):
-                        fp_columns = operator_workflow_table_columns(
-                            fundamentals_peer_worklist_frame,
-                            [
-                                "priority",
-                                "ticker",
-                                "has_fundamentals",
-                                "dcf_ready",
-                                "has_peer_mapping",
-                                "peer_ready",
-                                "missing_required_for_dcf",
-                                "missing_required_for_peer_relative",
-                                "focus_command",
-                                "example_command",
-                            ],
-                        )
-                        st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(20)), width="stretch", hide_index=True)
-                if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
-                    with st.expander("Optional Context Worklist", expanded=False):
-                        oc_columns = [
-                            column
-                            for column in [
-                                "priority",
-                                "ticker",
-                                "has_earnings",
-                                "has_analyst_estimates",
-                                "missing_optional_context",
-                                "recommended_action",
-                                "example_command",
+                            st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(20)), width="stretch", hide_index=True)
+                    if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
+                        with st.expander("Fundamentals / Peer Worklist", expanded=False):
+                            fp_columns = operator_workflow_table_columns(
+                                fundamentals_peer_worklist_frame,
+                                [
+                                    "priority",
+                                    "ticker",
+                                    "has_fundamentals",
+                                    "dcf_ready",
+                                    "has_peer_mapping",
+                                    "peer_ready",
+                                    "missing_required_for_dcf",
+                                    "missing_required_for_peer_relative",
+                                    "focus_command",
+                                    "example_command",
+                                ],
+                            )
+                            st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(20)), width="stretch", hide_index=True)
+                    if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
+                        with st.expander("Optional Context Worklist", expanded=False):
+                            oc_columns = [
+                                column
+                                for column in [
+                                    "priority",
+                                    "ticker",
+                                    "has_earnings",
+                                    "has_analyst_estimates",
+                                    "missing_optional_context",
+                                    "recommended_action",
+                                    "example_command",
+                                ]
+                                if column in optional_context_worklist_frame.columns
                             ]
-                            if column in optional_context_worklist_frame.columns
-                        ]
-                        st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(20)), width="stretch", hide_index=True)
-                if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
-                    with st.expander("Fundamentals Review Queue", expanded=False):
-                        sec_columns = operator_workflow_table_columns(
-                            sec_stage_queue_frame,
-                            [
-                                "priority",
-                                "ticker",
-                                "is_holding",
-                                "theme",
-                                "sector_etf",
-                                "price_history_days",
-                                "has_fundamentals",
-                                "missing_required_for_dcf",
-                                "recommended_action",
-                                "focus_command",
-                                "example_command",
-                            ],
-                        )
-                        st.dataframe(clean_display_frame(sec_stage_queue_frame[sec_columns].head(20)), width="stretch", hide_index=True)
-                elif sec_stage_queue_message:
-                    st.info(sec_stage_queue_message)
-                if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
-                    with st.expander("Peer Review Queue", expanded=False):
-                        peer_columns = operator_workflow_table_columns(
-                            peer_mapping_queue_frame,
-                            [
-                                "priority",
-                                "ticker",
-                                "is_holding",
-                                "theme",
-                                "sector_etf",
-                                "has_peer_mapping",
-                                "dcf_ready",
-                                "missing_required_for_peer_relative",
-                                "recommended_action",
-                                "focus_command",
-                                "example_command",
-                            ],
-                        )
-                        st.dataframe(clean_display_frame(peer_mapping_queue_frame[peer_columns].head(20)), width="stretch", hide_index=True)
-                elif peer_mapping_queue_message:
-                    st.info(peer_mapping_queue_message)
-                if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
-                    with st.expander("Ticker Unlock Steps", expanded=False):
-                        ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=True)
-                        st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(20)), width="stretch", hide_index=True)
-                if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
-                    with st.expander("Unlock Priority Summary", expanded=False):
-                        summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
-                        st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(20)), width="stretch", hide_index=True)
+                            st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(20)), width="stretch", hide_index=True)
+                    if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
+                        with st.expander("Fundamentals Review Queue", expanded=False):
+                            sec_columns = operator_workflow_table_columns(
+                                sec_stage_queue_frame,
+                                [
+                                    "priority",
+                                    "ticker",
+                                    "is_holding",
+                                    "theme",
+                                    "sector_etf",
+                                    "price_history_days",
+                                    "has_fundamentals",
+                                    "missing_required_for_dcf",
+                                    "recommended_action",
+                                    "focus_command",
+                                    "example_command",
+                                ],
+                            )
+                            st.dataframe(clean_display_frame(sec_stage_queue_frame[sec_columns].head(20)), width="stretch", hide_index=True)
+                    elif sec_stage_queue_message:
+                        st.info(sec_stage_queue_message)
+                    if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
+                        with st.expander("Peer Review Queue", expanded=False):
+                            peer_columns = operator_workflow_table_columns(
+                                peer_mapping_queue_frame,
+                                [
+                                    "priority",
+                                    "ticker",
+                                    "is_holding",
+                                    "theme",
+                                    "sector_etf",
+                                    "has_peer_mapping",
+                                    "dcf_ready",
+                                    "missing_required_for_peer_relative",
+                                    "recommended_action",
+                                    "focus_command",
+                                    "example_command",
+                                ],
+                            )
+                            st.dataframe(clean_display_frame(peer_mapping_queue_frame[peer_columns].head(20)), width="stretch", hide_index=True)
+                    elif peer_mapping_queue_message:
+                        st.info(peer_mapping_queue_message)
+                    if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
+                        with st.expander("Ticker Unlock Steps", expanded=False):
+                            ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=True)
+                            st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(20)), width="stretch", hide_index=True)
+                    if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
+                        with st.expander("Unlock Priority Summary", expanded=False):
+                            summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
+                            st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(20)), width="stretch", hide_index=True)
 
         with health_tabs[2]:
             render_signal_cards(
