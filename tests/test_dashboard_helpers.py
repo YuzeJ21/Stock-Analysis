@@ -14966,7 +14966,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     current_mode_index = source.index("render_data_health_current_mode_strip(", lane_selector_index)
     secondary_readiness_gate_index = source.index(
-        'st.expander("Secondary readiness and pilot gate details", expanded=False)',
+        'st.expander("Optional pilot/share details", expanded=False)',
         current_mode_index,
     )
     lane_snapshot_index = source.index(
@@ -19437,13 +19437,15 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     assert public_return_index < operator_coverage_index < ops_index
     assert '"Coverage Summary / What Can I Use?"' in source
     assert 'st.expander("Coverage lane details", expanded=False)' in source
-    source_details_index = source.index('st.expander("Source setup and refresh details", expanded=False)', ops_index)
+    source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', ops_index)
     auto_refresh_index = source.index('render_section_header(\n            "Auto Refresh Status"', source_details_index)
     source_setup_index = source.index('render_section_header(\n            "Source Setup Guide"', auto_refresh_index)
     source_guidance_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_setup_index)
-    next_action_index = source.index('st.expander("Secondary operator next-action detail", expanded=False)', source_guidance_index)
+    next_action_index = source.index('st.expander("Optional next-action details", expanded=False)', source_guidance_index)
 
     assert ops_index < source_details_index < auto_refresh_index < source_setup_index < source_guidance_index < next_action_index
+    assert 'st.expander("Source setup and refresh details", expanded=False)' not in source
+    assert 'st.expander("Secondary operator next-action detail", expanded=False)' not in source
     assert "show_commands=False" in source[
         source.index("def render_data_health_coverage_summary(") : source.index("def _trusted_ready_count(")
     ]
@@ -19510,7 +19512,7 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     commit_frame_index = source.index("pilot_commit_package = data_health_pilot_commit_package_frame", handoff_frame_index)
     packaging_frame_index = source.index("pilot_packaging_summary = data_health_pilot_packaging_summary_frame")
     secondary_readiness_gate_index = source.index(
-        'st.expander("Secondary readiness and pilot gate details", expanded=False)',
+        'st.expander("Optional pilot/share details", expanded=False)',
         packaging_frame_index,
     )
     operator_runbook_header_index = source.index('render_section_header(\n            "Pilot Operator Runbook"', secondary_readiness_gate_index)
@@ -25608,13 +25610,15 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
     lane_answer_index = source.index('render_section_header(\n        "Selected Lane Answer"', mode_strip_index)
     lane_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", lane_answer_index)
-    source_details_index = source.index('st.expander("Source setup and refresh details", expanded=False)', mode_strip_index)
+    source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', mode_strip_index)
     guidance_header_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_details_index)
     guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
-    next_action_index = source.index('st.expander("Secondary operator next-action detail", expanded=False)', guidance_cards_index)
+    next_action_index = source.index('st.expander("Optional next-action details", expanded=False)', guidance_cards_index)
 
     assert mode_strip_index < lane_answer_index < lane_answer_cards_index < source_details_index
     assert source_details_index < guidance_header_index < guidance_cards_index < next_action_index
+    assert 'st.expander("Source setup and refresh details", expanded=False)' not in source
+    assert 'st.expander("Secondary operator next-action detail", expanded=False)' not in source
     assert "One plain-language answer for the selected lane before provider setup, pilot gates, or raw proof tables." in source
     assert "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts." in source
 
@@ -25624,7 +25628,7 @@ def test_data_health_secondary_operator_action_is_collapsed_after_lane_answer():
 
     public_return_index = source.index("        return\n    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
     lane_answer_index = source.index('render_section_header(\n        "Selected Lane Answer"', public_return_index)
-    secondary_expander_index = source.index('st.expander("Secondary operator next-action detail", expanded=False)', lane_answer_index)
+    secondary_expander_index = source.index('st.expander("Optional next-action details", expanded=False)', lane_answer_index)
     secondary_header_index = source.index('render_section_header(\n            "Secondary Review Cue"', secondary_expander_index)
     next_action_cards_index = source.index(
         "data_health_operator_next_action_summary_cards(operator_next_action_summary)",
@@ -25635,6 +25639,7 @@ def test_data_health_secondary_operator_action_is_collapsed_after_lane_answer():
 
     top_level_after_lane = source[lane_answer_index:secondary_expander_index]
     assert "Next Operator Action" not in top_level_after_lane
+    assert 'st.expander("Secondary operator next-action detail", expanded=False)' not in source
     assert lane_answer_index < secondary_expander_index < secondary_header_index < next_action_cards_index
     assert next_action_cards_index < command_visibility_index < detail_table_index
 

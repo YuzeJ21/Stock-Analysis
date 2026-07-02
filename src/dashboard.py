@@ -27761,7 +27761,7 @@ def render_data_health(
             "What to do when current queues have no source-backed import/apply step available.",
         )
         render_signal_cards(source_exhaustion_pivot_cards, show_commands=False, variant="queue")
-    with st.expander("Source setup and refresh details", expanded=False):
+    with st.expander("Optional source setup details", expanded=False):
         render_section_header(
             "Auto Refresh Status",
             "Cached source activation, setup gaps, avoid-repeat lane, and next scheduler command before proof details.",
@@ -27881,7 +27881,7 @@ def render_data_health(
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
-    with st.expander("Secondary operator next-action detail", expanded=False):
+    with st.expander("Optional next-action details", expanded=False):
         render_section_header(
             "Secondary Review Cue",
             "Optional operator detail after the selected lane answer; use it only when a reviewer asks for the underlying queue row.",
@@ -27928,7 +27928,7 @@ def render_data_health(
         output_path=DEFAULT_PACKET_PATH,
     )
     controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame(batch_proof_summary_frame)
-    with st.expander("Secondary readiness and pilot gate details", expanded=False):
+    with st.expander("Optional pilot/share details", expanded=False):
         render_section_header(
             "Readiness Lane Snapshot",
             "Post-price bottlenecks before single-stock reports or raw proof tables.",
