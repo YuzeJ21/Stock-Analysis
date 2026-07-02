@@ -11590,30 +11590,35 @@ def proof_history_first_answer_frame(
             {
                 "Question": "What was supported?",
                 "Answer": f"{latest_proof_lane}: {latest_proof_outcome}; {latest_proof_change}.",
+                "Next Safe Destination": "Single-Stock Report for interpretation.",
                 "Boundary": "Evidence only; this does not refresh data, apply imports, or unlock blocked inputs.",
             },
             {
                 "Question": "What is still blocked or context only?",
                 "Answer": f"{latest_proof_blocker} Latest batch {latest_batch_lane}: {latest_batch_outcome}.",
+                "Next Safe Destination": "Data Health only if the blocker still matters.",
                 "Boundary": "Blocked, context-only, skipped, and excluded states stay visible until source proof changes.",
             },
             {
                 "Question": "Where is the evidence?",
                 "Answer": "Reviewed lane proof and reviewed batch proof rows; generated CSV/report churn stays excluded unless intentionally reviewed evidence. Details stay collapsed until opened.",
+                "Next Safe Destination": "Proof ledger details when evidence inspection is needed.",
                 "Boundary": "Ledger details are for audit; they are not a second analysis page or command center.",
             },
             {
                 "Question": "Evidence review boundary",
                 "Answer": "Open proof ledger details only when you need the source row; return to Data Health for remaining blockers.",
+                "Next Safe Destination": "Single-Stock or Data Health after evidence is checked.",
                 "Boundary": "Return to Single-Stock or Data Health for interpretation; use Proof History only to verify evidence.",
             },
             {
                 "Question": "What should I do next?",
                 "Answer": "Return to the Single-Stock report for interpretation, or Data Health only when the reviewed evidence still shows a blocker.",
+                "Next Safe Destination": "Leave Proof History after the evidence question is answered.",
                 "Boundary": "No command runs from Proof History; details are audit evidence only.",
             },
         ],
-        columns=["Question", "Answer", "Boundary"],
+        columns=["Question", "Answer", "Next Safe Destination", "Boundary"],
     )
 
 
