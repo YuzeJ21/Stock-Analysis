@@ -296,6 +296,13 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
                 "optional_broker": "IBKR read-only",
                 "answer": "Use the free/public baseline first; configure at most one keyed free-tier fallback only when project-status says source-proof queues are exhausted.",
             },
+            "coverage_unlock_decision": {
+                "answer": "No broad coverage batch should run from setup alone.",
+                "can_use_now": "Use free/public sources for already executable proof paths; current gate says coverage_workflow_evidence.",
+                "configure_first": "Configure FMP free tier first only if you want a keyed fallback, then smoke one ticker.",
+                "do_not_retry": "Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
+                "proof_boundary": "Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence.",
+            },
             "rows": [
                 {
                     "provider": "SEC Companyfacts",
@@ -344,6 +351,7 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
+        "COVERAGE UNLOCK DECISION",
         "PROVIDER SETUP CHECKLIST",
         "SAFE SETUP PATH",
         "FREE PUBLIC BASELINE",
@@ -351,8 +359,12 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
         "OPTIONAL BROKER",
         "NEXT SAFE STEP",
     ]
-    assert cards[0]["command"] == "make provider-setup-checklist"
-    assert cards[1]["command"] == "make project-status"
+    assert cards[0]["command"] == "make project-status"
+    assert cards[1]["command"] == "make provider-setup-checklist"
+    assert cards[2]["command"] == "make project-status"
+    assert "no broad coverage batch should run from setup alone" in rendered
+    assert "provider setup only makes a source executable" in rendered
+    assert "do not retry fundamentals_share_count_source_ladder" in rendered
     assert "project-status -> provider setup -> one-provider smoke -> validate/preview" in rendered
     assert "do not reopen broad proof loops from setup" in rendered
     assert "use the free/public baseline first" in rendered

@@ -581,6 +581,8 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
     payload = checklist or {}
     rows = _checklist_rows(payload)
     secret_policy = _format_missing(payload.get("secret_policy"), "Real key values are never printed.")
+    unlock_decision = payload.get("coverage_unlock_decision")
+    unlock_decision = unlock_decision if isinstance(unlock_decision, dict) else {}
     source_answer = payload.get("source_answer")
     source_answer = source_answer if isinstance(source_answer, dict) else {}
     concise_answer = _format_missing(
@@ -623,7 +625,28 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
         "Run make session-source-preflight, then dry-run the matching source ladder.",
     )
 
-    return [
+    cards = []
+    if unlock_decision:
+        cards.append(
+            {
+                "kicker": "COVERAGE UNLOCK DECISION",
+                "title": _format_missing(
+                    unlock_decision.get("answer"),
+                    "No broad coverage batch should run from setup alone.",
+                ),
+                "body": (
+                    f"{_format_missing(unlock_decision.get('can_use_now'), 'Use source gates first.')} "
+                    f"{_format_missing(unlock_decision.get('configure_first'), 'Configure one source path only when needed.')} "
+                    f"{_format_missing(unlock_decision.get('do_not_retry'), 'Do not retry exhausted proof queues.')} "
+                    f"{_format_missing(unlock_decision.get('proof_boundary'), 'Provider setup does not change readiness by itself.')}"
+                ),
+                "badges": ["answer first", "source gate", "no broad batch"],
+                "command": "make project-status",
+            }
+        )
+
+    cards.extend(
+        [
         {
             "kicker": "PROVIDER SETUP CHECKLIST",
             "title": "Source setup states without secrets",
@@ -680,7 +703,9 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
             "badges": ["preflight first", "no broad retry"],
             "command": "make session-source-preflight",
         },
-    ]
+        ]
+    )
+    return cards
 
 
 def source_readiness_guidance_cards(

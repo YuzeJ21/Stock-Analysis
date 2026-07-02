@@ -310,6 +310,30 @@ def _one_provider_setup_order(rows: list[dict[str, Any]]) -> list[dict[str, str]
     return setup_order
 
 
+def _coverage_unlock_decision(rows: list[dict[str, Any]], current_gate: dict[str, str]) -> dict[str, str]:
+    setup_order = _one_provider_setup_order(rows)
+    first_setup = setup_order[0] if setup_order else {}
+    provider = str(first_setup.get("provider") or "one keyed free-tier provider").strip()
+    avoid_repeating = str(current_gate.get("avoid_repeating") or "-").strip()
+    can_run_now = str(current_gate.get("can_run_now") or "-").strip()
+    do_not_retry = (
+        f"Do not retry {avoid_repeating} until new source-backed rows, keyed provider data, reviewed manual rows, "
+        "or changed blockers exist."
+        if avoid_repeating and avoid_repeating != "-"
+        else "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist."
+    )
+    return {
+        "answer": "No broad coverage batch should run from setup alone.",
+        "can_use_now": f"Use free/public sources for already executable proof paths; current gate says {can_run_now}.",
+        "configure_first": f"Configure {provider} first only if you want a keyed fallback, then smoke one ticker.",
+        "do_not_retry": do_not_retry,
+        "proof_boundary": (
+            "Provider setup only makes a source executable; readiness changes still require validate, preview, "
+            "rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence."
+        ),
+    }
+
+
 def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = None) -> dict[str, Any]:
     guide = build_source_activation_guide()
     rows = []
@@ -328,6 +352,7 @@ def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = No
                 "post_setup_smoke_command": row.get("post_setup_smoke_command", ""),
             }
         )
+    current_gate = _current_gate_from_preflight(current_preflight)
     return {
         "title": "Provider Setup Checklist",
         "research_boundary": guide["research_boundary"],
@@ -336,11 +361,12 @@ def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = No
         "activation_plan": guide["activation_plan"],
         "rows": rows,
         "source_answer": _provider_source_answer(rows),
+        "coverage_unlock_decision": _coverage_unlock_decision(rows, current_gate),
         "one_provider_setup_order": _one_provider_setup_order(rows),
         "workflow_pivot": WORKFLOW_PIVOT,
         "apply_gate": guide["apply_gate"],
         "non_retry_rule": guide["non_retry_rule"],
-        "current_gate": _current_gate_from_preflight(current_preflight),
+        "current_gate": current_gate,
     }
 
 
@@ -361,6 +387,19 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 f"- needs_key: {source_answer.get('needs_key', '-')}",
                 f"- optional_broker: {source_answer.get('optional_broker', '-')}",
                 f"- answer: {source_answer.get('answer', '-')}",
+                "",
+            ]
+        )
+    coverage_unlock_decision = checklist.get("coverage_unlock_decision", {})
+    if isinstance(coverage_unlock_decision, dict) and coverage_unlock_decision:
+        lines.extend(
+            [
+                "Coverage unlock decision:",
+                f"- answer: {coverage_unlock_decision.get('answer', '-')}",
+                f"- can_use_now: {coverage_unlock_decision.get('can_use_now', '-')}",
+                f"- configure_first: {coverage_unlock_decision.get('configure_first', '-')}",
+                f"- do_not_retry: {coverage_unlock_decision.get('do_not_retry', '-')}",
+                f"- proof_boundary: {coverage_unlock_decision.get('proof_boundary', '-')}",
                 "",
             ]
         )

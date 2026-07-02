@@ -248,6 +248,7 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
+        "COVERAGE UNLOCK DECISION",
         "PROVIDER SETUP CHECKLIST",
         "SAFE SETUP PATH",
         "FREE PUBLIC BASELINE",
@@ -255,8 +256,12 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
         "OPTIONAL BROKER",
         "NEXT SAFE STEP",
     ]
-    assert cards[0]["command"] == "make provider-setup-checklist"
-    assert cards[1]["command"] == "make project-status"
+    assert cards[0]["command"] == "make project-status"
+    assert cards[1]["command"] == "make provider-setup-checklist"
+    assert cards[2]["command"] == "make project-status"
+    assert "no broad coverage batch should run from setup alone" in rendered
+    assert "provider setup only makes a source executable" in rendered
+    assert "do not retry fundamentals_share_count_source_ladder" in rendered
     assert "project-status -> provider setup -> one-provider smoke -> validate/preview" in rendered
     assert "do not reopen broad proof loops from setup" in rendered
     assert "free/public baseline works before keys" in rendered
