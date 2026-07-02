@@ -529,6 +529,19 @@ def _checklist_rows_by_state(rows: list[dict[str, object]], states: set[str]) ->
     return " | ".join(fragments) if fragments else "No matching provider setup state reported"
 
 
+def _checklist_rows_by_category(rows: list[dict[str, object]], categories: set[str]) -> str:
+    fragments = []
+    for row in rows:
+        category = str(row.get("category") or "").strip()
+        if category not in categories:
+            continue
+        provider = _format_missing(row.get("provider"), "Unnamed source")
+        state = _format_missing(row.get("setup_state"), "unknown")
+        lanes = _format_missing(row.get("unlock_lanes"), "unlock lanes not reported")
+        fragments.append(f"{provider}: {state}; unlocks {lanes}")
+    return " | ".join(fragments) if fragments else "No matching provider setup state reported"
+
+
 def _checklist_next_steps_by_state(rows: list[dict[str, object]], states: set[str]) -> str:
     fragments = []
     for row in rows:
@@ -550,6 +563,7 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
     payload = checklist or {}
     rows = _checklist_rows(payload)
     secret_policy = _format_missing(payload.get("secret_policy"), "Real key values are never printed.")
+    free_public_summary = _checklist_rows_by_category(rows, {"free_public_available"})
     keyed_summary = _checklist_rows_by_state(rows, {"configured", "needs_key"})
     keyed_next_steps = _checklist_next_steps_by_state(rows, {"configured", "needs_key"})
     broker_summary = _checklist_rows_by_state(rows, {"optional_disabled", "optional_configured"})
@@ -576,11 +590,22 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
             "command": "make provider-setup-checklist",
         },
         {
+            "kicker": "FREE PUBLIC BASELINE",
+            "title": "Free/public baseline works before keys",
+            "body": (
+                f"{free_public_summary}. These sources can support current proof workflows before optional keyed setup, "
+                "but they still respect metadata-only labels, validate/preview gates, and source-proof blockers."
+            ),
+            "badges": ["free public", "works before keys"],
+            "command": "make session-source-preflight",
+        },
+        {
             "kicker": "KEYED FALLBACKS",
             "title": "Configured or needs key",
             "body": (
-                f"{keyed_summary}. Keyed fallbacks remain small-batch source paths; they do not bypass validate, "
-                f"preview, rejected-row review, or source provenance. {keyed_next_steps}"
+                f"{keyed_summary}. Keyed fallbacks expand coverage; they are not required for pilot/demo sharing. "
+                f"They remain small-batch source paths and do not bypass validate, preview, rejected-row review, "
+                f"or source provenance. {keyed_next_steps}"
             ),
             "badges": ["small batch", "source-backed"],
             "command": "make provider-setup-checklist",

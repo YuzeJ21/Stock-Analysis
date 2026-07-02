@@ -268,7 +268,24 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
             "secret_policy": "Real key values are never printed.",
             "rows": [
                 {
+                    "provider": "SEC Companyfacts",
+                    "category": "free_public_available",
+                    "setup_state": "available",
+                    "unlock_lanes": "fundamentals, share_count",
+                    "usage": "source_backed_companyfacts",
+                    "safe_next_step": "Use SEC through source ladders only when a ticker still has unreviewed actionable blockers.",
+                },
+                {
+                    "provider": "Stooq daily prices",
+                    "category": "free_public_available",
+                    "setup_state": "available",
+                    "unlock_lanes": "price",
+                    "usage": "free_public_daily_ohlcv",
+                    "safe_next_step": "Use PROVIDER=auto dry-run before any capped price refresh.",
+                },
+                {
                     "provider": "FMP free tier",
+                    "category": "keyed_free_tier_available",
                     "setup_state": "configured",
                     "unlock_lanes": "price, fundamentals, share_count",
                     "usage": "keyed_free_tier_fallback",
@@ -277,6 +294,7 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
                 },
                 {
                     "provider": "Alpha Vantage free tier",
+                    "category": "keyed_free_tier_missing",
                     "setup_state": "needs_key",
                     "unlock_lanes": "price, fundamentals, share_count",
                     "usage": "keyed_free_tier_fallback",
@@ -284,6 +302,7 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
                 },
                 {
                     "provider": "IBKR read-only",
+                    "category": "optional_broker_disabled",
                     "setup_state": "optional_disabled",
                     "unlock_lanes": "price",
                     "usage": "read_only_daily_ohlcv",
@@ -296,11 +315,16 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
 
     assert [card["kicker"] for card in cards] == [
         "PROVIDER SETUP CHECKLIST",
+        "FREE PUBLIC BASELINE",
         "KEYED FALLBACKS",
         "OPTIONAL BROKER",
         "NEXT SAFE STEP",
     ]
     assert cards[0]["command"] == "make provider-setup-checklist"
+    assert "free/public baseline works before keys" in rendered
+    assert "sec companyfacts: available" in rendered
+    assert "stooq daily prices: available" in rendered
+    assert "keyed fallbacks expand coverage; they are not required for pilot/demo sharing" in rendered
     assert "fmp free tier: configured" in rendered
     assert "alpha vantage free tier: needs_key" in rendered
     assert "ibkr read-only: optional_disabled" in rendered

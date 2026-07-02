@@ -249,12 +249,17 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
 
     assert [card["kicker"] for card in cards] == [
         "PROVIDER SETUP CHECKLIST",
+        "FREE PUBLIC BASELINE",
         "KEYED FALLBACKS",
         "OPTIONAL BROKER",
         "NEXT SAFE STEP",
     ]
     assert cards[0]["command"] == "make provider-setup-checklist"
-    assert "fmp free tier: configured" in rendered
+    assert "free/public baseline works before keys" in rendered
+    assert "stooq: available" in rendered
+    assert "sec companyfacts: available" in rendered
+    assert "keyed fallbacks expand coverage; they are not required for pilot/demo sharing" in rendered
+    assert "fmp free tier:" in rendered
     assert "alpha vantage free tier: needs_key" in rendered
     assert "finnhub free tier: needs_key" in rendered
     assert "ibkr read-only: optional_disabled" in rendered
