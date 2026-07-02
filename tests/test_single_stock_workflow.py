@@ -34,13 +34,17 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
     rendered = _render(cards)
 
     assert [card["kicker"] for card in cards] == [
-        "WHERE AM I",
+        "ANSWER FIRST",
         "REVIEW NOW",
         "BLOCKED / EXCLUDED",
         "NEXT SAFE STEP",
         "STOP RULE",
     ]
     assert cards[0]["title"] == "NVDA - partial"
+    assert "use now:" in rendered
+    assert "blocked/context:" in rendered
+    assert "next safe action:" in rendered
+    assert "read this first before detailed review" in rendered
     assert "previous proof comes from the saved readiness checks" in rendered
     assert "standalone dcf assumptions and source readiness can be reviewed" in rendered
     assert "peer-relative valuation remains locked" in rendered

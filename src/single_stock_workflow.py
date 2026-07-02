@@ -316,10 +316,14 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
 
     return [
         {
-            "kicker": "WHERE AM I",
+            "kicker": "ANSWER FIRST",
             "title": f"{ticker} - {state}",
-            "body": f"Decision context: {decision}. Previous proof comes from the saved readiness checks.",
-            "badges": ["selected ticker", "local proof"],
+            "body": (
+                f"Use now: {review_now} Blocked/context: {blocked} Next safe action: {handoff} "
+                "Read this first before detailed review. Previous proof comes from the saved readiness checks. "
+                f"Decision context: {decision}."
+            ),
+            "badges": ["one answer", "local proof"],
             "command": _stock_report_md_command(ticker),
         },
         {
