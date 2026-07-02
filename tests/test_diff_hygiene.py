@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -348,6 +349,31 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "direct buy/sell" in report
 
 
+def test_public_release_package_uses_cached_source_gate_when_available():
+    module = load_diff_hygiene_module()
+    current_preflight = {
+        "source_activation_console_v2": {
+            "operator_summary": {
+                "can_run_now": ["coverage_workflow_evidence"],
+                "needs_setup": ["fmp"],
+                "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                "next_step": "make project-status",
+                "next_step_reason": "Current source-proof queues are exhausted.",
+            }
+        }
+    }
+
+    report = module.build_public_release_package_report(
+        [module.StatusEntry("M", "src/dashboard.py")],
+        current_preflight=current_preflight,
+    )
+
+    assert "current gate says coverage_workflow_evidence" in report
+    assert "Do not retry fundamentals_share_count_source_ladder" in report
+    assert "Current source-proof queues are exhausted" in report
+    assert "current gate says -." not in report
+
+
 def test_public_release_package_does_not_stage_broad_sample_reports_by_default():
     module = load_diff_hygiene_module()
     entries = [
@@ -434,6 +460,37 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "real Streamlit route review" in report
     assert "Research-only guardrail" in report
     assert "direct buy/sell" in report
+
+
+def test_public_release_handoff_loads_cached_preflight_from_repo_root(tmp_path):
+    module = load_diff_hygiene_module()
+    outputs_dir = tmp_path / "outputs"
+    outputs_dir.mkdir()
+    (outputs_dir / "session_source_preflight.json").write_text(
+        json.dumps(
+            {
+                "source_activation_console_v2": {
+                    "operator_summary": {
+                        "can_run_now": ["coverage_workflow_evidence"],
+                        "needs_setup": ["fmp", "alpha_vantage"],
+                        "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                        "next_step": "make project-status",
+                        "next_step_reason": "Wait for keyed provider data before retrying.",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = module.build_public_release_handoff_report(
+        [module.StatusEntry("M", "src/dashboard.py")],
+        repo_root=tmp_path,
+    )
+
+    assert "current gate says coverage_workflow_evidence" in report
+    assert "Do not retry fundamentals_share_count_source_ladder" in report
+    assert "current gate says -." not in report
 
 
 def test_public_release_handoff_does_not_stage_broad_sample_reports_by_default():

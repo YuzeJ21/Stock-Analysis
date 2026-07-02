@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import subprocess
 from shlex import quote
 from dataclasses import dataclass
@@ -205,10 +206,25 @@ def format_license_gate(repo_root: Path | None = None) -> list[str]:
     ]
 
 
-def format_provider_setup_gate() -> list[str]:
-    checklist = build_provider_setup_checklist()
+def load_cached_source_preflight(repo_root: Path | None = None) -> dict[str, object] | None:
+    if repo_root is None:
+        return None
+    root = repo_root
+    path = root / "outputs" / "session_source_preflight.json"
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def format_provider_setup_gate(current_preflight: dict[str, object] | None = None) -> list[str]:
+    checklist = build_provider_setup_checklist(current_preflight=current_preflight)
     source_answer = checklist.get("source_answer", {})
     unlock_decision = checklist.get("coverage_unlock_decision", {})
+    current_gate = checklist.get("current_gate", {})
     setup_order = checklist.get("one_provider_setup_order", [])
     lines = [
         "Provider setup gate:",
@@ -223,6 +239,17 @@ def format_provider_setup_gate() -> list[str]:
                 f"    {unlock_decision.get('configure_first', '-')}",
                 f"    {unlock_decision.get('do_not_retry', '-')}",
                 f"    {unlock_decision.get('proof_boundary', '-')}",
+            ]
+        )
+    if isinstance(current_gate, dict) and current_gate:
+        lines.extend(
+            [
+                "  Current source gate:",
+                f"    can_run_now: {current_gate.get('can_run_now', '-')}",
+                f"    needs_setup: {current_gate.get('needs_setup', '-')}",
+                f"    avoid_repeating: {current_gate.get('avoid_repeating', '-')}",
+                f"    next_step: {current_gate.get('next_step', '-')}",
+                f"    next_step_reason: {current_gate.get('next_step_reason', '-')}",
             ]
         )
     if isinstance(source_answer, dict) and source_answer:
@@ -684,7 +711,13 @@ def build_data_release_decision_report(entries: list[StatusEntry]) -> str:
     return "\n".join(lines)
 
 
-def build_public_release_package_report(entries: list[StatusEntry], *, branch_status: str = "") -> str:
+def build_public_release_package_report(
+    entries: list[StatusEntry],
+    *,
+    branch_status: str = "",
+    current_preflight: dict[str, object] | None = None,
+    repo_root: Path | None = None,
+) -> str:
     groups = group_entries(entries)
     product = groups["product_candidate"]
     sample_reports = groups["sample_report_candidate"]
@@ -702,7 +735,7 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
         "",
         *format_license_gate(),
         "",
-        *format_provider_setup_gate(),
+        *format_provider_setup_gate(current_preflight or load_cached_source_preflight(repo_root)),
         "",
     ]
     if not entries:
@@ -830,7 +863,13 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
     return "\n".join(lines)
 
 
-def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_status: str = "") -> str:
+def build_public_release_handoff_report(
+    entries: list[StatusEntry],
+    *,
+    branch_status: str = "",
+    current_preflight: dict[str, object] | None = None,
+    repo_root: Path | None = None,
+) -> str:
     groups = group_entries(entries)
     product = groups["product_candidate"]
     sample_reports = groups["sample_report_candidate"]
@@ -852,7 +891,7 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
         "",
         *format_license_gate(),
         "",
-        *format_provider_setup_gate(),
+        *format_provider_setup_gate(current_preflight or load_cached_source_preflight(repo_root)),
         "",
     ]
     if manual:
@@ -1084,10 +1123,10 @@ def main() -> int:
         return 1 if staged_hygiene_has_blockers_for_repo(entries, repo_root) else 0
     entries = load_status(repo_root)
     if args.public_release_package:
-        print(build_public_release_package_report(entries, branch_status=load_branch_status(repo_root)))
+        print(build_public_release_package_report(entries, branch_status=load_branch_status(repo_root), repo_root=repo_root))
         return 0
     if args.public_release_handoff:
-        print(build_public_release_handoff_report(entries, branch_status=load_branch_status(repo_root)))
+        print(build_public_release_handoff_report(entries, branch_status=load_branch_status(repo_root), repo_root=repo_root))
         return 0
     if args.data_release_decision:
         print(build_data_release_decision_report(entries))
