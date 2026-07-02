@@ -26877,6 +26877,9 @@ def test_data_health_additional_operator_evidence_hides_summary_commands_by_defa
     assert "Diagnostic triage only; use this after the lane answer when a reviewer asks what evidence to inspect first." in drawer_source
     assert "Optional diagnostic context for holdings-first coverage planning; not the default next-action workflow." in drawer_source
     assert "Optional diagnostic runbook; use only after source gates or provider setup change the queue." in drawer_source
+    assert "Diagnostic ticker-level coverage rows; inspect only after the summary cards answer the lane state." in drawer_source
+    assert "Diagnostic guided coverage rows; copy-only context, not an apply path." in drawer_source
+    assert "Compact diagnostic status only; not a source-proof unlock." in drawer_source
     assert "Diagnostic proof prompts only; they do not replace source gates, validation, preview, or Proof History evidence." in drawer_source
 
 

@@ -28772,7 +28772,7 @@ def render_data_health(
                     ]
                     if column in command_bundle_details_frame.columns
                 ]
-                st.caption("Ticker-level coverage steps.")
+                st.caption("Diagnostic ticker-level coverage rows; inspect only after the summary cards answer the lane state.")
                 st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
             elif command_bundle_details_frame is None:
                 detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
@@ -28800,7 +28800,7 @@ def render_data_health(
                     ]
                     if column in command_bundle_runbook_frame.columns
                 ]
-                st.caption("Guided coverage steps.")
+                st.caption("Diagnostic guided coverage rows; copy-only context, not an apply path.")
                 st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
             elif command_bundle_runbook_frame is None:
                 runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
@@ -28809,7 +28809,7 @@ def render_data_health(
                     runbook_notice_body,
                     runbook_notice_command,
                 )
-            render_section_header("Readiness Summaries", "Compact status cards for coverage, validation, and source readiness.")
+            render_section_header("Readiness Summaries", "Compact diagnostic status only; not a source-proof unlock.")
             render_signal_cards(readiness_panel_cards(readiness_summary), show_commands=False)
             render_signal_cards(
                 data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame),
