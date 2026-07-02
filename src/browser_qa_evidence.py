@@ -140,7 +140,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Data Health operator fast view",
         route="http://localhost:8501/?mode=operator&page=data-health",
-        first_view_markers=("research-loop-strip", "ops-mode-strip", "Executive Snapshot", "Readiness Context"),
+        first_view_markers=("research-loop-strip", "ops-mode-strip", "Executive Snapshot", "READINESS CONTEXT"),
         details_boundary="Broad queues, proof tables, and generated-artifact lists remain collapsed until review details are opened.",
         qa_focus="Operator can identify the current lane, freshness state, and next safe action without opening raw CSVs.",
         stop_rule="Stop if broad proof queues load before an explicit detail route or if commands are sprayed across the first view.",

@@ -438,6 +438,9 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Single-stock workflow fit" in route_names
     assert "Data Health proof lane progressive load" in route_names
     assert "Data Health queue drawer routing" in route_names
+    fast_view = next(row for row in rows if row["Route Check"] == "Data Health operator fast view")
+    assert "READINESS CONTEXT" in str(fast_view["First View Markers"])
+    assert "Next Data-Readiness Action" not in str(fast_view["First View Markers"])
     assert "first 30 seconds" in rendered
     assert "where to go next" in rendered
     assert "before you open the review" in rendered
