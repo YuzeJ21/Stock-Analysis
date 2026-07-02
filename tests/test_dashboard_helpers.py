@@ -1981,7 +1981,9 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     assert loaded_report["proof_href"] == "?mode=public&page=data-health&drawer=proof"
     assert loaded_report["stop_href"] == "?mode=public&page=data-health&drawer=proof"
     assert data_health["current_step"] == "Data Health lane answer"
-    assert data_health["current_note"] == "Fundamentals / DCF ROUTE MAP; artifact hygiene before staging"
+    assert data_health["current_note"] == (
+        "Fundamentals / DCF ROUTE MAP; navigation-only; artifact hygiene before staging"
+    )
     assert data_health["current_href"] == "?mode=operator&page=data-health&lane=fundamentals"
     assert data_health["proof_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
     assert data_health["previous_proof"] == "Readiness snapshot needs refresh"

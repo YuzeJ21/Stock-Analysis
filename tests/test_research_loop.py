@@ -66,7 +66,9 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
     assert proof_lane["current_step"] == "Proof lane shell"
     assert proof_lane["next_action"] == "Open Proof review details."
     assert data_health["current_step"] == "Data Health lane answer"
-    assert data_health["current_note"] == "Fundamentals / DCF ROUTE MAP; artifact hygiene before staging"
+    assert data_health["current_note"] == (
+        "Fundamentals / DCF ROUTE MAP; navigation-only; artifact hygiene before staging"
+    )
     assert data_health["next_action"] == "Review fundamentals import file"
     assert data_health["action_href"] == "?mode=operator&page=data-health&lane=fundamentals&drawer=batch"
     rendered = " ".join(" ".join(value.values()) for value in [home, pre_report, loaded_report, data_health]).lower()

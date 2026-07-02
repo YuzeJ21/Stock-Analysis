@@ -192,7 +192,7 @@ def data_health_research_loop_context(
     if public_mode:
         lane_label = "Public readiness summary"
     elif selected_lane_key != "proof":
-        lane_label = f"{lane_label} ROUTE MAP; artifact hygiene before staging"
+        lane_label = f"{lane_label} ROUTE MAP; navigation-only; artifact hygiene before staging"
     freshness_status = getattr(readiness_freshness, "status", "")
     proof_state = "Readiness snapshot is current" if freshness_status == "current" else "Readiness snapshot needs refresh"
     current_href = (
