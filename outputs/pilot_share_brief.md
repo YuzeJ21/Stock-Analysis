@@ -16,15 +16,26 @@ Use this as research-only product evidence. It summarizes what can be shown now,
 
 ## What is still blocked
 
-- Leading proof queue: DCF Input Proof Batches (partial).
+- Leading proof queue: Source-proof queues reviewed or exhausted (manual).
 - Blocked items in that queue: 90.
-- Top blockers: fundamentals_bundle: 242, fundamentals_bundle_plus_shares: 91.
-- Next source-proof command: `make dcf-input-proof-queue TOP_N=10`.
+- Top blockers: 3,778 blocked and 486 partial proof item(s) remain visible, but current proof queues are already reviewed or non-actionable. Use project-status and provider setup before reopening broad proof queues.
+- Next source-proof command: `make project-status`.
 
 ## How coverage expands next
 
 - Next setup view: `make provider-setup-checklist`.
 - Real key values are never printed.
+- Coverage unlock decision:
+  - No broad coverage batch should run from setup alone.
+  - Use free/public sources for already executable proof paths; current gate says coverage_workflow_evidence.
+  - Configure FMP free tier first only if you want a keyed fallback, then smoke one ticker.
+  - Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.
+  - Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence.
+- Configure first: FMP free tier.
+- Why first: Broadest keyed fallback here: price, fundamentals, share count, and the largest stated free-tier daily cap.
+- Setup env: `FMP_API_KEY`.
+- One-ticker smoke command: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`.
+- Do not configure all missing providers at once; configure one, rerun preflight, smoke one ticker, then validate/preview before any apply.
 - FMP free tier: needs_key -> price, fundamentals, share_count; smoke: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
 - Alpha Vantage free tier: needs_key -> price, fundamentals, share_count; smoke: `make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
 - Finnhub free tier: needs_key -> price, fundamentals, share_count; smoke: `make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
