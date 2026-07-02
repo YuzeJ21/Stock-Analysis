@@ -741,7 +741,9 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
             "title": "Use scoped review when proof queues are exhausted",
             "body": (
                 "When proof queues are exhausted, pivot to source setup and scoped review: run project-status, "
-                "provider setup, make universe-scope TOP_N=10, then make risk-context. "
+                "provider setup, make universe-scope TOP_N=10, make risk-context, then make universe-preview-summary. "
+                "Universe membership is source metadata only; it does not unlock fundamentals, share count, "
+                "DCF, peer valuation, earnings, or estimates. "
                 "Do not reopen trusted-data candidates until project-status shows executable company candidates."
             ),
             "badges": ["no stale loops", "scope first"],

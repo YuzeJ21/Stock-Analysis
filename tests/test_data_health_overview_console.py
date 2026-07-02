@@ -406,6 +406,9 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     assert "when proof queues are exhausted, pivot to source setup and scoped review" in rendered
     assert "make universe-scope top_n=10" in rendered
     assert "make risk-context" in rendered
+    assert "make universe-preview-summary" in rendered
+    assert "universe membership is source metadata only" in rendered
+    assert "does not unlock fundamentals, share count, dcf, peer valuation, earnings, or estimates" in rendered
     assert "do not reopen trusted-data candidates until project-status shows executable company candidates" in rendered
     assert "do not reopen broad proof loops from setup" in rendered
     assert "use the free/public baseline first" in rendered
