@@ -55,6 +55,7 @@ The repository is past prototype/internal-alpha for the core workflow because it
 | `make project-status` | Passed | Reports 3,538 tickers with price rows, 2,808 fundamentals/input-ready, 2,691 operating-company DCF-ready, and 29 peer-ready tickers. |
 | `make session-source-preflight` | Passed | SEC, SEC submissions, yfinance import/stage, Stooq/Yahoo price ladder, and local fundamentals are available; FMP, Alpha Vantage, and Finnhub keys are missing; IBKR remains optional and disabled. |
 | `make readiness-ops-center` | Passed | Lane board confirms partial/blocked/manual/excluded states, source-proof queue exhaustion, and provider setup as the next safe proof path. |
+| `make universe-preview-summary` | Passed | Read-only universe metadata preview returned 50 capped rows, with one new SMH metadata candidate and one fallback source warning. Universe membership remains metadata only and does not unlock fundamentals, share count, DCF, peers, earnings, estimates, or recommendations. |
 | `make public-check` | Passed | Public wording, whitespace, full tests, dashboard smoke, browser QA evidence, and visitor-demo checks passed. |
 | `make public-wording-check` | Passed | Public wording scan passed across 2,905 public files before this doc update. |
 | `make browser-qa-evidence` | Passed | Verdict ready; all listed screenshot evidence is ready and screenshots remain product evidence only. |
