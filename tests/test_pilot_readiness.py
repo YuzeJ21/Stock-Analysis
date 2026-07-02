@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -385,6 +386,67 @@ def test_pilot_readiness_checks_reuse_prebuilt_source_queues(monkeypatch, tmp_pa
     assert calls["count"] == 0
     assert source_check.status == "manual"
     assert source_check.title == "DCF Input Proof Batches leads the source-review queue"
+
+
+def test_pilot_readiness_source_gate_pivots_when_queues_are_reviewed_non_actionable(monkeypatch, tmp_path: Path):
+    root = _sample_root(tmp_path)
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
+    monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [])
+    preflight_path = root / "outputs" / "session_source_preflight.json"
+    preflight_path.parent.mkdir(parents=True, exist_ok=True)
+    preflight_path.write_text(
+        json.dumps(
+            {
+                "source_actionability": {
+                    "fundamentals_share_count_candidates": 548,
+                    "reviewed_non_actionable_fundamentals_share_count": 548,
+                    "unreviewed_fundamentals_share_count_candidates": 0,
+                    "dcf_queue_reviewed_non_actionable": "yes",
+                    "do_not_repeat_without_new_source": "yes",
+                },
+                "source_activation_console_v2": {
+                    "next_executable_lane": "coverage_workflow_evidence",
+                    "next_executable_command": "make project-status",
+                    "operator_summary": {
+                        "can_run_now": ["coverage_workflow_evidence"],
+                        "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
+                        "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                        "next_step": "make project-status",
+                        "next_step_reason": "Current fundamentals/share-count blockers already have reviewed non-actionable proof.",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    source_queues = [
+        SimpleNamespace(
+            label="DCF Input Proof Batches",
+            readiness_state="partial",
+            blocked_count=90,
+            partial_count=243,
+            ready_count=2691,
+            top_blockers="fundamentals_bundle: 242, fundamentals_bundle_plus_shares: 91",
+            next_safe_command="make dcf-input-proof-queue TOP_N=10",
+        )
+    ]
+
+    checks = build_pilot_readiness_checks(root, top_n=10, source_queues=source_queues)
+    source_check = next(check for check in checks if check.area == "Source proof gates")
+
+    assert source_check.status == "manual"
+    assert source_check.title == "Source-proof queues reviewed or exhausted"
+    assert source_check.command == "make project-status"
+    assert "provider setup" in source_check.detail
+    assert "do not reopen broad proof queues" in source_check.stop_rule.lower()
+    assert "make data-coverage-proof-queues" not in source_check.command
+
+    handoff = build_pilot_handoff_summary(checks, source_queues=source_queues)
+    proof_item = next(item for item in handoff if item.question == "What blocks deeper analysis?")
+    assert proof_item.answer == "Check source-proof gate"
+    assert proof_item.next_safe_command == "make project-status"
+    assert "provider setup" in proof_item.boundary.lower()
+    assert "make dcf-input-proof-queue" not in proof_item.next_safe_command
 
 
 def test_pilot_readiness_blocks_product_dirty_and_stale_readiness(tmp_path: Path, monkeypatch):

@@ -29,6 +29,7 @@ from src.readiness_ops import build_data_coverage_proof_queues
 from src.browser_qa_evidence import browser_qa_evidence_payload
 from src.license_status import NO_LICENSE_SHARE_BOUNDARY, build_license_status
 from src.reviewed_batch import readiness_freshness_status
+from src.session_source_preflight import load_session_source_preflight
 from src.source_activation_guide import build_provider_setup_checklist
 
 
@@ -235,6 +236,61 @@ def _freshness_check(root: Path) -> PilotReadinessCheck:
     )
 
 
+def _source_queues_reviewed_or_exhausted(rows: list[object]) -> bool:
+    if not rows:
+        return False
+    for row in rows:
+        text = " ".join(
+            str(
+                _queue_value(
+                    row,
+                    field,
+                    field.replace("_", " "),
+                    fallback="",
+                )
+            )
+            for field in (
+                "possible_state_move",
+                "reviewed_proof_status",
+                "source_readiness",
+                "notes",
+                "next_safe_command",
+            )
+        ).lower()
+        if not (
+            "reviewed proof already recorded" in text
+            or "reviewed non-actionable" in text
+            or "no unreviewed executable" in text
+        ):
+            return False
+    return True
+
+
+def _preflight_routes_source_gate_to_workflow(preflight: dict[str, object] | None) -> bool:
+    if not isinstance(preflight, dict):
+        return False
+    actionability = preflight.get("source_actionability", {})
+    actionability = actionability if isinstance(actionability, dict) else {}
+    console = preflight.get("source_activation_console_v2", {})
+    console = console if isinstance(console, dict) else {}
+    operator_summary = console.get("operator_summary", {})
+    operator_summary = operator_summary if isinstance(operator_summary, dict) else {}
+
+    def _text(value: object) -> str:
+        if isinstance(value, (list, tuple)):
+            return " ".join(str(item) for item in value)
+        return str(value or "")
+
+    avoid_repeating = _text(operator_summary.get("avoid_repeating")).lower()
+    can_run_now = _text(operator_summary.get("can_run_now") or console.get("next_executable_lane")).lower()
+    return (
+        str(actionability.get("do_not_repeat_without_new_source", "")).strip().lower() in {"yes", "true", "1"}
+        or str(actionability.get("dcf_queue_reviewed_non_actionable", "")).strip().lower() in {"yes", "true", "1"}
+        or "fundamentals_share_count_source_ladder" in avoid_repeating
+        or "coverage_workflow_evidence" in can_run_now
+    )
+
+
 def _source_gate_check(root: Path, *, top_n: int, source_queues: list[object] | None = None) -> PilotReadinessCheck:
     rows = source_queues if source_queues is not None else build_data_coverage_proof_queues(root, top_n=top_n)
     if not rows:
@@ -249,6 +305,24 @@ def _source_gate_check(root: Path, *, top_n: int, source_queues: list[object] | 
     blocked = sum(row.blocked_count for row in rows)
     partial = sum(row.partial_count for row in rows)
     leading = rows[0]
+    if _source_queues_reviewed_or_exhausted(rows) or _preflight_routes_source_gate_to_workflow(
+        load_session_source_preflight(root)
+    ):
+        return PilotReadinessCheck(
+            area="Source proof gates",
+            status="manual" if blocked or partial else "green",
+            title="Source-proof queues reviewed or exhausted",
+            detail=(
+                f"{blocked:,} blocked and {partial:,} partial proof item(s) remain visible, but current proof "
+                "queues are already reviewed or non-actionable. Use project-status and provider setup before "
+                "reopening broad proof queues."
+            ),
+            command="make project-status",
+            stop_rule=(
+                "Do not reopen broad proof queues until project-status shows executable company candidates, "
+                "new source-backed rows, keyed providers, reviewed manual rows, or changed blockers."
+            ),
+        )
     return PilotReadinessCheck(
         area="Source proof gates",
         status="manual" if blocked or partial else "green",
@@ -532,6 +606,7 @@ def build_pilot_handoff_summary(
     priority = _priority_check(checks)
     leading_queue = _leading_source_queue(source_queues)
     artifacts = excluded_artifacts or []
+    source_gate_check = next((check for check in checks if check.area == "Source proof gates"), None)
 
     gate_status = priority.status if priority is not None else "blocked"
     gate_answer = priority.area if priority is not None else "Run pilot readiness check"
@@ -547,7 +622,12 @@ def build_pilot_handoff_summary(
         else "Do not claim reuse rights until license status is reviewed."
     )
 
-    if leading_queue is None:
+    if source_gate_check is not None and source_gate_check.title == "Source-proof queues reviewed or exhausted":
+        proof_answer = "Check source-proof gate"
+        proof_status = source_gate_check.status
+        proof_command = source_gate_check.command
+        proof_boundary = source_gate_check.detail
+    elif leading_queue is None:
         proof_answer = "Check source-proof gate"
         proof_status = "manual"
         proof_command = "make project-status"
