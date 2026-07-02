@@ -2420,6 +2420,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "staged-hygiene-check:\n\t@python3 scripts/diff_hygiene.py --staged-check" in makefile
     assert "public-check:" in makefile
     for phrase in (
+        'Public share check: GitHub sync boundary',
         'Public share check: diff hygiene',
         'Public share check: staged hygiene',
         'Public share check: whitespace',
@@ -2436,6 +2437,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
         "@$(MAKE) --silent demo",
     ):
         assert phrase in makefile
+    assert "@git status --short --branch --untracked-files=no | sed -n '1p'" in makefile
     assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     public_check_body = makefile.split("public-check:", 1)[1].split("\n\ntest:", 1)[0]

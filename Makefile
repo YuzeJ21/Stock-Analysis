@@ -596,6 +596,8 @@ public-wording-check:
 	@python3 scripts/public_wording_check.py
 
 public-check:
+	@echo "Public share check: GitHub sync boundary"
+	@git status --short --branch --untracked-files=no | sed -n '1p'
 	@echo "Public share check: diff hygiene"
 	@$(MAKE) --silent diff-hygiene-summary
 	@echo "Public share check: staged hygiene"
