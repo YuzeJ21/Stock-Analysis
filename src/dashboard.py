@@ -28420,28 +28420,40 @@ def render_data_health(
             with st.expander("Peer proof loop fit details", expanded=False):
                 st.dataframe(clean_display_frame(peer_proof_loop_fit), width="stretch", hide_index=True)
             render_section_header("Peer Source-Review Intake", "Fill source proof before editing peer import rows; peer valuation stays locked until rebuilt readiness proves inputs.")
-            render_signal_cards(data_health_peer_source_review_cards(peer_source_review_packet))
+            render_signal_cards(data_health_peer_source_review_cards(peer_source_review_packet), show_commands=False)
             render_section_header("Peer Proof Batch Planner", "One capped peer proof plan before source-review rows, write-back guard details, or proof-record tables.")
-            render_signal_cards(data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_summary_frame))
+            render_signal_cards(
+                data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_summary_frame),
+                show_commands=False,
+            )
             render_collapsed_detail_frame(
                 "Peer proof batch planner table",
                 data_health_peer_proof_batch_planner_frame(peer_source_review_packet, batch_proof_summary_frame),
             )
             render_section_header("Finish This Peer Proof", "One compact checklist before source-review rows, write-back guard, or peer proof tables.")
-            render_signal_cards(data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_summary_frame))
+            render_signal_cards(
+                data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_summary_frame),
+                show_commands=False,
+            )
             render_collapsed_detail_frame(
                 "Peer proof checklist table",
                 data_health_peer_proof_completion_checklist_frame(peer_source_review_packet, batch_proof_summary_frame),
                 table=True,
             )
             render_section_header("Peer Proof-Loop Outcome", "Source-review, write-back guard, validation gates, comparison, and latest proof ledger outcome before raw peer rows.")
-            render_signal_cards(data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison))
+            render_signal_cards(
+                data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
+                show_commands=False,
+            )
             render_collapsed_detail_frame(
                 "Peer proof-loop outcome table",
                 data_health_peer_proof_loop_outcome_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
             )
             render_section_header("Peer Proof Closeout", "Final supported, candidate-context-only, still-blocked, skipped, or excluded proof state with remaining peer evidence gates.")
-            render_signal_cards(data_health_peer_proof_closeout_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison))
+            render_signal_cards(
+                data_health_peer_proof_closeout_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
+                show_commands=False,
+            )
             render_collapsed_detail_frame(
                 "Peer proof closeout table",
                 data_health_peer_proof_closeout_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison),
@@ -28450,7 +28462,7 @@ def render_data_health(
             render_section_header("Peer Readiness Sub-State Matrix", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
             render_collapsed_detail_frame("Peer readiness sub-state matrix table", peer_v2_frame)
             render_section_header("Lane-Group Evidence Summary", "Choose the proof lane first; prices stay dry-run-first and optional context stays locked/manual.")
-            render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))
+            render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board), show_commands=False)
             render_collapsed_detail_frame("Lane-group evidence summary table", lane_board)
     elif selected_lane == "Metrics":
         render_data_health_metric_operator_console(metric_queue_frame, readiness_freshness)

@@ -15185,7 +15185,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "fundamentals_preview_cards = data_health_trusted_pilot_cards(readiness_summary) + data_health_analysis_unlock_cards(readiness_summary)" in source
     assert 'if selected_lane_key in {"fundamentals", "peers"}' in source
     assert "data_health_trusted_pilot_lane_board_frame(" in source
-    assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))" in source
+    assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board), show_commands=False)" in source
     assert 'st.expander("Peer evidence drawer", expanded=False)' in source
     assert "render_signal_cards(data_health_reviewed_proof_cards())" in source
     assert 'st.expander("Proof history evidence drawer", expanded=False)' in source
@@ -22206,6 +22206,54 @@ def test_data_health_peer_drawer_surfaces_source_review_before_peer_matrix():
     assert "Peer Proof Closeout" in source
     assert "data_health_peer_proof_closeout_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)" in source
     assert "data_health_peer_proof_closeout_frame(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)" in source
+
+
+def test_data_health_peer_drawer_hides_summary_commands_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)')
+    source_review_cards_index = source.index("data_health_peer_source_review_cards(peer_source_review_packet)", peer_drawer_index)
+    source_review_command_visibility_index = source.index("show_commands=False", source_review_cards_index)
+    planner_cards_index = source.index(
+        "data_health_peer_proof_batch_planner_cards(peer_source_review_packet, batch_proof_summary_frame)",
+        source_review_command_visibility_index,
+    )
+    planner_command_visibility_index = source.index("show_commands=False", planner_cards_index)
+    completion_cards_index = source.index(
+        "data_health_peer_proof_completion_checklist_cards(peer_source_review_packet, batch_proof_summary_frame)",
+        planner_command_visibility_index,
+    )
+    completion_command_visibility_index = source.index("show_commands=False", completion_cards_index)
+    outcome_cards_index = source.index(
+        "data_health_peer_proof_loop_outcome_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)",
+        completion_command_visibility_index,
+    )
+    outcome_command_visibility_index = source.index("show_commands=False", outcome_cards_index)
+    closeout_cards_index = source.index(
+        "data_health_peer_proof_closeout_cards(peer_source_review_packet, batch_proof_summary_frame, readiness_comparison)",
+        outcome_command_visibility_index,
+    )
+    closeout_command_visibility_index = source.index("show_commands=False", closeout_cards_index)
+    lane_summary_cards_index = source.index("data_health_trusted_pilot_lane_cards(lane_board)", closeout_command_visibility_index)
+    lane_summary_command_visibility_index = source.index("show_commands=False", lane_summary_cards_index)
+    metrics_lane_index = source.index('elif selected_lane == "Metrics":', lane_summary_command_visibility_index)
+
+    assert (
+        peer_drawer_index
+        < source_review_cards_index
+        < source_review_command_visibility_index
+        < planner_cards_index
+        < planner_command_visibility_index
+        < completion_cards_index
+        < completion_command_visibility_index
+        < outcome_cards_index
+        < outcome_command_visibility_index
+        < closeout_cards_index
+        < closeout_command_visibility_index
+        < lane_summary_cards_index
+        < lane_summary_command_visibility_index
+        < metrics_lane_index
+    )
 
 
 def test_data_health_proof_loop_fit_cards_render_before_detailed_proof_tables():
