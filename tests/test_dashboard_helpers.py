@@ -364,10 +364,16 @@ def test_data_health_provider_setup_first_answer_frame_summarizes_current_source
     assert frame["Question"].tolist() == [
         "What can run now?",
         "What setup changes the gate?",
+        "Which source boundary matters?",
         "What should not be retried?",
         "What boundary stays true?",
     ]
     assert "workflow evidence only; current source-proof queues are exhausted" in rendered
+    assert "free public sources: usable now" in rendered
+    assert "keyed free-tier fallbacks: configured: fmp free tier; missing: alpha vantage free tier, finnhub free tier" in rendered
+    assert "metadata-only evidence: context only" in rendered
+    assert "optional broker: disabled by default" in rendered
+    assert "paid or locked optional lanes: locked until source-backed rows exist" in rendered
     assert "coverage_workflow_evidence" not in rendered
     assert "alpha_vantage, finnhub" in rendered
     assert "keyed setup is not required for pilot/demo sharing" in rendered

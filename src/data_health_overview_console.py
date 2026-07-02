@@ -835,6 +835,22 @@ def _human_provider_gate(value: str) -> str:
     return normalized
 
 
+def _source_boundary_decision_summary(payload: dict[str, object]) -> str:
+    rows = payload.get("source_boundary_decision")
+    if not isinstance(rows, list):
+        return "Source boundary decision is available in provider setup details."
+    fragments: list[str] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_group = _format_missing(row.get("source_group"), "")
+        status = _format_missing(row.get("status"), "")
+        if not source_group or not status:
+            continue
+        fragments.append(f"{source_group}: {status}")
+    return "; ".join(fragments) if fragments else "Source boundary decision is available in provider setup details."
+
+
 def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd.DataFrame:
     """Return a compact source-boundary answer before provider setup details."""
 
@@ -880,6 +896,14 @@ def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd
                 "Review Boundary": (
                     "Configure one missing source only after project status shows a real source gap; "
                     "keyed setup is not required for pilot/demo sharing."
+                ),
+            },
+            {
+                "Question": "Which source boundary matters?",
+                "Answer": _source_boundary_decision_summary(payload),
+                "Review Boundary": (
+                    "Use this summary before provider setup details; metadata-only, broker-disabled, and locked lanes "
+                    "do not become proof."
                 ),
             },
             {
