@@ -9048,8 +9048,10 @@ def data_health_source_activation_setup_cards() -> list[dict[str, object]]:
     return overview_console.source_activation_setup_cards(build_source_activation_guide())
 
 
-def data_health_provider_setup_checklist_cards() -> list[dict[str, object]]:
-    return overview_console.provider_setup_checklist_cards(build_provider_setup_checklist())
+def data_health_provider_setup_checklist_cards(root: Path | None = None) -> list[dict[str, object]]:
+    return overview_console.provider_setup_checklist_cards(
+        build_provider_setup_checklist(_cached_session_source_preflight_payload(root))
+    )
 
 
 def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:

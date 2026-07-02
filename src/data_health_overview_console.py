@@ -575,6 +575,17 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
         f"Needs key: {_format_missing(source_answer.get('needs_key'), '-')}. "
         f"Optional broker: {_format_missing(source_answer.get('optional_broker'), '-')}"
     )
+    current_gate = payload.get("current_gate")
+    current_gate = current_gate if isinstance(current_gate, dict) else {}
+    current_gate_summary = ""
+    if current_gate:
+        current_gate_summary = (
+            f" Current source gate: can run now: {_format_missing(current_gate.get('can_run_now'), '-')}; "
+            f"needs setup: {_format_missing(current_gate.get('needs_setup'), '-')}; "
+            f"avoid repeating: {_format_missing(current_gate.get('avoid_repeating'), '-')}; "
+            f"next: {_format_missing(current_gate.get('next_step'), '-')}; "
+            f"{_format_missing(current_gate.get('next_step_reason'), '-')}"
+        )
     free_public_summary = _checklist_rows_by_category(rows, {"free_public_available"})
     keyed_summary = _checklist_rows_by_state(rows, {"configured", "needs_key"})
     keyed_next_steps = _checklist_next_steps_by_state(rows, {"configured", "needs_key"})
@@ -597,7 +608,7 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
         {
             "kicker": "PROVIDER SETUP CHECKLIST",
             "title": "Source setup states without secrets",
-            "body": f"{concise_answer} {source_state}. {secret_policy} Detailed rows: {all_summary}.",
+            "body": f"{concise_answer} {source_state}.{current_gate_summary} {secret_policy} Detailed rows: {all_summary}.",
             "badges": ["setup states", "no secrets"],
             "command": "make provider-setup-checklist",
         },

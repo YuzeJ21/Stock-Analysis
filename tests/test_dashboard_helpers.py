@@ -269,6 +269,36 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     assert "real key values are never printed" in rendered
 
 
+def test_data_health_provider_setup_checklist_cards_surface_cached_current_gate(tmp_path, monkeypatch):
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    outputs_dir = tmp_path / "outputs"
+    outputs_dir.mkdir()
+    (outputs_dir / "session_source_preflight.json").write_text(
+        json.dumps(
+            {
+                "source_activation_console_v2": {
+                    "operator_summary": {
+                        "can_run_now": "coverage_workflow_evidence",
+                        "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
+                        "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                        "next_step": "make project-status",
+                        "next_step_reason": "Wait for new provider data before repeating the source ladder.",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cards = dashboard.data_health_provider_setup_checklist_cards(root=tmp_path)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "can run now: coverage_workflow_evidence" in rendered
+    assert "needs setup: fmp, alpha_vantage, finnhub" in rendered
+    assert "avoid repeating: fundamentals_share_count_source_ladder" in rendered
+    assert "wait for new provider data before repeating the source ladder" in rendered
+
+
 def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations():
     frame = dashboard._plain_home_demo_example_frame()
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
