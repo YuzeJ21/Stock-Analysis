@@ -548,10 +548,10 @@ def build_pilot_handoff_summary(
     )
 
     if leading_queue is None:
-        proof_answer = "Load source-proof queues"
+        proof_answer = "Check source-proof gate"
         proof_status = "manual"
-        proof_command = "make data-coverage-proof-queues TOP_N=10"
-        proof_boundary = "Do not edit source rows until proof queues are loaded and reviewed."
+        proof_command = "make project-status"
+        proof_boundary = "Run project-status first; use provider setup when source-proof queues are exhausted before reopening proof tables."
     else:
         proof_answer = str(_queue_value(leading_queue, "label", "queue", fallback="Source-proof queue"))
         proof_status = str(_queue_value(leading_queue, "readiness_state", "state", fallback="manual"))

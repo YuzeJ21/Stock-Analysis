@@ -331,6 +331,33 @@ def test_pilot_handoff_summary_uses_queue_priority_order_not_raw_blocked_count()
     assert "3,458 blocked item" in proof_item.boundary
 
 
+def test_pilot_handoff_summary_uses_source_gate_when_no_queue_loaded():
+    handoff = build_pilot_handoff_summary(
+        [
+            pilot_readiness.PilotReadinessCheck(
+                area="Public safety",
+                status="manual",
+                title="Run the public share gate before pilot sharing",
+                detail="The pilot checklist is read-only.",
+                command="make public-check",
+                stop_rule="Stop before public pilot sharing if public-check fails.",
+            )
+        ],
+        source_queues=[],
+    )
+
+    proof_item = next(item for item in handoff if item.question == "What blocks deeper analysis?")
+    rendered = " ".join([proof_item.answer, proof_item.next_safe_command, proof_item.boundary]).lower()
+
+    assert proof_item.answer == "Check source-proof gate"
+    assert proof_item.next_safe_command == "make project-status"
+    assert "run project-status first" in rendered
+    assert "provider setup" in rendered
+    assert "make data-coverage-proof-queues" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_pilot_readiness_checks_reuse_prebuilt_source_queues(monkeypatch, tmp_path: Path):
     root = _sample_root(tmp_path)
     calls = {"count": 0}
