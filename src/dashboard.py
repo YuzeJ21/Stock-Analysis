@@ -27711,108 +27711,99 @@ def render_data_health(
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
-    render_section_header(
-        "Pilot Evidence Review",
-        "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables.",
-    )
-    render_signal_cards(
-        data_health_pilot_evidence_review_cards(pilot_evidence_review),
-        show_commands=True,
-        variant="queue",
-    )
-    with st.expander("Pilot evidence review detail", expanded=False):
-        st.dataframe(clean_display_frame(pilot_evidence_review), width="stretch", hide_index=True)
     public_share_final_gate = data_health_public_share_final_gate_frame(
         pilot_readiness,
         output_path=DEFAULT_PACKET_PATH,
     )
-    render_section_header(
-        "Public Share Final Gate",
-        "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing.",
-    )
-    render_signal_cards(
-        data_health_public_share_final_gate_cards(public_share_final_gate),
-        show_commands=True,
-        variant="queue",
-    )
-    with st.expander("Public share final gate detail", expanded=False):
-        st.dataframe(clean_display_frame(public_share_final_gate), width="stretch", hide_index=True)
     workflow_continuity = data_health_workflow_continuity_frame(
         pilot_readiness,
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
+    controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame(batch_proof_summary_frame)
     render_section_header(
-        "Data Health Workflow Continuity",
-        "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables.",
-    )
-    render_signal_cards(
-        data_health_workflow_continuity_cards(workflow_continuity),
-        show_commands=True,
-        variant="queue",
-    )
-    with st.expander("Data Health workflow continuity detail", expanded=False):
-        st.dataframe(clean_display_frame(workflow_continuity), width="stretch", hide_index=True)
-    render_section_header(
-        "Pilot Handoff Summary",
-        "Verdict, manual gate, source-proof blocker, generated-churn boundary, and reviewer packet before detailed pilot tables.",
+        "Pilot Share Gate",
+        "Can share, manual gates, generated-churn boundary, license boundary, and next safe packet command before release details.",
     )
     render_signal_cards(
         data_health_pilot_handoff_summary_cards(pilot_handoff_summary),
         show_commands=True,
         variant="queue",
     )
-    with st.expander("Pilot handoff review detail", expanded=False):
-        st.dataframe(clean_display_frame(pilot_handoff_summary), width="stretch", hide_index=True)
-    controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame(batch_proof_summary_frame)
-    render_section_header(
-        "Controlled Pilot Outcomes",
-        "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers.",
-    )
-    render_signal_cards(
-        data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome),
-        show_commands=True,
-        variant="queue",
-    )
-    with st.expander("Controlled pilot outcome detail", expanded=False):
+    with st.expander("Pilot Share Gate details", expanded=False):
+        render_section_header(
+            "Evidence Review Detail",
+            "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables.",
+        )
+        render_signal_cards(
+            data_health_pilot_evidence_review_cards(pilot_evidence_review),
+            show_commands=True,
+            variant="queue",
+        )
+        st.dataframe(clean_display_frame(pilot_evidence_review), width="stretch", hide_index=True)
+        render_section_header(
+            "Final Share Gate Detail",
+            "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing.",
+        )
+        render_signal_cards(
+            data_health_public_share_final_gate_cards(public_share_final_gate),
+            show_commands=True,
+            variant="queue",
+        )
+        st.dataframe(clean_display_frame(public_share_final_gate), width="stretch", hide_index=True)
+        render_section_header(
+            "Workflow Continuity Detail",
+            "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables.",
+        )
+        render_signal_cards(
+            data_health_workflow_continuity_cards(workflow_continuity),
+            show_commands=True,
+            variant="queue",
+        )
+        st.dataframe(clean_display_frame(workflow_continuity), width="stretch", hide_index=True)
+        render_section_header(
+            "Controlled Pilot Outcome Detail",
+            "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers.",
+        )
+        render_signal_cards(
+            data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome),
+            show_commands=True,
+            variant="queue",
+        )
         st.dataframe(clean_display_frame(controlled_pilot_outcome), width="stretch", hide_index=True)
-    render_section_header(
-        "Commit Package Handoff",
-        "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing.",
-    )
-    render_signal_cards(
-        data_health_pilot_commit_package_cards(pilot_commit_package),
-        show_commands=False,
-        variant="queue",
-    )
-    with st.expander("Commit package commands", expanded=False):
+        render_section_header(
+            "Commit Package Detail",
+            "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing.",
+        )
+        render_signal_cards(
+            data_health_pilot_commit_package_cards(pilot_commit_package),
+            show_commands=False,
+            variant="queue",
+        )
         st.dataframe(clean_display_frame(pilot_commit_package), width="stretch", hide_index=True)
-    render_section_header(
-        "Pilot Packaging Summary",
-        "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary.",
-    )
-    render_signal_cards(
-        data_health_pilot_packaging_summary_cards(pilot_packaging_summary),
-        show_commands=True,
-        variant="queue",
-    )
-    with st.expander("Pilot packaging review detail", expanded=False):
+        render_section_header(
+            "Packaging Summary Detail",
+            "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary.",
+        )
+        render_signal_cards(
+            data_health_pilot_packaging_summary_cards(pilot_packaging_summary),
+            show_commands=True,
+            variant="queue",
+        )
         st.dataframe(clean_display_frame(pilot_packaging_summary), width="stretch", hide_index=True)
-    render_section_header(
-        "Pilot Reviewer Walkthrough",
-        "One compact path from gate status to source-proof focus, packet export, and public-check before raw tables.",
-    )
-    st.markdown(data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough), unsafe_allow_html=True)
-    with st.expander("Pilot reviewer workflow detail", expanded=False):
+        render_section_header(
+            "Reviewer Walkthrough Detail",
+            "Release evidence, final gate, workflow continuity, commit package, packaging summary, walkthrough, and packet detail stay here.",
+        )
+        st.markdown(data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough), unsafe_allow_html=True)
         render_signal_cards(
             data_health_pilot_reviewer_walkthrough_cards(pilot_reviewer_walkthrough),
             show_commands=True,
             variant="queue",
         )
         st.dataframe(clean_display_frame(pilot_reviewer_walkthrough), width="stretch", hide_index=True)
-    with st.expander("Pilot gate and packet details", expanded=False):
         render_section_header(
-            "Pilot Readiness Gate",
+            "Readiness Gate And Packet Detail",
             "Sync, hygiene, freshness, source-proof, public-check, and research-only status before a pilot package.",
         )
         render_signal_cards(data_health_pilot_readiness_cards(pilot_readiness), show_commands=True, variant="queue")

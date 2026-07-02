@@ -19261,71 +19261,56 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
 
 
-def test_data_health_pilot_handoff_summary_renders_before_packaging_and_walkthrough():
+def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summary():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     evidence_frame_index = source.index("pilot_evidence_review = data_health_pilot_evidence_review_frame")
-    evidence_header_index = source.index('render_section_header(\n        "Pilot Evidence Review"', evidence_frame_index)
-    evidence_cards_index = source.index("data_health_pilot_evidence_review_cards(pilot_evidence_review)", evidence_header_index)
-    evidence_detail_index = source.index('st.expander("Pilot evidence review detail"', evidence_cards_index)
     share_gate_frame_index = source.index("public_share_final_gate = data_health_public_share_final_gate_frame")
-    share_gate_header_index = source.index('render_section_header(\n        "Public Share Final Gate"', share_gate_frame_index)
-    share_gate_cards_index = source.index("data_health_public_share_final_gate_cards(public_share_final_gate)", share_gate_header_index)
-    share_gate_detail_index = source.index('st.expander("Public share final gate detail"', share_gate_cards_index)
     workflow_frame_index = source.index("workflow_continuity = data_health_workflow_continuity_frame")
-    workflow_header_index = source.index('render_section_header(\n        "Data Health Workflow Continuity"', workflow_frame_index)
-    workflow_cards_index = source.index("data_health_workflow_continuity_cards(workflow_continuity)", workflow_header_index)
-    workflow_detail_index = source.index('st.expander("Data Health workflow continuity detail"', workflow_cards_index)
     handoff_frame_index = source.index("pilot_handoff_summary = data_health_pilot_handoff_summary_frame")
-    handoff_header_index = source.index('render_section_header(\n        "Pilot Handoff Summary"', handoff_frame_index)
-    handoff_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", handoff_header_index)
-    handoff_detail_index = source.index('st.expander("Pilot handoff review detail"', handoff_cards_index)
     controlled_outcome_index = source.index("controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame", handoff_frame_index)
-    controlled_header_index = source.index('render_section_header(\n        "Controlled Pilot Outcomes"', controlled_outcome_index)
-    controlled_cards_index = source.index("data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome)", controlled_header_index)
-    controlled_detail_index = source.index('st.expander("Controlled pilot outcome detail"', controlled_cards_index)
     commit_frame_index = source.index("pilot_commit_package = data_health_pilot_commit_package_frame", handoff_frame_index)
-    commit_header_index = source.index('render_section_header(\n        "Commit Package Handoff"', commit_frame_index)
-    commit_cards_index = source.index("data_health_pilot_commit_package_cards(pilot_commit_package)", commit_header_index)
-    commit_detail_index = source.index('st.expander("Commit package commands"', commit_cards_index)
     packaging_frame_index = source.index("pilot_packaging_summary = data_health_pilot_packaging_summary_frame")
-    packaging_header_index = source.index('render_section_header(\n        "Pilot Packaging Summary"', packaging_frame_index)
-    packaging_cards_index = source.index("data_health_pilot_packaging_summary_cards(pilot_packaging_summary)", packaging_header_index)
-    packaging_detail_index = source.index('st.expander("Pilot packaging review detail"', packaging_cards_index)
-    walkthrough_header_index = source.index('render_section_header(\n        "Pilot Reviewer Walkthrough"', packaging_detail_index)
-    walkthrough_strip_index = source.index("data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough)", walkthrough_header_index)
+    share_gate_header_index = source.index('render_section_header(\n        "Pilot Share Gate"', packaging_frame_index)
+    share_gate_summary_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", share_gate_header_index)
+    share_gate_detail_index = source.index('st.expander("Pilot Share Gate details", expanded=False)', share_gate_summary_cards_index)
+    evidence_cards_index = source.index("data_health_pilot_evidence_review_cards(pilot_evidence_review)", share_gate_detail_index)
+    final_gate_cards_index = source.index("data_health_public_share_final_gate_cards(public_share_final_gate)", evidence_cards_index)
+    workflow_cards_index = source.index("data_health_workflow_continuity_cards(workflow_continuity)", final_gate_cards_index)
+    controlled_cards_index = source.index("data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome)", workflow_cards_index)
+    commit_cards_index = source.index("data_health_pilot_commit_package_cards(pilot_commit_package)", controlled_cards_index)
+    packaging_cards_index = source.index("data_health_pilot_packaging_summary_cards(pilot_packaging_summary)", commit_cards_index)
+    walkthrough_strip_index = source.index("data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough)", packaging_cards_index)
+    gate_packet_cards_index = source.index("data_health_pilot_readiness_cards(pilot_readiness)", walkthrough_strip_index)
 
     assert handoff_frame_index < packaging_frame_index < evidence_frame_index < share_gate_frame_index < workflow_frame_index
     assert (
-        evidence_header_index
-        < evidence_cards_index
-        < evidence_detail_index
-        < share_gate_header_index
-        < share_gate_cards_index
+        share_gate_header_index
+        < share_gate_summary_cards_index
         < share_gate_detail_index
-        < workflow_header_index
+        < evidence_cards_index
+        < final_gate_cards_index
         < workflow_cards_index
-        < workflow_detail_index
-        < handoff_header_index
-        < handoff_cards_index
-        < handoff_detail_index
-        < controlled_outcome_index
-        < controlled_header_index
         < controlled_cards_index
-        < controlled_detail_index
-        < commit_header_index
         < commit_cards_index
-        < commit_detail_index
-        < packaging_header_index
         < packaging_cards_index
-        < packaging_detail_index
-        < walkthrough_header_index
         < walkthrough_strip_index
+        < gate_packet_cards_index
     )
+    assert controlled_outcome_index < controlled_cards_index
+    assert 'render_section_header(\n        "Pilot Evidence Review"' not in source
+    assert 'render_section_header(\n        "Public Share Final Gate"' not in source
+    assert 'render_section_header(\n        "Data Health Workflow Continuity"' not in source
+    assert 'render_section_header(\n        "Pilot Handoff Summary"' not in source
+    assert 'render_section_header(\n        "Commit Package Handoff"' not in source
+    assert 'render_section_header(\n        "Pilot Packaging Summary"' not in source
+    assert 'render_section_header(\n        "Pilot Reviewer Walkthrough"' not in source
+    assert "Can share, manual gates, generated-churn boundary, license boundary, and next safe packet command before release details." in source
+    assert "Release evidence, final gate, workflow continuity, commit package, packaging summary, walkthrough, and packet detail stay here." in source
     assert "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables." in source
     assert "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing." in source
     assert "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables." in source
-    assert "Verdict, manual gate, source-proof blocker, generated-churn boundary, and reviewer packet before detailed pilot tables." in source
+    assert "data_health_pilot_handoff_summary_cards(pilot_handoff_summary)" in source
     assert "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers." in source
     assert "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing." in source
     assert "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary." in source
