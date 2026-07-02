@@ -25,6 +25,10 @@ Use this as research-only product evidence. It summarizes what can be shown now,
 
 - Next setup view: `make provider-setup-checklist`.
 - Real key values are never printed.
+- Source buckets:
+  - Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance
+  - Keyed free-tier fallbacks: configured -; needs key FMP free tier, Alpha Vantage free tier, Finnhub free tier
+  - Optional broker boundary: IBKR read-only
 - Coverage unlock decision:
   - No broad coverage batch should run from setup alone.
   - Use free/public sources for already executable proof paths; current gate says coverage_workflow_evidence.
