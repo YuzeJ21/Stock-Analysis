@@ -361,6 +361,10 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
             "do_not_retry",
             "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
         ),
+        "ticker_scope_rule": (
+            "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; "
+            "do not run the smoke command across a broad list."
+        ),
         "one_safe_smoke": smoke_command,
         "boundary": "Provider setup only makes a source executable; readiness changes still require validate/preview/apply gates.",
     }
@@ -419,6 +423,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 f"- free_source_now: {first_answer.get('free_source_now', '-')}",
                 f"- missing_key: {first_answer.get('missing_key', '-')}",
                 f"- do_not_retry: {first_answer.get('do_not_retry', '-')}",
+                f"- ticker_scope_rule: {first_answer.get('ticker_scope_rule', '-')}",
                 f"- one_safe_smoke: {first_answer.get('one_safe_smoke', '-')}",
                 f"- boundary: {first_answer.get('boundary', '-')}",
                 "",

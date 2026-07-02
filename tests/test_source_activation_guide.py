@@ -94,6 +94,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         "free_source_now": "SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance",
         "missing_key": "Alpha Vantage free tier, Finnhub free tier",
         "do_not_retry": "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
+        "ticker_scope_rule": "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the smoke command across a broad list.",
         "one_safe_smoke": (
             "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
             "&& make imports-preview IMPORT_TICKERS=<ticker>"
@@ -156,6 +157,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- question: What source can I use next?" in rendered
     assert "- free_source_now: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in rendered
     assert "- missing_key: Alpha Vantage free tier, Finnhub free tier" in rendered
+    assert "- ticker_scope_rule: Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the smoke command across a broad list." in rendered
     assert "- one_safe_smoke: make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
     assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
     assert rendered.index("First provider answer:") < rendered.index("Local setup commands:")
@@ -284,6 +286,9 @@ def test_provider_setup_checklist_starts_with_coverage_unlock_decision(monkeypat
     assert "- proof_boundary: Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence." in rendered
     assert checklist["first_answer"]["do_not_retry"] == (
         "Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist."
+    )
+    assert checklist["first_answer"]["ticker_scope_rule"] == (
+        "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the smoke command across a broad list."
     )
     assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
     assert rendered.index("Coverage unlock decision:") < rendered.index("Local setup commands:")
