@@ -30066,58 +30066,59 @@ def render_data_health(
                     metric_cols[1].metric("Skipped Fresh", status_counts.get("skipped_fresh", 0))
                     metric_cols[2].metric("Parse / Source Errors", sum(status_counts.get(status, 0) for status in statuses[2:]))
                     metric_cols[3].metric("Fallback Used", int(price_status_frame.get("fallback_used", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"}).sum()))
-                display_columns = price_update_status_table_columns(price_status_frame)
-                st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
-                problematic_statuses = {"parse_error", "source_unavailable", "network_error", "failed"}
-                if "status" in price_status_frame.columns and price_status_frame["status"].astype(str).str.lower().isin(problematic_statuses).any():
-                    st.warning(price_refresh_fallback_message(include_remote_failure_prefix=True))
-                render_context_note(
-                    "Manual fallback.",
-                    price_refresh_cli_note_message(),
-                    tone="warning",
-                )
-            if price_worklist_frame is not None and not price_worklist_frame.empty:
-                render_section_header(
-                    "Short Price-History Proof",
-                    "Price coverage can be complete while momentum, track-record, or review-metric history depth remains partial.",
-                )
-                render_signal_cards(data_health_price_history_proof_drawer_cards(price_worklist_frame))
-                proof_frame = data_health_price_history_proof_drawer_frame(price_worklist_frame)
-                if not proof_frame.empty:
-                    with st.expander("Review short-history proof rows", expanded=False):
-                        render_context_note(
-                            "Copy-only proof path.",
-                            "Use the proof queue and focus command first. Refresh or apply local price rows only after source review, validation, preview, and generated-artifact hygiene.",
+                with st.expander("Price update evidence details", expanded=False):
+                    display_columns = price_update_status_table_columns(price_status_frame)
+                    st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
+                    problematic_statuses = {"parse_error", "source_unavailable", "network_error", "failed"}
+                    if "status" in price_status_frame.columns and price_status_frame["status"].astype(str).str.lower().isin(problematic_statuses).any():
+                        st.warning(price_refresh_fallback_message(include_remote_failure_prefix=True))
+                    render_context_note(
+                        "Manual fallback.",
+                        price_refresh_cli_note_message(),
+                        tone="warning",
+                    )
+                    if price_worklist_frame is not None and not price_worklist_frame.empty:
+                        render_section_header(
+                            "Short Price-History Proof",
+                            "Price coverage can be complete while momentum, track-record, or review-metric history depth remains partial.",
                         )
-                        st.dataframe(clean_display_frame(proof_frame), width="stretch", hide_index=True)
-                render_context_note(
-                    "Price history checklist.",
-                    "This local review list shows which tickers still need more verified history for momentum, track record, or preferred long-history research context.",
-                )
-                worklist_columns = [
-                    column
-                    for column in [
-                        "priority",
-                        "ticker",
-                        "price_history_days",
-                        "first_local_date",
-                        "latest_local_date",
-                        "missing_for_momentum",
-                        "missing_for_track_record",
-                        "missing_for_preferred_history",
-                        "example_command",
-                    ]
-                    if column in price_worklist_frame.columns
-                ]
-                st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(15)), width="stretch", hide_index=True)
-            else:
-                price_worklist_notice_body, price_worklist_notice_command = onboarding_notice_copy("price_worklist", price_worklist_message)
-                render_notice_card(
-                    "Price history checklist not ready yet",
-                    price_worklist_notice_body,
-                    price_worklist_notice_command,
-                    tone="warning",
-                )
+                        render_signal_cards(data_health_price_history_proof_drawer_cards(price_worklist_frame))
+                        proof_frame = data_health_price_history_proof_drawer_frame(price_worklist_frame)
+                        if not proof_frame.empty:
+                            with st.expander("Review short-history proof rows", expanded=False):
+                                render_context_note(
+                                    "Copy-only proof path.",
+                                    "Use the proof queue and focus command first. Refresh or apply local price rows only after source review, validation, preview, and generated-artifact hygiene.",
+                                )
+                                st.dataframe(clean_display_frame(proof_frame), width="stretch", hide_index=True)
+                        render_context_note(
+                            "Price history checklist.",
+                            "This local review list shows which tickers still need more verified history for momentum, track record, or preferred long-history research context.",
+                        )
+                        worklist_columns = [
+                            column
+                            for column in [
+                                "priority",
+                                "ticker",
+                                "price_history_days",
+                                "first_local_date",
+                                "latest_local_date",
+                                "missing_for_momentum",
+                                "missing_for_track_record",
+                                "missing_for_preferred_history",
+                                "example_command",
+                            ]
+                            if column in price_worklist_frame.columns
+                        ]
+                        st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(15)), width="stretch", hide_index=True)
+                    else:
+                        price_worklist_notice_body, price_worklist_notice_command = onboarding_notice_copy("price_worklist", price_worklist_message)
+                        render_notice_card(
+                            "Price history checklist not ready yet",
+                            price_worklist_notice_body,
+                            price_worklist_notice_command,
+                            tone="warning",
+                        )
             if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
                 render_context_note(
                     "Fundamentals and peer checklist.",

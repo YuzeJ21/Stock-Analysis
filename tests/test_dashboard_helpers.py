@@ -27979,6 +27979,25 @@ def test_last_resort_legacy_sources_tab_groups_source_evidence_rows():
     assert status_display_index < status_table_index < gap_list_index < gap_table_index < price_updates_tab_index
 
 
+def test_last_resort_legacy_price_updates_tab_groups_price_evidence_rows():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    price_updates_tab_index = source.index("with health_tabs[3]:", legacy_tables_index)
+    summary_cards_index = source.index('data_health_tab_summary_cards(\n                    "Price Updates"', price_updates_tab_index)
+    fetched_metric_index = source.index('metric_cols[0].metric("Fetched"', summary_cards_index)
+    evidence_details_index = source.index('st.expander("Price update evidence details", expanded=False)', fetched_metric_index)
+    status_columns_index = source.index("display_columns = price_update_status_table_columns(price_status_frame)", evidence_details_index)
+    status_table_index = source.index("st.dataframe(clean_display_frame(price_status_frame[display_columns])", status_columns_index)
+    short_history_index = source.index('"Short Price-History Proof"', status_table_index)
+    short_rows_index = source.index('st.expander("Review short-history proof rows", expanded=False)', short_history_index)
+    price_worklist_index = source.index("st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(15))", short_rows_index)
+    import_checks_tab_index = source.index("with health_tabs[4]:", price_worklist_index)
+
+    assert price_updates_tab_index < summary_cards_index < fetched_metric_index < evidence_details_index
+    assert evidence_details_index < status_columns_index < status_table_index < short_history_index
+    assert short_history_index < short_rows_index < price_worklist_index < import_checks_tab_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"
