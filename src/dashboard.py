@@ -8892,14 +8892,15 @@ def data_health_coverage_summary_cards(
                 "kicker": state.upper(),
                 "title": format_missing(row.get("lane")),
                 "body": (
-                    f"{format_missing(row.get('one_clear_answer'))} "
-                    f"Coverage: {format_missing(row.get('ready_coverage'))}. "
+                    f"Use now: {format_missing(row.get('one_clear_answer'))} "
+                    f"Blocked/limited: {format_missing(row.get('blocked_or_limited'))}. "
                     f"Why limited: {format_missing(row.get('why_blocked_or_limited'))} "
+                    f"Context: {format_missing(row.get('supporting_coverage'))}. "
                     f"Proof to unlock: {format_missing(row.get('proof_to_unlock'))} "
+                    f"Next safe action: open Coverage lane details for the proof path and operator step. "
                     f"Stop rule: {format_missing(row.get('stop_rule'))}"
                 ),
-                "badges": [state, format_missing(row.get("supporting_coverage"))],
-                "command": format_missing(row.get("operator_step"), ""),
+                "badges": [state, format_missing(row.get("ready_coverage"))],
             }
         )
     return cards

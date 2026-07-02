@@ -26531,6 +26531,32 @@ def test_data_health_public_proof_map_cards_use_plain_readiness_labels():
     assert "copy-only" not in rendered
 
 
+def test_data_health_coverage_summary_cards_use_scan_labels_not_dense_commands():
+    cards = dashboard.data_health_coverage_summary_cards(
+        {
+            "master_universe": 100,
+            "price_ready": 100,
+            "momentum_ready": 97,
+            "liquidity_ready": 95,
+            "fundamentals_ready": 70,
+            "dcf_ready": 60,
+            "peer_ready": 10,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        },
+        pd.DataFrame([{"ticker": "AAA", "peer_valuation_comparison_ready": True}]),
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "use now:" in rendered
+    assert "blocked/limited:" in rendered
+    assert "context:" in rendered
+    assert "next safe action:" in rendered
+    assert "stop rule:" in rendered
+    assert "proof to unlock:" in rendered
+    assert "make " not in rendered
+
+
 def test_single_stock_public_page_uses_simplified_review_sections():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")
