@@ -27899,6 +27899,34 @@ def test_last_resort_legacy_coverage_tab_nests_data_quality_and_ticker_readiness
     assert readiness_columns_index < ticker_readiness_frame_index < liquidity_index
 
 
+def test_last_resort_legacy_coverage_tab_nests_liquidity_and_correlation_rows():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
+    liquidity_context_index = source.index('st.expander("Liquidity Context", expanded=False)', coverage_tab_index)
+    liquidity_rows_index = source.index('st.expander("Legacy liquidity rows", expanded=False)', liquidity_context_index)
+    liquidity_ready_index = source.index(
+        "st.dataframe(style_frame(clean_display_frame(liquidity_ready[liquidity_columns]))",
+        liquidity_rows_index,
+    )
+    liquidity_unavailable_index = source.index("Liquidity unavailable", liquidity_ready_index)
+    correlation_context_index = source.index(
+        'st.expander("Correlation Concentration Context", expanded=False)',
+        liquidity_unavailable_index,
+    )
+    correlation_rows_index = source.index('st.expander("Legacy correlation rows", expanded=False)', correlation_context_index)
+    correlation_ready_index = source.index(
+        "st.dataframe(style_frame(clean_display_frame(correlation_ready[correlation_columns]))",
+        correlation_rows_index,
+    )
+    correlation_unavailable_index = source.index("Correlation unavailable", correlation_ready_index)
+    top_actions_index = source.index('st.expander("Top Data Actions", expanded=False)', correlation_unavailable_index)
+
+    assert liquidity_context_index < liquidity_rows_index < liquidity_ready_index < liquidity_unavailable_index
+    assert liquidity_unavailable_index < correlation_context_index < correlation_rows_index
+    assert correlation_rows_index < correlation_ready_index < correlation_unavailable_index < top_actions_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"

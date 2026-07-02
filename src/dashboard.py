@@ -29785,17 +29785,18 @@ def render_data_health(
                             ]
                             if column in liquidity_frame.columns
                         ]
-                        if not liquidity_ready.empty:
-                            st.dataframe(style_frame(clean_display_frame(liquidity_ready[liquidity_columns])), width="stretch", hide_index=True)
-                        else:
-                            st.info("Liquidity analysis is blocked for all tickers until local price and volume rows are available.")
-                        if not liquidity_unavailable.empty:
-                            st.markdown("##### Liquidity unavailable")
-                            st.dataframe(
-                                style_frame(clean_display_frame(liquidity_unavailable[_readiness_columns(liquidity_unavailable, ["Ticker", "LiquidityStatus", "MissingDataFields", "Reason"])])),
-                                width="stretch",
-                                hide_index=True,
-                            )
+                        with st.expander("Legacy liquidity rows", expanded=False):
+                            if not liquidity_ready.empty:
+                                st.dataframe(style_frame(clean_display_frame(liquidity_ready[liquidity_columns])), width="stretch", hide_index=True)
+                            else:
+                                st.info("Liquidity analysis is blocked for all tickers until local price and volume rows are available.")
+                            if not liquidity_unavailable.empty:
+                                st.markdown("##### Liquidity unavailable")
+                                st.dataframe(
+                                    style_frame(clean_display_frame(liquidity_unavailable[_readiness_columns(liquidity_unavailable, ["Ticker", "LiquidityStatus", "MissingDataFields", "Reason"])])),
+                                    width="stretch",
+                                    hide_index=True,
+                                )
                     else:
                         st.info(liquidity_message or "No liquidity rows are available.")
 
@@ -29820,17 +29821,18 @@ def render_data_health(
                             ]
                             if column in correlation_frame.columns
                         ]
-                        if not correlation_ready.empty:
-                            st.dataframe(style_frame(clean_display_frame(correlation_ready[correlation_columns])), width="stretch", hide_index=True)
-                        else:
-                            st.info("Correlation analysis is blocked until enough overlapping local return history exists.")
-                        if not correlation_unavailable.empty:
-                            st.markdown("##### Correlation unavailable")
-                            st.dataframe(
-                                style_frame(clean_display_frame(correlation_unavailable[_readiness_columns(correlation_unavailable, ["Ticker", "CorrelationStatus", "MissingDataFields", "Reason"])])),
-                                width="stretch",
-                                hide_index=True,
-                            )
+                        with st.expander("Legacy correlation rows", expanded=False):
+                            if not correlation_ready.empty:
+                                st.dataframe(style_frame(clean_display_frame(correlation_ready[correlation_columns])), width="stretch", hide_index=True)
+                            else:
+                                st.info("Correlation analysis is blocked until enough overlapping local return history exists.")
+                            if not correlation_unavailable.empty:
+                                st.markdown("##### Correlation unavailable")
+                                st.dataframe(
+                                    style_frame(clean_display_frame(correlation_unavailable[_readiness_columns(correlation_unavailable, ["Ticker", "CorrelationStatus", "MissingDataFields", "Reason"])])),
+                                    width="stretch",
+                                    hide_index=True,
+                                )
                     else:
                         st.info(correlation_message or "No correlation rows are available.")
 
