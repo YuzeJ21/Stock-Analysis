@@ -27958,29 +27958,8 @@ def render_data_health(
         if proof_details_requested and decision_queue_freshness.status == "current"
         else pd.DataFrame()
     )
-    decision_queue_drawer_expanded = selected_lane_key == "proof" and proof_details_requested
-    with st.expander("Decision proof queue drawer", expanded=decision_queue_drawer_expanded):
-        if selected_lane_key != "proof" and not proof_details_requested:
-            render_signal_cards(
-                data_health_deferred_detail_cards(
-                    title="Decision proof queue is deferred",
-                    body="Decision proof rows are proof-history detail, not first-viewport readiness status.",
-                    command="Open Proof History with the proof drawer when you need decision proof rows.",
-                    badges=["proof deferred", "copy-only"],
-                ),
-                show_commands=False,
-            )
-        elif not proof_details_requested and selected_lane_key == "proof":
-            render_signal_cards(
-                data_health_deferred_detail_cards(
-                    title="Proof details are deferred",
-                    body="Reviewed proof rows and snapshot comparison stay behind explicit review details.",
-                    command="Open Proof review details.",
-                    badges=["proof deferred", "snapshot gate"],
-                ),
-                show_commands=False,
-            )
-        else:
+    if proof_details_requested:
+        with st.expander("Decision proof queue drawer", expanded=False):
             render_section_header(
                 "Decision Proof Queue",
                 "Freshness status, top proof row, copy-only command, and post-unlock proof before raw decision tables.",

@@ -14851,8 +14851,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         trusted_source_review_frame_index,
     )
     decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", coverage_proof_queue_drawer_index)
-    decision_queue_expand_state_index = source.index("decision_queue_drawer_expanded =", decision_queue_status_index)
-    decision_queue_drawer_index = source.index('st.expander("Decision proof queue drawer", expanded=decision_queue_drawer_expanded)', decision_queue_status_index)
+    decision_queue_gate_index = source.index("if proof_details_requested:", decision_queue_status_index)
+    decision_queue_drawer_index = source.index('st.expander("Decision proof queue drawer", expanded=False)', decision_queue_gate_index)
     decision_queue_completion_index = source.index("decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)", decision_queue_drawer_index)
     decision_queue_flow_index = source.index("decision_proof_queue_operator_flow_cards(decision_queue_frame, decision_queue_freshness)", decision_queue_completion_index)
     decision_queue_detail_index = source.index('"Decision Proof Detail"', decision_queue_flow_index)
@@ -14901,10 +14901,11 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
 
     assert public_return_index < prior_snapshot_load_index < top_summary_block_index
     assert queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < proof_closeout_summary_index < proof_closeout_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < top_summary_block_index < lane_snapshot_index < readiness_queue_cards_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_drawer_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_lane_index < proof_detail_status_index < proof_detail_cards_index < proof_shell_cards_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < top_summary_block_index < lane_snapshot_index < readiness_queue_cards_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_drawer_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_gate_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_lane_index < proof_detail_status_index < proof_detail_cards_index < proof_shell_cards_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
+    assert 'st.expander("Decision proof queue drawer", expanded=decision_queue_drawer_expanded)' not in source
     assert "render_data_health_detail_selector(" in source
     assert 'queue_details_loaded = queue_details_requested and selected_lane_key != "prices"' in source
     assert "defer_broad_queue = public_mode or not queue_details_loaded" in source
@@ -14978,7 +14979,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "Detailed proof command fields" in source
     assert "decision_proof_queue_artifact_status(BASE_DIR)" in source
     assert "Decision proof queue drawer" in source
-    assert "decision_queue_drawer_expanded = selected_lane_key == \"proof\" and proof_details_requested" in source
+    assert "if proof_details_requested:" in source
     assert "data_health_deferred_detail_cards(" in source
     assert "data_health_proof_detail_load_status(" in source
     assert "data_health_proof_detail_load_cards(proof_detail_status)" in source
