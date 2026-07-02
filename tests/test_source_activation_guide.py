@@ -112,6 +112,28 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     ]
     assert checklist["activation_plan"][0].startswith("Run make project-status first")
     assert "Configure at most one missing keyed free-tier provider locally" in checklist["activation_plan"][1]
+    assert checklist["workflow_pivot"] == [
+        {
+            "command": "make project-status",
+            "purpose": "Confirm whether proof queues have executable company candidates before opening broad proof tables.",
+            "boundary": "Read-only status; does not refresh, stage, apply, or unlock blocked inputs.",
+        },
+        {
+            "command": "make provider-setup-checklist",
+            "purpose": "Review missing keyed providers and one-ticker smoke commands when proof queues are exhausted.",
+            "boundary": "Setup evidence only; do not apply data directly from provider setup.",
+        },
+        {
+            "command": "make universe-scope TOP_N=10",
+            "purpose": "Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before deeper review.",
+            "boundary": "Scope selection only; does not infer missing fundamentals, peers, earnings, or estimates.",
+        },
+        {
+            "command": "make risk-context",
+            "purpose": "Review liquidity, correlation, and proxy-risk readiness after scope is chosen.",
+            "boundary": "Historical context only; not a recommendation or source-proof unlock.",
+        },
+    ]
     assert rows["SEC submissions"]["cannot_unlock"] == (
         "DCF, valuation, earnings, analyst estimates, or share count unless a filing document has an explicit fact."
     )
@@ -131,6 +153,20 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "Activation plan:" in rendered
     assert "- Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight." in rendered
     assert "- Run that provider's one-ticker smoke command only; do not start a broad batch from setup." in rendered
+    assert "Workflow pivot when proof queues are exhausted:" in rendered
+    assert "make project-status | Confirm whether proof queues have executable company candidates before opening broad proof tables." in rendered
+    assert "make provider-setup-checklist | Review missing keyed providers and one-ticker smoke commands when proof queues are exhausted." in rendered
+    assert "make universe-scope TOP_N=10 | Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before deeper review." in rendered
+    assert "make risk-context | Review liquidity, correlation, and proxy-risk readiness after scope is chosen." in rendered
+    assert rendered.index("make project-status | Confirm whether") < rendered.index(
+        "make provider-setup-checklist | Review missing keyed providers"
+    )
+    assert rendered.index("make provider-setup-checklist | Review missing keyed providers") < rendered.index(
+        "make universe-scope TOP_N=10 | Choose active-universe"
+    )
+    assert rendered.index("make universe-scope TOP_N=10 | Choose active-universe") < rendered.index(
+        "make risk-context | Review liquidity"
+    )
     assert "FMP free tier | configured | price, fundamentals, share_count" in rendered
     assert "Alpha Vantage free tier | needs_key" in rendered
     assert "Provider | Setup state | Unlock lanes | Usage | Batch policy | Smoke command | Cannot unlock | Safe next step" in rendered

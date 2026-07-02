@@ -29,6 +29,28 @@ ACTIVATION_PLAN = [
     "Continue only through validate, preview, rejected-row review, and source-provenance checks.",
     "If no source-backed row is staged, record still_blocked/skipped/excluded and pivot.",
 ]
+WORKFLOW_PIVOT = [
+    {
+        "command": "make project-status",
+        "purpose": "Confirm whether proof queues have executable company candidates before opening broad proof tables.",
+        "boundary": "Read-only status; does not refresh, stage, apply, or unlock blocked inputs.",
+    },
+    {
+        "command": "make provider-setup-checklist",
+        "purpose": "Review missing keyed providers and one-ticker smoke commands when proof queues are exhausted.",
+        "boundary": "Setup evidence only; do not apply data directly from provider setup.",
+    },
+    {
+        "command": "make universe-scope TOP_N=10",
+        "purpose": "Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before deeper review.",
+        "boundary": "Scope selection only; does not infer missing fundamentals, peers, earnings, or estimates.",
+    },
+    {
+        "command": "make risk-context",
+        "purpose": "Review liquidity, correlation, and proxy-risk readiness after scope is chosen.",
+        "boundary": "Historical context only; not a recommendation or source-proof unlock.",
+    },
+]
 
 
 def _configured(env_name: str) -> bool:
@@ -278,6 +300,7 @@ def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = No
         "activation_plan": guide["activation_plan"],
         "rows": rows,
         "source_answer": _provider_source_answer(rows),
+        "workflow_pivot": WORKFLOW_PIVOT,
         "apply_gate": guide["apply_gate"],
         "non_retry_rule": guide["non_retry_rule"],
         "current_gate": _current_gate_from_preflight(current_preflight),
@@ -310,6 +333,28 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
     lines.extend(f"- {command}" for command in checklist.get("setup_commands", []))
     lines.extend(["", "Activation plan:"])
     lines.extend(f"- {step}" for step in checklist.get("activation_plan", []))
+    workflow_pivot = checklist.get("workflow_pivot", [])
+    if isinstance(workflow_pivot, list) and workflow_pivot:
+        lines.extend(
+            [
+                "",
+                "Workflow pivot when proof queues are exhausted:",
+                "Command | Purpose | Boundary",
+                "--- | --- | ---",
+            ]
+        )
+        for row in workflow_pivot:
+            if not isinstance(row, dict):
+                continue
+            lines.append(
+                " | ".join(
+                    [
+                        str(row.get("command") or ""),
+                        str(row.get("purpose") or ""),
+                        str(row.get("boundary") or ""),
+                    ]
+                )
+            )
     current_gate = checklist.get("current_gate", {})
     if isinstance(current_gate, dict) and current_gate:
         lines.extend(
