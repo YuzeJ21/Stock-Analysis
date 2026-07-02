@@ -56,7 +56,7 @@ def public_home_current_data_coverage_cards(summary: dict[str, object]) -> list[
     active = int(summary.get("active_universe") or summary.get("active_count") or 0)
     blocked = int(summary.get("blocked_by_data") or summary.get("blocked") or 0)
     partial = int(summary.get("partial") or 0)
-    updated_at = _format_optional_text(summary.get("updated_at"), "Run make readiness for the latest timestamp")
+    updated_at = _format_optional_text(summary.get("updated_at"), "not available in the saved readiness snapshot")
 
     def _coverage_line(label: str, key: str, *, blocked_key: str | None = None) -> str:
         ready = int(summary.get(key) or 0)

@@ -222,7 +222,8 @@ def test_public_home_current_data_coverage_cards_show_timestamp_fallback():
     cards = public_home_current_data_coverage_cards({"master_universe": 10, "updated_at": None})
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "snapshot timestamp: run make readiness for the latest timestamp" in rendered
+    assert "snapshot timestamp: not available in the saved readiness snapshot" in rendered
+    assert "run make readiness for the latest timestamp" not in rendered
 
 
 def test_public_home_review_map_cards_show_current_step_next_action_and_stop_rule():
