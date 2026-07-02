@@ -988,6 +988,18 @@ def pilot_share_first_answer_frame(
             "Next Safe Action": "make provider-setup-checklist",
         },
         {
+            "Question": "What should I review while queues are exhausted?",
+            "Answer": (
+                "Choose a safe universe scope, then review risk context as historical context only; "
+                "do not reopen broad proof loops from a stale blocker list."
+            ),
+            "Share Boundary": (
+                "Scope and risk context do not infer missing fundamentals, peers, earnings, estimates, "
+                "or valuation inputs."
+            ),
+            "Next Safe Action": "make universe-scope TOP_N=10 && make risk-context",
+        },
+        {
             "Question": "What packet should I create?",
             "Answer": f"{output_path.as_posix()} is copy-only evidence; it does not refresh data or unlock blocked inputs.",
             "Share Boundary": "Packet is reviewer evidence only; it is not a release, data refresh, or proof apply step.",
