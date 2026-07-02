@@ -29477,8 +29477,9 @@ def render_data_health(
                 metric_cols[1].metric("High", queue_summary["high"])
                 metric_cols[2].metric("Medium", queue_summary["medium"])
                 render_signal_cards(top_priority_signals(action_queue_frame, limit=3))
-                queue_columns = action_queue_table_columns(action_queue_frame)
-                st.dataframe(clean_display_frame(action_queue_frame[queue_columns].head(15)), width="stretch", hide_index=True)
+                with st.expander("Legacy action queue rows", expanded=False):
+                    queue_columns = action_queue_table_columns(action_queue_frame)
+                    st.dataframe(clean_display_frame(action_queue_frame[queue_columns].head(15)), width="stretch", hide_index=True)
 
         with health_tabs[1]:
             render_signal_cards(

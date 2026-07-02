@@ -27852,6 +27852,20 @@ def test_last_resort_diagnostic_context_nests_guided_row_details():
     assert nested_detail_index < ticker_rows_index < guided_rows_index < readiness_summary_index
 
 
+def test_last_resort_legacy_actions_tab_nests_raw_queue_rows():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    actions_tab_index = source.index("with health_tabs[0]:", legacy_tables_index)
+    top_signals_index = source.index("render_signal_cards(top_priority_signals(action_queue_frame, limit=3))", actions_tab_index)
+    nested_rows_index = source.index('st.expander("Legacy action queue rows", expanded=False)', top_signals_index)
+    queue_columns_index = source.index("queue_columns = action_queue_table_columns(action_queue_frame)", nested_rows_index)
+    queue_frame_index = source.index("st.dataframe(clean_display_frame(action_queue_frame[queue_columns].head(15))", queue_columns_index)
+    coverage_tab_index = source.index("with health_tabs[1]:", queue_frame_index)
+
+    assert legacy_tables_index < actions_tab_index < top_signals_index < nested_rows_index
+    assert nested_rows_index < queue_columns_index < queue_frame_index < coverage_tab_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"
