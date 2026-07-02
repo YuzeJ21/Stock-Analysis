@@ -405,7 +405,7 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     assert cards[0]["command"] == "make provider-setup-checklist"
     assert cards[1]["command"] == "make project-status"
     assert cards[2]["command"] == "make provider-setup-checklist"
-    assert cards[3]["command"] == "make project-status && make provider-setup-checklist"
+    assert cards[3]["command"] == "make universe-scope TOP_N=10 && make risk-context"
     assert cards[4]["command"] == "make project-status"
     assert "what free source can run now" in rendered
     assert "what key is missing" in rendered

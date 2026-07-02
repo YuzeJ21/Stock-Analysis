@@ -823,7 +823,7 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
                 "Do not reopen trusted-data candidates until project-status shows executable company candidates."
             ),
             "badges": ["no stale loops", "scope first"],
-            "command": "make project-status && make provider-setup-checklist",
+            "command": "make universe-scope TOP_N=10 && make risk-context",
         },
         {
             "kicker": "SAFE SETUP PATH",
