@@ -26206,7 +26206,37 @@ def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     assert metric_load_cards_index < metric_queue_expander_index
     assert metric_console_index < metric_queue_expander_index < metric_summary_index < metric_queue_index < metric_cards_index
     assert scope_risk_cards_index < risk_cards_index < liquidity_expander_index < correlation_expander_index
-    assert metric_summary_table_index < metric_summary_index
+    assert metric_summary_index < metric_summary_table_index
+
+
+def test_metrics_evidence_drawer_starts_with_one_clear_answer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    metric_queue_expander_index = source.index('st.expander("Metrics evidence drawer", expanded=False)')
+    metrics_answer_index = source.index('"Metrics Evidence Answer"', metric_queue_expander_index)
+    metrics_answer_copy_index = source.index(
+        "One metrics-readiness answer before SPY / QQQ blocker tables, metric queues, or raw metric evidence.",
+        metrics_answer_index,
+    )
+    metrics_answer_cards_index = source.index(
+        "data_health_metric_detail_load_cards(metric_detail_status)",
+        metrics_answer_copy_index,
+    )
+    metric_detail_status_index = source.index('render_section_header("Metric Detail Status"', metrics_answer_cards_index)
+    metric_blocker_family_index = source.index('render_section_header("Metric Blocker Family Summary"', metric_detail_status_index)
+    metric_queue_index = source.index('render_section_header("SPY / QQQ Metric-Readiness Queue"', metric_blocker_family_index)
+    metric_review_gates_index = source.index('render_section_header("Review Metric Readiness Gates"', metric_queue_index)
+
+    assert (
+        metric_queue_expander_index
+        < metrics_answer_index
+        < metrics_answer_copy_index
+        < metrics_answer_cards_index
+        < metric_detail_status_index
+        < metric_blocker_family_index
+        < metric_queue_index
+        < metric_review_gates_index
+    )
 
 
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():

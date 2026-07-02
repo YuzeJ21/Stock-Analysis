@@ -28760,6 +28760,16 @@ def render_data_health(
             "This lane summarizes benchmark, risk, fundamentals trend, valuation, and peer-dispersion readiness only. Source fixes route back to prices, fundamentals, market cap, or peers before any metric value is shown.",
         )
         with st.expander("Metrics evidence drawer", expanded=False):
+            render_section_header(
+                "Metrics Evidence Answer",
+                "One metrics-readiness answer before SPY / QQQ blocker tables, metric queues, or raw metric evidence.",
+            )
+            render_signal_cards(
+                data_health_metric_detail_load_cards(metric_detail_status)
+                + data_health_metric_readiness_family_summary_cards(metric_queue_frame),
+                show_commands=False,
+                variant="queue",
+            )
             render_section_header("Metric Detail Status", "Row-level metric readiness is progressive so the first viewport stays fast.")
             render_signal_cards(data_health_metric_detail_load_cards(metric_detail_status), show_commands=True)
             render_section_header("Metric Blocker Family Summary", "Compact SPY / QQQ blocker-family triage before row-level proof.")
