@@ -9,6 +9,7 @@ Use this as research-only product evidence. It summarizes what can be shown now,
 - Shareable now: portfolio/demo evidence with manual gates.
 - Not shareable as: open-source/reuse package or data-freshness proof until the license and generated-artifact gates are resolved.
 - Reuse rights: not granted until a root `LICENSE` exists.
+- GitHub pilot link: not current until reviewed local commits are pushed.
 - Keep local: broad generated CSV/JSON/report churn unless a specific artifact is reviewed evidence.
 - Next gate: run `make public-check` and keep source-proof blockers visible.
 
@@ -40,18 +41,18 @@ Use this as research-only product evidence. It summarizes what can be shown now,
 - Coverage unlock decision:
   - No broad coverage batch should run from setup alone.
   - Use free/public sources for already executable proof paths; current gate says coverage_workflow_evidence.
-  - Configure FMP free tier first only if you want a keyed fallback, then smoke one ticker.
+  - Configure FMP free tier first only if you want a keyed fallback, then run a reviewed one-ticker smoke command.
   - Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.
   - Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence.
 - Configure first: FMP free tier.
 - Why first: Broadest keyed fallback here: price, fundamentals, share count, and the largest stated free-tier daily cap.
 - Setup env: `FMP_API_KEY`.
-- One-ticker smoke command: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`.
-- Do not configure all missing providers at once; configure one, rerun preflight, smoke one ticker, then validate/preview before any apply.
-- FMP free tier: needs_key -> price, fundamentals, share_count; smoke: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
-- Alpha Vantage free tier: needs_key -> price, fundamentals, share_count; smoke: `make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
-- Finnhub free tier: needs_key -> price, fundamentals, share_count; smoke: `make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
-- IBKR read-only: optional_disabled -> price; smoke: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=1 TOP_N=1 PROVIDER=ibkr`; cannot unlock Broker actions, order routing, auto-trading, fundamentals, shares, peers, earnings, or estimates.
+- Reviewed one-ticker smoke command: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`.
+- Do not configure all missing providers at once; configure one, rerun preflight, run a reviewed one-ticker smoke command, then validate/preview before any apply.
+- FMP free tier: needs_key -> price, fundamentals, share_count; reviewed smoke: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
+- Alpha Vantage free tier: needs_key -> price, fundamentals, share_count; reviewed smoke: `make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
+- Finnhub free tier: needs_key -> price, fundamentals, share_count; reviewed smoke: `make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
+- IBKR read-only: optional_disabled -> price; reviewed smoke: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=1 TOP_N=1 PROVIDER=ibkr`; cannot unlock Broker actions, order routing, auto-trading, fundamentals, shares, peers, earnings, or estimates.
 
 ## How to demo or review next
 
