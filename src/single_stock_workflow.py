@@ -361,6 +361,85 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
     ]
 
 
+def single_stock_one_answer_frame(snapshot: dict[str, object]) -> pd.DataFrame:
+    """Return one plain-language Single-Stock answer before command-heavy detail."""
+
+    ticker = _format_missing(snapshot.get("ticker"), "TICKER").upper()
+    dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
+    price_ready = bool(snapshot.get("price_ready"))
+    peer_ready = bool(snapshot.get("peer_ready"))
+    earnings_ready = bool(snapshot.get("earnings_ready"))
+    estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
+    monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    route_decision = single_stock_report_data_health_route(
+        asset_type=asset_type,
+        valuation_status=dcf_status,
+        price_ready=price_ready,
+        dcf_ready=dcf_status == "ready",
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
+
+    if not snapshot or snapshot.get("status") == "missing":
+        use_now = "No local readiness row is available for this ticker yet."
+        blocked = "All ticker-level interpretation stays blocked until local readiness outputs include the ticker."
+        context = "No context is usable until the ticker appears in readiness outputs."
+        next_action = "Refresh universe and readiness outputs before opening ticker-level interpretation."
+    elif not price_ready:
+        use_now = "Only ticker identity and local row status can be checked."
+        blocked = "Setup, trend, valuation, peer, optional context, and metrics stay blocked until trusted price history exists."
+        context = "No analysis context should be read before price proof."
+        next_action = "Open Data Health price lane before returning to this review."
+    elif monitor_context:
+        use_now = "Monitor context can be reviewed from local price, liquidity, and risk outputs."
+        blocked = "Operating-company DCF and peer valuation are excluded for this asset type."
+        context = "Use as market, theme, liquidity, or risk context only."
+        next_action = "Use Data Health only if source freshness or proof history needs review."
+    elif dcf_status == "blocked":
+        use_now = "Price/setup context can be reviewed, but valuation and fundamentals trend panels stay locked."
+        blocked = _compact_reason(snapshot.get("dcf_reason"), max_sentences=1, max_chars=150)
+        context = "Peer and optional context stay unavailable until core DCF proof is ready."
+        next_action = "Open Data Health fundamentals lane before treating valuation as available."
+    elif dcf_status == "ready" and not peer_ready:
+        use_now = "Standalone DCF assumptions and source readiness can be reviewed from trusted local inputs."
+        blocked = "Peer-relative valuation remains locked until source-backed peer mappings and peer inputs are ready."
+        context = "Earnings and analyst estimates remain optional until trusted rows exist."
+        next_action = "Open Data Health peer lane before treating peer-relative context as available."
+    elif not earnings_ready or not estimates_ready:
+        use_now = "Core company review is available from trusted price, fundamentals, DCF, and peer inputs."
+        blocked = "Earnings and analyst-estimate context stays optional and locked until trusted local rows exist."
+        context = "Optional context is context only, never a recommendation."
+        next_action = "Use optional-context worklists only if trusted local source rows exist."
+    else:
+        use_now = "Supported single-stock review is available from current trusted local inputs."
+        blocked = "No core lock is detected, but source readiness and methodology notes still need review."
+        context = "Recheck proof after any local import or refresh."
+        next_action = "Read supported sections, then use Proof History only for evidence review."
+
+    return pd.DataFrame(
+        [
+            {
+                "Ticker": ticker,
+                "Use Now": use_now,
+                "Still Blocked": blocked,
+                "Context Only": context,
+                "Next Safe Action": next_action,
+                "Review Boundary": route_decision["stop_rule"],
+            }
+        ],
+        columns=[
+            "Ticker",
+            "Use Now",
+            "Still Blocked",
+            "Context Only",
+            "Next Safe Action",
+            "Review Boundary",
+        ],
+    )
+
+
 def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     """Return a compact route-focused handoff from one ticker back to Data Health."""
 

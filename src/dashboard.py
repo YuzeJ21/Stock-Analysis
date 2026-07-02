@@ -261,6 +261,7 @@ from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 from src.single_stock_workflow import (
     single_stock_data_health_handoff_cards,
+    single_stock_one_answer_frame,
     single_stock_report_data_health_route,
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
@@ -26868,6 +26869,28 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "What Can Be Read Now",
         "Start here: what is supported, what is withheld, and what to read next.",
     )
+    report_readiness = _stock_report_payload_readiness(report_payload)
+    report_valuation = report_payload.get("valuation_snapshot", {}) or {}
+    report_one_answer_snapshot = {
+        "ticker": report_payload.get("ticker"),
+        "status": "partial" if not report_readiness.get("peer_ready") else "ready",
+        "asset_type": stock_report_inferred_asset_type(report_payload),
+        "price_ready": bool(report_readiness.get("price_ready")),
+        "dcf_status": (
+            "excluded"
+            if stock_report_inferred_asset_type(report_payload) in {"etf", "index_proxy", "fund"}
+            else "ready"
+            if report_readiness.get("dcf_ready")
+            else "blocked"
+        ),
+        "dcf_reason": report_valuation.get("reason") or report_valuation.get("status"),
+        "peer_ready": bool(report_readiness.get("peer_ready")),
+        "earnings_ready": bool(report_readiness.get("earnings_available") or report_readiness.get("earnings_ready")),
+        "analyst_estimates_ready": bool(
+            report_readiness.get("analyst_estimates_available") or report_readiness.get("analyst_estimates_ready")
+        ),
+    }
+    st.table(clean_display_frame(single_stock_one_answer_frame(report_one_answer_snapshot)))
     st.table(clean_display_frame(stock_report_first_answer_frame(report_payload)))
     at_a_glance_cards = stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None)
     render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)

@@ -25031,6 +25031,46 @@ def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_r
     assert "sell" not in rendered
 
 
+def test_single_stock_one_answer_frame_hides_commands_and_routes_one_next_action():
+    snapshot = {
+        "ticker": "NVDA",
+        "status": "partial",
+        "asset_type": "company",
+        "decision_bucket": "Research Now",
+        "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "missing_data": "peers: needs source-backed mappings",
+    }
+
+    frame = dashboard.single_stock_one_answer_frame(snapshot)
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert list(frame.columns) == [
+        "Ticker",
+        "Use Now",
+        "Still Blocked",
+        "Context Only",
+        "Next Safe Action",
+        "Review Boundary",
+    ]
+    assert frame.iloc[0]["Ticker"] == "NVDA"
+    assert frame.iloc[0]["Use Now"] == "Standalone DCF assumptions and source readiness can be reviewed from trusted local inputs."
+    assert frame.iloc[0]["Still Blocked"] == "Peer-relative valuation remains locked until source-backed peer mappings and peer inputs are ready."
+    assert frame.iloc[0]["Context Only"] == "Earnings and analyst estimates remain optional until trusted rows exist."
+    assert frame.iloc[0]["Next Safe Action"] == "Open Data Health peer lane before treating peer-relative context as available."
+    assert "stop if peer mappings or peer valuation inputs lack source-backed rows" in rendered
+    assert "make " not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_single_stock_data_health_handoff_cards_connect_report_to_lane_route():
     snapshot = {
         "ticker": "MU",
@@ -27707,12 +27747,13 @@ def test_single_stock_public_page_uses_simplified_review_sections():
 
     review_status_index = source.index('"Review Status"', render_index)
     readable_now_index = source.index('"What Can Be Read Now"', review_status_index)
-    first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", readable_now_index)
+    one_answer_index = source.index("single_stock_one_answer_frame(report_one_answer_snapshot)", readable_now_index)
+    first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", one_answer_index)
     at_a_glance_index = source.index("stock_report_at_a_glance_cards(", first_answer_index)
     detail_index = source.index('"Detailed Review"', readable_now_index)
     tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]', detail_index)
 
-    assert review_status_index < readable_now_index < first_answer_index < at_a_glance_index < detail_index < tabs_index
+    assert review_status_index < readable_now_index < one_answer_index < first_answer_index < at_a_glance_index < detail_index < tabs_index
     assert '"At A Glance"' not in source[render_index:tabs_index]
     assert '"Reader Guide"' not in source[render_index:tabs_index]
     assert '"Review Summary"' not in source[render_index:tabs_index]
