@@ -51,7 +51,7 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     assert "## Pilot Share Status" in readme
     assert "Share as portfolio/demo evidence only; do not describe the repository as open source until a root `LICENSE` exists." in readme
     assert "Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence." in readme
-    assert "`make project-status` -> `make provider-setup-checklist` -> one reviewed one-ticker smoke command" in readme
+    assert "`make project-status` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command" in readme
     assert "No broad coverage batch should run from setup alone." in readme
     assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
 

@@ -419,7 +419,7 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
             "coverage_unlock_decision": {
                 "answer": "No broad coverage batch should run from setup alone.",
                 "can_use_now": "Use free/public sources for already executable proof paths; current gate says coverage_workflow_evidence.",
-                "configure_first": "Configure FMP free tier first only if you want a keyed fallback, then run one reviewed one-ticker smoke command.",
+                "configure_first": "Configure FMP free tier first only if you want a keyed fallback, then run a reviewed one-ticker smoke command.",
                 "do_not_retry": "Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
                 "proof_boundary": "Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence.",
             },

@@ -1188,7 +1188,7 @@ def pilot_operator_runbook_frame(
         },
         {
             "Step": "4. Reviewed one-ticker smoke command",
-            "Operator Answer": "Configure at most one provider, rerun preflight, then run one reviewed one-ticker smoke command before any broader batch.",
+            "Operator Answer": "Configure at most one provider, rerun preflight, then run a reviewed one-ticker smoke command before any broader batch.",
             "Next Safe Action": "make session-source-preflight",
             "Evidence": "Reviewed smoke command comes from provider setup; broad batches wait until the one-ticker path is source-backed.",
             "Stop Rule": "Do not configure every provider at once or start broad refreshes from setup.",

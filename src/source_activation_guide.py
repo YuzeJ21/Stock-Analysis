@@ -344,7 +344,7 @@ def _coverage_unlock_decision(rows: list[dict[str, Any]], current_gate: dict[str
     return {
         "answer": "No broad coverage batch should run from setup alone.",
         "can_use_now": f"Use free/public sources for already executable proof paths; current gate says {can_run_now}.",
-        "configure_first": f"Configure {provider} first only if you want a keyed fallback, then run one reviewed one-ticker smoke command.",
+        "configure_first": f"Configure {provider} first only if you want a keyed fallback, then run a reviewed one-ticker smoke command.",
         "do_not_retry": do_not_retry,
         "proof_boundary": (
             "Provider setup only makes a source executable; readiness changes still require validate, preview, "
@@ -548,7 +548,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                     f"- why: {first.get('why_first', '-')}",
                     f"- setup_env: {first.get('setup_env', '-')}",
                     f"- reviewed_smoke_command: {first.get('smoke_command', '-')}",
-                    "- Do not configure all missing providers at once; configure one, rerun preflight, run one reviewed one-ticker smoke command, then validate/preview before any apply.",
+                    "- Do not configure all missing providers at once; configure one, rerun preflight, run a reviewed one-ticker smoke command, then validate/preview before any apply.",
                 ]
             )
     lines.extend(
