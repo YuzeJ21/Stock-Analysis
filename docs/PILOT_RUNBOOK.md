@@ -72,7 +72,7 @@ make public-wording-check
 Entry criteria:
 
 - Git branch is synced or intentionally ahead with reviewed commits.
-- `make diff-hygiene` shows no unreviewed product files or generated churn.
+- `make diff-hygiene` shows no unreviewed product files, and any generated CSV/report churn is classified and excluded unless an exact artifact was intentionally reviewed.
 - `make pilot-readiness-check TOP_N=10` says `pilot-ready with manual gates` or better.
 - Browser QA evidence is ready.
 - Public wording check passes.
