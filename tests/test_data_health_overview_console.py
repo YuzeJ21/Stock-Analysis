@@ -521,7 +521,8 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     assert "ibkr read-only: optional_disabled" in rendered
     assert "real key values are never printed" in rendered
     assert "dry-run the matching source ladder" in rendered
-    assert "smoke test: make fmp-stage tickers=<ticker>" in rendered
+    assert "reviewed smoke command: make fmp-stage tickers=<ticker>" in rendered
+    assert "smoke test:" not in rendered
     assert "imports-preview import_tickers=<ticker>" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

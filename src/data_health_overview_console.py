@@ -657,7 +657,7 @@ def source_activation_setup_cards(guide: dict[str, object] | None) -> list[dict[
     return [
         {
             "kicker": "ACTIVATION PLAN",
-            "title": "Start with status, then one provider smoke test",
+            "title": "Start with status, then one reviewed smoke command",
             "body": activation_plan_text,
             "badges": ["no broad loops", "one source first"],
             "command": "make project-status",
@@ -748,7 +748,7 @@ def _checklist_next_steps_by_state(rows: list[dict[str, object]], states: set[st
         smoke_command = _format_missing(row.get("post_setup_smoke_command"), "")
         if next_step:
             if smoke_command:
-                fragments.append(f"{provider}: {next_step} Reviewed smoke test: {smoke_command}")
+                fragments.append(f"{provider}: {next_step} Reviewed smoke command: {smoke_command}")
             else:
                 fragments.append(f"{provider}: {next_step}")
     return " | ".join(fragments)
@@ -767,7 +767,7 @@ def _checklist_one_provider_setup_step(payload: dict[str, object]) -> str:
     smoke_command = _format_missing(first.get("smoke_command"), "make session-source-preflight")
     return (
         f"Configure first: {provider}. {reason} Setup env: {setup_env}. "
-        f"Reviewed smoke test: {smoke_command}. Do not configure all missing providers at once."
+        f"Reviewed smoke command: {smoke_command}. Do not configure all missing providers at once."
     )
 
 
@@ -923,7 +923,7 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
                 f"What free source can run now: {_format_missing(first_answer.get('free_source_now'), '-')}. "
                 f"What key is missing: {_format_missing(first_answer.get('missing_key'), '-')}. "
                 f"What should not be retried: {_format_missing(first_answer.get('do_not_retry'), '-')}. "
-                f"Setup prerequisite: {_format_missing(first_answer.get('setup_prerequisite'), 'Run preflight before provider smoke tests')}. "
+                f"Setup prerequisite: {_format_missing(first_answer.get('setup_prerequisite'), 'Run preflight before provider reviewed smoke commands')}. "
                 "Review boundary: reviewed one-provider smoke checks stay in source setup details; "
                 "do not treat source reachability as a coverage unlock. "
                 f"{_format_missing(first_answer.get('boundary'), 'Provider setup does not change readiness by itself.')}"
