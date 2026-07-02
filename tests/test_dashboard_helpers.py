@@ -19490,13 +19490,20 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     visitor_cards_index = source.index("render_action_cards(data_health_public_visitor_path_cards(readiness_summary))", visitor_paths_index)
     quick_read_index = source.index('render_section_header("Data Health Quick Read"', visitor_cards_index)
     scope_index = source.index('render_section_header("Universe Scope Legend"', quick_read_index)
+    scope_risk_index = source.index('render_section_header(\n                "Scope Before Risk Context"', scope_index)
+    scope_risk_cards_index = source.index(
+        "render_signal_cards(universe_scope_risk_handoff_cards(readiness_summary, ticker_readiness_frame), show_commands=False)",
+        scope_risk_index,
+    )
     public_return_index = source.index("return", source.index("Operator details are hidden."))
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
 
-    assert public_index < visitor_paths_index < visitor_cards_index < quick_read_index < scope_index < public_return_index < ops_index
+    assert public_index < visitor_paths_index < visitor_cards_index < quick_read_index < scope_index < scope_risk_index < scope_risk_cards_index < public_return_index < ops_index
     assert "render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=False)" in source
+    assert "render_signal_cards(universe_scope_risk_handoff_cards(readiness_summary, ticker_readiness_frame), show_commands=False)" in source
     assert "Choose the clean public path before opening proof or operator details." in source
     assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
+    assert "Choose a scoped review set before treating liquidity, correlation, or proxy-risk rows as usable context." in source
 
 
 def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summary():

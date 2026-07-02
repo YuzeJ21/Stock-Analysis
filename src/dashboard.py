@@ -27658,6 +27658,11 @@ def render_data_health(
             render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
             render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
             render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=False)
+            render_section_header(
+                "Scope Before Risk Context",
+                "Choose a scoped review set before treating liquidity, correlation, or proxy-risk rows as usable context.",
+            )
+            render_signal_cards(universe_scope_risk_handoff_cards(readiness_summary, ticker_readiness_frame), show_commands=False)
             generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
             if generated_stale_warning:
                 render_notice_card(
