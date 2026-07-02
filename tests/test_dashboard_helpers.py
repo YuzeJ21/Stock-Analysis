@@ -15604,6 +15604,10 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
 
     assert "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next." in source
     assert "if public_mode:\n        render_section_header(" in source
+    public_header_index = source.index("if public_mode:", source.index("def render_data_health("))
+    fast_start_index = source.index('"Data Health First Answer"', public_header_index)
+    validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", fast_start_index)
+    assert public_header_index < fast_start_index < validation_load_index
     assert "if public_mode and project_status_payload is None:" in source
     refresh_note_index = source.index('st.expander("Refresh status note"')
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
@@ -15676,6 +15680,19 @@ def test_data_health_page_does_not_block_initial_render_on_project_status_build(
     assert "Data Health is using saved local results first so the page stays responsive" not in source
     assert "rendering from existing local CSV outputs" not in source
     assert "separate project-status summary files" not in source
+
+
+def test_proof_history_public_page_paints_first_answer_before_ledger_reads():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_proof_history(")
+
+    header_index = source.index("render_section_header(", render_index)
+    first_answer_index = source.index('"Proof History First Answer"', header_index)
+    first_cards_index = source.index("render_signal_cards(", first_answer_index)
+    proof_timeline_index = source.index("proof_timeline = data_health_reviewed_proof_timeline_frame()", first_cards_index)
+    batch_frame_index = source.index("batch_proof_frame = data_health_reviewed_batch_proof_frame()", proof_timeline_index)
+
+    assert render_index < header_index < first_answer_index < first_cards_index < proof_timeline_index < batch_frame_index
 
 
 def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
@@ -26930,22 +26947,24 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     render_index = source.index("def render_single_stock_report(")
 
     section_index = source.index('"One-Stock Review"', render_index)
-    selected_readiness_index = source.index('"Review Status"', section_index)
+    first_screen_cards_index = source.index(
+        "render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)",
+        section_index,
+    )
+    provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", first_screen_cards_index)
+    selected_readiness_index = source.index('"Review Status"', provider_ticker_load_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", selected_readiness_index)
     coverage_expander_index = source.index('st.expander("Ticker Readiness Evidence"', contract_cards_index)
-    intro_cards_index = source.index(
-        "render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)",
-        coverage_expander_index,
-    )
-    report_button_index = source.index('st.button("Open Review"', intro_cards_index)
+    report_button_index = source.index('st.button("Open Review"', coverage_expander_index)
 
     assert (
             render_index
             < section_index
+        < first_screen_cards_index
+        < provider_ticker_load_index
         < selected_readiness_index
         < contract_cards_index
         < coverage_expander_index
-        < intro_cards_index
         < report_button_index
     )
 

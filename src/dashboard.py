@@ -11561,6 +11561,27 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         PROOF_HISTORY_PATH_TITLE,
         "Review source-proof trail and durable batch proof before trusting changed readiness states.",
     )
+    if public_mode:
+        render_section_header(
+            "Proof History First Answer",
+            "Evidence-only trail first; reviewed proof ledgers load below and do not refresh or unlock data.",
+        )
+        render_signal_cards(
+            [
+                {
+                    "kicker": "EVIDENCE ONLY",
+                    "title": "Use this after Data Health",
+                    "body": (
+                        "Proof History shows reviewed outcomes for source-proof work. It does not run refreshes, "
+                        "apply imports, or turn blocked inputs into usable analysis."
+                    ),
+                    "badges": ["review trail", "no data writes"],
+                    "command": "",
+                }
+            ],
+            show_commands=False,
+            variant="queue",
+        )
     proof_timeline = data_health_reviewed_proof_timeline_frame()
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
     st.markdown(
@@ -26534,6 +26555,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "One-Stock Review",
         "Choose a ticker to see what can be reviewed now, what stays locked, and which proof path comes next.",
     )
+    render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
     query_open_review = single_stock_query_open(st.query_params.get("open"))
@@ -26600,7 +26622,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             readiness_cols[3].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[4].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
-    render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)
     render_context_note(
         "What happens next.",
         "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
@@ -27566,6 +27587,26 @@ def render_data_health(
         render_section_header(
             "Data Health",
             "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next.",
+        )
+        render_section_header(
+            "Data Health First Answer",
+            "Read the lane answer first; saved readiness details load below without refreshing, importing, or applying data.",
+        )
+        render_signal_cards(
+            [
+                {
+                    "kicker": "START HERE",
+                    "title": "One answer per lane",
+                    "body": (
+                        "Data Health separates ready, partial, blocked, excluded, and optional context states. "
+                        "Use it only when Home, Stock Selector, or a single-stock report shows a missing proof path."
+                    ),
+                    "badges": ["readiness first", "no data writes"],
+                    "command": "",
+                }
+            ],
+            show_commands=False,
+            variant="queue",
         )
     if provider is None:
         st.warning("Local provider could not be initialized.")
