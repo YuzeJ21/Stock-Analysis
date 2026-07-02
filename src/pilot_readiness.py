@@ -1073,6 +1073,13 @@ def render_pilot_share_brief(
         "",
         *_share_brief_provider_setup_lines(),
         "",
+        "## How to demo or review next",
+        "",
+        "- Choose a focused review set first: `make universe-scope TOP_N=10`.",
+        "- Review liquidity/correlation context only after scope selection: `make risk-context`.",
+        "- Run the explicit public gate before sharing: `make public-check`.",
+        "- Screenshots and scope/risk context do not update saved data or unlock blocked inputs.",
+        "",
         "## What must stay out of the share package",
         "",
     ]
