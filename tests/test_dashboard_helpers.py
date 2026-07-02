@@ -14534,6 +14534,21 @@ def test_proof_history_operator_console_keeps_outcomes_evidence_only():
     assert "trading" not in html
 
 
+def test_data_health_proof_history_lane_answers_before_detail_toggle():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    optional_drawer_index = source.index('st.expander("Optional context evidence drawer", expanded=False)')
+    proof_lane_index = source.index('elif selected_lane == "Proof History":', optional_drawer_index)
+    answer_header_index = source.index('render_section_header("Proof History Answer"', proof_lane_index)
+    answer_cards_index = source.index("proof_history_public_detail_cards(", answer_header_index)
+    answer_commands_index = source.index("show_commands=False", answer_cards_index)
+    detail_selector_index = source.index('label="Proof detail level"', answer_commands_index)
+    proof_status_index = source.index("proof_detail_status = data_health_proof_detail_load_status(", detail_selector_index)
+    batch_drawer_index = source.index('st.expander("Reviewed batch proof drawer", expanded=False)', proof_status_index)
+
+    assert proof_lane_index < answer_header_index < answer_cards_index < answer_commands_index < detail_selector_index < proof_status_index < batch_drawer_index
+
+
 def test_proof_history_operator_console_hides_snapshot_commands_when_blocked():
     comparison = dashboard.ReadinessComparison(
         status="blocked",

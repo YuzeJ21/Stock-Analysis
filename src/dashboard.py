@@ -28503,6 +28503,12 @@ def render_data_health(
             render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
             render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     elif selected_lane == "Proof History":
+        render_section_header("Proof History Answer", "Latest proof outcome, changed readiness evidence, remaining blocker, and evidence location before detail controls.")
+        render_signal_cards(
+            proof_history_public_detail_cards(data_health_reviewed_proof_timeline_frame(), batch_proof_summary_frame),
+            show_commands=False,
+            variant="queue",
+        )
         render_data_health_detail_selector(
             label="Proof detail level",
             key="data-health-proof-detail-level",
