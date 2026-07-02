@@ -96,6 +96,10 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         "do_not_retry": "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
         "setup_prerequisite": "FMP free tier is configured; choose one reviewed ticker before running the smoke command.",
         "ticker_scope_rule": "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the smoke command across a broad list.",
+        "reviewed_one_ticker_smoke": (
+            "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+            "&& make imports-preview IMPORT_TICKERS=<ticker>"
+        ),
         "one_safe_smoke": (
             "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
             "&& make imports-preview IMPORT_TICKERS=<ticker>"
@@ -160,7 +164,8 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- missing_key: Alpha Vantage free tier, Finnhub free tier" in rendered
     assert "- setup_prerequisite: FMP free tier is configured; choose one reviewed ticker before running the smoke command." in rendered
     assert "- ticker_scope_rule: Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the smoke command across a broad list." in rendered
-    assert "- one_safe_smoke: make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
+    assert "- reviewed_one_ticker_smoke: make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
+    assert "one_safe_smoke" not in rendered
     assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
     assert rendered.index("First provider answer:") < rendered.index("Local setup commands:")
     assert "What can run now?" in rendered

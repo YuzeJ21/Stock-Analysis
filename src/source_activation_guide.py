@@ -394,6 +394,7 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
             "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; "
             "do not run the smoke command across a broad list."
         ),
+        "reviewed_one_ticker_smoke": smoke_command,
         "one_safe_smoke": smoke_command,
         "boundary": "Provider setup only makes a source executable; readiness changes still require validate/preview/apply gates.",
     }
@@ -454,7 +455,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 f"- do_not_retry: {first_answer.get('do_not_retry', '-')}",
                 f"- setup_prerequisite: {first_answer.get('setup_prerequisite', '-')}",
                 f"- ticker_scope_rule: {first_answer.get('ticker_scope_rule', '-')}",
-                f"- one_safe_smoke: {first_answer.get('one_safe_smoke', '-')}",
+                f"- reviewed_one_ticker_smoke: {first_answer.get('reviewed_one_ticker_smoke', first_answer.get('one_safe_smoke', '-'))}",
                 f"- boundary: {first_answer.get('boundary', '-')}",
                 "",
             ]
