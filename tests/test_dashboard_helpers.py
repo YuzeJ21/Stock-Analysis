@@ -25551,6 +25551,34 @@ def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_nex
     assert "order routing" not in rendered
 
 
+def test_data_health_operator_hero_is_context_not_duplicate_next_action():
+    html = dashboard.data_health_operator_hero_html(
+        [
+            {
+                "title": "2,691 DCF-ready",
+                "body": "Readiness artifacts are current.",
+            },
+            {
+                "title": "Source gate before proof loops",
+                "body": "Use provider setup before repeating exhausted proof queues.",
+                "badges": ["provider setup", "copy-only"],
+            },
+            {
+                "title": "Fast view",
+                "body": "Proof rows and raw tables stay available in evidence drawers.",
+            },
+        ]
+    ).lower()
+
+    assert "data health command center" in html
+    assert "readiness context" in html
+    assert "source gate before proof loops" in html
+    assert "next data-readiness action" not in html
+    assert "next safe action" not in html
+    assert "buy" not in html
+    assert "sell" not in html
+
+
 def test_data_health_operator_snapshot_routes_reviewed_frontier_to_source_gate():
     cards = dashboard.data_health_operator_snapshot_cards(
         {

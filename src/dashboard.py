@@ -5079,7 +5079,7 @@ def data_health_operator_hero_html(snapshot_cards: list[dict[str, object]]) -> s
         f"<div class='ops-copy secondary'>{html.escape(mode_body)}</div>"
         "</div>"
         "<div class='ops-next'>"
-        "<div class='ops-eyebrow'>Next Data-Readiness Action</div>"
+        "<div class='ops-eyebrow'>Readiness Context</div>"
         f"<div class='ops-next-title'>{html.escape(next_title)}</div>"
         f"<div class='ops-next-body'>{html.escape(next_body)}</div>"
         f"<div class='ops-next-badges'>{badge_html}</div>"
