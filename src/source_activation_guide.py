@@ -380,11 +380,17 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
     ]
     source_answer = checklist.get("source_answer", {})
     if isinstance(source_answer, dict) and source_answer:
+        configured_keyed = source_answer.get("configured_keyed", "-")
+        needs_key = source_answer.get("needs_key", "-")
         lines.extend(
             [
+                f"- Free public sources: {source_answer.get('free_public_now', '-')}",
+                f"- Keyed free-tier fallbacks: configured {configured_keyed}; needs key {needs_key}",
+                f"- Optional broker boundary: {source_answer.get('optional_broker', '-')}",
+                "- Apply gate: validate, preview, rejected-row review, source provenance, and explicit apply/skip decision are still required.",
                 f"- free_public_now: {source_answer.get('free_public_now', '-')}",
-                f"- configured_keyed: {source_answer.get('configured_keyed', '-')}",
-                f"- needs_key: {source_answer.get('needs_key', '-')}",
+                f"- configured_keyed: {configured_keyed}",
+                f"- needs_key: {needs_key}",
                 f"- optional_broker: {source_answer.get('optional_broker', '-')}",
                 f"- answer: {source_answer.get('answer', '-')}",
                 "",

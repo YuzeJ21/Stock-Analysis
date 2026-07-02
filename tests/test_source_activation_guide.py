@@ -142,6 +142,10 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "secret-fmp-key" not in rendered
     assert "Local setup commands:" in rendered
     assert "What can run now?" in rendered
+    assert "Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in rendered
+    assert "Keyed free-tier fallbacks: configured FMP free tier; needs key Alpha Vantage free tier, Finnhub free tier" in rendered
+    assert "Optional broker boundary: IBKR read-only" in rendered
+    assert "Apply gate: validate, preview, rejected-row review, source provenance, and explicit apply/skip decision are still required." in rendered
     assert "free_public_now: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in rendered
     assert "configured_keyed: FMP free tier" in rendered
     assert "needs_key: Alpha Vantage free tier, Finnhub free tier" in rendered
