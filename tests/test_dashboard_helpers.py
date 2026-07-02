@@ -250,6 +250,7 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     assert [card["kicker"] for card in cards] == [
         "COVERAGE UNLOCK DECISION",
         "PROVIDER SETUP CHECKLIST",
+        "WORKFLOW PIVOT",
         "SAFE SETUP PATH",
         "FREE PUBLIC BASELINE",
         "KEYED FALLBACKS",
@@ -258,11 +259,16 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     ]
     assert cards[0]["command"] == "make project-status"
     assert cards[1]["command"] == "make provider-setup-checklist"
-    assert cards[2]["command"] == "make project-status"
+    assert cards[2]["command"] == "make project-status && make provider-setup-checklist"
+    assert cards[3]["command"] == "make project-status"
     assert "no broad coverage batch should run from setup alone" in rendered
     assert "provider setup only makes a source executable" in rendered
     assert "do not retry fundamentals_share_count_source_ladder" in rendered
     assert "project-status -> provider setup -> one-provider smoke -> validate/preview" in rendered
+    assert "when proof queues are exhausted, pivot to source setup and scoped review" in rendered
+    assert "make universe-scope top_n=10" in rendered
+    assert "make risk-context" in rendered
+    assert "do not reopen trusted-data candidates until project-status shows executable company candidates" in rendered
     assert "do not reopen broad proof loops from setup" in rendered
     assert "free/public baseline works before keys" in rendered
     assert "stooq: available" in rendered

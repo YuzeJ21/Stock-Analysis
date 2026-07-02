@@ -737,6 +737,17 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
             "command": "make provider-setup-checklist",
         },
         {
+            "kicker": "WORKFLOW PIVOT",
+            "title": "Use scoped review when proof queues are exhausted",
+            "body": (
+                "When proof queues are exhausted, pivot to source setup and scoped review: run project-status, "
+                "provider setup, make universe-scope TOP_N=10, then make risk-context. "
+                "Do not reopen trusted-data candidates until project-status shows executable company candidates."
+            ),
+            "badges": ["no stale loops", "scope first"],
+            "command": "make project-status && make provider-setup-checklist",
+        },
+        {
             "kicker": "SAFE SETUP PATH",
             "title": "Project status before any provider work",
             "body": (
