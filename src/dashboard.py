@@ -29044,25 +29044,26 @@ def render_data_health(
                 show_commands=False,
                 variant="queue",
             )
-            render_section_header("Metric Detail Status", "Row-level metric readiness is progressive so the first viewport stays fast.")
-            render_signal_cards(data_health_metric_detail_load_cards(metric_detail_status), show_commands=True)
-            render_section_header("Metric Blocker Family Summary", "Compact SPY / QQQ blocker-family triage before row-level proof.")
-            st.dataframe(
-                clean_display_frame(data_health_metric_readiness_family_summary_frame(metric_queue_frame)),
-                width="stretch",
-                hide_index=True,
-            )
-            render_section_header("Metric Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
-            render_signal_cards(
-                data_health_metric_readiness_family_summary_cards(metric_queue_frame)
-                + data_health_metric_readiness_queue_cards(metric_queue_frame),
-                show_commands=False,
-            )
-            render_section_header("SPY / QQQ Metric-Readiness Queue", "Combined benchmark queue for blocker-family triage.")
-            st.dataframe(clean_display_frame(metric_queue_frame), width="stretch", hide_index=True)
-            render_section_header("Review Metric Readiness Gates", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
-            render_signal_cards(data_health_review_metric_readiness_cards(), show_commands=False)
-            st.dataframe(clean_display_frame(data_health_review_metric_readiness_frame()), width="stretch", hide_index=True)
+            with st.expander("Metrics detailed readiness workflow", expanded=False):
+                render_section_header("Metric Detail Status", "Row-level metric readiness is progressive so the first viewport stays fast.")
+                render_signal_cards(data_health_metric_detail_load_cards(metric_detail_status), show_commands=True)
+                render_section_header("Metric Blocker Family Summary", "Compact SPY / QQQ blocker-family triage before row-level proof.")
+                st.dataframe(
+                    clean_display_frame(data_health_metric_readiness_family_summary_frame(metric_queue_frame)),
+                    width="stretch",
+                    hide_index=True,
+                )
+                render_section_header("Metric Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+                render_signal_cards(
+                    data_health_metric_readiness_family_summary_cards(metric_queue_frame)
+                    + data_health_metric_readiness_queue_cards(metric_queue_frame),
+                    show_commands=False,
+                )
+                render_section_header("SPY / QQQ Metric-Readiness Queue", "Combined benchmark queue for blocker-family triage.")
+                st.dataframe(clean_display_frame(metric_queue_frame), width="stretch", hide_index=True)
+                render_section_header("Review Metric Readiness Gates", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
+                render_signal_cards(data_health_review_metric_readiness_cards(), show_commands=False)
+                st.dataframe(clean_display_frame(data_health_review_metric_readiness_frame()), width="stretch", hide_index=True)
     elif selected_lane == "Optional Context":
         optional_cards = data_health_operations_cockpit_cards(
             readiness_summary,

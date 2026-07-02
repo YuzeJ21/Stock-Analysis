@@ -26682,6 +26682,21 @@ def test_metrics_evidence_drawer_starts_with_one_clear_answer():
     )
 
 
+def test_metrics_evidence_drawer_nests_detailed_readiness_workflow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    metric_queue_expander_index = source.index('st.expander("Metrics evidence drawer", expanded=False)')
+    metrics_answer_index = source.index('"Metrics Evidence Answer"', metric_queue_expander_index)
+    detailed_workflow_index = source.index('st.expander("Metrics detailed readiness workflow", expanded=False)', metrics_answer_index)
+    metric_detail_status_index = source.index('render_section_header("Metric Detail Status"', detailed_workflow_index)
+    metric_queue_index = source.index('render_section_header("SPY / QQQ Metric-Readiness Queue"', metric_detail_status_index)
+    metric_review_gates_index = source.index('render_section_header("Review Metric Readiness Gates"', metric_queue_index)
+    optional_lane_index = source.index('elif selected_lane == "Optional Context":', metric_review_gates_index)
+
+    assert metric_queue_expander_index < metrics_answer_index < detailed_workflow_index
+    assert detailed_workflow_index < metric_detail_status_index < metric_queue_index < metric_review_gates_index < optional_lane_index
+
+
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():
     frame = pd.DataFrame(
         {
