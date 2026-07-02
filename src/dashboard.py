@@ -28125,6 +28125,15 @@ def render_data_health(
     if queue_details_loaded:
         with st.expander("Queue proof review details", expanded=False):
             render_section_header(
+                "Queue Review Answer",
+                "One queue answer before source-review commands, raw queue tables, or lane drilldowns.",
+            )
+            render_signal_cards(
+                data_health_readiness_queue_route_overview_cards(queue_drilldown),
+                show_commands=False,
+                variant="queue",
+            )
+            render_section_header(
                 "Data Coverage Proof Queues",
                 "DCF input, shares-outstanding, trusted fundamentals, peer mapping, and peer valuation proof queues before raw CSV work.",
             )
@@ -28133,89 +28142,85 @@ def render_data_health(
                 show_commands=False,
                 variant="queue",
             )
-            render_section_header(
-                "Trusted Fundamentals Source Review",
-                "Top DCF/fundamentals blocker family, source command plan, guard state, validate/preview gate, and proof-record boundary.",
-            )
-            render_signal_cards(
-                data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review),
-                show_commands=True,
-                variant="queue",
-            )
-            render_signal_cards(
-                data_health_trusted_fundamentals_source_review_command_cards(trusted_fundamentals_source_review),
-                show_commands=True,
-                variant="queue",
-            )
-            render_collapsed_detail_frame(
-                "Trusted fundamentals source-review command table",
-                data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review),
-                table=True,
-            )
-            render_signal_cards(
-                data_health_trusted_fundamentals_evidence_writer_cards(trusted_fundamentals_source_review),
-                show_commands=True,
-                variant="queue",
-            )
-            render_collapsed_detail_frame(
-                "Trusted fundamentals evidence-writer table",
-                data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review),
-                table=True,
-            )
-            render_signal_cards(
-                data_health_trusted_fundamentals_apply_decision_gate_cards(trusted_fundamentals_source_review),
-                show_commands=True,
-                variant="queue",
-            )
-            render_collapsed_detail_frame(
-                "Trusted fundamentals apply-decision gate table",
-                data_health_trusted_fundamentals_apply_decision_gate_frame(trusted_fundamentals_source_review),
-                table=True,
-            )
-            render_collapsed_detail_frame(
-                "Trusted fundamentals raw source-review row",
-                trusted_fundamentals_source_review,
-                table=True,
-            )
-            render_section_header(
-                "Data Coverage Proof Queue Detail",
-                "Raw data-coverage proof queue rows stay inside the queue proof review drawer.",
-            )
-            st.dataframe(clean_display_frame(data_coverage_proof_queues), width="stretch", hide_index=True)
-            render_section_header(
-                "Queue Outcome Ledger Summary",
-                "Reviewed queue outcomes and proof history summary for this review path.",
-            )
-            st.dataframe(clean_display_frame(queue_outcome_summary), width="stretch", hide_index=True)
-            render_section_header(
-                "Readiness Queue Evidence",
-                "Lane counts, missing input families, source mode, proof gate, and copy-only next command.",
-            )
-            st.dataframe(clean_display_frame(readiness_queue), width="stretch", hide_index=True)
-            render_signal_cards(
-                data_health_readiness_queue_route_overview_cards(queue_drilldown),
-                show_commands=False,
-                variant="queue",
-            )
-            render_section_header(
-                "Lane Drilldowns",
-                "Each lane keeps examples, proof packet command, stale/source warning, and proof-record status together.",
-            )
-            for _, drilldown_row in queue_drilldown.iterrows():
-                with st.expander(str(drilldown_row.get("Lane", "Readiness lane")), expanded=False):
-                    render_signal_cards(data_health_readiness_queue_drilldown_cards(drilldown_row), show_commands=True)
-                    render_signal_cards(
-                        data_health_readiness_queue_route_strip_cards(drilldown_row),
-                        show_commands=False,
-                        variant="queue",
-                    )
-                    render_signal_cards(data_health_readiness_queue_route_cards(drilldown_row), show_commands=False)
-                    render_signal_cards(data_health_readiness_queue_lane_action_cards(drilldown_row), show_commands=True)
-                    render_collapsed_detail_frame(
-                        "Lane route action table",
-                        data_health_readiness_queue_lane_action_frame(drilldown_row),
-                    )
-                    render_collapsed_detail_frame("Raw lane evidence row", pd.DataFrame([drilldown_row.to_dict()]), table=True)
+            with st.expander("Queue proof evidence drawer", expanded=False):
+                render_section_header(
+                    "Trusted Fundamentals Source Review",
+                    "Top DCF/fundamentals blocker family, source command plan, guard state, validate/preview gate, and proof-record boundary.",
+                )
+                render_signal_cards(
+                    data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review),
+                    show_commands=True,
+                    variant="queue",
+                )
+                render_signal_cards(
+                    data_health_trusted_fundamentals_source_review_command_cards(trusted_fundamentals_source_review),
+                    show_commands=True,
+                    variant="queue",
+                )
+                render_collapsed_detail_frame(
+                    "Trusted fundamentals source-review command table",
+                    data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review),
+                    table=True,
+                )
+                render_signal_cards(
+                    data_health_trusted_fundamentals_evidence_writer_cards(trusted_fundamentals_source_review),
+                    show_commands=True,
+                    variant="queue",
+                )
+                render_collapsed_detail_frame(
+                    "Trusted fundamentals evidence-writer table",
+                    data_health_trusted_fundamentals_evidence_writer_frame(trusted_fundamentals_source_review),
+                    table=True,
+                )
+                render_signal_cards(
+                    data_health_trusted_fundamentals_apply_decision_gate_cards(trusted_fundamentals_source_review),
+                    show_commands=True,
+                    variant="queue",
+                )
+                render_collapsed_detail_frame(
+                    "Trusted fundamentals apply-decision gate table",
+                    data_health_trusted_fundamentals_apply_decision_gate_frame(trusted_fundamentals_source_review),
+                    table=True,
+                )
+                render_collapsed_detail_frame(
+                    "Trusted fundamentals raw source-review row",
+                    trusted_fundamentals_source_review,
+                    table=True,
+                )
+                render_section_header(
+                    "Data Coverage Proof Queue Detail",
+                    "Raw data-coverage proof queue rows stay inside the queue proof review drawer.",
+                )
+                st.dataframe(clean_display_frame(data_coverage_proof_queues), width="stretch", hide_index=True)
+                render_section_header(
+                    "Queue Outcome Ledger Summary",
+                    "Reviewed queue outcomes and proof history summary for this review path.",
+                )
+                st.dataframe(clean_display_frame(queue_outcome_summary), width="stretch", hide_index=True)
+                render_section_header(
+                    "Readiness Queue Evidence",
+                    "Lane counts, missing input families, source mode, proof gate, and copy-only next command.",
+                )
+                st.dataframe(clean_display_frame(readiness_queue), width="stretch", hide_index=True)
+                render_section_header(
+                    "Lane Drilldowns",
+                    "Each lane keeps examples, proof packet command, stale/source warning, and proof-record status together.",
+                )
+                for _, drilldown_row in queue_drilldown.iterrows():
+                    with st.expander(str(drilldown_row.get("Lane", "Readiness lane")), expanded=False):
+                        render_signal_cards(data_health_readiness_queue_drilldown_cards(drilldown_row), show_commands=True)
+                        render_signal_cards(
+                            data_health_readiness_queue_route_strip_cards(drilldown_row),
+                            show_commands=False,
+                            variant="queue",
+                        )
+                        render_signal_cards(data_health_readiness_queue_route_cards(drilldown_row), show_commands=False)
+                        render_signal_cards(data_health_readiness_queue_lane_action_cards(drilldown_row), show_commands=True)
+                        render_collapsed_detail_frame(
+                            "Lane route action table",
+                            data_health_readiness_queue_lane_action_frame(drilldown_row),
+                        )
+                        render_collapsed_detail_frame("Raw lane evidence row", pd.DataFrame([drilldown_row.to_dict()]), table=True)
 
     coverage_loop = (
         build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)
