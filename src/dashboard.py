@@ -28045,7 +28045,7 @@ def render_data_health(
         )
     render_section_header(
         "Source Setup First Answer",
-        "What can run now, what setup could change the gate, what should not be retried, and the one safe smoke before provider details.",
+        "What can run now, what setup could change the gate, what should not be retried, and the review boundary before provider details.",
     )
     st.table(clean_display_frame(data_health_provider_setup_first_answer_frame(BASE_DIR)))
     with st.expander("Optional source setup details", expanded=False):

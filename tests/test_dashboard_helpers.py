@@ -26051,6 +26051,8 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     assert 'st.expander("Source setup and refresh details", expanded=False)' not in source
     assert 'st.expander("Secondary operator next-action detail", expanded=False)' not in source
     assert "One plain-language answer for the selected lane before provider setup, pilot gates, or raw proof tables." in source
+    assert "what setup could change the gate, what should not be retried, and the review boundary before provider details" in source
+    assert "what setup could change the gate, what should not be retried, and the one safe smoke before provider details" not in source
     assert "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts." in source
 
 
