@@ -200,9 +200,9 @@ def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible(
     assert cards[1]["command"] == "make readiness-ops-center"
     assert cards[3]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     assert "one answer per lane:" in rendered
-    assert "price coverage -> use now 264 ready row(s); partial 1" in rendered
-    assert "fundamentals / dcf proof -> use now 23 ready row(s); partial 217; blocked 25" in rendered
-    assert "earnings locked lane -> blocked 265; context only locked/manual" in rendered
+    assert "price coverage -> use ready price rows now; review 1 partial row only if freshness depth matters" in rendered
+    assert "fundamentals / dcf proof -> use 23 ready row(s); review 217 partial row(s); keep 25 blocked row(s) locked" in rendered
+    assert "earnings locked lane -> do not use as analysis input yet; locked optional context needs trusted rows" in rendered
     assert "use now: price coverage has 264 ready row(s)" in rendered
     assert "partly usable: price coverage has 1 partial row(s); fundamentals / dcf proof has 217 partial row(s)" in rendered
     assert "blocked: fundamentals / dcf proof has 25 blocked row(s); earnings locked lane has 265 blocked row(s)" in rendered
@@ -258,6 +258,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
 
     assert list(frame.columns) == [
         "Lane",
+        "Primary Answer",
         "Use Now",
         "Partial",
         "Blocked",
@@ -269,6 +270,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
     assert frame.to_dict("records") == [
         {
             "Lane": "Price Coverage",
+            "Primary Answer": "Use ready price rows now; review 1 partial row only if freshness depth matters.",
             "Use Now": "3,537 ready row(s)",
             "Partial": "1 partial row(s)",
             "Blocked": "-",
@@ -279,6 +281,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
         },
         {
             "Lane": "Peer Mapping Proof",
+            "Primary Answer": "Use 29 ready row(s); keep 3,507 blocked row(s) locked until source proof exists.",
             "Use Now": "29 ready row(s)",
             "Partial": "-",
             "Blocked": "3,507 blocked row(s)",
@@ -289,6 +292,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
         },
         {
             "Lane": "Earnings Locked Lane",
+            "Primary Answer": "Do not use as analysis input yet; locked optional context needs trusted rows.",
             "Use Now": "-",
             "Partial": "-",
             "Blocked": "3,538 blocked row(s)",
@@ -333,8 +337,8 @@ def test_overview_lane_answer_card_keeps_raw_commands_out_of_lane_answers():
     lane_answer_text = body.split("next safe action:", maxsplit=1)[0]
 
     assert "one answer per lane:" in body
-    assert "price coverage -> use now 3,537 ready row(s); partial 1" in body
-    assert "fundamentals / dcf proof -> use now 2,691 ready row(s); partial 243; blocked 90; excluded/not applicable 514" in body
+    assert "price coverage -> use ready price rows now; review 1 partial row only if freshness depth matters" in body
+    assert "fundamentals / dcf proof -> use 2,691 ready row(s); review 243 partial row(s); keep 90 blocked row(s) locked" in body
     assert "make " not in lane_answer_text
     assert "make " not in body
     assert body.count("next safe action:") == 1

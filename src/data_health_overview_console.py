@@ -78,29 +78,54 @@ def _series_int(row: pd.Series, *names: str) -> int:
 def _lane_one_answer(row: pd.Series) -> str:
     lane = _format_missing(_series_value(row, "Lane", "lane"), "Lane")
     mode = _format_missing(_series_value(row, "Workflow Mode", "workflow_mode"), "").lower()
+    state = _format_missing(_series_value(row, "State", "state"), "").lower()
     ready = _series_int(row, "Ready", "ready")
     partial = _series_int(row, "Partial", "partial")
     blocked = _series_int(row, "Blocked", "blocked")
     excluded = _series_int(row, "Excluded", "excluded")
+    answer = _lane_primary_answer(lane, mode, state, ready, partial, blocked, excluded).rstrip(" .;:")
+    return f"{lane} -> {answer}"
 
-    fragments: list[str] = []
-    if ready:
-        fragments.append(f"use now {ready:,} ready row(s)")
-    if partial:
-        fragments.append(f"partial {partial:,}")
-    if blocked:
-        fragments.append(f"blocked {blocked:,}")
-    if excluded:
-        fragments.append(f"excluded/not applicable {excluded:,}")
-    if "locked" in mode or "manual" in mode:
-        fragments.append("context only locked/manual")
-    if not fragments:
-        fragments.append("no usable lane state reported")
-    return f"{lane} -> {'; '.join(fragments)}"
+
+def _lane_primary_answer(
+    lane: str,
+    mode: str,
+    state: str,
+    ready: int,
+    partial: int,
+    blocked: int,
+    excluded: int,
+) -> str:
+    lane_text = lane.lower()
+    if "optional" in mode or "locked" in mode or "manual" in mode:
+        return "Do not use as analysis input yet; locked optional context needs trusted rows."
+    if "price" in lane_text and ready > 0 and partial > 0 and blocked == 0:
+        return f"Use ready price rows now; review {_qualified_row_count(partial, 'partial')} only if freshness depth matters."
+    if ready > 0 and partial > 0 and blocked > 0:
+        return f"Use {_qualified_row_count(ready, 'ready')}; review {_qualified_row_count(partial, 'partial')}; keep {_qualified_row_count(blocked, 'blocked')} locked."
+    if ready > 0 and blocked > 0:
+        return f"Use {_qualified_row_count(ready, 'ready')}; keep {_qualified_row_count(blocked, 'blocked')} locked until source proof exists."
+    if ready > 0 and excluded > 0 and blocked == 0 and partial == 0:
+        return f"Use {_qualified_row_count(ready, 'ready')}; keep {_qualified_row_count(excluded, 'excluded/not-applicable')} out."
+    if ready > 0:
+        return f"Use {_qualified_row_count(ready, 'ready')}."
+    if blocked > 0:
+        return f"Do not use yet; {_row_count_phrase(blocked)} need source proof."
+    if state == "excluded" or excluded > 0:
+        return "Use applicable rows only; excluded rows are not failed analysis inputs."
+    return "No usable lane state reported yet."
 
 
 def _count_label(count: int, label: str) -> str:
     return f"{count:,} {label}" if count > 0 else "-"
+
+
+def _row_count_phrase(count: int) -> str:
+    return f"{count:,} row" if count == 1 else f"{count:,} row(s)"
+
+
+def _qualified_row_count(count: int, qualifier: str) -> str:
+    return f"{count:,} {qualifier} row" if count == 1 else f"{count:,} {qualifier} row(s)"
 
 
 def _lane_review_boundary(
@@ -153,6 +178,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
     """Return the default Data Health lane answer as one scan-friendly row per lane."""
     columns = [
         "Lane",
+        "Primary Answer",
         "Use Now",
         "Partial",
         "Blocked",
@@ -166,6 +192,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
             [
                 {
                     "Lane": "Data Health",
+                    "Primary Answer": "No lane summary is loaded yet.",
                     "Use Now": "-",
                     "Partial": "-",
                     "Blocked": "lane summary not loaded",
@@ -195,6 +222,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
         rows.append(
             {
                 "Lane": lane,
+                "Primary Answer": _lane_primary_answer(lane, mode, state, ready, partial, blocked, excluded),
                 "Use Now": _count_label(ready, "ready row(s)"),
                 "Partial": _count_label(partial, "partial row(s)"),
                 "Blocked": _count_label(blocked, "blocked row(s)"),
