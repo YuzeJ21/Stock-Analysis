@@ -150,6 +150,11 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
             "purpose": "Review liquidity, correlation, and proxy-risk readiness after scope is chosen.",
             "boundary": "Historical context only; not a recommendation or source-proof unlock.",
         },
+        {
+            "command": "make universe-preview-summary",
+            "purpose": "Preview capped S&P 500 / SMH universe metadata and source warnings before any row-scope stage or apply step.",
+            "boundary": "Universe membership is metadata only; it does not unlock fundamentals, share count, DCF, peers, earnings, estimates, or recommendations.",
+        },
     ]
     assert rows["SEC submissions"]["cannot_unlock"] == (
         "DCF, valuation, earnings, analyst estimates, or share count unless a filing document has an explicit fact."
@@ -189,6 +194,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "make provider-setup-checklist | Review missing keyed providers and reviewed one-ticker smoke commands when proof queues are exhausted." in rendered
     assert "make universe-scope TOP_N=10 | Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before deeper review." in rendered
     assert "make risk-context | Review liquidity, correlation, and proxy-risk readiness after scope is chosen." in rendered
+    assert "make universe-preview-summary | Preview capped S&P 500 / SMH universe metadata and source warnings before any row-scope stage or apply step." in rendered
     assert rendered.index("make project-status | Confirm whether") < rendered.index(
         "make provider-setup-checklist | Review missing keyed providers"
     )
@@ -197,6 +203,9 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     )
     assert rendered.index("make universe-scope TOP_N=10 | Choose active-universe") < rendered.index(
         "make risk-context | Review liquidity"
+    )
+    assert rendered.index("make risk-context | Review liquidity") < rendered.index(
+        "make universe-preview-summary | Preview capped S&P 500 / SMH universe metadata"
     )
     assert "FMP free tier | configured | price, fundamentals, share_count" in rendered
     assert "Alpha Vantage free tier | needs_key" in rendered

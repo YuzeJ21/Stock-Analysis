@@ -64,6 +64,11 @@ WORKFLOW_PIVOT = [
         "purpose": "Review liquidity, correlation, and proxy-risk readiness after scope is chosen.",
         "boundary": "Historical context only; not a recommendation or source-proof unlock.",
     },
+    {
+        "command": "make universe-preview-summary",
+        "purpose": "Preview capped S&P 500 / SMH universe metadata and source warnings before any row-scope stage or apply step.",
+        "boundary": "Universe membership is metadata only; it does not unlock fundamentals, share count, DCF, peers, earnings, estimates, or recommendations.",
+    },
 ]
 
 
