@@ -507,18 +507,19 @@ def test_data_health_workflow_continuity_connects_evidence_queue_proof_and_artif
     assert list(frame["Step"]) == [
         "1. Evidence review",
         "2. Final share gate",
-        "3. Next safe action",
+        "3. Readiness context",
         "4. Queue route map",
         "5. Proof lane",
         "6. Artifact hygiene",
         "7. Reviewer packet",
     ]
+    assert frame.iloc[2]["Primary View"] == "Readiness Context"
     assert frame.iloc[3]["Primary View"] == "Readiness queue review details"
     assert frame.iloc[3]["Next Safe Action"] == "make dcf-input-source-command-plan FAMILY=fundamentals_bundle_plus_shares TOP_N=10"
     assert frame.iloc[4]["Route"] == "?mode=operator&page=data-health&lane=proof"
     assert frame.iloc[5]["Next Safe Action"] == "make diff-hygiene-summary"
     assert "one operator path, then drawers" in rendered
-    assert "evidence review -> final share gate -> next action -> queue route map -> proof lane" in rendered
+    assert "evidence review -> final share gate -> readiness context -> queue route map -> proof lane" in rendered
     assert "commands remain copy-only" in rendered
     assert "do not stage broad generated csv/json/report churn" in rendered
     assert "buy" not in rendered

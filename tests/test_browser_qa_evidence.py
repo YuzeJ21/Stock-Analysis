@@ -410,7 +410,7 @@ def test_browser_qa_route_rows_keep_workflow_markers_and_stop_rules_visible():
         BrowserQaRouteCheck(
             name="Data Health operator fast view",
             route="http://localhost:8501/?mode=operator&page=data-health",
-            first_view_markers=("research-loop-strip", "ops-mode-strip", "Next Data-Readiness Action"),
+            first_view_markers=("research-loop-strip", "ops-mode-strip", "Readiness Context"),
             details_boundary="Raw tables stay collapsed.",
             qa_focus="Operator sees next safe action before raw CSVs.",
             stop_rule="Stop if broad proof queues load before explicit detail review.",
@@ -421,7 +421,8 @@ def test_browser_qa_route_rows_keep_workflow_markers_and_stop_rules_visible():
     rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
 
     assert rows[0]["Route Check"] == "Data Health operator fast view"
-    assert "next data-readiness action" in rendered
+    assert "readiness context" in rendered
+    assert "next data-readiness action" not in rendered
     assert "raw tables stay collapsed" in rendered
     assert "stop if broad proof queues load" in rendered
     assert "investment advice" not in rendered
@@ -489,7 +490,8 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "first 30 seconds" in output
     assert "before you open the review" in output
     assert "report handoff" in output
-    assert "next data-readiness action" in output
+    assert "readiness context" in output
+    assert "next data-readiness action" not in output
     assert "does not unlock fundamentals" in output
     assert "investment advice" in output
     assert "trade instructions" in output

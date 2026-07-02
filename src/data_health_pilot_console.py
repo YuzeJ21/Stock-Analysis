@@ -979,9 +979,9 @@ def data_health_workflow_continuity_frame(
             "Stop Rule": "Stop before sharing if public-check or browser evidence fails.",
         },
         {
-            "Step": "3. Next safe action",
+            "Step": "3. Readiness context",
             "Purpose": f"Clear the current leading gate: {gate_title}.",
-            "Primary View": "Next Data-Readiness Action",
+            "Primary View": "Readiness Context",
             "Next Safe Action": gate_command,
             "Route": "?mode=operator&page=data-health",
             "Stop Rule": "Do not jump to raw tables before the current gate is understood.",
@@ -1039,7 +1039,7 @@ def data_health_workflow_continuity_cards(frame: pd.DataFrame | None, *, limit: 
             "kicker": "DATA HEALTH FLOW",
             "title": "One operator path, then drawers",
             "body": (
-                "Follow evidence review -> final share gate -> next action -> queue route map -> proof lane -> "
+                "Follow evidence review -> final share gate -> readiness context -> queue route map -> proof lane -> "
                 "artifact hygiene before opening raw tables. Commands remain copy-only."
             ),
             "badges": ["one flow", "drawers later"],
