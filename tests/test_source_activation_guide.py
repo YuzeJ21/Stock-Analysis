@@ -89,6 +89,17 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
             "explicitly configured for read-only daily OHLCV."
         ),
     }
+    assert checklist["first_answer"] == {
+        "question": "What source can I use next?",
+        "free_source_now": "SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance",
+        "missing_key": "Alpha Vantage free tier, Finnhub free tier",
+        "do_not_retry": "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
+        "one_safe_smoke": (
+            "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+            "&& make imports-preview IMPORT_TICKERS=<ticker>"
+        ),
+        "boundary": "Provider setup only makes a source executable; readiness changes still require validate/preview/apply gates.",
+    }
     assert rows["FMP free tier"]["setup_state"] == "configured"
     assert rows["Alpha Vantage free tier"]["setup_state"] == "needs_key"
     assert rows["Finnhub free tier"]["setup_state"] == "needs_key"
@@ -141,6 +152,13 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "secret-fmp-key" not in json.dumps(checklist)
     assert "secret-fmp-key" not in rendered
     assert "Local setup commands:" in rendered
+    assert "First provider answer:" in rendered
+    assert "- question: What source can I use next?" in rendered
+    assert "- free_source_now: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in rendered
+    assert "- missing_key: Alpha Vantage free tier, Finnhub free tier" in rendered
+    assert "- one_safe_smoke: make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
+    assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
+    assert rendered.index("First provider answer:") < rendered.index("Local setup commands:")
     assert "What can run now?" in rendered
     assert "Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in rendered
     assert "Keyed free-tier fallbacks: configured FMP free tier; needs key Alpha Vantage free tier, Finnhub free tier" in rendered
@@ -264,6 +282,10 @@ def test_provider_setup_checklist_starts_with_coverage_unlock_decision(monkeypat
     assert "- configure_first: Configure FMP free tier first only if you want a keyed fallback, then smoke one ticker." in rendered
     assert "- do_not_retry: Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist." in rendered
     assert "- proof_boundary: Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence." in rendered
+    assert checklist["first_answer"]["do_not_retry"] == (
+        "Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist."
+    )
+    assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
     assert rendered.index("Coverage unlock decision:") < rendered.index("Local setup commands:")
 
 

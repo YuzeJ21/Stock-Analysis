@@ -659,6 +659,31 @@ def _checklist_one_provider_setup_step(payload: dict[str, object]) -> str:
     )
 
 
+def _checklist_first_answer(payload: dict[str, object]) -> dict[str, object]:
+    first_answer = payload.get("first_answer")
+    if isinstance(first_answer, dict):
+        return first_answer
+    source_answer = payload.get("source_answer")
+    source_answer = source_answer if isinstance(source_answer, dict) else {}
+    unlock_decision = payload.get("coverage_unlock_decision")
+    unlock_decision = unlock_decision if isinstance(unlock_decision, dict) else {}
+    smoke_command = ""
+    rows = _checklist_rows(payload)
+    for row in rows:
+        if str(row.get("setup_state") or "").strip() == "configured":
+            smoke_command = str(row.get("post_setup_smoke_command") or "").strip()
+            if smoke_command:
+                break
+    return {
+        "question": "What source can I use next?",
+        "free_source_now": source_answer.get("free_public_now") or "see provider rows",
+        "missing_key": source_answer.get("needs_key") or "-",
+        "do_not_retry": unlock_decision.get("do_not_retry") or "Do not retry exhausted proof queues.",
+        "one_safe_smoke": smoke_command or "make session-source-preflight",
+        "boundary": "Provider setup only makes a source executable; readiness changes still require validate/preview/apply gates.",
+    }
+
+
 def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[dict[str, object]]:
     payload = checklist or {}
     rows = _checklist_rows(payload)
@@ -712,7 +737,22 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
         "Run make session-source-preflight, then dry-run the matching source ladder.",
     )
 
-    cards = []
+    first_answer = _checklist_first_answer(payload)
+    cards = [
+        {
+            "kicker": "PROVIDER FIRST ANSWER",
+            "title": _format_missing(first_answer.get("question"), "What source can I use next?"),
+            "body": (
+                f"What free source can run now: {_format_missing(first_answer.get('free_source_now'), '-')}. "
+                f"What key is missing: {_format_missing(first_answer.get('missing_key'), '-')}. "
+                f"What should not be retried: {_format_missing(first_answer.get('do_not_retry'), '-')}. "
+                f"One safe smoke test: {_format_missing(first_answer.get('one_safe_smoke'), 'make session-source-preflight')}. "
+                f"{_format_missing(first_answer.get('boundary'), 'Provider setup does not change readiness by itself.')}"
+            ),
+            "badges": ["answer first", "one source", "no retry loop"],
+            "command": "make provider-setup-checklist",
+        }
+    ]
     if unlock_decision:
         cards.append(
             {

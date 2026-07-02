@@ -387,6 +387,7 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
+        "PROVIDER FIRST ANSWER",
         "COVERAGE UNLOCK DECISION",
         "PROVIDER SETUP CHECKLIST",
         "WORKFLOW PIVOT",
@@ -396,10 +397,16 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
         "OPTIONAL BROKER",
         "NEXT SAFE STEP",
     ]
-    assert cards[0]["command"] == "make project-status"
-    assert cards[1]["command"] == "make provider-setup-checklist"
-    assert cards[2]["command"] == "make project-status && make provider-setup-checklist"
-    assert cards[3]["command"] == "make project-status"
+    assert cards[0]["title"] == "What source can I use next?"
+    assert cards[0]["command"] == "make provider-setup-checklist"
+    assert cards[1]["command"] == "make project-status"
+    assert cards[2]["command"] == "make provider-setup-checklist"
+    assert cards[3]["command"] == "make project-status && make provider-setup-checklist"
+    assert cards[4]["command"] == "make project-status"
+    assert "what free source can run now" in rendered
+    assert "what key is missing" in rendered
+    assert "what should not be retried" in rendered
+    assert "one safe smoke test" in rendered
     assert "no broad coverage batch should run from setup alone" in rendered
     assert "provider setup only makes a source executable" in rendered
     assert "do not retry fundamentals_share_count_source_ladder" in rendered

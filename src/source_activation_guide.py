@@ -334,6 +334,38 @@ def _coverage_unlock_decision(rows: list[dict[str, Any]], current_gate: dict[str
     }
 
 
+def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, str]) -> dict[str, str]:
+    source_answer = _provider_source_answer(rows)
+    unlock_decision = _coverage_unlock_decision(rows, current_gate)
+    smoke_row = next(
+        (
+            row
+            for row in rows
+            if str(row.get("setup_state") or "").strip() == "configured"
+            and str(row.get("post_setup_smoke_command") or "").strip()
+        ),
+        None,
+    )
+    if smoke_row is None:
+        setup_order = _one_provider_setup_order(rows)
+        smoke_command = str((setup_order[0] if setup_order else {}).get("smoke_command") or "").strip()
+    else:
+        smoke_command = str(smoke_row.get("post_setup_smoke_command") or "").strip()
+    if not smoke_command:
+        smoke_command = "make session-source-preflight"
+    return {
+        "question": "What source can I use next?",
+        "free_source_now": source_answer.get("free_public_now", "-"),
+        "missing_key": source_answer.get("needs_key", "-"),
+        "do_not_retry": unlock_decision.get(
+            "do_not_retry",
+            "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
+        ),
+        "one_safe_smoke": smoke_command,
+        "boundary": "Provider setup only makes a source executable; readiness changes still require validate/preview/apply gates.",
+    }
+
+
 def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = None) -> dict[str, Any]:
     guide = build_source_activation_guide()
     rows = []
@@ -361,6 +393,7 @@ def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = No
         "activation_plan": guide["activation_plan"],
         "rows": rows,
         "source_answer": _provider_source_answer(rows),
+        "first_answer": _first_provider_answer(rows, current_gate),
         "coverage_unlock_decision": _coverage_unlock_decision(rows, current_gate),
         "one_provider_setup_order": _one_provider_setup_order(rows),
         "workflow_pivot": WORKFLOW_PIVOT,
@@ -376,8 +409,24 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
         str(checklist["research_boundary"]),
         str(checklist["secret_policy"]),
         "",
-        "What can run now?",
+        "First provider answer:",
     ]
+    first_answer = checklist.get("first_answer", {})
+    if isinstance(first_answer, dict) and first_answer:
+        lines.extend(
+            [
+                f"- question: {first_answer.get('question', '-')}",
+                f"- free_source_now: {first_answer.get('free_source_now', '-')}",
+                f"- missing_key: {first_answer.get('missing_key', '-')}",
+                f"- do_not_retry: {first_answer.get('do_not_retry', '-')}",
+                f"- one_safe_smoke: {first_answer.get('one_safe_smoke', '-')}",
+                f"- boundary: {first_answer.get('boundary', '-')}",
+                "",
+            ]
+        )
+    lines.extend([
+        "What can run now?",
+    ])
     source_answer = checklist.get("source_answer", {})
     if isinstance(source_answer, dict) and source_answer:
         configured_keyed = source_answer.get("configured_keyed", "-")
