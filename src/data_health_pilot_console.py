@@ -302,6 +302,24 @@ def _leading_proof_queue(frame: pd.DataFrame | None) -> pd.Series | None:
     return frame.iloc[0]
 
 
+def _proof_queue_route_lane(proof_queue: pd.Series | None) -> str:
+    if proof_queue is None:
+        return "fundamentals"
+    text = " ".join(
+        _format_missing(proof_queue.get(column), "")
+        for column in ["Queue", "Next Safe Command", "Top Blockers"]
+    ).lower()
+    if "price" in text:
+        return "prices"
+    if "peer" in text:
+        return "peers"
+    if "earnings" in text or "estimate" in text or "optional" in text:
+        return "optional"
+    if "proof" in text and "history" in text:
+        return "proof"
+    return "fundamentals"
+
+
 def pilot_readiness_cards(frame: pd.DataFrame | None, *, limit: int = 4) -> list[dict[str, object]]:
     if frame is None or frame.empty:
         return [
@@ -940,6 +958,7 @@ def data_health_workflow_continuity_frame(
         fallback="Do not edit source rows until the proof queue and review gates are visible.",
         max_chars=170,
     )
+    proof_route_lane = _proof_queue_route_lane(proof_queue)
 
     rows = [
         {
@@ -971,7 +990,7 @@ def data_health_workflow_continuity_frame(
             "Purpose": f"Choose the leading source-proof lane: {proof_title}.",
             "Primary View": "Readiness queue review details",
             "Next Safe Action": proof_command,
-            "Route": "?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
+            "Route": f"?mode=operator&page=data-health&lane={proof_route_lane}&drawer=queue",
             "Stop Rule": proof_stop,
         },
         {

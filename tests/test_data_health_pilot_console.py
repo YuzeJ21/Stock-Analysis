@@ -520,6 +520,30 @@ def test_data_health_workflow_continuity_connects_evidence_queue_proof_and_artif
     assert "broker" not in rendered
 
 
+def test_data_health_workflow_continuity_routes_peer_queue_to_peer_drawer():
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "Queue": "Peer Valuation Input Proof Queue",
+                "State": "partial",
+                "Queued Rows": 19,
+                "Ready": 7,
+                "Partial": 0,
+                "Blocked": 19,
+                "Top Blockers": "peer fundamentals: 19",
+                "Next Safe Command": "make peer-mapping-queue TOP_N=25",
+                "Stop Rule": "Stop if mapped peers lack trusted valuation-input rows.",
+            }
+        ]
+    )
+
+    frame = pilot_console.data_health_workflow_continuity_frame(_pilot_frame(), peer_queue)
+
+    assert frame.iloc[3]["Step"] == "4. Queue route map"
+    assert frame.iloc[3]["Route"] == "?mode=operator&page=data-health&lane=peers&drawer=queue"
+    assert "peer" in frame.iloc[3]["Purpose"].lower()
+
+
 def test_pilot_operator_runbook_connects_share_provider_and_exhausted_queues():
     frame = pilot_console.pilot_operator_runbook_frame(
         _pilot_frame(),
