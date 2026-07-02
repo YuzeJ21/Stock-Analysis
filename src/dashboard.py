@@ -28727,7 +28727,10 @@ def render_data_health(
             render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")
             render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier), show_commands=False)
             st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
-            render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
+            render_section_header(
+                "Fix First",
+                "Diagnostic triage only; use this after the lane answer when a reviewer asks what evidence to inspect first.",
+            )
             render_action_cards(data_health_fix_first_cards(actions_frame))
             render_section_header(
                 "Guided Coverage Plans",
@@ -28812,7 +28815,10 @@ def render_data_health(
                 data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame),
                 show_commands=False,
             )
-            render_section_header("Next Data Proof Steps", "What to prove next for Monthly Picks, track record, DCF, and peer-relative research.")
+            render_section_header(
+                "Next Data Proof Steps",
+                "Diagnostic proof prompts only; they do not replace source gates, validation, preview, or Proof History evidence.",
+            )
             render_signal_cards(data_coverage_wizard_cards(wizard_frame))
             if wizard_frame is None:
                 wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)

@@ -2468,7 +2468,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     market_expander_index = source.index('st.expander("Detailed market-wide review"', market_details_gate_index)
     detailed_map_index = source.index('render_section_header(\n                "Detailed Proof Map"', market_expander_index)
     market_command_index = source.index("render_market_command_center(", market_expander_index)
-    next_proof_index = source.index('render_section_header("Next Data Proof Steps"', details_drawer_index)
+    next_proof_index = source.index('render_section_header(\n                "Next Data Proof Steps"', details_drawer_index)
     hidden_tables_note_index = source.index('render_context_note(\n            "Detailed tables are hidden."')
     tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])')
 
@@ -15495,7 +15495,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Start with the five public paths. Open the evidence drawer only when you want readiness proof" in source
     assert "Data Health Quick Read" in source
     assert "Which proof path should you inspect first, before opening detailed sections." in source
-    assert "The shortest safe local path before deeper proof lists." in source
+    assert "Diagnostic triage only; use this after the lane answer when a reviewer asks what evidence to inspect first." in source
     assert "before opening detailed tables" not in source
     assert "deeper Data Health details" not in source
     assert "missing_optional_labels = [public_dataset_name(name) for name in missing_optional]" in source
@@ -26874,8 +26874,10 @@ def test_data_health_additional_operator_evidence_hides_summary_commands_by_defa
     )
     assert "Secondary context only; not the primary workflow." in drawer_source
     assert "Use after Home, Stock Selector, Single-Stock Report, Data Health lane answer, and Proof History evidence." in drawer_source
+    assert "Diagnostic triage only; use this after the lane answer when a reviewer asks what evidence to inspect first." in drawer_source
     assert "Optional diagnostic context for holdings-first coverage planning; not the default next-action workflow." in drawer_source
     assert "Optional diagnostic runbook; use only after source gates or provider setup change the queue." in drawer_source
+    assert "Diagnostic proof prompts only; they do not replace source gates, validation, preview, or Proof History evidence." in drawer_source
 
 
 def test_data_health_public_ticker_query_adds_proof_focus_context():
