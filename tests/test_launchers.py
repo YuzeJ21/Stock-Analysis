@@ -776,13 +776,19 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "make trusted-data-pilot-candidates TOP_N=10" in public_demo
     public_demo_commands = public_demo.split("## Local Commands", 1)[1].split("The dashboard defaults", 1)[0]
     assert public_demo_commands.index("make project-status") < public_demo_commands.index(
-        "make trusted-data-pilot-candidates TOP_N=10"
+        "make provider-setup-checklist"
     )
     assert public_demo_commands.index("make provider-setup-checklist") < public_demo_commands.index(
+        "make data-coverage-proof-queues TOP_N=10"
+    )
+    assert public_demo_commands.index("make data-coverage-proof-queues TOP_N=10") < public_demo_commands.index(
         "make trusted-data-pilot-candidates TOP_N=10"
     )
     assert "only when project-status shows executable company candidates" in public_demo_commands
     assert "use when project-status says source-proof queues are exhausted" in public_demo_commands
+    assert "open source-proof queues only when project-status shows executable proof candidates" in public_demo
+    assert "make project-status && make data-coverage-proof-queues TOP_N=10" not in readme
+    assert "make project-status && make provider-setup-checklist" in readme
     assert "make trusted-data-pilot-packet TICKER=MU" in public_demo
     assert "make trusted-data-pilot-packet TICKER=CRDO" in public_demo
     assert "Local file presence, row counts, staged files, and rejected-row reports are inspection cues, not proof" in public_demo

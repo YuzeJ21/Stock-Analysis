@@ -18,7 +18,7 @@ Best visitor path:
 8. Run `make status-check TOP_N=5` only when you want terminal proof of current coverage and blockers.
 9. Open `outputs/stock_reports/mu.md` for standalone DCF with mapped-peer valuation inputs still locked.
 10. Open `outputs/stock_reports/qqq.md` for ETF/index monitor context where operating-company DCF is excluded.
-11. Run `make project-status`, then `make data-coverage-proof-queues TOP_N=10`, to show the current honest coverage-improvement path.
+11. Run `make project-status`, then `make provider-setup-checklist`, to show the current source gate before any coverage-improvement queue.
 12. Run `make trusted-data-pilot-candidates TOP_N=10` only when project status shows executable company candidates; if the shortlist starts with peer inputs, open `make trusted-data-pilot-packet TICKER=MU`; for fundamentals/DCF proof, open `make trusted-data-pilot-packet TICKER=CRDO`.
 
 ## Demo Examples
@@ -40,8 +40,8 @@ make stock-report-md TICKER=NVDA
 make stock-report-md TICKER=MU
 make stock-report-md TICKER=QQQ
 make project-status
-make data-coverage-proof-queues TOP_N=10
 make provider-setup-checklist  # use when project-status says source-proof queues are exhausted
+make data-coverage-proof-queues TOP_N=10  # open source-proof queues only when project-status shows executable proof candidates
 make trusted-data-pilot-candidates TOP_N=10  # only when project-status shows executable company candidates
 make trusted-data-pilot-packet TICKER=MU
 make trusted-data-pilot-packet TICKER=CRDO

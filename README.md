@@ -118,10 +118,10 @@ make stock-report-md TICKER=CRDO  # fundamentals/DCF proof example
 Optional local proof checks:
 
 ```bash
-make project-status && make data-coverage-proof-queues TOP_N=10
+make project-status && make provider-setup-checklist
+make data-coverage-proof-queues TOP_N=10  # only when project-status shows executable proof candidates
 make universe-scope TICKERS=NVDA,META TOP_N=10
 make risk-context
-make provider-setup-checklist  # use when queues are exhausted; run the listed provider smoke command before any broad batch
 make trusted-data-pilot-candidates TOP_N=10  # only when status shows executable company candidates
 make metric-readiness TOP_N=5 BENCHMARK=SPY
 make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKER=CRDO
