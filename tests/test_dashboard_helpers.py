@@ -26697,6 +26697,21 @@ def test_metrics_evidence_drawer_nests_detailed_readiness_workflow():
     assert detailed_workflow_index < metric_detail_status_index < metric_queue_index < metric_review_gates_index < optional_lane_index
 
 
+def test_optional_context_evidence_drawer_nests_detailed_workflow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    optional_drawer_index = source.index('st.expander("Optional context evidence drawer", expanded=False)')
+    optional_answer_index = source.index('"Optional Context Answer"', optional_drawer_index)
+    detailed_workflow_index = source.index('st.expander("Optional context detailed workflow", expanded=False)', optional_answer_index)
+    queue_snapshot_index = source.index('render_section_header("Optional Context Queue Snapshot"', detailed_workflow_index)
+    freshness_routine_index = source.index('render_section_header("Freshness Routine"', queue_snapshot_index)
+    copy_only_steps_index = source.index('render_section_header("Copy-Only Next Steps"', freshness_routine_index)
+    proof_history_index = source.index('elif selected_lane == "Proof History":', copy_only_steps_index)
+
+    assert optional_drawer_index < optional_answer_index < detailed_workflow_index
+    assert detailed_workflow_index < queue_snapshot_index < freshness_routine_index < copy_only_steps_index < proof_history_index
+
+
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():
     frame = pd.DataFrame(
         {

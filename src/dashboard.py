@@ -29084,15 +29084,16 @@ def render_data_health(
                 show_commands=False,
                 variant="queue",
             )
-            render_section_header("Optional Context Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
-            render_signal_cards(
-                optional_cards + data_health_advanced_unlock_map_cards(None, None, optional_context_worklist_frame),
-                show_commands=False,
-            )
-            render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
-            render_signal_cards(data_health_freshness_routine_cards(readiness_summary), show_commands=False)
-            render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
-            render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame), show_commands=False)
+            with st.expander("Optional context detailed workflow", expanded=False):
+                render_section_header("Optional Context Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+                render_signal_cards(
+                    optional_cards + data_health_advanced_unlock_map_cards(None, None, optional_context_worklist_frame),
+                    show_commands=False,
+                )
+                render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
+                render_signal_cards(data_health_freshness_routine_cards(readiness_summary), show_commands=False)
+                render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
+                render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame), show_commands=False)
     elif selected_lane == "Proof History":
         render_section_header("Proof History Answer", "Latest proof outcome, changed readiness evidence, remaining blocker, and evidence location before detail controls.")
         render_signal_cards(
