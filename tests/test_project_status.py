@@ -1034,6 +1034,8 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
     project_status._print_human(payload)
     output = capsys.readouterr().out.lower()
 
+    assert "required data sources needing attention: 0" in output
+    assert "optional provider setup gaps: 3 (fmp, alpha_vantage, finnhub)" in output
     assert "best next proof: make provider-setup-checklist" in output
     assert "best next proof: make trusted-data-pilot-candidates" not in output
     assert "choose safe universe scope: make universe-scope top_n=10" in output

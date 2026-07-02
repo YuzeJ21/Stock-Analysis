@@ -1506,6 +1506,14 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"{summary_label}:")
     print(f"- Data sources: {summary['data_sources_available']}/{summary['data_sources_total']} available")
     print(f"- Required data sources needing attention: {summary['data_sources_needing_attention']}")
+    source_operator_summary = payload.get("source_operator_summary", {})
+    source_needs_setup = (
+        [str(item).strip() for item in source_operator_summary.get("needs_setup", []) if str(item).strip()]
+        if isinstance(source_operator_summary, dict)
+        else []
+    )
+    if source_needs_setup:
+        print(f"- Optional provider setup gaps: {len(source_needs_setup)} ({', '.join(source_needs_setup)})")
     print(f"- Optional/manual lanes locked: {summary.get('data_sources_optional_locked', 0)}")
     print(f"- Locked input rows: {summary['data_gaps']}")
     print(f"- Tickers with prices: {summary['tickers_with_prices']}/{summary['tickers_total']}")
@@ -1559,9 +1567,8 @@ def _print_human(payload: dict[str, Any]) -> None:
             f"- Best next proof: {TRUSTED_DATA_PILOT_CANDIDATES_COMMAND} for company-depth work, "
             "or make price-refresh-loop DRY_RUN=1 for price coverage planning."
         )
-    source_operator_summary = payload.get("source_operator_summary", {})
     if isinstance(source_operator_summary, dict) and source_operator_summary:
-        needs_setup = [str(item).strip() for item in source_operator_summary.get("needs_setup", []) if str(item).strip()]
+        needs_setup = source_needs_setup
         avoid_repeating = [
             str(item).strip()
             for item in source_operator_summary.get("avoid_repeating", [])
