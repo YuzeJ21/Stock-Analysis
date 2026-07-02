@@ -1691,7 +1691,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "`next-step context` instead of internal-tool operational wording",
         "prints a company starter set and separates `QQQ` / `SMH` as ETF/index monitor examples",
         "standalone DCF peer wording no longer repeats `DCF assumptions and sensitivity`",
-        "Product Tour routes `Inspect proof` to the Data Health proof drawers",
+        "Product Tour routes `Inspect proof` to the Proof History route",
         "Inspect proof: readiness snapshots and proof ledger",
         "generated Monthly Picks CSV remains local working output",
         "2026-06-11 Visitor Guide Browser Pass",

@@ -239,7 +239,7 @@ Boundary checked:
 
 Checked pages and assets:
 
-- README: confirmed the Product Tour routes `Inspect proof` to the Data Health proof drawers.
+- README: confirmed the Product Tour routes `Inspect proof` to the Proof History route.
 - Dashboard preview asset: confirmed the visual route copy now says `Inspect proof: readiness snapshots and proof ledger`.
 - Public checks: confirmed `make public-check` passes after the route and preview alignment.
 
