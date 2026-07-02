@@ -329,6 +329,11 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "Portfolio showcase only | Keep no license for now" in report
     assert "Let others reuse with attribution | Add MIT or Apache-2.0" in report
     assert "Provider setup gate:" in report
+    assert "Coverage unlock decision:" in report
+    assert "No broad coverage batch should run from setup alone" in report
+    assert "Provider setup only makes a source executable" in report
+    assert "readiness changes still require validate, preview, rejected-row review" in report
+    assert "Do not retry exhausted proof queues" in report
     assert "make provider-setup-checklist" in report
     assert "Configure first: FMP free tier" in report
     assert "FMP_API_KEY" in report

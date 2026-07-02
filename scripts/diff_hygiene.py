@@ -208,11 +208,23 @@ def format_license_gate(repo_root: Path | None = None) -> list[str]:
 def format_provider_setup_gate() -> list[str]:
     checklist = build_provider_setup_checklist()
     source_answer = checklist.get("source_answer", {})
+    unlock_decision = checklist.get("coverage_unlock_decision", {})
     setup_order = checklist.get("one_provider_setup_order", [])
     lines = [
         "Provider setup gate:",
         "  Run make provider-setup-checklist before reopening broad source-proof queues.",
     ]
+    if isinstance(unlock_decision, dict) and unlock_decision:
+        lines.extend(
+            [
+                "  Coverage unlock decision:",
+                f"    {unlock_decision.get('answer', '-')}",
+                f"    {unlock_decision.get('can_use_now', '-')}",
+                f"    {unlock_decision.get('configure_first', '-')}",
+                f"    {unlock_decision.get('do_not_retry', '-')}",
+                f"    {unlock_decision.get('proof_boundary', '-')}",
+            ]
+        )
     if isinstance(source_answer, dict) and source_answer:
         lines.extend(
             [
