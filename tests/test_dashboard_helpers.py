@@ -352,17 +352,18 @@ def test_data_health_provider_setup_first_answer_frame_summarizes_current_source
     frame = dashboard.data_health_provider_setup_first_answer_frame(root=tmp_path)
     rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
 
+    assert list(frame.columns) == ["Question", "Answer", "Review Boundary"]
     assert frame["Question"].tolist() == [
         "What can run now?",
         "What setup changes the gate?",
         "What should not be retried?",
-        "What is the one safe smoke?",
         "What boundary stays true?",
     ]
     assert "coverage_workflow_evidence" in rendered
     assert "alpha_vantage, finnhub" in rendered
     assert "fundamentals_share_count_source_ladder" in rendered
-    assert "make fmp-stage tickers=<ticker>" in rendered
+    assert "make " not in rendered
+    assert "one-ticker smoke stays in source setup details" in rendered
     assert "provider setup is not an import, apply, or readiness unlock" in rendered
     assert "secret-fmp-key" not in rendered
 

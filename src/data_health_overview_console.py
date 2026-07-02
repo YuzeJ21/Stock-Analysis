@@ -808,7 +808,6 @@ def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd
         _format_missing(first_answer.get("do_not_retry"), "Do not retry exhausted proof queues."),
     )
     next_step_reason = _checklist_current_gate_value(payload, "next_step_reason", "")
-    one_safe_smoke = _format_missing(first_answer.get("one_safe_smoke"), "make session-source-preflight")
     boundary = _format_missing(
         first_answer.get("boundary"),
         "Provider setup is not an import, apply, or readiness unlock.",
@@ -821,30 +820,25 @@ def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd
             {
                 "Question": "What can run now?",
                 "Answer": current_can_run,
-                "Next Safe Action": _checklist_current_gate_value(payload, "next_step", "make project-status"),
+                "Review Boundary": "Use this as source-boundary evidence only; it does not change readiness by itself.",
             },
             {
                 "Question": "What setup changes the gate?",
                 "Answer": needs_setup,
-                "Next Safe Action": "make provider-setup-checklist",
+                "Review Boundary": "Configure one missing source only after project status shows a real source gap.",
             },
             {
                 "Question": "What should not be retried?",
                 "Answer": f"{avoid_repeating}. {next_step_reason}".strip(),
-                "Next Safe Action": "make project-status",
-            },
-            {
-                "Question": "What is the one safe smoke?",
-                "Answer": one_safe_smoke,
-                "Next Safe Action": "make session-source-preflight",
+                "Review Boundary": "One-ticker smoke stays in source setup details; do not reopen broad proof loops from this row.",
             },
             {
                 "Question": "What boundary stays true?",
                 "Answer": boundary,
-                "Next Safe Action": "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>",
+                "Review Boundary": "Validation and preview still happen after a reviewed source row exists.",
             },
         ],
-        columns=["Question", "Answer", "Next Safe Action"],
+        columns=["Question", "Answer", "Review Boundary"],
     )
 
 
