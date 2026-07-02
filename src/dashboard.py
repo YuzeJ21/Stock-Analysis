@@ -29567,31 +29567,32 @@ def render_data_health(
                 if not field_guide.empty:
                     with st.expander("DCF missing-field details", expanded=False):
                         st.dataframe(clean_display_frame(field_guide), width="stretch", hide_index=True)
-                if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
-                    dcf_columns = [
-                        column
-                        for column in [
-                            "ticker",
-                            "asset_type",
-                            "is_dcf_ready",
-                            "missing_dcf_fields",
-                            "reason_not_ready",
-                            "has_free_cash_flow",
-                            "has_shares_outstanding",
-                            "has_revenue",
-                            "has_fcf_margin",
-                            "has_price",
+                with st.expander("Legacy DCF readiness rows", expanded=False):
+                    if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
+                        dcf_columns = [
+                            column
+                            for column in [
+                                "ticker",
+                                "asset_type",
+                                "is_dcf_ready",
+                                "missing_dcf_fields",
+                                "reason_not_ready",
+                                "has_free_cash_flow",
+                                "has_shares_outstanding",
+                                "has_revenue",
+                                "has_fcf_margin",
+                                "has_price",
+                            ]
+                            if column in dcf_readiness_frame.columns
                         ]
-                        if column in dcf_readiness_frame.columns
-                    ]
-                    st.dataframe(clean_display_frame(dcf_readiness_frame[dcf_columns]), width="stretch", hide_index=True)
-                else:
-                    render_notice_card(
-                        "DCF readiness not ready yet",
-                        dcf_readiness_message or dcf_readiness_proof_caption(),
-                        "make dcf-readiness",
-                        tone="warning",
-                    )
+                        st.dataframe(clean_display_frame(dcf_readiness_frame[dcf_columns]), width="stretch", hide_index=True)
+                    else:
+                        render_notice_card(
+                            "DCF readiness not ready yet",
+                            dcf_readiness_message or dcf_readiness_proof_caption(),
+                            "make dcf-readiness",
+                            tone="warning",
+                        )
                 if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
                     oc_summary = summarize_optional_context_worklist(optional_context_worklist_frame)
                     metric_cols = st.columns(4)

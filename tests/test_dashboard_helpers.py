@@ -27866,6 +27866,21 @@ def test_last_resort_legacy_actions_tab_nests_raw_queue_rows():
     assert nested_rows_index < queue_columns_index < queue_frame_index < coverage_tab_index
 
 
+def test_last_resort_legacy_coverage_tab_nests_dcf_readiness_rows():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
+    dcf_header_index = source.index('render_section_header("DCF Readiness"', coverage_tab_index)
+    first_proof_index = source.index('"First Trusted Fundamentals Proof"', dcf_header_index)
+    raw_rows_index = source.index('st.expander("Legacy DCF readiness rows", expanded=False)', first_proof_index)
+    dcf_columns_index = source.index("dcf_columns = [", raw_rows_index)
+    dcf_rows_index = source.index("st.dataframe(clean_display_frame(dcf_readiness_frame[dcf_columns])", dcf_columns_index)
+    optional_context_index = source.index('"Trusted Optional Context"', dcf_rows_index)
+
+    assert coverage_tab_index < dcf_header_index < first_proof_index < raw_rows_index
+    assert raw_rows_index < dcf_columns_index < dcf_rows_index < optional_context_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"
