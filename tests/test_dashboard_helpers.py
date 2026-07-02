@@ -28031,6 +28031,25 @@ def test_last_resort_legacy_price_updates_tab_groups_non_price_worklists():
     assert ladder_note_index < ladder_table_index < priority_note_index < priority_table_index < import_checks_tab_index
 
 
+def test_last_resort_legacy_import_checks_tab_groups_import_evidence_rows():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    import_checks_tab_index = source.index("with health_tabs[4]:", legacy_tables_index)
+    summary_cards_index = source.index('data_health_tab_summary_cards(\n                    "Import Checks"', import_checks_tab_index)
+    section_header_index = source.index('"Import Validation / Rejected Rows"', summary_cards_index)
+    validation_cards_index = source.index("render_signal_cards(import_validation_rejected_row_cards(import_health))", section_header_index)
+    evidence_details_index = source.index('st.expander("Import evidence details", expanded=False)', validation_cards_index)
+    import_health_table_index = source.index("st.dataframe(clean_display_frame(import_health)", evidence_details_index)
+    staged_rows_index = source.index("staged_rows = []", import_health_table_index)
+    preview_index = source.index("preview = preview_import_merge(base_dir=BASE_DIR)", staged_rows_index)
+    universe_preview_index = source.index("Universe Preview Checks", preview_index)
+    local_files_index = source.index('st.expander("Files that stay local", expanded=False)', universe_preview_index)
+
+    assert import_checks_tab_index < summary_cards_index < section_header_index < validation_cards_index
+    assert validation_cards_index < evidence_details_index < import_health_table_index < staged_rows_index
+    assert staged_rows_index < preview_index < universe_preview_index < local_files_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"

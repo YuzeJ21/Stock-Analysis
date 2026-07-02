@@ -30231,43 +30231,44 @@ def render_data_health(
             )
             import_health = import_health_frame()
             render_signal_cards(import_validation_rejected_row_cards(import_health))
-            st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
-            if staged_imports["status"] == "no_staged_files":
-                render_notice_card(
-                    "No import files to review",
-                    staged_imports["warnings"][0],
-                    "make templates",
-                )
-            else:
-                staged_rows = []
-                for item in staged_imports["files"]:
-                    staged_rows.append(
-                        {
-                            "File": item["file_name"],
-                            "Dataset": item["dataset_name"],
-                            "Status": item["validation"]["status"],
-                            "Rows": item["validation"]["row_count"],
-                            "Warnings": "; ".join(item["validation"]["warnings"]) or "-",
-                        }
+            with st.expander("Import evidence details", expanded=False):
+                st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
+                if staged_imports["status"] == "no_staged_files":
+                    render_notice_card(
+                        "No import files to review",
+                        staged_imports["warnings"][0],
+                        "make templates",
                     )
-                st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
-                preview = preview_import_merge(base_dir=BASE_DIR)
-                if preview.get("preview"):
-                    render_context_note("Preview only.", "Apply remains copy-only for safer import file review.")
-                    st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
+                else:
+                    staged_rows = []
+                    for item in staged_imports["files"]:
+                        staged_rows.append(
+                            {
+                                "File": item["file_name"],
+                                "Dataset": item["dataset_name"],
+                                "Status": item["validation"]["status"],
+                                "Rows": item["validation"]["row_count"],
+                                "Warnings": "; ".join(item["validation"]["warnings"]) or "-",
+                            }
+                        )
+                    st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
+                    preview = preview_import_merge(base_dir=BASE_DIR)
+                    if preview.get("preview"):
+                        render_context_note("Preview only.", "Apply remains copy-only for safer import file review.")
+                        st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
-            st.markdown("#### Universe Preview Checks")
-            st.dataframe(staged_universe_status_frame(staged_universe), width="stretch", hide_index=True)
-            with st.expander("Universe preview details", expanded=False):
-                st.dataframe(staged_universe_detail_frame(staged_universe), width="stretch", hide_index=True)
+                st.markdown("#### Universe Preview Checks")
+                st.dataframe(staged_universe_status_frame(staged_universe), width="stretch", hide_index=True)
+                with st.expander("Universe preview details", expanded=False):
+                    st.dataframe(staged_universe_detail_frame(staged_universe), width="stretch", hide_index=True)
 
-            with st.expander("Files that stay local", expanded=False):
-                st.write("These working files are intentionally ignored so local refreshes and previews do not clutter the public project.")
-                st.write("- `data/cache/` keeps temporary downloaded data local.")
-                st.write("- `data/backups/` keeps import backup files local.")
-                st.write("- `data/imports/*.csv` keeps import files local until reviewed.")
-                st.write("- `outputs/*stock_report.json` keeps exported report data local.")
-                st.write("- `outputs/project_status*.{json,csv}` keeps status refreshes local.")
+                with st.expander("Files that stay local", expanded=False):
+                    st.write("These working files are intentionally ignored so local refreshes and previews do not clutter the public project.")
+                    st.write("- `data/cache/` keeps temporary downloaded data local.")
+                    st.write("- `data/backups/` keeps import backup files local.")
+                    st.write("- `data/imports/*.csv` keeps import files local until reviewed.")
+                    st.write("- `outputs/*stock_report.json` keeps exported report data local.")
+                    st.write("- `outputs/project_status*.{json,csv}` keeps status refreshes local.")
 
 
 def render_universe_manager(universe_summary: dict[str, Any]) -> None:
