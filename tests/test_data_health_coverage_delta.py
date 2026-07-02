@@ -5,6 +5,16 @@ import pandas as pd
 from src import data_health_coverage_delta as coverage_delta
 
 
+def test_readiness_delta_board_missing_current_keeps_command_out_of_body():
+    cards = coverage_delta.readiness_delta_board_cards(pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
+    body = str(cards[0]["body"]).lower()
+
+    assert cards[0]["title"] == "Current readiness report missing"
+    assert cards[0]["command"] == "make readiness"
+    assert "open operator details" in body
+    assert "make " not in body
+
+
 def test_readiness_delta_board_handles_missing_prior_snapshot_without_fake_delta():
     current = pd.DataFrame(
         {
