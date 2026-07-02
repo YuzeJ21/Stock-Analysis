@@ -4,6 +4,14 @@
 
 Use this as research-only product evidence. It summarizes what can be shown now, what is blocked by missing proof, and what must stay out of a share package.
 
+## Pilot Share Answer
+
+- Shareable now: portfolio/demo evidence with manual gates.
+- Not shareable as: open-source/reuse package or data-freshness proof until the license and generated-artifact gates are resolved.
+- Reuse rights: not granted until a root `LICENSE` exists.
+- Keep local: broad generated CSV/JSON/report churn unless a specific artifact is reviewed evidence.
+- Next gate: run `make public-check` and keep source-proof blockers visible.
+
 ## Current Pilot State: pilot-ready with manual gates
 
 ## What can be used now
