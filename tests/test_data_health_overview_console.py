@@ -200,9 +200,9 @@ def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible(
     assert cards[1]["command"] == "make readiness-ops-center"
     assert cards[3]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
     assert "one answer per lane:" in rendered
-    assert "price coverage -> use now 264 ready row(s); partial 1; next make price-refresh-loop dry_run=1" in rendered
-    assert "fundamentals / dcf proof -> use now 23 ready row(s); partial 217; blocked 25; next make project-status" in rendered
-    assert "earnings locked lane -> blocked 265; context only locked/manual; next make optional-context-source-ladder-queue top_n=10" in rendered
+    assert "price coverage -> use now 264 ready row(s); partial 1" in rendered
+    assert "fundamentals / dcf proof -> use now 23 ready row(s); partial 217; blocked 25" in rendered
+    assert "earnings locked lane -> blocked 265; context only locked/manual" in rendered
     assert "use now: price coverage has 264 ready row(s)" in rendered
     assert "partly usable: price coverage has 1 partial row(s); fundamentals / dcf proof has 217 partial row(s)" in rendered
     assert "blocked: fundamentals / dcf proof has 25 blocked row(s); earnings locked lane has 265 blocked row(s)" in rendered
@@ -294,6 +294,44 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
     ]
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
     assert "make " not in rendered
+
+
+def test_overview_lane_answer_card_keeps_raw_commands_out_of_lane_answers():
+    ops = pd.DataFrame(
+        [
+            {
+                "Lane": "Price Coverage",
+                "State": "partial",
+                "Ready": 3537,
+                "Partial": 1,
+                "Blocked": 0,
+                "Excluded": 0,
+                "Workflow Mode": "dry_run_first",
+                "Next Safe Command": "make price-history-proof-queue TOP_N=25",
+            },
+            {
+                "Lane": "Fundamentals / DCF Proof",
+                "State": "partial",
+                "Ready": 2691,
+                "Partial": 243,
+                "Blocked": 90,
+                "Excluded": 514,
+                "Workflow Mode": "preview_first_reviewed_apply",
+                "Next Safe Command": "make project-status",
+            },
+        ]
+    )
+
+    card = overview_console.lane_answer_card(ops)
+    body = str(card["body"]).lower()
+    lane_answer_text = body.split("next safe action:", maxsplit=1)[0]
+
+    assert "one answer per lane:" in body
+    assert "price coverage -> use now 3,537 ready row(s); partial 1" in body
+    assert "fundamentals / dcf proof -> use now 2,691 ready row(s); partial 243; blocked 90; excluded/not applicable 514" in body
+    assert "make " not in lane_answer_text
+    assert body.count("next safe action:") == 1
+    assert card["command"] == "make readiness-ops-center"
 
 
 def test_overview_auto_refresh_status_cards_show_scheduler_next_step():

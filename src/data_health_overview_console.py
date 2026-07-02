@@ -82,7 +82,6 @@ def _lane_one_answer(row: pd.Series) -> str:
     partial = _series_int(row, "Partial", "partial")
     blocked = _series_int(row, "Blocked", "blocked")
     excluded = _series_int(row, "Excluded", "excluded")
-    command = _format_missing(_series_value(row, "Next Safe Command", "next_safe_command"), "")
 
     fragments: list[str] = []
     if ready:
@@ -95,8 +94,6 @@ def _lane_one_answer(row: pd.Series) -> str:
         fragments.append(f"excluded/not applicable {excluded:,}")
     if "locked" in mode or "manual" in mode:
         fragments.append("context only locked/manual")
-    if command:
-        fragments.append(f"next {command}")
     if not fragments:
         fragments.append("no usable lane state reported")
     return f"{lane} -> {'; '.join(fragments)}"
