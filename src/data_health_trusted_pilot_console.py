@@ -72,6 +72,15 @@ def _card_sentence(label: str, fragment: str) -> str:
     return f"{clean_label}: {clean_fragment}{terminal}"
 
 
+def _lane_usage_answer(status: object) -> str:
+    normalized = _format_missing(status, "review_only").strip().lower()
+    if normalized == "safe_to_batch_dry_run":
+        return "Usable now: dry-run planning only; no rows are applied from this lane card."
+    if normalized == "locked":
+        return "Blocked by source proof: keep locked until trusted rows exist."
+    return "Context only: review rows describe source work, not analysis-ready proof."
+
+
 def trusted_pilot_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
     price_ready = int(readiness_summary.get("price_ready") or 0)
     fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
@@ -224,7 +233,9 @@ def trusted_pilot_lane_cards(lane_frame: pd.DataFrame | None, *, limit: int = 3)
         proof = _compact_fragment(row.get("What Proves It"), max_chars=190)
         command = _format_missing(row.get("Next Safe Command"), "make trusted-data-pilot-candidates TOP_N=10")
         manual = _compact_fragment(row.get("Locked / Manual Note"), max_chars=150)
+        usage_answer = _lane_usage_answer(status)
         body = (
+            f"{usage_answer} "
             f"{count} candidate(s) in this lane; tickers: {tickers}. "
             f"{_card_sentence('Blocker theme', blocker)} "
             f"{_card_sentence('Proof', proof)} "

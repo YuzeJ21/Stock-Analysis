@@ -131,6 +131,53 @@ def test_trusted_pilot_lane_board_and_cards_keep_locked_lanes_visible():
     assert "sell" not in rendered + card_rendered
 
 
+def test_trusted_pilot_lane_cards_answer_usage_state_before_commands():
+    frame = pd.DataFrame(
+        [
+            {
+                "Lane": "Peer mapping proof path",
+                "Candidates": "2",
+                "Tickers": "META, MU",
+                "Current Blocker Theme": "needs source-backed peer mappings",
+                "Status": "review_only",
+                "Next Safe Command": "make peer-mapping-queue TOP_N=25",
+                "What Proves It": "Reviewed peer source rows plus rebuilt readiness.",
+                "Locked / Manual Note": "",
+            },
+            {
+                "Lane": "Price coverage dry-run path",
+                "Candidates": "0",
+                "Tickers": "-",
+                "Current Blocker Theme": "missing or stale price coverage; dry-run-first batch planning",
+                "Status": "safe_to_batch_dry_run",
+                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
+                "What Proves It": "Dry-run planning proves which price rows would be attempted.",
+                "Locked / Manual Note": "",
+            },
+            {
+                "Lane": "Optional context proof path",
+                "Candidates": "0",
+                "Tickers": "-",
+                "Current Blocker Theme": "earnings and analyst estimates remain locked unless trusted local rows exist",
+                "Status": "locked",
+                "Next Safe Command": "make trusted-data-pilot-lane LANE=optional_context_locked",
+                "What Proves It": "Only trusted local earnings or analyst-estimate rows can unlock optional context.",
+                "Locked / Manual Note": "Manual/optional lane: keep earnings and analyst estimates locked unless trusted local rows exist.",
+            },
+        ]
+    )
+
+    cards = pilot_console.trusted_pilot_lane_cards(frame, limit=3)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "context only: review rows describe source work, not analysis-ready proof" in rendered
+    assert "usable now: dry-run planning only" in rendered
+    assert "blocked by source proof: keep locked until trusted rows exist" in rendered
+    assert rendered.index("context only:") < rendered.index("next safe command")
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_trusted_pilot_lane_cards_empty_state_routes_to_project_status():
     cards = pilot_console.trusted_pilot_lane_cards(pd.DataFrame(), limit=3)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
