@@ -99,6 +99,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
         }
 
     ready_fragments: list[str] = []
+    partial_fragments: list[str] = []
     blocked_fragments: list[str] = []
     context_fragments: list[str] = []
     excluded_fragments: list[str] = []
@@ -109,6 +110,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
         mode = _format_missing(_series_value(row, "Workflow Mode", "workflow_mode"), "").lower()
         state = _format_missing(_series_value(row, "State", "state"), "").lower()
         ready = _series_int(row, "Ready", "ready")
+        partial = _series_int(row, "Partial", "partial")
         blocked = _series_int(row, "Blocked", "blocked")
         excluded = _series_int(row, "Excluded", "excluded")
         command = _format_missing(
@@ -120,6 +122,8 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
             ready_fragments.append(f"{lane} has {ready:,} ready row(s)")
             if command:
                 next_command = command
+        if partial > 0:
+            partial_fragments.append(f"{lane} has {partial:,} partial row(s)")
         if blocked > 0:
             blocked_fragments.append(f"{lane} has {blocked:,} blocked row(s)")
         if excluded > 0 or state == "excluded":
@@ -129,6 +133,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
 
     body = (
         f"Use now: {'; '.join(ready_fragments) if ready_fragments else 'no ready lane reported'}. "
+        f"Partly usable: {'; '.join(partial_fragments) if partial_fragments else 'no partial lane reported'}. "
         f"Blocked: {'; '.join(blocked_fragments) if blocked_fragments else 'no blocked lane reported'}. "
         f"Context only: {'; '.join(context_fragments) if context_fragments else 'no candidate/context lane reported'}. "
         f"Excluded/not applicable: {'; '.join(excluded_fragments) if excluded_fragments else 'no excluded lane reported'}. "
