@@ -144,7 +144,7 @@ def _lane_next_safe_action(
         return "Use provider setup before reopening broad proof queues."
     if blocked > 0 and ready == 0:
         return "Wait for source proof before treating this lane as usable."
-    if excluded > 0 or state == "excluded":
+    if state == "excluded" or (excluded > 0 and ready == 0 and partial == 0 and blocked == 0):
         return "Use applicable rows only; keep excluded rows out of analysis."
     return "Open details for the source-backed next step."
 
@@ -236,6 +236,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
     context_fragments: list[str] = []
     excluded_fragments: list[str] = []
     lane_answer_fragments: list[str] = []
+    next_action_fragments: list[str] = []
 
     for _, row in ops_frame.iterrows():
         lane_answer_fragments.append(_lane_one_answer(row))
@@ -257,6 +258,9 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
             excluded_fragments.append(f"{lane} has {excluded:,} excluded/not-applicable row(s)")
         if ("locked" in mode or "manual" in mode or "candidate" in state) and not context_fragments:
             context_fragments.append(f"{lane} is locked/manual until trusted optional rows exist")
+        next_action = _lane_next_safe_action(lane, mode, state, ready, partial, blocked, excluded)
+        if next_action and len(next_action_fragments) < 3:
+            next_action_fragments.append(f"{lane} -> {next_action.rstrip(' .;:')}")
 
     body = (
         f"One answer per lane: {' | '.join(lane_answer_fragments)}. "
@@ -265,7 +269,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
         f"Blocked: {'; '.join(blocked_fragments) if blocked_fragments else 'no blocked lane reported'}. "
         f"Context only: {'; '.join(context_fragments) if context_fragments else 'no candidate/context lane reported'}. "
         f"Excluded/not applicable: {'; '.join(excluded_fragments) if excluded_fragments else 'no excluded lane reported'}. "
-        "Next safe action: open operator details for the selected lane."
+        f"Next safe action: {'; '.join(next_action_fragments) if next_action_fragments else 'open operator details for the selected lane'}."
     )
     return {
         "kicker": "LANE ANSWER",
