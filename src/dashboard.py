@@ -11496,6 +11496,47 @@ def proof_history_public_summary_html(proof_timeline: pd.DataFrame | None, batch
     )
 
 
+def proof_history_first_answer_frame(
+    proof_timeline: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None,
+) -> pd.DataFrame:
+    latest_proof_lane = _proof_history_public_text(_proof_history_first_text(proof_timeline, "Lane", fallback="No lane proof yet"))
+    latest_proof_outcome = _proof_history_public_text(
+        _proof_history_first_text(proof_timeline, "Final Outcome", "Reviewer Outcome", fallback="not recorded")
+    )
+    latest_proof_change = _proof_history_public_text(
+        _proof_history_first_text(proof_timeline, "What Changed", fallback="No reviewed lane change recorded yet.")
+    )
+    latest_proof_blocker = _proof_history_public_text(
+        _proof_history_first_text(proof_timeline, "Still Blocked", fallback="No remaining blocker recorded.")
+    )
+    latest_batch_lane = _proof_history_public_text(_proof_history_first_text(batch_proof_frame, "Lane", fallback="No batch proof yet"))
+    latest_batch_outcome = _proof_history_public_text(
+        _proof_history_first_text(batch_proof_frame, "Final Outcome", fallback="not recorded")
+    )
+    return pd.DataFrame(
+        [
+            {
+                "Question": "What was supported?",
+                "Answer": f"{latest_proof_lane}: {latest_proof_outcome}; {latest_proof_change}.",
+            },
+            {
+                "Question": "What is still blocked or context only?",
+                "Answer": f"{latest_proof_blocker} Latest batch {latest_batch_lane}: {latest_batch_outcome}.",
+            },
+            {
+                "Question": "Where is the evidence?",
+                "Answer": "Reviewed lane proof and reviewed batch proof rows; details stay collapsed until opened.",
+            },
+            {
+                "Question": "Next safe action",
+                "Answer": "Open proof ledger details only when you need the source row; return to Data Health for remaining blockers.",
+            },
+        ],
+        columns=["Question", "Answer"],
+    )
+
+
 def proof_history_public_detail_cards(
     proof_timeline: pd.DataFrame | None,
     batch_proof_frame: pd.DataFrame | None,
@@ -11586,6 +11627,11 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         )
     proof_timeline = data_health_reviewed_proof_timeline_frame()
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
+    render_section_header(
+        "Proof History One Answer",
+        "Supported outcome, remaining blocker or context-only state, evidence location, and next safe action before ledger details.",
+    )
+    st.table(clean_display_frame(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)))
     st.markdown(
         proof_history_public_summary_html(proof_timeline, batch_proof_frame),
         unsafe_allow_html=True,

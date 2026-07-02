@@ -14885,6 +14885,64 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
     assert "sell" not in rendered
 
 
+def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and_next_action():
+    proof_timeline = pd.DataFrame(
+        [
+            {
+                "Proof Date": "2026-06-20",
+                "Lane": "peer_mapping",
+                "Final Outcome": "human_reviewed_supported",
+                "What Changed": "trusted peer rows reviewed",
+                "Still Blocked": "No remaining peer mapping blocker for reviewed rows.",
+            }
+        ]
+    )
+    batch_proof = pd.DataFrame(
+        [
+            {
+                "Review Date": "2026-06-21",
+                "Lane": "optional_context",
+                "Final Outcome": "candidate_context_only",
+                "Changed Tickers": "AAPL, MSFT",
+                "Notes": "provider-assisted optional context reviewed as candidate context only",
+            }
+        ]
+    )
+
+    frame = dashboard.proof_history_first_answer_frame(proof_timeline, batch_proof)
+
+    assert list(frame.columns) == ["Question", "Answer"]
+    assert frame.to_dict("records") == [
+        {
+            "Question": "What was supported?",
+            "Answer": "peer mapping: human reviewed supported; trusted peer rows reviewed.",
+        },
+        {
+            "Question": "What is still blocked or context only?",
+            "Answer": "No remaining peer mapping blocker for reviewed rows. Latest batch optional context: candidate context only.",
+        },
+        {
+            "Question": "Where is the evidence?",
+            "Answer": "Reviewed lane proof and reviewed batch proof rows; details stay collapsed until opened.",
+        },
+        {
+            "Question": "Next safe action",
+            "Answer": "Open proof ledger details only when you need the source row; return to Data Health for remaining blockers.",
+        },
+    ]
+
+
+def test_proof_history_public_page_renders_first_answer_frame_before_ledger_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_proof_history(")
+    first_answer_index = source.index('"Proof History First Answer"', render_index)
+    frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", first_answer_index)
+    details_index = source.index('st.expander("Proof ledger details", expanded=False)', frame_index)
+
+    assert first_answer_index < frame_index < details_index
+    assert '"Proof History One Answer"' in source
+
+
 def test_reviewed_batch_execution_checklist_covers_lane_to_ledger_loop():
     preflight = dashboard.ReviewedBatchPreflight(
         lane="prices",
