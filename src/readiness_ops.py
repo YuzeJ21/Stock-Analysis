@@ -98,6 +98,7 @@ class DataCoverageProofQueueRow:
     stop_rule: str
     proof_record_boundary: str
     generated_churn_policy: str
+    reviewed_proof_status: str = ""
 
 
 @dataclass(frozen=True)
@@ -1313,6 +1314,7 @@ def build_data_coverage_proof_queues(
                 stop_rule="Stop if any required DCF input would be inferred, stale, or placeholder-backed.",
                 proof_record_boundary="Record supported only after rebuilt readiness and reviewed-batch comparison prove the lane changed.",
                 generated_churn_policy=dcf_lane.generated_churn_policy,
+                reviewed_proof_status=dcf_lane.reviewed_proof_status,
             )
         )
 
@@ -1336,6 +1338,7 @@ def build_data_coverage_proof_queues(
                 stop_rule="Stop if shares outstanding would be inferred from price, market cap, peers, or placeholders.",
                 proof_record_boundary="Use the reviewed-batch proof record only after source files, changed counts, changed tickers, and artifact review are filled.",
                 generated_churn_policy=share_lane.generated_churn_policy,
+                reviewed_proof_status=share_lane.reviewed_proof_status,
             )
         )
 
@@ -1357,6 +1360,7 @@ def build_data_coverage_proof_queues(
                 stop_rule="Stop if revenue, free cash flow, FCF margin, or share-count proof is unavailable.",
                 proof_record_boundary="Keep proof-record commands dry-run until validation, preview, apply result, source files, and generated-artifact review are complete.",
                 generated_churn_policy=dcf_lane.generated_churn_policy,
+                reviewed_proof_status=dcf_lane.reviewed_proof_status,
             )
         )
 
@@ -1379,6 +1383,7 @@ def build_data_coverage_proof_queues(
                 stop_rule="Stop if peer rows are guessed, self-peers, duplicates, undocumented, or stale.",
                 proof_record_boundary="Use the peer write-back guard and reviewed-batch proof record only after validate, preview, readiness, and artifact review.",
                 generated_churn_policy=peer_mapping_lane.generated_churn_policy,
+                reviewed_proof_status=peer_mapping_lane.reviewed_proof_status,
             )
         )
 
@@ -1405,6 +1410,7 @@ def build_data_coverage_proof_queues(
                 stop_rule="Stop if mapped peers lack trusted price, market-cap, fundamentals, or valuation-input rows.",
                 proof_record_boundary="Record still_blocked when mappings exist but peer valuation inputs remain missing.",
                 generated_churn_policy=peer_input_lane.generated_churn_policy,
+                reviewed_proof_status=peer_input_lane.reviewed_proof_status,
             )
         )
     return rows
@@ -1442,6 +1448,12 @@ def render_data_coverage_proof_queues(rows: list[DataCoverageProofQueueRow]) -> 
             )
         )
     lines.append("")
+    reviewed_rows = [row for row in rows if row.reviewed_proof_status]
+    if reviewed_rows:
+        lines.append("Reviewed proof status:")
+        for row in reviewed_rows:
+            lines.append(f"- {row.label}: reviewed_proof_status: {row.reviewed_proof_status}")
+        lines.append("")
     lines.append("Review gates and stop rules:")
     for row in rows:
         lines.append(f"- {row.label}: {row.review_gate} Stop rule: {row.stop_rule}")

@@ -635,6 +635,20 @@ def test_data_coverage_proof_queues_connect_next_batches_without_applying_data(t
     assert "recommendations" in rendered
 
 
+def test_data_coverage_proof_queues_surface_reviewed_status_for_peer_mapping(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write_reviewed_batch_proofs(root)
+
+    rows = build_data_coverage_proof_queues(root, top_n=3)
+    rendered = render_data_coverage_proof_queues(rows)
+    by_key = {row.queue_key: row for row in rows}
+
+    assert by_key["peer_mapping"].reviewed_proof_status
+    assert "reviewed_proof_status:" in rendered
+    assert "reviewed proof ledger covers current peer mapping scope" in by_key["peer_mapping"].reviewed_proof_status
+    assert "do not repeat this proof loop unless new source-backed rows" in rendered
+
+
 def test_readiness_ops_rendering_keeps_research_only_and_churn_boundaries(tmp_path: Path):
     lanes = build_readiness_ops_lanes(_sample_root(tmp_path))
     frontier = build_coverage_frontier(lanes, top_n=10)
