@@ -42,6 +42,26 @@ ALWAYS_EXECUTABLE_LANES = [
 ]
 
 
+def _human_source_gate_label(value: object) -> str:
+    text = str(value or "-").strip() or "-"
+    labels = {
+        "coverage_workflow_evidence": "workflow evidence only; current source-proof queues are exhausted",
+        "fundamentals_share_count_source_ladder": "fundamentals/share-count source ladder",
+        "workflow_evidence_only": "workflow evidence only",
+    }
+    for token, label in labels.items():
+        text = text.replace(token, label)
+    return text
+
+
+def _human_source_gate_list(values: object) -> str:
+    if isinstance(values, (list, tuple, set)):
+        labels = [_human_source_gate_label(value) for value in values if str(value or "").strip()]
+    else:
+        labels = [_human_source_gate_label(values)] if str(values or "").strip() else []
+    return ", ".join(labels) or "-"
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -1108,9 +1128,9 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         f"data_dir: {preflight['data_dir']}",
         f"generated_at: {preflight['generated_at']}",
         f"session_flags: {', '.join(preflight['session_flags']) or '-'}",
-        f"do_not_retry_paths: {', '.join(preflight['do_not_retry_paths']) or '-'}",
+        f"do_not_retry_paths: {_human_source_gate_list(preflight['do_not_retry_paths'])}",
         "preferred_lane_order:",
-        *[f"- {lane}" for lane in preflight["preferred_lane_order"]],
+        *[f"- {_human_source_gate_label(lane)}" for lane in preflight["preferred_lane_order"]],
         "source_categories:",
         f"  free_public_available: {', '.join(categories.get('free_public_available', [])) or '-'}",
         f"  optional_broker_disabled: {', '.join(categories.get('optional_broker_disabled', [])) or '-'}",
@@ -1205,8 +1225,8 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         lines.extend(
             [
                 f"source_activation: {activation.get('status', 'unknown')}",
-                f"  reason: {activation.get('reason_code', '')}",
-                f"  detail: {activation.get('detail', '')}",
+                f"  reason: {_human_source_gate_label(activation.get('reason_code', ''))}",
+                f"  detail: {_human_source_gate_label(activation.get('detail', ''))}",
             ]
         )
         next_action = str(activation.get("next_action", "")).strip()
@@ -1246,7 +1266,7 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         lines.extend(
             [
                 "source_activation_console_v2:",
-                f"  next_executable_lane: {console.get('next_executable_lane', 'coverage_workflow_evidence')}",
+                f"  next_executable_lane: {_human_source_gate_label(console.get('next_executable_lane', 'coverage_workflow_evidence'))}",
                 f"  next_executable_command: {console.get('next_executable_command', 'make coverage-frontier TOP_N=10')}",
                 "  source_path_last_tried:",
             ]
@@ -1302,11 +1322,11 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
             lines.extend(
                 [
                     "  operator_summary:",
-                    f"    can_run_now: {', '.join(operator_summary.get('can_run_now', [])) or '-'}",
+                    f"    can_run_now: {_human_source_gate_list(operator_summary.get('can_run_now', []))}",
                     f"    needs_setup: {', '.join(operator_summary.get('needs_setup', [])) or '-'}",
-                    f"    avoid_repeating: {', '.join(operator_summary.get('avoid_repeating', [])) or '-'}",
+                    f"    avoid_repeating: {_human_source_gate_list(operator_summary.get('avoid_repeating', []))}",
                     f"    next_step: {operator_summary.get('next_step', 'make coverage-frontier TOP_N=10')}",
-                    f"    next_step_reason: {operator_summary.get('next_step_reason', '-')}",
+                    f"    next_step_reason: {_human_source_gate_label(operator_summary.get('next_step_reason', '-'))}",
                 ]
             )
     lines.append(

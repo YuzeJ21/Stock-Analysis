@@ -625,8 +625,11 @@ def test_session_source_preflight_distinguishes_reachable_sources_from_actionabl
     assert "source_actionability:" in rendered
     assert "unreviewed_fundamentals_share_count_candidates: 0" in rendered
     assert "do_not_repeat_without_new_source: yes" in rendered
-    assert "next_executable_lane: coverage_workflow_evidence" in rendered
-    assert "avoid_repeating: fundamentals_share_count_source_ladder" in rendered
+    assert "next_executable_lane: workflow evidence only; current source-proof queues are exhausted" in rendered
+    assert "avoid_repeating: fundamentals/share-count source ladder" in rendered
+    assert "coverage_workflow_evidence" not in rendered
+    assert "fundamentals_share_count_source_ladder" not in rendered
+    assert "workflow_evidence_only" not in rendered
 
 
 def test_source_actionability_uses_dcf_queue_reviewed_signal(tmp_path: Path, monkeypatch):
