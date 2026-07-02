@@ -249,12 +249,16 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
 
     assert [card["kicker"] for card in cards] == [
         "PROVIDER SETUP CHECKLIST",
+        "SAFE SETUP PATH",
         "FREE PUBLIC BASELINE",
         "KEYED FALLBACKS",
         "OPTIONAL BROKER",
         "NEXT SAFE STEP",
     ]
     assert cards[0]["command"] == "make provider-setup-checklist"
+    assert cards[1]["command"] == "make project-status"
+    assert "project-status -> provider setup -> one-provider smoke -> validate/preview" in rendered
+    assert "do not reopen broad proof loops from setup" in rendered
     assert "free/public baseline works before keys" in rendered
     assert "stooq: available" in rendered
     assert "sec companyfacts: available" in rendered

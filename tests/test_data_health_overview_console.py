@@ -345,12 +345,16 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
 
     assert [card["kicker"] for card in cards] == [
         "PROVIDER SETUP CHECKLIST",
+        "SAFE SETUP PATH",
         "FREE PUBLIC BASELINE",
         "KEYED FALLBACKS",
         "OPTIONAL BROKER",
         "NEXT SAFE STEP",
     ]
     assert cards[0]["command"] == "make provider-setup-checklist"
+    assert cards[1]["command"] == "make project-status"
+    assert "project-status -> provider setup -> one-provider smoke -> validate/preview" in rendered
+    assert "do not reopen broad proof loops from setup" in rendered
     assert "use the free/public baseline first" in rendered
     assert "free now: sec companyfacts, sec submissions, stooq" in rendered
     assert "configured keyed: fmp free tier" in rendered

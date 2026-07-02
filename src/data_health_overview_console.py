@@ -632,6 +632,17 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
             "command": "make provider-setup-checklist",
         },
         {
+            "kicker": "SAFE SETUP PATH",
+            "title": "Project status before any provider work",
+            "body": (
+                "Project-status -> provider setup -> one-provider smoke -> validate/preview. "
+                "Do not reopen broad proof loops from setup; use this path only when source-proof queues are exhausted "
+                "or new source-backed rows/provider keys change the gate."
+            ),
+            "badges": ["status first", "one provider", "preview gate"],
+            "command": "make project-status",
+        },
+        {
             "kicker": "FREE PUBLIC BASELINE",
             "title": "Free/public baseline works before keys",
             "body": (
