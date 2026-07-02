@@ -31,6 +31,19 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "Start with the three paths" not in readme
 
 
+def test_readme_and_roadmap_name_pilot_operator_runbook():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+
+    assert "Pilot Operator Runbook" in readme
+    assert "share gate -> source gate -> provider setup -> one-provider smoke -> validate/preview -> packet and hygiene" in readme
+    assert "does not refresh data, apply imports, or promote metadata into fundamentals proof" in readme
+
+    assert "Pilot Operator Runbook V1" in roadmap
+    assert "share gate, source gate, provider setup, one-provider smoke, validate/preview, packet, and hygiene" in roadmap
+    assert "without reopening broad proof loops" in roadmap
+
+
 def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
 
