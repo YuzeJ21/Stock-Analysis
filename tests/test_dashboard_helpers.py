@@ -2489,7 +2489,8 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     console_source = Path("src/data_health_console.py").read_text(encoding="utf-8")
 
     hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)")
-    queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
+    lane_nav_drawer_index = source.index('st.expander("Optional lane navigation details", expanded=False)', hero_index)
+    queue_index = source.index("render_data_health_operator_queue_header()", lane_nav_drawer_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', lane_selector_index)
     details_drawer_index = source.index('st.expander("Last-resort diagnostic context"', price_drawer_index)
@@ -2502,7 +2503,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     legacy_tables_drawer_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):', hidden_tables_note_index)
     tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])', legacy_tables_drawer_index)
 
-    assert hero_index < queue_index < lane_selector_index < price_drawer_index < details_drawer_index
+    assert hero_index < lane_nav_drawer_index < queue_index < lane_selector_index < price_drawer_index < details_drawer_index
     assert details_drawer_index < next_proof_index < market_details_gate_index < market_expander_index < hidden_tables_note_index < legacy_tables_drawer_index < tabs_index
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Use only after the selected lane answer, lane evidence drawer, and last-resort diagnostic context do not answer the reviewer question." in source
@@ -27173,10 +27174,11 @@ def test_data_health_operator_route_shows_selected_lane_answer_before_broad_summ
     selected_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", selected_answer_header_index)
     coverage_summary_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", operator_index)
     operator_hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", coverage_summary_index)
-    queue_header_index = source.index("render_data_health_operator_queue_header()", operator_hero_index)
+    lane_nav_drawer_index = source.index('st.expander("Optional lane navigation details", expanded=False)', operator_hero_index)
+    queue_header_index = source.index("render_data_health_operator_queue_header()", lane_nav_drawer_index)
 
     assert operator_index < selected_answer_header_index < selected_answer_cards_index < coverage_summary_index
-    assert coverage_summary_index < operator_hero_index < queue_header_index
+    assert coverage_summary_index < operator_hero_index < lane_nav_drawer_index < queue_header_index
 
 
 def test_single_stock_public_page_uses_simplified_review_sections():

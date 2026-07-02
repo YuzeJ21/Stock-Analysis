@@ -27842,8 +27842,9 @@ def render_data_health(
     with st.expander("Optional coverage summary details", expanded=False):
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
     render_data_health_operator_hero(operator_snapshot_cards)
-    render_data_health_operator_queue_header()
-    render_data_health_operator_lane_nav(selected_lane_key)
+    with st.expander("Optional lane navigation details", expanded=False):
+        render_data_health_operator_queue_header()
+        render_data_health_operator_lane_nav(selected_lane_key)
     render_research_loop_strip(
         **data_health_research_loop_context(
             selected_lane_key=selected_lane_key,
