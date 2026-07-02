@@ -19475,10 +19475,14 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
         "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
         public_return_index,
     )
+    operator_coverage_expander_index = source.index(
+        'st.expander("Optional coverage summary details", expanded=False)',
+        public_return_index,
+    )
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", operator_coverage_index)
 
     assert public_index < public_coverage_index < first_30_index < visitor_paths_index
-    assert public_return_index < operator_coverage_index < ops_index
+    assert public_return_index < operator_coverage_expander_index < operator_coverage_index < ops_index
     assert '"Coverage Summary / What Can I Use?"' in source
     assert 'st.expander("Coverage lane details", expanded=False)' in source
     source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', ops_index)
