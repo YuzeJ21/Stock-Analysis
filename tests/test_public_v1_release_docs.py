@@ -44,6 +44,18 @@ def test_readme_and_roadmap_name_pilot_operator_runbook():
     assert "without reopening broad proof loops" in roadmap
 
 
+def test_public_docs_share_same_coverage_gate_rule():
+    readme = _read("README.md")
+    checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
+    runbook = _read("docs/PILOT_RUNBOOK.md")
+
+    for doc in (readme, checklist, runbook):
+        assert "No broad coverage batch should run from setup alone" in doc
+        assert "Provider setup only makes a source executable" in doc
+        assert "readiness changes still require validate, preview, rejected-row review" in doc
+        assert "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist" in doc
+
+
 def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
 

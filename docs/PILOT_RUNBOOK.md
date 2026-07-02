@@ -108,6 +108,8 @@ make trusted-data-pilot-packet TICKER=<ticker>
 make stock-report-md TICKER=<ticker>
 ```
 
+Coverage gate: No broad coverage batch should run from setup alone. Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence. Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.
+
 Use 5 to 10 operating companies for the controlled pilot. ETF/index examples such as QQQ and SMH are useful monitor-context demos, but they are not operating-company DCF targets.
 
 ## 5. Refresh Data Safely
