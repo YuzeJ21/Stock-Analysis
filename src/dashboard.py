@@ -19965,93 +19965,94 @@ def render_data_health_top_operator_summary_block(
     batch_proof_summary_frame: pd.DataFrame,
     base_dir: Path,
 ) -> None:
-    """Render the first operator proof summaries before lane-specific drawers."""
+    """Render secondary operator proof summaries in a collapsed detail drawer."""
 
-    render_section_header(
-        "Queue Outcome Summary",
-        "Latest reviewed-batch outcomes and the primary lane switcher before opening drawers.",
-    )
-    render_signal_cards(data_health_readiness_queue_outcome_summary_cards(queue_outcome_summary), show_commands=False, variant="queue")
-    render_section_header(
-        "Proof Checklist Summary",
-        "DCF and peer proof checklist status before opening detailed source or proof drawers.",
-    )
-    render_signal_cards(
-        data_health_proof_checklist_summary_cards(readiness_summary, queue_outcome_summary),
-        show_commands=False,
-        variant="queue",
-    )
-    render_section_header(
-        "Proof Planner Outcome Summary",
-        "DCF and peer planner states side by side before opening lane-specific proof drawers.",
-    )
-    render_signal_cards(
-        data_health_proof_planner_outcome_summary_cards(
-            readiness_summary,
-            queue_outcome_summary,
-            readiness_freshness,
-        ),
-        show_commands=False,
-        variant="queue",
-    )
-    render_section_header(
-        "Proof Closeout Summary",
-        "DCF and peer closeout states side by side before opening lane-specific evidence drawers.",
-    )
-    render_signal_cards(
-        data_health_proof_closeout_summary_cards(proof_closeout_dcf_frame, proof_closeout_peer_frame),
-        show_commands=False,
-        variant="queue",
-    )
-    render_section_header(
-        "Readiness Coverage Delta",
-        "Prior/current readiness deltas, still-blocked lanes, and generated-artifact review status before raw CSV reports.",
-    )
-    render_signal_cards(
-        data_health_readiness_delta_board_cards(
-            ticker_readiness_frame,
-            prior_ticker_readiness_frame,
-            batch_proof_summary_frame,
-        ),
-        show_commands=False,
-        variant="queue",
-    )
-    with st.expander("Readiness coverage delta board", expanded=False):
-        st.dataframe(
-            clean_display_frame(
-                data_health_readiness_delta_board_frame(
-                    ticker_readiness_frame,
-                    prior_ticker_readiness_frame,
-                    batch_proof_summary_frame,
-                )
+    with st.expander("Operator proof summary details", expanded=False):
+        render_section_header(
+            "Queue Outcome Summary",
+            "Latest reviewed-batch outcomes and the primary lane switcher before opening drawers.",
+        )
+        render_signal_cards(data_health_readiness_queue_outcome_summary_cards(queue_outcome_summary), show_commands=False, variant="queue")
+        render_section_header(
+            "Proof Checklist Summary",
+            "DCF and peer proof checklist status before opening detailed source or proof drawers.",
+        )
+        render_signal_cards(
+            data_health_proof_checklist_summary_cards(readiness_summary, queue_outcome_summary),
+            show_commands=False,
+            variant="queue",
+        )
+        render_section_header(
+            "Proof Planner Outcome Summary",
+            "DCF and peer planner states side by side before opening lane-specific proof drawers.",
+        )
+        render_signal_cards(
+            data_health_proof_planner_outcome_summary_cards(
+                readiness_summary,
+                queue_outcome_summary,
+                readiness_freshness,
             ),
-            width="stretch",
-            hide_index=True,
-        )
-    render_section_header(
-        "Generated Artifact Review",
-        "Classify local generated CSV/report churn before staging or public sharing.",
-    )
-    render_signal_cards(data_health_generated_churn_review_cards(base_dir), show_commands=False, variant="queue")
-    with st.expander("Generated churn review drawer", expanded=False):
-        render_section_header(
-            "Generated Churn Decision",
-            "These rows mirror make diff-hygiene: generated CSV/JSON churn is excluded unless intentionally reviewed evidence.",
-        )
-        st.dataframe(
-            clean_display_frame(data_health_generated_churn_review_frame(base_dir)),
-            width="stretch",
-            hide_index=True,
+            show_commands=False,
+            variant="queue",
         )
         render_section_header(
-            "Generated Artifact Paths",
-            "Dirty generated files are listed for review, not staging by default.",
+            "Proof Closeout Summary",
+            "DCF and peer closeout states side by side before opening lane-specific evidence drawers.",
         )
-        st.dataframe(
-            clean_display_frame(data_health_generated_churn_detail_frame(base_dir)),
-            width="stretch",
-            hide_index=True,
+        render_signal_cards(
+            data_health_proof_closeout_summary_cards(proof_closeout_dcf_frame, proof_closeout_peer_frame),
+            show_commands=False,
+            variant="queue",
         )
+        render_section_header(
+            "Readiness Coverage Delta",
+            "Prior/current readiness deltas, still-blocked lanes, and generated-artifact review status before raw CSV reports.",
+        )
+        render_signal_cards(
+            data_health_readiness_delta_board_cards(
+                ticker_readiness_frame,
+                prior_ticker_readiness_frame,
+                batch_proof_summary_frame,
+            ),
+            show_commands=False,
+            variant="queue",
+        )
+        with st.expander("Readiness coverage delta board", expanded=False):
+            st.dataframe(
+                clean_display_frame(
+                    data_health_readiness_delta_board_frame(
+                        ticker_readiness_frame,
+                        prior_ticker_readiness_frame,
+                        batch_proof_summary_frame,
+                    )
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+        render_section_header(
+            "Generated Artifact Review",
+            "Classify local generated CSV/report churn before staging or public sharing.",
+        )
+        render_signal_cards(data_health_generated_churn_review_cards(base_dir), show_commands=False, variant="queue")
+        with st.expander("Generated churn review drawer", expanded=False):
+            render_section_header(
+                "Generated Churn Decision",
+                "These rows mirror make diff-hygiene: generated CSV/JSON churn is excluded unless intentionally reviewed evidence.",
+            )
+            st.dataframe(
+                clean_display_frame(data_health_generated_churn_review_frame(base_dir)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_section_header(
+                "Generated Artifact Paths",
+                "Dirty generated files are listed for review, not staging by default.",
+            )
+            st.dataframe(
+                clean_display_frame(data_health_generated_churn_detail_frame(base_dir)),
+                width="stretch",
+                hide_index=True,
+            )
 
 
 def metric_console_state_label(row: pd.Series) -> str:
@@ -27681,17 +27682,6 @@ def render_data_health(
     )
     with st.expander("Next action review detail", expanded=False):
         st.dataframe(clean_display_frame(operator_next_action_summary), width="stretch", hide_index=True)
-    render_data_health_top_operator_summary_block(
-        readiness_summary=readiness_summary,
-        queue_outcome_summary=queue_outcome_summary,
-        readiness_freshness=readiness_freshness,
-        proof_closeout_dcf_frame=proof_closeout_dcf_frame,
-        proof_closeout_peer_frame=proof_closeout_peer_frame,
-        ticker_readiness_frame=ticker_readiness_frame,
-        prior_ticker_readiness_frame=prior_ticker_readiness_frame,
-        batch_proof_summary_frame=batch_proof_summary_frame,
-        base_dir=BASE_DIR,
-    )
     pilot_reviewer_walkthrough = data_health_pilot_reviewer_walkthrough_frame(
         pilot_readiness,
         data_coverage_proof_queues,
@@ -27833,6 +27823,17 @@ def render_data_health(
             )
         )
         st.dataframe(clean_display_frame(pilot_readiness), width="stretch", hide_index=True)
+    render_data_health_top_operator_summary_block(
+        readiness_summary=readiness_summary,
+        queue_outcome_summary=queue_outcome_summary,
+        readiness_freshness=readiness_freshness,
+        proof_closeout_dcf_frame=proof_closeout_dcf_frame,
+        proof_closeout_peer_frame=proof_closeout_peer_frame,
+        ticker_readiness_frame=ticker_readiness_frame,
+        prior_ticker_readiness_frame=prior_ticker_readiness_frame,
+        batch_proof_summary_frame=batch_proof_summary_frame,
+        base_dir=BASE_DIR,
+    )
     render_data_health_detail_selector(
         label="Readiness queue detail level",
         key="data-health-queue-detail-level",
