@@ -8887,18 +8887,17 @@ def data_health_coverage_summary_cards(
     cards: list[dict[str, object]] = []
     for row in frame.to_dict("records"):
         state = format_missing(row.get("state"), "blocked")
+        use_now = compact_card_fragment(row.get("one_clear_answer"), max_chars=92)
+        blocked = compact_card_fragment(row.get("blocked_or_limited"), max_chars=72)
+        context = compact_card_fragment(row.get("supporting_coverage"), max_chars=62)
         cards.append(
             {
                 "kicker": state.upper(),
                 "title": format_missing(row.get("lane")),
                 "body": (
-                    f"Use now: {format_missing(row.get('one_clear_answer'))} "
-                    f"Blocked/limited: {format_missing(row.get('blocked_or_limited'))}. "
-                    f"Why limited: {format_missing(row.get('why_blocked_or_limited'))} "
-                    f"Context: {format_missing(row.get('supporting_coverage'))}. "
-                    f"Proof to unlock: {format_missing(row.get('proof_to_unlock'))} "
-                    f"Next safe action: open Coverage lane details for the proof path and operator step. "
-                    f"Stop rule: {format_missing(row.get('stop_rule'))}"
+                    f"Use now: {use_now}. "
+                    f"Blocked/limited: {blocked}. "
+                    f"Context: {context}."
                 ),
                 "badges": [state, format_missing(row.get("ready_coverage"))],
             }

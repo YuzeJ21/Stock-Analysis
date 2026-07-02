@@ -19233,10 +19233,13 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
     assert "use now to identify the tracked company" in rendered
     assert "use now for market setup" in rendered
     assert "use only on dcf-ready companies" in rendered
-    assert "why limited:" in rendered
-    assert "proof to unlock:" in rendered
-    assert "candidate peers are context only" in rendered
-    assert "stop if candidate peers are promoted to trusted peers" in rendered
+    assert "why limited:" not in rendered
+    assert "proof to unlock:" not in rendered
+    assert "candidate peers are context only" not in rendered
+    assert "stop if candidate peers are promoted to trusted peers" not in rendered
+    assert "Candidate peers are context only" in " ".join(map(str, frame["why_blocked_or_limited"]))
+    assert "Reviewed trusted peer mapping rows" in " ".join(map(str, frame["proof_to_unlock"]))
+    assert "Stop if candidate peers are promoted to trusted peers" in " ".join(map(str, frame["stop_rule"]))
     assert "do not use yet unless trusted local earnings rows exist" in rendered
     assert "not data freshness" in rendered
     assert "buy" not in rendered
@@ -19305,9 +19308,9 @@ def test_data_health_coverage_summary_includes_cached_source_activation_context(
     assert "alpha_vantage<=25/day and <=5/run" in source_row["stop_rule"].lower()
     assert "finnhub<=60/day and <=10/run" in source_row["stop_rule"].lower()
     assert "cached session source preflight" in rendered
-    assert "export fmp_api_key='<key>'" in rendered
-    assert "free-tier limits" in rendered
-    assert "do not retry this session: fmp" in rendered
+    assert "export fmp_api_key='<key>'" in source_row["proof_to_unlock"].lower()
+    assert "free-tier limits" in source_row["stop_rule"].lower()
+    assert "do not retry this session: fmp" in source_row["stop_rule"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "order routing" not in rendered
@@ -26739,7 +26742,7 @@ def test_data_health_public_proof_map_cards_use_plain_readiness_labels():
     assert "copy-only" not in rendered
 
 
-def test_data_health_coverage_summary_cards_use_scan_labels_not_dense_commands():
+def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer():
     cards = dashboard.data_health_coverage_summary_cards(
         {
             "master_universe": 100,
@@ -26759,9 +26762,10 @@ def test_data_health_coverage_summary_cards_use_scan_labels_not_dense_commands()
     assert "use now:" in rendered
     assert "blocked/limited:" in rendered
     assert "context:" in rendered
-    assert "next safe action:" in rendered
-    assert "stop rule:" in rendered
-    assert "proof to unlock:" in rendered
+    assert "next safe action:" not in rendered
+    assert "stop rule:" not in rendered
+    assert "proof to unlock:" not in rendered
+    assert max(len(str(card["body"])) for card in cards) <= 260
     assert "make " not in rendered
 
 
