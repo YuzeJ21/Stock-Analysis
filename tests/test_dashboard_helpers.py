@@ -15018,6 +15018,11 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
             "Answer": "Open proof ledger details only when you need the source row; return to Data Health for remaining blockers.",
             "Boundary": "Return to Single-Stock or Data Health for interpretation; use Proof History only to verify evidence.",
         },
+        {
+            "Question": "What should I do next?",
+            "Answer": "Return to the Single-Stock report for interpretation, or Data Health only when the reviewed evidence still shows a blocker.",
+            "Boundary": "No command runs from Proof History; details are audit evidence only.",
+        },
     ]
 
 
