@@ -901,7 +901,8 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
                 f"What key is missing: {_format_missing(first_answer.get('missing_key'), '-')}. "
                 f"What should not be retried: {_format_missing(first_answer.get('do_not_retry'), '-')}. "
                 f"Setup prerequisite: {_format_missing(first_answer.get('setup_prerequisite'), 'Run preflight before provider smoke tests')}. "
-                f"One safe smoke test: {_format_missing(first_answer.get('one_safe_smoke'), 'make session-source-preflight')}. "
+                "Review boundary: one-provider smoke checks stay in source setup details; "
+                "do not treat source reachability as a coverage unlock. "
                 f"{_format_missing(first_answer.get('boundary'), 'Provider setup does not change readiness by itself.')}"
             ),
             "badges": ["answer first", "one source", "no retry loop"],

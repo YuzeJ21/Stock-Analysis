@@ -490,7 +490,8 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     assert "what free source can run now" in rendered
     assert "what key is missing" in rendered
     assert "what should not be retried" in rendered
-    assert "one safe smoke test" in rendered
+    assert "review boundary" in rendered
+    assert "one safe smoke test" not in rendered
     assert "no broad coverage batch should run from setup alone" in rendered
     assert "provider setup only makes a source executable" in rendered
     assert "do not retry fundamentals_share_count_source_ladder" in rendered
