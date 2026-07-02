@@ -28642,17 +28642,17 @@ def render_data_health(
     if show_details:
         with st.expander("Additional operator evidence", expanded=False):
             render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
-            render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
+            render_signal_cards(data_health_readiness_ops_center_cards(ops_center), show_commands=False)
             st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
             render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")
-            render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))
+            render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier), show_commands=False)
             st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
             render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
             render_action_cards(data_health_fix_first_cards(actions_frame))
             render_section_header("Guided Coverage Plans", "Holdings-first coverage plans for the next price, SEC fundamentals, and peer-mapping pass.")
-            render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
+            render_signal_cards(data_health_command_bundle_cards(command_bundles_frame), show_commands=False)
             render_section_header("Guided Coverage Steps", "Ordered copy-only steps for each current coverage plan so the local follow-through stays explicit.")
-            render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
+            render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame), show_commands=False)
             if command_bundles_frame is None:
                 bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
                 render_notice_card(
@@ -28721,8 +28721,11 @@ def render_data_health(
                     runbook_notice_command,
                 )
             render_section_header("Readiness Summaries", "Compact status cards for coverage, validation, and source readiness.")
-            render_signal_cards(readiness_panel_cards(readiness_summary))
-            render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
+            render_signal_cards(readiness_panel_cards(readiness_summary), show_commands=False)
+            render_signal_cards(
+                data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame),
+                show_commands=False,
+            )
             render_section_header("Next Data Proof Steps", "What to prove next for Monthly Picks, track record, DCF, and peer-relative research.")
             render_signal_cards(data_coverage_wizard_cards(wizard_frame))
             if wizard_frame is None:

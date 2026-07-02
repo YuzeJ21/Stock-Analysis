@@ -15179,8 +15179,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "Proof History Snapshot" in source
     assert "earnings_readiness_frame,\n            analyst_readiness_frame" in source
     assert "analyst_readiness_frame,\n            readiness_freshness" in source
-    assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center))" in source
-    assert "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))" in source
+    assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center), show_commands=False)" in source
+    assert "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier), show_commands=False)" in source
     assert "data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness),\n                show_commands=False" in source
     assert "fundamentals_preview_cards = data_health_trusted_pilot_cards(readiness_summary) + data_health_analysis_unlock_cards(readiness_summary)" in source
     assert 'if selected_lane_key in {"fundamentals", "peers"}' in source
@@ -26632,6 +26632,47 @@ def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
         < proof_history_drawer_index
         < reviewed_proof_render_index
         < additional_operator_index
+    )
+
+
+def test_data_health_additional_operator_evidence_hides_summary_commands_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    additional_operator_index = source.index('st.expander("Additional operator evidence", expanded=False)')
+    ops_center_render_index = source.index(
+        "render_signal_cards(data_health_readiness_ops_center_cards(ops_center), show_commands=False)",
+        additional_operator_index,
+    )
+    coverage_frontier_render_index = source.index(
+        "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier), show_commands=False)",
+        ops_center_render_index,
+    )
+    command_bundle_render_index = source.index(
+        "render_signal_cards(data_health_command_bundle_cards(command_bundles_frame), show_commands=False)",
+        coverage_frontier_render_index,
+    )
+    runbook_render_index = source.index(
+        "render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame), show_commands=False)",
+        command_bundle_render_index,
+    )
+    readiness_render_index = source.index(
+        "render_signal_cards(readiness_panel_cards(readiness_summary), show_commands=False)",
+        runbook_render_index,
+    )
+    overview_cards_index = source.index(
+        "data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame)",
+        readiness_render_index,
+    )
+    overview_command_visibility_index = source.index("show_commands=False", overview_cards_index)
+
+    assert (
+        additional_operator_index
+        < ops_center_render_index
+        < coverage_frontier_render_index
+        < command_bundle_render_index
+        < runbook_render_index
+        < readiness_render_index
+        < overview_cards_index
+        < overview_command_visibility_index
     )
 
 
