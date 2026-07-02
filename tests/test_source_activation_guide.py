@@ -297,6 +297,12 @@ def test_provider_setup_checklist_starts_with_coverage_unlock_decision(monkeypat
 def test_provider_setup_checklist_includes_current_gate_without_fetching_sources(monkeypatch):
     monkeypatch.delenv("FMP_API_KEY", raising=False)
     current_preflight = {
+        "source_activation": {
+            "status": "not_required",
+            "reason_code": "workflow_evidence_only",
+            "detail": "Sources are reachable, but current blockers already have reviewed non-actionable proof.",
+            "next_action": "Use project-status or provider setup evidence until new data appears.",
+        },
         "source_activation_console_v2": {
             "next_executable_lane": "coverage_workflow_evidence",
             "next_executable_command": "make project-status",
@@ -319,8 +325,13 @@ def test_provider_setup_checklist_includes_current_gate_without_fetching_sources
         "avoid_repeating": "fundamentals_share_count_source_ladder",
         "next_step": "make project-status",
         "next_step_reason": "Wait for new provider data before repeating the source ladder.",
+        "source_activation_reason": "workflow_evidence_only",
+        "source_activation_detail": "Sources are reachable, but current blockers already have reviewed non-actionable proof.",
+        "source_activation_next_action": "Use project-status or provider setup evidence until new data appears.",
     }
     assert "Current source gate:" in rendered
+    assert "source_activation_reason: workflow_evidence_only" in rendered
+    assert "source_activation_detail: Sources are reachable, but current blockers already have reviewed non-actionable proof." in rendered
     assert "can_run_now: coverage_workflow_evidence" in rendered
     assert "needs_setup: fmp, alpha_vantage, finnhub" in rendered
     assert "avoid_repeating: fundamentals_share_count_source_ladder" in rendered

@@ -245,6 +245,8 @@ def _safe_next_step_for_provider(row: dict[str, Any]) -> str:
 def _current_gate_from_preflight(preflight: dict[str, Any] | None) -> dict[str, str]:
     if not isinstance(preflight, dict):
         return {}
+    activation = preflight.get("source_activation", {})
+    activation = activation if isinstance(activation, dict) else {}
     console = preflight.get("source_activation_console_v2", {})
     if not isinstance(console, dict):
         return {}
@@ -262,6 +264,9 @@ def _current_gate_from_preflight(preflight: dict[str, Any] | None) -> dict[str, 
         "avoid_repeating": _join(operator_summary.get("avoid_repeating")),
         "next_step": _join(operator_summary.get("next_step") or console.get("next_executable_command")),
         "next_step_reason": _join(operator_summary.get("next_step_reason")),
+        "source_activation_reason": _join(activation.get("reason_code")),
+        "source_activation_detail": _join(activation.get("detail")),
+        "source_activation_next_action": _join(activation.get("next_action")),
     }
 
 
@@ -497,6 +502,8 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
             [
                 "",
                 "Current source gate:",
+                f"- source_activation_reason: {current_gate.get('source_activation_reason', '-')}",
+                f"- source_activation_detail: {current_gate.get('source_activation_detail', '-')}",
                 f"- can_run_now: {current_gate.get('can_run_now', '-')}",
                 f"- needs_setup: {current_gate.get('needs_setup', '-')}",
                 f"- avoid_repeating: {current_gate.get('avoid_repeating', '-')}",
