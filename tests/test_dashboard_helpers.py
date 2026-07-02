@@ -26874,6 +26874,8 @@ def test_data_health_additional_operator_evidence_hides_summary_commands_by_defa
     )
     assert "Secondary context only; not the primary workflow." in drawer_source
     assert "Use after Home, Stock Selector, Single-Stock Report, Data Health lane answer, and Proof History evidence." in drawer_source
+    assert "Optional diagnostic context for holdings-first coverage planning; not the default next-action workflow." in drawer_source
+    assert "Optional diagnostic runbook; use only after source gates or provider setup change the queue." in drawer_source
 
 
 def test_data_health_public_ticker_query_adds_proof_focus_context():

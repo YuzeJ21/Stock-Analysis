@@ -28729,9 +28729,15 @@ def render_data_health(
             st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
             render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
             render_action_cards(data_health_fix_first_cards(actions_frame))
-            render_section_header("Guided Coverage Plans", "Holdings-first coverage plans for the next price, SEC fundamentals, and peer-mapping pass.")
+            render_section_header(
+                "Guided Coverage Plans",
+                "Optional diagnostic context for holdings-first coverage planning; not the default next-action workflow.",
+            )
             render_signal_cards(data_health_command_bundle_cards(command_bundles_frame), show_commands=False)
-            render_section_header("Guided Coverage Steps", "Ordered copy-only steps for each current coverage plan so the local follow-through stays explicit.")
+            render_section_header(
+                "Guided Coverage Steps",
+                "Optional diagnostic runbook; use only after source gates or provider setup change the queue.",
+            )
             render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame), show_commands=False)
             if command_bundles_frame is None:
                 bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
