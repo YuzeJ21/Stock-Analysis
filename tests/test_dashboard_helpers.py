@@ -2473,15 +2473,16 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     market_command_index = source.index("render_market_command_center(", market_expander_index)
     next_proof_index = source.index('render_section_header(\n                "Next Data Proof Steps"', details_drawer_index)
     hidden_tables_note_index = source.index('render_context_note(\n            "Detailed tables are hidden."')
-    tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])')
+    legacy_tables_drawer_index = source.index('with st.expander("Legacy diagnostic tables", expanded=False):', hidden_tables_note_index)
+    tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])', legacy_tables_drawer_index)
 
     assert hero_index < queue_index < lane_selector_index < price_drawer_index < details_drawer_index
-    assert details_drawer_index < next_proof_index < market_details_gate_index < market_expander_index < hidden_tables_note_index < tabs_index
+    assert details_drawer_index < next_proof_index < market_details_gate_index < market_expander_index < hidden_tables_note_index < legacy_tables_drawer_index < tabs_index
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Data Health Command Center" in source
     assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in console_source
-    assert "Open the lane evidence drawer or Operator context above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow." in source
+    assert "Open the lane evidence drawer or Operator context above for proof tables. Legacy Actions, Coverage, Sources, Price Updates, and Import Checks stay in the legacy diagnostic drawer." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
     assert 'if queue_details_loaded:\n        with st.expander("Queue proof review details", expanded=False)' in source
     assert 'with st.expander("Queue outcome ledger summary", expanded=False)' not in source
@@ -2491,6 +2492,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Optional context evidence drawer", expanded=False)' in source
     assert 'st.expander("Operator context", expanded=False)' in source
+    assert 'with st.expander("Legacy diagnostic tables", expanded=False):' in source
     assert "Additional operator evidence" not in source
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
     assert "Advanced Unlock Map" not in source

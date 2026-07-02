@@ -29039,818 +29039,819 @@ def render_data_health(
     if not show_details:
         render_context_note(
             "Detailed tables are hidden.",
-            "Open the lane evidence drawer or Operator context above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow.",
+            "Open the lane evidence drawer or Operator context above for proof tables. Legacy Actions, Coverage, Sources, Price Updates, and Import Checks stay in the legacy diagnostic drawer.",
         )
         return
 
-    health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])
+    with st.expander("Legacy diagnostic tables", expanded=False):
+        health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])
 
-    with health_tabs[0]:
-        render_signal_cards(
-            data_health_tab_summary_cards(
-                "Actions",
-                validation_rows,
-                coverage_frame,
-                status_frame,
-                price_status_frame,
-                staged_imports,
-            )
-        )
-        if action_queue_frame is None:
-            action_queue_notice_body, action_queue_notice_command = artifact_notice_copy("action_queue", action_queue_message)
-            render_notice_card(
-                "Next-step checklist not ready yet",
-                action_queue_notice_body,
-                action_queue_notice_command,
-                tone="warning",
-            )
-        else:
-            queue_summary = action_queue_summary(action_queue_frame)
-            metric_cols = st.columns(3)
-            metric_cols[0].metric("Critical", queue_summary["critical"])
-            metric_cols[1].metric("High", queue_summary["high"])
-            metric_cols[2].metric("Medium", queue_summary["medium"])
-            render_signal_cards(top_priority_signals(action_queue_frame, limit=3))
-            queue_columns = action_queue_table_columns(action_queue_frame)
-            st.dataframe(clean_display_frame(action_queue_frame[queue_columns].head(15)), width="stretch", hide_index=True)
-
-    with health_tabs[1]:
-        render_signal_cards(
-            data_health_tab_summary_cards(
-                "Coverage",
-                validation_rows,
-                coverage_frame,
-                status_frame,
-                price_status_frame,
-                staged_imports,
-            )
-        )
-        if data_quality_frame is None and liquidity_frame is None and correlation_frame is None:
-            research_health_notice_body, _ = artifact_notice_copy("research_health")
-            st.info(research_health_notice_body)
-        else:
-            health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
-            metric_cols = st.columns(4)
-            metric_cols[0].metric("Research Ready", health_summary["research_ready"])
-            metric_cols[1].metric("Partial Coverage", health_summary["partial_coverage"])
-            metric_cols[2].metric("Needs Price Data", health_summary["needs_price_data"])
-            metric_cols[3].metric("High Co-movement", health_summary["high_correlation"])
-
-            if coverage_frame is not None and not coverage_frame.empty:
-                summary = summarize_ticker_coverage(coverage_frame)
-                metric_cols = st.columns(4)
-                metric_cols[0].metric("Usable Price Data", summary["usable_price_tickers"])
-                metric_cols[1].metric("DCF Ready", summary["dcf_ready_tickers"])
-                metric_cols[2].metric("Peer Ready", summary["peer_ready_tickers"])
-                metric_cols[3].metric("Only Optional Gaps", summary["optional_only_missing_tickers"])
-            if price_worklist_frame is not None and not price_worklist_frame.empty:
-                worklist_summary = summarize_price_worklist(price_worklist_frame)
-                metric_cols = st.columns(4)
-                metric_cols[0].metric("Momentum Ready", worklist_summary["momentum_ready"])
-                metric_cols[1].metric("Track Record Ready", worklist_summary["track_record_ready"])
-                metric_cols[2].metric("1Y History Ready", worklist_summary["preferred_history_ready"])
-                metric_cols[3].metric("Urgent Price Gaps", worklist_summary["priority_1"])
-                render_section_header("Price History Targets", "Which tickers need the next exact local history step for Monthly Picks, track record, or a fuller 1Y view.")
-                render_signal_cards(data_health_price_target_cards(price_worklist_frame))
-            if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
-                fp_summary = summarize_fundamentals_peer_worklist(fundamentals_peer_worklist_frame)
-                metric_cols = st.columns(4)
-                metric_cols[0].metric("DCF Ready", fp_summary["dcf_ready"])
-                metric_cols[1].metric("Peer Ready", fp_summary["peer_ready"])
-                metric_cols[2].metric("Need Fundamentals", fp_summary["fundamentals_priority_1"])
-                metric_cols[3].metric("Need Peer Context", fp_summary["peer_priority_2"])
-                fundamentals_unlock = data_health_fundamentals_unlock_frame(fundamentals_peer_worklist_frame)
-                if not fundamentals_unlock.empty:
-                    render_section_header(
-                        "Price-Ready, Fundamentals-Locked Companies",
-                        "Start here to see which price-ready companies need trusted fundamentals before deeper review.",
-                    )
-                    render_signal_cards(data_health_fundamentals_unlock_cards(fundamentals_unlock))
-                    st.dataframe(clean_display_frame(fundamentals_unlock), width="stretch", hide_index=True)
-            render_section_header("DCF Readiness", "Operating-company DCF gating, ETF exclusions, SEC setup, and manual fundamentals import availability.")
-            metric_cols = st.columns(3)
-            sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip())
-            dcf_metric_counts = data_health_dcf_metric_counts(dcf_readiness_frame)
-            metric_cols[0].metric("DCF-ready tickers", dcf_metric_counts["ready"])
-            metric_cols[1].metric("Company DCF blocked", dcf_metric_counts["blocked_company"])
-            metric_cols[2].metric("ETF / index excluded", dcf_metric_counts["excluded"])
-            st.caption(
-                sec_fundamentals_setup_label(sec_configured)
-                + " | "
-                + import_workflow_caption("data/staged/fundamentals/", "make import-fundamentals")
-            )
-            next_fundamentals_ticker = next_fundamentals_unlock_ticker(fundamentals_peer_worklist_frame)
-            render_section_header(
-                "First Trusted Fundamentals Proof",
-                "The shortest safe path from missing company fundamentals to a readiness count that can honestly improve.",
-            )
-            render_signal_cards(first_fundamentals_unlock_cards(sec_configured, next_fundamentals_ticker))
-            with st.expander("First fundamentals proof steps", expanded=False):
-                st.dataframe(
-                    clean_display_frame(first_fundamentals_unlock_frame(sec_configured, next_fundamentals_ticker)),
-                    width="stretch",
-                    hide_index=True,
+        with health_tabs[0]:
+            render_signal_cards(
+                data_health_tab_summary_cards(
+                    "Actions",
+                    validation_rows,
+                    coverage_frame,
+                    status_frame,
+                    price_status_frame,
+                    staged_imports,
                 )
-            field_guide = dcf_missing_field_guide_frame(dcf_readiness_frame, sec_configured=sec_configured)
-            render_section_header(
-                "DCF Missing-Field Guide",
-                "Translate blocked DCF fields into trusted input paths, validation steps, and withheld conclusions.",
             )
-            render_signal_cards(dcf_missing_field_guide_cards(field_guide))
-            if not field_guide.empty:
-                with st.expander("DCF missing-field details", expanded=False):
-                    st.dataframe(clean_display_frame(field_guide), width="stretch", hide_index=True)
-            if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
-                dcf_columns = [
-                    column
-                    for column in [
-                        "ticker",
-                        "asset_type",
-                        "is_dcf_ready",
-                        "missing_dcf_fields",
-                        "reason_not_ready",
-                        "has_free_cash_flow",
-                        "has_shares_outstanding",
-                        "has_revenue",
-                        "has_fcf_margin",
-                        "has_price",
-                    ]
-                    if column in dcf_readiness_frame.columns
-                ]
-                st.dataframe(clean_display_frame(dcf_readiness_frame[dcf_columns]), width="stretch", hide_index=True)
-            else:
+            if action_queue_frame is None:
+                action_queue_notice_body, action_queue_notice_command = artifact_notice_copy("action_queue", action_queue_message)
                 render_notice_card(
-                    "DCF readiness not ready yet",
-                    dcf_readiness_message or dcf_readiness_proof_caption(),
-                    "make dcf-readiness",
+                    "Next-step checklist not ready yet",
+                    action_queue_notice_body,
+                    action_queue_notice_command,
                     tone="warning",
                 )
-            if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
-                oc_summary = summarize_optional_context_worklist(optional_context_worklist_frame)
-                metric_cols = st.columns(4)
-                metric_cols[0].metric("Earnings Ready", oc_summary["earnings_ready"])
-                metric_cols[1].metric("Estimates Ready", oc_summary["estimates_ready"])
-                metric_cols[2].metric("Missing Both Optional", oc_summary["missing_both"])
-                metric_cols[3].metric("Missing One Optional", oc_summary["missing_one"])
-            render_section_header(
-                "Trusted Optional Context",
-                "Earnings and analyst estimates stay not available until verified local rows are imported and applied.",
-            )
-            render_signal_cards(optional_context_unlock_cards())
-            optional_ladder = optional_context_ladder_frame(
-                optional_context_worklist_frame,
-                earnings_readiness_frame,
-                analyst_readiness_frame,
-            )
-            render_section_header(
-                "Optional Context Ladder",
-                "Schema-only examples, trusted input paths, rejected-row reports, and readiness proof before optional context appears.",
-            )
-            render_signal_cards(optional_context_ladder_cards(optional_ladder))
-            with st.expander("Optional context details", expanded=False):
-                st.dataframe(clean_display_frame(optional_ladder), width="stretch", hide_index=True)
-            render_section_header(
-                "First Trusted Optional Context Proof",
-                "Optional context should stay locked unless trusted earnings or estimate rows are available locally.",
-            )
-            render_signal_cards(first_optional_context_unlock_cards("earnings"))
-            render_signal_cards(first_optional_context_unlock_cards("analyst_estimates"))
-            with st.expander("First optional context proof steps", expanded=False):
-                st.dataframe(
-                    clean_display_frame(
-                        pd.concat(
-                            [
-                                first_optional_context_unlock_frame("earnings").assign(Dataset="Earnings"),
-                                first_optional_context_unlock_frame("analyst_estimates").assign(Dataset="Analyst estimates"),
-                            ],
-                            ignore_index=True,
-                        )
-                    ),
-                    width="stretch",
-                    hide_index=True,
+            else:
+                queue_summary = action_queue_summary(action_queue_frame)
+                metric_cols = st.columns(3)
+                metric_cols[0].metric("Critical", queue_summary["critical"])
+                metric_cols[1].metric("High", queue_summary["high"])
+                metric_cols[2].metric("Medium", queue_summary["medium"])
+                render_signal_cards(top_priority_signals(action_queue_frame, limit=3))
+                queue_columns = action_queue_table_columns(action_queue_frame)
+                st.dataframe(clean_display_frame(action_queue_frame[queue_columns].head(15)), width="stretch", hide_index=True)
+
+        with health_tabs[1]:
+            render_signal_cards(
+                data_health_tab_summary_cards(
+                    "Coverage",
+                    validation_rows,
+                    coverage_frame,
+                    status_frame,
+                    price_status_frame,
+                    staged_imports,
                 )
-            optional_cols = st.columns(2)
-            with optional_cols[0]:
-                st.markdown("#### Earnings Readiness")
-                if earnings_readiness_frame is not None and not earnings_readiness_frame.empty:
-                    ready_count = int(earnings_readiness_frame.get("has_trusted_earnings", pd.Series(dtype=bool)).astype(bool).sum())
-                    st.metric("Trusted earnings rows", f"{ready_count}/{len(earnings_readiness_frame)}")
-                    st.caption(import_workflow_caption("data/staged/earnings/", "make import-earnings"))
-                    columns = [
-                        column
-                        for column in ["ticker", "has_trusted_earnings", "row_count", "latest_report_date", "latest_fiscal_period", "missing_fields", "reason_not_ready"]
-                        if column in earnings_readiness_frame.columns
-                    ]
-                    st.dataframe(clean_display_frame(earnings_readiness_frame[columns]), width="stretch", hide_index=True)
-                else:
-                    st.info("Not available: missing trusted local CSV input")
-                    st.caption(earnings_readiness_message or optional_context_readiness_caption("earnings"))
-            with optional_cols[1]:
-                st.markdown("#### Analyst Estimate Readiness")
-                if analyst_readiness_frame is not None and not analyst_readiness_frame.empty:
-                    ready_count = int(analyst_readiness_frame.get("has_trusted_analyst_estimates", pd.Series(dtype=bool)).astype(bool).sum())
-                    st.metric("Trusted analyst rows", f"{ready_count}/{len(analyst_readiness_frame)}")
-                    st.caption(
-                        import_workflow_caption("data/staged/analyst_estimates/", "make import-analyst-estimates")
-                    )
-                    columns = [
-                        column
-                        for column in ["ticker", "has_trusted_analyst_estimates", "row_count", "latest_period", "missing_fields", "reason_not_ready"]
-                        if column in analyst_readiness_frame.columns
-                    ]
-                    st.dataframe(clean_display_frame(analyst_readiness_frame[columns]), width="stretch", hide_index=True)
-                else:
-                    st.info("Not available: missing trusted local CSV input")
-                    st.caption(analyst_readiness_message or optional_context_readiness_caption("analyst-estimate"))
-            if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
-                sec_summary = summarize_sec_stage_queue(sec_stage_queue_frame)
-                metric_cols = st.columns(4)
-                metric_cols[0].metric("SEC Queue P1", sec_summary["priority_1"])
-                metric_cols[1].metric("SEC Queue P2", sec_summary["priority_2"])
-                metric_cols[2].metric("Holdings in SEC Queue", sec_summary["holdings"])
-                metric_cols[3].metric("Missing Fundamentals Rows", sec_summary["missing_fundamentals"])
-            if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
-                peer_summary = summarize_peer_mapping_queue(peer_mapping_queue_frame)
-                metric_cols = st.columns(4)
-                metric_cols[0].metric("Peer Queue P1", peer_summary["priority_1"])
-                metric_cols[1].metric("Peer Queue P2", peer_summary["priority_2"])
-                metric_cols[2].metric("Holdings in Peer Queue", peer_summary["holdings"])
-                metric_cols[3].metric("Missing Peer Mappings", peer_summary["missing_peer_mapping"])
-                peer_unlock = data_health_peer_unlock_frame(peer_mapping_queue_frame, fundamentals_peer_worklist_frame)
-                if not peer_unlock.empty:
-                    render_section_header(
-                        "DCF-Ready, Peer-Locked Companies",
-                        "Start here to see which DCF-ready companies still need source-backed peer rows.",
-                    )
-                    render_signal_cards(data_health_peer_unlock_cards(peer_unlock))
-                    st.dataframe(clean_display_frame(peer_unlock), width="stretch", hide_index=True)
-                render_section_header("Company Data Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
-                render_signal_cards(data_health_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
-            if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
-                ladder_summary = summarize_ticker_unlock_ladder(ticker_unlock_ladder_frame)
-                metric_cols = st.columns(5)
-                metric_cols[0].metric("Need Prices", ladder_summary["price_stage"])
-                metric_cols[1].metric("Need Fundamentals", ladder_summary["fundamentals_stage"])
-                metric_cols[2].metric("Need Peers", ladder_summary["peer_stage"])
-                metric_cols[3].metric("Need Optional Context", ladder_summary["optional_stage"])
-                metric_cols[4].metric("Coverage Ready", ladder_summary["ready_stage"])
-            if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
-                summary = summarize_unlock_priority_summary(unlock_priority_summary_frame)
-                metric_cols = st.columns(5)
-                metric_cols[0].metric("Holdings Groups", summary["holdings_groups"])
-                metric_cols[1].metric("Theme Groups", summary["theme_groups"])
-                metric_cols[2].metric("Sector ETF Groups", summary["sector_groups"])
-                metric_cols[3].metric("Price-Led Groups", summary["price_led_groups"])
-                metric_cols[4].metric("Fundamentals-Led Groups", summary["fundamentals_led_groups"])
-
-            if data_quality_frame is not None and not data_quality_frame.empty:
-                data_quality_columns = [
-                    column
-                    for column in [
-                        "Ticker",
-                        "ReadinessStatus",
-                        "DataQualityScore",
-                        "MomentumReady",
-                        "DCFReady",
-                        "PeerReady",
-                        "PriceHistoryDays",
-                        "MissingDataFields",
-                        "NextBestAction",
-                        "Reason",
-                    ]
-                    if column in data_quality_frame.columns
-                ]
-                st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns])), width="stretch", hide_index=True)
+            )
+            if data_quality_frame is None and liquidity_frame is None and correlation_frame is None:
+                research_health_notice_body, _ = artifact_notice_copy("research_health")
+                st.info(research_health_notice_body)
             else:
-                st.info(data_quality_message or "No data-quality rows are available.")
+                health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
+                metric_cols = st.columns(4)
+                metric_cols[0].metric("Research Ready", health_summary["research_ready"])
+                metric_cols[1].metric("Partial Coverage", health_summary["partial_coverage"])
+                metric_cols[2].metric("Needs Price Data", health_summary["needs_price_data"])
+                metric_cols[3].metric("High Co-movement", health_summary["high_correlation"])
 
-            render_section_header("Ticker Readiness Report", "Central per-feature readiness by ticker. Use this before interpreting any downstream analysis table.")
-            if ticker_readiness_frame is not None and not ticker_readiness_frame.empty:
-                readiness_columns = [
-                    column
-                    for column in [
-                        "ticker",
-                        "asset_type",
-                        "theme",
-                        "overall_readiness_state",
-                        "price_ready",
-                        "momentum_ready",
-                        "liquidity_ready",
-                        "correlation_ready",
-                        "dcf_ready",
-                        "peer_ready",
-                        "earnings_ready",
-                        "analyst_estimates_ready",
-                        "blocked_features",
-                        "excluded_features",
-                        "missing_data",
-                        "next_action",
-                    ]
-                    if column in ticker_readiness_frame.columns
-                ]
-                st.dataframe(clean_display_frame(ticker_readiness_frame[readiness_columns].head(200)), width="stretch", hide_index=True)
-            else:
-                st.info(ticker_readiness_message or "Build ticker readiness proof before reviewing this table.")
-
-            with st.expander("Liquidity Context", expanded=False):
-                if liquidity_frame is not None and not liquidity_frame.empty:
-                    liquidity_ready, liquidity_unavailable = split_risk_context_by_price_ready(
-                        liquidity_frame,
-                        {"Insufficient Price Data"},
+                if coverage_frame is not None and not coverage_frame.empty:
+                    summary = summarize_ticker_coverage(coverage_frame)
+                    metric_cols = st.columns(4)
+                    metric_cols[0].metric("Usable Price Data", summary["usable_price_tickers"])
+                    metric_cols[1].metric("DCF Ready", summary["dcf_ready_tickers"])
+                    metric_cols[2].metric("Peer Ready", summary["peer_ready_tickers"])
+                    metric_cols[3].metric("Only Optional Gaps", summary["optional_only_missing_tickers"])
+                if price_worklist_frame is not None and not price_worklist_frame.empty:
+                    worklist_summary = summarize_price_worklist(price_worklist_frame)
+                    metric_cols = st.columns(4)
+                    metric_cols[0].metric("Momentum Ready", worklist_summary["momentum_ready"])
+                    metric_cols[1].metric("Track Record Ready", worklist_summary["track_record_ready"])
+                    metric_cols[2].metric("1Y History Ready", worklist_summary["preferred_history_ready"])
+                    metric_cols[3].metric("Urgent Price Gaps", worklist_summary["priority_1"])
+                    render_section_header("Price History Targets", "Which tickers need the next exact local history step for Monthly Picks, track record, or a fuller 1Y view.")
+                    render_signal_cards(data_health_price_target_cards(price_worklist_frame))
+                if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
+                    fp_summary = summarize_fundamentals_peer_worklist(fundamentals_peer_worklist_frame)
+                    metric_cols = st.columns(4)
+                    metric_cols[0].metric("DCF Ready", fp_summary["dcf_ready"])
+                    metric_cols[1].metric("Peer Ready", fp_summary["peer_ready"])
+                    metric_cols[2].metric("Need Fundamentals", fp_summary["fundamentals_priority_1"])
+                    metric_cols[3].metric("Need Peer Context", fp_summary["peer_priority_2"])
+                    fundamentals_unlock = data_health_fundamentals_unlock_frame(fundamentals_peer_worklist_frame)
+                    if not fundamentals_unlock.empty:
+                        render_section_header(
+                            "Price-Ready, Fundamentals-Locked Companies",
+                            "Start here to see which price-ready companies need trusted fundamentals before deeper review.",
+                        )
+                        render_signal_cards(data_health_fundamentals_unlock_cards(fundamentals_unlock))
+                        st.dataframe(clean_display_frame(fundamentals_unlock), width="stretch", hide_index=True)
+                render_section_header("DCF Readiness", "Operating-company DCF gating, ETF exclusions, SEC setup, and manual fundamentals import availability.")
+                metric_cols = st.columns(3)
+                sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip())
+                dcf_metric_counts = data_health_dcf_metric_counts(dcf_readiness_frame)
+                metric_cols[0].metric("DCF-ready tickers", dcf_metric_counts["ready"])
+                metric_cols[1].metric("Company DCF blocked", dcf_metric_counts["blocked_company"])
+                metric_cols[2].metric("ETF / index excluded", dcf_metric_counts["excluded"])
+                st.caption(
+                    sec_fundamentals_setup_label(sec_configured)
+                    + " | "
+                    + import_workflow_caption("data/staged/fundamentals/", "make import-fundamentals")
+                )
+                next_fundamentals_ticker = next_fundamentals_unlock_ticker(fundamentals_peer_worklist_frame)
+                render_section_header(
+                    "First Trusted Fundamentals Proof",
+                    "The shortest safe path from missing company fundamentals to a readiness count that can honestly improve.",
+                )
+                render_signal_cards(first_fundamentals_unlock_cards(sec_configured, next_fundamentals_ticker))
+                with st.expander("First fundamentals proof steps", expanded=False):
+                    st.dataframe(
+                        clean_display_frame(first_fundamentals_unlock_frame(sec_configured, next_fundamentals_ticker)),
+                        width="stretch",
+                        hide_index=True,
                     )
-                    liquidity_columns = [
+                field_guide = dcf_missing_field_guide_frame(dcf_readiness_frame, sec_configured=sec_configured)
+                render_section_header(
+                    "DCF Missing-Field Guide",
+                    "Translate blocked DCF fields into trusted input paths, validation steps, and withheld conclusions.",
+                )
+                render_signal_cards(dcf_missing_field_guide_cards(field_guide))
+                if not field_guide.empty:
+                    with st.expander("DCF missing-field details", expanded=False):
+                        st.dataframe(clean_display_frame(field_guide), width="stretch", hide_index=True)
+                if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
+                    dcf_columns = [
+                        column
+                        for column in [
+                            "ticker",
+                            "asset_type",
+                            "is_dcf_ready",
+                            "missing_dcf_fields",
+                            "reason_not_ready",
+                            "has_free_cash_flow",
+                            "has_shares_outstanding",
+                            "has_revenue",
+                            "has_fcf_margin",
+                            "has_price",
+                        ]
+                        if column in dcf_readiness_frame.columns
+                    ]
+                    st.dataframe(clean_display_frame(dcf_readiness_frame[dcf_columns]), width="stretch", hide_index=True)
+                else:
+                    render_notice_card(
+                        "DCF readiness not ready yet",
+                        dcf_readiness_message or dcf_readiness_proof_caption(),
+                        "make dcf-readiness",
+                        tone="warning",
+                    )
+                if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
+                    oc_summary = summarize_optional_context_worklist(optional_context_worklist_frame)
+                    metric_cols = st.columns(4)
+                    metric_cols[0].metric("Earnings Ready", oc_summary["earnings_ready"])
+                    metric_cols[1].metric("Estimates Ready", oc_summary["estimates_ready"])
+                    metric_cols[2].metric("Missing Both Optional", oc_summary["missing_both"])
+                    metric_cols[3].metric("Missing One Optional", oc_summary["missing_one"])
+                render_section_header(
+                    "Trusted Optional Context",
+                    "Earnings and analyst estimates stay not available until verified local rows are imported and applied.",
+                )
+                render_signal_cards(optional_context_unlock_cards())
+                optional_ladder = optional_context_ladder_frame(
+                    optional_context_worklist_frame,
+                    earnings_readiness_frame,
+                    analyst_readiness_frame,
+                )
+                render_section_header(
+                    "Optional Context Ladder",
+                    "Schema-only examples, trusted input paths, rejected-row reports, and readiness proof before optional context appears.",
+                )
+                render_signal_cards(optional_context_ladder_cards(optional_ladder))
+                with st.expander("Optional context details", expanded=False):
+                    st.dataframe(clean_display_frame(optional_ladder), width="stretch", hide_index=True)
+                render_section_header(
+                    "First Trusted Optional Context Proof",
+                    "Optional context should stay locked unless trusted earnings or estimate rows are available locally.",
+                )
+                render_signal_cards(first_optional_context_unlock_cards("earnings"))
+                render_signal_cards(first_optional_context_unlock_cards("analyst_estimates"))
+                with st.expander("First optional context proof steps", expanded=False):
+                    st.dataframe(
+                        clean_display_frame(
+                            pd.concat(
+                                [
+                                    first_optional_context_unlock_frame("earnings").assign(Dataset="Earnings"),
+                                    first_optional_context_unlock_frame("analyst_estimates").assign(Dataset="Analyst estimates"),
+                                ],
+                                ignore_index=True,
+                            )
+                        ),
+                        width="stretch",
+                        hide_index=True,
+                    )
+                optional_cols = st.columns(2)
+                with optional_cols[0]:
+                    st.markdown("#### Earnings Readiness")
+                    if earnings_readiness_frame is not None and not earnings_readiness_frame.empty:
+                        ready_count = int(earnings_readiness_frame.get("has_trusted_earnings", pd.Series(dtype=bool)).astype(bool).sum())
+                        st.metric("Trusted earnings rows", f"{ready_count}/{len(earnings_readiness_frame)}")
+                        st.caption(import_workflow_caption("data/staged/earnings/", "make import-earnings"))
+                        columns = [
+                            column
+                            for column in ["ticker", "has_trusted_earnings", "row_count", "latest_report_date", "latest_fiscal_period", "missing_fields", "reason_not_ready"]
+                            if column in earnings_readiness_frame.columns
+                        ]
+                        st.dataframe(clean_display_frame(earnings_readiness_frame[columns]), width="stretch", hide_index=True)
+                    else:
+                        st.info("Not available: missing trusted local CSV input")
+                        st.caption(earnings_readiness_message or optional_context_readiness_caption("earnings"))
+                with optional_cols[1]:
+                    st.markdown("#### Analyst Estimate Readiness")
+                    if analyst_readiness_frame is not None and not analyst_readiness_frame.empty:
+                        ready_count = int(analyst_readiness_frame.get("has_trusted_analyst_estimates", pd.Series(dtype=bool)).astype(bool).sum())
+                        st.metric("Trusted analyst rows", f"{ready_count}/{len(analyst_readiness_frame)}")
+                        st.caption(
+                            import_workflow_caption("data/staged/analyst_estimates/", "make import-analyst-estimates")
+                        )
+                        columns = [
+                            column
+                            for column in ["ticker", "has_trusted_analyst_estimates", "row_count", "latest_period", "missing_fields", "reason_not_ready"]
+                            if column in analyst_readiness_frame.columns
+                        ]
+                        st.dataframe(clean_display_frame(analyst_readiness_frame[columns]), width="stretch", hide_index=True)
+                    else:
+                        st.info("Not available: missing trusted local CSV input")
+                        st.caption(analyst_readiness_message or optional_context_readiness_caption("analyst-estimate"))
+                if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
+                    sec_summary = summarize_sec_stage_queue(sec_stage_queue_frame)
+                    metric_cols = st.columns(4)
+                    metric_cols[0].metric("SEC Queue P1", sec_summary["priority_1"])
+                    metric_cols[1].metric("SEC Queue P2", sec_summary["priority_2"])
+                    metric_cols[2].metric("Holdings in SEC Queue", sec_summary["holdings"])
+                    metric_cols[3].metric("Missing Fundamentals Rows", sec_summary["missing_fundamentals"])
+                if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
+                    peer_summary = summarize_peer_mapping_queue(peer_mapping_queue_frame)
+                    metric_cols = st.columns(4)
+                    metric_cols[0].metric("Peer Queue P1", peer_summary["priority_1"])
+                    metric_cols[1].metric("Peer Queue P2", peer_summary["priority_2"])
+                    metric_cols[2].metric("Holdings in Peer Queue", peer_summary["holdings"])
+                    metric_cols[3].metric("Missing Peer Mappings", peer_summary["missing_peer_mapping"])
+                    peer_unlock = data_health_peer_unlock_frame(peer_mapping_queue_frame, fundamentals_peer_worklist_frame)
+                    if not peer_unlock.empty:
+                        render_section_header(
+                            "DCF-Ready, Peer-Locked Companies",
+                            "Start here to see which DCF-ready companies still need source-backed peer rows.",
+                        )
+                        render_signal_cards(data_health_peer_unlock_cards(peer_unlock))
+                        st.dataframe(clean_display_frame(peer_unlock), width="stretch", hide_index=True)
+                    render_section_header("Company Data Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
+                    render_signal_cards(data_health_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
+                if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
+                    ladder_summary = summarize_ticker_unlock_ladder(ticker_unlock_ladder_frame)
+                    metric_cols = st.columns(5)
+                    metric_cols[0].metric("Need Prices", ladder_summary["price_stage"])
+                    metric_cols[1].metric("Need Fundamentals", ladder_summary["fundamentals_stage"])
+                    metric_cols[2].metric("Need Peers", ladder_summary["peer_stage"])
+                    metric_cols[3].metric("Need Optional Context", ladder_summary["optional_stage"])
+                    metric_cols[4].metric("Coverage Ready", ladder_summary["ready_stage"])
+                if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
+                    summary = summarize_unlock_priority_summary(unlock_priority_summary_frame)
+                    metric_cols = st.columns(5)
+                    metric_cols[0].metric("Holdings Groups", summary["holdings_groups"])
+                    metric_cols[1].metric("Theme Groups", summary["theme_groups"])
+                    metric_cols[2].metric("Sector ETF Groups", summary["sector_groups"])
+                    metric_cols[3].metric("Price-Led Groups", summary["price_led_groups"])
+                    metric_cols[4].metric("Fundamentals-Led Groups", summary["fundamentals_led_groups"])
+
+                if data_quality_frame is not None and not data_quality_frame.empty:
+                    data_quality_columns = [
                         column
                         for column in [
                             "Ticker",
-                            "LiquidityStatus",
-                            "LiquidityScore",
-                            "LiquidityInputsUsed",
-                            "LiquidityBlindSpots",
-                            "AvgDollarVolume20D",
-                            "AvgVolume20D",
-                            "VolumeTrend5DVs20D",
-                            "VolatilityProxy20D",
+                            "ReadinessStatus",
+                            "DataQualityScore",
+                            "MomentumReady",
+                            "DCFReady",
+                            "PeerReady",
+                            "PriceHistoryDays",
                             "MissingDataFields",
+                            "NextBestAction",
                             "Reason",
                         ]
-                        if column in liquidity_frame.columns
+                        if column in data_quality_frame.columns
                     ]
-                    if not liquidity_ready.empty:
-                        st.dataframe(style_frame(clean_display_frame(liquidity_ready[liquidity_columns])), width="stretch", hide_index=True)
-                    else:
-                        st.info("Liquidity analysis is blocked for all tickers until local price and volume rows are available.")
-                    if not liquidity_unavailable.empty:
-                        st.markdown("##### Liquidity unavailable")
-                        st.dataframe(
-                            style_frame(clean_display_frame(liquidity_unavailable[_readiness_columns(liquidity_unavailable, ["Ticker", "LiquidityStatus", "MissingDataFields", "Reason"])])),
-                            width="stretch",
-                            hide_index=True,
-                        )
+                    st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns])), width="stretch", hide_index=True)
                 else:
-                    st.info(liquidity_message or "No liquidity rows are available.")
+                    st.info(data_quality_message or "No data-quality rows are available.")
 
-            with st.expander("Correlation Concentration Context", expanded=False):
-                if correlation_frame is not None and not correlation_frame.empty:
-                    correlation_ready, correlation_unavailable = split_risk_context_by_price_ready(
-                        correlation_frame,
-                        {"Insufficient Data", "Insufficient Overlap"},
-                    )
-                    correlation_columns = [
+                render_section_header("Ticker Readiness Report", "Central per-feature readiness by ticker. Use this before interpreting any downstream analysis table.")
+                if ticker_readiness_frame is not None and not ticker_readiness_frame.empty:
+                    readiness_columns = [
                         column
                         for column in [
-                            "Ticker",
-                            "CorrelationStatus",
-                            "CorrelationMethod",
-                            "ReturnType",
-                            "MostCorrelatedTicker",
-                            "Correlation",
-                            "OverlapDays",
-                            "MissingDataFields",
-                            "Reason",
-                        ]
-                        if column in correlation_frame.columns
-                    ]
-                    if not correlation_ready.empty:
-                        st.dataframe(style_frame(clean_display_frame(correlation_ready[correlation_columns])), width="stretch", hide_index=True)
-                    else:
-                        st.info("Correlation analysis is blocked until enough overlapping local return history exists.")
-                    if not correlation_unavailable.empty:
-                        st.markdown("##### Correlation unavailable")
-                        st.dataframe(
-                            style_frame(clean_display_frame(correlation_unavailable[_readiness_columns(correlation_unavailable, ["Ticker", "CorrelationStatus", "MissingDataFields", "Reason"])])),
-                            width="stretch",
-                            hide_index=True,
-                        )
-                else:
-                    st.info(correlation_message or "No correlation rows are available.")
-
-            if actions_frame is not None and not actions_frame.empty:
-                with st.expander("Top Data Actions", expanded=False):
-                    top_actions = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(10)
-                    action_columns = [
-                        column
-                        for column in ["priority", "ticker", "dataset", "status", "reason", "recommended_action", "focus_command", "target_file"]
-                        if column in top_actions.columns
-                    ]
-                    st.dataframe(clean_display_frame(top_actions[action_columns]), width="stretch", hide_index=True)
-            elif actions_message:
-                st.info(actions_message)
-
-            if wizard_frame is not None and not wizard_frame.empty:
-                with st.expander("Coverage Guide Rows", expanded=False):
-                    wizard_columns = [
-                        column
-                        for column in [
-                            "priority",
                             "ticker",
-                            "unlock_goal",
-                            "blocking_dataset",
-                            "current_status",
-                            "recommended_action",
-                            "focus_command",
-                            "safe_next_step",
-                        ]
-                        if column in wizard_frame.columns
-                    ]
-                    st.dataframe(clean_display_frame(wizard_frame[wizard_columns].head(20)), width="stretch", hide_index=True)
-            if price_worklist_frame is not None and not price_worklist_frame.empty:
-                with st.expander("Price Import Worklist", expanded=False):
-                    worklist_columns = [
-                        column
-                        for column in [
-                            "priority",
-                            "ticker",
-                            "price_history_days",
-                            "first_local_date",
-                            "latest_local_date",
-                            "next_price_goal",
-                            "next_target_history_rows",
-                            "rows_needed_for_next_goal",
-                            "suggested_start_date",
+                            "asset_type",
+                            "theme",
+                            "overall_readiness_state",
+                            "price_ready",
                             "momentum_ready",
-                            "track_record_ready",
-                            "preferred_history_ready",
-                            "missing_for_momentum",
-                            "missing_for_track_record",
-                            "missing_for_preferred_history",
-                            "focus_command",
-                            "example_command",
-                        ]
-                        if column in price_worklist_frame.columns
-                    ]
-                    st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(20)), width="stretch", hide_index=True)
-            if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
-                with st.expander("Fundamentals / Peer Worklist", expanded=False):
-                    fp_columns = operator_workflow_table_columns(
-                        fundamentals_peer_worklist_frame,
-                        [
-                            "priority",
-                            "ticker",
-                            "has_fundamentals",
+                            "liquidity_ready",
+                            "correlation_ready",
                             "dcf_ready",
-                            "has_peer_mapping",
                             "peer_ready",
-                            "missing_required_for_dcf",
-                            "missing_required_for_peer_relative",
-                            "focus_command",
-                            "example_command",
-                        ],
-                    )
-                    st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(20)), width="stretch", hide_index=True)
-            if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
-                with st.expander("Optional Context Worklist", expanded=False):
-                    oc_columns = [
-                        column
-                        for column in [
-                            "priority",
-                            "ticker",
-                            "has_earnings",
-                            "has_analyst_estimates",
-                            "missing_optional_context",
-                            "recommended_action",
-                            "example_command",
+                            "earnings_ready",
+                            "analyst_estimates_ready",
+                            "blocked_features",
+                            "excluded_features",
+                            "missing_data",
+                            "next_action",
                         ]
-                        if column in optional_context_worklist_frame.columns
+                        if column in ticker_readiness_frame.columns
                     ]
-                    st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(20)), width="stretch", hide_index=True)
-            if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
-                with st.expander("Fundamentals Review Queue", expanded=False):
-                    sec_columns = operator_workflow_table_columns(
-                        sec_stage_queue_frame,
-                        [
-                            "priority",
-                            "ticker",
-                            "is_holding",
-                            "theme",
-                            "sector_etf",
-                            "price_history_days",
-                            "has_fundamentals",
-                            "missing_required_for_dcf",
-                            "recommended_action",
-                            "focus_command",
-                            "example_command",
-                        ],
-                    )
-                    st.dataframe(clean_display_frame(sec_stage_queue_frame[sec_columns].head(20)), width="stretch", hide_index=True)
-            elif sec_stage_queue_message:
-                st.info(sec_stage_queue_message)
-            if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
-                with st.expander("Peer Review Queue", expanded=False):
-                    peer_columns = operator_workflow_table_columns(
-                        peer_mapping_queue_frame,
-                        [
-                            "priority",
-                            "ticker",
-                            "is_holding",
-                            "theme",
-                            "sector_etf",
-                            "has_peer_mapping",
-                            "dcf_ready",
-                            "missing_required_for_peer_relative",
-                            "recommended_action",
-                            "focus_command",
-                            "example_command",
-                        ],
-                    )
-                    st.dataframe(clean_display_frame(peer_mapping_queue_frame[peer_columns].head(20)), width="stretch", hide_index=True)
-            elif peer_mapping_queue_message:
-                st.info(peer_mapping_queue_message)
-            if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
-                with st.expander("Ticker Unlock Steps", expanded=False):
-                    ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=True)
-                    st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(20)), width="stretch", hide_index=True)
-            if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
-                with st.expander("Unlock Priority Summary", expanded=False):
-                    summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
-                    st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(20)), width="stretch", hide_index=True)
+                    st.dataframe(clean_display_frame(ticker_readiness_frame[readiness_columns].head(200)), width="stretch", hide_index=True)
+                else:
+                    st.info(ticker_readiness_message or "Build ticker readiness proof before reviewing this table.")
 
-    with health_tabs[2]:
-        render_signal_cards(
-            data_health_tab_summary_cards(
-                "Sources",
-                validation_rows,
-                coverage_frame,
-                status_frame,
-                price_status_frame,
-                staged_imports,
+                with st.expander("Liquidity Context", expanded=False):
+                    if liquidity_frame is not None and not liquidity_frame.empty:
+                        liquidity_ready, liquidity_unavailable = split_risk_context_by_price_ready(
+                            liquidity_frame,
+                            {"Insufficient Price Data"},
+                        )
+                        liquidity_columns = [
+                            column
+                            for column in [
+                                "Ticker",
+                                "LiquidityStatus",
+                                "LiquidityScore",
+                                "LiquidityInputsUsed",
+                                "LiquidityBlindSpots",
+                                "AvgDollarVolume20D",
+                                "AvgVolume20D",
+                                "VolumeTrend5DVs20D",
+                                "VolatilityProxy20D",
+                                "MissingDataFields",
+                                "Reason",
+                            ]
+                            if column in liquidity_frame.columns
+                        ]
+                        if not liquidity_ready.empty:
+                            st.dataframe(style_frame(clean_display_frame(liquidity_ready[liquidity_columns])), width="stretch", hide_index=True)
+                        else:
+                            st.info("Liquidity analysis is blocked for all tickers until local price and volume rows are available.")
+                        if not liquidity_unavailable.empty:
+                            st.markdown("##### Liquidity unavailable")
+                            st.dataframe(
+                                style_frame(clean_display_frame(liquidity_unavailable[_readiness_columns(liquidity_unavailable, ["Ticker", "LiquidityStatus", "MissingDataFields", "Reason"])])),
+                                width="stretch",
+                                hide_index=True,
+                            )
+                    else:
+                        st.info(liquidity_message or "No liquidity rows are available.")
+
+                with st.expander("Correlation Concentration Context", expanded=False):
+                    if correlation_frame is not None and not correlation_frame.empty:
+                        correlation_ready, correlation_unavailable = split_risk_context_by_price_ready(
+                            correlation_frame,
+                            {"Insufficient Data", "Insufficient Overlap"},
+                        )
+                        correlation_columns = [
+                            column
+                            for column in [
+                                "Ticker",
+                                "CorrelationStatus",
+                                "CorrelationMethod",
+                                "ReturnType",
+                                "MostCorrelatedTicker",
+                                "Correlation",
+                                "OverlapDays",
+                                "MissingDataFields",
+                                "Reason",
+                            ]
+                            if column in correlation_frame.columns
+                        ]
+                        if not correlation_ready.empty:
+                            st.dataframe(style_frame(clean_display_frame(correlation_ready[correlation_columns])), width="stretch", hide_index=True)
+                        else:
+                            st.info("Correlation analysis is blocked until enough overlapping local return history exists.")
+                        if not correlation_unavailable.empty:
+                            st.markdown("##### Correlation unavailable")
+                            st.dataframe(
+                                style_frame(clean_display_frame(correlation_unavailable[_readiness_columns(correlation_unavailable, ["Ticker", "CorrelationStatus", "MissingDataFields", "Reason"])])),
+                                width="stretch",
+                                hide_index=True,
+                            )
+                    else:
+                        st.info(correlation_message or "No correlation rows are available.")
+
+                if actions_frame is not None and not actions_frame.empty:
+                    with st.expander("Top Data Actions", expanded=False):
+                        top_actions = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(10)
+                        action_columns = [
+                            column
+                            for column in ["priority", "ticker", "dataset", "status", "reason", "recommended_action", "focus_command", "target_file"]
+                            if column in top_actions.columns
+                        ]
+                        st.dataframe(clean_display_frame(top_actions[action_columns]), width="stretch", hide_index=True)
+                elif actions_message:
+                    st.info(actions_message)
+
+                if wizard_frame is not None and not wizard_frame.empty:
+                    with st.expander("Coverage Guide Rows", expanded=False):
+                        wizard_columns = [
+                            column
+                            for column in [
+                                "priority",
+                                "ticker",
+                                "unlock_goal",
+                                "blocking_dataset",
+                                "current_status",
+                                "recommended_action",
+                                "focus_command",
+                                "safe_next_step",
+                            ]
+                            if column in wizard_frame.columns
+                        ]
+                        st.dataframe(clean_display_frame(wizard_frame[wizard_columns].head(20)), width="stretch", hide_index=True)
+                if price_worklist_frame is not None and not price_worklist_frame.empty:
+                    with st.expander("Price Import Worklist", expanded=False):
+                        worklist_columns = [
+                            column
+                            for column in [
+                                "priority",
+                                "ticker",
+                                "price_history_days",
+                                "first_local_date",
+                                "latest_local_date",
+                                "next_price_goal",
+                                "next_target_history_rows",
+                                "rows_needed_for_next_goal",
+                                "suggested_start_date",
+                                "momentum_ready",
+                                "track_record_ready",
+                                "preferred_history_ready",
+                                "missing_for_momentum",
+                                "missing_for_track_record",
+                                "missing_for_preferred_history",
+                                "focus_command",
+                                "example_command",
+                            ]
+                            if column in price_worklist_frame.columns
+                        ]
+                        st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(20)), width="stretch", hide_index=True)
+                if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
+                    with st.expander("Fundamentals / Peer Worklist", expanded=False):
+                        fp_columns = operator_workflow_table_columns(
+                            fundamentals_peer_worklist_frame,
+                            [
+                                "priority",
+                                "ticker",
+                                "has_fundamentals",
+                                "dcf_ready",
+                                "has_peer_mapping",
+                                "peer_ready",
+                                "missing_required_for_dcf",
+                                "missing_required_for_peer_relative",
+                                "focus_command",
+                                "example_command",
+                            ],
+                        )
+                        st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(20)), width="stretch", hide_index=True)
+                if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
+                    with st.expander("Optional Context Worklist", expanded=False):
+                        oc_columns = [
+                            column
+                            for column in [
+                                "priority",
+                                "ticker",
+                                "has_earnings",
+                                "has_analyst_estimates",
+                                "missing_optional_context",
+                                "recommended_action",
+                                "example_command",
+                            ]
+                            if column in optional_context_worklist_frame.columns
+                        ]
+                        st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(20)), width="stretch", hide_index=True)
+                if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
+                    with st.expander("Fundamentals Review Queue", expanded=False):
+                        sec_columns = operator_workflow_table_columns(
+                            sec_stage_queue_frame,
+                            [
+                                "priority",
+                                "ticker",
+                                "is_holding",
+                                "theme",
+                                "sector_etf",
+                                "price_history_days",
+                                "has_fundamentals",
+                                "missing_required_for_dcf",
+                                "recommended_action",
+                                "focus_command",
+                                "example_command",
+                            ],
+                        )
+                        st.dataframe(clean_display_frame(sec_stage_queue_frame[sec_columns].head(20)), width="stretch", hide_index=True)
+                elif sec_stage_queue_message:
+                    st.info(sec_stage_queue_message)
+                if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
+                    with st.expander("Peer Review Queue", expanded=False):
+                        peer_columns = operator_workflow_table_columns(
+                            peer_mapping_queue_frame,
+                            [
+                                "priority",
+                                "ticker",
+                                "is_holding",
+                                "theme",
+                                "sector_etf",
+                                "has_peer_mapping",
+                                "dcf_ready",
+                                "missing_required_for_peer_relative",
+                                "recommended_action",
+                                "focus_command",
+                                "example_command",
+                            ],
+                        )
+                        st.dataframe(clean_display_frame(peer_mapping_queue_frame[peer_columns].head(20)), width="stretch", hide_index=True)
+                elif peer_mapping_queue_message:
+                    st.info(peer_mapping_queue_message)
+                if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
+                    with st.expander("Ticker Unlock Steps", expanded=False):
+                        ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=True)
+                        st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(20)), width="stretch", hide_index=True)
+                if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
+                    with st.expander("Unlock Priority Summary", expanded=False):
+                        summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
+                        st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(20)), width="stretch", hide_index=True)
+
+        with health_tabs[2]:
+            render_signal_cards(
+                data_health_tab_summary_cards(
+                    "Sources",
+                    validation_rows,
+                    coverage_frame,
+                    status_frame,
+                    price_status_frame,
+                    staged_imports,
+                )
             )
-        )
-        if status_frame is None and gap_frame is None:
-            data_source_notice_body, data_source_notice_command = artifact_notice_copy("data_source_status")
-            render_notice_card(
-                "Data source status not ready yet",
-                data_source_notice_body,
-                data_source_notice_command,
-                tone="warning",
-            )
-        else:
-            if status_frame is not None and not status_frame.empty:
-                display_status = status_frame.copy()
-                if "availability_status" in display_status.columns:
-                    display_status["availability_status"] = display_status["availability_status"].map(friendly_data_source_status)
-                columns = data_source_status_table_columns(display_status)
-                st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
-            else:
-                data_source_rows_notice_body, data_source_rows_notice_command = artifact_notice_copy("data_source_rows", status_message)
+            if status_frame is None and gap_frame is None:
+                data_source_notice_body, data_source_notice_command = artifact_notice_copy("data_source_status")
                 render_notice_card(
-                    "No data source status rows are available",
-                    data_source_rows_notice_body,
-                    data_source_rows_notice_command,
+                    "Data source status not ready yet",
+                    data_source_notice_body,
+                    data_source_notice_command,
                     tone="warning",
                 )
-            if gap_frame is not None and not gap_frame.empty:
-                with st.expander("Data Gap List", expanded=False):
-                    display_gaps = gap_frame.copy()
-                    if "status" in display_gaps.columns:
-                        display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
-                    gap_columns = operator_workflow_table_columns(
-                        display_gaps,
-                        [
-                            "dataset",
-                            "ticker",
-                            "status",
-                            "required_for",
-                            "recommended_action",
-                            "target_file",
-                            "focus_command",
-                            "example_command",
-                            "local_file",
-                            "reason",
-                            "source_name",
-                        ],
-                    )
-                    display_frame = display_gaps[gap_columns] if gap_columns else display_gaps
-                    st.dataframe(clean_display_frame(display_frame), width="stretch", hide_index=True)
             else:
-                gap_notice_body, gap_notice_command = data_gap_report_notice(gap_message)
-                render_notice_card(
-                    "No data gaps were reported",
-                    gap_notice_body,
-                    gap_notice_command,
-                )
-
-    with health_tabs[3]:
-        render_signal_cards(
-            data_health_tab_summary_cards(
-                "Price Updates",
-                validation_rows,
-                coverage_frame,
-                status_frame,
-                price_status_frame,
-                staged_imports,
-            )
-        )
-        if price_status_frame is None:
-            st.info((price_status_message or "Price update status is unavailable.") + " " + price_refresh_fallback_message())
-        else:
-            status_counts = summarize_price_update_status(price_status_frame)
-            if status_counts:
-                statuses = ["fetched", "skipped_fresh", "parse_error", "source_unavailable", "network_error", "no_rows", "failed"]
-                metric_cols = st.columns(4)
-                metric_cols[0].metric("Fetched", status_counts.get("fetched", 0))
-                metric_cols[1].metric("Skipped Fresh", status_counts.get("skipped_fresh", 0))
-                metric_cols[2].metric("Parse / Source Errors", sum(status_counts.get(status, 0) for status in statuses[2:]))
-                metric_cols[3].metric("Fallback Used", int(price_status_frame.get("fallback_used", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"}).sum()))
-            display_columns = price_update_status_table_columns(price_status_frame)
-            st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
-            problematic_statuses = {"parse_error", "source_unavailable", "network_error", "failed"}
-            if "status" in price_status_frame.columns and price_status_frame["status"].astype(str).str.lower().isin(problematic_statuses).any():
-                st.warning(price_refresh_fallback_message(include_remote_failure_prefix=True))
-            render_context_note(
-                "Manual fallback.",
-                price_refresh_cli_note_message(),
-                tone="warning",
-            )
-        if price_worklist_frame is not None and not price_worklist_frame.empty:
-            render_section_header(
-                "Short Price-History Proof",
-                "Price coverage can be complete while momentum, track-record, or review-metric history depth remains partial.",
-            )
-            render_signal_cards(data_health_price_history_proof_drawer_cards(price_worklist_frame))
-            proof_frame = data_health_price_history_proof_drawer_frame(price_worklist_frame)
-            if not proof_frame.empty:
-                with st.expander("Review short-history proof rows", expanded=False):
-                    render_context_note(
-                        "Copy-only proof path.",
-                        "Use the proof queue and focus command first. Refresh or apply local price rows only after source review, validation, preview, and generated-artifact hygiene.",
+                if status_frame is not None and not status_frame.empty:
+                    display_status = status_frame.copy()
+                    if "availability_status" in display_status.columns:
+                        display_status["availability_status"] = display_status["availability_status"].map(friendly_data_source_status)
+                    columns = data_source_status_table_columns(display_status)
+                    st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
+                else:
+                    data_source_rows_notice_body, data_source_rows_notice_command = artifact_notice_copy("data_source_rows", status_message)
+                    render_notice_card(
+                        "No data source status rows are available",
+                        data_source_rows_notice_body,
+                        data_source_rows_notice_command,
+                        tone="warning",
                     )
-                    st.dataframe(clean_display_frame(proof_frame), width="stretch", hide_index=True)
-            render_context_note(
-                "Price history checklist.",
-                "This local review list shows which tickers still need more verified history for momentum, track record, or preferred long-history research context.",
-            )
-            worklist_columns = [
-                column
-                for column in [
-                    "priority",
-                    "ticker",
-                    "price_history_days",
-                    "first_local_date",
-                    "latest_local_date",
-                    "missing_for_momentum",
-                    "missing_for_track_record",
-                    "missing_for_preferred_history",
-                    "example_command",
-                ]
-                if column in price_worklist_frame.columns
-            ]
-            st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(15)), width="stretch", hide_index=True)
-        else:
-            price_worklist_notice_body, price_worklist_notice_command = onboarding_notice_copy("price_worklist", price_worklist_message)
-            render_notice_card(
-                "Price history checklist not ready yet",
-                price_worklist_notice_body,
-                price_worklist_notice_command,
-                tone="warning",
-            )
-        if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
-            render_context_note(
-                "Fundamentals and peer checklist.",
-                "This local review list shows which tickers are blocked on SEC-stageable fundamentals versus manual peer mappings and peer context.",
-            )
-            fp_columns = operator_workflow_table_columns(
-                fundamentals_peer_worklist_frame,
-                [
-                    "priority",
-                    "ticker",
-                    "has_fundamentals",
-                    "dcf_ready",
-                    "has_peer_mapping",
-                    "peer_ready",
-                    "missing_required_for_dcf",
-                    "missing_required_for_peer_relative",
-                    "example_command",
-                ],
-            )
-            st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(15)), width="stretch", hide_index=True)
-        else:
-            fundamentals_peer_notice_body, fundamentals_peer_notice_command = onboarding_notice_copy(
-                "fundamentals_peer_worklist", fundamentals_peer_worklist_message
-            )
-            render_notice_card(
-                "Fundamentals and peer checklist not ready yet",
-                fundamentals_peer_notice_body,
-                fundamentals_peer_notice_command,
-                tone="warning",
-            )
-        if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
-            render_context_note(
-                "Optional context checklist.",
-                "This review list keeps optional earnings and analyst-estimate enrichment explicit and lower priority than prices, fundamentals, and peers.",
-            )
-            oc_columns = [
-                column
-                for column in [
-                    "priority",
-                    "ticker",
-                    "has_earnings",
-                    "has_analyst_estimates",
-                    "missing_optional_context",
-                    "recommended_action",
-                    "example_command",
-                ]
-                if column in optional_context_worklist_frame.columns
-            ]
-            st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(15)), width="stretch", hide_index=True)
-        else:
-            optional_context_notice_body, optional_context_notice_command = onboarding_notice_copy(
-                "optional_context_worklist", optional_context_worklist_message
-            )
-            render_notice_card(
-                "Optional context checklist not ready yet",
-                optional_context_notice_body,
-                optional_context_notice_command,
-                tone="warning",
-            )
-        if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
-            render_context_note(
-                "Ticker proof ladder.",
-                "This single table combines prices, DCF, peer-relative, and optional context into one next proof step per ticker.",
-            )
-            ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=False)
-            st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(15)), width="stretch", hide_index=True)
-        else:
-            ticker_unlock_notice_body, ticker_unlock_notice_command = onboarding_notice_copy(
-                "ticker_unlock_ladder", ticker_unlock_ladder_message
-            )
-            render_notice_card(
-                "Ticker proof ladder not ready yet",
-                ticker_unlock_notice_body,
-                ticker_unlock_notice_command,
-                tone="warning",
-            )
-        if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
-            render_context_note(
-                "Unlock priority summary.",
-                "This grouped summary rolls the ticker ladders up by holdings, theme, and sector ETF so you can unlock the most research value first.",
-            )
-            summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
-            st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(15)), width="stretch", hide_index=True)
-        else:
-            unlock_priority_notice_body, unlock_priority_notice_command = onboarding_notice_copy(
-                "unlock_priority_summary", unlock_priority_summary_message
-            )
-            render_notice_card(
-                "Unlock priority summary not ready yet",
-                unlock_priority_notice_body,
-                unlock_priority_notice_command,
-                tone="warning",
-            )
+                if gap_frame is not None and not gap_frame.empty:
+                    with st.expander("Data Gap List", expanded=False):
+                        display_gaps = gap_frame.copy()
+                        if "status" in display_gaps.columns:
+                            display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
+                        gap_columns = operator_workflow_table_columns(
+                            display_gaps,
+                            [
+                                "dataset",
+                                "ticker",
+                                "status",
+                                "required_for",
+                                "recommended_action",
+                                "target_file",
+                                "focus_command",
+                                "example_command",
+                                "local_file",
+                                "reason",
+                                "source_name",
+                            ],
+                        )
+                        display_frame = display_gaps[gap_columns] if gap_columns else display_gaps
+                        st.dataframe(clean_display_frame(display_frame), width="stretch", hide_index=True)
+                else:
+                    gap_notice_body, gap_notice_command = data_gap_report_notice(gap_message)
+                    render_notice_card(
+                        "No data gaps were reported",
+                        gap_notice_body,
+                        gap_notice_command,
+                    )
 
-    with health_tabs[4]:
-        render_signal_cards(
-            data_health_tab_summary_cards(
-                "Import Checks",
-                validation_rows,
-                coverage_frame,
-                status_frame,
-                price_status_frame,
-                staged_imports,
-            )
-        )
-        render_section_header(
-            "Import Validation / Rejected Rows",
-            "Trusted local data review for import folders, standard import files, validation commands, and rejected-row reports.",
-        )
-        import_health = import_health_frame()
-        render_signal_cards(import_validation_rejected_row_cards(import_health))
-        st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
-        if staged_imports["status"] == "no_staged_files":
-            render_notice_card(
-                "No import files to review",
-                staged_imports["warnings"][0],
-                "make templates",
-            )
-        else:
-            staged_rows = []
-            for item in staged_imports["files"]:
-                staged_rows.append(
-                    {
-                        "File": item["file_name"],
-                        "Dataset": item["dataset_name"],
-                        "Status": item["validation"]["status"],
-                        "Rows": item["validation"]["row_count"],
-                        "Warnings": "; ".join(item["validation"]["warnings"]) or "-",
-                    }
+        with health_tabs[3]:
+            render_signal_cards(
+                data_health_tab_summary_cards(
+                    "Price Updates",
+                    validation_rows,
+                    coverage_frame,
+                    status_frame,
+                    price_status_frame,
+                    staged_imports,
                 )
-            st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
-            preview = preview_import_merge(base_dir=BASE_DIR)
-            if preview.get("preview"):
-                render_context_note("Preview only.", "Apply remains copy-only for safer import file review.")
-                st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
+            )
+            if price_status_frame is None:
+                st.info((price_status_message or "Price update status is unavailable.") + " " + price_refresh_fallback_message())
+            else:
+                status_counts = summarize_price_update_status(price_status_frame)
+                if status_counts:
+                    statuses = ["fetched", "skipped_fresh", "parse_error", "source_unavailable", "network_error", "no_rows", "failed"]
+                    metric_cols = st.columns(4)
+                    metric_cols[0].metric("Fetched", status_counts.get("fetched", 0))
+                    metric_cols[1].metric("Skipped Fresh", status_counts.get("skipped_fresh", 0))
+                    metric_cols[2].metric("Parse / Source Errors", sum(status_counts.get(status, 0) for status in statuses[2:]))
+                    metric_cols[3].metric("Fallback Used", int(price_status_frame.get("fallback_used", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"}).sum()))
+                display_columns = price_update_status_table_columns(price_status_frame)
+                st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
+                problematic_statuses = {"parse_error", "source_unavailable", "network_error", "failed"}
+                if "status" in price_status_frame.columns and price_status_frame["status"].astype(str).str.lower().isin(problematic_statuses).any():
+                    st.warning(price_refresh_fallback_message(include_remote_failure_prefix=True))
+                render_context_note(
+                    "Manual fallback.",
+                    price_refresh_cli_note_message(),
+                    tone="warning",
+                )
+            if price_worklist_frame is not None and not price_worklist_frame.empty:
+                render_section_header(
+                    "Short Price-History Proof",
+                    "Price coverage can be complete while momentum, track-record, or review-metric history depth remains partial.",
+                )
+                render_signal_cards(data_health_price_history_proof_drawer_cards(price_worklist_frame))
+                proof_frame = data_health_price_history_proof_drawer_frame(price_worklist_frame)
+                if not proof_frame.empty:
+                    with st.expander("Review short-history proof rows", expanded=False):
+                        render_context_note(
+                            "Copy-only proof path.",
+                            "Use the proof queue and focus command first. Refresh or apply local price rows only after source review, validation, preview, and generated-artifact hygiene.",
+                        )
+                        st.dataframe(clean_display_frame(proof_frame), width="stretch", hide_index=True)
+                render_context_note(
+                    "Price history checklist.",
+                    "This local review list shows which tickers still need more verified history for momentum, track record, or preferred long-history research context.",
+                )
+                worklist_columns = [
+                    column
+                    for column in [
+                        "priority",
+                        "ticker",
+                        "price_history_days",
+                        "first_local_date",
+                        "latest_local_date",
+                        "missing_for_momentum",
+                        "missing_for_track_record",
+                        "missing_for_preferred_history",
+                        "example_command",
+                    ]
+                    if column in price_worklist_frame.columns
+                ]
+                st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(15)), width="stretch", hide_index=True)
+            else:
+                price_worklist_notice_body, price_worklist_notice_command = onboarding_notice_copy("price_worklist", price_worklist_message)
+                render_notice_card(
+                    "Price history checklist not ready yet",
+                    price_worklist_notice_body,
+                    price_worklist_notice_command,
+                    tone="warning",
+                )
+            if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
+                render_context_note(
+                    "Fundamentals and peer checklist.",
+                    "This local review list shows which tickers are blocked on SEC-stageable fundamentals versus manual peer mappings and peer context.",
+                )
+                fp_columns = operator_workflow_table_columns(
+                    fundamentals_peer_worklist_frame,
+                    [
+                        "priority",
+                        "ticker",
+                        "has_fundamentals",
+                        "dcf_ready",
+                        "has_peer_mapping",
+                        "peer_ready",
+                        "missing_required_for_dcf",
+                        "missing_required_for_peer_relative",
+                        "example_command",
+                    ],
+                )
+                st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(15)), width="stretch", hide_index=True)
+            else:
+                fundamentals_peer_notice_body, fundamentals_peer_notice_command = onboarding_notice_copy(
+                    "fundamentals_peer_worklist", fundamentals_peer_worklist_message
+                )
+                render_notice_card(
+                    "Fundamentals and peer checklist not ready yet",
+                    fundamentals_peer_notice_body,
+                    fundamentals_peer_notice_command,
+                    tone="warning",
+                )
+            if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
+                render_context_note(
+                    "Optional context checklist.",
+                    "This review list keeps optional earnings and analyst-estimate enrichment explicit and lower priority than prices, fundamentals, and peers.",
+                )
+                oc_columns = [
+                    column
+                    for column in [
+                        "priority",
+                        "ticker",
+                        "has_earnings",
+                        "has_analyst_estimates",
+                        "missing_optional_context",
+                        "recommended_action",
+                        "example_command",
+                    ]
+                    if column in optional_context_worklist_frame.columns
+                ]
+                st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(15)), width="stretch", hide_index=True)
+            else:
+                optional_context_notice_body, optional_context_notice_command = onboarding_notice_copy(
+                    "optional_context_worklist", optional_context_worklist_message
+                )
+                render_notice_card(
+                    "Optional context checklist not ready yet",
+                    optional_context_notice_body,
+                    optional_context_notice_command,
+                    tone="warning",
+                )
+            if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
+                render_context_note(
+                    "Ticker proof ladder.",
+                    "This single table combines prices, DCF, peer-relative, and optional context into one next proof step per ticker.",
+                )
+                ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=False)
+                st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(15)), width="stretch", hide_index=True)
+            else:
+                ticker_unlock_notice_body, ticker_unlock_notice_command = onboarding_notice_copy(
+                    "ticker_unlock_ladder", ticker_unlock_ladder_message
+                )
+                render_notice_card(
+                    "Ticker proof ladder not ready yet",
+                    ticker_unlock_notice_body,
+                    ticker_unlock_notice_command,
+                    tone="warning",
+                )
+            if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
+                render_context_note(
+                    "Unlock priority summary.",
+                    "This grouped summary rolls the ticker ladders up by holdings, theme, and sector ETF so you can unlock the most research value first.",
+                )
+                summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
+                st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(15)), width="stretch", hide_index=True)
+            else:
+                unlock_priority_notice_body, unlock_priority_notice_command = onboarding_notice_copy(
+                    "unlock_priority_summary", unlock_priority_summary_message
+                )
+                render_notice_card(
+                    "Unlock priority summary not ready yet",
+                    unlock_priority_notice_body,
+                    unlock_priority_notice_command,
+                    tone="warning",
+                )
 
-        st.markdown("#### Universe Preview Checks")
-        st.dataframe(staged_universe_status_frame(staged_universe), width="stretch", hide_index=True)
-        with st.expander("Universe preview details", expanded=False):
-            st.dataframe(staged_universe_detail_frame(staged_universe), width="stretch", hide_index=True)
+        with health_tabs[4]:
+            render_signal_cards(
+                data_health_tab_summary_cards(
+                    "Import Checks",
+                    validation_rows,
+                    coverage_frame,
+                    status_frame,
+                    price_status_frame,
+                    staged_imports,
+                )
+            )
+            render_section_header(
+                "Import Validation / Rejected Rows",
+                "Trusted local data review for import folders, standard import files, validation commands, and rejected-row reports.",
+            )
+            import_health = import_health_frame()
+            render_signal_cards(import_validation_rejected_row_cards(import_health))
+            st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
+            if staged_imports["status"] == "no_staged_files":
+                render_notice_card(
+                    "No import files to review",
+                    staged_imports["warnings"][0],
+                    "make templates",
+                )
+            else:
+                staged_rows = []
+                for item in staged_imports["files"]:
+                    staged_rows.append(
+                        {
+                            "File": item["file_name"],
+                            "Dataset": item["dataset_name"],
+                            "Status": item["validation"]["status"],
+                            "Rows": item["validation"]["row_count"],
+                            "Warnings": "; ".join(item["validation"]["warnings"]) or "-",
+                        }
+                    )
+                st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
+                preview = preview_import_merge(base_dir=BASE_DIR)
+                if preview.get("preview"):
+                    render_context_note("Preview only.", "Apply remains copy-only for safer import file review.")
+                    st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
-        with st.expander("Files that stay local", expanded=False):
-            st.write("These working files are intentionally ignored so local refreshes and previews do not clutter the public project.")
-            st.write("- `data/cache/` keeps temporary downloaded data local.")
-            st.write("- `data/backups/` keeps import backup files local.")
-            st.write("- `data/imports/*.csv` keeps import files local until reviewed.")
-            st.write("- `outputs/*stock_report.json` keeps exported report data local.")
-            st.write("- `outputs/project_status*.{json,csv}` keeps status refreshes local.")
+            st.markdown("#### Universe Preview Checks")
+            st.dataframe(staged_universe_status_frame(staged_universe), width="stretch", hide_index=True)
+            with st.expander("Universe preview details", expanded=False):
+                st.dataframe(staged_universe_detail_frame(staged_universe), width="stretch", hide_index=True)
+
+            with st.expander("Files that stay local", expanded=False):
+                st.write("These working files are intentionally ignored so local refreshes and previews do not clutter the public project.")
+                st.write("- `data/cache/` keeps temporary downloaded data local.")
+                st.write("- `data/backups/` keeps import backup files local.")
+                st.write("- `data/imports/*.csv` keeps import files local until reviewed.")
+                st.write("- `outputs/*stock_report.json` keeps exported report data local.")
+                st.write("- `outputs/project_status*.{json,csv}` keeps status refreshes local.")
 
 
 def render_universe_manager(universe_summary: dict[str, Any]) -> None:
