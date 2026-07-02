@@ -37,11 +37,11 @@ def test_readme_and_roadmap_name_pilot_operator_runbook():
 
     assert "Pilot Operator Runbook" in readme
     assert "navigation-only queue route map" in readme
-    assert "share gate -> source gate -> provider setup -> one-provider smoke -> validate/preview -> packet and hygiene" in readme
+    assert "share gate -> source gate -> provider setup -> reviewed one-provider smoke -> validate/preview -> packet and hygiene" in readme
     assert "does not refresh data, apply imports, or promote metadata into fundamentals proof" in readme
 
     assert "Pilot Operator Runbook V1" in roadmap
-    assert "share gate, source gate, provider setup, one-provider smoke, validate/preview, packet, and hygiene" in roadmap
+    assert "share gate, source gate, provider setup, reviewed one-provider smoke, validate/preview, packet, and hygiene" in roadmap
     assert "without reopening broad proof loops" in roadmap
 
 

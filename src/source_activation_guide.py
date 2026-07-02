@@ -51,7 +51,7 @@ WORKFLOW_PIVOT = [
     },
     {
         "command": "make provider-setup-checklist",
-        "purpose": "Review missing keyed providers and one-ticker smoke commands when proof queues are exhausted.",
+        "purpose": "Review missing keyed providers and reviewed one-ticker smoke commands when proof queues are exhausted.",
         "boundary": "Setup evidence only; do not apply data directly from provider setup.",
     },
     {
@@ -344,7 +344,7 @@ def _coverage_unlock_decision(rows: list[dict[str, Any]], current_gate: dict[str
     return {
         "answer": "No broad coverage batch should run from setup alone.",
         "can_use_now": f"Use free/public sources for already executable proof paths; current gate says {can_run_now}.",
-        "configure_first": f"Configure {provider} first only if you want a keyed fallback, then smoke one ticker.",
+        "configure_first": f"Configure {provider} first only if you want a keyed fallback, then run one reviewed ticker smoke.",
         "do_not_retry": do_not_retry,
         "proof_boundary": (
             "Provider setup only makes a source executable; readiness changes still require validate, preview, "
@@ -370,7 +370,7 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
         first_setup = setup_order[0] if setup_order else {}
         smoke_command = str(first_setup.get("smoke_command") or "").strip()
         setup_prerequisite = (
-            f"Configure {first_setup.get('provider')} with {first_setup.get('setup_env')} before running its one-ticker smoke command."
+            f"Configure {first_setup.get('provider')} with {first_setup.get('setup_env')} before running its reviewed one-ticker smoke command."
             if first_setup
             else "Run make session-source-preflight before any provider smoke command."
         )
@@ -547,8 +547,8 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                     f"Configure first: {first.get('provider', '-')}",
                     f"- why: {first.get('why_first', '-')}",
                     f"- setup_env: {first.get('setup_env', '-')}",
-                    f"- smoke_command: {first.get('smoke_command', '-')}",
-                    "- Do not configure all missing providers at once; configure one, rerun preflight, smoke one ticker, then validate/preview before any apply.",
+                    f"- reviewed_smoke_command: {first.get('smoke_command', '-')}",
+                    "- Do not configure all missing providers at once; configure one, rerun preflight, run one reviewed ticker smoke, then validate/preview before any apply.",
                 ]
             )
     lines.extend(

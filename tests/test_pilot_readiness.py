@@ -763,9 +763,9 @@ def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: P
     assert "Second fallback after FMP" in brief
     assert "Do not configure all missing providers at once" in brief
     assert "FMP free tier: configured -> price, fundamentals, share_count" in brief
-    assert "smoke: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`" in brief
+    assert "reviewed smoke: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`" in brief
     assert "Alpha Vantage free tier: needs_key -> price, fundamentals, share_count" in brief
-    assert "smoke: `make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`" in brief
+    assert "reviewed smoke: `make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`" in brief
     assert "Finnhub free tier: needs_key -> price, fundamentals, share_count" in brief
     assert "IBKR read-only: optional_disabled -> price" in brief
     assert "Real key values are never printed" in brief

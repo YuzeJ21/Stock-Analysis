@@ -28259,7 +28259,7 @@ def render_data_health(
         with st.expander("Pilot/share reviewed evidence drawer", expanded=False):
             render_section_header(
                 "Pilot Operator Runbook",
-                "Share gate, source gate, provider setup, one-provider smoke, validate/preview, packet, and hygiene in one compact path.",
+                "Share gate, source gate, provider setup, reviewed one-provider smoke, validate/preview, packet, and hygiene in one compact path.",
             )
             render_signal_cards(
                 data_health_pilot_operator_runbook_cards(pilot_operator_runbook),

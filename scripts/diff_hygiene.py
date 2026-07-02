@@ -271,7 +271,7 @@ def format_provider_setup_gate(current_preflight: dict[str, object] | None = Non
                 f"  Why first: {first.get('why_first', '-')}",
                 f"  Setup env: {first.get('setup_env', '-')}",
                 f"  Reviewed one-ticker smoke: {first.get('smoke_command', '-')}",
-                "  Do not configure all missing providers at once; configure one, rerun preflight, smoke one ticker, then validate/preview before any apply.",
+                "  Do not configure all missing providers at once; configure one, rerun preflight, run one reviewed ticker smoke, then validate/preview before any apply.",
             ]
         )
     else:

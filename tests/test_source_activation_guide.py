@@ -137,7 +137,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         },
         {
             "command": "make provider-setup-checklist",
-            "purpose": "Review missing keyed providers and one-ticker smoke commands when proof queues are exhausted.",
+            "purpose": "Review missing keyed providers and reviewed one-ticker smoke commands when proof queues are exhausted.",
             "boundary": "Setup evidence only; do not apply data directly from provider setup.",
         },
         {
@@ -186,7 +186,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup." in rendered
     assert "Workflow pivot when proof queues are exhausted:" in rendered
     assert "make project-status | Confirm whether proof queues have executable company candidates before opening broad proof tables." in rendered
-    assert "make provider-setup-checklist | Review missing keyed providers and one-ticker smoke commands when proof queues are exhausted." in rendered
+    assert "make provider-setup-checklist | Review missing keyed providers and reviewed one-ticker smoke commands when proof queues are exhausted." in rendered
     assert "make universe-scope TOP_N=10 | Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before deeper review." in rendered
     assert "make risk-context | Review liquidity, correlation, and proxy-risk readiness after scope is chosen." in rendered
     assert rendered.index("make project-status | Confirm whether") < rendered.index(
@@ -223,7 +223,7 @@ def test_provider_setup_checklist_names_one_missing_keyed_provider_to_configure_
     rendered = render_provider_setup_checklist(checklist)
 
     assert checklist["first_answer"]["setup_prerequisite"] == (
-        "Configure FMP free tier with FMP_API_KEY before running its one-ticker smoke command."
+        "Configure FMP free tier with FMP_API_KEY before running its reviewed one-ticker smoke command."
     )
     assert checklist["one_provider_setup_order"] == [
         {
@@ -255,7 +255,10 @@ def test_provider_setup_checklist_names_one_missing_keyed_provider_to_configure_
         },
     ]
     assert "Configure first: FMP free tier" in rendered
-    assert "- setup_prerequisite: Configure FMP free tier with FMP_API_KEY before running its one-ticker smoke command." in rendered
+    assert "- setup_prerequisite: Configure FMP free tier with FMP_API_KEY before running its reviewed one-ticker smoke command." in rendered
+    assert "- reviewed_smoke_command: make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
+    assert "rerun preflight, run one reviewed ticker smoke, then validate/preview before any apply" in rendered
+    assert "- smoke_command:" not in rendered
     assert "Do not configure all missing providers at once" in rendered
     assert rendered.index("Configure first: FMP free tier") < rendered.index("Provider setup and boundaries:")
 
@@ -285,14 +288,14 @@ def test_provider_setup_checklist_starts_with_coverage_unlock_decision(monkeypat
     assert checklist["coverage_unlock_decision"] == {
         "answer": "No broad coverage batch should run from setup alone.",
         "can_use_now": "Use free/public sources for already executable proof paths; current gate says coverage_workflow_evidence.",
-        "configure_first": "Configure FMP free tier first only if you want a keyed fallback, then smoke one ticker.",
+        "configure_first": "Configure FMP free tier first only if you want a keyed fallback, then run one reviewed ticker smoke.",
         "do_not_retry": "Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
         "proof_boundary": "Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence.",
     }
     assert "Coverage unlock decision:" in rendered
     assert "- answer: No broad coverage batch should run from setup alone." in rendered
     assert "- can_use_now: Use free/public sources for already executable proof paths; current gate says coverage_workflow_evidence." in rendered
-    assert "- configure_first: Configure FMP free tier first only if you want a keyed fallback, then smoke one ticker." in rendered
+    assert "- configure_first: Configure FMP free tier first only if you want a keyed fallback, then run one reviewed ticker smoke." in rendered
     assert "- do_not_retry: Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist." in rendered
     assert "- proof_boundary: Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence." in rendered
     assert checklist["first_answer"]["do_not_retry"] == (

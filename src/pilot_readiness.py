@@ -921,7 +921,7 @@ def _provider_one_setup_lines() -> list[str]:
         f"- Why first: {reason}",
         f"- Setup env: `{setup_env}`.",
         f"- Reviewed one-ticker smoke command: `{smoke_command}`.",
-        "- Do not configure all missing providers at once; configure one, rerun preflight, smoke one ticker, then validate/preview before any apply.",
+        "- Do not configure all missing providers at once; configure one, rerun preflight, run one reviewed ticker smoke, then validate/preview before any apply.",
     ]
 
 
@@ -969,7 +969,7 @@ def _share_brief_provider_setup_lines(root: Path | str = ".") -> list[str]:
                 "- Coverage unlock decision:",
                 f"  - {unlock_decision.get('answer', 'No broad coverage batch should run from setup alone.')}",
                 f"  - {unlock_decision.get('can_use_now', 'Use free/public sources for already executable proof paths.')}",
-                f"  - {unlock_decision.get('configure_first', 'Configure one keyed fallback only if needed, then smoke one ticker.')}",
+                f"  - {unlock_decision.get('configure_first', 'Configure one keyed fallback only if needed, then run one reviewed ticker smoke.')}",
                 f"  - {unlock_decision.get('do_not_retry', 'Do not retry exhausted proof queues until source evidence changes.')}",
                 f"  - {unlock_decision.get('proof_boundary', 'Provider setup only makes a source executable; readiness changes still require proof gates.')}",
             ]
@@ -983,7 +983,7 @@ def _share_brief_provider_setup_lines(root: Path | str = ".") -> list[str]:
         unlock_lanes = str(row.get("unlock_lanes") or "").strip()
         cannot_unlock = str(row.get("cannot_unlock") or "").strip()
         smoke_command = str(row.get("post_setup_smoke_command") or "").strip()
-        smoke_fragment = f"; smoke: `{smoke_command}`" if smoke_command else ""
+        smoke_fragment = f"; reviewed smoke: `{smoke_command}`" if smoke_command else ""
         lines.append(f"- {provider}: {setup_state} -> {unlock_lanes}{smoke_fragment}; cannot unlock {cannot_unlock}")
     return lines
 

@@ -1183,10 +1183,10 @@ def pilot_operator_runbook_frame(
             "Stop Rule": "Do not treat provider setup as an import, apply, or analysis unlock.",
         },
         {
-            "Step": "4. One-provider smoke",
-            "Operator Answer": "Configure at most one provider, rerun preflight, then smoke one ticker before any broader batch.",
+            "Step": "4. Reviewed one-provider smoke",
+            "Operator Answer": "Configure at most one provider, rerun preflight, then run one reviewed ticker smoke before any broader batch.",
             "Next Safe Action": "make session-source-preflight",
-            "Evidence": "Smoke command comes from provider setup; broad batches wait until the one-ticker path is source-backed.",
+            "Evidence": "Reviewed smoke command comes from provider setup; broad batches wait until the one-ticker path is source-backed.",
             "Stop Rule": "Do not configure every provider at once or start broad refreshes from setup.",
         },
         {
@@ -1225,7 +1225,7 @@ def pilot_operator_runbook_cards(frame: pd.DataFrame | None, *, limit: int = 6) 
             "title": "One path across share and source gates",
             "body": (
                 "Connect share-readiness, provider setup, and exhausted proof queues before raw tables. "
-                "Do not reopen broad proof loops; move through one-provider smoke, validate / preview, packet, and hygiene."
+                "Do not reopen broad proof loops; move through reviewed one-provider smoke, validate / preview, packet, and hygiene."
             ),
             "badges": ["share gate", "source gate", "copy-only"],
             "command": "make project-status",
