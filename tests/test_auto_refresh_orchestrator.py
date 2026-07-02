@@ -144,9 +144,11 @@ def test_scheduler_runbook_is_compact_and_pivot_oriented():
     assert "Auto Refresh Daily Runbook" in runbook
     assert "make session-source-preflight" in runbook
     assert "Current source gate:" in runbook
-    assert "can_run_now: coverage_workflow_evidence" in runbook
+    assert "can_run_now: workflow evidence only; current source-proof queues are exhausted" in runbook
     assert "needs_setup: fmp, alpha_vantage, finnhub" in runbook
-    assert "avoid_repeating: fundamentals_share_count_source_ladder" in runbook
+    assert "avoid_repeating: fundamentals/share-count source ladder" in runbook
+    assert "coverage_workflow_evidence" not in runbook
+    assert "fundamentals_share_count_source_ladder" not in runbook
     assert "next_executable_command: make project-status" in runbook
     assert "do not open broad lane loops" in runbook
     assert "1. Daily Price Coverage" in runbook
@@ -193,9 +195,11 @@ def test_auto_refresh_status_combines_source_activation_and_next_runbook():
 
     assert "Auto Refresh Status" in status
     assert "source_activation: not_required" in status
-    assert "can_run_now: coverage_workflow_evidence" in status
+    assert "can_run_now: workflow evidence only; current source-proof queues are exhausted" in status
     assert "needs_setup: fmp, alpha_vantage, finnhub" in status
-    assert "avoid_repeating: fundamentals_share_count_source_ladder" in status
+    assert "avoid_repeating: fundamentals/share-count source ladder" in status
+    assert "coverage_workflow_evidence" not in status
+    assert "fundamentals_share_count_source_ladder" not in status
     assert "next_executable_command: make project-status" in status
     assert "next_runbook: make auto-refresh-runbook SCHEDULE=daily" in status
     assert "free_public_available: stooq, yahoo, sec, sec_submissions" in status

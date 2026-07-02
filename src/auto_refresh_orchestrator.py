@@ -293,6 +293,18 @@ def render_scheduler_plan(plan: SchedulerPlan) -> str:
     return "\n".join(lines)
 
 
+def _human_source_gate(value: object) -> str:
+    text = str(value or "-")
+    labels = {
+        "coverage_workflow_evidence": "workflow evidence only; current source-proof queues are exhausted",
+        "fundamentals_share_count_source_ladder": "fundamentals/share-count source ladder",
+        "workflow_evidence_only": "workflow evidence only",
+    }
+    for token, label in labels.items():
+        text = text.replace(token, label)
+    return text
+
+
 def render_scheduler_runbook(plan: SchedulerPlan, preflight: dict[str, object] | None = None) -> str:
     schedule_label = plan.schedule.replace("_", " ").title()
     lines = [
@@ -310,9 +322,9 @@ def render_scheduler_runbook(plan: SchedulerPlan, preflight: dict[str, object] |
         lines.extend(
             [
                 "Current source gate:",
-                f"- can_run_now: {payload['can_run_now']}",
+                f"- can_run_now: {_human_source_gate(payload['can_run_now'])}",
                 f"- needs_setup: {payload['needs_setup']}",
-                f"- avoid_repeating: {payload['avoid_repeating']}",
+                f"- avoid_repeating: {_human_source_gate(payload['avoid_repeating'])}",
                 f"- next_executable_command: {payload['next_executable_command']}",
                 f"- next_step_reason: {payload['next_step_reason']}",
                 "- If the next executable command is project-status/provider setup, do not open broad lane loops until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers appear.",
@@ -382,10 +394,10 @@ def render_auto_refresh_status(preflight: dict[str, object], plan: SchedulerPlan
         "Research-only: no investment advice, broker actions, auto-trading, order routing, or direct buy/sell instructions.",
         "",
         f"source_activation: {payload['source_activation']}",
-        f"source_activation_reason: {payload['source_activation_reason']}",
-        f"can_run_now: {payload['can_run_now']}",
+        f"source_activation_reason: {_human_source_gate(payload['source_activation_reason'])}",
+        f"can_run_now: {_human_source_gate(payload['can_run_now'])}",
         f"needs_setup: {payload['needs_setup']}",
-        f"avoid_repeating: {payload['avoid_repeating']}",
+        f"avoid_repeating: {_human_source_gate(payload['avoid_repeating'])}",
         f"next_executable_command: {payload['next_executable_command']}",
         f"next_step_reason: {payload['next_step_reason']}",
         f"next_runbook: {payload['next_runbook']}",
