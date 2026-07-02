@@ -390,6 +390,31 @@ def package_status_for_groups(groups: dict[str, list[StatusEntry]]) -> str:
     return "clean; ready for the next reviewed work slice"
 
 
+def public_release_share_now_lines(groups: dict[str, list[StatusEntry]]) -> list[str]:
+    product = groups["product_candidate"]
+    sample_reports = groups["sample_report_candidate"]
+    generated = groups["generated_csv_churn"]
+    manual = groups["review_manually"]
+    lines = ["Share-now answer:"]
+    if manual:
+        lines.append("  Not yet: inspect manual-review paths before staging or sharing.")
+    elif product:
+        lines.append("  Not yet: commit the reviewed product package first, then rerun public-check.")
+    else:
+        lines.append("  Share as portfolio/demo only after public-check passes and generated churn stays excluded.")
+    lines.extend(
+        [
+            "  Do not call this open source until a root LICENSE exists.",
+            "  If source-proof queues are exhausted, use provider setup before broad proof loops.",
+        ]
+    )
+    if generated or sample_reports:
+        lines.append("  Do not stage generated churn or sample reports unless exact artifacts are reviewed evidence.")
+    if generated and not product and not manual:
+        lines.append("  Generated churn can stay local; do not create a release commit just for it.")
+    return lines
+
+
 def build_summary_report(entries: list[StatusEntry]) -> str:
     groups = group_entries(entries)
     package_status = package_status_for_groups(groups)
@@ -658,6 +683,8 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
         "Read-only: this command does not stage, delete, reset, refresh, rewrite files, commit, or push.",
         "Research-only: release packaging must preserve data-readiness gates, not investment advice or execution language.",
         f"Branch status: {branch_status or 'not checked'}",
+        "",
+        *public_release_share_now_lines(groups),
         "",
         *format_license_gate(),
         "",

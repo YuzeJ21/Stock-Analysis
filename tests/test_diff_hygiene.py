@@ -257,6 +257,10 @@ def test_public_release_package_reports_clean_push_path():
     report = module.build_public_release_package_report([])
 
     assert "Public Release Package" in report
+    assert "Share-now answer:" in report
+    assert "Share as portfolio/demo only after public-check passes and generated churn stays excluded." in report
+    assert "Do not call this open source until a root LICENSE exists." in report
+    assert "If source-proof queues are exhausted, use provider setup before broad proof loops." in report
     assert "Read-only: this command does not stage, delete, reset, refresh, rewrite files, commit, or push." in report
     assert "Branch status: not checked" in report
     assert "Working tree is clean." in report
@@ -288,6 +292,9 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
 
     report = module.build_public_release_package_report(entries, branch_status="## main...origin/main [ahead 19]")
 
+    assert "Share-now answer:" in report
+    assert "Not yet: commit the reviewed product package first, then rerun public-check." in report
+    assert "Do not stage generated churn or sample reports unless exact artifacts are reviewed evidence." in report
     assert "Product/code/docs/test candidates: 4 (3 changed, 1 new)" in report
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
     assert "Branch status: ## main...origin/main [ahead 19]" in report
@@ -482,6 +489,9 @@ def test_public_release_package_marks_generated_only_tree_as_local_churn():
 
     report = module.build_public_release_package_report(entries)
 
+    assert "Share-now answer:" in report
+    assert "Share as portfolio/demo only after public-check passes and generated churn stays excluded." in report
+    assert "Generated churn can stay local; do not create a release commit just for it." in report
     assert "Product/code/docs/test candidates: 0 (0 changed, 0 new)" in report
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
     assert "Package status: generated churn only; keep it local unless intentionally reviewed as evidence" in report
