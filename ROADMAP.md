@@ -449,12 +449,20 @@ Rules:
 
 Goal: support broader universe management without forcing expensive full-market analysis on dashboard load.
 
-- Add or continue planning `universe_master.csv`.
-- Keep `universe_active.csv` as the focused research subset.
-- Allow single-stock lookup outside the active universe.
-- Do not force full-market analysis on dashboard load.
-- Support lazy/scoped analysis.
-- Support active-universe, ticker-list, sector/theme, ready-only, and missing-data scopes.
+- [x] Keep master-universe rows separate from active research rows in readiness and dashboard workflows.
+- [x] Keep active-universe review as the recommended first scope before broad master-universe rows.
+- [x] Allow single-stock lookup outside the active universe without forcing full-market analysis.
+- [x] Avoid full-market analysis on dashboard load by keeping broad views row-limited, lazy, and gated behind scope choices.
+- [x] Support lazy/scoped analysis with `make universe-scope TOP_N=10` and Data Health scope cards.
+- [x] Support active-universe, ticker-list, sector/theme, ready-only, and missing-data scopes.
+- [x] Keep risk context behind scope selection with `make risk-context`, so liquidity, correlation, and proxy-risk rows stay historical context rather than research conclusions.
+
+Acceptance notes:
+
+- `make universe-scope TOP_N=10` should remain read-only and copy-only; it must not refresh, import, apply, stage, or infer missing values.
+- `make risk-context` should continue to tell operators to choose scope first and keep short price-history blockers visible.
+- When source-proof queues are exhausted, `make project-status` should route operators to `make provider-setup-checklist` before reopening broad trusted-data candidate loops.
+- Master-universe coverage should stay framed as coverage planning, not proof that every analysis surface is ready.
 
 ## 6. P2 Roadmap
 
