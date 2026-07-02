@@ -6658,7 +6658,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
             {
                 "kicker": "ACTIVE UNIVERSE",
                 "title": "No active rows",
-                "body": "Run make readiness and confirm data/universe_active.csv before using the active-universe unlock cockpit.",
+                "body": "Refresh readiness and confirm the active-universe scope before using the active-universe unlock cockpit. Open operator details for the copy-only command.",
                 "badges": ["active only"],
                 "command": "make readiness",
             }
@@ -9252,7 +9252,7 @@ def data_health_valuation_unlock_snapshot_cards(
             {
                 "kicker": "VALUATION SNAPSHOT",
                 "title": "Readiness report not loaded",
-                "body": "Run make readiness before using the valuation unlock snapshot. Missing readiness output means analysis should stay current-only and blocked.",
+                "body": "Refresh readiness before using the valuation unlock snapshot. Missing readiness output means analysis should stay current-only and blocked. Open operator details for the copy-only command.",
                 "badges": ["readiness first", "no guessing"],
                 "command": "make readiness",
             }
@@ -27268,7 +27268,7 @@ def render_market_command_center(
     active_unlock = build_active_universe_unlock_frame(ticker_readiness_frame, decisions_frame, import_health)
     render_signal_cards(active_universe_unlock_cards(active_unlock))
     if active_unlock.empty:
-        st.info("No active-universe unlock rows are available. Run make readiness and confirm data/universe_active.csv.")
+        st.info("No active-universe unlock rows are available. Refresh readiness and confirm the active-universe scope.")
     else:
         st.caption("Active-universe commands are copy-only. Review validation, preview, and rejected-row status before applying trusted local CSV changes.")
         st.dataframe(clean_display_frame(active_unlock), width="stretch", hide_index=True)

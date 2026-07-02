@@ -15793,12 +15793,14 @@ def test_data_health_valuation_unlock_snapshot_surfaces_fundamentals_and_peer_qu
 
 def test_data_health_valuation_unlock_snapshot_handles_missing_readiness_without_fake_counts():
     cards = dashboard.data_health_valuation_unlock_snapshot_cards(None, {"price_ready": 5, "dcf_ready": 2})
-    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    body = str(cards[0]["body"]).lower()
 
     assert len(cards) == 1
-    assert "readiness report not loaded" in rendered
-    assert "missing readiness output means analysis should stay current-only and blocked" in rendered
-    assert "make readiness" in rendered
+    assert cards[0]["title"] == "Readiness report not loaded"
+    assert cards[0]["command"] == "make readiness"
+    assert "missing readiness output means analysis should stay current-only and blocked" in body
+    assert "open operator details" in body
+    assert "make " not in body
 
 
 def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
@@ -15821,6 +15823,8 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Data Health Quick Read" in source
     assert "Which proof path should you inspect first, before opening detailed sections." in source
     assert "Diagnostic triage only; use this after the lane answer when a reviewer asks what evidence to inspect first." in source
+    assert "No active-universe unlock rows are available. Refresh readiness and confirm the active-universe scope." in source
+    assert "No active-universe unlock rows are available. Run make readiness" not in source
     assert "before opening detailed tables" not in source
     assert "deeper Data Health details" not in source
     assert "missing_optional_labels = [public_dataset_name(name) for name in missing_optional]" in source
@@ -20727,6 +20731,17 @@ def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_comman
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_active_universe_unlock_cards_empty_state_keeps_command_out_of_body():
+    cards = dashboard.active_universe_unlock_cards(None)
+    body = str(cards[0]["body"]).lower()
+
+    assert cards[0]["title"] == "No active rows"
+    assert cards[0]["command"] == "make readiness"
+    assert "active-universe unlock cockpit" in body
+    assert "open operator details" in body
+    assert "make " not in body
 
 
 def test_active_universe_drilldown_surfaces_missing_fields_and_validation_paths():
