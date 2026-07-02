@@ -7,6 +7,10 @@ That is a safe temporary state for sharing the project as a portfolio demo, but
 it can confuse visitors who want to reuse, copy, or adapt the code. Before
 promoting the repository broadly, choose one of these paths:
 
+Recommended current path: keep this as a portfolio showcase until you intentionally choose a license.
+That keeps the product shareable as demo evidence while avoiding accidental
+open-source or reuse-rights claims.
+
 | Goal | Common path | Visitor expectation |
 | --- | --- | --- |
 | Portfolio showcase only | Keep no license for now | Visitors can read the code, but reuse rights are not granted. |

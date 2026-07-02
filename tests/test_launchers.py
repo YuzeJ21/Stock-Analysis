@@ -1548,6 +1548,7 @@ def test_license_decision_guide_is_present_until_license_is_chosen():
     assert not Path("LICENSE").exists()
     for phrase in (
         "does not currently grant public reuse rights",
+        "Recommended current path: keep this as a portfolio showcase until you intentionally choose a license",
         "Portfolio showcase only",
         "Do not claim the project is open source until a license is added",
         "add a root-level `LICENSE` file",
