@@ -165,6 +165,11 @@ def data_health_current_mode_strip_html(
         ("Lane detail", selected_detail, "Fast view keeps proof tables collapsed."),
         ("Queue detail", queue_detail, "Controls broad lane rows and drilldowns."),
         ("Freshness", freshness_value, freshness_message),
+        (
+            "Detail boundary",
+            "Review drawers stay collapsed",
+            "Queue drawers, route maps, proof ledgers, raw tables, provider setup details, and generated-artifact lists stay collapsed until opened.",
+        ),
         ("Next safe action", next_action, "Copy-only; research readiness, not a recommendation."),
     ]
     blocks = []

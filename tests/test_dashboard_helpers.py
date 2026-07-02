@@ -25986,6 +25986,8 @@ def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_nex
     assert "current" in rendered
     assert "next safe action" in rendered
     assert "open batch execution review details" in rendered
+    assert "detail boundary" in rendered
+    assert "queue drawers, route maps, proof ledgers, raw tables, provider setup details, and generated-artifact lists stay collapsed until opened" in rendered
     assert "copy-only" in rendered
     assert "research readiness" in rendered
     assert "buy" not in rendered
