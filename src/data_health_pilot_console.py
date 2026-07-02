@@ -788,6 +788,21 @@ def public_share_final_gate_frame(
 
     rows = [
         {
+            "Gate": "Share-now answer",
+            "Status": "portfolio_demo_only",
+            "Review": (
+                "Share as portfolio/demo only after public-check passes and generated churn stays excluded. "
+                "Do not call this open source until a root LICENSE exists. "
+                "If source-proof queues are exhausted, use provider setup before broad proof loops. "
+                "Do not stage generated churn or sample reports unless exact artifacts are reviewed evidence."
+            ),
+            "Command": "make public-release-package",
+            "Stop Rule": (
+                "Stop before sharing if public-check fails, generated churn is staged, or license wording "
+                "claims open-source reuse before a root LICENSE exists."
+            ),
+        },
+        {
             "Gate": "GitHub sync",
             "Status": row_status(sync_row, "blocked"),
             "Review": row_detail(sync_row, "Confirm local branch state before public sharing."),
@@ -859,7 +874,7 @@ def public_share_final_gate_frame(
     return pd.DataFrame(rows)
 
 
-def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 7) -> list[dict[str, object]]:
+def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 8) -> list[dict[str, object]]:
     if frame is None or frame.empty:
         return [
             {
@@ -886,7 +901,7 @@ def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 7)
     for _, row in frame.head(max(limit, 0)).iterrows():
         gate = _format_missing(row.get("Gate"), "Public gate")
         status = _public_status_label(row.get("Status"))
-        review_max_chars = 700 if gate == "License status" else 150
+        review_max_chars = 700 if gate in {"License status", "Share-now answer"} else 150
         review = _compact_fragment(row.get("Review"), max_chars=review_max_chars)
         stop_rule = _compact_fragment(row.get("Stop Rule"), max_chars=150)
         command = _format_missing(row.get("Command"), "make public-check")

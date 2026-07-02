@@ -424,6 +424,7 @@ def test_public_share_final_gate_combines_release_checks_without_data_writes():
     rendered = " ".join(str(card) for card in cards).lower()
 
     assert list(frame["Gate"]) == [
+        "Share-now answer",
         "GitHub sync",
         "Public-check",
         "Browser QA evidence",
@@ -432,12 +433,18 @@ def test_public_share_final_gate_combines_release_checks_without_data_writes():
         "License status",
         "Research-only boundary",
     ]
-    assert frame.iloc[1]["Command"] == "make public-check"
-    assert frame.iloc[2]["Command"] == "make browser-qa-evidence"
-    assert frame.iloc[3]["Command"] == "make diff-hygiene-summary"
-    assert frame.iloc[4]["Command"] == "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md"
-    assert frame.iloc[5]["Command"] == "make license-status"
-    assert frame.iloc[6]["Command"] == "make public-wording-check"
+    assert frame.iloc[0]["Command"] == "make public-release-package"
+    assert frame.iloc[2]["Command"] == "make public-check"
+    assert frame.iloc[3]["Command"] == "make browser-qa-evidence"
+    assert frame.iloc[4]["Command"] == "make diff-hygiene-summary"
+    assert frame.iloc[5]["Command"] == "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md"
+    assert frame.iloc[6]["Command"] == "make license-status"
+    assert frame.iloc[7]["Command"] == "make public-wording-check"
+    assert "share-now answer" in rendered
+    assert "share as portfolio/demo only after public-check passes" in rendered
+    assert "do not call this open source until a root license exists" in rendered
+    assert "use provider setup before broad proof loops" in rendered
+    assert "do not stage generated churn or sample reports unless exact artifacts are reviewed evidence" in rendered
     assert "one final review before github or linkedin" in rendered
     assert "real screenshots" in rendered
     assert "generated-churn exclusion" in rendered
@@ -458,6 +465,7 @@ def test_public_share_final_gate_deferred_state_names_all_release_gates():
     rendered = " ".join(str(card) for card in cards).lower()
 
     assert frame["Gate"].tolist() == [
+        "Share-now answer",
         "GitHub sync",
         "Public-check",
         "Browser QA evidence",
