@@ -438,10 +438,13 @@ def _public_check_gate() -> PilotReadinessCheck:
         title="Run the public share gate before pilot sharing",
         detail=(
             "The pilot checklist is read-only; public-check remains the explicit test, wording, "
-            "dashboard smoke, and visitor-demo gate."
+            "dashboard smoke, browser evidence, license-status, and visitor-demo gate."
         ),
         command="make public-check",
-        stop_rule="Stop before public pilot sharing if public-check, public wording, dashboard smoke, or whitespace checks fail.",
+        stop_rule=(
+            "Stop before public pilot sharing if public-check, public wording, "
+            "dashboard smoke, whitespace, browser evidence, or the license boundary fails."
+        ),
     )
 
 

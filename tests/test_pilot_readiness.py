@@ -128,6 +128,8 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert by_area["License status"].command == "make license-status"
     assert "portfolio/demo only" in by_area["License status"].detail
     assert by_area["Public safety"].command == "make public-check"
+    assert "license-status" in by_area["Public safety"].detail
+    assert "license boundary" in by_area["Public safety"].stop_rule
     assert pilot_readiness_verdict(checks) == "pilot-ready with manual gates"
     assert "does not refresh data, apply imports, stage files, commit, push, or rewrite CSVs" in rendered
     assert "Trusted Fundamentals Proof Queue" in rendered
