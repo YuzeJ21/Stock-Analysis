@@ -202,9 +202,11 @@ def test_data_health_auto_refresh_status_cards_read_cached_preflight(tmp_path: P
         "NEXT SCHEDULER STEP",
     ]
     assert cards[2]["command"] == "make auto-refresh-runbook SCHEDULE=weekly"
-    assert "can run now: coverage_workflow_evidence" in rendered
+    assert "can run now: workflow evidence only; current source-proof queues are exhausted" in rendered
     assert "needs setup: fmp, alpha vantage, finnhub" in rendered
-    assert "avoid repeating: fundamentals_share_count_source_ladder" in rendered
+    assert "avoid repeating: fundamentals/share-count source ladder" in rendered
+    assert "coverage_workflow_evidence" not in rendered
+    assert "fundamentals_share_count_source_ladder" not in rendered
     assert "generated csv/json/report churn stays excluded" in rendered
 
 
@@ -273,7 +275,9 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     assert "one safe smoke test" not in rendered
     assert "no broad coverage batch should run from setup alone" in rendered
     assert "provider setup only makes a source executable" in rendered
-    assert "do not retry fundamentals_share_count_source_ladder" in rendered
+    assert "do not retry fundamentals/share-count source ladder" in rendered
+    assert "fundamentals_share_count_source_ladder" not in rendered
+    assert "coverage_workflow_evidence" not in rendered
     assert "project-status -> provider setup -> reviewed one-ticker smoke command -> validate/preview" in rendered
     assert "when proof queues are exhausted, pivot to source setup and scoped review" in rendered
     assert "make universe-scope top_n=10" in rendered
@@ -322,9 +326,11 @@ def test_data_health_provider_setup_checklist_cards_surface_cached_current_gate(
     cards = dashboard.data_health_provider_setup_checklist_cards(root=tmp_path)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "can run now: coverage_workflow_evidence" in rendered
+    assert "can run now: workflow evidence only; current source-proof queues are exhausted" in rendered
     assert "needs setup: fmp, alpha_vantage, finnhub" in rendered
-    assert "avoid repeating: fundamentals_share_count_source_ladder" in rendered
+    assert "avoid repeating: fundamentals/share-count source ladder" in rendered
+    assert "coverage_workflow_evidence" not in rendered
+    assert "fundamentals_share_count_source_ladder" not in rendered
     assert "wait for new provider data before repeating the source ladder" in rendered
 
 

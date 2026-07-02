@@ -548,10 +548,10 @@ def auto_refresh_status_cards(status_payload: dict[str, object] | None) -> list[
     payload = status_payload or {}
     categories = payload.get("source_categories", {})
     categories = categories if isinstance(categories, dict) else {}
-    source_activation = _format_missing(payload.get("source_activation"), "unknown")
-    can_run_now = _format_missing(payload.get("can_run_now"), "No executable lane reported")
+    source_activation = _human_provider_gate(_format_missing(payload.get("source_activation"), "unknown"))
+    can_run_now = _human_provider_gate(_format_missing(payload.get("can_run_now"), "No executable lane reported"))
     needs_setup = _humanize_list_text(payload.get("needs_setup"), "No setup gaps reported")
-    avoid_repeating = _format_missing(payload.get("avoid_repeating"), "No avoid-repeat lane reported")
+    avoid_repeating = _human_provider_gate(_format_missing(payload.get("avoid_repeating"), "No avoid-repeat lane reported"))
     next_command = _format_missing(payload.get("next_executable_command"), "make auto-refresh-status SCHEDULE=daily")
     next_runbook = _format_missing(payload.get("next_runbook"), "make auto-refresh-runbook SCHEDULE=daily")
     free_public = _format_missing(categories.get("free_public_available"), "No free public source reported")
@@ -903,11 +903,11 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
     current_gate_summary = ""
     if current_gate:
         current_gate_summary = (
-            f" Current source gate: can run now: {_format_missing(current_gate.get('can_run_now'), '-')}; "
+            f" Current source gate: can run now: {_human_provider_gate(_checklist_current_gate_value(payload, 'can_run_now'))}; "
             f"needs setup: {_format_missing(current_gate.get('needs_setup'), '-')}; "
-            f"avoid repeating: {_format_missing(current_gate.get('avoid_repeating'), '-')}; "
+            f"avoid repeating: {_human_provider_gate(_checklist_current_gate_value(payload, 'avoid_repeating'))}; "
             f"next: {_format_missing(current_gate.get('next_step'), '-')}; "
-            f"{_format_missing(current_gate.get('next_step_reason'), '-')}"
+            f"{_human_provider_gate(_format_missing(current_gate.get('next_step_reason'), '-'))}"
         )
     free_public_summary = _checklist_rows_by_category(rows, {"free_public_available"})
     keyed_summary = _checklist_rows_by_state(rows, {"configured", "needs_key"})
@@ -932,15 +932,15 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
     cards = [
         {
             "kicker": "PROVIDER FIRST ANSWER",
-            "title": _format_missing(first_answer.get("question"), "What source can I use next?"),
+            "title": _human_provider_gate(_format_missing(first_answer.get("question"), "What source can I use next?")),
             "body": (
-                f"What free source can run now: {_format_missing(first_answer.get('free_source_now'), '-')}. "
-                f"What key is missing: {_format_missing(first_answer.get('missing_key'), '-')}. "
-                f"What should not be retried: {_format_missing(first_answer.get('do_not_retry'), '-')}. "
-                f"Setup prerequisite: {_format_missing(first_answer.get('setup_prerequisite'), 'Run preflight before provider reviewed smoke commands')}. "
+                f"What free source can run now: {_human_provider_gate(_format_missing(first_answer.get('free_source_now'), '-'))}. "
+                f"What key is missing: {_human_provider_gate(_format_missing(first_answer.get('missing_key'), '-'))}. "
+                f"What should not be retried: {_human_provider_gate(_format_missing(first_answer.get('do_not_retry'), '-'))}. "
+                f"Setup prerequisite: {_human_provider_gate(_format_missing(first_answer.get('setup_prerequisite'), 'Run preflight before provider reviewed smoke commands'))}. "
                 "Review boundary: reviewed one-ticker smoke commands stay in source setup details; "
                 "do not treat source reachability as a coverage unlock. "
-                f"{_format_missing(first_answer.get('boundary'), 'Provider setup does not change readiness by itself.')}"
+                f"{_human_provider_gate(_format_missing(first_answer.get('boundary'), 'Provider setup does not change readiness by itself.'))}"
             ),
             "badges": ["answer first", "one source", "no retry loop"],
             "command": "make provider-setup-checklist",
@@ -950,15 +950,17 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
         cards.append(
             {
                 "kicker": "COVERAGE UNLOCK DECISION",
-                "title": _format_missing(
-                    unlock_decision.get("answer"),
-                    "No broad coverage batch should run from setup alone.",
+                "title": _human_provider_gate(
+                    _format_missing(
+                        unlock_decision.get("answer"),
+                        "No broad coverage batch should run from setup alone.",
+                    )
                 ),
                 "body": (
-                    f"{_format_missing(unlock_decision.get('can_use_now'), 'Use source gates first.')} "
-                    f"{_format_missing(unlock_decision.get('configure_first'), 'Configure one source path only when needed.')} "
-                    f"{_format_missing(unlock_decision.get('do_not_retry'), 'Do not retry exhausted proof queues.')} "
-                    f"{_format_missing(unlock_decision.get('proof_boundary'), 'Provider setup does not change readiness by itself.')}"
+                    f"{_human_provider_gate(_format_missing(unlock_decision.get('can_use_now'), 'Use source gates first.'))} "
+                    f"{_human_provider_gate(_format_missing(unlock_decision.get('configure_first'), 'Configure one source path only when needed.'))} "
+                    f"{_human_provider_gate(_format_missing(unlock_decision.get('do_not_retry'), 'Do not retry exhausted proof queues.'))} "
+                    f"{_human_provider_gate(_format_missing(unlock_decision.get('proof_boundary'), 'Provider setup does not change readiness by itself.'))}"
                 ),
                 "badges": ["answer first", "source gate", "no broad batch"],
                 "command": "make project-status",

@@ -360,8 +360,10 @@ def test_overview_auto_refresh_status_cards_show_scheduler_next_step():
     ]
     assert cards[0]["command"] == "make auto-refresh-status SCHEDULE=daily"
     assert cards[2]["command"] == "make auto-refresh-runbook SCHEDULE=daily"
-    assert "can run now: coverage_workflow_evidence" in rendered
-    assert "avoid repeating: fundamentals_share_count_source_ladder" in rendered
+    assert "can run now: workflow evidence only; current source-proof queues are exhausted" in rendered
+    assert "avoid repeating: fundamentals/share-count source ladder" in rendered
+    assert "coverage_workflow_evidence" not in rendered
+    assert "fundamentals_share_count_source_ladder" not in rendered
     assert "needs setup: fmp, alpha vantage, finnhub" in rendered
     assert "generated csv/json/report churn stays excluded" in rendered
     assert "buy" not in rendered
@@ -532,7 +534,9 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     assert "one safe smoke test" not in rendered
     assert "no broad coverage batch should run from setup alone" in rendered
     assert "provider setup only makes a source executable" in rendered
-    assert "do not retry fundamentals_share_count_source_ladder" in rendered
+    assert "do not retry fundamentals/share-count source ladder" in rendered
+    assert "fundamentals_share_count_source_ladder" not in rendered
+    assert "coverage_workflow_evidence" not in rendered
     assert "project-status -> provider setup -> reviewed one-ticker smoke command -> validate/preview" in rendered
     assert "when proof queues are exhausted, pivot to source setup and scoped review" in rendered
     assert "make universe-scope top_n=10" in rendered
