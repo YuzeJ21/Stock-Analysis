@@ -777,6 +777,77 @@ def _checklist_first_answer(payload: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _checklist_current_gate_value(payload: dict[str, object], name: str, fallback: str = "-") -> str:
+    current_gate = payload.get("current_gate")
+    if not isinstance(current_gate, dict):
+        return fallback
+    value = current_gate.get(name)
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(item) for item in value if str(item).strip()) or fallback
+    return _format_missing(value, fallback)
+
+
+def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd.DataFrame:
+    """Return a compact source-boundary answer before provider setup details."""
+
+    payload = checklist or {}
+    first_answer = _checklist_first_answer(payload)
+    current_can_run = _checklist_current_gate_value(
+        payload,
+        "can_run_now",
+        _format_missing(first_answer.get("free_source_now"), "see provider rows"),
+    )
+    needs_setup = _checklist_current_gate_value(
+        payload,
+        "needs_setup",
+        _format_missing(first_answer.get("missing_key"), "-"),
+    )
+    avoid_repeating = _checklist_current_gate_value(
+        payload,
+        "avoid_repeating",
+        _format_missing(first_answer.get("do_not_retry"), "Do not retry exhausted proof queues."),
+    )
+    next_step_reason = _checklist_current_gate_value(payload, "next_step_reason", "")
+    one_safe_smoke = _format_missing(first_answer.get("one_safe_smoke"), "make session-source-preflight")
+    boundary = _format_missing(
+        first_answer.get("boundary"),
+        "Provider setup is not an import, apply, or readiness unlock.",
+    )
+    if "not an import" not in boundary.lower():
+        boundary = f"{boundary} Provider setup is not an import, apply, or readiness unlock."
+
+    return pd.DataFrame(
+        [
+            {
+                "Question": "What can run now?",
+                "Answer": current_can_run,
+                "Next Safe Action": _checklist_current_gate_value(payload, "next_step", "make project-status"),
+            },
+            {
+                "Question": "What setup changes the gate?",
+                "Answer": needs_setup,
+                "Next Safe Action": "make provider-setup-checklist",
+            },
+            {
+                "Question": "What should not be retried?",
+                "Answer": f"{avoid_repeating}. {next_step_reason}".strip(),
+                "Next Safe Action": "make project-status",
+            },
+            {
+                "Question": "What is the one safe smoke?",
+                "Answer": one_safe_smoke,
+                "Next Safe Action": "make session-source-preflight",
+            },
+            {
+                "Question": "What boundary stays true?",
+                "Answer": boundary,
+                "Next Safe Action": "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>",
+            },
+        ],
+        columns=["Question", "Answer", "Next Safe Action"],
+    )
+
+
 def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[dict[str, object]]:
     payload = checklist or {}
     rows = _checklist_rows(payload)

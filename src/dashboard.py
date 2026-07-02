@@ -9059,6 +9059,12 @@ def data_health_provider_setup_checklist_cards(root: Path | None = None) -> list
     )
 
 
+def data_health_provider_setup_first_answer_frame(root: Path | None = None) -> pd.DataFrame:
+    return overview_console.provider_setup_first_answer_frame(
+        build_provider_setup_checklist(_cached_session_source_preflight_payload(root))
+    )
+
+
 def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
     master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
     price_ready = int(readiness_summary.get("price_ready") or 0)
@@ -27968,6 +27974,11 @@ def render_data_health(
             show_commands=False,
             variant="queue",
         )
+    render_section_header(
+        "Source Setup First Answer",
+        "What can run now, what setup could change the gate, what should not be retried, and the one safe smoke before provider details.",
+    )
+    st.table(clean_display_frame(data_health_provider_setup_first_answer_frame(BASE_DIR)))
     with st.expander("Optional source setup details", expanded=False):
         source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)
         if source_exhaustion_pivot_cards:

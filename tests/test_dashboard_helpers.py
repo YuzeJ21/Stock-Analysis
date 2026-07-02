@@ -326,6 +326,47 @@ def test_data_health_provider_setup_checklist_cards_surface_cached_current_gate(
     assert "wait for new provider data before repeating the source ladder" in rendered
 
 
+def test_data_health_provider_setup_first_answer_frame_summarizes_current_source_boundary(tmp_path, monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "secret-fmp-key")
+    monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+    outputs_dir = tmp_path / "outputs"
+    outputs_dir.mkdir()
+    (outputs_dir / "session_source_preflight.json").write_text(
+        json.dumps(
+            {
+                "source_activation_console_v2": {
+                    "operator_summary": {
+                        "can_run_now": "coverage_workflow_evidence",
+                        "needs_setup": ["alpha_vantage", "finnhub"],
+                        "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                        "next_step": "make project-status",
+                        "next_step_reason": "Wait for new provider data before repeating the source ladder.",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    frame = dashboard.data_health_provider_setup_first_answer_frame(root=tmp_path)
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+
+    assert frame["Question"].tolist() == [
+        "What can run now?",
+        "What setup changes the gate?",
+        "What should not be retried?",
+        "What is the one safe smoke?",
+        "What boundary stays true?",
+    ]
+    assert "coverage_workflow_evidence" in rendered
+    assert "alpha_vantage, finnhub" in rendered
+    assert "fundamentals_share_count_source_ladder" in rendered
+    assert "make fmp-stage tickers=<ticker>" in rendered
+    assert "provider setup is not an import, apply, or readiness unlock" in rendered
+    assert "secret-fmp-key" not in rendered
+
+
 def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations():
     frame = dashboard._plain_home_demo_example_frame()
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
