@@ -319,6 +319,61 @@ def _provider_source_answer(rows: list[dict[str, Any]]) -> dict[str, str]:
     }
 
 
+def _source_boundary_decision(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
+    configured_keyed = _provider_names_for_state(rows, {"configured"})
+    missing_keyed = _provider_names_for_state(rows, {"needs_key"})
+    keyed_status_parts = []
+    if configured_keyed != "-":
+        keyed_status_parts.append(f"configured: {configured_keyed}")
+    if missing_keyed != "-":
+        keyed_status_parts.append(f"missing: {missing_keyed}")
+    keyed_status = "; ".join(keyed_status_parts) or "not configured"
+
+    optional_broker_configured = any(
+        str(row.get("setup_state") or "").strip() == "optional_configured"
+        for row in rows
+    )
+    broker_status = "configured for read-only daily OHLCV" if optional_broker_configured else "disabled by default"
+
+    return [
+        {
+            "source_group": "Free public sources",
+            "use_for": "SEC facts, filing metadata, explicit filing-document shares, daily OHLCV, provider-assisted fundamentals",
+            "status": "usable now",
+            "setup_boundary": "Use preflight and one reviewed ticker before any validate/preview/apply path.",
+            "next_safe_action": "make session-source-preflight",
+        },
+        {
+            "source_group": "Keyed free-tier fallbacks",
+            "use_for": "Small-batch price, fundamentals, and share-count fallback rows",
+            "status": keyed_status,
+            "setup_boundary": "Configure at most one missing key; key setup is not data proof.",
+            "next_safe_action": "make provider-setup-checklist",
+        },
+        {
+            "source_group": "Metadata-only evidence",
+            "use_for": "Ticker/entity, CIK, SIC, exchange, filing recency, source routing",
+            "status": "context only",
+            "setup_boundary": "Metadata never unlocks DCF, valuation, earnings, estimates, or share count unless an explicit filing fact is staged.",
+            "next_safe_action": "make trusted-data-pilot-packet TICKER=<ticker>",
+        },
+        {
+            "source_group": "Optional broker",
+            "use_for": "Read-only daily OHLCV only when explicitly configured",
+            "status": broker_status,
+            "setup_boundary": "Do not use broker/account/order APIs; leave disabled unless intentionally configured.",
+            "next_safe_action": "No action unless choosing IBKR read-only daily bars.",
+        },
+        {
+            "source_group": "Paid or locked optional lanes",
+            "use_for": "Earnings and analyst estimates only after trusted provider/manual rows exist",
+            "status": "locked until source-backed rows exist",
+            "setup_boundary": "Do not infer or publish optional context from missing provider data.",
+            "next_safe_action": "make optional-context-source-ladder-queue TOP_N=10",
+        },
+    ]
+
+
 def _one_provider_setup_order(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
     rows_by_provider = {
         str(row.get("provider") or "").strip(): row
@@ -440,6 +495,7 @@ def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = No
         "rows": rows,
         "source_answer": _provider_source_answer(rows),
         "first_answer": _first_provider_answer(rows, current_gate),
+        "source_boundary_decision": _source_boundary_decision(rows),
         "coverage_unlock_decision": _coverage_unlock_decision(rows, current_gate),
         "one_provider_setup_order": _one_provider_setup_order(rows),
         "workflow_pivot": WORKFLOW_PIVOT,
@@ -506,6 +562,30 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 "",
             ]
         )
+    source_boundary = checklist.get("source_boundary_decision", [])
+    if isinstance(source_boundary, list) and source_boundary:
+        lines.extend(
+            [
+                "Source boundary decision:",
+                "Source group | Use for | Status | Setup boundary | Next safe action",
+                "--- | --- | --- | --- | ---",
+            ]
+        )
+        for row in source_boundary:
+            if not isinstance(row, dict):
+                continue
+            lines.append(
+                " | ".join(
+                    [
+                        str(row.get("source_group") or ""),
+                        str(row.get("use_for") or ""),
+                        str(row.get("status") or ""),
+                        str(row.get("setup_boundary") or ""),
+                        str(row.get("next_safe_action") or ""),
+                    ]
+                )
+            )
+        lines.append("")
     lines.extend([
         "Local setup commands:",
     ])

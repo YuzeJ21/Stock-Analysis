@@ -211,6 +211,65 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "direct buy/sell instructions" in rendered
 
 
+def test_provider_setup_checklist_starts_with_source_boundary_decision_table(monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "secret-fmp-key")
+    monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+    monkeypatch.delenv("IBKR_HOST", raising=False)
+    monkeypatch.delenv("IBKR_PORT", raising=False)
+    monkeypatch.delenv("IBKR_CLIENT_ID", raising=False)
+
+    checklist = build_provider_setup_checklist()
+    rendered = render_provider_setup_checklist(checklist)
+
+    assert checklist["source_boundary_decision"] == [
+        {
+            "source_group": "Free public sources",
+            "use_for": "SEC facts, filing metadata, explicit filing-document shares, daily OHLCV, provider-assisted fundamentals",
+            "status": "usable now",
+            "setup_boundary": "Use preflight and one reviewed ticker before any validate/preview/apply path.",
+            "next_safe_action": "make session-source-preflight",
+        },
+        {
+            "source_group": "Keyed free-tier fallbacks",
+            "use_for": "Small-batch price, fundamentals, and share-count fallback rows",
+            "status": "configured: FMP free tier; missing: Alpha Vantage free tier, Finnhub free tier",
+            "setup_boundary": "Configure at most one missing key; key setup is not data proof.",
+            "next_safe_action": "make provider-setup-checklist",
+        },
+        {
+            "source_group": "Metadata-only evidence",
+            "use_for": "Ticker/entity, CIK, SIC, exchange, filing recency, source routing",
+            "status": "context only",
+            "setup_boundary": "Metadata never unlocks DCF, valuation, earnings, estimates, or share count unless an explicit filing fact is staged.",
+            "next_safe_action": "make trusted-data-pilot-packet TICKER=<ticker>",
+        },
+        {
+            "source_group": "Optional broker",
+            "use_for": "Read-only daily OHLCV only when explicitly configured",
+            "status": "disabled by default",
+            "setup_boundary": "Do not use broker/account/order APIs; leave disabled unless intentionally configured.",
+            "next_safe_action": "No action unless choosing IBKR read-only daily bars.",
+        },
+        {
+            "source_group": "Paid or locked optional lanes",
+            "use_for": "Earnings and analyst estimates only after trusted provider/manual rows exist",
+            "status": "locked until source-backed rows exist",
+            "setup_boundary": "Do not infer or publish optional context from missing provider data.",
+            "next_safe_action": "make optional-context-source-ladder-queue TOP_N=10",
+        },
+    ]
+    assert "Source boundary decision:" in rendered
+    assert "Source group | Use for | Status | Setup boundary | Next safe action" in rendered
+    assert "Free public sources | SEC facts, filing metadata, explicit filing-document shares, daily OHLCV, provider-assisted fundamentals | usable now" in rendered
+    assert "Keyed free-tier fallbacks | Small-batch price, fundamentals, and share-count fallback rows | configured: FMP free tier; missing: Alpha Vantage free tier, Finnhub free tier" in rendered
+    assert "Metadata-only evidence | Ticker/entity, CIK, SIC, exchange, filing recency, source routing | context only" in rendered
+    assert "Optional broker | Read-only daily OHLCV only when explicitly configured | disabled by default" in rendered
+    assert "Paid or locked optional lanes | Earnings and analyst estimates only after trusted provider/manual rows exist | locked until source-backed rows exist" in rendered
+    assert rendered.index("Source boundary decision:") < rendered.index("Provider setup and boundaries:")
+    assert "secret-fmp-key" not in rendered
+
+
 def test_provider_setup_checklist_names_one_missing_keyed_provider_to_configure_first(monkeypatch):
     monkeypatch.delenv("FMP_API_KEY", raising=False)
     monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
