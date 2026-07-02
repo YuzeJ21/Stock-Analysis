@@ -28743,17 +28743,17 @@ def render_data_health(
                 st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
     elif selected_lane == "Peers":
         render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)
-        render_signal_cards(
-            data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness),
-            show_commands=False,
-            variant="queue",
-        )
         peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)
         with st.expander("Peer evidence drawer", expanded=False):
             render_section_header("Peer Evidence Answer", "One peer lane answer before source-review intake, proof planners, closeout, or peer matrix details.")
             render_signal_cards(
                 data_health_peer_readiness_v2_cards(ops_center) + data_health_trusted_pilot_lane_cards(lane_board),
                 show_commands=False,
+            )
+            render_signal_cards(
+                data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness),
+                show_commands=False,
+                variant="queue",
             )
             render_section_header("Peer Operator Summary", "Current peer source-review gate, latest proof status, next safe action, and stop rule before detailed peer proof drawers.")
             render_signal_cards(
