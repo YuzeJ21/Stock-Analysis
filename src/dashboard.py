@@ -20401,34 +20401,46 @@ def data_health_selected_lane_answer_cards(
         "prices": (
             f"{price_ready:,} tickers have price rows. Price context is usable where history depth is ready; short-history rows stay partial.",
             "Price gaps or short history do not unlock fundamentals, DCF, peers, earnings, or estimates.",
+            "Context only: liquidity, correlation, and setup rows stay historical context until their proof gates pass.",
+            "Excluded/not applicable: operating-company DCF stays excluded for ETF/index/fund monitor rows.",
         ),
         "fundamentals": (
             f"{dcf_ready:,} DCF-ready and {fundamentals_ready:,} fundamentals-ready tickers can use source-backed company inputs.",
             "Source proof remains blocked where revenue, cash flow, margins, shares, or related DCF inputs are missing.",
+            "Context only: metadata, candidate peers, universe membership, and optional rows stay separate from trusted fundamentals proof.",
+            "Excluded/not applicable: ETF/index/fund rows keep operating-company DCF excluded instead of failed.",
         ),
         "peers": (
             f"{peer_ready:,} tickers have trusted peer context. Candidate peers remain context only until source-backed mapping proof exists.",
             "Peer-relative analysis stays blocked when trusted mappings or mapped-peer inputs are missing.",
+            "Context only: candidate peers can guide review but are not trusted peer proof.",
+            "Excluded/not applicable: ETF/index/fund rows keep operating-company peer valuation excluded instead of failed.",
         ),
         "metrics": (
             "Review metrics are usable only where the benchmark, risk, fundamentals, valuation, or peer metric family is readiness-supported.",
             "Metric rows stay historical context; missing metric proof does not become a ranking or instruction.",
+            "Context only: risk and market metrics are historical review context, not a research conclusion.",
+            "Excluded/not applicable: metrics outside the selected lane stay hidden until explicitly opened.",
         ),
         "optional": (
             "Optional earnings and analyst-estimate context is usable only when trusted local or provider-assisted rows are reviewed.",
             "Empty optional rows remain locked; optional context never becomes a recommendation.",
+            "Context only: optional rows can add background after review but do not unlock DCF or peer proof.",
+            "Excluded/not applicable: optional context can stay unavailable without failing the core readiness workflow.",
         ),
         "proof": (
             "Proof History is evidence review only: use it to verify reviewed outcomes before trusting changed readiness.",
             "Proof rows do not apply data, refresh sources, or turn blocked inputs into supported analysis.",
+            "Context only: proof ledger rows explain evidence state; they are not analysis outputs.",
+            "Excluded/not applicable: lanes without reviewed evidence stay out of supported proof claims.",
         ),
     }
-    use_now, blocked = lane_answers.get(selected_lane_key, lane_answers["prices"])
+    use_now, blocked, context_only, excluded = lane_answers.get(selected_lane_key, lane_answers["prices"])
     return [
         {
             "kicker": "LANE ANSWER",
             "title": lane_label,
-            "body": f"Use now: {use_now} Freshness is {freshness_status}.",
+            "body": f"Use now: {use_now} {context_only} {excluded} Freshness is {freshness_status}.",
             "badges": ["one lane", "use now"],
         },
         {

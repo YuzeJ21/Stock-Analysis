@@ -25568,6 +25568,8 @@ def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
     assert "fundamentals / dcf" in rendered
     assert "2,691 dcf-ready" in rendered
     assert "2,808 fundamentals-ready" in rendered
+    assert "context only: metadata, candidate peers, universe membership, and optional rows stay separate from trusted fundamentals proof" in rendered
+    assert "excluded/not applicable: etf/index/fund rows keep operating-company dcf excluded instead of failed" in rendered
     assert "source proof remains blocked" in rendered
     assert cards[2]["command"] == "make provider-setup-checklist"
     assert "not a recommendation" in rendered
