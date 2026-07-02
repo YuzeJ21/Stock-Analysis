@@ -887,6 +887,17 @@ def build_public_release_handoff_report(
     generated = groups["generated_csv_churn"]
     manual = groups["review_manually"]
     package_status = package_status_for_groups(groups)
+    branch_is_ahead = "[ahead" in (branch_status or "")
+    sync_boundary_lines = (
+        [
+            "GitHub sync boundary:",
+            "  GitHub pilot link is not current until reviewed local commits are pushed.",
+            "  push only when explicitly asked after public-check passes and generated churn stays excluded.",
+            "",
+        ]
+        if branch_is_ahead
+        else []
+    )
 
     lines = [
         "Public Release Terminal Handoff",
@@ -898,6 +909,7 @@ def build_public_release_handoff_report(
         format_count_line("Generated CSV/JSON churn excluded by default", generated),
         format_count_line("Manual-review paths", manual),
         f"Branch status: {branch_status or 'not checked'}",
+        *sync_boundary_lines,
         f"Package status: {package_status}",
         "",
         *format_license_gate(),

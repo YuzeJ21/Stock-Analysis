@@ -481,6 +481,23 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "direct buy/sell" in report
 
 
+def test_public_release_handoff_surfaces_stale_github_link_when_branch_ahead():
+    module = load_diff_hygiene_module()
+    entries = [
+        module.StatusEntry("M", "data/prices.csv"),
+        module.StatusEntry("M", "outputs/feature_readiness_summary.csv"),
+    ]
+
+    report = module.build_public_release_handoff_report(
+        entries,
+        branch_status="## main...origin/main [ahead 4]",
+    )
+
+    assert "Branch status: ## main...origin/main [ahead 4]" in report
+    assert "GitHub pilot link is not current until reviewed local commits are pushed." in report
+    assert "push only when explicitly asked after public-check passes and generated churn stays excluded" in report
+
+
 def test_public_release_handoff_loads_cached_preflight_from_repo_root(tmp_path):
     module = load_diff_hygiene_module()
     outputs_dir = tmp_path / "outputs"
