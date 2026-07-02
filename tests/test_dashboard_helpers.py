@@ -2477,8 +2477,8 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     handoff_cards_assignment_index = source.index("handoff_cards = single_stock_data_health_handoff_cards(snapshot)", workflow_fit_index)
     workflow_loop_index = source.index("render_signal_cards(single_stock_workflow_loop_cards(snapshot), show_commands=False)", workflow_fit_index)
     workflow_cards_index = source.index("render_signal_cards(workflow_fit_cards, show_commands=False)", workflow_loop_index)
-    handoff_header_index = source.index('render_section_header(\n        "Data Health Handoff"', workflow_cards_index)
-    handoff_render_index = source.index("render_signal_cards(handoff_cards, show_commands=False)", handoff_header_index)
+    handoff_expander_index = source.index('st.expander("Data Health handoff details", expanded=False)', workflow_cards_index)
+    handoff_render_index = source.index("render_signal_cards(handoff_cards, show_commands=False)", handoff_expander_index)
     command_expander_index = source.index('st.expander("Single-stock operator proof steps", expanded=False)', handoff_render_index)
     quick_read_index = source.index('render_section_header("Single-Stock Quick Read"', workflow_fit_index)
     source_table_expander_index = source.index('st.expander("Single-stock source readiness table", expanded=False)', quick_read_index)
@@ -2494,7 +2494,7 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
         < handoff_cards_assignment_index
         < workflow_loop_index
         < workflow_cards_index
-        < handoff_header_index
+        < handoff_expander_index
         < handoff_render_index
         < command_expander_index
         < quick_read_index
@@ -2506,7 +2506,8 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     assert "single_stock_workflow_loop_cards(snapshot)" in source
     assert "single_stock_data_health_handoff_cards(snapshot)" in source
     assert "single_stock_workflow_command_rows(workflow_fit_cards + handoff_cards)" in source
-    assert "Route this ticker's locked inputs back to the right readiness lane before opening raw proof details." in source
+    assert "Data Health handoff stays collapsed until this ticker has a blocked or freshness-review question." in source
+    assert 'render_section_header(\n        "Data Health Handoff"' not in source
     assert "How The App Uses Trusted Data" in source
     assert "Source Vs Product Logic" not in source
     assert "full-table dumps" not in source

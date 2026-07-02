@@ -27292,11 +27292,12 @@ def render_market_command_center(
     handoff_cards = single_stock_data_health_handoff_cards(snapshot)
     render_signal_cards(single_stock_workflow_loop_cards(snapshot), show_commands=False)
     render_signal_cards(workflow_fit_cards, show_commands=False)
-    render_section_header(
-        "Data Health Handoff",
-        "Route this ticker's locked inputs back to the right readiness lane before opening raw proof details.",
-    )
-    render_signal_cards(handoff_cards, show_commands=False)
+    with st.expander("Data Health handoff details", expanded=False):
+        render_context_note(
+            "Handoff detail.",
+            "Data Health handoff stays collapsed until this ticker has a blocked or freshness-review question.",
+        )
+        render_signal_cards(handoff_cards, show_commands=False)
     with st.expander("Single-stock operator proof steps", expanded=False):
         st.dataframe(
             clean_display_frame(pd.DataFrame(single_stock_workflow_command_rows(workflow_fit_cards + handoff_cards))),
