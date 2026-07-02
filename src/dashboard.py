@@ -28257,110 +28257,111 @@ def render_data_health(
             variant="queue",
         )
         with st.expander("Pilot/share reviewed evidence drawer", expanded=False):
-            render_section_header(
-                "Pilot Operator Runbook",
-                "Share gate, source gate, provider setup, reviewed one-ticker smoke command, validate/preview, packet, and hygiene in one compact path.",
-            )
-            render_signal_cards(
-                data_health_pilot_operator_runbook_cards(pilot_operator_runbook),
-                show_commands=False,
-                variant="queue",
-            )
-            render_section_header(
-                "Evidence Review Detail",
-                "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables.",
-            )
-            render_signal_cards(
-                data_health_pilot_evidence_review_cards(pilot_evidence_review),
-                show_commands=False,
-                variant="queue",
-            )
-            st.dataframe(clean_display_frame(pilot_evidence_review), width="stretch", hide_index=True)
-            render_section_header(
-                "Final Share Gate Detail",
-                "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing.",
-            )
-            render_signal_cards(
-                data_health_public_share_final_gate_cards(public_share_final_gate),
-                show_commands=False,
-                variant="queue",
-            )
-            st.dataframe(clean_display_frame(public_share_final_gate), width="stretch", hide_index=True)
-            render_section_header(
-                "Workflow Continuity Detail",
-                "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables.",
-            )
-            render_signal_cards(
-                data_health_workflow_continuity_cards(workflow_continuity),
-                show_commands=False,
-                variant="queue",
-            )
-            st.dataframe(clean_display_frame(workflow_continuity), width="stretch", hide_index=True)
-            render_section_header(
-                "Controlled Pilot Outcome Detail",
-                "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers.",
-            )
-            render_signal_cards(
-                data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome),
-                show_commands=False,
-                variant="queue",
-            )
-            st.dataframe(clean_display_frame(controlled_pilot_outcome), width="stretch", hide_index=True)
-            render_section_header(
-                "Commit Package Detail",
-                "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing.",
-            )
-            render_signal_cards(
-                data_health_pilot_commit_package_cards(pilot_commit_package),
-                show_commands=False,
-                variant="queue",
-            )
-            st.dataframe(clean_display_frame(pilot_commit_package), width="stretch", hide_index=True)
-            render_section_header(
-                "Packaging Summary Detail",
-                "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary.",
-            )
-            render_signal_cards(
-                data_health_pilot_packaging_summary_cards(pilot_packaging_summary),
-                show_commands=False,
-                variant="queue",
-            )
-            st.dataframe(clean_display_frame(pilot_packaging_summary), width="stretch", hide_index=True)
-            render_section_header(
-                "Reviewer Walkthrough Detail",
-                "Release evidence, final gate, workflow continuity, commit package, packaging summary, walkthrough, and packet detail stay here.",
-            )
-            st.markdown(data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough), unsafe_allow_html=True)
-            render_signal_cards(
-                data_health_pilot_reviewer_walkthrough_cards(pilot_reviewer_walkthrough),
-                show_commands=False,
-                variant="queue",
-            )
-            st.dataframe(clean_display_frame(pilot_reviewer_walkthrough), width="stretch", hide_index=True)
-            render_section_header(
-                "Readiness Gate And Packet Detail",
-                "Sync, hygiene, freshness, source-proof, public-check, and research-only status before a pilot package.",
-            )
-            render_signal_cards(data_health_pilot_readiness_cards(pilot_readiness), show_commands=False, variant="queue")
-            render_signal_cards(data_health_pilot_packet_cards(pilot_readiness), show_commands=False, variant="queue")
-            render_context_note(
-                "Reviewer packet boundary.",
-                "The packet command writes one Markdown summary artifact from saved local status and proof files. It does not refresh data, apply imports, record proof, stage files, commit, push, or change canonical source CSVs.",
-            )
-            st.table(
-                clean_display_frame(
-                    pd.DataFrame(
-                        [
-                            {
-                                "Packet Path": DEFAULT_PACKET_PATH.as_posix(),
-                                "Command": f"make pilot-readiness-packet OUTPUT={DEFAULT_PACKET_PATH.as_posix()}",
-                                "Review Boundary": "Commit only as intentional reviewed pilot evidence; keep broad generated CSV/JSON/report churn excluded.",
-                            }
-                        ]
+            with st.expander("Pilot/share detailed review workflow", expanded=False):
+                render_section_header(
+                    "Pilot Operator Runbook",
+                    "Share gate, source gate, provider setup, reviewed one-ticker smoke command, validate/preview, packet, and hygiene in one compact path.",
+                )
+                render_signal_cards(
+                    data_health_pilot_operator_runbook_cards(pilot_operator_runbook),
+                    show_commands=False,
+                    variant="queue",
+                )
+                render_section_header(
+                    "Evidence Review Detail",
+                    "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables.",
+                )
+                render_signal_cards(
+                    data_health_pilot_evidence_review_cards(pilot_evidence_review),
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.dataframe(clean_display_frame(pilot_evidence_review), width="stretch", hide_index=True)
+                render_section_header(
+                    "Final Share Gate Detail",
+                    "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing.",
+                )
+                render_signal_cards(
+                    data_health_public_share_final_gate_cards(public_share_final_gate),
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.dataframe(clean_display_frame(public_share_final_gate), width="stretch", hide_index=True)
+                render_section_header(
+                    "Workflow Continuity Detail",
+                    "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables.",
+                )
+                render_signal_cards(
+                    data_health_workflow_continuity_cards(workflow_continuity),
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.dataframe(clean_display_frame(workflow_continuity), width="stretch", hide_index=True)
+                render_section_header(
+                    "Controlled Pilot Outcome Detail",
+                    "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers.",
+                )
+                render_signal_cards(
+                    data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome),
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.dataframe(clean_display_frame(controlled_pilot_outcome), width="stretch", hide_index=True)
+                render_section_header(
+                    "Commit Package Detail",
+                    "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing.",
+                )
+                render_signal_cards(
+                    data_health_pilot_commit_package_cards(pilot_commit_package),
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.dataframe(clean_display_frame(pilot_commit_package), width="stretch", hide_index=True)
+                render_section_header(
+                    "Packaging Summary Detail",
+                    "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary.",
+                )
+                render_signal_cards(
+                    data_health_pilot_packaging_summary_cards(pilot_packaging_summary),
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.dataframe(clean_display_frame(pilot_packaging_summary), width="stretch", hide_index=True)
+                render_section_header(
+                    "Reviewer Walkthrough Detail",
+                    "Release evidence, final gate, workflow continuity, commit package, packaging summary, walkthrough, and packet detail stay here.",
+                )
+                st.markdown(data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough), unsafe_allow_html=True)
+                render_signal_cards(
+                    data_health_pilot_reviewer_walkthrough_cards(pilot_reviewer_walkthrough),
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.dataframe(clean_display_frame(pilot_reviewer_walkthrough), width="stretch", hide_index=True)
+                render_section_header(
+                    "Readiness Gate And Packet Detail",
+                    "Sync, hygiene, freshness, source-proof, public-check, and research-only status before a pilot package.",
+                )
+                render_signal_cards(data_health_pilot_readiness_cards(pilot_readiness), show_commands=False, variant="queue")
+                render_signal_cards(data_health_pilot_packet_cards(pilot_readiness), show_commands=False, variant="queue")
+                render_context_note(
+                    "Reviewer packet boundary.",
+                    "The packet command writes one Markdown summary artifact from saved local status and proof files. It does not refresh data, apply imports, record proof, stage files, commit, push, or change canonical source CSVs.",
+                )
+                st.table(
+                    clean_display_frame(
+                        pd.DataFrame(
+                            [
+                                {
+                                    "Packet Path": DEFAULT_PACKET_PATH.as_posix(),
+                                    "Command": f"make pilot-readiness-packet OUTPUT={DEFAULT_PACKET_PATH.as_posix()}",
+                                    "Review Boundary": "Commit only as intentional reviewed pilot evidence; keep broad generated CSV/JSON/report churn excluded.",
+                                }
+                            ]
+                        )
                     )
                 )
-            )
-            st.dataframe(clean_display_frame(pilot_readiness), width="stretch", hide_index=True)
+                st.dataframe(clean_display_frame(pilot_readiness), width="stretch", hide_index=True)
     render_data_health_top_operator_summary_block(
         readiness_summary=readiness_summary,
         queue_outcome_summary=queue_outcome_summary,

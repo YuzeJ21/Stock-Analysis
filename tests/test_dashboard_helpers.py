@@ -19794,7 +19794,8 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
         'st.expander("Pilot/share reviewed evidence drawer", expanded=False)',
         share_gate_summary_commands_index,
     )
-    operator_runbook_header_index = source.index('render_section_header(\n                "Pilot Operator Runbook"', reviewed_evidence_drawer_index)
+    detailed_review_workflow_index = source.index('st.expander("Pilot/share detailed review workflow", expanded=False)', reviewed_evidence_drawer_index)
+    operator_runbook_header_index = source.index('"Pilot Operator Runbook"', detailed_review_workflow_index)
     operator_runbook_cards_index = source.index("data_health_pilot_operator_runbook_cards(pilot_operator_runbook)", operator_runbook_header_index)
     operator_runbook_commands_index = source.index("show_commands=False", operator_runbook_cards_index)
     evidence_cards_index = _assert_card_render_hides_commands(
@@ -19842,6 +19843,7 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
         < share_gate_summary_cards_index
         < share_gate_summary_commands_index
         < reviewed_evidence_drawer_index
+        < detailed_review_workflow_index
         < operator_runbook_header_index
         < operator_runbook_cards_index
         < operator_runbook_commands_index
@@ -19881,6 +19883,23 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     assert "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing." in source
     assert "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary." in source
     assert 'st.expander("Pilot Share Gate details", expanded=False)' not in source
+
+
+def test_pilot_share_evidence_drawer_nests_detailed_review_workflow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    drawer_index = source.index('st.expander("Pilot/share reviewed evidence drawer", expanded=False)')
+    detailed_workflow_index = source.index('st.expander("Pilot/share detailed review workflow", expanded=False)', drawer_index)
+    operator_runbook_index = source.index('"Pilot Operator Runbook"', detailed_workflow_index)
+    evidence_detail_index = source.index('"Evidence Review Detail"', operator_runbook_index)
+    final_gate_index = source.index('"Final Share Gate Detail"', evidence_detail_index)
+    commit_package_index = source.index('"Commit Package Detail"', final_gate_index)
+    reviewer_walkthrough_index = source.index('"Reviewer Walkthrough Detail"', commit_package_index)
+    packet_boundary_index = source.index('"Reviewer packet boundary."', reviewer_walkthrough_index)
+    top_summary_index = source.index("render_data_health_top_operator_summary_block(", packet_boundary_index)
+
+    assert drawer_index < detailed_workflow_index < operator_runbook_index < evidence_detail_index < final_gate_index
+    assert final_gate_index < commit_package_index < reviewer_walkthrough_index < packet_boundary_index < top_summary_index
 
 
 def test_universe_layer_frame_gives_plain_language_next_steps():
