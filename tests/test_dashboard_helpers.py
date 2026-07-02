@@ -10631,6 +10631,47 @@ def test_stock_report_evaluation_summary_cards_surface_trust_boundary_before_tab
     assert "sell" not in rendered
 
 
+def test_stock_report_first_answer_frame_compacts_loaded_report_before_cards():
+    frame = dashboard.stock_report_first_answer_frame(
+        {
+            "ticker": "MU",
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": False},
+            "missing_data_warnings": ["Peers missing"],
+        }
+    )
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+
+    assert frame.to_dict("records") == [
+        {
+            "Question": "What can I read now?",
+            "Answer": "Standalone DCF review; Price setup, company fundamentals, and standalone DCF assumptions.",
+            "Next Safe Action": "make focus-peers TICKER=MU",
+        },
+        {
+            "Question": "What stays locked?",
+            "Answer": "Peer-relative valuation remains withheld until source-backed peer inputs are ready.",
+            "Next Safe Action": "make focus-peers TICKER=MU",
+        },
+        {
+            "Question": "What should I do next?",
+            "Answer": "Review the DCF assumptions first, then add trusted peer mappings if peer context matters.",
+            "Next Safe Action": "make focus-peers TICKER=MU",
+        },
+        {
+            "Question": "What is the confidence boundary?",
+            "Answer": "1 visible warning; missing inputs reduce data confidence and stay visible.",
+            "Next Safe Action": "make stock-report-md TICKER=MU",
+        },
+    ]
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_evaluation_summary_cards_route_next_review_command_by_mode():
     peer_locked_cards = dashboard.stock_report_evaluation_summary_cards(
         {
@@ -27395,10 +27436,12 @@ def test_single_stock_public_page_uses_simplified_review_sections():
 
     review_status_index = source.index('"Review Status"', render_index)
     readable_now_index = source.index('"What Can Be Read Now"', review_status_index)
+    first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", readable_now_index)
+    at_a_glance_index = source.index("stock_report_at_a_glance_cards(", first_answer_index)
     detail_index = source.index('"Detailed Review"', readable_now_index)
     tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]', detail_index)
 
-    assert review_status_index < readable_now_index < detail_index < tabs_index
+    assert review_status_index < readable_now_index < first_answer_index < at_a_glance_index < detail_index < tabs_index
     assert '"At A Glance"' not in source[render_index:tabs_index]
     assert '"Reader Guide"' not in source[render_index:tabs_index]
     assert '"Review Summary"' not in source[render_index:tabs_index]

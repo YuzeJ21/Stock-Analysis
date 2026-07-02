@@ -7013,6 +7013,54 @@ def stock_report_evaluation_summary_cards(report_payload: dict[str, object]) -> 
     return cards
 
 
+def stock_report_first_answer_frame(report_payload: dict[str, object]) -> pd.DataFrame:
+    """Return one loaded-report answer before the detailed card stack."""
+
+    summary = stock_report_evaluation_summary_frame(report_payload)
+    answers = {
+        format_missing(row.get("Question"), ""): format_missing(row.get("Answer"), "")
+        for _, row in summary.iterrows()
+    }
+    ticker = format_missing(report_payload.get("ticker"), "TICKER").upper()
+    next_cards = stock_report_next_step_cards(report_payload, None, None)
+    next_command = (
+        format_missing(next_cards[0].get("command"), stock_report_md_command(ticker))
+        if next_cards
+        else stock_report_md_command(ticker)
+    )
+    mode = answers.get("Evaluation mode", "Not classified")
+    supported = answers.get("What this report can support", "Only source-backed ready sections should be read.")
+    withheld = answers.get("What remains withheld", "Unavailable inputs stay locked.")
+    next_step = answers.get("Best next review step", "Review source readiness before interpreting output.")
+    confidence = answers.get("Data-confidence note", "Readiness state is the confidence boundary.")
+
+    return pd.DataFrame(
+        [
+            {
+                "Question": "What can I read now?",
+                "Answer": f"{mode}; {supported}",
+                "Next Safe Action": next_command,
+            },
+            {
+                "Question": "What stays locked?",
+                "Answer": withheld,
+                "Next Safe Action": next_command,
+            },
+            {
+                "Question": "What should I do next?",
+                "Answer": next_step,
+                "Next Safe Action": next_command,
+            },
+            {
+                "Question": "What is the confidence boundary?",
+                "Answer": confidence,
+                "Next Safe Action": stock_report_md_command(ticker),
+            },
+        ],
+        columns=["Question", "Answer", "Next Safe Action"],
+    )
+
+
 def stock_report_mode_guide_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     summary = stock_report_evaluation_summary_frame(report_payload)
     current_mode = "Not classified"
@@ -26778,6 +26826,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "What Can Be Read Now",
         "Start here: what is supported, what is withheld, and what to read next.",
     )
+    st.table(clean_display_frame(stock_report_first_answer_frame(report_payload)))
     at_a_glance_cards = stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None)
     render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
     render_signal_cards(
