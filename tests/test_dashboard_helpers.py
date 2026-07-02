@@ -25304,6 +25304,32 @@ def test_data_health_batch_execution_hides_top_level_commands():
     )
 
 
+def test_data_health_queue_route_overview_hides_commands_until_lane_expander():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    route_overview_index = source.index("data_health_readiness_queue_route_overview_cards(queue_drilldown)")
+    route_overview_command_visibility_index = source.index("show_commands=False", route_overview_index)
+    lane_drilldowns_index = source.index(
+        'render_section_header(\n            "Lane Drilldowns"',
+        route_overview_command_visibility_index,
+    )
+    lane_expander_index = source.index("with st.expander(str(drilldown_row.get", lane_drilldowns_index)
+    lane_detail_cards_index = source.index(
+        "data_health_readiness_queue_drilldown_cards(drilldown_row)",
+        lane_expander_index,
+    )
+    lane_detail_command_visibility_index = source.index("show_commands=True", lane_detail_cards_index)
+
+    assert (
+        route_overview_index
+        < route_overview_command_visibility_index
+        < lane_drilldowns_index
+        < lane_expander_index
+        < lane_detail_cards_index
+        < lane_detail_command_visibility_index
+    )
+
+
 def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated():
     current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")

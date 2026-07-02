@@ -27930,7 +27930,7 @@ def render_data_health(
     if queue_details_loaded:
         render_signal_cards(
             data_health_readiness_queue_route_overview_cards(queue_drilldown),
-            show_commands=True,
+            show_commands=False,
             variant="queue",
         )
         render_section_header(
