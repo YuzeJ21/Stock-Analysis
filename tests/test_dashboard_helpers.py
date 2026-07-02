@@ -27998,6 +27998,39 @@ def test_last_resort_legacy_price_updates_tab_groups_price_evidence_rows():
     assert short_history_index < short_rows_index < price_worklist_index < import_checks_tab_index
 
 
+def test_last_resort_legacy_price_updates_tab_groups_non_price_worklists():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    price_updates_tab_index = source.index("with health_tabs[3]:", legacy_tables_index)
+    price_evidence_index = source.index('st.expander("Price update evidence details", expanded=False)', price_updates_tab_index)
+    non_price_worklists_index = source.index('st.expander("Non-price proof worklists", expanded=False)', price_evidence_index)
+    fundamentals_note_index = source.index('"Fundamentals and peer checklist."', non_price_worklists_index)
+    fundamentals_table_index = source.index(
+        "st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(15))",
+        fundamentals_note_index,
+    )
+    optional_note_index = source.index('"Optional context checklist."', fundamentals_table_index)
+    optional_table_index = source.index(
+        "st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(15))",
+        optional_note_index,
+    )
+    ladder_note_index = source.index('"Ticker proof ladder."', optional_table_index)
+    ladder_table_index = source.index(
+        "st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(15))",
+        ladder_note_index,
+    )
+    priority_note_index = source.index('"Unlock priority summary."', ladder_table_index)
+    priority_table_index = source.index(
+        "st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(15))",
+        priority_note_index,
+    )
+    import_checks_tab_index = source.index("with health_tabs[4]:", priority_table_index)
+
+    assert price_evidence_index < non_price_worklists_index < fundamentals_note_index < fundamentals_table_index
+    assert fundamentals_table_index < optional_note_index < optional_table_index < ladder_note_index
+    assert ladder_note_index < ladder_table_index < priority_note_index < priority_table_index < import_checks_tab_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"

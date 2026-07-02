@@ -30119,99 +30119,100 @@ def render_data_health(
                             price_worklist_notice_command,
                             tone="warning",
                         )
-            if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
-                render_context_note(
-                    "Fundamentals and peer checklist.",
-                    "This local review list shows which tickers are blocked on SEC-stageable fundamentals versus manual peer mappings and peer context.",
-                )
-                fp_columns = operator_workflow_table_columns(
-                    fundamentals_peer_worklist_frame,
-                    [
-                        "priority",
-                        "ticker",
-                        "has_fundamentals",
-                        "dcf_ready",
-                        "has_peer_mapping",
-                        "peer_ready",
-                        "missing_required_for_dcf",
-                        "missing_required_for_peer_relative",
-                        "example_command",
-                    ],
-                )
-                st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(15)), width="stretch", hide_index=True)
-            else:
-                fundamentals_peer_notice_body, fundamentals_peer_notice_command = onboarding_notice_copy(
-                    "fundamentals_peer_worklist", fundamentals_peer_worklist_message
-                )
-                render_notice_card(
-                    "Fundamentals and peer checklist not ready yet",
-                    fundamentals_peer_notice_body,
-                    fundamentals_peer_notice_command,
-                    tone="warning",
-                )
-            if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
-                render_context_note(
-                    "Optional context checklist.",
-                    "This review list keeps optional earnings and analyst-estimate enrichment explicit and lower priority than prices, fundamentals, and peers.",
-                )
-                oc_columns = [
-                    column
-                    for column in [
-                        "priority",
-                        "ticker",
-                        "has_earnings",
-                        "has_analyst_estimates",
-                        "missing_optional_context",
-                        "recommended_action",
-                        "example_command",
+            with st.expander("Non-price proof worklists", expanded=False):
+                if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
+                    render_context_note(
+                        "Fundamentals and peer checklist.",
+                        "This local review list shows which tickers are blocked on SEC-stageable fundamentals versus manual peer mappings and peer context.",
+                    )
+                    fp_columns = operator_workflow_table_columns(
+                        fundamentals_peer_worklist_frame,
+                        [
+                            "priority",
+                            "ticker",
+                            "has_fundamentals",
+                            "dcf_ready",
+                            "has_peer_mapping",
+                            "peer_ready",
+                            "missing_required_for_dcf",
+                            "missing_required_for_peer_relative",
+                            "example_command",
+                        ],
+                    )
+                    st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(15)), width="stretch", hide_index=True)
+                else:
+                    fundamentals_peer_notice_body, fundamentals_peer_notice_command = onboarding_notice_copy(
+                        "fundamentals_peer_worklist", fundamentals_peer_worklist_message
+                    )
+                    render_notice_card(
+                        "Fundamentals and peer checklist not ready yet",
+                        fundamentals_peer_notice_body,
+                        fundamentals_peer_notice_command,
+                        tone="warning",
+                    )
+                if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
+                    render_context_note(
+                        "Optional context checklist.",
+                        "This review list keeps optional earnings and analyst-estimate enrichment explicit and lower priority than prices, fundamentals, and peers.",
+                    )
+                    oc_columns = [
+                        column
+                        for column in [
+                            "priority",
+                            "ticker",
+                            "has_earnings",
+                            "has_analyst_estimates",
+                            "missing_optional_context",
+                            "recommended_action",
+                            "example_command",
+                        ]
+                        if column in optional_context_worklist_frame.columns
                     ]
-                    if column in optional_context_worklist_frame.columns
-                ]
-                st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(15)), width="stretch", hide_index=True)
-            else:
-                optional_context_notice_body, optional_context_notice_command = onboarding_notice_copy(
-                    "optional_context_worklist", optional_context_worklist_message
-                )
-                render_notice_card(
-                    "Optional context checklist not ready yet",
-                    optional_context_notice_body,
-                    optional_context_notice_command,
-                    tone="warning",
-                )
-            if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
-                render_context_note(
-                    "Ticker proof ladder.",
-                    "This single table combines prices, DCF, peer-relative, and optional context into one next proof step per ticker.",
-                )
-                ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=False)
-                st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(15)), width="stretch", hide_index=True)
-            else:
-                ticker_unlock_notice_body, ticker_unlock_notice_command = onboarding_notice_copy(
-                    "ticker_unlock_ladder", ticker_unlock_ladder_message
-                )
-                render_notice_card(
-                    "Ticker proof ladder not ready yet",
-                    ticker_unlock_notice_body,
-                    ticker_unlock_notice_command,
-                    tone="warning",
-                )
-            if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
-                render_context_note(
-                    "Unlock priority summary.",
-                    "This grouped summary rolls the ticker ladders up by holdings, theme, and sector ETF so you can unlock the most research value first.",
-                )
-                summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
-                st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(15)), width="stretch", hide_index=True)
-            else:
-                unlock_priority_notice_body, unlock_priority_notice_command = onboarding_notice_copy(
-                    "unlock_priority_summary", unlock_priority_summary_message
-                )
-                render_notice_card(
-                    "Unlock priority summary not ready yet",
-                    unlock_priority_notice_body,
-                    unlock_priority_notice_command,
-                    tone="warning",
-                )
+                    st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(15)), width="stretch", hide_index=True)
+                else:
+                    optional_context_notice_body, optional_context_notice_command = onboarding_notice_copy(
+                        "optional_context_worklist", optional_context_worklist_message
+                    )
+                    render_notice_card(
+                        "Optional context checklist not ready yet",
+                        optional_context_notice_body,
+                        optional_context_notice_command,
+                        tone="warning",
+                    )
+                if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
+                    render_context_note(
+                        "Ticker proof ladder.",
+                        "This single table combines prices, DCF, peer-relative, and optional context into one next proof step per ticker.",
+                    )
+                    ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=False)
+                    st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(15)), width="stretch", hide_index=True)
+                else:
+                    ticker_unlock_notice_body, ticker_unlock_notice_command = onboarding_notice_copy(
+                        "ticker_unlock_ladder", ticker_unlock_ladder_message
+                    )
+                    render_notice_card(
+                        "Ticker proof ladder not ready yet",
+                        ticker_unlock_notice_body,
+                        ticker_unlock_notice_command,
+                        tone="warning",
+                    )
+                if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
+                    render_context_note(
+                        "Unlock priority summary.",
+                        "This grouped summary rolls the ticker ladders up by holdings, theme, and sector ETF so you can unlock the most research value first.",
+                    )
+                    summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
+                    st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(15)), width="stretch", hide_index=True)
+                else:
+                    unlock_priority_notice_body, unlock_priority_notice_command = onboarding_notice_copy(
+                        "unlock_priority_summary", unlock_priority_summary_message
+                    )
+                    render_notice_card(
+                        "Unlock priority summary not ready yet",
+                        unlock_priority_notice_body,
+                        unlock_priority_notice_command,
+                        tone="warning",
+                    )
 
         with health_tabs[4]:
             render_signal_cards(
