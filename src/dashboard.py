@@ -28826,7 +28826,7 @@ def render_data_health(
                 st.dataframe(clean_display_frame(data_health_readiness_comparison_frame(readiness_comparison)), width="stretch", hide_index=True)
 
     if show_details:
-        with st.expander("Operator context", expanded=False):
+        with st.expander("Secondary diagnostic context", expanded=False):
             render_section_header(
                 "Readiness Operations Center",
                 "Secondary context only; not the primary workflow. Use after Home, Stock Selector, Single-Stock Report, Data Health lane answer, and Proof History evidence.",
@@ -28939,12 +28939,12 @@ def render_data_health(
     else:
         render_signal_cards(
             data_health_deferred_detail_cards(
-                title="Operator context is hidden",
+                title="Secondary diagnostic context is hidden",
                 body=(
                     "Secondary context only; not the primary workflow. Broad operations tables, guided coverage plans, "
                     "and full proof maps are deferred from the default operator view."
                 ),
-                command="Turn on reader tips to review operator context.",
+                command="Turn on reader tips to review secondary diagnostic context.",
                 badges=["fast first view", "details deferred"],
             ),
             show_commands=False,
@@ -29039,7 +29039,7 @@ def render_data_health(
     if not show_details:
         render_context_note(
             "Detailed tables are hidden.",
-            "Open the lane evidence drawer or Operator context above for proof tables. Legacy Actions, Coverage, Sources, Price Updates, and Import Checks stay in the legacy diagnostic drawer.",
+            "Open the lane evidence drawer or Secondary diagnostic context above for proof tables. Legacy Actions, Coverage, Sources, Price Updates, and Import Checks stay in the legacy diagnostic drawer.",
         )
         return
 
