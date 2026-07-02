@@ -27724,6 +27724,11 @@ def render_data_health(
     )
     controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame(batch_proof_summary_frame)
     render_section_header(
+        "Readiness Lane Snapshot",
+        "Post-price bottlenecks before single-stock reports or raw proof tables.",
+    )
+    render_signal_cards(data_health_fundamentals_peer_metrics_queue_cards(readiness_queue), show_commands=False, variant="queue")
+    render_section_header(
         "Pilot Share Gate",
         "Can share, manual gates, generated-churn boundary, license boundary, and next safe packet command before release details.",
     )
@@ -27828,11 +27833,6 @@ def render_data_health(
             )
         )
         st.dataframe(clean_display_frame(pilot_readiness), width="stretch", hide_index=True)
-    render_section_header(
-        "Readiness Lane Snapshot",
-        "Post-price bottlenecks before single-stock reports or raw proof tables.",
-    )
-    render_signal_cards(data_health_fundamentals_peer_metrics_queue_cards(readiness_queue), show_commands=False, variant="queue")
     render_data_health_detail_selector(
         label="Readiness queue detail level",
         key="data-health-queue-detail-level",
