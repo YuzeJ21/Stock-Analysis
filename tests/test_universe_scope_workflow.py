@@ -171,7 +171,7 @@ def test_universe_scope_print_plan_starts_with_recommended_scope(capsys):
     assert "make readiness-queue top_n=10" in output
     assert "do not treat master-universe coverage as analysis readiness" in output
     assert "if source-proof queues are exhausted, run make provider-setup-checklist" in output
-    assert "one-provider smoke command before any broader batch" in output
+    assert "reviewed one-provider smoke command before any broader batch" in output
     assert output.index("recommended first scope") < output.index("- active_universe")
     assert "buy" not in output
     assert "sell" not in output

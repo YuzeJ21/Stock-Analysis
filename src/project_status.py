@@ -711,6 +711,16 @@ def _freshness_context(*rows: dict[str, Any] | None, fallback: str = "") -> str:
     return fallback
 
 
+def _dataset_display_name(value: object) -> str:
+    dataset = str(value or "data").strip()
+    names = {
+        "smh_holdings": "SMH holdings",
+        "sp500_constituents": "S&P 500 constituents",
+        "nasdaq_symbols": "Nasdaq symbols",
+    }
+    return names.get(dataset.lower(), dataset.replace("_", " "))
+
+
 def _command_row(
     step: str,
     command: str,
@@ -787,7 +797,7 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
     for command in command_order:
         grouped = grouped_rows[command]
         if command == "make imports-validate" and len(grouped) > 1:
-            datasets = [str(row.get("dataset") or "data").replace("_", " ") for row in grouped]
+            datasets = [_dataset_display_name(row.get("dataset")) for row in grouped]
             target_files = [
                 _first_non_empty(row.get("target_file"), row.get("local_file"))
                 for row in grouped
@@ -808,7 +818,7 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
             continue
 
         row = grouped[0]
-        dataset = str(row.get("dataset") or "data").replace("_", " ")
+        dataset = _dataset_display_name(row.get("dataset"))
         status = str(row.get("availability_status") or "").strip().lower()
         if command == "make imports-validate":
             step = f"Review {dataset} import file"

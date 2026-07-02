@@ -66,6 +66,7 @@ def test_public_docs_share_same_coverage_gate_rule():
         assert "Provider setup only makes a source executable" in doc
         assert "readiness changes still require validate, preview, rejected-row review" in doc
         assert "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist" in doc
+    assert "run only the listed reviewed one-provider smoke command before any broader batch" in checklist
 
 
 def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
