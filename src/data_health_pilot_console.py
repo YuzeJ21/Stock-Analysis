@@ -961,6 +961,18 @@ def pilot_share_first_answer_frame(
             "Next Safe Action": "make diff-hygiene-summary",
         },
         {
+            "Question": "What license decision remains?",
+            "Answer": (
+                "Owner decision required before open-source or reuse claims: choose portfolio showcase, "
+                "MIT/Apache-2.0, or custom/proprietary notice."
+            ),
+            "Share Boundary": (
+                "License status is a sharing/reuse gate only; it does not refresh data, unlock blocked inputs, "
+                "or change research readiness."
+            ),
+            "Next Safe Action": "docs/LICENSE_DECISION_GUIDE.md",
+        },
+        {
             "Question": "What stays collapsed?",
             "Answer": (
                 "Release gate rows, proof queues, provider setup details, packet commands, and generated-artifact "
