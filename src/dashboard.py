@@ -28398,6 +28398,15 @@ def render_data_health(
         )
         with st.expander("Fundamentals / DCF evidence drawer", expanded=False):
             render_section_header(
+                "DCF Evidence Answer",
+                "One DCF lane answer before family filters, command cards, source-review scaffolds, or raw proof rows.",
+            )
+            render_signal_cards(
+                data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue),
+                show_commands=False,
+                variant="queue",
+            )
+            render_section_header(
                 "DCF Input Proof Queue",
                 "Top DCF input families, next proof command, proof packet preview, and stop rule before raw readiness tables.",
             )

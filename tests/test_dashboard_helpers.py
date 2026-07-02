@@ -25841,6 +25841,25 @@ def test_data_health_data_coverage_proof_queue_hides_top_level_commands():
     )
 
 
+def test_data_health_fundamentals_drawer_starts_with_dcf_evidence_answer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    dcf_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)')
+    answer_index = source.index('render_section_header(\n                "DCF Evidence Answer"', dcf_drawer_index)
+    answer_cards_index = source.index(
+        "data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue)",
+        answer_index,
+    )
+    answer_commands_index = source.index("show_commands=False", answer_cards_index)
+    proof_queue_index = source.index('render_section_header(\n                "DCF Input Proof Queue"', answer_commands_index)
+    family_filter_index = source.index("data_health_dcf_input_family_filter_cards(", proof_queue_index)
+    command_cards_index = source.index("data_health_dcf_input_proof_queue_cards(dcf_input_queue_filtered)", family_filter_index)
+
+    assert dcf_drawer_index < answer_index < answer_cards_index < answer_commands_index < proof_queue_index
+    assert proof_queue_index < family_filter_index < command_cards_index
+    assert "One DCF lane answer before family filters, command cards, source-review scaffolds, or raw proof rows." in source
+
+
 def test_data_health_optional_context_drawer_hides_summary_commands():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
