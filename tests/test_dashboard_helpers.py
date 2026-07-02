@@ -25603,7 +25603,7 @@ def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["LANE ANSWER", "BLOCKER", "NEXT SAFE ACTION"]
+    assert [card["kicker"] for card in cards] == ["LANE ANSWER", "BLOCKER", "SOURCE GATE"]
     assert "fundamentals / dcf" in rendered
     assert "2,691 dcf-ready" in rendered
     assert "2,808 fundamentals-ready" in rendered
@@ -25611,10 +25611,45 @@ def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
     assert "excluded/not applicable: etf/index/fund rows keep operating-company dcf excluded instead of failed" in rendered
     assert "source proof remains blocked" in rendered
     assert cards[2]["command"] == "make provider-setup-checklist"
+    assert cards[2]["title"] == "Review provider setup before proof loops"
+    assert "do not repeat broad proof queues" in rendered
     assert "not a recommendation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
+
+
+def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_exhausted():
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "fundamentals",
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+        project_status_payload={
+            "summary": {
+                "dcf_ready": 2691,
+                "fundamentals_ready": 2808,
+                "data_gaps": 207,
+            },
+            "recommended_next_command_rows": [
+                {
+                    "Step": "Review provider setup checklist",
+                    "Command": "make provider-setup-checklist",
+                    "Reason": "Current source-proof queues have no unreviewed executable company candidates.",
+                }
+            ],
+        },
+    )
+
+    next_action = cards[2]
+    rendered = " ".join(str(value) for value in next_action.values()).lower()
+
+    assert next_action["kicker"] == "SOURCE GATE"
+    assert next_action["title"] == "Review provider setup before proof loops"
+    assert next_action["command"] == "make provider-setup-checklist"
+    assert "no unreviewed executable company candidates" in rendered
+    assert "do not repeat broad proof queues" in rendered
+    assert "open the next proof gate" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_data_health_source_readiness_guidance_renders_before_operator_next_action():

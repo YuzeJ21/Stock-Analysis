@@ -20400,6 +20400,15 @@ def data_health_selected_lane_answer_cards(
     )
     if not next_command:
         next_command = "make project-status"
+    source_gate_reason = next_reason.lower()
+    source_gate_command = next_command.lower()
+    source_gate_exhausted = (
+        "no unreviewed executable" in source_gate_reason
+        or "reviewed or exhausted" in source_gate_reason
+        or "source-proof queues" in source_gate_reason
+        or "provider-setup" in source_gate_command
+        or "project-status" in source_gate_command
+    )
 
     price_ready = int(summary.get("price_ready") or summary.get("tickers_with_prices") or 0)
     fundamentals_ready = int(summary.get("fundamentals_ready") or summary.get("input_ready") or 0)
@@ -20447,6 +20456,26 @@ def data_health_selected_lane_answer_cards(
         ),
     }
     use_now, blocked, context_only, excluded = lane_answers.get(selected_lane_key, lane_answers["prices"])
+    if source_gate_exhausted:
+        next_action_card = {
+            "kicker": "SOURCE GATE",
+            "title": "Review provider setup before proof loops",
+            "body": (
+                f"{next_reason} Do not repeat broad proof queues until new source-backed rows, keyed providers, "
+                "reviewed manual rows, or changed blockers exist. This is not a recommendation and does not run imports from the dashboard."
+            ),
+            "badges": ["source gate", "no repeat loops"],
+            "command": next_command,
+        }
+    else:
+        next_action_card = {
+            "kicker": "NEXT SAFE ACTION",
+            "title": "Open the next proof gate",
+            "body": f"{next_reason} This is not a recommendation and does not run imports from the dashboard.",
+            "badges": ["copy-only", "research-only"],
+            "command": next_command,
+        }
+
     return [
         {
             "kicker": "LANE ANSWER",
@@ -20460,13 +20489,7 @@ def data_health_selected_lane_answer_cards(
             "body": f"{blocked} {data_gaps:,} locked input row(s) remain visible instead of being inferred.",
             "badges": ["blocked visible", "no inference"],
         },
-        {
-            "kicker": "NEXT SAFE ACTION",
-            "title": "Open the next proof gate",
-            "body": f"{next_reason} This is not a recommendation and does not run imports from the dashboard.",
-            "badges": ["copy-only", "research-only"],
-            "command": next_command,
-        },
+        next_action_card,
     ]
 
 
