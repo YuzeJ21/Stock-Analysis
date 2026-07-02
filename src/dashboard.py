@@ -28748,175 +28748,176 @@ def render_data_health(
             )
             with st.expander("DCF proof loop fit details", expanded=False):
                 st.dataframe(clean_display_frame(dcf_proof_loop_fit), width="stretch", hide_index=True)
-            render_section_header("Finish This DCF Proof", "One compact checklist before source-review rows, import previews, or proof-record tables.")
-            render_signal_cards(
-                data_health_dcf_proof_source_review_checklist_cards(
-                    dcf_input_queue_filtered,
-                    dcf_family_selection,
-                    batch_proof_frame,
-                ),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF proof checklist table",
-                data_health_dcf_proof_source_review_checklist_frame(
-                    dcf_input_queue_filtered,
-                    dcf_family_selection,
-                    batch_proof_frame,
-                ),
-                table=True,
-            )
-            render_section_header("DCF Source Loop Checklist", "Source review through proof record in one compact gate sequence before detailed tables.")
-            render_signal_cards(
-                data_health_dcf_source_loop_checklist_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=True,
-            )
-            render_signal_cards(
-                data_health_dcf_source_loop_progress_strip_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=False,
-                variant="queue",
-            )
-            render_signal_cards(
-                data_health_dcf_source_loop_route_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=False,
-            )
-            render_collapsed_detail_frame(
-                "DCF source loop checklist table",
-                data_health_dcf_source_loop_checklist_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_section_header("DCF Source Review Triage", "Blocked source fields, guard-ready steps, validation gates, and proof handoff status before command details.")
-            render_signal_cards(
-                data_health_dcf_source_command_triage_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF source review triage table",
-                data_health_dcf_source_command_triage_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_section_header("DCF Source Batch Selector", "Choose one capped source-review scope before opening command-plan or raw queue details.")
-            render_signal_cards(
-                data_health_dcf_source_batch_selector_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF source batch selector table",
-                data_health_dcf_source_batch_selector_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_section_header("DCF Source Evidence Intake", "Reviewer evidence fields grouped before import-row scaffolds or proof-record outcomes.")
-            render_signal_cards(
-                data_health_dcf_source_evidence_intake_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF source evidence intake table",
-                data_health_dcf_source_evidence_intake_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_section_header("DCF Source Guard Readiness", "Whether selected evidence is ready for source guard, still missing fields, or stopped by source gaps.")
-            render_signal_cards(
-                data_health_dcf_source_guard_readiness_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF source guard readiness table",
-                data_health_dcf_source_guard_readiness_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_section_header("DCF Source Guard Preview", "Exact guard command, validation, preview, apply boundary, and post-guard proof before import-preview tables.")
-            render_signal_cards(
-                data_health_dcf_source_guard_preview_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF source guard preview table",
-                data_health_dcf_source_guard_preview_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_section_header("DCF Source Proof Handoff", "Proof-record dry-run fields and stop rule after guard, validation, preview, and artifact review.")
-            render_signal_cards(
-                data_health_dcf_source_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF source proof handoff table",
-                data_health_dcf_source_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_section_header("DCF Proof Outcome Compare", "Source proof, readiness comparison, and latest ledger outcome before lower source tables.")
-            render_signal_cards(
-                data_health_dcf_proof_loop_outcome_cards(
-                    dcf_input_queue_filtered,
-                    dcf_family_selection,
-                    batch_proof_summary_frame,
-                    readiness_comparison,
-                ),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF proof outcome compare table",
-                data_health_dcf_proof_loop_outcome_frame(
-                    dcf_input_queue_filtered,
-                    dcf_family_selection,
-                    batch_proof_summary_frame,
-                    readiness_comparison,
-                ),
-            )
-            render_section_header("DCF Proof Closeout", "Final supported, candidate-context-only, still-blocked, skipped, or excluded proof state with remaining evidence gates.")
-            render_signal_cards(
-                data_health_dcf_proof_closeout_cards(
-                    dcf_input_queue_filtered,
-                    dcf_family_selection,
-                    batch_proof_summary_frame,
-                    readiness_comparison,
-                ),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF proof closeout table",
-                data_health_dcf_proof_closeout_frame(
-                    dcf_input_queue_filtered,
-                    dcf_family_selection,
-                    batch_proof_summary_frame,
-                    readiness_comparison,
-                ),
-            )
-            render_section_header("DCF Source Command Plan", "Copy-only source-review, guard, validate, preview, and proof commands before detailed source tables.")
-            render_signal_cards(
-                data_health_dcf_source_command_plan_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "DCF source command plan table",
-                data_health_dcf_source_command_plan_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_section_header("Trusted Fundamentals Source Packet", "Choose SEC-stageable or trusted-local source review before filling detailed import scaffolds.")
-            render_signal_cards(data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
-            render_collapsed_detail_frame(
-                "Trusted fundamentals source packet table",
-                data_health_dcf_source_packet_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_section_header("Trusted Fundamentals Batch Review Queue", "Review capped source batches, rejected-row checks, and proof-record readiness before staging or imports.")
-            render_signal_cards(
-                data_health_fundamentals_batch_review_queue_cards(dcf_input_queue_filtered, dcf_family_selection),
-                show_commands=True,
-            )
-            render_collapsed_detail_frame(
-                "Trusted fundamentals batch review queue table",
-                data_health_fundamentals_batch_review_queue_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_signal_cards(data_health_dcf_input_source_review_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
-            render_collapsed_detail_frame(
-                "DCF input source review table",
-                data_health_dcf_input_source_review_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_signal_cards(data_health_dcf_import_preview_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
-            render_collapsed_detail_frame(
-                "DCF import preview table",
-                data_health_dcf_import_preview_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            render_signal_cards(data_health_dcf_input_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
-            render_collapsed_detail_frame(
-                "DCF input proof handoff table",
-                data_health_dcf_input_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection),
-            )
-            if not dcf_input_queue_filtered.empty:
-                render_collapsed_detail_frame("Filtered DCF input proof rows", dcf_input_queue_filtered)
+            with st.expander("DCF detailed proof workflow", expanded=False):
+                render_section_header("Finish This DCF Proof", "One compact checklist before source-review rows, import previews, or proof-record tables.")
+                render_signal_cards(
+                    data_health_dcf_proof_source_review_checklist_cards(
+                        dcf_input_queue_filtered,
+                        dcf_family_selection,
+                        batch_proof_frame,
+                    ),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF proof checklist table",
+                    data_health_dcf_proof_source_review_checklist_frame(
+                        dcf_input_queue_filtered,
+                        dcf_family_selection,
+                        batch_proof_frame,
+                    ),
+                    table=True,
+                )
+                render_section_header("DCF Source Loop Checklist", "Source review through proof record in one compact gate sequence before detailed tables.")
+                render_signal_cards(
+                    data_health_dcf_source_loop_checklist_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=True,
+                )
+                render_signal_cards(
+                    data_health_dcf_source_loop_progress_strip_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=False,
+                    variant="queue",
+                )
+                render_signal_cards(
+                    data_health_dcf_source_loop_route_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=False,
+                )
+                render_collapsed_detail_frame(
+                    "DCF source loop checklist table",
+                    data_health_dcf_source_loop_checklist_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_section_header("DCF Source Review Triage", "Blocked source fields, guard-ready steps, validation gates, and proof handoff status before command details.")
+                render_signal_cards(
+                    data_health_dcf_source_command_triage_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF source review triage table",
+                    data_health_dcf_source_command_triage_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_section_header("DCF Source Batch Selector", "Choose one capped source-review scope before opening command-plan or raw queue details.")
+                render_signal_cards(
+                    data_health_dcf_source_batch_selector_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF source batch selector table",
+                    data_health_dcf_source_batch_selector_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_section_header("DCF Source Evidence Intake", "Reviewer evidence fields grouped before import-row scaffolds or proof-record outcomes.")
+                render_signal_cards(
+                    data_health_dcf_source_evidence_intake_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF source evidence intake table",
+                    data_health_dcf_source_evidence_intake_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_section_header("DCF Source Guard Readiness", "Whether selected evidence is ready for source guard, still missing fields, or stopped by source gaps.")
+                render_signal_cards(
+                    data_health_dcf_source_guard_readiness_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF source guard readiness table",
+                    data_health_dcf_source_guard_readiness_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_section_header("DCF Source Guard Preview", "Exact guard command, validation, preview, apply boundary, and post-guard proof before import-preview tables.")
+                render_signal_cards(
+                    data_health_dcf_source_guard_preview_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF source guard preview table",
+                    data_health_dcf_source_guard_preview_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_section_header("DCF Source Proof Handoff", "Proof-record dry-run fields and stop rule after guard, validation, preview, and artifact review.")
+                render_signal_cards(
+                    data_health_dcf_source_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF source proof handoff table",
+                    data_health_dcf_source_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_section_header("DCF Proof Outcome Compare", "Source proof, readiness comparison, and latest ledger outcome before lower source tables.")
+                render_signal_cards(
+                    data_health_dcf_proof_loop_outcome_cards(
+                        dcf_input_queue_filtered,
+                        dcf_family_selection,
+                        batch_proof_summary_frame,
+                        readiness_comparison,
+                    ),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF proof outcome compare table",
+                    data_health_dcf_proof_loop_outcome_frame(
+                        dcf_input_queue_filtered,
+                        dcf_family_selection,
+                        batch_proof_summary_frame,
+                        readiness_comparison,
+                    ),
+                )
+                render_section_header("DCF Proof Closeout", "Final supported, candidate-context-only, still-blocked, skipped, or excluded proof state with remaining evidence gates.")
+                render_signal_cards(
+                    data_health_dcf_proof_closeout_cards(
+                        dcf_input_queue_filtered,
+                        dcf_family_selection,
+                        batch_proof_summary_frame,
+                        readiness_comparison,
+                    ),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF proof closeout table",
+                    data_health_dcf_proof_closeout_frame(
+                        dcf_input_queue_filtered,
+                        dcf_family_selection,
+                        batch_proof_summary_frame,
+                        readiness_comparison,
+                    ),
+                )
+                render_section_header("DCF Source Command Plan", "Copy-only source-review, guard, validate, preview, and proof commands before detailed source tables.")
+                render_signal_cards(
+                    data_health_dcf_source_command_plan_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "DCF source command plan table",
+                    data_health_dcf_source_command_plan_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_section_header("Trusted Fundamentals Source Packet", "Choose SEC-stageable or trusted-local source review before filling detailed import scaffolds.")
+                render_signal_cards(data_health_dcf_source_packet_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
+                render_collapsed_detail_frame(
+                    "Trusted fundamentals source packet table",
+                    data_health_dcf_source_packet_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_section_header("Trusted Fundamentals Batch Review Queue", "Review capped source batches, rejected-row checks, and proof-record readiness before staging or imports.")
+                render_signal_cards(
+                    data_health_fundamentals_batch_review_queue_cards(dcf_input_queue_filtered, dcf_family_selection),
+                    show_commands=True,
+                )
+                render_collapsed_detail_frame(
+                    "Trusted fundamentals batch review queue table",
+                    data_health_fundamentals_batch_review_queue_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_signal_cards(data_health_dcf_input_source_review_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
+                render_collapsed_detail_frame(
+                    "DCF input source review table",
+                    data_health_dcf_input_source_review_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_signal_cards(data_health_dcf_import_preview_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
+                render_collapsed_detail_frame(
+                    "DCF import preview table",
+                    data_health_dcf_import_preview_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                render_signal_cards(data_health_dcf_input_proof_handoff_cards(dcf_input_queue_filtered, dcf_family_selection), show_commands=True)
+                render_collapsed_detail_frame(
+                    "DCF input proof handoff table",
+                    data_health_dcf_input_proof_handoff_frame(dcf_input_queue_filtered, dcf_family_selection),
+                )
+                if not dcf_input_queue_filtered.empty:
+                    render_collapsed_detail_frame("Filtered DCF input proof rows", dcf_input_queue_filtered)
             render_section_header("Fundamentals / DCF Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
             render_signal_cards(fundamentals_preview_cards, show_commands=False)
             render_context_note(

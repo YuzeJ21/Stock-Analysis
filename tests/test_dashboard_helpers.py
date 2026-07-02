@@ -22866,6 +22866,23 @@ def test_data_health_proof_loop_fit_cards_render_before_detailed_proof_tables():
     assert "Status, blocker, next proof step, evidence, and stop rule before detailed peer proof tables." in source
 
 
+def test_data_health_dcf_drawer_nests_detailed_proof_workflow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    dcf_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)')
+    answer_index = source.index('render_section_header(\n                "DCF Evidence Answer"', dcf_drawer_index)
+    operator_index = source.index('render_section_header("DCF Operator Summary"', answer_index)
+    proof_fit_index = source.index('render_section_header("DCF Proof Loop Fit"', operator_index)
+    detail_workflow_index = source.index('st.expander("DCF detailed proof workflow", expanded=False)', proof_fit_index)
+    checklist_index = source.index('render_section_header("Finish This DCF Proof"', detail_workflow_index)
+    guard_index = source.index('render_section_header("DCF Source Guard Preview"', checklist_index)
+    raw_rows_index = source.index('render_collapsed_detail_frame("Filtered DCF input proof rows"', guard_index)
+    fundamentals_snapshot_index = source.index('render_section_header("Fundamentals / DCF Queue Snapshot"', raw_rows_index)
+
+    assert dcf_drawer_index < answer_index < operator_index < proof_fit_index < detail_workflow_index
+    assert detail_workflow_index < checklist_index < guard_index < raw_rows_index < fundamentals_snapshot_index
+
+
 def test_dcf_drawer_does_not_repeat_proof_outcome_compare_block():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -22878,9 +22895,9 @@ def test_data_health_detail_tables_are_collapsed_in_dcf_and_peer_drawers():
 
     dcf_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)')
     dcf_fit_index = source.index('render_section_header("DCF Proof Loop Fit"', dcf_drawer_index)
-    dcf_checklist_index = source.index('render_collapsed_detail_frame(\n                "DCF proof checklist table"', dcf_fit_index)
-    dcf_source_loop_index = source.index('render_collapsed_detail_frame(\n                "DCF source loop checklist table"', dcf_checklist_index)
-    dcf_guard_index = source.index('render_collapsed_detail_frame(\n                "DCF source guard preview table"', dcf_source_loop_index)
+    dcf_checklist_index = source.index('"DCF proof checklist table"', dcf_fit_index)
+    dcf_source_loop_index = source.index('"DCF source loop checklist table"', dcf_checklist_index)
+    dcf_guard_index = source.index('"DCF source guard preview table"', dcf_source_loop_index)
     dcf_raw_index = source.index('render_collapsed_detail_frame("Filtered DCF input proof rows"', dcf_guard_index)
 
     peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)')
