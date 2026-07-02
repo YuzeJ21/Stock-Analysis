@@ -25347,6 +25347,43 @@ def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_nex
     assert "order routing" not in rendered
 
 
+def test_data_health_operator_snapshot_routes_reviewed_frontier_to_source_gate():
+    cards = dashboard.data_health_operator_snapshot_cards(
+        {
+            "price_ready": 3538,
+            "dcf_ready": 2691,
+            "peer_ready": 29,
+            "blocked_by_data": 3778,
+        },
+        pd.DataFrame(),
+        pd.DataFrame(
+            [
+                {
+                    "Lane": "Fundamentals / DCF Proof",
+                    "Unlock Impact": 333,
+                    "Possible State Move": (
+                        "reviewed proof already recorded -> wait for new source-backed rows, new tickers, "
+                        "or changed blockers"
+                    ),
+                    "Next Safe Command": "make project-status",
+                }
+            ]
+        ),
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[1]["kicker"] == "SOURCE GATE"
+    assert cards[1]["title"] == "Source gate before proof loops"
+    assert "fundamentals / dcf proof is already reviewed or exhausted" in rendered
+    assert "project-status" in rendered
+    assert "provider setup" in rendered
+    assert "333 rows could move" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_data_health_current_mode_strip_uses_metric_proof_and_stale_modes():
     current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")

@@ -20300,6 +20300,30 @@ def data_health_operator_snapshot_cards(
         top_impact_value = pd.to_numeric(pd.Series([top.get("Unlock Impact")]), errors="coerce").iloc[0]
         top_impact = "0" if pd.isna(top_impact_value) else f"{int(top_impact_value):,}"
         top_move = compact_card_fragment(top.get("Possible State Move"), max_chars=150)
+    reviewed_frontier = any(
+        phrase in str(top_move).lower()
+        for phrase in ("reviewed proof already recorded", "reviewed non-actionable", "no unreviewed executable")
+    )
+    next_action_card = {
+        "kicker": "NEXT DATA ACTION",
+        "title": top_lane,
+        "body": (
+            f"{top_impact} rows could move after reviewed proof. {card_sentence('Path', top_move)} "
+            "Use this as the first operator queue, not a security ranking."
+        ),
+        "badges": ["one next lane", "not ranking"],
+    }
+    if reviewed_frontier:
+        next_action_card = {
+            "kicker": "SOURCE GATE",
+            "title": "Source gate before proof loops",
+            "body": (
+                f"{top_lane} is already reviewed or exhausted. Run project-status and provider setup before "
+                "opening proof queues again; wait for new source-backed rows, keyed providers, reviewed manual rows, "
+                "or changed blockers."
+            ),
+            "badges": ["reviewed or exhausted", "provider setup"],
+        }
 
     return [
         {
@@ -20311,15 +20335,7 @@ def data_health_operator_snapshot_cards(
             ),
             "badges": ["readiness first", "blocked visible"],
         },
-        {
-            "kicker": "NEXT DATA ACTION",
-            "title": top_lane,
-            "body": (
-                f"{top_impact} rows could move after reviewed proof. {card_sentence('Path', top_move)} "
-                "Use this as the first operator queue, not a security ranking."
-            ),
-            "badges": ["one next lane", "not ranking"],
-        },
+        next_action_card,
         {
             "kicker": "OPERATING MODE",
             "title": f"Freshness: {public_status_label(freshness.status).lower()}",
