@@ -12668,9 +12668,12 @@ def test_data_health_reviewed_batch_proof_frame_and_cards_read_batch_ledger(tmp_
     assert frame.iloc[0]["Final Outcome"] == "skipped"
     assert cards[0]["kicker"] == "LATEST BATCH PROOF"
     assert cards[0]["command"] == "make reviewed-batch-proof"
-    assert "command run: dry_run=1 make reviewed-batch lane=peers top_n=10" in rendered
+    assert "outcome: skipped" in rendered
+    assert "readiness change: none" in rendered
     assert "changed tickers: no changed tickers" in rendered
+    assert "artifact boundary: broad churn excluded" in rendered
     assert "no source proof applied" in rendered
+    assert "command run:" not in rendered
 
 
 def test_data_health_latest_reviewed_batch_packet_frame_reads_packet_scaffold(tmp_path):

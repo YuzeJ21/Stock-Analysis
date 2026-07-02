@@ -11382,13 +11382,22 @@ def data_health_reviewed_batch_proof_cards(ledger_path: Path | None = None) -> l
         if changed_tickers.lower() == "none"
         else compact_card_fragment(changed_tickers, max_chars=140)
     )
+    changed_readiness_raw = str(latest.changed_readiness_counts or "").strip()
+    changed_readiness = (
+        "none"
+        if changed_readiness_raw.lower() == "none"
+        else compact_card_fragment(changed_readiness_raw or "none", max_chars=190)
+    )
+    artifact_boundary = compact_card_fragment(latest.generated_artifacts_reviewed or "Not recorded", max_chars=180)
     return [
         {
             "kicker": "LATEST BATCH PROOF",
             "title": f"{latest.lane}: {latest.final_outcome}",
             "body": (
-                f"{card_sentence('Command run', compact_card_fragment(latest.command_run, max_chars=190))} "
+                f"{card_sentence('Outcome', latest.final_outcome)} "
+                f"Readiness change: {changed_readiness}. "
                 f"{card_sentence('Changed tickers', changed_tickers_copy)} "
+                f"{card_sentence('Artifact boundary', artifact_boundary)} "
                 f"{card_sentence('Notes', compact_card_fragment(latest.notes, max_chars=190))}"
             ),
             "badges": [latest.review_date, "reviewed batch"],
