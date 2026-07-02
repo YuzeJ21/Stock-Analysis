@@ -198,7 +198,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
             "body": (
                 "Use now: no lane summary is loaded yet. Blocked: run the read-only operations center before opening "
                 "raw proof tables. Context only: no candidate/context lane reported. Excluded/not applicable: no excluded lane reported. "
-                "Next safe action: make readiness-ops-center."
+                "Next safe action: open operator details for the selected lane."
             ),
             "badges": ["answer first", "raw details collapsed"],
             "command": "make readiness-ops-center",
@@ -210,7 +210,6 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
     context_fragments: list[str] = []
     excluded_fragments: list[str] = []
     lane_answer_fragments: list[str] = []
-    next_command = "make readiness-ops-center"
 
     for _, row in ops_frame.iterrows():
         lane_answer_fragments.append(_lane_one_answer(row))
@@ -221,15 +220,9 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
         partial = _series_int(row, "Partial", "partial")
         blocked = _series_int(row, "Blocked", "blocked")
         excluded = _series_int(row, "Excluded", "excluded")
-        command = _format_missing(
-            _series_value(row, "Next Safe Command", "next_safe_command"),
-            "",
-        )
 
         if not ready_fragments and ready > 0:
             ready_fragments.append(f"{lane} has {ready:,} ready row(s)")
-            if command:
-                next_command = command
         if partial > 0:
             partial_fragments.append(f"{lane} has {partial:,} partial row(s)")
         if blocked > 0:
@@ -246,7 +239,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
         f"Blocked: {'; '.join(blocked_fragments) if blocked_fragments else 'no blocked lane reported'}. "
         f"Context only: {'; '.join(context_fragments) if context_fragments else 'no candidate/context lane reported'}. "
         f"Excluded/not applicable: {'; '.join(excluded_fragments) if excluded_fragments else 'no excluded lane reported'}. "
-        f"Next safe action: {next_command}."
+        "Next safe action: open operator details for the selected lane."
     )
     return {
         "kicker": "LANE ANSWER",

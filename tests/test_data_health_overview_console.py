@@ -208,7 +208,7 @@ def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible(
     assert "blocked: fundamentals / dcf proof has 25 blocked row(s); earnings locked lane has 265 blocked row(s)" in rendered
     assert "context only: earnings locked lane is locked/manual until trusted optional rows exist" in rendered
     assert "excluded/not applicable: no excluded lane reported" in rendered
-    assert "next safe action: make price-refresh-loop dry_run=1" in rendered
+    assert "next safe action: open operator details for the selected lane" in rendered
     assert "top data-lane opportunity has unlock impact 3273" in rendered
     assert "treat stale or missing readiness artifacts as a stop sign" in rendered
     assert "validate, preview, apply" in rendered
@@ -330,7 +330,9 @@ def test_overview_lane_answer_card_keeps_raw_commands_out_of_lane_answers():
     assert "price coverage -> use now 3,537 ready row(s); partial 1" in body
     assert "fundamentals / dcf proof -> use now 2,691 ready row(s); partial 243; blocked 90; excluded/not applicable 514" in body
     assert "make " not in lane_answer_text
+    assert "make " not in body
     assert body.count("next safe action:") == 1
+    assert "next safe action: open operator details for the selected lane." in body
     assert card["command"] == "make readiness-ops-center"
 
 
