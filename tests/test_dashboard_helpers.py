@@ -19548,6 +19548,30 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     assert "Choose a scoped review set before treating liquidity, correlation, or proxy-risk rows as usable context." in source
 
 
+def test_data_health_operator_surfaces_scope_risk_pivot_before_source_setup():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    public_return_index = source.index("        return\n    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
+    mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
+    scope_details_index = source.index('st.expander("Optional scope and risk context", expanded=False)', mode_strip_index)
+    scope_header_index = source.index('render_section_header(\n            "Scope Before Risk Context"', scope_details_index)
+    scope_cards_index = source.index(
+        "universe_scope_risk_handoff_cards(readiness_summary, ticker_readiness_frame)",
+        scope_header_index,
+    )
+    scope_command_visibility_index = source.index("show_commands=False", scope_cards_index)
+    risk_header_index = source.index('render_section_header(\n            "Risk Context Readiness"', scope_command_visibility_index)
+    risk_cards_index = source.index("data_health_risk_context_cards(liquidity_frame, correlation_frame)", risk_header_index)
+    risk_command_visibility_index = source.index("show_commands=False", risk_cards_index)
+    source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', risk_command_visibility_index)
+
+    assert mode_strip_index < scope_details_index < scope_header_index < scope_cards_index
+    assert scope_cards_index < scope_command_visibility_index < risk_header_index < risk_cards_index
+    assert risk_cards_index < risk_command_visibility_index < source_details_index
+    assert "Choose scope before source setup reruns, risk context, or broad proof queues." in source
+    assert "Risk context stays historical context; it does not unlock missing fundamentals, peers, earnings, estimates, or valuation inputs." in source
+
+
 def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summary():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

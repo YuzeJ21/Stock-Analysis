@@ -27884,6 +27884,25 @@ def render_data_health(
         metric_detail_status=metric_detail_status,
         source_gate_next_action=source_gate_next_action,
     )
+    with st.expander("Optional scope and risk context", expanded=False):
+        render_section_header(
+            "Scope Before Risk Context",
+            "Choose scope before source setup reruns, risk context, or broad proof queues.",
+        )
+        render_signal_cards(
+            universe_scope_risk_handoff_cards(readiness_summary, ticker_readiness_frame),
+            show_commands=False,
+            variant="queue",
+        )
+        render_section_header(
+            "Risk Context Readiness",
+            "Risk context stays historical context; it does not unlock missing fundamentals, peers, earnings, estimates, or valuation inputs.",
+        )
+        render_signal_cards(
+            data_health_risk_context_cards(liquidity_frame, correlation_frame),
+            show_commands=False,
+            variant="queue",
+        )
     with st.expander("Optional source setup details", expanded=False):
         source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)
         if source_exhaustion_pivot_cards:
