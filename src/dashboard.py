@@ -11133,7 +11133,7 @@ def data_health_readiness_ops_center_cards(ops_frame: pd.DataFrame | None, *, li
             {
                 "kicker": "OPS CENTER",
                 "title": "Lane operations need readiness reports",
-                "body": "Run make readiness first, then use the read-only operations center to choose a batch lane before drilling into individual tickers.",
+                "body": "Refresh readiness first, then use the read-only operations center to choose a batch lane before drilling into individual tickers. Open operator details for the copy-only command.",
                 "badges": ["read-only", "lane-level"],
                 "command": "make readiness-ops-center",
             }
@@ -11154,7 +11154,7 @@ def data_health_readiness_ops_center_cards(ops_frame: pd.DataFrame | None, *, li
             f"{impact} row(s) or feature states could be improved by this lane. "
             f"{card_sentence('Source readiness', source)} "
             f"{card_sentence('Churn policy', churn)} "
-            f"Next safe command: {command}."
+            "Next safe action: open operator details for the copy-only command."
         )
         cards.append(
             {
@@ -11176,7 +11176,7 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
             {
                 "kicker": "PEER READINESS V2",
                 "title": "Peer sub-states need readiness rows",
-                "body": "Run make readiness, then reopen Data Health to separate peer mapping, peer price, peer fundamentals, and peer valuation readiness.",
+                "body": "Refresh readiness, then reopen Data Health to separate peer mapping, peer price, peer fundamentals, and peer valuation readiness. Open operator details for the copy-only command.",
                 "badges": ["read-only", "peer gates"],
                 "command": "make readiness && make peer-mapping-queue TOP_N=25",
             }
@@ -11189,7 +11189,7 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
             {
                 "kicker": "PEER READINESS V2",
                 "title": "Peer lanes are not in this snapshot",
-                "body": "Run make readiness-ops-center after readiness reports exist. Peer valuation stays locked until mapped peer inputs are trusted.",
+                "body": "Refresh the operations center after readiness reports exist. Peer valuation stays locked until mapped peer inputs are trusted. Open operator details for the copy-only command.",
                 "badges": ["read-only", "blocked"],
                 "command": "make readiness-ops-center",
             }
@@ -11199,14 +11199,13 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
         lane = format_missing(row.get("Lane"), "Peer readiness lane")
         notes = compact_card_fragment(row.get("Notes"), max_sentences=2, max_chars=420)
         command = format_missing(row.get("Next Safe Command"), "make peer-mapping-queue TOP_N=25")
-        proof = compact_card_fragment(row.get("Proof Command"), max_chars=150)
         cards.append(
             {
                 "kicker": "PEER READINESS V2",
                 "title": lane,
                 "body": (
                     f"{card_sentence('Sub-state proof', notes)} "
-                    f"{card_sentence('Proof command', proof)} "
+                    "Proof detail: open operator details for the copy-only proof command. "
                     "Peer trend can become usable before peer valuation; sector fallback is context, not trusted peer valuation."
                 ),
                 "badges": [public_status_label(row.get("State")), format_missing(row.get("Workflow Mode"), "review")],

@@ -500,20 +500,56 @@ def test_data_health_next_layer_queue_cards_keep_commands_out_of_first_read():
     )
     cards = dashboard.data_health_fundamentals_peer_metrics_queue_cards(frame, limit=2)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    body_rendered = " ".join(str(card["body"]) for card in cards).lower()
 
     assert cards[0]["title"] == "What can I use by lane?"
+    assert cards[1]["command"] == "make sec-stage-queue TOP_N=25"
+    assert cards[2]["command"] == "make metric-readiness-board TOP_N=10"
     assert "one answer per lane" in rendered
     assert "usable now:" in rendered
     assert "partly usable; ready rows can support research context, locked fields stay blocked" in rendered
     assert "blocked by: trusted fundamentals" in rendered
     assert "next: open the evidence drawer" in rendered
+    assert "make " not in body_rendered
     assert "trusted fundamentals" in rendered
     assert "spy/qqq review metrics" in rendered
     assert "readiness first" in rendered
-    assert "make sec-stage-queue" in rendered
     assert "investment advice" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_data_health_readiness_ops_and_peer_cards_keep_commands_out_of_bodies():
+    ops = pd.DataFrame(
+        [
+            {
+                "Lane": "Peer Mapping Proof",
+                "State": "partial",
+                "Workflow Mode": "preview_first_reviewed_apply",
+                "Unlock Impact": 3507,
+                "Source Readiness": "Peer relationships must be source-backed.",
+                "Generated Churn Policy": "Apply only reviewed peer rows.",
+                "Next Safe Command": "make peer-mapping-queue TOP_N=25",
+                "Notes": "Peer sub-states: peer_price=29; peer_valuation_inputs=0.",
+                "Proof Command": "make readiness && make peer-mapping-queue TOP_N=25",
+            }
+        ]
+    )
+
+    cards = (
+        dashboard.data_health_readiness_ops_center_cards(pd.DataFrame())
+        + dashboard.data_health_readiness_ops_center_cards(ops)
+        + dashboard.data_health_peer_readiness_v2_cards(pd.DataFrame())
+        + dashboard.data_health_peer_readiness_v2_cards(pd.DataFrame([{"Lane": "Price Coverage"}]))
+        + dashboard.data_health_peer_readiness_v2_cards(ops)
+    )
+    body_rendered = " ".join(str(card["body"]) for card in cards).lower()
+
+    assert "make " not in body_rendered
+    assert "next safe command:" not in body_rendered
+    assert "proof command:" not in body_rendered
+    assert "open operator details" in body_rendered
+    assert any(card["command"] == "make peer-mapping-queue TOP_N=25" for card in cards)
 
 
 def test_data_health_data_coverage_proof_queue_cards_keep_batch_proof_path_compact():

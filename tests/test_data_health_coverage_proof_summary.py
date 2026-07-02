@@ -31,19 +31,22 @@ def test_fundamentals_peer_metrics_queue_cards_keep_next_layer_scan_friendly():
 
     cards = fundamentals_peer_metrics_queue_cards(frame, limit=2)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    body_rendered = " ".join(str(card["body"]) for card in cards).lower()
 
     assert cards[0]["title"] == "What can I use by lane?"
     assert cards[1]["title"] == "Fundamentals / DCF Proof"
     assert cards[2]["title"] == "Metrics Readiness"
+    assert cards[1]["command"] == "make sec-stage-queue TOP_N=25"
+    assert cards[2]["command"] == "make metric-readiness-board TOP_N=10"
     assert "one answer per lane" in rendered
     assert "usable now:" in rendered
     assert "partly usable; ready rows can support research context, locked fields stay blocked" in rendered
     assert "blocked by: trusted fundamentals" in rendered
     assert "next: open the evidence drawer" in rendered
+    assert "make " not in body_rendered
     assert "trusted fundamentals" in rendered
     assert "spy/qqq review metrics" in rendered
     assert "readiness first" in rendered
-    assert "make sec-stage-queue" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
