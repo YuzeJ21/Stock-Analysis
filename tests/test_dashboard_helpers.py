@@ -262,6 +262,9 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     assert "fmp free tier:" in rendered
     assert "alpha vantage free tier: needs_key" in rendered
     assert "finnhub free tier: needs_key" in rendered
+    assert "configure first: finnhub free tier" in rendered
+    assert "second fallback after fmp" in rendered
+    assert "do not configure all missing providers at once" in rendered
     assert "ibkr read-only: optional_disabled" in rendered
     assert "smoke test: make fmp-stage tickers=<ticker>" in rendered
     assert "imports-preview import_tickers=<ticker>" in rendered

@@ -180,6 +180,51 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "direct buy/sell instructions" in rendered
 
 
+def test_provider_setup_checklist_names_one_missing_keyed_provider_to_configure_first(monkeypatch):
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+    monkeypatch.delenv("IBKR_HOST", raising=False)
+    monkeypatch.delenv("IBKR_PORT", raising=False)
+    monkeypatch.delenv("IBKR_CLIENT_ID", raising=False)
+
+    checklist = build_provider_setup_checklist()
+    rendered = render_provider_setup_checklist(checklist)
+
+    assert checklist["one_provider_setup_order"] == [
+        {
+            "provider": "FMP free tier",
+            "why_first": "Broadest keyed fallback here: price, fundamentals, share count, and the largest stated free-tier daily cap.",
+            "setup_env": "FMP_API_KEY",
+            "smoke_command": (
+                "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+                "&& make imports-preview IMPORT_TICKERS=<ticker>"
+            ),
+        },
+        {
+            "provider": "Finnhub free tier",
+            "why_first": "Second fallback after FMP; use only if FMP is unavailable or insufficient for the reviewed ticker.",
+            "setup_env": "FINNHUB_API_KEY",
+            "smoke_command": (
+                "make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+                "&& make imports-preview IMPORT_TICKERS=<ticker>"
+            ),
+        },
+        {
+            "provider": "Alpha Vantage free tier",
+            "why_first": "Smallest stated free-tier cap; keep as a final small-batch fallback.",
+            "setup_env": "ALPHA_VANTAGE_API_KEY",
+            "smoke_command": (
+                "make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+                "&& make imports-preview IMPORT_TICKERS=<ticker>"
+            ),
+        },
+    ]
+    assert "Configure first: FMP free tier" in rendered
+    assert "Do not configure all missing providers at once" in rendered
+    assert rendered.index("Configure first: FMP free tier") < rendered.index("Provider setup and boundaries:")
+
+
 def test_provider_setup_checklist_includes_current_gate_without_fetching_sources(monkeypatch):
     monkeypatch.delenv("FMP_API_KEY", raising=False)
     current_preflight = {

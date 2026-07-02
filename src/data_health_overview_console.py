@@ -560,6 +560,23 @@ def _checklist_next_steps_by_state(rows: list[dict[str, object]], states: set[st
     return " | ".join(fragments)
 
 
+def _checklist_one_provider_setup_step(payload: dict[str, object]) -> str:
+    setup_order = payload.get("one_provider_setup_order", [])
+    if not isinstance(setup_order, list):
+        return ""
+    first = next((row for row in setup_order if isinstance(row, dict)), None)
+    if not first:
+        return ""
+    provider = _format_missing(first.get("provider"), "next keyed provider")
+    reason = _format_missing(first.get("why_first"), "configure one provider before retrying broader source paths")
+    setup_env = _format_missing(first.get("setup_env"), "provider key")
+    smoke_command = _format_missing(first.get("smoke_command"), "make session-source-preflight")
+    return (
+        f"Configure first: {provider}. {reason} Setup env: {setup_env}. "
+        f"Smoke test: {smoke_command}. Do not configure all missing providers at once."
+    )
+
+
 def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[dict[str, object]]:
     payload = checklist or {}
     rows = _checklist_rows(payload)
@@ -590,6 +607,7 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
     free_public_summary = _checklist_rows_by_category(rows, {"free_public_available"})
     keyed_summary = _checklist_rows_by_state(rows, {"configured", "needs_key"})
     keyed_next_steps = _checklist_next_steps_by_state(rows, {"configured", "needs_key"})
+    one_provider_setup_step = _checklist_one_provider_setup_step(payload)
     broker_summary = _checklist_rows_by_state(rows, {"optional_disabled", "optional_configured"})
     all_summary = _checklist_rows_by_state(
         rows,
@@ -629,7 +647,7 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
             "body": (
                 f"{keyed_summary}. Keyed fallbacks expand coverage; they are not required for pilot/demo sharing. "
                 f"They remain small-batch source paths and do not bypass validate, preview, rejected-row review, "
-                f"or source provenance. {keyed_next_steps}"
+                f"or source provenance. {one_provider_setup_step} {keyed_next_steps}"
             ),
             "badges": ["small batch", "source-backed"],
             "command": "make provider-setup-checklist",

@@ -21,6 +21,20 @@ KEYED_PROVIDER_BATCH_POLICIES = {
     "Alpha Vantage free tier": "small_batch_only; recommended <=25 requests/day and <=5 tickers/run",
     "Finnhub free tier": "small_batch_only; recommended <=60 requests/day and <=10 tickers/run",
 }
+KEYED_PROVIDER_SETUP_PRIORITY = [
+    (
+        "FMP free tier",
+        "Broadest keyed fallback here: price, fundamentals, share count, and the largest stated free-tier daily cap.",
+    ),
+    (
+        "Finnhub free tier",
+        "Second fallback after FMP; use only if FMP is unavailable or insufficient for the reviewed ticker.",
+    ),
+    (
+        "Alpha Vantage free tier",
+        "Smallest stated free-tier cap; keep as a final small-batch fallback.",
+    ),
+]
 IBKR_ENVS = ["IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"]
 ACTIVATION_PLAN = [
     "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops.",
@@ -274,6 +288,28 @@ def _provider_source_answer(rows: list[dict[str, Any]]) -> dict[str, str]:
     }
 
 
+def _one_provider_setup_order(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
+    rows_by_provider = {
+        str(row.get("provider") or "").strip(): row
+        for row in rows
+        if str(row.get("setup_state") or "").strip() == "needs_key"
+    }
+    setup_order: list[dict[str, str]] = []
+    for provider, reason in KEYED_PROVIDER_SETUP_PRIORITY:
+        row = rows_by_provider.get(provider)
+        if not row:
+            continue
+        setup_order.append(
+            {
+                "provider": provider,
+                "why_first": reason,
+                "setup_env": str(row.get("env_vars") or ""),
+                "smoke_command": str(row.get("post_setup_smoke_command") or ""),
+            }
+        )
+    return setup_order
+
+
 def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = None) -> dict[str, Any]:
     guide = build_source_activation_guide()
     rows = []
@@ -300,6 +336,7 @@ def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = No
         "activation_plan": guide["activation_plan"],
         "rows": rows,
         "source_answer": _provider_source_answer(rows),
+        "one_provider_setup_order": _one_provider_setup_order(rows),
         "workflow_pivot": WORKFLOW_PIVOT,
         "apply_gate": guide["apply_gate"],
         "non_retry_rule": guide["non_retry_rule"],
@@ -368,6 +405,20 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 f"- next_step_reason: {current_gate.get('next_step_reason', '-')}",
             ]
         )
+    setup_order = checklist.get("one_provider_setup_order", [])
+    if isinstance(setup_order, list) and setup_order:
+        first = next((row for row in setup_order if isinstance(row, dict)), None)
+        if first:
+            lines.extend(
+                [
+                    "",
+                    f"Configure first: {first.get('provider', '-')}",
+                    f"- why: {first.get('why_first', '-')}",
+                    f"- setup_env: {first.get('setup_env', '-')}",
+                    f"- smoke_command: {first.get('smoke_command', '-')}",
+                    "- Do not configure all missing providers at once; configure one, rerun preflight, smoke one ticker, then validate/preview before any apply.",
+                ]
+            )
     lines.extend(
         [
             "",
