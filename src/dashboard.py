@@ -27867,7 +27867,7 @@ def render_data_health(
         )
         render_signal_cards(
             data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues),
-            show_commands=True,
+            show_commands=False,
             variant="queue",
         )
         with st.expander("Trusted fundamentals source review", expanded=False):

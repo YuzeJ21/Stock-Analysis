@@ -25330,6 +25330,38 @@ def test_data_health_queue_route_overview_hides_commands_until_lane_expander():
     )
 
 
+def test_data_health_data_coverage_proof_queue_hides_top_level_commands():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    proof_queue_index = source.index(
+        'render_section_header(\n            "Data Coverage Proof Queues"',
+        source.index("if queue_details_loaded:"),
+    )
+    proof_queue_cards_index = source.index(
+        "data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues)",
+        proof_queue_index,
+    )
+    proof_queue_command_visibility_index = source.index("show_commands=False", proof_queue_cards_index)
+    source_review_expander_index = source.index(
+        'st.expander("Trusted fundamentals source review", expanded=False)',
+        proof_queue_command_visibility_index,
+    )
+    source_review_command_cards_index = source.index(
+        "data_health_trusted_fundamentals_source_review_command_cards(",
+        source_review_expander_index,
+    )
+    source_review_command_visibility_index = source.index("show_commands=True", source_review_command_cards_index)
+
+    assert (
+        proof_queue_index
+        < proof_queue_cards_index
+        < proof_queue_command_visibility_index
+        < source_review_expander_index
+        < source_review_command_cards_index
+        < source_review_command_visibility_index
+    )
+
+
 def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated():
     current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
