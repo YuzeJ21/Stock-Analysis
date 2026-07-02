@@ -544,6 +544,10 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Source-Proof Queue Summary" in body
     assert "Provider Setup Checklist" in body
     assert "make provider-setup-checklist" in body
+    assert "Source Buckets" in body
+    assert "Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in body
+    assert "Keyed free-tier fallbacks: configured -; needs key FMP free tier, Alpha Vantage free tier, Finnhub free tier" in body
+    assert "Optional broker boundary: IBKR read-only" in body
     assert "Provider Activation Plan" in body
     assert "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops." in body
     assert "Run that provider's one-ticker smoke command only; do not start a broad batch from setup." in body

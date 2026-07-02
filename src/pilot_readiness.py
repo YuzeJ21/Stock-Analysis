@@ -911,6 +911,22 @@ def _provider_one_setup_lines() -> list[str]:
     ]
 
 
+def _provider_source_bucket_lines(root: Path | str = ".") -> list[str]:
+    checklist = build_provider_setup_checklist(load_session_source_preflight(Path(root)))
+    source_answer = checklist.get("source_answer", {})
+    if not isinstance(source_answer, dict) or not source_answer:
+        return []
+    return [
+        "- Free public sources: " + str(source_answer.get("free_public_now", "-")),
+        (
+            "- Keyed free-tier fallbacks: "
+            f"configured {source_answer.get('configured_keyed', '-')}; "
+            f"needs key {source_answer.get('needs_key', '-')}"
+        ),
+        "- Optional broker boundary: " + str(source_answer.get("optional_broker", "-")),
+    ]
+
+
 def _share_brief_provider_setup_lines(root: Path | str = ".") -> list[str]:
     checklist = build_provider_setup_checklist(load_session_source_preflight(Path(root)))
     unlock_decision = checklist.get("coverage_unlock_decision", {})
@@ -1082,6 +1098,10 @@ def render_pilot_readiness_packet(
         "## Provider Setup Checklist",
         "",
         "Use `make provider-setup-checklist` for the current checklist-style setup view. Real key values are never printed.",
+        "",
+        "### Source Buckets",
+        "",
+        *_provider_source_bucket_lines(root_path),
         "",
         "### Provider Activation Plan",
         "",
