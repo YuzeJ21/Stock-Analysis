@@ -5,6 +5,16 @@ import pandas as pd
 from src import data_health_recent_progress as recent_progress
 
 
+def test_recent_progress_cards_missing_current_keeps_command_out_of_body():
+    cards = recent_progress.readiness_recent_progress_cards(None)
+    body = str(cards[0]["body"]).lower()
+
+    assert cards[0]["title"] == "Readiness report missing"
+    assert cards[0]["command"] == "make readiness"
+    assert "open operator details" in body
+    assert "make " not in body
+
+
 def test_recent_progress_cards_show_current_only_baseline_without_prior_snapshot():
     readiness = pd.DataFrame(
         {
@@ -39,6 +49,8 @@ def test_recent_progress_cards_show_current_only_baseline_without_prior_snapshot
     assert "peer: 2" in rendered
     assert "price: 1" in rendered
     assert "without pretending a delta exists" in rendered
+    assert "save a baseline snapshot" in rendered
+    assert "make " not in " ".join(str(card.get("body", "")) for card in cards).lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
 

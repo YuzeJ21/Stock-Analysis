@@ -52,7 +52,7 @@ def readiness_recent_progress_cards(
             {
                 "kicker": "WHAT CHANGED",
                 "title": "Readiness report missing",
-                "body": "Run make readiness before comparing current and prior product status.",
+                "body": "Refresh readiness before comparing current and prior product status. Open operator details for the copy-only command.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }
@@ -127,7 +127,7 @@ def readiness_recent_progress_cards(
                 "title": "Current-only baseline",
                 "body": (
                     "No prior readiness snapshot was found, so the dashboard shows current counts without pretending a delta exists. "
-                    "Run make readiness-snapshot before the next targeted refresh or import, then run make readiness to compare real before/after counts."
+                    "Save a baseline snapshot before the next targeted refresh or import, then refresh readiness to compare real before/after counts."
                 ),
                 "badges": ["no prior snapshot", "data-honest"],
                 "command": "make readiness-snapshot",
@@ -139,8 +139,8 @@ def readiness_recent_progress_cards(
             "kicker": "SNAPSHOT WORKFLOW",
             "title": "Snapshot -> targeted update -> compare",
             "body": (
-                "Use make readiness-snapshot, then one targeted refresh/import workflow, then make readiness. "
-                "The dashboard compares only saved local CSV snapshots and never invents progress."
+                "Use one saved baseline, then one targeted refresh/import workflow, then refresh readiness. "
+                "The dashboard compares only saved local snapshots and never invents progress."
             ),
             "badges": ["review workflow", "copy only"],
             "command": "make readiness-snapshot",
