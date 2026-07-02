@@ -2442,6 +2442,8 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in console_source
     assert "Open the lane evidence drawer or Additional operator evidence above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
+    assert 'if queue_details_loaded:\n        with st.expander("Queue outcome ledger summary", expanded=False)' in source
+    assert 'if queue_details_loaded:\n        with st.expander("Readiness queue evidence", expanded=False)' in source
     assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Optional context evidence drawer", expanded=False)' in source

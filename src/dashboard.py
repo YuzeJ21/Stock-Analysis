@@ -27924,14 +27924,16 @@ def render_data_health(
             )
         with st.expander("Data coverage proof queue detail", expanded=False):
             st.dataframe(clean_display_frame(data_coverage_proof_queues), width="stretch", hide_index=True)
-    with st.expander("Queue outcome ledger summary", expanded=False):
-        st.dataframe(clean_display_frame(queue_outcome_summary), width="stretch", hide_index=True)
-    with st.expander("Readiness queue evidence", expanded=False):
-        render_section_header(
-            "Queue Detail",
-            "Lane counts, missing input families, source mode, proof gate, and copy-only next command.",
-        )
-        st.dataframe(clean_display_frame(readiness_queue), width="stretch", hide_index=True)
+    if queue_details_loaded:
+        with st.expander("Queue outcome ledger summary", expanded=False):
+            st.dataframe(clean_display_frame(queue_outcome_summary), width="stretch", hide_index=True)
+    if queue_details_loaded:
+        with st.expander("Readiness queue evidence", expanded=False):
+            render_section_header(
+                "Queue Detail",
+                "Lane counts, missing input families, source mode, proof gate, and copy-only next command.",
+            )
+            st.dataframe(clean_display_frame(readiness_queue), width="stretch", hide_index=True)
     if queue_details_loaded:
         render_signal_cards(
             data_health_readiness_queue_route_overview_cards(queue_drilldown),
