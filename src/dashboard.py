@@ -28470,16 +28470,6 @@ def render_data_health(
         else:
             fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)
         render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board, dcf_input_queue)
-        render_signal_cards(
-            data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness),
-            show_commands=False,
-            variant="queue",
-        )
-        render_signal_cards(
-            data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue),
-            show_commands=False,
-            variant="queue",
-        )
         with st.expander("Fundamentals / DCF evidence drawer", expanded=False):
             render_section_header(
                 "DCF Evidence Answer",
@@ -28487,6 +28477,11 @@ def render_data_health(
             )
             render_signal_cards(
                 data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue),
+                show_commands=False,
+                variant="queue",
+            )
+            render_signal_cards(
+                data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness),
                 show_commands=False,
                 variant="queue",
             )
