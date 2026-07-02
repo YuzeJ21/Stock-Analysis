@@ -8724,6 +8724,10 @@ def _source_activation_summary_row(console: dict[str, object]) -> dict[str, obje
         "Stop before broad source batches if the cached preflight shows unavailable providers or missing keys.",
         f"Last tried: {', '.join(last_tried_items) or 'not recorded'}.",
         f"Do not retry this session: {', '.join(do_not_retry) or '-'}.",
+        "Source availability categories only: free public paths can be executable without keys; "
+        "keyed free-tier paths require local keys and small-batch limits; optional read-only broker path stays "
+        "disabled unless explicitly configured.",
+        "This is not readiness proof; source-backed rows still require validate/preview/apply gates before readiness changes.",
     ]
     if free_tier_limits:
         stop_rule_parts.append(f"Free-tier limits: {free_tier_limits}.")

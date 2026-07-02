@@ -19364,6 +19364,13 @@ def test_data_health_coverage_summary_includes_cached_source_activation_context(
     assert "free-tier limits: fmp<=250/day and <=25/run" in source_row["stop_rule"].lower()
     assert "alpha_vantage<=25/day and <=5/run" in source_row["stop_rule"].lower()
     assert "finnhub<=60/day and <=10/run" in source_row["stop_rule"].lower()
+    rendered_source_row = " ".join(str(value) for value in source_row.to_dict().values()).lower()
+    assert "source availability categories only" in rendered_source_row
+    assert "not readiness proof" in rendered_source_row
+    assert "free public paths can be executable without keys" in rendered_source_row
+    assert "keyed free-tier paths require local keys and small-batch limits" in rendered_source_row
+    assert "optional read-only broker path stays disabled unless explicitly configured" in rendered_source_row
+    assert "validate/preview/apply" in rendered_source_row
     assert "cached session source preflight" in rendered
     assert "export fmp_api_key='<key>'" in source_row["proof_to_unlock"].lower()
     assert "free-tier limits" in source_row["stop_rule"].lower()
