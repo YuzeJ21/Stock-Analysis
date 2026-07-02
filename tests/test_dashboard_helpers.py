@@ -19297,8 +19297,10 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     packaging_frame_index = source.index("pilot_packaging_summary = data_health_pilot_packaging_summary_frame")
     share_gate_header_index = source.index('render_section_header(\n        "Pilot Share Gate"', packaging_frame_index)
     share_gate_summary_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", share_gate_header_index)
-    share_gate_detail_index = source.index('st.expander("Pilot Share Gate details", expanded=False)', share_gate_summary_cards_index)
+    share_gate_summary_commands_index = source.index("show_commands=False", share_gate_summary_cards_index)
+    share_gate_detail_index = source.index('st.expander("Pilot Share Gate details", expanded=False)', share_gate_summary_commands_index)
     evidence_cards_index = source.index("data_health_pilot_evidence_review_cards(pilot_evidence_review)", share_gate_detail_index)
+    evidence_commands_index = source.index("show_commands=True", evidence_cards_index)
     final_gate_cards_index = source.index("data_health_public_share_final_gate_cards(public_share_final_gate)", evidence_cards_index)
     workflow_cards_index = source.index("data_health_workflow_continuity_cards(workflow_continuity)", final_gate_cards_index)
     controlled_cards_index = source.index("data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome)", workflow_cards_index)
@@ -19311,8 +19313,10 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     assert (
         share_gate_header_index
         < share_gate_summary_cards_index
+        < share_gate_summary_commands_index
         < share_gate_detail_index
         < evidence_cards_index
+        < evidence_commands_index
         < final_gate_cards_index
         < workflow_cards_index
         < controlled_cards_index

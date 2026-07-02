@@ -27729,7 +27729,7 @@ def render_data_health(
     )
     render_signal_cards(
         data_health_pilot_handoff_summary_cards(pilot_handoff_summary),
-        show_commands=True,
+        show_commands=False,
         variant="queue",
     )
     with st.expander("Pilot Share Gate details", expanded=False):
