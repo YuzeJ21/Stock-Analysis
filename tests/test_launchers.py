@@ -2076,6 +2076,16 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
         assert phrase in operator_guide
 
 
+def test_public_demo_readiness_pack_uses_live_proof_commands_not_stale_snapshot():
+    pack = Path("docs/PUBLIC_DEMO_READINESS_PACK.md").read_text(encoding="utf-8")
+
+    assert "Current proof timeline" in pack
+    assert "Use `make reviewed-data-proof`" in pack
+    assert "Use `make reviewed-batch-proof`" in pack
+    assert "does not refresh data" in pack
+    assert "Latest reviewed proof: `RDP-" not in pack
+
+
 def test_product_facing_status_labels_avoid_action_language():
     public_paths = [
         Path("README.md"),
