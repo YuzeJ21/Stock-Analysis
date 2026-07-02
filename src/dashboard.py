@@ -27550,39 +27550,40 @@ def render_data_health(
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
     )
-    render_section_header(
-        "Auto Refresh Status",
-        "Cached source activation, setup gaps, avoid-repeat lane, and next scheduler command before proof details.",
-    )
-    render_signal_cards(
-        data_health_auto_refresh_status_cards(root=BASE_DIR, schedule="daily"),
-        show_commands=False,
-        variant="queue",
-    )
-    render_section_header(
-        "Source Setup Guide",
-        "Free/public providers, keyed free-tier gaps, broker-data boundaries, and apply gates without exposing secrets.",
-    )
-    render_signal_cards(
-        data_health_provider_setup_checklist_cards(),
-        show_commands=False,
-        variant="queue",
-    )
-    render_section_header(
-        "Source Readiness Guidance",
-        "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts.",
-    )
-    render_signal_cards(
-        data_health_source_readiness_guidance_cards(
-            readiness_freshness,
-            data_quality_frame,
-            liquidity_frame,
-            correlation_frame,
-            base_dir=BASE_DIR,
-        ),
-        show_commands=False,
-        variant="queue",
-    )
+    with st.expander("Source setup and refresh details", expanded=False):
+        render_section_header(
+            "Auto Refresh Status",
+            "Cached source activation, setup gaps, avoid-repeat lane, and next scheduler command before proof details.",
+        )
+        render_signal_cards(
+            data_health_auto_refresh_status_cards(root=BASE_DIR, schedule="daily"),
+            show_commands=False,
+            variant="queue",
+        )
+        render_section_header(
+            "Source Setup Guide",
+            "Free/public providers, keyed free-tier gaps, broker-data boundaries, and apply gates without exposing secrets.",
+        )
+        render_signal_cards(
+            data_health_provider_setup_checklist_cards(),
+            show_commands=False,
+            variant="queue",
+        )
+        render_section_header(
+            "Source Readiness Guidance",
+            "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts.",
+        )
+        render_signal_cards(
+            data_health_source_readiness_guidance_cards(
+                readiness_freshness,
+                data_quality_frame,
+                liquidity_frame,
+                correlation_frame,
+                base_dir=BASE_DIR,
+            ),
+            show_commands=False,
+            variant="queue",
+        )
     should_load_pilot_details = proof_details_requested or selected_lane_key in {"fundamentals", "proof"}
     pilot_readiness = data_health_pilot_readiness_frame(top_n=10) if should_load_pilot_details else pd.DataFrame()
     should_load_proof_details = proof_details_requested

@@ -19217,6 +19217,13 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     assert public_return_index < operator_coverage_index < ops_index
     assert '"Coverage Summary / What Can I Use?"' in source
     assert 'st.expander("Coverage lane details", expanded=False)' in source
+    source_details_index = source.index('st.expander("Source setup and refresh details", expanded=False)', ops_index)
+    auto_refresh_index = source.index('render_section_header(\n            "Auto Refresh Status"', source_details_index)
+    source_setup_index = source.index('render_section_header(\n            "Source Setup Guide"', auto_refresh_index)
+    source_guidance_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_setup_index)
+    next_action_index = source.index('render_section_header(\n        "Next Operator Action"', source_guidance_index)
+
+    assert ops_index < source_details_index < auto_refresh_index < source_setup_index < source_guidance_index < next_action_index
     assert "show_commands=False" in source[
         source.index("def render_data_health_coverage_summary(") : source.index("def _trusted_ready_count(")
     ]
@@ -25192,11 +25199,12 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     mode_strip_index = source.index("render_data_health_current_mode_strip(")
-    guidance_header_index = source.index('render_section_header(\n        "Source Readiness Guidance"', mode_strip_index)
+    source_details_index = source.index('st.expander("Source setup and refresh details", expanded=False)', mode_strip_index)
+    guidance_header_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_details_index)
     guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
     next_action_index = source.index('render_section_header(\n        "Next Operator Action"', guidance_cards_index)
 
-    assert mode_strip_index < guidance_header_index < guidance_cards_index < next_action_index
+    assert mode_strip_index < source_details_index < guidance_header_index < guidance_cards_index < next_action_index
     assert "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts." in source
 
 
