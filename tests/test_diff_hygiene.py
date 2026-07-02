@@ -400,6 +400,21 @@ def test_public_release_package_does_not_stage_broad_sample_reports_by_default()
     assert "Stage a specific report only after reviewing that exact artifact." in sample_block
 
 
+def test_public_release_package_surfaces_push_when_branch_ahead_without_product_changes():
+    module = load_diff_hygiene_module()
+    entries = [
+        module.StatusEntry("M", "data/prices.csv"),
+        module.StatusEntry("M", "outputs/feature_readiness_summary.csv"),
+    ]
+
+    report = module.build_public_release_package_report(entries, branch_status="## main...origin/main [ahead 1]")
+
+    assert "No reviewed product package to stage; keep generated churn local unless intentionally selected as evidence." in report
+    assert "Reviewed local commit is ahead of origin; push only when explicitly asked and after public-check passes." in report
+    assert "git push origin main  # only when explicitly asked" in report
+    assert "No reviewed product package to commit; generated churn remains local." in report
+
+
 def test_diff_hygiene_treats_pilot_share_brief_as_reviewed_product_artifact():
     module = load_diff_hygiene_module()
 

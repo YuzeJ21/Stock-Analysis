@@ -724,6 +724,7 @@ def build_public_release_package_report(
     generated = groups["generated_csv_churn"]
     manual = groups["review_manually"]
     package_status = package_status_for_groups(groups)
+    branch_is_ahead = "[ahead" in (branch_status or "")
 
     lines = [
         "Public Release Package",
@@ -826,11 +827,21 @@ def build_public_release_package_report(
             "  git push origin main  # only when explicitly asked",
         ]
         if product
-        else [
-            "Commit and push:",
-            "  # No reviewed product package to commit; generated churn remains local.",
-            "  git status --short --branch",
-        ]
+        else (
+            [
+                "Commit and push:",
+                "  # No reviewed product package to commit; generated churn remains local.",
+                "  Reviewed local commit is ahead of origin; push only when explicitly asked and after public-check passes.",
+                "  git status --short --branch",
+                "  git push origin main  # only when explicitly asked",
+            ]
+            if branch_is_ahead
+            else [
+                "Commit and push:",
+                "  # No reviewed product package to commit; generated churn remains local.",
+                "  git status --short --branch",
+            ]
+        )
     )
 
     lines.extend(
