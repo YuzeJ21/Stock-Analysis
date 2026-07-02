@@ -271,7 +271,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
             "Blocked": "-",
             "Context Only": "-",
             "Excluded / Not Applicable": "-",
-            "Review Boundary": "Open details for the source-backed next step; commands stay in operator drawers.",
+            "Review Boundary": "Use the ready price evidence now; inspect the one partial row only if freshness depth matters.",
         },
         {
             "Lane": "Peer Mapping Proof",
@@ -280,7 +280,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
             "Blocked": "3,507 blocked row(s)",
             "Context Only": "-",
             "Excluded / Not Applicable": "2 excluded/not applicable",
-            "Review Boundary": "Open details for the source-backed next step; commands stay in operator drawers.",
+            "Review Boundary": "Treat ready peer rows as usable and blocked rows as locked until trusted source proof exists.",
         },
         {
             "Lane": "Earnings Locked Lane",
@@ -289,7 +289,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
             "Blocked": "3,538 blocked row(s)",
             "Context Only": "locked/manual or candidate context",
             "Excluded / Not Applicable": "-",
-            "Review Boundary": "Open details for the source-backed next step; commands stay in operator drawers.",
+            "Review Boundary": "Use as optional context only; keep raw provider/manual setup in collapsed operator drawers.",
         },
     ]
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()

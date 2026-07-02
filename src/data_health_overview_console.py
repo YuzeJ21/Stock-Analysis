@@ -106,6 +106,29 @@ def _count_label(count: int, label: str) -> str:
     return f"{count:,} {label}" if count > 0 else "-"
 
 
+def _lane_review_boundary(
+    lane: str,
+    mode: str,
+    state: str,
+    ready: int,
+    partial: int,
+    blocked: int,
+    excluded: int,
+) -> str:
+    lane_text = lane.lower()
+    if "optional" in mode or "locked" in mode or "manual" in mode:
+        return "Use as optional context only; keep raw provider/manual setup in collapsed operator drawers."
+    if "price" in lane_text and ready > 0 and partial > 0 and blocked == 0:
+        return "Use the ready price evidence now; inspect the one partial row only if freshness depth matters."
+    if "peer" in lane_text and ready > 0 and blocked > 0:
+        return "Treat ready peer rows as usable and blocked rows as locked until trusted source proof exists."
+    if blocked > 0 and ready == 0:
+        return "Treat this lane as locked until source proof exists; keep raw rows in operator drawers."
+    if excluded > 0 or state == "excluded":
+        return "Use applicable ready rows only; excluded rows are not failed analysis inputs."
+    return "Open details for the source-backed next step; commands stay in operator drawers."
+
+
 def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
     """Return the default Data Health lane answer as one scan-friendly row per lane."""
     columns = [
@@ -155,7 +178,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
                 "Blocked": _count_label(blocked, "blocked row(s)"),
                 "Context Only": context_only,
                 "Excluded / Not Applicable": _count_label(excluded, "excluded/not applicable"),
-                "Review Boundary": "Open details for the source-backed next step; commands stay in operator drawers.",
+                "Review Boundary": _lane_review_boundary(lane, mode, state, ready, partial, blocked, excluded),
             }
         )
     return pd.DataFrame(rows, columns=columns)
