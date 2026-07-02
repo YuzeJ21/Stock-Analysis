@@ -16,6 +16,7 @@ UNIVERSE_SCOPE_REVIEW_COLUMNS = [
     "matching_rows",
     "what_it_answers",
     "copy_only_command",
+    "example_tickers",
     "scope_boundary",
     "stop_rule",
 ]
@@ -44,6 +45,23 @@ def _split_tickers(value: str | None) -> list[str]:
     if not value:
         return []
     return [part.strip().upper() for part in value.split(",") if part.strip()]
+
+
+def _ticker_examples(frame: pd.DataFrame, mask: pd.Series | None = None, *, limit: int = 5) -> str:
+    if frame.empty or "ticker" not in frame.columns or limit <= 0:
+        return "-"
+    selected = frame
+    if mask is not None:
+        selected = frame[mask.reindex(frame.index, fill_value=False)]
+    tickers = (
+        selected["ticker"]
+        .dropna()
+        .astype(str)
+        .str.upper()
+        .str.strip()
+    )
+    examples = [ticker for ticker in tickers if ticker]
+    return ", ".join(examples[:limit]) if examples else "-"
 
 
 def _read_readiness_frame(root: Path) -> pd.DataFrame:
@@ -101,6 +119,16 @@ def universe_scope_workflow_cards(
     price_ready = counts["price_ready"]
     dcf_ready = counts["dcf_ready"]
     peer_ready = counts["peer_ready"]
+    active_examples = _ticker_examples(
+        ticker_readiness_frame if ticker_readiness_frame is not None else pd.DataFrame(),
+        _bool_series(ticker_readiness_frame, "in_active_universe") if ticker_readiness_frame is not None else None,
+        limit=5,
+    )
+    example_sentence = (
+        f" Active examples: {active_examples}; start with those names before broad universe rows."
+        if active_examples != "-"
+        else ""
+    )
     return [
         {
             "kicker": "SCOPE MAP",
@@ -108,6 +136,7 @@ def universe_scope_workflow_cards(
             "body": (
                 f"Price-ready subset: {price_ready}. DCF-ready subset: {dcf_ready}. Peer-ready subset: {peer_ready}. "
                 "The master universe is coverage planning, not proof that every analysis surface is ready."
+                f"{example_sentence}"
             ),
             "badges": ["master != ready", "active first"],
             "command": "make status-check TOP_N=5",
@@ -198,8 +227,10 @@ def universe_scope_review_plan(
     active_rows = int(_bool_series(frame, "in_active_universe").sum()) if not frame.empty else counts["active"]
 
     ticker_rows = 0
+    ticker_mask = pd.Series(False, index=frame.index)
     if ticker_list and not frame.empty and "ticker" in frame.columns:
-        ticker_rows = int(frame["ticker"].isin(ticker_list).sum())
+        ticker_mask = frame["ticker"].isin(ticker_list)
+        ticker_rows = int(ticker_mask.sum())
     elif ticker_list:
         ticker_rows = len(ticker_list)
 
@@ -213,6 +244,8 @@ def universe_scope_review_plan(
         if theme_text:
             mask = mask | _text_series(frame, "theme").str.contains(theme_text, case=False, regex=False, na=False)
         sector_theme_rows = int(mask.sum())
+    else:
+        mask = pd.Series(False, index=frame.index)
 
     ready_mask = pd.Series(False, index=frame.index)
     for column in ("price_ready", "dcf_ready", "peer_ready"):
@@ -223,6 +256,7 @@ def universe_scope_review_plan(
     for column in ("blocked_features", "missing_data", "missing_data_summary"):
         missing_mask = missing_mask | _text_series(frame, column).ne("")
     missing_rows = int(missing_mask.sum()) if not frame.empty else 0
+    active_mask = _bool_series(frame, "in_active_universe") if not frame.empty else pd.Series(False, index=frame.index)
 
     boundary = "copy-only; does not refresh, import, apply, or infer missing values"
     stop_rule = "Stop at the selected scope; widen only after readiness and proof gates are reviewed."
@@ -232,6 +266,7 @@ def universe_scope_review_plan(
             "matching_rows": active_rows,
             "what_it_answers": "Which focused demo/research rows should be reviewed before broad universe rows?",
             "copy_only_command": f"make readiness-queue TOP_N={top_n}",
+            "example_tickers": _ticker_examples(frame, active_mask, limit=min(top_n, 5)),
             "scope_boundary": boundary,
             "stop_rule": "Use active rows first; do not read master-universe coverage as analysis readiness.",
         },
@@ -240,6 +275,7 @@ def universe_scope_review_plan(
             "matching_rows": ticker_rows,
             "what_it_answers": "Can named tickers be inspected one at a time without forcing full-market analysis?",
             "copy_only_command": f"make status-check TICKERS={ticker_text} TOP_N={top_n}",
+            "example_tickers": _ticker_examples(frame, ticker_mask, limit=min(top_n, 5)) if ticker_list else "-",
             "scope_boundary": boundary,
             "stop_rule": "Use single-stock reports or focused status before opening broad tables.",
         },
@@ -248,6 +284,7 @@ def universe_scope_review_plan(
             "matching_rows": sector_theme_rows,
             "what_it_answers": "Which sector/theme slice should be scanned before widening the universe?",
             "copy_only_command": f"make status-check TOP_N={top_n}",
+            "example_tickers": _ticker_examples(frame, mask, limit=min(top_n, 5)),
             "scope_boundary": f"{boundary}; use dashboard sector/theme filters for row selection",
             "stop_rule": "Keep sector/theme rows as scan context until ticker-level proof exists.",
         },
@@ -256,6 +293,7 @@ def universe_scope_review_plan(
             "matching_rows": ready_rows,
             "what_it_answers": "Which rows have at least one ready analysis layer to review now?",
             "copy_only_command": "make project-status",
+            "example_tickers": _ticker_examples(frame, ready_mask, limit=min(top_n, 5)),
             "scope_boundary": boundary,
             "stop_rule": (
                 "Run project-status first so exhausted proof queues do not reopen stale trusted-data candidate loops; "
@@ -267,6 +305,7 @@ def universe_scope_review_plan(
             "matching_rows": missing_rows,
             "what_it_answers": "Which rows should route back to source proof instead of analysis?",
             "copy_only_command": f"make coverage-frontier TOP_N={top_n}",
+            "example_tickers": _ticker_examples(frame, missing_mask, limit=min(top_n, 5)),
             "scope_boundary": boundary,
             "stop_rule": (
                 f"{stop_rule} If coverage-frontier reports reviewed/exhausted proof queues, run "
@@ -287,7 +326,7 @@ def _print_plan(plan: pd.DataFrame) -> None:
     recommended = active_rows.iloc[0] if not active_rows.empty and _safe_int(active_rows.iloc[0]["matching_rows"]) else plan.iloc[0]
     print(
         f"Recommended first scope: {recommended['scope']} | {recommended['matching_rows']} row(s) | "
-        f"{recommended['copy_only_command']}"
+        f"{recommended['copy_only_command']} | examples: {recommended.get('example_tickers', '-')}"
     )
     print("Boundary: do not treat master-universe coverage as analysis readiness; widen only after proof gates.")
     print(
@@ -297,7 +336,8 @@ def _print_plan(plan: pd.DataFrame) -> None:
     for row in plan.to_dict("records"):
         print(
             f"- {row['scope']}: {row['matching_rows']} row(s) | {row['what_it_answers']} | "
-            f"{row['copy_only_command']} | boundary: {row['scope_boundary']} | stop: {row['stop_rule']}"
+            f"{row['copy_only_command']} | examples: {row.get('example_tickers', '-')} | "
+            f"boundary: {row['scope_boundary']} | stop: {row['stop_rule']}"
         )
 
 

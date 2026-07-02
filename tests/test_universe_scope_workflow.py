@@ -53,6 +53,24 @@ def test_universe_scope_workflow_cards_explain_scope_filters_and_stop_rule():
     assert "broker" not in rendered
 
 
+def test_universe_scope_workflow_cards_include_active_examples_when_available():
+    frame = pd.DataFrame(
+        [
+            {"ticker": "META", "in_active_universe": True, "price_ready": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "NVDA", "in_active_universe": True, "price_ready": True, "dcf_ready": True, "peer_ready": True},
+            {"ticker": "BROAD", "in_active_universe": False, "price_ready": True, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+
+    cards = universe_scope_workflow_cards({}, frame)
+    rendered = _render(cards)
+
+    assert "active examples: meta, nvda" in rendered
+    assert "start with those names before broad universe rows" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_universe_scope_review_plan_gives_lazy_copy_only_scope_commands():
     frame = pd.DataFrame(
         [
@@ -96,9 +114,14 @@ def test_universe_scope_review_plan_gives_lazy_copy_only_scope_commands():
         "ready_only",
         "missing_data",
     ]
+    assert "example_tickers" in plan.columns
     assert plan.loc[plan["scope"].eq("active_universe"), "matching_rows"].iloc[0] == 1
+    assert plan.loc[plan["scope"].eq("active_universe"), "example_tickers"].iloc[0] == "META"
     assert plan.loc[plan["scope"].eq("ticker_list"), "matching_rows"].iloc[0] == 2
+    assert plan.loc[plan["scope"].eq("ticker_list"), "example_tickers"].iloc[0] == "META, BROAD"
     assert plan.loc[plan["scope"].eq("sector_theme"), "matching_rows"].iloc[0] == 2
+    assert plan.loc[plan["scope"].eq("sector_theme"), "example_tickers"].iloc[0] == "META, BROAD"
+    assert plan.loc[plan["scope"].eq("missing_data"), "example_tickers"].iloc[0] == "META, BROAD"
     assert "make status-check tickers=meta,broad top_n=12" in rendered
     ready_only = plan.loc[plan["scope"].eq("ready_only")].iloc[0]
     assert ready_only["copy_only_command"] == "make project-status"
@@ -124,6 +147,7 @@ def test_universe_scope_print_plan_starts_with_recommended_scope(capsys):
                 "matching_rows": 2,
                 "what_it_answers": "Which focused rows first?",
                 "copy_only_command": "make readiness-queue TOP_N=10",
+                "example_tickers": "META, NVDA",
                 "scope_boundary": "copy-only",
                 "stop_rule": "Use active rows first.",
             },
@@ -132,6 +156,7 @@ def test_universe_scope_print_plan_starts_with_recommended_scope(capsys):
                 "matching_rows": 5,
                 "what_it_answers": "Which rows route to proof?",
                 "copy_only_command": "make coverage-frontier TOP_N=10",
+                "example_tickers": "BROAD",
                 "scope_boundary": "copy-only",
                 "stop_rule": "Widen only after proof gates.",
             },
@@ -142,6 +167,7 @@ def test_universe_scope_print_plan_starts_with_recommended_scope(capsys):
     output = capsys.readouterr().out.lower()
 
     assert "recommended first scope: active_universe" in output
+    assert "examples: meta, nvda" in output
     assert "make readiness-queue top_n=10" in output
     assert "do not treat master-universe coverage as analysis readiness" in output
     assert "if source-proof queues are exhausted, run make provider-setup-checklist" in output
