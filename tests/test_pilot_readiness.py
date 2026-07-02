@@ -639,6 +639,11 @@ def test_pilot_share_brief_summarizes_usable_blocked_and_share_boundary(tmp_path
 
     assert "# Pilot Share Brief" in brief
     assert "research-only product evidence" in brief
+    assert "## Pilot Share Answer" in brief
+    assert "- Shareable now: portfolio/demo evidence with manual gates." in brief
+    assert "- Not shareable as: open-source/reuse package or data-freshness proof until the license and generated-artifact gates are resolved." in brief
+    assert "- Keep local: broad generated CSV/JSON/report churn unless a specific artifact is reviewed evidence." in brief
+    assert "- Next gate: run `make public-check` and keep source-proof blockers visible." in brief
     assert "What can be used now" in brief
     assert "Price-ready setup coverage: 1/1" in brief
     assert "Price coverage: 1/1" not in brief
