@@ -68,6 +68,16 @@ def test_metric_console_summarizes_spy_qqq_without_rankings():
     assert "sell" not in rendered
 
 
+def test_metric_queue_empty_state_keeps_command_out_of_body():
+    cards = metric_readiness_queue_cards(None)
+    body = str(cards[0]["body"]).lower()
+
+    assert cards[0]["title"] == "No queue rows"
+    assert cards[0]["command"] == "make metric-readiness TOP_N=10 BENCHMARK=SPY"
+    assert "open operator details" in body
+    assert "make " not in body
+
+
 def test_metric_family_summary_keeps_blocked_inputs_visible():
     summary = metric_readiness_family_summary_frame(_metric_queue_frame())
     cards = metric_readiness_family_summary_cards(_metric_queue_frame())
@@ -79,6 +89,16 @@ def test_metric_family_summary_keeps_blocked_inputs_visible():
     assert "review metrics only" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_metric_family_summary_empty_state_keeps_command_out_of_body():
+    cards = metric_readiness_family_summary_cards(None)
+    body = str(cards[0]["body"]).lower()
+
+    assert cards[0]["title"] == "No metric blockers"
+    assert cards[0]["command"] == "make metric-readiness-board TOP_N=10"
+    assert "open operator details" in body
+    assert "make " not in body
 
 
 def test_metric_and_proof_detail_statuses_preserve_progressive_loading():
