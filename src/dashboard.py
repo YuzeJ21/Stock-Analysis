@@ -4632,6 +4632,7 @@ def render_data_health_current_mode_strip(
     readiness_freshness: FreshnessStatus,
     batch_preflight: ReviewedBatchPreflight,
     metric_detail_status: dict[str, str],
+    source_gate_next_action: str = "",
 ) -> None:
     st.markdown(
         data_health_current_mode_strip_html(
@@ -4643,6 +4644,7 @@ def render_data_health_current_mode_strip(
             readiness_freshness=readiness_freshness,
             batch_preflight=batch_preflight,
             metric_detail_status=metric_detail_status,
+            source_gate_next_action=source_gate_next_action,
         ),
         unsafe_allow_html=True,
     )
@@ -21297,6 +21299,16 @@ def data_health_source_exhaustion_pivot_cards(payload: dict[str, Any] | None, *,
     return cards
 
 
+def data_health_source_gate_next_action(payload: dict[str, Any] | None) -> str:
+    """Return the first-view action when source-proof queues are exhausted."""
+
+    for row in project_status_command_rows(payload):
+        command = str(row.get("Command", "")).strip()
+        if command == "make provider-setup-checklist":
+            return "Review provider setup before proof loops."
+    return ""
+
+
 def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str, str]]:
     return workflow_console.project_status_command_rows(payload)
 
@@ -27839,6 +27851,7 @@ def render_data_health(
         show_commands=False,
         variant="queue",
     )
+    source_gate_next_action = data_health_source_gate_next_action(project_status_payload)
     with st.expander("Optional coverage summary details", expanded=False):
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
     render_data_health_operator_hero(operator_snapshot_cards)
@@ -27869,6 +27882,7 @@ def render_data_health(
         readiness_freshness=readiness_freshness,
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
+        source_gate_next_action=source_gate_next_action,
     )
     with st.expander("Optional source setup details", expanded=False):
         source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)

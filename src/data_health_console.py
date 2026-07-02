@@ -110,10 +110,13 @@ def data_health_current_mode_next_action(
     proof_details_requested: bool,
     readiness_freshness: object,
     batch_preflight: object,
+    source_gate_next_action: str = "",
 ) -> str:
     freshness_status = str(getattr(readiness_freshness, "status", "") or "")
     if freshness_status in {"missing", "stale"}:
         return str(getattr(readiness_freshness, "refresh_command", "") or "make readiness")
+    if source_gate_next_action and selected_lane_key in DATA_HEALTH_BATCH_LANES:
+        return source_gate_next_action
     if selected_lane_key == "metrics":
         return metric_detail_status.get("next_action") or "Open Metrics review details."
     if selected_lane_key == "proof":
@@ -135,6 +138,7 @@ def data_health_current_mode_strip_html(
     readiness_freshness: object,
     batch_preflight: object,
     metric_detail_status: dict[str, str],
+    source_gate_next_action: str = "",
 ) -> str:
     lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, "Prices")
     selected_detail = data_health_selected_detail_mode(
@@ -154,6 +158,7 @@ def data_health_current_mode_strip_html(
         proof_details_requested=proof_details_requested,
         readiness_freshness=readiness_freshness,
         batch_preflight=batch_preflight,
+        source_gate_next_action=source_gate_next_action,
     )
     items = [
         ("Lane", lane_label, "Active readiness workflow."),

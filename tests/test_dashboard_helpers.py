@@ -25581,6 +25581,33 @@ def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_nex
     assert "order routing" not in rendered
 
 
+def test_data_health_current_mode_strip_uses_source_gate_override_when_queues_are_exhausted():
+    html = dashboard.data_health_current_mode_strip_html(
+        selected_lane_key="fundamentals",
+        queue_details_requested=False,
+        batch_details_requested=False,
+        metric_details_requested=False,
+        proof_details_requested=False,
+        readiness_freshness=dashboard.FreshnessStatus(
+            "current",
+            "Readiness artifacts are current relative to watched source files.",
+            "make readiness",
+        ),
+        batch_preflight=_reviewed_batch_preflight_fixture(),
+        metric_detail_status={"next_action": "Open Metrics review details."},
+        source_gate_next_action="Review provider setup before proof loops.",
+    )
+    rendered = html.lower()
+
+    assert "next safe action" in rendered
+    assert "review provider setup before proof loops" in rendered
+    assert "open batch execution review details" not in rendered
+    assert "copy-only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_data_health_operator_hero_is_context_not_duplicate_next_action():
     html = dashboard.data_health_operator_hero_html(
         [
@@ -25814,7 +25841,9 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     public_return_index = source.index("        return\n    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
     lane_answer_index = source.index('render_section_header(\n        "Selected Lane Answer"', public_return_index)
     lane_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", lane_answer_index)
+    source_gate_action_index = source.index("source_gate_next_action = data_health_source_gate_next_action(", lane_answer_cards_index)
     mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
+    mode_strip_source_gate_index = source.index("source_gate_next_action=source_gate_next_action", mode_strip_index)
     source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', mode_strip_index)
     source_pivot_index = source.index('"Source-Proof Pivot"', source_details_index)
     source_pivot_cards_index = source.index("render_signal_cards(source_exhaustion_pivot_cards", source_pivot_index)
@@ -25822,7 +25851,8 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
     next_action_index = source.index('st.expander("Optional next-action details", expanded=False)', guidance_cards_index)
 
-    assert lane_answer_index < lane_answer_cards_index < mode_strip_index < source_details_index
+    assert lane_answer_index < lane_answer_cards_index < source_gate_action_index < mode_strip_index
+    assert mode_strip_index < mode_strip_source_gate_index < source_details_index
     assert source_details_index < source_pivot_index < source_pivot_cards_index < guidance_header_index
     assert source_details_index < guidance_header_index < guidance_cards_index < next_action_index
     assert 'st.expander("Source setup and refresh details", expanded=False)' not in source
