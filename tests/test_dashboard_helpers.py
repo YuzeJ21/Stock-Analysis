@@ -15687,6 +15687,17 @@ def test_data_health_page_does_not_block_initial_render_on_project_status_build(
     assert "separate project-status summary files" not in source
 
 
+def test_data_health_operator_renders_structured_lane_answer_before_detail_drawers():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    selected_lane_index = source.index('"Selected Lane Answer"')
+    lane_answer_index = source.index("lane_answer_frame(ops_center)", selected_lane_index)
+    queue_details_index = source.index('"Optional lane navigation details"', selected_lane_index)
+
+    assert selected_lane_index < lane_answer_index < queue_details_index
+    assert '"One Answer Per Lane"' in source
+
+
 def test_proof_history_public_page_paints_first_answer_before_ledger_reads():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")

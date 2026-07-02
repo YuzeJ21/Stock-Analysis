@@ -27851,6 +27851,11 @@ def render_data_health(
         show_commands=False,
         variant="queue",
     )
+    render_section_header(
+        "One Answer Per Lane",
+        "Compact lane states before queue drawers, route maps, raw tables, proof ledgers, or command-heavy operator details.",
+    )
+    st.table(clean_display_frame(overview_console.lane_answer_frame(ops_center)))
     source_gate_next_action = data_health_source_gate_next_action(project_status_payload)
     with st.expander("Optional coverage summary details", expanded=False):
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)

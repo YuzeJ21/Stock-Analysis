@@ -102,6 +102,69 @@ def _lane_one_answer(row: pd.Series) -> str:
     return f"{lane} -> {'; '.join(fragments)}"
 
 
+def _count_label(count: int, label: str) -> str:
+    return f"{count:,} {label}" if count > 0 else "-"
+
+
+def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
+    """Return the default Data Health lane answer as one scan-friendly row per lane."""
+    columns = [
+        "Lane",
+        "Use Now",
+        "Partial",
+        "Blocked",
+        "Context Only",
+        "Excluded / Not Applicable",
+        "Next Safe Action",
+    ]
+    if ops_frame is None or ops_frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Lane": "Data Health",
+                    "Use Now": "-",
+                    "Partial": "-",
+                    "Blocked": "lane summary not loaded",
+                    "Context Only": "-",
+                    "Excluded / Not Applicable": "-",
+                    "Next Safe Action": "make readiness-ops-center",
+                }
+            ],
+            columns=columns,
+        )
+
+    rows: list[dict[str, str]] = []
+    for _, row in ops_frame.iterrows():
+        lane = _format_missing(_series_value(row, "Lane", "lane"), "Lane")
+        mode = _format_missing(_series_value(row, "Workflow Mode", "workflow_mode"), "").lower()
+        state = _format_missing(_series_value(row, "State", "state"), "").lower()
+        ready = _series_int(row, "Ready", "ready")
+        partial = _series_int(row, "Partial", "partial")
+        blocked = _series_int(row, "Blocked", "blocked")
+        excluded = _series_int(row, "Excluded", "excluded")
+        command = _format_missing(
+            _series_value(row, "Next Safe Command", "next_safe_command"),
+            "make readiness-ops-center",
+        )
+        context_only = (
+            "locked/manual or candidate context"
+            if "locked" in mode or "manual" in mode or "optional" in mode or "candidate" in state
+            else "-"
+        )
+        rows.append(
+            {
+                "Lane": lane,
+                "Use Now": _count_label(ready, "ready row(s)"),
+                "Partial": _count_label(partial, "partial row(s)"),
+                "Blocked": _count_label(blocked, "blocked row(s)"),
+                "Context Only": context_only,
+                "Excluded / Not Applicable": _count_label(excluded, "excluded/not applicable"),
+                "Next Safe Action": command,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
 def _public_status_label(value: object, fallback: str = "Not available") -> str:
     text = _format_missing(value, fallback=fallback)
     return {

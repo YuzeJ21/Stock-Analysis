@@ -216,6 +216,84 @@ def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible(
     assert "sell" not in rendered
 
 
+def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
+    ops = pd.DataFrame(
+        [
+            {
+                "Lane": "Price Coverage",
+                "State": "partial",
+                "Ready": 3537,
+                "Partial": 1,
+                "Blocked": 0,
+                "Excluded": 0,
+                "Workflow Mode": "dry_run_first",
+                "Next Safe Command": "make price-history-proof-queue TOP_N=25",
+            },
+            {
+                "Lane": "Peer Mapping Proof",
+                "State": "partial",
+                "Ready": 29,
+                "Partial": 0,
+                "Blocked": 3507,
+                "Excluded": 2,
+                "Workflow Mode": "preview_first_reviewed_apply",
+                "Next Safe Command": "make project-status",
+            },
+            {
+                "Lane": "Earnings Locked Lane",
+                "State": "blocked",
+                "Ready": 0,
+                "Partial": 0,
+                "Blocked": 3538,
+                "Excluded": 0,
+                "Workflow Mode": "optional_source_ladder",
+                "Next Safe Command": "make optional-context-source-ladder-queue TOP_N=10",
+            },
+        ]
+    )
+
+    frame = overview_console.lane_answer_frame(ops)
+
+    assert list(frame.columns) == [
+        "Lane",
+        "Use Now",
+        "Partial",
+        "Blocked",
+        "Context Only",
+        "Excluded / Not Applicable",
+        "Next Safe Action",
+    ]
+    assert frame.to_dict("records") == [
+        {
+            "Lane": "Price Coverage",
+            "Use Now": "3,537 ready row(s)",
+            "Partial": "1 partial row(s)",
+            "Blocked": "-",
+            "Context Only": "-",
+            "Excluded / Not Applicable": "-",
+            "Next Safe Action": "make price-history-proof-queue TOP_N=25",
+        },
+        {
+            "Lane": "Peer Mapping Proof",
+            "Use Now": "29 ready row(s)",
+            "Partial": "-",
+            "Blocked": "3,507 blocked row(s)",
+            "Context Only": "-",
+            "Excluded / Not Applicable": "2 excluded/not applicable",
+            "Next Safe Action": "make project-status",
+        },
+        {
+            "Lane": "Earnings Locked Lane",
+            "Use Now": "-",
+            "Partial": "-",
+            "Blocked": "3,538 blocked row(s)",
+            "Context Only": "locked/manual or candidate context",
+            "Excluded / Not Applicable": "-",
+            "Next Safe Action": "make optional-context-source-ladder-queue TOP_N=10",
+        },
+    ]
+
+
 def test_overview_auto_refresh_status_cards_show_scheduler_next_step():
     cards = overview_console.auto_refresh_status_cards(
         {
