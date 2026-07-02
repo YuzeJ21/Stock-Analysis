@@ -439,6 +439,7 @@ def build_source_activation_status(
     alpha_vantage_status: dict[str, Any],
     finnhub_status: dict[str, Any],
     local_fundamentals_status: dict[str, Any],
+    source_actionability: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     local_fixable = int(local_fundamentals_status.get("share_count_fixable_ticker_count", 0) or 0) + int(
         local_fundamentals_status.get("fundamentals_fixable_ticker_count", 0) or 0
@@ -459,6 +460,22 @@ def build_source_activation_status(
         for item in price_ladder_status.get("missing_keyed_provider_envs", [])
         if str(item).strip()
     ]
+    actionability = source_actionability if isinstance(source_actionability, dict) else {}
+    if has_executable_source and actionability.get("do_not_repeat_without_new_source"):
+        return _status_payload(
+            status="not_required",
+            reason_code="workflow_evidence_only",
+            detail=(
+                "Sources are reachable, but current fundamentals/share-count blockers already have reviewed non-actionable proof; "
+                "do not treat source reachability as a coverage unlock."
+            ),
+            next_action=(
+                "Use make project-status or provider setup evidence until new provider data, keyed sources, reviewed manual rows, "
+                "or changed blockers create an executable source-backed slice."
+            ),
+            activation_commands=(),
+            missing_keyed_provider_envs=missing_keys,
+        )
     if has_executable_source:
         return _status_payload(
             status="not_required",
@@ -956,6 +973,7 @@ def build_session_source_preflight(
         alpha_vantage_status=alpha_vantage_status,
         finnhub_status=finnhub_status,
     )
+    source_actionability = build_source_actionability(root)
     source_activation_status = build_source_activation_status(
         sec_status=sec_status,
         yfinance_stage_status=yfinance_stage_status,
@@ -964,8 +982,8 @@ def build_session_source_preflight(
         alpha_vantage_status=alpha_vantage_status,
         finnhub_status=finnhub_status,
         local_fundamentals_status=local_fundamentals_status,
+        source_actionability=source_actionability,
     )
-    source_actionability = build_source_actionability(root)
 
     session_flags: list[str] = []
     do_not_retry_paths: list[str] = []

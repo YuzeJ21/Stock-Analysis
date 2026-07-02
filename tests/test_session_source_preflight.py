@@ -600,6 +600,16 @@ def test_session_source_preflight_distinguishes_reachable_sources_from_actionabl
     assert actionability["unreviewed_fundamentals_share_count_candidates"] == 0
     assert "dcf_queue_reviewed_non_actionable" in actionability
     assert actionability["next_action"] == "Wait for new provider data, keyed sources, reviewed manual source rows, or changed blockers before repeating fundamentals/share-count paths."
+    assert preflight["source_activation"]["status"] == "not_required"
+    assert preflight["source_activation"]["reason_code"] == "workflow_evidence_only"
+    assert preflight["source_activation"]["detail"] == (
+        "Sources are reachable, but current fundamentals/share-count blockers already have reviewed non-actionable proof; "
+        "do not treat source reachability as a coverage unlock."
+    )
+    assert preflight["source_activation"]["next_action"] == (
+        "Use make project-status or provider setup evidence until new provider data, keyed sources, reviewed manual rows, "
+        "or changed blockers create an executable source-backed slice."
+    )
     assert preflight["source_activation_console_v2"]["next_executable_lane"] == "coverage_workflow_evidence"
     assert preflight["source_activation_console_v2"]["next_executable_command"] == "make project-status"
     assert preflight["source_activation_console_v2"]["operator_summary"] == {
