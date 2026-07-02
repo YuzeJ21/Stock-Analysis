@@ -3,7 +3,7 @@ from pathlib import Path
 
 PUBLIC_V1_ROUTE = (
     "Home readiness snapshot -> Stock Selector -> Single-Stock Report -> "
-    "Data Health source-proof lane -> Proof History"
+    "Data Health lane answer -> Proof History evidence"
 )
 
 
@@ -24,6 +24,9 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "| Inspect proof | You want to see the proof ledger" in readme
     assert "| Inspect proof |" in readme and "| `Proof History` |" in readme
     assert PUBLIC_V1_ROUTE in readme
+    assert "Data Health source-proof lane" not in readme
+    assert "Proof History is the public proof-inspection surface" not in readme
+    assert "Operator context" in readme
     assert "Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history" not in readme
     assert "Start with the three paths" not in readme
 
@@ -34,6 +37,7 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     assert PUBLIC_V1_ROUTE in walkthrough
     assert "Open Stock Selector" in walkthrough
     assert "Check Proof History" in walkthrough
+    assert "Data Health source-proof lane" not in walkthrough
     assert "Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history" not in walkthrough
 
 
@@ -50,7 +54,9 @@ def test_public_release_checklist_names_v1_routes_and_primary_surfaces():
         assert route in checklist
 
     assert "Stock Selector is the primary public stock-selection surface" in checklist
-    assert "Proof History is the public proof-inspection surface" in checklist
+    assert "Proof History evidence is the public proof-inspection surface" in checklist
+    assert "Data Health lane answer" in checklist
+    assert "Operator context" in checklist
 
 
 def test_dashboard_qa_tracks_v1_replacement_browser_checks():

@@ -95,7 +95,7 @@ http://localhost:8501/?mode=public
 Visitor path:
 
 ```text
-Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History
+Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence
 ```
 
 Operator path:

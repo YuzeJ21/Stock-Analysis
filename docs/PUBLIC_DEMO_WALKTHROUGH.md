@@ -48,7 +48,7 @@ make trusted-data-pilot-packet TICKER=CRDO
 make dashboard
 ```
 
-The dashboard defaults to Public visitor mode. The first path is the real workflow: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History. Stock Selector is the public stock-selection surface; Single-Stock Report stays one ticker at a time; Data Health explains blocked source inputs; Proof History records source-proof changes before a changed state is trusted. Switch Public visitor mode off in the sidebar only when you want operator boards, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
+The dashboard defaults to Public visitor mode. The first path is the real workflow: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence. Stock Selector is the public stock-selection surface; Single-Stock Report stays one ticker at a time; Data Health explains blocked source inputs with one lane answer first; Proof History evidence records source-proof changes before a changed state is trusted. Switch Public visitor mode off in the sidebar only when you want Operator context, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
 
 ## What To Say About Data Gaps
 

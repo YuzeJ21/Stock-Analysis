@@ -289,7 +289,7 @@ demo:
 	@echo "Run these from the repository root so make can find the project targets."
 	@echo ""
 	@echo "Visitor workflow path:"
-	@echo "   Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History"
+	@echo "   Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence"
 	@echo "   Optional state examples: NVDA ready, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated"
 	@echo "What this proves: readiness-backed selection comes first, ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced."
 	@echo "Data-confidence note: data confidence describes readiness and review routing, not investment conviction."
