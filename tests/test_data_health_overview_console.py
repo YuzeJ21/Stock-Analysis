@@ -100,6 +100,29 @@ def test_overview_public_first_30_second_cards_summarize_ready_blocked_and_proof
     assert "sell" not in rendered
 
 
+def test_overview_public_first_30_second_cards_route_blocked_rows_through_source_gate():
+    cards = overview_console.public_first_30_second_cards(
+        {
+            "price_ready": 3538,
+            "fundamentals_ready": 59,
+            "dcf_ready": 59,
+            "peer_ready": 26,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[1]["kicker"] == "STILL BLOCKED"
+    assert cards[1]["command"] == "make project-status"
+    assert "source gate" in rendered
+    assert "provider setup" in rendered
+    assert "make data-coverage-proof-queues" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_overview_operations_cockpit_cards_keep_stale_and_proof_hygiene_visible():
     ops = pd.DataFrame(
         [

@@ -234,10 +234,11 @@ def public_first_30_second_cards(readiness_summary: dict[str, object]) -> list[d
             "title": f"{still_locked:,} names need trusted fundamentals before deeper review",
             "body": (
                 "Blocked rows are not weak conclusions. They are proof checklists for source-backed fundamentals, "
-                "shares, peers, earnings, or analyst-estimate rows."
+                "shares, peers, earnings, or analyst-estimate rows. Use the source gate first; if current queues "
+                "are reviewed or exhausted, provider setup is the next safe path."
             ),
             "badges": ["blocked visible", "no inference"],
-            "command": "make data-coverage-proof-queues TOP_N=10",
+            "command": "make project-status",
         },
         {
             "kicker": "PROOF BOUNDARY",
