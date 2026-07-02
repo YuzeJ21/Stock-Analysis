@@ -27826,6 +27826,19 @@ def render_data_health(
         readiness_freshness,
         metric_details_requested,
     )
+    render_section_header(
+        "Selected Lane Answer",
+        "One plain-language answer for the selected lane before provider setup, pilot gates, or raw proof tables.",
+    )
+    render_signal_cards(
+        data_health_selected_lane_answer_cards(
+            selected_lane_key,
+            readiness_freshness,
+            project_status_payload=project_status_payload,
+        ),
+        show_commands=False,
+        variant="queue",
+    )
     render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
     render_data_health_operator_hero(operator_snapshot_cards)
     render_data_health_operator_queue_header()
@@ -27854,19 +27867,6 @@ def render_data_health(
         readiness_freshness=readiness_freshness,
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
-    )
-    render_section_header(
-        "Selected Lane Answer",
-        "One plain-language answer for the selected lane before provider setup, pilot gates, or raw proof tables.",
-    )
-    render_signal_cards(
-        data_health_selected_lane_answer_cards(
-            selected_lane_key,
-            readiness_freshness,
-            project_status_payload=project_status_payload,
-        ),
-        show_commands=False,
-        variant="queue",
     )
     source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)
     if source_exhaustion_pivot_cards:

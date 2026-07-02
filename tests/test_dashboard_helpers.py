@@ -25754,15 +25754,15 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_return_index = source.index("        return\n    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
-    mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
-    lane_answer_index = source.index('render_section_header(\n        "Selected Lane Answer"', mode_strip_index)
+    lane_answer_index = source.index('render_section_header(\n        "Selected Lane Answer"', public_return_index)
     lane_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", lane_answer_index)
+    mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
     source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', mode_strip_index)
     guidance_header_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_details_index)
     guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
     next_action_index = source.index('st.expander("Optional next-action details", expanded=False)', guidance_cards_index)
 
-    assert mode_strip_index < lane_answer_index < lane_answer_cards_index < source_details_index
+    assert lane_answer_index < lane_answer_cards_index < mode_strip_index < source_details_index
     assert source_details_index < guidance_header_index < guidance_cards_index < next_action_index
     assert 'st.expander("Source setup and refresh details", expanded=False)' not in source
     assert 'st.expander("Secondary operator next-action detail", expanded=False)' not in source
@@ -27127,6 +27127,19 @@ def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer()
     assert "proof to unlock:" not in rendered
     assert max(len(str(card["body"])) for card in cards) <= 260
     assert "make " not in rendered
+
+
+def test_data_health_operator_route_shows_selected_lane_answer_before_broad_summary():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    operator_index = source.index("selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
+    selected_answer_header_index = source.index('"Selected Lane Answer"', operator_index)
+    selected_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", selected_answer_header_index)
+    coverage_summary_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", operator_index)
+    operator_hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", coverage_summary_index)
+    queue_header_index = source.index("render_data_health_operator_queue_header()", operator_hero_index)
+
+    assert operator_index < selected_answer_header_index < selected_answer_cards_index < coverage_summary_index
+    assert coverage_summary_index < operator_hero_index < queue_header_index
 
 
 def test_single_stock_public_page_uses_simplified_review_sections():
