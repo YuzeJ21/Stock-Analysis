@@ -24,6 +24,7 @@ from src.data_onboarding import (
     build_onboarding_payload,
     build_data_coverage_wizard,
     build_optional_context_worklist,
+    build_peer_mapping_queue,
     build_ticker_unlock_ladder,
     build_unlock_priority_summary,
     build_ticker_coverage,
@@ -1048,6 +1049,76 @@ def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
     assert "apply only after validation passes" in queue["AMD"]["safe_next_step"]
     assert "make imports-apply" not in queue["AMD"]["validation_sequence"]
     assert "apply only after validation passes" in queue["AMD"]["validation_sequence"]
+
+
+def test_peer_mapping_queue_shows_active_universe_before_master_backlog(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\n"
+        "ACTIVE,AI,SMH,Momentum Leader,Large,fixture\n"
+        "MASTER,Industrial,,Core Compounder,Large,fixture\n",
+        encoding="utf-8",
+    )
+    (data_dir / "universe_active.csv").write_text("ticker\nACTIVE\n", encoding="utf-8")
+    (data_dir / "holdings.csv").write_text("ticker,primarypurpose\n", encoding="utf-8")
+    (data_dir / "peers.csv").write_text("ticker,peer_ticker,peer_group,source,as_of_date\n", encoding="utf-8")
+    (data_dir / "fundamentals.csv").write_text("ticker,revenue,fcf_margin,shares_outstanding\n", encoding="utf-8")
+    (data_dir / "prices.csv").write_text("date,ticker,adj_close,volume\n", encoding="utf-8")
+    rows = [
+        TickerCoverage(
+            ticker="MASTER",
+            has_prices=True,
+            price_history_days=252,
+            has_fundamentals=True,
+            dcf_ready=True,
+            has_peer_mapping=False,
+            peer_ready=False,
+            has_earnings=False,
+            has_analyst_estimates=False,
+            usable_for_momentum=True,
+            usable_for_monthly_picks=True,
+            usable_for_dcf=True,
+            usable_for_peer_relative=False,
+            missing_required_for_momentum="",
+            missing_required_for_dcf="",
+            missing_required_for_peer_relative="peer mapping",
+            next_best_action="Add source-backed peers for MASTER.",
+            target_file="data/imports/peers.csv",
+            focus_command="make focus-peers TICKER=MASTER",
+            example_command="make templates",
+        ),
+        TickerCoverage(
+            ticker="ACTIVE",
+            has_prices=True,
+            price_history_days=20,
+            has_fundamentals=False,
+            dcf_ready=False,
+            has_peer_mapping=False,
+            peer_ready=False,
+            has_earnings=False,
+            has_analyst_estimates=False,
+            usable_for_momentum=False,
+            usable_for_monthly_picks=False,
+            usable_for_dcf=False,
+            usable_for_peer_relative=False,
+            missing_required_for_momentum="price history",
+            missing_required_for_dcf="fundamentals",
+            missing_required_for_peer_relative="peer mapping",
+            next_best_action="Add source-backed peers for ACTIVE.",
+            target_file="data/imports/peers.csv",
+            focus_command="make focus-peers TICKER=ACTIVE",
+            example_command="make templates",
+        ),
+    ]
+
+    queue = build_peer_mapping_queue(rows, tmp_path)
+
+    assert [row.ticker for row in queue[:2]] == ["ACTIVE", "MASTER"]
+    assert queue[0].workflow_scope == "active_universe"
+    assert queue[1].workflow_scope == "master_universe"
 
 
 def test_peer_mapping_queue_labels_sector_theme_matches_as_candidate_context_only(tmp_path: Path):

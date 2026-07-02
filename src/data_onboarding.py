@@ -2279,8 +2279,14 @@ def build_peer_mapping_queue(
                 safe_next_step=safe_next_step,
             )
         )
-    scope_rank = {"active_universe": 0, "master_universe": 1}
-    return sorted(rows, key=lambda item: (item.priority, scope_rank.get(item.workflow_scope, 2), not item.is_holding, item.workflow_group, item.ticker))
+    scope_rank = {"active_universe": 1, "master_universe": 2}
+
+    def peer_queue_focus_rank(item: PeerMappingQueueRow) -> int:
+        if item.is_holding:
+            return 0
+        return scope_rank.get(item.workflow_scope, 3)
+
+    return sorted(rows, key=lambda item: (peer_queue_focus_rank(item), item.priority, item.workflow_group, item.ticker))
 
 
 def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[TickerUnlockLadderRow]:
