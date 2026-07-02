@@ -30,6 +30,13 @@ Use this as research-only product evidence. It summarizes what can be shown now,
 - Finnhub free tier: needs_key -> price, fundamentals, share_count; smoke: `make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`; cannot unlock Full-universe refresh without caps, recommendations, order routing, or unreviewed valuation inputs.
 - IBKR read-only: optional_disabled -> price; smoke: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=1 TOP_N=1 PROVIDER=ibkr`; cannot unlock Broker actions, order routing, auto-trading, fundamentals, shares, peers, earnings, or estimates.
 
+## How to demo or review next
+
+- Choose a focused review set first: `make universe-scope TOP_N=10`.
+- Review liquidity/correlation context only after scope selection: `make risk-context`.
+- Run the explicit public gate before sharing: `make public-check`.
+- Screenshots and scope/risk context do not update saved data or unlock blocked inputs.
+
 ## What must stay out of the share package
 
 - `data/analyst_estimates_readiness.csv`
