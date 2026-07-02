@@ -28553,10 +28553,10 @@ def render_data_health(
             render_data_health_proof_history_operator_console(proof_timeline, batch_proof_frame, readiness_comparison)
             with st.expander("Reviewed batch proof drawer", expanded=False):
                 render_section_header("Snapshot Gate", "Confirm the saved baseline before recording changed readiness counts.")
-                render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight))
+                render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight), show_commands=False)
                 st.dataframe(clean_display_frame(data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)), width="stretch", hide_index=True)
                 render_section_header("Apply Guard", "Supported batch outcomes require reviewed validation, preview, rejected-row status, and apply decision.")
-                render_signal_cards(data_health_reviewed_batch_apply_guard_cards(batch_preflight))
+                render_signal_cards(data_health_reviewed_batch_apply_guard_cards(batch_preflight), show_commands=False)
                 st.dataframe(clean_display_frame(data_health_reviewed_batch_apply_guard_frame(batch_preflight)), width="stretch", hide_index=True)
                 render_section_header("Outcome Recorder", "Required proof-row fields before recording supported, candidate_context_only, still_blocked, skipped, or excluded.")
                 render_signal_cards(
@@ -28626,7 +28626,7 @@ def render_data_health(
                     show_commands=False,
                 )
                 render_section_header("Reviewed Data Proof Ledger", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
-                render_signal_cards(data_health_reviewed_proof_cards())
+                render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)
                 if proof_timeline.empty:
                     st.caption("No reviewed proof rows are recorded yet.")
                 else:

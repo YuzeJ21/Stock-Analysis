@@ -15187,7 +15187,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_trusted_pilot_lane_board_frame(" in source
     assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board), show_commands=False)" in source
     assert 'st.expander("Peer evidence drawer", expanded=False)' in source
-    assert "render_signal_cards(data_health_reviewed_proof_cards())" in source
+    assert "render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)" in source
     assert 'st.expander("Proof history evidence drawer", expanded=False)' in source
     assert '"Pilot selection rule."' in source
     assert "fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)" in source
@@ -26599,6 +26599,40 @@ def test_data_health_public_proof_drawer_uses_public_proof_cards():
     assert "proof_history_public_detail_cards(" in drawer_source
     assert "data_health_reviewed_batch_proof_cards()" not in drawer_source
     assert "data_health_reviewed_proof_cards()" not in drawer_source
+
+
+def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    proof_lane_index = source.index('elif selected_lane == "Proof History":')
+    batch_drawer_index = source.index('st.expander("Reviewed batch proof drawer", expanded=False)', proof_lane_index)
+    snapshot_render_index = source.index(
+        "render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight), show_commands=False)",
+        batch_drawer_index,
+    )
+    apply_guard_render_index = source.index(
+        "render_signal_cards(data_health_reviewed_batch_apply_guard_cards(batch_preflight), show_commands=False)",
+        snapshot_render_index,
+    )
+    command_builder_index = source.index(
+        'render_section_header("Proof Record Command Builder"',
+        apply_guard_render_index,
+    )
+    proof_history_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', command_builder_index)
+    reviewed_proof_render_index = source.index(
+        "render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)",
+        proof_history_drawer_index,
+    )
+    additional_operator_index = source.index('st.expander("Additional operator evidence", expanded=False)', reviewed_proof_render_index)
+
+    assert (
+        batch_drawer_index
+        < snapshot_render_index
+        < apply_guard_render_index
+        < command_builder_index
+        < proof_history_drawer_index
+        < reviewed_proof_render_index
+        < additional_operator_index
+    )
 
 
 def test_data_health_public_ticker_query_adds_proof_focus_context():
