@@ -28718,7 +28718,10 @@ def render_data_health(
 
     if show_details:
         with st.expander("Additional operator evidence", expanded=False):
-            render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
+            render_section_header(
+                "Readiness Operations Center",
+                "Secondary context only; not the primary workflow. Use after Home, Stock Selector, Single-Stock Report, Data Health lane answer, and Proof History evidence.",
+            )
             render_signal_cards(data_health_readiness_ops_center_cards(ops_center), show_commands=False)
             st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
             render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")
@@ -28816,7 +28819,10 @@ def render_data_health(
         render_signal_cards(
             data_health_deferred_detail_cards(
                 title="Additional operator evidence is hidden",
-                body="Broad operations tables, guided coverage plans, and full proof maps are deferred from the default operator view.",
+                body=(
+                    "Secondary context only; not the primary workflow. Broad operations tables, guided coverage plans, "
+                    "and full proof maps are deferred from the default operator view."
+                ),
                 command="Turn on reader tips to review additional operator evidence.",
                 badges=["fast first view", "details deferred"],
             ),

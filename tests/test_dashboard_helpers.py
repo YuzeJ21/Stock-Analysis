@@ -26835,6 +26835,7 @@ def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
 def test_data_health_additional_operator_evidence_hides_summary_commands_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     additional_operator_index = source.index('st.expander("Additional operator evidence", expanded=False)')
+    drawer_source = source[additional_operator_index : source.index("if show_details:", additional_operator_index + 1)]
     ops_center_render_index = source.index(
         "render_signal_cards(data_health_readiness_ops_center_cards(ops_center), show_commands=False)",
         additional_operator_index,
@@ -26871,6 +26872,8 @@ def test_data_health_additional_operator_evidence_hides_summary_commands_by_defa
         < overview_cards_index
         < overview_command_visibility_index
     )
+    assert "Secondary context only; not the primary workflow." in drawer_source
+    assert "Use after Home, Stock Selector, Single-Stock Report, Data Health lane answer, and Proof History evidence." in drawer_source
 
 
 def test_data_health_public_ticker_query_adds_proof_focus_context():
