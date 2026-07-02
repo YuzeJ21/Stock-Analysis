@@ -1978,7 +1978,7 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     assert loaded_report["action_href"] == ""
     assert loaded_report["proof_href"] == "?mode=public&page=data-health&drawer=proof"
     assert loaded_report["stop_href"] == "?mode=public&page=data-health&drawer=proof"
-    assert data_health["current_step"] == "Data Health source-proof lane"
+    assert data_health["current_step"] == "Data Health lane answer"
     assert data_health["current_note"] == "Fundamentals / DCF ROUTE MAP; artifact hygiene before staging"
     assert data_health["current_href"] == "?mode=operator&page=data-health&lane=fundamentals"
     assert data_health["proof_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
@@ -2015,7 +2015,7 @@ def test_research_loop_action_links_are_navigation_only_and_lane_aware():
         public_mode=False,
     ) == ""
     rendered = dashboard.research_loop_strip_html(
-        current_step="Data Health source-proof lane",
+        current_step="Data Health lane answer",
         previous_proof="Readiness snapshot is current",
         next_action="Open Proof review details.",
         stop_rule="Stop before apply without reviewed proof",
@@ -2769,7 +2769,8 @@ def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
         "VISITOR STEP 5",
     ]
     assert "preview the visitor path" in rendered
-    assert "home readiness snapshot -> stock selector -> single-stock report -> data health source-proof lane -> proof history" in rendered
+    assert "home readiness snapshot -> stock selector -> single-stock report -> data health lane answer -> proof history evidence" in rendered
+    assert "data health source-proof lane" not in rendered
     assert "read-only tour of the research loop" in rendered
     assert "demo command" not in visible_rendered
     assert "ready-data demo" not in rendered
@@ -2912,7 +2913,8 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     assert '"Visitor Path"' not in source
     assert 'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")' not in source
     assert 'st.expander("Optional: workflow and next-step details", expanded=False)' not in source
-    assert "One connected loop: readiness snapshot, selector queue, one-ticker report, source-proof lane, then proof history before trusting changed states." in source
+    assert "One connected loop: readiness snapshot, selector queue, one-ticker report, Data Health lane answer, then Proof History evidence before trusting changed states." in source
+    assert "Data Health source-proof lane" not in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" not in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source

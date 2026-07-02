@@ -24935,7 +24935,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "kicker": "VISITOR STEP 1",
             "title": "Preview the visitor path",
             "body": (
-                "Follow Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health source-proof lane -> Proof History. "
+                "Follow Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence. "
                 "This is a read-only tour of the research loop before any local data changes."
             ),
             "badges": ["share path", "read-only"],
@@ -26166,7 +26166,7 @@ def render_home_page(
     else:
         render_section_header(
             "Research Workflow",
-            "One connected loop: readiness snapshot, selector queue, one-ticker report, source-proof lane, then proof history before trusting changed states.",
+            "One connected loop: readiness snapshot, selector queue, one-ticker report, Data Health lane answer, then Proof History evidence before trusting changed states.",
         )
         render_research_loop_strip(**home_research_loop_context(summary, display_freshness))
         render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)

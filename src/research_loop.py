@@ -100,7 +100,7 @@ def home_research_loop_context(summary: dict[str, object], freshness: object) ->
     proof_note = "Use this snapshot before opening ticker pages." if freshness_status == "current" else str(getattr(freshness, "refresh_command", "make readiness"))
     next_action = "Open a Single-Stock Report"
     if dcf_ready <= 0:
-        next_action = "Open Data Health source-proof lanes"
+        next_action = "Open Data Health lane answers"
     return {
         "current_step": "Home readiness snapshot",
         "current_note": current_state,
@@ -204,7 +204,7 @@ def data_health_research_loop_context(
         if public_mode
         else "?mode=operator&page=data-health&lane=proof&drawer=proof"
     )
-    current_step = "Proof lane shell" if selected_lane_key == "proof" else "Data Health source-proof lane"
+    current_step = "Proof lane shell" if selected_lane_key == "proof" else "Data Health lane answer"
     action_note = (
         "Evidence stays collapsed on the public page; open proof when you need source status before reading deeper sections."
         if public_mode

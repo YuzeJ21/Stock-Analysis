@@ -5,7 +5,7 @@ from src import research_loop
 
 def test_research_loop_strip_links_are_navigation_only_and_guardrail_safe():
     html = research_loop.research_loop_strip_html(
-        current_step="Data Health source-proof lane",
+        current_step="Data Health lane answer",
         previous_proof="Readiness snapshot is current",
         next_action="Open Proof review details.",
         stop_rule="Stop before apply without reviewed proof",
@@ -64,6 +64,7 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
     assert loaded_report["stop_href"] == "?mode=public&page=data-health&drawer=proof"
     assert proof_lane["current_step"] == "Proof lane shell"
     assert proof_lane["next_action"] == "Open Proof review details."
+    assert data_health["current_step"] == "Data Health lane answer"
     assert data_health["current_note"] == "Fundamentals / DCF ROUTE MAP; artifact hygiene before staging"
     assert data_health["next_action"] == "Review fundamentals import file"
     assert data_health["action_href"] == "?mode=operator&page=data-health&lane=fundamentals&drawer=batch"
