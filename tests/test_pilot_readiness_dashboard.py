@@ -160,7 +160,7 @@ def test_data_health_pilot_share_first_answer_frame_summarizes_release_gates():
     assert frame.to_dict("records") == [
         {
             "Question": "Can I share this now?",
-            "Answer": "Portfolio/demo only with manual gates; 0 blocked gate(s), 4 manual gate(s), 1 green gate(s).",
+            "Answer": "Portfolio/demo only with manual gates; not open source and no reuse rights until a root LICENSE exists; 0 blocked gate(s), 4 manual gate(s), 1 green gate(s).",
             "Next Safe Action": "make public-check",
         },
         {

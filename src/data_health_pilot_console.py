@@ -927,11 +927,19 @@ def pilot_share_first_answer_frame(
         source_answer = f"{source_queue}: {source_state}; {source_blockers}."
         source_command = _format_missing(proof_queue.get("Next Safe Command"), source_command)
 
+    license_status = status(license_row).lower()
+    license_detail = detail(license_row, "No root LICENSE file found.").lower()
+    license_boundary = (
+        "not open source and no reuse rights until a root LICENSE exists; "
+        if "license_present" not in license_status and ("no root license" in license_detail or "license" in license_detail)
+        else ""
+    )
+
     rows = [
         {
             "Question": "Can I share this now?",
             "Answer": (
-                "Portfolio/demo only with manual gates; "
+                f"Portfolio/demo only with manual gates; {license_boundary}"
                 f"{counts['blocked']} blocked gate(s), {counts['manual']} manual gate(s), {counts['green']} green gate(s)."
             ),
             "Next Safe Action": "make public-check",
