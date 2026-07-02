@@ -11599,7 +11599,7 @@ def proof_history_first_answer_frame(
                 "Boundary": "Ledger details are for audit; they are not a second analysis page or command center.",
             },
             {
-                "Question": "Next safe action",
+                "Question": "Evidence review boundary",
                 "Answer": "Open proof ledger details only when you need the source row; return to Data Health for remaining blockers.",
                 "Boundary": "Return to Single-Stock or Data Health for interpretation; use Proof History only to verify evidence.",
             },
@@ -11650,7 +11650,7 @@ def proof_history_public_detail_cards(
                 "Evidence only; not another command center. "
                 "What this proves: reviewed source-proof outcomes were recorded for specific lanes or batches. "
                 "What it does not prove: Proof History does not refresh data, apply imports, record outcomes, or unlock blocked inputs. "
-                "Next safe review action: read the latest lane and batch outcome, then open Data Health only if the evidence shows a remaining blocker. "
+                "Evidence review only: read the latest lane and batch outcome, then open Data Health only if the evidence shows a remaining blocker. "
                 "Use this trail to see whether readiness changes were supported, still blocked, skipped, or excluded after review. "
                 "Raw proof ledgers and proof-record scaffolds stay collapsed until review details are explicitly opened."
             ),

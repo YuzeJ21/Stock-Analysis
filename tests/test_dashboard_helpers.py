@@ -14943,7 +14943,8 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
     assert "not another command center" in rendered
     assert "what this proves:" in rendered
     assert "what it does not prove:" in rendered
-    assert "next safe review action:" in rendered
+    assert "evidence review only:" in rendered
+    assert "next safe review action:" not in rendered
     assert "proof history does not refresh data, apply imports, record outcomes, or unlock blocked inputs" in rendered
     assert "raw proof ledgers and proof-record scaffolds stay collapsed" in rendered
     assert "peer valuation inputs" in rendered
@@ -15012,7 +15013,7 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
             "Boundary": "Ledger details are for audit; they are not a second analysis page or command center.",
         },
         {
-            "Question": "Next safe action",
+            "Question": "Evidence review boundary",
             "Answer": "Open proof ledger details only when you need the source row; return to Data Health for remaining blockers.",
             "Boundary": "Return to Single-Stock or Data Health for interpretation; use Proof History only to verify evidence.",
         },
