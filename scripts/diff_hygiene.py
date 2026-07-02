@@ -9,6 +9,8 @@ from shlex import quote
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.source_activation_guide import build_provider_setup_checklist
+
 
 SOURCE_PREFIXES = (
     "src/",
@@ -201,6 +203,39 @@ def format_license_gate(repo_root: Path | None = None) -> list[str]:
         "  License decision options:",
         *LICENSE_DECISION_OPTIONS,
     ]
+
+
+def format_provider_setup_gate() -> list[str]:
+    checklist = build_provider_setup_checklist()
+    source_answer = checklist.get("source_answer", {})
+    setup_order = checklist.get("one_provider_setup_order", [])
+    lines = [
+        "Provider setup gate:",
+        "  Run make provider-setup-checklist before reopening broad source-proof queues.",
+    ]
+    if isinstance(source_answer, dict) and source_answer:
+        lines.extend(
+            [
+                f"  Free/public now: {source_answer.get('free_public_now', '-')}",
+                f"  Configured keyed providers: {source_answer.get('configured_keyed', '-')}",
+                f"  Missing keyed providers: {source_answer.get('needs_key', '-')}",
+                f"  Optional broker status: {source_answer.get('optional_broker', '-')}",
+            ]
+        )
+    first = next((row for row in setup_order if isinstance(row, dict)), None) if isinstance(setup_order, list) else None
+    if first:
+        lines.extend(
+            [
+                f"  Configure first: {first.get('provider', '-')}",
+                f"  Why first: {first.get('why_first', '-')}",
+                f"  Setup env: {first.get('setup_env', '-')}",
+                f"  One-ticker smoke: {first.get('smoke_command', '-')}",
+                "  Do not configure all missing providers at once; configure one, rerun preflight, smoke one ticker, then validate/preview before any apply.",
+            ]
+        )
+    else:
+        lines.append("  No missing keyed provider setup step is currently suggested by the checklist.")
+    return lines
 
 
 def format_sample_report_review_block(entries: list[StatusEntry], *, limit: int = 30) -> list[str]:
@@ -626,6 +661,8 @@ def build_public_release_package_report(entries: list[StatusEntry], *, branch_st
         "",
         *format_license_gate(),
         "",
+        *format_provider_setup_gate(),
+        "",
     ]
     if not entries:
         lines.extend(
@@ -773,6 +810,8 @@ def build_public_release_handoff_report(entries: list[StatusEntry], *, branch_st
         f"Package status: {package_status}",
         "",
         *format_license_gate(),
+        "",
+        *format_provider_setup_gate(),
         "",
     ]
     if manual:
