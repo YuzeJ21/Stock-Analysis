@@ -907,10 +907,11 @@ def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 8)
     cards: list[dict[str, object]] = [
         {
             "kicker": "PUBLIC SHARE GATE",
-            "title": "One final review before GitHub or LinkedIn",
+            "title": "Can I share this?",
             "body": (
-                "Confirm sync, public-check, real screenshots, generated-churn exclusion, packet freshness, and "
-                "research-only wording before treating the product as share-ready."
+                "One-card answer: share as portfolio/demo evidence only after GitHub sync, public-check, "
+                "real screenshots and screenshot evidence, generated churn and generated-churn exclusion, pilot packet, license boundary, "
+                "source-proof blockers, and research-only wording are reviewed. Keep blocked inputs visible."
             ),
             "badges": ["final gate", "read-only"],
             "command": "make public-check && make browser-qa-evidence",

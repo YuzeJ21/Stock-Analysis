@@ -441,11 +441,17 @@ def test_public_share_final_gate_combines_release_checks_without_data_writes():
     assert frame.iloc[6]["Command"] == "make license-status"
     assert frame.iloc[7]["Command"] == "make public-wording-check"
     assert "share-now answer" in rendered
+    assert "can i share this?" in rendered
+    assert "one-card answer:" in rendered
+    assert "github sync" in rendered
+    assert "license boundary" in rendered
+    assert "generated churn" in rendered
+    assert "screenshot evidence" in rendered
+    assert "source-proof blockers" in rendered
     assert "share as portfolio/demo only after public-check passes" in rendered
     assert "do not call this open source until a root license exists" in rendered
     assert "use provider setup before broad proof loops" in rendered
     assert "do not stage generated churn or sample reports unless exact artifacts are reviewed evidence" in rendered
-    assert "one final review before github or linkedin" in rendered
     assert "real screenshots" in rendered
     assert "generated-churn exclusion" in rendered
     assert "packet generation is read-only" in rendered
