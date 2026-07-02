@@ -11517,6 +11517,7 @@ def proof_history_public_detail_cards(
             "kicker": "PROOF HISTORY",
             "title": f"{proof_count} lane proof records",
             "body": (
+                "Evidence only; not another command center. "
                 "Use this trail to see whether readiness changes were supported, still blocked, skipped, or excluded after review. "
                 "Detailed proof rows stay available below for audit."
             ),
