@@ -125,7 +125,7 @@ def test_public_docs_explain_single_stock_reader_guide():
         "what can be analyzed now",
         "what is still locked or excluded",
         "what trusted input matters next",
-        "copy-only command",
+        "read-only proof step",
     )
     for phrase in expected_readme_phrases:
         assert phrase in readme_text
