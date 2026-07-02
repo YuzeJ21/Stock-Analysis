@@ -25241,6 +25241,35 @@ def test_data_health_next_operator_action_hides_commands_by_default():
     assert next_action_index < next_action_cards_index < command_visibility_index < detail_expander_index
 
 
+def test_data_health_fundamentals_lane_hides_top_level_dcf_commands():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    fundamentals_lane_index = source.index('elif selected_lane == "Fundamentals / DCF":')
+    top_level_queue_index = source.index(
+        "data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue)",
+        fundamentals_lane_index,
+    )
+    top_level_command_visibility_index = source.index("show_commands=False", top_level_queue_index)
+    drawer_index = source.index(
+        'st.expander("Fundamentals / DCF evidence drawer", expanded=False)',
+        top_level_command_visibility_index,
+    )
+    detail_cards_index = source.index(
+        "data_health_dcf_input_family_filter_cards(",
+        drawer_index,
+    )
+    detail_command_visibility_index = source.index("show_commands=True", detail_cards_index)
+
+    assert (
+        fundamentals_lane_index
+        < top_level_queue_index
+        < top_level_command_visibility_index
+        < drawer_index
+        < detail_cards_index
+        < detail_command_visibility_index
+    )
+
+
 def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated():
     current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")

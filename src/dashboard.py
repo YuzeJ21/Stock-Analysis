@@ -28117,7 +28117,7 @@ def render_data_health(
         )
         render_signal_cards(
             data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue),
-            show_commands=True,
+            show_commands=False,
             variant="queue",
         )
         with st.expander("Fundamentals / DCF evidence drawer", expanded=False):
