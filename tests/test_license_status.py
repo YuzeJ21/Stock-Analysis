@@ -14,6 +14,7 @@ def test_build_license_status_without_root_license_keeps_portfolio_demo_boundary
     assert status["license_present"] is False
     assert status["share_status"] == "portfolio_demo_only"
     assert status["next_decision"] == "choose_license_before_open_source_claim"
+    assert status["owner_decision_required"] is True
     assert status["safe_to_share_boundary"] == NO_LICENSE_SHARE_BOUNDARY
     assert status["next_safe_command"] == "docs/LICENSE_DECISION_GUIDE.md"
     assert status["decision_options"] == [
@@ -46,6 +47,7 @@ def test_render_license_status_names_owner_decision_and_stop_rule(tmp_path: Path
     assert "License Status" in rendered
     assert "share_status: portfolio_demo_only" in rendered
     assert "next_decision: choose_license_before_open_source_claim" in rendered
+    assert "owner_decision_required: true" in rendered
     assert "next_safe_command: docs/LICENSE_DECISION_GUIDE.md" in rendered
     assert "Decision options:" in rendered
     assert "- Portfolio showcase only | Keep no license for now | Visitors can read the code, but reuse rights are not granted." in rendered
