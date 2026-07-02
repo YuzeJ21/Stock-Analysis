@@ -72,6 +72,7 @@ def _human_source_gate(value: object) -> str:
     labels = {
         "coverage_workflow_evidence": "workflow evidence only; current source-proof queues are exhausted",
         "fundamentals_share_count_source_ladder": "fundamentals/share-count source ladder",
+        "workflow_evidence_only": "workflow evidence only",
     }
     for token, label in labels.items():
         text = text.replace(token, label)
@@ -539,7 +540,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
             [
                 "",
                 "Current source gate:",
-                f"- source_activation_reason: {current_gate.get('source_activation_reason', '-')}",
+                f"- source_activation_reason: {_human_source_gate(current_gate.get('source_activation_reason', '-'))}",
                 f"- source_activation_detail: {current_gate.get('source_activation_detail', '-')}",
                 f"- can_run_now: {_human_source_gate(current_gate.get('can_run_now', '-'))}",
                 f"- needs_setup: {current_gate.get('needs_setup', '-')}",

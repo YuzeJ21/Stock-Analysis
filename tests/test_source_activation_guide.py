@@ -350,7 +350,8 @@ def test_provider_setup_checklist_includes_current_gate_without_fetching_sources
         "source_activation_next_action": "Use project-status or provider setup evidence until new data appears.",
     }
     assert "Current source gate:" in rendered
-    assert "source_activation_reason: workflow_evidence_only" in rendered
+    assert "source_activation_reason: workflow evidence only" in rendered
+    assert "source_activation_reason: workflow_evidence_only" not in rendered
     assert "source_activation_detail: Sources are reachable, but current blockers already have reviewed non-actionable proof." in rendered
     assert "can_run_now: workflow evidence only; current source-proof queues are exhausted" in rendered
     assert "needs_setup: fmp, alpha_vantage, finnhub" in rendered
