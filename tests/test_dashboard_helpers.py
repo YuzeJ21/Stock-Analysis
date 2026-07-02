@@ -22829,6 +22829,22 @@ def test_data_health_peer_drawer_hides_summary_commands_by_default():
     )
 
 
+def test_data_health_peer_drawer_nests_detailed_proof_workflow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)')
+    answer_index = source.index('render_section_header("Peer Evidence Answer"', peer_drawer_index)
+    proof_fit_index = source.index('render_section_header("Peer Proof Loop Fit"', answer_index)
+    detail_workflow_index = source.index('st.expander("Peer detailed proof workflow", expanded=False)', proof_fit_index)
+    source_review_index = source.index('render_section_header("Peer Source-Review Intake"', detail_workflow_index)
+    closeout_index = source.index('render_section_header("Peer Proof Closeout"', source_review_index)
+    matrix_index = source.index('render_section_header("Peer Readiness Sub-State Matrix"', closeout_index)
+    metrics_lane_index = source.index('elif selected_lane == "Metrics":', matrix_index)
+
+    assert peer_drawer_index < answer_index < proof_fit_index < detail_workflow_index
+    assert detail_workflow_index < source_review_index < closeout_index < matrix_index < metrics_lane_index
+
+
 def test_data_health_proof_loop_fit_cards_render_before_detailed_proof_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -22869,8 +22885,8 @@ def test_data_health_detail_tables_are_collapsed_in_dcf_and_peer_drawers():
 
     peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)')
     peer_fit_index = source.index('render_section_header("Peer Proof Loop Fit"', peer_drawer_index)
-    peer_planner_index = source.index('render_collapsed_detail_frame(\n                "Peer proof batch planner table"', peer_fit_index)
-    peer_checklist_index = source.index('render_collapsed_detail_frame(\n                "Peer proof checklist table"', peer_planner_index)
+    peer_planner_index = source.index('"Peer proof batch planner table"', peer_fit_index)
+    peer_checklist_index = source.index('"Peer proof checklist table"', peer_planner_index)
     peer_matrix_index = source.index('render_collapsed_detail_frame("Peer readiness sub-state matrix table"', peer_checklist_index)
 
     assert dcf_drawer_index < dcf_fit_index < dcf_checklist_index < dcf_source_loop_index < dcf_guard_index < dcf_raw_index
