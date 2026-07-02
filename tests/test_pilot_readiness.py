@@ -665,6 +665,9 @@ def test_pilot_share_brief_summarizes_usable_blocked_and_share_boundary(tmp_path
     assert "source-proof blockers stay visible" in brief
     assert "make universe-scope TOP_N=10" in brief
     assert "make risk-context" in brief
+    assert "make universe-preview-summary" in brief
+    assert "capped universe source preview" in brief
+    assert "Universe membership is metadata only" in brief
     assert "make public-check" in brief
     assert "Screenshots and scope/risk context do not update saved data or unlock blocked inputs" in brief
     assert "What must stay out of the share package" in brief
