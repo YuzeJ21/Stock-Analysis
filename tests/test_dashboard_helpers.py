@@ -27832,6 +27832,26 @@ def test_data_health_additional_operator_evidence_hides_summary_commands_by_defa
     assert "Diagnostic proof prompts only; they do not replace source gates, validation, preview, or Proof History evidence." in drawer_source
 
 
+def test_last_resort_diagnostic_context_nests_guided_row_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    diagnostic_index = source.index('st.expander("Last-resort diagnostic context", expanded=False)')
+    guided_cards_index = source.index(
+        "render_signal_cards(data_health_command_bundle_cards(command_bundles_frame), show_commands=False)",
+        diagnostic_index,
+    )
+    guided_runbook_cards_index = source.index(
+        "render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame), show_commands=False)",
+        guided_cards_index,
+    )
+    nested_detail_index = source.index('st.expander("Last-resort guided row details", expanded=False)', guided_runbook_cards_index)
+    ticker_rows_index = source.index("Diagnostic ticker-level coverage rows; inspect only after the summary cards answer the lane state.", nested_detail_index)
+    guided_rows_index = source.index("Diagnostic guided coverage rows; copy-only context, not an apply path.", ticker_rows_index)
+    readiness_summary_index = source.index('render_section_header("Readiness Summaries"', guided_rows_index)
+
+    assert diagnostic_index < guided_cards_index < guided_runbook_cards_index < nested_detail_index
+    assert nested_detail_index < ticker_rows_index < guided_rows_index < readiness_summary_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"

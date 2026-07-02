@@ -29255,73 +29255,74 @@ def render_data_health(
                 "Optional diagnostic runbook; use only after source gates or provider setup change the queue.",
             )
             render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame), show_commands=False)
-            if command_bundles_frame is None:
-                bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
-                render_notice_card(
-                    "Guided coverage plans not ready yet",
-                    bundle_notice_body,
-                    bundle_notice_command,
-                )
-            if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
-                detail_columns = [
-                    column
-                    for column in [
-                        "bundle_name",
-                        "lane",
-                        "ticker",
-                        "is_holding",
-                        "theme",
-                        "sector_etf",
-                        "current_unlock_stage",
-                        "target_goal",
-                        "rows_needed",
-                        "target_history_rows",
-                        "suggested_start_date",
-                        "exact_next_command",
-                        "fallback_manual_command",
-                        "recommended_action",
-                        "primary_command",
-                        "follow_up_command",
+            with st.expander("Last-resort guided row details", expanded=False):
+                if command_bundles_frame is None:
+                    bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
+                    render_notice_card(
+                        "Guided coverage plans not ready yet",
+                        bundle_notice_body,
+                        bundle_notice_command,
+                    )
+                if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
+                    detail_columns = [
+                        column
+                        for column in [
+                            "bundle_name",
+                            "lane",
+                            "ticker",
+                            "is_holding",
+                            "theme",
+                            "sector_etf",
+                            "current_unlock_stage",
+                            "target_goal",
+                            "rows_needed",
+                            "target_history_rows",
+                            "suggested_start_date",
+                            "exact_next_command",
+                            "fallback_manual_command",
+                            "recommended_action",
+                            "primary_command",
+                            "follow_up_command",
+                        ]
+                        if column in command_bundle_details_frame.columns
                     ]
-                    if column in command_bundle_details_frame.columns
-                ]
-                st.caption("Diagnostic ticker-level coverage rows; inspect only after the summary cards answer the lane state.")
-                st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
-            elif command_bundle_details_frame is None:
-                detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
-                render_notice_card(
-                    "Ticker-level coverage steps not ready yet",
-                    detail_notice_body,
-                    detail_notice_command,
-                )
-            if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
-                runbook_columns = [
-                    column
-                    for column in [
-                        "bundle_name",
-                        "lane",
-                        "scope",
-                        "step_order",
-                        "step_label",
-                        "command",
-                        "tickers",
-                        "goal_summary",
-                        "target_history_rows",
-                        "suggested_start_date",
-                        "fallback_manual_command",
-                        "target_file",
+                    st.caption("Diagnostic ticker-level coverage rows; inspect only after the summary cards answer the lane state.")
+                    st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
+                elif command_bundle_details_frame is None:
+                    detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
+                    render_notice_card(
+                        "Ticker-level coverage steps not ready yet",
+                        detail_notice_body,
+                        detail_notice_command,
+                    )
+                if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
+                    runbook_columns = [
+                        column
+                        for column in [
+                            "bundle_name",
+                            "lane",
+                            "scope",
+                            "step_order",
+                            "step_label",
+                            "command",
+                            "tickers",
+                            "goal_summary",
+                            "target_history_rows",
+                            "suggested_start_date",
+                            "fallback_manual_command",
+                            "target_file",
+                        ]
+                        if column in command_bundle_runbook_frame.columns
                     ]
-                    if column in command_bundle_runbook_frame.columns
-                ]
-                st.caption("Diagnostic guided coverage rows; copy-only context, not an apply path.")
-                st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
-            elif command_bundle_runbook_frame is None:
-                runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
-                render_notice_card(
-                    "Guided coverage steps not ready yet",
-                    runbook_notice_body,
-                    runbook_notice_command,
-                )
+                    st.caption("Diagnostic guided coverage rows; copy-only context, not an apply path.")
+                    st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
+                elif command_bundle_runbook_frame is None:
+                    runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
+                    render_notice_card(
+                        "Guided coverage steps not ready yet",
+                        runbook_notice_body,
+                        runbook_notice_command,
+                    )
             render_section_header("Readiness Summaries", "Compact diagnostic status only; not a source-proof unlock.")
             render_signal_cards(readiness_panel_cards(readiness_summary), show_commands=False)
             render_signal_cards(
