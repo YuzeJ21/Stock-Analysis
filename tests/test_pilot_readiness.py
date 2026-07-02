@@ -728,6 +728,7 @@ def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: P
     assert "Provider setup only makes a source executable" in brief
     assert "readiness changes still require validate, preview, rejected-row review" in brief
     assert "Do not retry fundamentals_share_count_source_ladder" in brief
+    assert "proof queues.." not in brief
     assert "Configure first: Finnhub free tier" in brief
     assert "Second fallback after FMP" in brief
     assert "Do not configure all missing providers at once" in brief

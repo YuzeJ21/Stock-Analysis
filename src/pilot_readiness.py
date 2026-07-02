@@ -857,6 +857,13 @@ def _markdown_table(headers: list[str], rows: list[list[object]]) -> list[str]:
     return lines
 
 
+def _sentence(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "-"
+    return text if text.endswith((".", "!", "?")) else f"{text}."
+
+
 def _provider_setup_checklist_rows() -> list[list[object]]:
     checklist = build_provider_setup_checklist()
     rows = []
@@ -1191,7 +1198,7 @@ def render_pilot_share_brief(
         "",
         f"- Leading proof queue: {queue_name} ({queue_state}).",
         f"- Blocked items in that queue: {queue_blocked:,}.",
-        f"- Top blockers: {queue_top_blockers}.",
+        f"- Top blockers: {_sentence(queue_top_blockers)}",
         f"- Next source-proof command: `{queue_command}`.",
         "",
         "## How coverage expands next",
