@@ -49,6 +49,8 @@ def test_data_health_risk_context_cards_label_proxy_context_without_recommendati
     assert cards[0]["title"] == "2 ready / 3 rows"
     assert cards[1]["title"] == "1 ready / 3 rows"
     assert cards[2]["title"] == "1 approximation row(s)"
+    assert "examples: amd" in rendered
+    assert "examples: amd, qqq" in rendered
     assert "review context only" in rendered
     assert "concentration review signal, not a research conclusion" in rendered
     assert "volatility-proxy language must stay labeled as an approximation" in rendered
@@ -83,6 +85,7 @@ def test_risk_context_summary_lines_are_terminal_safe_and_copy_only():
     assert "use the price-history proof queue before any capped provider refresh" in rendered
     assert "liquidity readiness: 1 ready / 2 rows" in rendered
     assert "correlation readiness: 1 ready / 2 rows" in rendered
+    assert "examples: amd" in rendered
     assert "make price-history-proof-queue top_n=25" in rendered
     assert "make price-worklist top_n=25" not in rendered
     assert "make research-health-check top_n=10" in rendered

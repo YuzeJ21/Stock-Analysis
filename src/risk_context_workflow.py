@@ -21,6 +21,14 @@ def split_risk_context_by_price_ready(frame: pd.DataFrame | None, unavailable_st
     return frame.loc[~unavailable].copy(), frame.loc[unavailable].copy()
 
 
+def _ticker_examples(frame: pd.DataFrame, *, limit: int = 5) -> str:
+    if frame.empty or "Ticker" not in frame.columns or limit <= 0:
+        return "-"
+    tickers = frame["Ticker"].dropna().astype(str).str.upper().str.strip()
+    examples = [ticker for ticker in tickers if ticker]
+    return ", ".join(examples[:limit]) if examples else "-"
+
+
 def data_health_risk_context_cards(
     liquidity_frame: pd.DataFrame | None,
     correlation_frame: pd.DataFrame | None,
@@ -33,6 +41,10 @@ def data_health_risk_context_cards(
         correlation_frame,
         {"Insufficient Data", "Insufficient Overlap"},
     )
+    liquidity_examples = _ticker_examples(liquidity_unavailable)
+    correlation_examples = _ticker_examples(correlation_unavailable)
+    liquidity_example_sentence = f" Examples: {liquidity_examples}." if liquidity_examples != "-" else ""
+    correlation_example_sentence = f" Examples: {correlation_examples}." if correlation_examples != "-" else ""
 
     liquidity_total = 0 if liquidity_frame is None else len(liquidity_frame)
     correlation_total = 0 if correlation_frame is None else len(correlation_frame)
@@ -52,6 +64,7 @@ def data_health_risk_context_cards(
             "body": (
                 f"{len(liquidity_unavailable):,} row(s) still need local price and volume history before liquidity context is usable. "
                 "Use liquidity rows as review context only; blocked rows stay visible instead of becoming scores."
+                f"{liquidity_example_sentence}"
             ),
             "badges": ["price history", "volume-gated"],
             "command": "make price-history-proof-queue TOP_N=25",
@@ -62,6 +75,7 @@ def data_health_risk_context_cards(
             "body": (
                 f"{len(correlation_unavailable):,} row(s) need enough overlapping local return history before correlation context is shown. "
                 "Correlation is a concentration review signal, not a research conclusion."
+                f"{correlation_example_sentence}"
             ),
             "badges": ["overlap required", "context only"],
             "command": "make research-health-check TOP_N=10",
