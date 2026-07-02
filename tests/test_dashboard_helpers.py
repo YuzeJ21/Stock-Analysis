@@ -387,11 +387,14 @@ def test_data_health_next_layer_queue_cards_keep_commands_out_of_first_read():
     cards = dashboard.data_health_fundamentals_peer_metrics_queue_cards(frame, limit=2)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[0]["title"] == "Fundamentals, peers, and metrics"
-    assert "price coverage is broad" in rendered
+    assert cards[0]["title"] == "What can I use by lane?"
+    assert "one answer per lane" in rendered
+    assert "usable now:" in rendered
+    assert "partly usable; ready rows can support research context, locked fields stay blocked" in rendered
+    assert "blocked by: trusted fundamentals" in rendered
+    assert "next: open the evidence drawer" in rendered
     assert "trusted fundamentals" in rendered
     assert "spy/qqq review metrics" in rendered
-    assert "open the evidence drawer" in rendered
     assert "readiness first" in rendered
     assert "make sec-stage-queue" in rendered
     assert "investment advice" not in rendered

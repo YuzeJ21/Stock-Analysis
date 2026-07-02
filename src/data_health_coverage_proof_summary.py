@@ -31,10 +31,10 @@ def fundamentals_peer_metrics_queue_cards(frame: pd.DataFrame | None, *, limit: 
     cards: list[dict[str, object]] = [
         {
             "kicker": "NEXT READINESS LAYER",
-            "title": "Fundamentals, peers, and metrics",
+            "title": "What can I use by lane?",
             "body": (
-                "Price coverage is broad, so the next bottlenecks are trusted fundamentals, source-backed peers, "
-                "mapped-peer inputs, optional context, and readiness-gated SPY/QQQ review metrics."
+                "One answer per lane: use ready rows, treat partial rows as limited context, and keep blocked rows out "
+                "of analysis until source proof clears. Detail stays in collapsed evidence drawers."
             ),
             "badges": ["after price coverage", "readiness first"],
             "command": "make readiness-queue TOP_N=10",
@@ -44,19 +44,22 @@ def fundamentals_peer_metrics_queue_cards(frame: pd.DataFrame | None, *, limit: 
         lane = format_missing(row.get("Lane"), "Readiness lane")
         state = _public_status_label(row.get("State"))
         blocked_partial = int(row.get("_blocked_partial", 0) or 0)
+        ready = int(pd.to_numeric(pd.Series([row.get("Ready", 0)]), errors="coerce").fillna(0).iloc[0])
+        total = int(pd.to_numeric(pd.Series([row.get("Total", 0)]), errors="coerce").fillna(0).iloc[0])
         missing = compact_card_fragment(row.get("Missing Input Families"), max_chars=150)
         proof_gate = compact_card_fragment(row.get("Proof Gate"), max_chars=170)
         source_mode = format_missing(row.get("Source Mode"), "local readiness")
         command = format_missing(row.get("Next Safe Command"), "make readiness-queue TOP_N=10")
+        usable_answer = _lane_usable_answer(state, ready=ready, total=total, blocked_partial=blocked_partial)
         cards.append(
             {
                 "kicker": "QUEUE LANE",
                 "title": lane,
                 "body": (
-                    f"{blocked_partial:,} partial or blocked row(s). "
-                    f"{card_sentence('Missing inputs', missing)} "
+                    f"{card_sentence('Usable now', usable_answer)} "
+                    f"{card_sentence('Blocked by', missing)} "
                     f"{card_sentence('Proof gate', proof_gate)} "
-                    "Open the evidence drawer for copy-only commands and row detail."
+                    "Next: Open the evidence drawer for copy-only commands and row detail."
                 ),
                 "badges": [state, source_mode],
                 "command": command,
@@ -120,3 +123,12 @@ def data_coverage_proof_queue_cards(frame: pd.DataFrame | None, *, limit: int = 
 def _public_status_label(value: object, fallback: str = "Not available") -> str:
     text = format_missing(value, fallback=fallback)
     return text.replace("_", " ").replace("-", " ").title()
+
+
+def _lane_usable_answer(state: str, *, ready: int, total: int, blocked_partial: int) -> str:
+    normalized = str(state or "").strip().lower()
+    if normalized == "ready" or (total > 0 and ready >= total and blocked_partial == 0):
+        return "usable now with current local proof"
+    if ready > 0 or normalized == "partial":
+        return "partly usable; ready rows can support research context, locked fields stay blocked"
+    return "not usable yet; wait for source proof or a reviewed exclusion"
