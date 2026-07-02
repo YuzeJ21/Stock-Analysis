@@ -21045,6 +21045,46 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
     return actions
 
 
+def data_health_source_exhaustion_pivot_cards(payload: dict[str, Any] | None, *, limit: int = 3) -> list[dict[str, object]]:
+    """Surface the safe pivot when current source-proof queues have no executable imports."""
+
+    if not payload:
+        return []
+    summary = payload.get("summary", {})
+    if int(summary.get("critical_actions") or 0) > 0 or int(summary.get("onboarding_actions") or 0) > 0:
+        return []
+    command_rows = project_status_command_rows(payload)
+    selected_rows = [
+        row
+        for row in command_rows
+        if str(row.get("Command", "")).strip()
+        and str(row.get("Command", "")).strip()
+        in {"make provider-setup-checklist", "make universe-scope TOP_N=10", "make risk-context"}
+    ][:limit]
+    if not selected_rows:
+        return []
+    cards: list[dict[str, object]] = []
+    for index, row in enumerate(selected_rows):
+        command = str(row.get("Command", "")).strip()
+        reason = compact_card_fragment(row.get("Reason"), max_sentences=2, max_chars=240)
+        freshness = compact_card_fragment(row.get("FreshnessContext"), fallback="", max_chars=130)
+        body_parts = [reason]
+        if freshness:
+            body_parts.append(f"Boundary: {freshness}")
+        title = format_missing(row.get("Step"), command)
+        kicker = "SOURCE QUEUES EXHAUSTED" if index == 0 else "SAFE PIVOT"
+        cards.append(
+            {
+                "kicker": kicker,
+                "title": title,
+                "body": " ".join(part for part in body_parts if part),
+                "badges": ["no source-backed import/apply step is available", "copy-only"],
+                "command": command,
+            }
+        )
+    return cards
+
+
 def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str, str]]:
     return workflow_console.project_status_command_rows(payload)
 
@@ -27563,6 +27603,13 @@ def render_data_health(
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
     )
+    source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)
+    if source_exhaustion_pivot_cards:
+        render_section_header(
+            "Source-Proof Pivot",
+            "What to do when current queues have no source-backed import/apply step available.",
+        )
+        render_signal_cards(source_exhaustion_pivot_cards, show_commands=False, variant="queue")
     with st.expander("Source setup and refresh details", expanded=False):
         render_section_header(
             "Auto Refresh Status",

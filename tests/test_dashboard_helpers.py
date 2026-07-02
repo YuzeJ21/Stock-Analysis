@@ -5854,6 +5854,58 @@ def test_project_status_action_cards_keep_staged_import_follow_through_visible()
     assert "use local import draft workflows if the free refresh fails" not in " ".join(action[1] for action in actions).lower()
 
 
+def test_data_health_source_exhaustion_pivot_cards_use_project_status_next_steps():
+    payload = {
+        "summary": {
+            "critical_actions": 0,
+            "onboarding_actions": 0,
+            "data_sources_optional_locked": 3,
+        },
+        "recommended_next_command_rows": [
+            {
+                "Step": "Review provider setup checklist",
+                "Command": "make provider-setup-checklist",
+                "Reason": (
+                    "Current source-proof queues have no unreviewed executable company candidates. "
+                    "Review provider setup states before repeating the trusted-data pilot loop."
+                ),
+                "SourceContext": "source activation guide and project status",
+                "FreshnessContext": "source setup evidence only; no import/apply step is available from the current queue",
+            },
+            {
+                "Step": "Choose safe universe scope",
+                "Command": "make universe-scope TOP_N=10",
+                "Reason": "Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before opening broad tables.",
+                "SourceContext": "ticker readiness report",
+                "FreshnessContext": "copy-only scope guide",
+            },
+            {
+                "Step": "Review risk context readiness",
+                "Command": "make risk-context",
+                "Reason": "Choose scope before treating liquidity, correlation, or proxy-risk rows as usable context.",
+                "SourceContext": "risk context outputs",
+                "FreshnessContext": "read-only risk context",
+            },
+        ],
+    }
+
+    cards = dashboard.data_health_source_exhaustion_pivot_cards(payload)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["command"] for card in cards] == [
+        "make provider-setup-checklist",
+        "make universe-scope TOP_N=10",
+        "make risk-context",
+    ]
+    assert cards[0]["kicker"] == "SOURCE QUEUES EXHAUSTED"
+    assert "no source-backed import/apply step is available" in rendered
+    assert "provider setup states" in rendered
+    assert "choose active-universe" in rendered
+    assert "read-only risk context" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_project_status_command_rows_prefer_structured_rows():
     payload = {
         "recommended_next_command_rows": [
