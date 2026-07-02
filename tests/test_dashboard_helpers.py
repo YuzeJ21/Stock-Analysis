@@ -372,6 +372,7 @@ def test_data_health_provider_setup_first_answer_frame_summarizes_current_source
         "Which source boundary matters?",
         "What should not be retried?",
         "What boundary stays true?",
+        "What should I do next?",
     ]
     assert "workflow evidence only; current source-proof queues are exhausted" in rendered
     assert "free public sources: usable now" in rendered
@@ -387,6 +388,8 @@ def test_data_health_provider_setup_first_answer_frame_summarizes_current_source
     assert "make " not in rendered
     assert "one-ticker smoke stays in source setup details" in rendered
     assert "provider setup is not an import, apply, or readiness unlock" in rendered
+    assert "stay in data health source setup until provider data, reviewed manual rows, or changed blockers create a new source-backed row" in rendered
+    assert "then validate and preview one reviewed ticker before any apply step" in rendered
     assert "secret-fmp-key" not in rendered
 
 

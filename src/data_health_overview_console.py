@@ -948,6 +948,14 @@ def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd
                 "Answer": boundary,
                 "Review Boundary": "Validation and preview still happen after a reviewed source row exists.",
             },
+            {
+                "Question": "What should I do next?",
+                "Answer": (
+                    "Stay in Data Health source setup until provider data, reviewed manual rows, or changed blockers "
+                    "create a new source-backed row; then validate and preview one reviewed ticker before any apply step."
+                ),
+                "Review Boundary": "This is a workflow answer only; it does not refresh, stage, apply, or unlock coverage.",
+            },
         ],
         columns=["Question", "Answer", "Review Boundary"],
     )
