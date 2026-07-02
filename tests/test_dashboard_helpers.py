@@ -11661,9 +11661,36 @@ def test_data_health_public_first_30_second_cards_summarize_public_readiness_wit
 def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overclaiming():
     ops = pd.DataFrame(
         [
-            {"Lane": "Price coverage", "Workflow Mode": "safe_to_batch_dry_run"},
-            {"Lane": "Fundamentals / DCF proof", "Workflow Mode": "review_only"},
-            {"Lane": "Earnings locked lane", "Workflow Mode": "locked_manual"},
+            {
+                "Lane": "Price coverage",
+                "State": "partial",
+                "Ready": 264,
+                "Partial": 1,
+                "Blocked": 0,
+                "Excluded": 0,
+                "Workflow Mode": "safe_to_batch_dry_run",
+                "Next Safe Command": "make price-refresh-loop DRY_RUN=1",
+            },
+            {
+                "Lane": "Fundamentals / DCF proof",
+                "State": "partial",
+                "Ready": 23,
+                "Partial": 217,
+                "Blocked": 25,
+                "Excluded": 0,
+                "Workflow Mode": "review_only",
+                "Next Safe Command": "make project-status",
+            },
+            {
+                "Lane": "Earnings locked lane",
+                "State": "blocked",
+                "Ready": 0,
+                "Partial": 0,
+                "Blocked": 265,
+                "Excluded": 0,
+                "Workflow Mode": "locked_manual",
+                "Next Safe Command": "make optional-context-source-ladder-queue TOP_N=10",
+            },
         ]
     )
     frontier = pd.DataFrame(
@@ -11699,18 +11726,31 @@ def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overcl
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["READINESS FRESHNESS", "OPS COCKPIT", "NEXT FRONTIER", "OPTIONAL CONTEXT", "PROOF HYGIENE"]
+    assert [card["kicker"] for card in cards] == [
+        "READINESS FRESHNESS",
+        "LANE ANSWER",
+        "OPS COCKPIT",
+        "NEXT FRONTIER",
+        "OPTIONAL CONTEXT",
+        "PROOF HYGIENE",
+    ]
     assert cards[0]["title"] == "Stale"
     assert cards[0]["command"] == "make readiness"
-    assert cards[1]["title"] == "265 price / 23 DCF / 9 peer-ready"
+    assert cards[1]["title"] == "What can I use now?"
     assert cards[1]["command"] == "make readiness-ops-center"
-    assert cards[2]["title"] == "Price coverage"
-    assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
-    assert cards[3]["title"] == "1 earnings / 0 estimates ready"
-    assert cards[3]["command"] == "make optional-context-summary TOP_N=10"
-    assert cards[4]["command"] == "make diff-hygiene"
+    assert cards[2]["title"] == "265 price / 23 DCF / 9 peer-ready"
+    assert cards[2]["command"] == "make readiness-ops-center"
+    assert cards[3]["title"] == "Price coverage"
+    assert cards[3]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
+    assert cards[4]["title"] == "1 earnings / 0 estimates ready"
+    assert cards[4]["command"] == "make optional-context-summary TOP_N=10"
+    assert cards[5]["command"] == "make diff-hygiene"
     assert "readiness artifacts may be stale" in rendered
     assert "treat stale or missing readiness artifacts as a stop sign" in rendered
+    assert "use now: price coverage has 264 ready row(s)" in rendered
+    assert "blocked: fundamentals / dcf proof has 25 blocked row(s); earnings locked lane has 265 blocked row(s)" in rendered
+    assert "context only: earnings locked lane is locked/manual until trusted optional rows exist" in rendered
+    assert "excluded/not applicable: no excluded lane reported" in rendered
     assert "3 lane(s) are visible before ticker drilldown" in rendered
     assert "top data-lane opportunity has unlock impact 3273" in rendered
     assert "not a ranking" in rendered

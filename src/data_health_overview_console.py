@@ -58,6 +58,23 @@ def _trusted_ready_count(frame: pd.DataFrame | None, column: str) -> int:
     return int(frame[column].astype(bool).sum())
 
 
+def _series_value(row: pd.Series, *names: str, fallback: object = None) -> object:
+    lower_to_name = {str(column).strip().lower(): column for column in row.index}
+    for name in names:
+        column = lower_to_name.get(name.strip().lower())
+        if column is not None:
+            return row.get(column)
+    return fallback
+
+
+def _series_int(row: pd.Series, *names: str) -> int:
+    value = _series_value(row, *names, fallback=0)
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return 0
+
+
 def _public_status_label(value: object, fallback: str = "Not available") -> str:
     text = _format_missing(value, fallback=fallback)
     return {
@@ -65,6 +82,65 @@ def _public_status_label(value: object, fallback: str = "Not available") -> str:
         "missing": "Missing",
         "current": "Current",
     }.get(text.strip().lower(), text)
+
+
+def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
+    if ops_frame is None or ops_frame.empty:
+        return {
+            "kicker": "LANE ANSWER",
+            "title": "What can I use now?",
+            "body": (
+                "Use now: no lane summary is loaded yet. Blocked: run the read-only operations center before opening "
+                "raw proof tables. Context only: no candidate/context lane reported. Excluded/not applicable: no excluded lane reported. "
+                "Next safe action: make readiness-ops-center."
+            ),
+            "badges": ["answer first", "raw details collapsed"],
+            "command": "make readiness-ops-center",
+        }
+
+    ready_fragments: list[str] = []
+    blocked_fragments: list[str] = []
+    context_fragments: list[str] = []
+    excluded_fragments: list[str] = []
+    next_command = "make readiness-ops-center"
+
+    for _, row in ops_frame.iterrows():
+        lane = _format_missing(_series_value(row, "Lane", "lane"), "Lane")
+        mode = _format_missing(_series_value(row, "Workflow Mode", "workflow_mode"), "").lower()
+        state = _format_missing(_series_value(row, "State", "state"), "").lower()
+        ready = _series_int(row, "Ready", "ready")
+        blocked = _series_int(row, "Blocked", "blocked")
+        excluded = _series_int(row, "Excluded", "excluded")
+        command = _format_missing(
+            _series_value(row, "Next Safe Command", "next_safe_command"),
+            "",
+        )
+
+        if not ready_fragments and ready > 0:
+            ready_fragments.append(f"{lane} has {ready:,} ready row(s)")
+            if command:
+                next_command = command
+        if blocked > 0:
+            blocked_fragments.append(f"{lane} has {blocked:,} blocked row(s)")
+        if excluded > 0 or state == "excluded":
+            excluded_fragments.append(f"{lane} has {excluded:,} excluded/not-applicable row(s)")
+        if ("locked" in mode or "manual" in mode or "candidate" in state) and not context_fragments:
+            context_fragments.append(f"{lane} is locked/manual until trusted optional rows exist")
+
+    body = (
+        f"Use now: {'; '.join(ready_fragments) if ready_fragments else 'no ready lane reported'}. "
+        f"Blocked: {'; '.join(blocked_fragments) if blocked_fragments else 'no blocked lane reported'}. "
+        f"Context only: {'; '.join(context_fragments) if context_fragments else 'no candidate/context lane reported'}. "
+        f"Excluded/not applicable: {'; '.join(excluded_fragments) if excluded_fragments else 'no excluded lane reported'}. "
+        f"Next safe action: {next_command}."
+    )
+    return {
+        "kicker": "LANE ANSWER",
+        "title": "What can I use now?",
+        "body": body,
+        "badges": ["answer first", "raw details collapsed"],
+        "command": "make readiness-ops-center",
+    }
 
 
 def orientation_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
@@ -312,6 +388,7 @@ def operations_cockpit_cards(
             "badges": freshness_badges,
             "command": freshness.refresh_command,
         },
+        lane_answer_card(ops_frame),
         {
             "kicker": "OPS COCKPIT",
             "title": f"{price_ready:,} price / {dcf_ready:,} DCF / {peer_ready:,} peer-ready",
