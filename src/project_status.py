@@ -66,6 +66,8 @@ def _friendly_cli_guidance(text: object) -> str:
         "normalize verified downloaded OHLCV files into",
         "normalize verified OHLCV files into",
     )
+    value = value.replace("coverage_workflow_evidence", "workflow evidence only; current source-proof queues are exhausted")
+    value = value.replace("fundamentals_share_count_source_ladder", "fundamentals/share-count source ladder")
     return value
 
 
@@ -1590,7 +1592,7 @@ def _print_human(payload: dict[str, Any]) -> None:
         if free_tier_limits:
             print(f"- Free-tier limits: {free_tier_limits}.")
         if avoid_repeating:
-            print(f"- Avoid repeating now: {', '.join(avoid_repeating)}.")
+            print(f"- Avoid repeating now: {_friendly_cli_guidance(', '.join(avoid_repeating))}.")
     print("- Details below are capped and copy-only.")
     print("Top locked inputs to review:")
     price_complete = _price_coverage_complete(summary)

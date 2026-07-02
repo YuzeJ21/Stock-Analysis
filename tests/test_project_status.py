@@ -1044,7 +1044,8 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
     assert "free-tier limits: fmp<=250/day and <=25/run" in output
     assert "alpha_vantage<=25/day and <=5/run" in output
     assert "finnhub<=60/day and <=10/run" in output
-    assert "avoid repeating now: fundamentals_share_count_source_ladder" in output
+    assert "avoid repeating now: fundamentals/share-count source ladder" in output
+    assert "avoid repeating now: fundamentals_share_count_source_ladder" not in output
 
 
 def test_project_status_fast_check_pivots_from_reviewed_non_actionable_peers(tmp_path: Path):
