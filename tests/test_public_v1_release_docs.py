@@ -36,6 +36,7 @@ def test_readme_and_roadmap_name_pilot_operator_runbook():
     roadmap = _read("ROADMAP.md")
 
     assert "Pilot Operator Runbook" in readme
+    assert "navigation-only queue route map" in readme
     assert "share gate -> source gate -> provider setup -> one-provider smoke -> validate/preview -> packet and hygiene" in readme
     assert "does not refresh data, apply imports, or promote metadata into fundamentals proof" in readme
 
