@@ -24502,7 +24502,16 @@ def test_single_stock_data_health_handoff_cards_connect_report_to_lane_route():
     cards = dashboard.single_stock_data_health_handoff_cards(snapshot)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["CURRENT REPORT", "LOCKED INPUTS", "OPEN DATA HEALTH", "STOP RULE"]
+    assert [card["kicker"] for card in cards] == [
+        "ANSWER FIRST",
+        "CURRENT REPORT",
+        "LOCKED INPUTS",
+        "OPEN DATA HEALTH",
+        "STOP RULE",
+    ]
+    assert "use this report first" in rendered
+    assert "open data health only for peers source-proof lane" in rendered
+    assert "proof history is evidence review, not a second report" in rendered
     assert "mu: partial" in rendered
     assert "standalone dcf context can be reviewed" in rendered
     assert "peer-relative context stays blocked" in rendered

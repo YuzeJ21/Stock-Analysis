@@ -76,12 +76,16 @@ def test_single_stock_data_health_handoff_cards_route_locked_inputs_to_matching_
     rendered = _render(cards)
 
     assert [card["kicker"] for card in cards] == [
+        "ANSWER FIRST",
         "CURRENT REPORT",
         "LOCKED INPUTS",
         "OPEN DATA HEALTH",
         "STOP RULE",
     ]
-    assert cards[0]["title"] == "MU: partial"
+    assert cards[0]["title"] == "Use this report first"
+    assert "open data health only for peers source-proof lane" in rendered
+    assert "proof history is evidence review, not a second report" in rendered
+    assert cards[1]["title"] == "MU: partial"
     assert "what can be reviewed now: standalone dcf context can be reviewed" in rendered
     assert "peer-relative context stays blocked" in rendered
     assert "peers source-proof lane" in rendered

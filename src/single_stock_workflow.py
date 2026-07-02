@@ -417,6 +417,16 @@ def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[
 
     return [
         {
+            "kicker": "ANSWER FIRST",
+            "title": "Use this report first",
+            "body": (
+                f"Read the supported sections here first. Open Data Health only for {route_label}, "
+                "Proof History is evidence review, not a second report."
+            ),
+            "badges": ["one path", "details collapsed"],
+            "command": _stock_report_md_command(ticker),
+        },
+        {
             "kicker": "CURRENT REPORT",
             "title": f"{ticker}: {state}",
             "body": f"What can be reviewed now: {current_read}",
