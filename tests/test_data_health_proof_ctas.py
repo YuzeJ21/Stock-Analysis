@@ -60,6 +60,16 @@ def test_dcf_input_proof_queue_dashboard_cards_show_packet_and_stop_rule():
     assert "broker" not in rendered
 
 
+def test_dcf_input_proof_queue_empty_state_keeps_command_out_of_body():
+    cards = data_health_dcf_input_proof_queue_dashboard_cards(None)
+    body = str(cards[0]["body"]).lower()
+
+    assert cards[0]["title"] == "Refresh the DCF proof queue"
+    assert cards[0]["command"] == "make dcf-input-proof-queue TOP_N=10"
+    assert "open operator details" in body
+    assert "make " not in body
+
+
 def test_lane_auto_context_cards_use_refresh_gate_when_stale():
     freshness = FreshnessStatus("stale", "Readiness artifacts are stale.", refresh_command="make readiness")
 
