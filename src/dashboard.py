@@ -27888,21 +27888,25 @@ def render_data_health(
         output_path=DEFAULT_PACKET_PATH,
     )
     controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame(batch_proof_summary_frame)
-    render_section_header(
-        "Readiness Lane Snapshot",
-        "Post-price bottlenecks before single-stock reports or raw proof tables.",
-    )
-    render_signal_cards(data_health_fundamentals_peer_metrics_queue_cards(readiness_queue), show_commands=False, variant="queue")
-    render_section_header(
-        "Pilot Share Gate",
-        "Can share, manual gates, generated-churn boundary, license boundary, and next safe packet command before release details.",
-    )
-    render_signal_cards(
-        data_health_pilot_handoff_summary_cards(pilot_handoff_summary),
-        show_commands=False,
-        variant="queue",
-    )
-    with st.expander("Pilot Share Gate details", expanded=False):
+    with st.expander("Secondary readiness and pilot gate details", expanded=False):
+        render_section_header(
+            "Readiness Lane Snapshot",
+            "Post-price bottlenecks before single-stock reports or raw proof tables.",
+        )
+        render_signal_cards(
+            data_health_fundamentals_peer_metrics_queue_cards(readiness_queue),
+            show_commands=False,
+            variant="queue",
+        )
+        render_section_header(
+            "Pilot Share Gate",
+            "Can share, manual gates, generated-churn boundary, license boundary, and next safe packet command before release details.",
+        )
+        render_signal_cards(
+            data_health_pilot_handoff_summary_cards(pilot_handoff_summary),
+            show_commands=False,
+            variant="queue",
+        )
         render_section_header(
             "Evidence Review Detail",
             "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables.",

@@ -14890,7 +14890,14 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     current_mode_index = source.index("render_data_health_current_mode_strip(", lane_selector_index)
-    lane_snapshot_index = source.index('render_section_header(\n        "Readiness Lane Snapshot"', current_mode_index)
+    secondary_readiness_gate_index = source.index(
+        'st.expander("Secondary readiness and pilot gate details", expanded=False)',
+        current_mode_index,
+    )
+    lane_snapshot_index = source.index(
+        'render_section_header(\n            "Readiness Lane Snapshot"',
+        secondary_readiness_gate_index,
+    )
     readiness_queue_cards_index = source.index("data_health_fundamentals_peer_metrics_queue_cards(readiness_queue)", lane_snapshot_index)
     top_summary_block_index = source.index("render_data_health_top_operator_summary_block(", readiness_queue_cards_index)
     top_summary_helper_index = source.index("def render_data_health_top_operator_summary_block(")
@@ -14920,8 +14927,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     generated_artifact_drawer_index = source.index('st.expander("Generated churn review drawer", expanded=False)', generated_artifact_cards_index)
     generated_artifact_frame_index = source.index("data_health_generated_churn_review_frame(base_dir)", generated_artifact_drawer_index)
     generated_artifact_detail_index = source.index("data_health_generated_churn_detail_frame(base_dir)", generated_artifact_frame_index)
-    pilot_share_gate_index = source.index('render_section_header(\n        "Pilot Share Gate"', readiness_queue_cards_index)
-    pilot_share_gate_drawer_index = source.index('st.expander("Pilot Share Gate details", expanded=False)', pilot_share_gate_index)
+    pilot_share_gate_index = source.index('render_section_header(\n            "Pilot Share Gate"', readiness_queue_cards_index)
     queue_detail_selector_index = source.index('label="Readiness queue detail level"', readiness_queue_cards_index)
     coverage_proof_queue_section_index = source.index('render_section_header(\n            "Data Coverage Proof Queues"', queue_detail_selector_index)
     coverage_proof_queue_cards_index = source.index(
@@ -15017,9 +15023,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Operator context", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < prior_snapshot_load_index < lane_snapshot_index < top_summary_block_index
+    assert public_return_index < prior_snapshot_load_index < secondary_readiness_gate_index < lane_snapshot_index < top_summary_block_index
     assert top_summary_detail_drawer_index < queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < proof_closeout_summary_index < proof_closeout_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < lane_snapshot_index < readiness_queue_cards_index < pilot_share_gate_index < pilot_share_gate_drawer_index < top_summary_block_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_drawer_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_gate_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_lane_index < proof_detail_status_index < proof_detail_cards_index < proof_shell_cards_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < secondary_readiness_gate_index < lane_snapshot_index < readiness_queue_cards_index < pilot_share_gate_index < top_summary_block_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_drawer_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_gate_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_lane_index < proof_detail_status_index < proof_detail_cards_index < proof_shell_cards_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -19405,13 +19411,16 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     controlled_outcome_index = source.index("controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame", handoff_frame_index)
     commit_frame_index = source.index("pilot_commit_package = data_health_pilot_commit_package_frame", handoff_frame_index)
     packaging_frame_index = source.index("pilot_packaging_summary = data_health_pilot_packaging_summary_frame")
-    share_gate_header_index = source.index('render_section_header(\n        "Pilot Share Gate"', packaging_frame_index)
+    secondary_readiness_gate_index = source.index(
+        'st.expander("Secondary readiness and pilot gate details", expanded=False)',
+        packaging_frame_index,
+    )
+    share_gate_header_index = source.index('render_section_header(\n            "Pilot Share Gate"', secondary_readiness_gate_index)
     share_gate_summary_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", share_gate_header_index)
     share_gate_summary_commands_index = source.index("show_commands=False", share_gate_summary_cards_index)
-    share_gate_detail_index = source.index('st.expander("Pilot Share Gate details", expanded=False)', share_gate_summary_commands_index)
     evidence_cards_index = _assert_card_render_hides_commands(
         "data_health_pilot_evidence_review_cards(pilot_evidence_review)",
-        share_gate_detail_index,
+        share_gate_summary_commands_index,
     )
     final_gate_cards_index = _assert_card_render_hides_commands(
         "data_health_public_share_final_gate_cards(public_share_final_gate)",
@@ -19447,10 +19456,10 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
 
     assert handoff_frame_index < packaging_frame_index < evidence_frame_index < share_gate_frame_index < workflow_frame_index
     assert (
-        share_gate_header_index
+        secondary_readiness_gate_index
+        < share_gate_header_index
         < share_gate_summary_cards_index
         < share_gate_summary_commands_index
-        < share_gate_detail_index
         < evidence_cards_index
         < final_gate_cards_index
         < workflow_cards_index
@@ -19480,6 +19489,7 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     assert "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers." in source
     assert "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing." in source
     assert "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary." in source
+    assert 'st.expander("Pilot Share Gate details", expanded=False)' not in source
 
 
 def test_universe_layer_frame_gives_plain_language_next_steps():
