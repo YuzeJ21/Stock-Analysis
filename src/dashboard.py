@@ -29998,50 +29998,51 @@ def render_data_health(
                     tone="warning",
                 )
             else:
-                if status_frame is not None and not status_frame.empty:
-                    display_status = status_frame.copy()
-                    if "availability_status" in display_status.columns:
-                        display_status["availability_status"] = display_status["availability_status"].map(friendly_data_source_status)
-                    columns = data_source_status_table_columns(display_status)
-                    st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
-                else:
-                    data_source_rows_notice_body, data_source_rows_notice_command = artifact_notice_copy("data_source_rows", status_message)
-                    render_notice_card(
-                        "No data source status rows are available",
-                        data_source_rows_notice_body,
-                        data_source_rows_notice_command,
-                        tone="warning",
-                    )
-                if gap_frame is not None and not gap_frame.empty:
-                    with st.expander("Data Gap List", expanded=False):
-                        display_gaps = gap_frame.copy()
-                        if "status" in display_gaps.columns:
-                            display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
-                        gap_columns = operator_workflow_table_columns(
-                            display_gaps,
-                            [
-                                "dataset",
-                                "ticker",
-                                "status",
-                                "required_for",
-                                "recommended_action",
-                                "target_file",
-                                "focus_command",
-                                "example_command",
-                                "local_file",
-                                "reason",
-                                "source_name",
-                            ],
+                with st.expander("Source evidence details", expanded=False):
+                    if status_frame is not None and not status_frame.empty:
+                        display_status = status_frame.copy()
+                        if "availability_status" in display_status.columns:
+                            display_status["availability_status"] = display_status["availability_status"].map(friendly_data_source_status)
+                        columns = data_source_status_table_columns(display_status)
+                        st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
+                    else:
+                        data_source_rows_notice_body, data_source_rows_notice_command = artifact_notice_copy("data_source_rows", status_message)
+                        render_notice_card(
+                            "No data source status rows are available",
+                            data_source_rows_notice_body,
+                            data_source_rows_notice_command,
+                            tone="warning",
                         )
-                        display_frame = display_gaps[gap_columns] if gap_columns else display_gaps
-                        st.dataframe(clean_display_frame(display_frame), width="stretch", hide_index=True)
-                else:
-                    gap_notice_body, gap_notice_command = data_gap_report_notice(gap_message)
-                    render_notice_card(
-                        "No data gaps were reported",
-                        gap_notice_body,
-                        gap_notice_command,
-                    )
+                    if gap_frame is not None and not gap_frame.empty:
+                        with st.expander("Data Gap List", expanded=False):
+                            display_gaps = gap_frame.copy()
+                            if "status" in display_gaps.columns:
+                                display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
+                            gap_columns = operator_workflow_table_columns(
+                                display_gaps,
+                                [
+                                    "dataset",
+                                    "ticker",
+                                    "status",
+                                    "required_for",
+                                    "recommended_action",
+                                    "target_file",
+                                    "focus_command",
+                                    "example_command",
+                                    "local_file",
+                                    "reason",
+                                    "source_name",
+                                ],
+                            )
+                            display_frame = display_gaps[gap_columns] if gap_columns else display_gaps
+                            st.dataframe(clean_display_frame(display_frame), width="stretch", hide_index=True)
+                    else:
+                        gap_notice_body, gap_notice_command = data_gap_report_notice(gap_message)
+                        render_notice_card(
+                            "No data gaps were reported",
+                            gap_notice_body,
+                            gap_notice_command,
+                        )
 
         with health_tabs[3]:
             render_signal_cards(

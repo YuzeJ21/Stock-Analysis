@@ -27963,6 +27963,22 @@ def test_last_resort_legacy_coverage_tab_groups_worklist_rows():
     assert fundamentals_queue_index < peer_queue_index < unlock_steps_index < unlock_summary_index < sources_tab_index
 
 
+def test_last_resort_legacy_sources_tab_groups_source_evidence_rows():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    legacy_tables_index = source.index('with st.expander("Last-resort legacy tables", expanded=False):')
+    sources_tab_index = source.index("with health_tabs[2]:", legacy_tables_index)
+    summary_cards_index = source.index('data_health_tab_summary_cards(\n                    "Sources"', sources_tab_index)
+    evidence_details_index = source.index('st.expander("Source evidence details", expanded=False)', summary_cards_index)
+    status_display_index = source.index("display_status = status_frame.copy()", evidence_details_index)
+    status_table_index = source.index("st.dataframe(clean_display_frame(display_status[columns])", status_display_index)
+    gap_list_index = source.index('st.expander("Data Gap List", expanded=False)', status_table_index)
+    gap_table_index = source.index("st.dataframe(clean_display_frame(display_frame)", gap_list_index)
+    price_updates_tab_index = source.index("with health_tabs[3]:", gap_table_index)
+
+    assert sources_tab_index < summary_cards_index < evidence_details_index < status_display_index
+    assert status_display_index < status_table_index < gap_list_index < gap_table_index < price_updates_tab_index
+
+
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"
