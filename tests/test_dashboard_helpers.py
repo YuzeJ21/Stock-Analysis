@@ -23298,6 +23298,8 @@ def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
     assert "make templates" in rendered_cards
     source = Path("src/dashboard.py").read_text(encoding="utf-8").lower()
     assert "before editing peer import files" in source
+    assert "no peer review rows match the current filter. try all peer-blocked or refresh readiness." in source
+    assert "no peer review rows match the current filter. try all peer-blocked or run make readiness." not in source
     assert "before editing peer import draft csvs" not in source
     assert "broker" not in rendered_cards
     assert "order" not in rendered_cards

@@ -27552,7 +27552,7 @@ def render_market_command_center(
         row_limit=peer_limit,
     )
     if peer_studio.empty:
-        st.info("No peer review rows match the current filter. Try All peer-blocked or run make readiness.")
+        st.info("No peer review rows match the current filter. Try All peer-blocked or refresh readiness.")
     else:
         st.caption(
             f"Showing {len(peer_studio)} peer review row(s). Use make peer-mapping-queue TOP_N=25 or ticker-specific review commands before editing peer import files."
