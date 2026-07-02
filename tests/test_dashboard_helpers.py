@@ -19288,6 +19288,14 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
 def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summary():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    def _assert_card_render_hides_commands(card_call: str, start: int) -> int:
+        card_index = source.index(card_call, start)
+        next_dataframe_index = source.index("st.dataframe", card_index)
+        render_block = source[card_index:next_dataframe_index]
+        assert "show_commands=False" in render_block
+        assert "show_commands=True" not in render_block
+        return card_index
+
     evidence_frame_index = source.index("pilot_evidence_review = data_health_pilot_evidence_review_frame")
     share_gate_frame_index = source.index("public_share_final_gate = data_health_public_share_final_gate_frame")
     workflow_frame_index = source.index("workflow_continuity = data_health_workflow_continuity_frame")
@@ -19299,15 +19307,41 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     share_gate_summary_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", share_gate_header_index)
     share_gate_summary_commands_index = source.index("show_commands=False", share_gate_summary_cards_index)
     share_gate_detail_index = source.index('st.expander("Pilot Share Gate details", expanded=False)', share_gate_summary_commands_index)
-    evidence_cards_index = source.index("data_health_pilot_evidence_review_cards(pilot_evidence_review)", share_gate_detail_index)
-    evidence_commands_index = source.index("show_commands=True", evidence_cards_index)
-    final_gate_cards_index = source.index("data_health_public_share_final_gate_cards(public_share_final_gate)", evidence_cards_index)
-    workflow_cards_index = source.index("data_health_workflow_continuity_cards(workflow_continuity)", final_gate_cards_index)
-    controlled_cards_index = source.index("data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome)", workflow_cards_index)
+    evidence_cards_index = _assert_card_render_hides_commands(
+        "data_health_pilot_evidence_review_cards(pilot_evidence_review)",
+        share_gate_detail_index,
+    )
+    final_gate_cards_index = _assert_card_render_hides_commands(
+        "data_health_public_share_final_gate_cards(public_share_final_gate)",
+        evidence_cards_index,
+    )
+    workflow_cards_index = _assert_card_render_hides_commands(
+        "data_health_workflow_continuity_cards(workflow_continuity)",
+        final_gate_cards_index,
+    )
+    controlled_cards_index = _assert_card_render_hides_commands(
+        "data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome)",
+        workflow_cards_index,
+    )
     commit_cards_index = source.index("data_health_pilot_commit_package_cards(pilot_commit_package)", controlled_cards_index)
-    packaging_cards_index = source.index("data_health_pilot_packaging_summary_cards(pilot_packaging_summary)", commit_cards_index)
+    packaging_cards_index = _assert_card_render_hides_commands(
+        "data_health_pilot_packaging_summary_cards(pilot_packaging_summary)",
+        commit_cards_index,
+    )
     walkthrough_strip_index = source.index("data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough)", packaging_cards_index)
-    gate_packet_cards_index = source.index("data_health_pilot_readiness_cards(pilot_readiness)", walkthrough_strip_index)
+    walkthrough_cards_index = _assert_card_render_hides_commands(
+        "data_health_pilot_reviewer_walkthrough_cards(pilot_reviewer_walkthrough)",
+        walkthrough_strip_index,
+    )
+    gate_packet_cards_index = _assert_card_render_hides_commands(
+        "data_health_pilot_readiness_cards(pilot_readiness)",
+        walkthrough_cards_index,
+    )
+    packet_cards_index = _assert_card_render_hides_commands(
+        "data_health_pilot_packet_cards(pilot_readiness)",
+        gate_packet_cards_index,
+    )
+    explicit_packet_command_index = source.index("make pilot-readiness-packet OUTPUT=", packet_cards_index)
 
     assert handoff_frame_index < packaging_frame_index < evidence_frame_index < share_gate_frame_index < workflow_frame_index
     assert (
@@ -19316,14 +19350,16 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
         < share_gate_summary_commands_index
         < share_gate_detail_index
         < evidence_cards_index
-        < evidence_commands_index
         < final_gate_cards_index
         < workflow_cards_index
         < controlled_cards_index
         < commit_cards_index
         < packaging_cards_index
         < walkthrough_strip_index
+        < walkthrough_cards_index
         < gate_packet_cards_index
+        < packet_cards_index
+        < explicit_packet_command_index
     )
     assert controlled_outcome_index < controlled_cards_index
     assert 'render_section_header(\n        "Pilot Evidence Review"' not in source

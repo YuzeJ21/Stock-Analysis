@@ -27739,7 +27739,7 @@ def render_data_health(
         )
         render_signal_cards(
             data_health_pilot_evidence_review_cards(pilot_evidence_review),
-            show_commands=True,
+            show_commands=False,
             variant="queue",
         )
         st.dataframe(clean_display_frame(pilot_evidence_review), width="stretch", hide_index=True)
@@ -27749,7 +27749,7 @@ def render_data_health(
         )
         render_signal_cards(
             data_health_public_share_final_gate_cards(public_share_final_gate),
-            show_commands=True,
+            show_commands=False,
             variant="queue",
         )
         st.dataframe(clean_display_frame(public_share_final_gate), width="stretch", hide_index=True)
@@ -27759,7 +27759,7 @@ def render_data_health(
         )
         render_signal_cards(
             data_health_workflow_continuity_cards(workflow_continuity),
-            show_commands=True,
+            show_commands=False,
             variant="queue",
         )
         st.dataframe(clean_display_frame(workflow_continuity), width="stretch", hide_index=True)
@@ -27769,7 +27769,7 @@ def render_data_health(
         )
         render_signal_cards(
             data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome),
-            show_commands=True,
+            show_commands=False,
             variant="queue",
         )
         st.dataframe(clean_display_frame(controlled_pilot_outcome), width="stretch", hide_index=True)
@@ -27789,7 +27789,7 @@ def render_data_health(
         )
         render_signal_cards(
             data_health_pilot_packaging_summary_cards(pilot_packaging_summary),
-            show_commands=True,
+            show_commands=False,
             variant="queue",
         )
         st.dataframe(clean_display_frame(pilot_packaging_summary), width="stretch", hide_index=True)
@@ -27800,7 +27800,7 @@ def render_data_health(
         st.markdown(data_health_pilot_reviewer_walkthrough_strip_html(pilot_reviewer_walkthrough), unsafe_allow_html=True)
         render_signal_cards(
             data_health_pilot_reviewer_walkthrough_cards(pilot_reviewer_walkthrough),
-            show_commands=True,
+            show_commands=False,
             variant="queue",
         )
         st.dataframe(clean_display_frame(pilot_reviewer_walkthrough), width="stretch", hide_index=True)
@@ -27808,8 +27808,8 @@ def render_data_health(
             "Readiness Gate And Packet Detail",
             "Sync, hygiene, freshness, source-proof, public-check, and research-only status before a pilot package.",
         )
-        render_signal_cards(data_health_pilot_readiness_cards(pilot_readiness), show_commands=True, variant="queue")
-        render_signal_cards(data_health_pilot_packet_cards(pilot_readiness), show_commands=True, variant="queue")
+        render_signal_cards(data_health_pilot_readiness_cards(pilot_readiness), show_commands=False, variant="queue")
+        render_signal_cards(data_health_pilot_packet_cards(pilot_readiness), show_commands=False, variant="queue")
         render_context_note(
             "Reviewer packet boundary.",
             "The packet command writes one Markdown summary artifact from saved local status and proof files. It does not refresh data, apply imports, record proof, stage files, commit, push, or change canonical source CSVs.",
