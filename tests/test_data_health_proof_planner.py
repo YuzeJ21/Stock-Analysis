@@ -72,6 +72,8 @@ def test_proof_planner_outcome_summary_uses_loaded_planner_and_freshness_cta():
     assert cards[0]["title"] == "Refresh readiness before proof planning"
     assert cards[0]["command"] == "make readiness"
     assert "stale readiness rows are not proof" in rendered
+    assert "open operator details" in str(cards[0]["body"]).lower()
+    assert "make " not in str(cards[0]["body"]).lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
