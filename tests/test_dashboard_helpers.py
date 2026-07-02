@@ -25866,6 +25866,9 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     lane_answer_index = source.index('render_section_header(\n        "Selected Lane Answer"', public_return_index)
     lane_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", lane_answer_index)
     source_gate_action_index = source.index("source_gate_next_action = data_health_source_gate_next_action(", lane_answer_cards_index)
+    research_loop_index = source.index("render_research_loop_strip(", source_gate_action_index)
+    research_loop_next_action_index = source.index("next_action=data_health_current_mode_next_action(", research_loop_index)
+    research_loop_source_gate_index = source.index("source_gate_next_action=source_gate_next_action", research_loop_next_action_index)
     mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
     mode_strip_source_gate_index = source.index("source_gate_next_action=source_gate_next_action", mode_strip_index)
     source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', mode_strip_index)
@@ -25875,7 +25878,8 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
     next_action_index = source.index('st.expander("Optional next-action details", expanded=False)', guidance_cards_index)
 
-    assert lane_answer_index < lane_answer_cards_index < source_gate_action_index < mode_strip_index
+    assert lane_answer_index < lane_answer_cards_index < source_gate_action_index < research_loop_index
+    assert research_loop_index < research_loop_next_action_index < research_loop_source_gate_index < mode_strip_index
     assert mode_strip_index < mode_strip_source_gate_index < source_details_index
     assert source_details_index < source_pivot_index < source_pivot_cards_index < guidance_header_index
     assert source_details_index < guidance_header_index < guidance_cards_index < next_action_index

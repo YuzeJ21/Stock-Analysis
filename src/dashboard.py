@@ -27869,6 +27869,7 @@ def render_data_health(
                 proof_details_requested=proof_details_requested,
                 readiness_freshness=readiness_freshness,
                 batch_preflight=batch_preflight,
+                source_gate_next_action=source_gate_next_action,
             ),
             public_mode=False,
         )
