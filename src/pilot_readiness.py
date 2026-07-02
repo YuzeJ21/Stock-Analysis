@@ -1237,6 +1237,7 @@ def render_pilot_share_brief(
         "",
         "- Shareable now: portfolio/demo evidence with manual gates.",
         "- Not shareable as: open-source/reuse package or data-freshness proof until the license and generated-artifact gates are resolved.",
+        "- Reuse rights: not granted until a root `LICENSE` exists.",
         "- Keep local: broad generated CSV/JSON/report churn unless a specific artifact is reviewed evidence.",
         "- Next gate: run `make public-check` and keep source-proof blockers visible.",
         "",
