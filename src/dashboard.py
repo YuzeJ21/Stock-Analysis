@@ -19954,7 +19954,11 @@ def data_health_proof_history_operator_console_html(
     return data_health_lane_operator_console_html(
         kicker="Proof History Lane",
         title="Record proof, not optimism.",
-        body="Proof history shows reviewed lane and batch outcomes. It is evidence for data readiness, not a performance or recommendation signal.",
+        body=(
+            "Proof history shows reviewed lane and batch outcomes. It is evidence for data readiness, "
+            "not a performance or recommendation signal, and does not refresh data, apply imports, "
+            "or record proof outcomes from this first view."
+        ),
         stats=[
             ("Data Proofs", f"{proof_count:,}"),
             ("Batch Proofs", f"{batch_count:,}"),

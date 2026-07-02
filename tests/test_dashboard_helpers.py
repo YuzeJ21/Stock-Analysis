@@ -14683,6 +14683,7 @@ def test_proof_history_operator_console_keeps_outcomes_evidence_only():
     assert "proof history lane" in html
     assert "record proof, not optimism" in html
     assert "evidence for data readiness" in html
+    assert "does not refresh data, apply imports, or record proof outcomes from this first view" in html
     assert "not a performance or recommendation signal" in html
     assert "generated csv churn is not proof" in html
     assert "make " not in html
