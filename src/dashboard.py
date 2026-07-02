@@ -9729,6 +9729,19 @@ def data_health_workflow_continuity_cards(frame: pd.DataFrame | None, *, limit: 
     return pilot_console.data_health_workflow_continuity_cards(frame, limit=limit)
 
 
+def data_health_pilot_operator_runbook_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    return pilot_console.pilot_operator_runbook_frame(pilot_frame, proof_queue_frame, output_path=output_path)
+
+
+def data_health_pilot_operator_runbook_cards(frame: pd.DataFrame | None, *, limit: int = 6) -> list[dict[str, object]]:
+    return pilot_console.pilot_operator_runbook_cards(frame, limit=limit)
+
+
 def data_health_pilot_reviewer_walkthrough_frame(
     pilot_frame: pd.DataFrame | None,
     proof_queue_frame: pd.DataFrame | None,
@@ -27886,6 +27899,11 @@ def render_data_health(
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
+    pilot_operator_runbook = data_health_pilot_operator_runbook_frame(
+        pilot_readiness,
+        data_coverage_proof_queues,
+        output_path=DEFAULT_PACKET_PATH,
+    )
     controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame(batch_proof_summary_frame)
     with st.expander("Secondary readiness and pilot gate details", expanded=False):
         render_section_header(
@@ -27894,6 +27912,15 @@ def render_data_health(
         )
         render_signal_cards(
             data_health_fundamentals_peer_metrics_queue_cards(readiness_queue),
+            show_commands=False,
+            variant="queue",
+        )
+        render_section_header(
+            "Pilot Operator Runbook",
+            "Share gate, source gate, provider setup, one-provider smoke, validate/preview, packet, and hygiene in one compact path.",
+        )
+        render_signal_cards(
+            data_health_pilot_operator_runbook_cards(pilot_operator_runbook),
             show_commands=False,
             variant="queue",
         )

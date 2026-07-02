@@ -9,6 +9,8 @@ from src.dashboard import (
     data_health_pilot_packet_cards,
     data_health_pilot_packaging_summary_cards,
     data_health_pilot_packaging_summary_frame,
+    data_health_pilot_operator_runbook_cards,
+    data_health_pilot_operator_runbook_frame,
     data_health_pilot_readiness_cards,
     data_health_pilot_reviewer_walkthrough_cards,
     data_health_pilot_reviewer_walkthrough_frame,
@@ -230,6 +232,46 @@ def test_data_health_pilot_reviewer_walkthrough_wraps_compact_path():
     assert "pilot-flow" in rendered_strip
     assert "trusted fundamentals proof queue" in rendered_strip
     assert "make dcf-input-source-command-plan" in rendered_strip
+
+
+def test_data_health_pilot_operator_runbook_wraps_share_and_source_gates():
+    pilot = pd.DataFrame(
+        [
+            {"Area": "Public safety", "Status": "manual", "Detail": "Public-check remains required.", "Command": "make public-check", "Stop Rule": "Stop if public-check fails."},
+            {"Area": "Browser QA evidence", "Status": "green", "Detail": "Real screenshots ready.", "Command": "make browser-qa-evidence", "Stop Rule": "Stop if screenshot evidence is stale."},
+            {"Area": "Generated artifact hygiene", "Status": "manual", "Detail": "Generated churn excluded.", "Command": "make diff-hygiene-summary", "Stop Rule": "Do not stage broad generated churn."},
+        ]
+    )
+    queues = pd.DataFrame(
+        [
+            {
+                "Queue": "Trusted Fundamentals Proof Queue",
+                "State": "reviewed or exhausted",
+                "Blocked": 90,
+                "Top Blockers": "fundamentals_bundle_plus_shares: 90",
+                "Next Safe Command": "make project-status",
+                "Stop Rule": "Use provider setup before reopening proof queues.",
+            }
+        ]
+    )
+
+    frame = data_health_pilot_operator_runbook_frame(pilot, queues)
+    cards = data_health_pilot_operator_runbook_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert frame["Step"].tolist() == [
+        "1. Share gate",
+        "2. Source gate",
+        "3. Provider setup",
+        "4. One-provider smoke",
+        "5. Validate / preview",
+        "6. Packet and hygiene",
+    ]
+    assert "pilot operator runbook" in rendered
+    assert "share-readiness, provider setup, and exhausted proof queues" in rendered
+    assert "do not reopen broad proof loops" in rendered
+    assert "make provider-setup-checklist" in rendered
+    assert "make imports-validate import_tickers=<ticker>" in rendered
 
 
 def test_data_health_pilot_packaging_summary_answers_share_gate_and_churn_boundary():

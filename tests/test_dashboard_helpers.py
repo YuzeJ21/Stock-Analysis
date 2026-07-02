@@ -19433,15 +19433,19 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     evidence_frame_index = source.index("pilot_evidence_review = data_health_pilot_evidence_review_frame")
     share_gate_frame_index = source.index("public_share_final_gate = data_health_public_share_final_gate_frame")
     workflow_frame_index = source.index("workflow_continuity = data_health_workflow_continuity_frame")
+    operator_runbook_frame_index = source.index("pilot_operator_runbook = data_health_pilot_operator_runbook_frame")
     handoff_frame_index = source.index("pilot_handoff_summary = data_health_pilot_handoff_summary_frame")
-    controlled_outcome_index = source.index("controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame", handoff_frame_index)
+    controlled_outcome_index = source.index("controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame", operator_runbook_frame_index)
     commit_frame_index = source.index("pilot_commit_package = data_health_pilot_commit_package_frame", handoff_frame_index)
     packaging_frame_index = source.index("pilot_packaging_summary = data_health_pilot_packaging_summary_frame")
     secondary_readiness_gate_index = source.index(
         'st.expander("Secondary readiness and pilot gate details", expanded=False)',
         packaging_frame_index,
     )
-    share_gate_header_index = source.index('render_section_header(\n            "Pilot Share Gate"', secondary_readiness_gate_index)
+    operator_runbook_header_index = source.index('render_section_header(\n            "Pilot Operator Runbook"', secondary_readiness_gate_index)
+    operator_runbook_cards_index = source.index("data_health_pilot_operator_runbook_cards(pilot_operator_runbook)", operator_runbook_header_index)
+    operator_runbook_commands_index = source.index("show_commands=False", operator_runbook_cards_index)
+    share_gate_header_index = source.index('render_section_header(\n            "Pilot Share Gate"', operator_runbook_commands_index)
     share_gate_summary_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", share_gate_header_index)
     share_gate_summary_commands_index = source.index("show_commands=False", share_gate_summary_cards_index)
     evidence_cards_index = _assert_card_render_hides_commands(
@@ -19480,9 +19484,12 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     )
     explicit_packet_command_index = source.index("make pilot-readiness-packet OUTPUT=", packet_cards_index)
 
-    assert handoff_frame_index < packaging_frame_index < evidence_frame_index < share_gate_frame_index < workflow_frame_index
+    assert handoff_frame_index < packaging_frame_index < evidence_frame_index < share_gate_frame_index < workflow_frame_index < operator_runbook_frame_index
     assert (
         secondary_readiness_gate_index
+        < operator_runbook_header_index
+        < operator_runbook_cards_index
+        < operator_runbook_commands_index
         < share_gate_header_index
         < share_gate_summary_cards_index
         < share_gate_summary_commands_index
@@ -19511,6 +19518,8 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     assert "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables." in source
     assert "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing." in source
     assert "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables." in source
+    assert "Share gate, source gate, provider setup, one-provider smoke, validate/preview, packet, and hygiene in one compact path." in source
+    assert "data_health_pilot_operator_runbook_cards(pilot_operator_runbook)" in source
     assert "data_health_pilot_handoff_summary_cards(pilot_handoff_summary)" in source
     assert "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers." in source
     assert "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing." in source

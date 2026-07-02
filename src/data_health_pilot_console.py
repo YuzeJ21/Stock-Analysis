@@ -1044,6 +1044,124 @@ def data_health_workflow_continuity_cards(frame: pd.DataFrame | None, *, limit: 
     return cards
 
 
+def pilot_operator_runbook_frame(
+    pilot_frame: pd.DataFrame | None,
+    proof_queue_frame: pd.DataFrame | None,
+    *,
+    output_path: Path = DEFAULT_PACKET_PATH,
+) -> pd.DataFrame:
+    """Return the shortest operator runbook across share and source gates."""
+
+    public_row = _area_row(pilot_frame, "Public safety")
+    browser_row = _area_row(pilot_frame, "Browser QA evidence")
+    churn_row = _area_row(pilot_frame, "Generated artifact hygiene")
+    proof_queue = _leading_proof_queue(proof_queue_frame)
+
+    share_command = "make public-check"
+    if public_row is not None:
+        share_command = _format_missing(public_row.get("Command"), share_command)
+    browser_command = "make browser-qa-evidence"
+    if browser_row is not None:
+        browser_command = _format_missing(browser_row.get("Command"), browser_command)
+    churn_command = "make diff-hygiene-summary"
+    if churn_row is not None:
+        churn_command = _format_missing(churn_row.get("Command"), churn_command)
+
+    queue_title = "current source-proof queues"
+    queue_state = "reviewed or exhausted"
+    if proof_queue is not None:
+        queue_title = _format_missing(proof_queue.get("Queue"), queue_title)
+        queue_state = _format_missing(proof_queue.get("State"), queue_state)
+
+    rows = [
+        {
+            "Step": "1. Share gate",
+            "Operator Answer": "Share only after public-check, real screenshot evidence, generated-churn exclusion, and license boundary are visible.",
+            "Next Safe Action": share_command,
+            "Evidence": f"Also verify {browser_command}; screenshots are product evidence only.",
+            "Stop Rule": "Stop before sharing if public-check, browser evidence, wording, or license boundary is not reviewed.",
+        },
+        {
+            "Step": "2. Source gate",
+            "Operator Answer": f"Run project-status before opening source-proof tables; {queue_title} is {queue_state}.",
+            "Next Safe Action": "make project-status",
+            "Evidence": "Project status decides whether company candidates are executable or queues are exhausted.",
+            "Stop Rule": "Do not reopen broad proof loops when current queues are reviewed or exhausted.",
+        },
+        {
+            "Step": "3. Provider setup",
+            "Operator Answer": "Use provider setup only when project-status says source-proof queues are exhausted or new provider data could change the gate.",
+            "Next Safe Action": "make provider-setup-checklist",
+            "Evidence": "Provider setup shows free/public sources, keyed gaps, optional read-only providers, and source boundaries without secrets.",
+            "Stop Rule": "Do not treat provider setup as an import, apply, or analysis unlock.",
+        },
+        {
+            "Step": "4. One-provider smoke",
+            "Operator Answer": "Configure at most one provider, rerun preflight, then smoke one ticker before any broader batch.",
+            "Next Safe Action": "make session-source-preflight",
+            "Evidence": "Smoke command comes from provider setup; broad batches wait until the one-ticker path is source-backed.",
+            "Stop Rule": "Do not configure every provider at once or start broad refreshes from setup.",
+        },
+        {
+            "Step": "5. Validate / preview",
+            "Operator Answer": "Rows can move only after validation passes, preview scope is intended, rejected rows are zero, and provenance exists.",
+            "Next Safe Action": "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>",
+            "Evidence": "Apply remains separate and reviewed; missing rows stay blocked, skipped, excluded, or candidate-context-only.",
+            "Stop Rule": "Do not apply fabricated, inferred, broad, or rejected rows.",
+        },
+        {
+            "Step": "6. Packet and hygiene",
+            "Operator Answer": "Write the reviewer packet only after gates are reviewed; generated churn stays excluded unless exact artifacts are selected evidence.",
+            "Next Safe Action": f"make pilot-readiness-packet OUTPUT={output_path.as_posix()} && {churn_command}",
+            "Evidence": output_path.as_posix(),
+            "Stop Rule": "Do not stage broad generated CSV/JSON/report churn or sample reports by default.",
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def pilot_operator_runbook_cards(frame: pd.DataFrame | None, *, limit: int = 6) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "PILOT OPERATOR RUNBOOK",
+                "title": "Load pilot gates first",
+                "body": "Load share-readiness, provider setup, and source-proof queue state before opening raw proof tables.",
+                "badges": ["read-only", "operator path"],
+                "command": "make pilot-readiness-check TOP_N=10",
+            }
+        ]
+
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "PILOT OPERATOR RUNBOOK",
+            "title": "One path across share and source gates",
+            "body": (
+                "Connect share-readiness, provider setup, and exhausted proof queues before raw tables. "
+                "Do not reopen broad proof loops; move through one-provider smoke, validate / preview, packet, and hygiene."
+            ),
+            "badges": ["share gate", "source gate", "copy-only"],
+            "command": "make project-status",
+        }
+    ]
+    for _, row in frame.head(max(limit, 0)).iterrows():
+        step = _format_missing(row.get("Step"), "Runbook step")
+        answer = _compact_fragment(row.get("Operator Answer"), max_chars=165)
+        evidence = _compact_fragment(row.get("Evidence"), max_chars=140)
+        stop_rule = _compact_fragment(row.get("Stop Rule"), max_chars=145)
+        command = _format_missing(row.get("Next Safe Action"), "make project-status")
+        cards.append(
+            {
+                "kicker": step.upper(),
+                "title": answer,
+                "body": f"{_card_sentence('Evidence', evidence)} {_card_sentence('Stop rule', stop_rule)}",
+                "badges": ["copy-only", "review gate"],
+                "command": command,
+            }
+        )
+    return cards
+
+
 def pilot_reviewer_walkthrough_frame(
     pilot_frame: pd.DataFrame | None,
     proof_queue_frame: pd.DataFrame | None,

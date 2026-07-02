@@ -520,6 +520,38 @@ def test_data_health_workflow_continuity_connects_evidence_queue_proof_and_artif
     assert "broker" not in rendered
 
 
+def test_pilot_operator_runbook_connects_share_provider_and_exhausted_queues():
+    frame = pilot_console.pilot_operator_runbook_frame(
+        _pilot_frame(),
+        _proof_queue_frame(),
+        output_path=Path("outputs/pilot_readiness_packet.md"),
+    )
+    cards = pilot_console.pilot_operator_runbook_cards(frame)
+    rendered = " ".join(str(card) for card in cards).lower()
+
+    assert list(frame["Step"]) == [
+        "1. Share gate",
+        "2. Source gate",
+        "3. Provider setup",
+        "4. One-provider smoke",
+        "5. Validate / preview",
+        "6. Packet and hygiene",
+    ]
+    assert frame.iloc[0]["Next Safe Action"] == "make public-check"
+    assert frame.iloc[1]["Next Safe Action"] == "make project-status"
+    assert frame.iloc[2]["Next Safe Action"] == "make provider-setup-checklist"
+    assert frame.iloc[4]["Next Safe Action"] == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
+    assert "pilot operator runbook" in rendered
+    assert "share-readiness, provider setup, and exhausted proof queues" in rendered
+    assert "do not reopen broad proof loops" in rendered
+    assert "one-provider smoke" in rendered
+    assert "validate / preview" in rendered
+    assert "generated churn stays excluded" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_data_health_workflow_continuity_deferred_state_keeps_safe_routes():
     frame = pilot_console.data_health_workflow_continuity_frame(pd.DataFrame(), pd.DataFrame())
     rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
