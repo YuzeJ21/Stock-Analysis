@@ -157,30 +157,36 @@ def test_data_health_pilot_share_first_answer_frame_summarizes_release_gates():
 
     frame = data_health_pilot_share_first_answer_frame(pilot, queues)
 
+    assert list(frame.columns) == ["Question", "Answer", "Share Boundary", "Next Safe Action"]
     assert frame.to_dict("records") == [
         {
             "Question": "Can I share this now?",
             "Answer": "Portfolio/demo only with manual gates; not open source and no reuse rights until a root LICENSE exists; 0 blocked gate(s), 4 manual gate(s), 1 green gate(s).",
+            "Share Boundary": "Product evidence only; screenshots and packets do not prove data freshness or unlock blocked inputs.",
             "Next Safe Action": "make public-check",
         },
         {
             "Question": "What must be true first?",
             "Answer": "GitHub sync: manual; generated hygiene: manual; public-check: manual; browser evidence: green.",
+            "Share Boundary": "Run share gates before posting the link; do not use them as analysis approval.",
             "Next Safe Action": "make public-check && make browser-qa-evidence",
         },
         {
             "Question": "What stays out?",
             "Answer": "35 generated artifact(s) excluded by default. License boundary: No root LICENSE file found.",
+            "Share Boundary": "Generated churn, sample reports, and reuse claims stay out unless intentionally reviewed.",
             "Next Safe Action": "make diff-hygiene-summary",
         },
         {
             "Question": "What blocks deeper analysis?",
             "Answer": "Trusted Fundamentals Proof Queue: reviewed; fundamentals_bundle_plus_shares: 90.",
+            "Share Boundary": "Source-proof blockers remain visible; sharing does not convert them into usable inputs.",
             "Next Safe Action": "make project-status",
         },
         {
             "Question": "What packet should I create?",
             "Answer": "outputs/pilot_readiness_packet.md is copy-only evidence; it does not refresh data or unlock blocked inputs.",
+            "Share Boundary": "Packet is reviewer evidence only; it is not a release, data refresh, or proof apply step.",
             "Next Safe Action": "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md",
         },
     ]

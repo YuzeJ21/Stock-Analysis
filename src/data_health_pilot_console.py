@@ -942,6 +942,7 @@ def pilot_share_first_answer_frame(
                 f"Portfolio/demo only with manual gates; {license_boundary}"
                 f"{counts['blocked']} blocked gate(s), {counts['manual']} manual gate(s), {counts['green']} green gate(s)."
             ),
+            "Share Boundary": "Product evidence only; screenshots and packets do not prove data freshness or unlock blocked inputs.",
             "Next Safe Action": "make public-check",
         },
         {
@@ -950,25 +951,29 @@ def pilot_share_first_answer_frame(
                 f"GitHub sync: {status(sync_row)}; generated hygiene: {status(churn_row)}; "
                 f"public-check: {status(public_row)}; browser evidence: {status(browser_row)}."
             ),
+            "Share Boundary": "Run share gates before posting the link; do not use them as analysis approval.",
             "Next Safe Action": "make public-check && make browser-qa-evidence",
         },
         {
             "Question": "What stays out?",
             "Answer": f"{detail(churn_row, 'Generated churn stays excluded by default.')} License boundary: {detail(license_row, 'No root LICENSE file found.')}",
+            "Share Boundary": "Generated churn, sample reports, and reuse claims stay out unless intentionally reviewed.",
             "Next Safe Action": "make diff-hygiene-summary",
         },
         {
             "Question": "What blocks deeper analysis?",
             "Answer": source_answer,
+            "Share Boundary": "Source-proof blockers remain visible; sharing does not convert them into usable inputs.",
             "Next Safe Action": source_command,
         },
         {
             "Question": "What packet should I create?",
             "Answer": f"{output_path.as_posix()} is copy-only evidence; it does not refresh data or unlock blocked inputs.",
+            "Share Boundary": "Packet is reviewer evidence only; it is not a release, data refresh, or proof apply step.",
             "Next Safe Action": f"make pilot-readiness-packet OUTPUT={output_path.as_posix()}",
         },
     ]
-    return pd.DataFrame(rows, columns=["Question", "Answer", "Next Safe Action"])
+    return pd.DataFrame(rows, columns=["Question", "Answer", "Share Boundary", "Next Safe Action"])
 
 
 def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 8) -> list[dict[str, object]]:
