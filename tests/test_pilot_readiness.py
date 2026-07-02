@@ -646,6 +646,7 @@ def test_pilot_share_brief_summarizes_usable_blocked_and_share_boundary(tmp_path
     assert "- Shareable now: portfolio/demo evidence with manual gates." in brief
     assert "- Not shareable as: open-source/reuse package or data-freshness proof until the license and generated-artifact gates are resolved." in brief
     assert "- Reuse rights: not granted until a root `LICENSE` exists." in brief
+    assert "- GitHub pilot link: not current until reviewed local commits are pushed." in brief
     assert "- Keep local: broad generated CSV/JSON/report churn unless a specific artifact is reviewed evidence." in brief
     assert "- Next gate: run `make public-check` and keep source-proof blockers visible." in brief
     assert "What can be used now" in brief

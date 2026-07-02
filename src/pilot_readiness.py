@@ -1206,6 +1206,13 @@ def render_pilot_share_brief(
         if license_check is not None
         else "Do not claim reuse rights until license status is reviewed."
     )
+    sync_check = next((check for check in checks if check.area == "GitHub sync"), None)
+    if sync_check is not None and sync_check.status == "manual":
+        github_link_state = "not current until reviewed local commits are pushed."
+    elif sync_check is not None and sync_check.status == "green":
+        github_link_state = "current with the tracked remote."
+    else:
+        github_link_state = "review git sync before sharing."
     source_gate_check = next((check for check in checks if check.area == "Source proof gates"), None)
     queue_name = str(_queue_value(leading_queue, "label", "queue", fallback="No source-proof queue loaded"))
     queue_state = str(_queue_value(leading_queue, "readiness_state", "state", fallback="-"))
@@ -1238,6 +1245,7 @@ def render_pilot_share_brief(
         "- Shareable now: portfolio/demo evidence with manual gates.",
         "- Not shareable as: open-source/reuse package or data-freshness proof until the license and generated-artifact gates are resolved.",
         "- Reuse rights: not granted until a root `LICENSE` exists.",
+        f"- GitHub pilot link: {github_link_state}",
         "- Keep local: broad generated CSV/JSON/report churn unless a specific artifact is reviewed evidence.",
         "- Next gate: run `make public-check` and keep source-proof blockers visible.",
         "",
