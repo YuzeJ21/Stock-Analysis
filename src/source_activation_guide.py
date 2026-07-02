@@ -67,6 +67,17 @@ WORKFLOW_PIVOT = [
 ]
 
 
+def _human_source_gate(value: object) -> str:
+    text = str(value or "-")
+    labels = {
+        "coverage_workflow_evidence": "workflow evidence only; current source-proof queues are exhausted",
+        "fundamentals_share_count_source_ladder": "fundamentals/share-count source ladder",
+    }
+    for token, label in labels.items():
+        text = text.replace(token, label)
+    return text
+
+
 def _configured(env_name: str) -> bool:
     return bool(os.environ.get(env_name, "").strip())
 
@@ -452,7 +463,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 f"- question: {first_answer.get('question', '-')}",
                 f"- free_source_now: {first_answer.get('free_source_now', '-')}",
                 f"- missing_key: {first_answer.get('missing_key', '-')}",
-                f"- do_not_retry: {first_answer.get('do_not_retry', '-')}",
+                f"- do_not_retry: {_human_source_gate(first_answer.get('do_not_retry', '-'))}",
                 f"- setup_prerequisite: {first_answer.get('setup_prerequisite', '-')}",
                 f"- ticker_scope_rule: {first_answer.get('ticker_scope_rule', '-')}",
                 f"- reviewed_one_ticker_smoke: {first_answer.get('reviewed_one_ticker_smoke', first_answer.get('one_safe_smoke', '-'))}",
@@ -487,9 +498,9 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
             [
                 "Coverage unlock decision:",
                 f"- answer: {coverage_unlock_decision.get('answer', '-')}",
-                f"- can_use_now: {coverage_unlock_decision.get('can_use_now', '-')}",
+                f"- can_use_now: {_human_source_gate(coverage_unlock_decision.get('can_use_now', '-'))}",
                 f"- configure_first: {coverage_unlock_decision.get('configure_first', '-')}",
-                f"- do_not_retry: {coverage_unlock_decision.get('do_not_retry', '-')}",
+                f"- do_not_retry: {_human_source_gate(coverage_unlock_decision.get('do_not_retry', '-'))}",
                 f"- proof_boundary: {coverage_unlock_decision.get('proof_boundary', '-')}",
                 "",
             ]
@@ -530,9 +541,9 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 "Current source gate:",
                 f"- source_activation_reason: {current_gate.get('source_activation_reason', '-')}",
                 f"- source_activation_detail: {current_gate.get('source_activation_detail', '-')}",
-                f"- can_run_now: {current_gate.get('can_run_now', '-')}",
+                f"- can_run_now: {_human_source_gate(current_gate.get('can_run_now', '-'))}",
                 f"- needs_setup: {current_gate.get('needs_setup', '-')}",
-                f"- avoid_repeating: {current_gate.get('avoid_repeating', '-')}",
+                f"- avoid_repeating: {_human_source_gate(current_gate.get('avoid_repeating', '-'))}",
                 f"- next_step: {current_gate.get('next_step', '-')}",
                 f"- next_step_reason: {current_gate.get('next_step_reason', '-')}",
             ]

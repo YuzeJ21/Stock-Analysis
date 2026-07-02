@@ -294,9 +294,15 @@ def test_provider_setup_checklist_starts_with_coverage_unlock_decision(monkeypat
     }
     assert "Coverage unlock decision:" in rendered
     assert "- answer: No broad coverage batch should run from setup alone." in rendered
-    assert "- can_use_now: Use free/public sources for already executable proof paths; current gate says coverage_workflow_evidence." in rendered
+    assert (
+        "- can_use_now: Use free/public sources for already executable proof paths; "
+        "current gate says workflow evidence only; current source-proof queues are exhausted."
+    ) in rendered
     assert "- configure_first: Configure FMP free tier first only if you want a keyed fallback, then run a reviewed one-ticker smoke command." in rendered
-    assert "- do_not_retry: Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist." in rendered
+    assert (
+        "- do_not_retry: Do not retry fundamentals/share-count source ladder until new source-backed rows, "
+        "keyed provider data, reviewed manual rows, or changed blockers exist."
+    ) in rendered
     assert "- proof_boundary: Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence." in rendered
     assert checklist["first_answer"]["do_not_retry"] == (
         "Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist."
@@ -346,8 +352,8 @@ def test_provider_setup_checklist_includes_current_gate_without_fetching_sources
     assert "Current source gate:" in rendered
     assert "source_activation_reason: workflow_evidence_only" in rendered
     assert "source_activation_detail: Sources are reachable, but current blockers already have reviewed non-actionable proof." in rendered
-    assert "can_run_now: coverage_workflow_evidence" in rendered
+    assert "can_run_now: workflow evidence only; current source-proof queues are exhausted" in rendered
     assert "needs_setup: fmp, alpha_vantage, finnhub" in rendered
-    assert "avoid_repeating: fundamentals_share_count_source_ladder" in rendered
+    assert "avoid_repeating: fundamentals/share-count source ladder" in rendered
     assert "next_step: make project-status" in rendered
     assert "secret-fmp-key" not in json.dumps(checklist)
