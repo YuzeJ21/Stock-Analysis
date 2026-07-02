@@ -27676,7 +27676,7 @@ def render_data_health(
     )
     render_signal_cards(
         data_health_operator_next_action_summary_cards(operator_next_action_summary),
-        show_commands=True,
+        show_commands=False,
         variant="queue",
     )
     with st.expander("Next action review detail", expanded=False):

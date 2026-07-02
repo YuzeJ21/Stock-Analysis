@@ -25208,6 +25208,20 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     assert "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts." in source
 
 
+def test_data_health_next_operator_action_hides_commands_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    next_action_index = source.index('render_section_header(\n        "Next Operator Action"')
+    next_action_cards_index = source.index(
+        "data_health_operator_next_action_summary_cards(operator_next_action_summary)",
+        next_action_index,
+    )
+    command_visibility_index = source.index("show_commands=False", next_action_cards_index)
+    detail_expander_index = source.index('st.expander("Next action review detail", expanded=False)', command_visibility_index)
+
+    assert next_action_index < next_action_cards_index < command_visibility_index < detail_expander_index
+
+
 def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated():
     current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
