@@ -724,6 +724,10 @@ def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: P
     assert "How coverage expands next" in brief
     assert "make provider-setup-checklist" in brief
     assert "Coverage unlock decision" in brief
+    assert "Source buckets:" in brief
+    assert "Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in brief
+    assert "Keyed free-tier fallbacks: configured FMP free tier; needs key Alpha Vantage free tier, Finnhub free tier" in brief
+    assert "Optional broker boundary: IBKR read-only" in brief
     assert "No broad coverage batch should run from setup alone" in brief
     assert "Provider setup only makes a source executable" in brief
     assert "readiness changes still require validate, preview, rejected-row review" in brief

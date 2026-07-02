@@ -914,10 +914,25 @@ def _provider_one_setup_lines() -> list[str]:
 def _share_brief_provider_setup_lines(root: Path | str = ".") -> list[str]:
     checklist = build_provider_setup_checklist(load_session_source_preflight(Path(root)))
     unlock_decision = checklist.get("coverage_unlock_decision", {})
+    source_answer = checklist.get("source_answer", {})
+    source_answer = source_answer if isinstance(source_answer, dict) else {}
     lines = [
         "- Next setup view: `make provider-setup-checklist`.",
         "- Real key values are never printed.",
     ]
+    if source_answer:
+        lines.extend(
+            [
+                "- Source buckets:",
+                f"  - Free public sources: {source_answer.get('free_public_now', '-')}",
+                (
+                    "  - Keyed free-tier fallbacks: "
+                    f"configured {source_answer.get('configured_keyed', '-')}; "
+                    f"needs key {source_answer.get('needs_key', '-')}"
+                ),
+                f"  - Optional broker boundary: {source_answer.get('optional_broker', '-')}",
+            ]
+        )
     if isinstance(unlock_decision, dict) and unlock_decision:
         lines.extend(
             [
