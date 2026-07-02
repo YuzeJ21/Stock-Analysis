@@ -987,8 +987,8 @@ def data_health_workflow_continuity_frame(
             "Stop Rule": "Do not jump to raw tables before the current gate is understood.",
         },
         {
-            "Step": "4. Queue route map",
-            "Purpose": f"Choose the leading source-proof lane: {proof_title}.",
+            "Step": "4. Navigation-only queue route map",
+            "Purpose": f"Choose the leading source-proof lane: {proof_title}. Route links do not execute commands.",
             "Primary View": "Readiness queue review details",
             "Next Safe Action": proof_command,
             "Route": f"?mode=operator&page=data-health&lane={proof_route_lane}&drawer=queue",
@@ -1039,8 +1039,8 @@ def data_health_workflow_continuity_cards(frame: pd.DataFrame | None, *, limit: 
             "kicker": "DATA HEALTH FLOW",
             "title": "One operator path, then drawers",
             "body": (
-                "Follow evidence review -> final share gate -> readiness context -> queue route map -> proof lane -> "
-                "artifact hygiene before opening raw tables. Commands remain copy-only."
+                "Follow evidence review -> final share gate -> readiness context -> navigation-only queue route map -> "
+                "proof lane -> artifact hygiene before opening raw tables. Commands remain copy-only."
             ),
             "badges": ["one flow", "drawers later"],
             "command": "make pilot-readiness-check TOP_N=10",

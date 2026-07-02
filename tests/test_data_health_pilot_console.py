@@ -508,7 +508,7 @@ def test_data_health_workflow_continuity_connects_evidence_queue_proof_and_artif
         "1. Evidence review",
         "2. Final share gate",
         "3. Readiness context",
-        "4. Queue route map",
+        "4. Navigation-only queue route map",
         "5. Proof lane",
         "6. Artifact hygiene",
         "7. Reviewer packet",
@@ -519,7 +519,8 @@ def test_data_health_workflow_continuity_connects_evidence_queue_proof_and_artif
     assert frame.iloc[4]["Route"] == "?mode=operator&page=data-health&lane=proof"
     assert frame.iloc[5]["Next Safe Action"] == "make diff-hygiene-summary"
     assert "one operator path, then drawers" in rendered
-    assert "evidence review -> final share gate -> readiness context -> queue route map -> proof lane" in rendered
+    assert "evidence review -> final share gate -> readiness context -> navigation-only queue route map -> proof lane" in rendered
+    assert "route links do not execute commands" in rendered
     assert "commands remain copy-only" in rendered
     assert "do not stage broad generated csv/json/report churn" in rendered
     assert "buy" not in rendered
@@ -546,7 +547,7 @@ def test_data_health_workflow_continuity_routes_peer_queue_to_peer_drawer():
 
     frame = pilot_console.data_health_workflow_continuity_frame(_pilot_frame(), peer_queue)
 
-    assert frame.iloc[3]["Step"] == "4. Queue route map"
+    assert frame.iloc[3]["Step"] == "4. Navigation-only queue route map"
     assert frame.iloc[3]["Route"] == "?mode=operator&page=data-health&lane=peers&drawer=queue"
     assert "peer" in frame.iloc[3]["Purpose"].lower()
 
