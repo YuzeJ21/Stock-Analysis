@@ -26026,6 +26026,10 @@ def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
     assert "context only: metadata, candidate peers, universe membership, and optional rows stay separate from trusted fundamentals proof" in rendered
     assert "excluded/not applicable: etf/index/fund rows keep operating-company dcf excluded instead of failed" in rendered
     assert "source proof remains blocked" in rendered
+    assert "next proof:" in rendered
+    assert "stop:" in rendered
+    assert "validate, preview, rejected-row review, source provenance, and rebuilt readiness" in rendered
+    assert "stop: do not interpret missing source proof as a weak-company conclusion" in rendered
     assert cards[2]["title"] == "Review provider setup before proof loops"
     assert "do not repeat broad proof queues" in rendered
     assert "command" not in cards[2]
@@ -26064,6 +26068,8 @@ def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_ex
     assert "command" not in next_action
     assert "no unreviewed executable company candidates" in rendered
     assert "do not repeat broad proof queues" in rendered
+    assert "stop:" in rendered
+    assert "do not reopen proof loops until new source-backed rows" in rendered
     assert "make " not in rendered
     assert "open the next proof gate" not in rendered
     assert "buy" not in rendered
