@@ -115,7 +115,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
         "Blocked",
         "Context Only",
         "Excluded / Not Applicable",
-        "Next Safe Action",
+        "Review Boundary",
     ]
     if ops_frame is None or ops_frame.empty:
         return pd.DataFrame(
@@ -127,7 +127,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
                     "Blocked": "lane summary not loaded",
                     "Context Only": "-",
                     "Excluded / Not Applicable": "-",
-                    "Next Safe Action": "make readiness-ops-center",
+                    "Review Boundary": "Open details for the source-backed next step; do not infer readiness from missing summary data.",
                 }
             ],
             columns=columns,
@@ -142,10 +142,6 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
         partial = _series_int(row, "Partial", "partial")
         blocked = _series_int(row, "Blocked", "blocked")
         excluded = _series_int(row, "Excluded", "excluded")
-        command = _format_missing(
-            _series_value(row, "Next Safe Command", "next_safe_command"),
-            "make readiness-ops-center",
-        )
         context_only = (
             "locked/manual or candidate context"
             if "locked" in mode or "manual" in mode or "optional" in mode or "candidate" in state
@@ -159,7 +155,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
                 "Blocked": _count_label(blocked, "blocked row(s)"),
                 "Context Only": context_only,
                 "Excluded / Not Applicable": _count_label(excluded, "excluded/not applicable"),
-                "Next Safe Action": command,
+                "Review Boundary": "Open details for the source-backed next step; commands stay in operator drawers.",
             }
         )
     return pd.DataFrame(rows, columns=columns)

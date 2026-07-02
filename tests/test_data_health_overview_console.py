@@ -261,7 +261,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
         "Blocked",
         "Context Only",
         "Excluded / Not Applicable",
-        "Next Safe Action",
+        "Review Boundary",
     ]
     assert frame.to_dict("records") == [
         {
@@ -271,7 +271,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
             "Blocked": "-",
             "Context Only": "-",
             "Excluded / Not Applicable": "-",
-            "Next Safe Action": "make price-history-proof-queue TOP_N=25",
+            "Review Boundary": "Open details for the source-backed next step; commands stay in operator drawers.",
         },
         {
             "Lane": "Peer Mapping Proof",
@@ -280,7 +280,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
             "Blocked": "3,507 blocked row(s)",
             "Context Only": "-",
             "Excluded / Not Applicable": "2 excluded/not applicable",
-            "Next Safe Action": "make project-status",
+            "Review Boundary": "Open details for the source-backed next step; commands stay in operator drawers.",
         },
         {
             "Lane": "Earnings Locked Lane",
@@ -289,9 +289,11 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
             "Blocked": "3,538 blocked row(s)",
             "Context Only": "locked/manual or candidate context",
             "Excluded / Not Applicable": "-",
-            "Next Safe Action": "make optional-context-source-ladder-queue TOP_N=10",
+            "Review Boundary": "Open details for the source-backed next step; commands stay in operator drawers.",
         },
     ]
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+    assert "make " not in rendered
 
 
 def test_overview_auto_refresh_status_cards_show_scheduler_next_step():

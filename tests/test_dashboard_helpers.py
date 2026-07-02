@@ -15843,6 +15843,32 @@ def test_data_health_operator_renders_structured_lane_answer_before_detail_drawe
     assert '"One Answer Per Lane"' in source
 
 
+def test_data_health_lane_answer_frame_hides_commands_in_default_table():
+    frame = dashboard.overview_console.lane_answer_frame(
+        pd.DataFrame(
+            [
+                {
+                    "Lane": "Fundamentals / DCF",
+                    "Workflow Mode": "source proof",
+                    "State": "blocked",
+                    "Ready": 12,
+                    "Partial": 3,
+                    "Blocked": 4,
+                    "Excluded": 0,
+                    "Next Safe Command": "make fundamentals-source-ladder-queue TOP_N=25",
+                }
+            ]
+        )
+    )
+
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert "Review Boundary" in frame.columns
+    assert "Next Safe Action" not in frame.columns
+    assert "make " not in rendered
+    assert "open details for the source-backed next step" in rendered
+
+
 def test_proof_history_public_page_paints_first_answer_before_ledger_reads():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
