@@ -5,6 +5,16 @@ import pandas as pd
 from src import data_health_peer_readiness as peer_readiness
 
 
+def test_peer_readiness_product_cards_empty_state_keeps_command_out_of_body():
+    cards = peer_readiness.peer_readiness_product_cards(None)
+    body = str(cards[0]["body"]).lower()
+
+    assert cards[0]["title"] == "Peer readiness not ready yet"
+    assert cards[0]["command"] == "make readiness"
+    assert "open operator details" in body
+    assert "make " not in body
+
+
 def test_peer_readiness_product_cards_surface_specific_peer_blockers():
     peer_frame = pd.DataFrame(
         [

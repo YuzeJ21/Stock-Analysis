@@ -20957,7 +20957,9 @@ def test_readiness_product_cards_use_plain_missing_output_language():
     assert feature_cards[0]["command"] == "make readiness"
     assert peer_cards[0]["command"] == "make readiness"
     assert "run readiness to rebuild the feature proof" in rendered
-    assert "run readiness to rebuild the peer proof" in rendered
+    assert "build peer readiness proof" in rendered
+    assert "open operator details" in rendered
+    assert "run readiness to rebuild the peer proof" not in rendered
     assert "data/reports/feature_readiness_summary.csv" not in rendered
     assert "data/reports/peer_readiness_report.csv" not in rendered
     assert "not generated" not in rendered
