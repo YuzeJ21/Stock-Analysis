@@ -267,6 +267,8 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     assert "what free source can run now" in rendered
     assert "what key is missing" in rendered
     assert "what should not be retried" in rendered
+    assert "setup prerequisite" in rendered
+    assert "fmp free tier is configured; choose one reviewed ticker before running the smoke command" in rendered
     assert "one safe smoke test" in rendered
     assert "no broad coverage batch should run from setup alone" in rendered
     assert "provider setup only makes a source executable" in rendered

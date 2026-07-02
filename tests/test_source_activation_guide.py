@@ -94,6 +94,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         "free_source_now": "SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance",
         "missing_key": "Alpha Vantage free tier, Finnhub free tier",
         "do_not_retry": "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
+        "setup_prerequisite": "FMP free tier is configured; choose one reviewed ticker before running the smoke command.",
         "ticker_scope_rule": "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the smoke command across a broad list.",
         "one_safe_smoke": (
             "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
@@ -157,6 +158,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- question: What source can I use next?" in rendered
     assert "- free_source_now: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in rendered
     assert "- missing_key: Alpha Vantage free tier, Finnhub free tier" in rendered
+    assert "- setup_prerequisite: FMP free tier is configured; choose one reviewed ticker before running the smoke command." in rendered
     assert "- ticker_scope_rule: Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the smoke command across a broad list." in rendered
     assert "- one_safe_smoke: make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
     assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
@@ -215,6 +217,9 @@ def test_provider_setup_checklist_names_one_missing_keyed_provider_to_configure_
     checklist = build_provider_setup_checklist()
     rendered = render_provider_setup_checklist(checklist)
 
+    assert checklist["first_answer"]["setup_prerequisite"] == (
+        "Configure FMP free tier with FMP_API_KEY before running its one-ticker smoke command."
+    )
     assert checklist["one_provider_setup_order"] == [
         {
             "provider": "FMP free tier",
@@ -245,6 +250,7 @@ def test_provider_setup_checklist_names_one_missing_keyed_provider_to_configure_
         },
     ]
     assert "Configure first: FMP free tier" in rendered
+    assert "- setup_prerequisite: Configure FMP free tier with FMP_API_KEY before running its one-ticker smoke command." in rendered
     assert "Do not configure all missing providers at once" in rendered
     assert rendered.index("Configure first: FMP free tier") < rendered.index("Provider setup and boundaries:")
 

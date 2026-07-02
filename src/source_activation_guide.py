@@ -367,9 +367,18 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
     )
     if smoke_row is None:
         setup_order = _one_provider_setup_order(rows)
-        smoke_command = str((setup_order[0] if setup_order else {}).get("smoke_command") or "").strip()
+        first_setup = setup_order[0] if setup_order else {}
+        smoke_command = str(first_setup.get("smoke_command") or "").strip()
+        setup_prerequisite = (
+            f"Configure {first_setup.get('provider')} with {first_setup.get('setup_env')} before running its one-ticker smoke command."
+            if first_setup
+            else "Run make session-source-preflight before any provider smoke command."
+        )
     else:
         smoke_command = str(smoke_row.get("post_setup_smoke_command") or "").strip()
+        setup_prerequisite = (
+            f"{smoke_row.get('provider')} is configured; choose one reviewed ticker before running the smoke command."
+        )
     if not smoke_command:
         smoke_command = "make session-source-preflight"
     return {
@@ -380,6 +389,7 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
             "do_not_retry",
             "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
         ),
+        "setup_prerequisite": setup_prerequisite,
         "ticker_scope_rule": (
             "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; "
             "do not run the smoke command across a broad list."
@@ -442,6 +452,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 f"- free_source_now: {first_answer.get('free_source_now', '-')}",
                 f"- missing_key: {first_answer.get('missing_key', '-')}",
                 f"- do_not_retry: {first_answer.get('do_not_retry', '-')}",
+                f"- setup_prerequisite: {first_answer.get('setup_prerequisite', '-')}",
                 f"- ticker_scope_rule: {first_answer.get('ticker_scope_rule', '-')}",
                 f"- one_safe_smoke: {first_answer.get('one_safe_smoke', '-')}",
                 f"- boundary: {first_answer.get('boundary', '-')}",
