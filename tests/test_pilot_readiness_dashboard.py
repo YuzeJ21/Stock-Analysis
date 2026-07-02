@@ -190,6 +190,12 @@ def test_data_health_pilot_share_first_answer_frame_summarizes_release_gates():
             "Next Safe Action": "make project-status",
         },
         {
+            "Question": "What can change coverage next?",
+            "Answer": "New source-backed rows, one configured keyed free-tier provider, reviewed manual rows, or changed blockers can reopen a narrow source-proof slice.",
+            "Share Boundary": "Provider setup is not data proof; use one reviewed ticker smoke path before validate, preview, apply, or proof recording.",
+            "Next Safe Action": "make provider-setup-checklist",
+        },
+        {
             "Question": "What packet should I create?",
             "Answer": "outputs/pilot_readiness_packet.md is copy-only evidence; it does not refresh data or unlock blocked inputs.",
             "Share Boundary": "Packet is reviewer evidence only; it is not a release, data refresh, or proof apply step.",
