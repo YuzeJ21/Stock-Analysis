@@ -253,6 +253,10 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert "using fallback source" in output
     assert "source_review: apply_gate=review_required; fallback_sources_used=1; unavailable_sources=0; raw_rows_hidden=true" in output
     assert "fallback boundary: review fallback source row counts before staging; use manual CSV only if all remote sources fail" in output
+    assert "review_sample:" in output
+    assert "- NVDA: existing; sources=smh, sp500; memberships=S&P 500, SMH" in output
+    assert "- MU: new; sources=smh; memberships=SMH" in output
+    assert "review sample is capped" in output
     assert "manual SMH fallback only if all remote SMH sources fail" in output
     assert "HTTP Error" not in output
     assert "stage data/imports/universe.csv as the manual SMH fallback" not in output

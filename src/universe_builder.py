@@ -765,10 +765,20 @@ def build_universe_preview(
     new_tickers = 0
     updated_tickers = 0
     unchanged_tickers = 0
+    review_sample: list[dict[str, str]] = []
     for _, row in merged.iterrows():
         ticker = row["ticker"]
         if current_lookup.empty or ticker not in current_lookup.index:
             new_tickers += 1
+            row_state = "new"
+            review_sample.append(
+                {
+                    "ticker": str(ticker),
+                    "state": row_state,
+                    "sources": _normalize_text(row.get("universe_source")) or "-",
+                    "memberships": _membership_labels(row.to_dict()),
+                }
+            )
             continue
         current_row = current_lookup.loc[ticker]
         if isinstance(current_row, pd.DataFrame):
@@ -786,8 +796,18 @@ def build_universe_preview(
                 break
         if changed:
             updated_tickers += 1
+            row_state = "existing"
         else:
             unchanged_tickers += 1
+            row_state = "existing"
+        review_sample.append(
+            {
+                "ticker": str(ticker),
+                "state": row_state,
+                "sources": _normalize_text(row.get("universe_source")) or "-",
+                "memberships": _membership_labels(row.to_dict()),
+            }
+        )
 
     membership_counts = {column: int(merged[column].fillna(False).astype(bool).sum()) for column in MEMBERSHIP_COLUMNS if column in merged.columns}
     return {
@@ -803,6 +823,14 @@ def build_universe_preview(
             "unchanged_tickers": unchanged_tickers,
             "membership_counts": membership_counts,
             "warnings": sorted(set(build_warnings)),
+            "review_sample": sorted(
+                review_sample,
+                key=lambda item: (
+                    0 if item["state"] == "new" else 1,
+                    0 if "SMH" in item["memberships"] else 1,
+                    item["ticker"],
+                ),
+            )[:12],
         },
     }
 
@@ -1019,6 +1047,59 @@ def _source_review_payload(sources: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _membership_labels(row: dict[str, Any]) -> str:
+    labels = []
+    if row.get("index_membership"):
+        labels.append(str(row["index_membership"]))
+    if row.get("etf_membership"):
+        labels.append(str(row["etf_membership"]))
+    if row.get("in_holdings"):
+        labels.append("holdings")
+    if row.get("in_custom"):
+        labels.append("custom")
+    return ", ".join(labels) or "-"
+
+
+def _universe_review_sample(payload: dict[str, Any], *, limit: int = 5) -> list[dict[str, str]]:
+    summary = payload.get("summary") or {}
+    if isinstance(summary, dict) and isinstance(summary.get("review_sample"), list):
+        return [
+            {
+                "ticker": _normalize_ticker(row.get("ticker")) if isinstance(row, dict) else "",
+                "state": _normalize_text(row.get("state")) if isinstance(row, dict) else "",
+                "sources": _normalize_text(row.get("sources")) if isinstance(row, dict) else "",
+                "memberships": _normalize_text(row.get("memberships")) if isinstance(row, dict) else "",
+            }
+            for row in summary["review_sample"][: max(limit, 0)]
+            if isinstance(row, dict) and _normalize_ticker(row.get("ticker"))
+        ]
+    rows = payload.get("rows") or []
+    if not isinstance(rows, list):
+        return []
+    sample: list[dict[str, str]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        ticker = _normalize_ticker(row.get("ticker"))
+        if not ticker:
+            continue
+        row_state = "existing"
+        summary = payload.get("summary") or {}
+        new_ticker_count = int(summary.get("new_tickers") or 0) if isinstance(summary, dict) else 0
+        if new_ticker_count and not row.get("in_local_sample"):
+            row_state = "new"
+        sample.append(
+            {
+                "ticker": ticker,
+                "state": row_state,
+                "sources": _normalize_text(row.get("universe_source")) or "-",
+                "memberships": _membership_labels(row),
+            }
+        )
+    sample.sort(key=lambda item: (0 if item["state"] == "new" else 1, item["ticker"]))
+    return sample[: max(limit, 0)]
+
+
 def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     summary = payload.get("summary") or {}
     source_review = _source_review_payload(payload.get("sources") or [])
@@ -1066,6 +1147,15 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     )
     if source_review["fallback_sources_used"]:
         print("fallback boundary: review fallback source row counts before staging; use manual CSV only if all remote sources fail")
+    review_sample = _universe_review_sample(payload)
+    if review_sample:
+        print("review_sample:")
+        for row in review_sample:
+            print(
+                f"- {row['ticker']}: {row['state']}; "
+                f"sources={row['sources']}; memberships={row['memberships']}"
+            )
+        print("review sample is capped; use full --json only for intentional row-scope review")
     print("next:")
     print("- Review source warnings and row counts before writing any universe import.")
     print("- To inspect raw rows intentionally: python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json")
@@ -1078,6 +1168,8 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
     summary = payload.get("summary")
     sources = payload.get("sources")
     if isinstance(summary, dict) and isinstance(sources, list):
+        compact_summary = dict(summary)
+        compact_summary.pop("review_sample", None)
         compact_sources: list[dict[str, Any]] = []
         for source in sources:
             if not isinstance(source, dict):
@@ -1090,7 +1182,7 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
         source_review = _source_review_payload(compact_sources)
         return {
             "status": payload.get("status", "-"),
-            "summary": summary,
+            "summary": compact_summary,
             "sources": compact_sources,
             "source_review": source_review,
             "next_steps": [
