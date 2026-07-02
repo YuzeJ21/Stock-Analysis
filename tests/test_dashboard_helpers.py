@@ -14739,7 +14739,7 @@ def test_data_health_proof_history_lane_answers_before_detail_toggle():
     answer_commands_index = source.index("show_commands=False", answer_cards_index)
     detail_selector_index = source.index('label="Proof detail level"', answer_commands_index)
     proof_status_index = source.index("proof_detail_status = data_health_proof_detail_load_status(", detail_selector_index)
-    batch_drawer_index = source.index('st.expander("Reviewed batch proof drawer", expanded=False)', proof_status_index)
+    batch_drawer_index = source.index('st.expander("Proof evidence review drawer", expanded=False)', proof_status_index)
 
     assert proof_lane_index < answer_header_index < answer_cards_index < answer_commands_index < detail_selector_index < proof_status_index < batch_drawer_index
 
@@ -15128,19 +15128,19 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     proof_detail_cards_index = source.index("data_health_proof_detail_load_cards(proof_detail_status)", proof_detail_status_index)
     proof_shell_cards_index = source.index("data_health_proof_lane_shell_cards(proof_detail_status)", proof_detail_cards_index)
     proof_console_index = source.index("render_data_health_proof_history_operator_console(", proof_shell_cards_index)
-    batch_proof_drawer_index = source.index('st.expander("Reviewed batch proof drawer", expanded=False)', proof_console_index)
+    batch_proof_drawer_index = source.index('st.expander("Proof evidence review drawer", expanded=False)', proof_console_index)
     proof_snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', batch_proof_drawer_index)
     proof_apply_gate_index = source.index('render_section_header("Apply Guard"', proof_snapshot_gate_index)
     proof_outcome_recorder_index = source.index('render_section_header("Outcome Recorder"', proof_apply_gate_index)
     proof_command_builder_index = source.index('render_section_header("Proof Record Command Builder"', proof_outcome_recorder_index)
     proof_loop_index = source.index('render_section_header("Reviewed Batch Proof Loop"', proof_command_builder_index)
-    proof_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', proof_loop_index)
-    all_details_index = source.index('st.expander("Last-resort diagnostic context", expanded=False)', proof_drawer_index)
+    proof_ledger_index = source.index('render_section_header("Reviewed Data Proof Ledger"', proof_loop_index)
+    all_details_index = source.index('st.expander("Last-resort diagnostic context", expanded=False)', proof_ledger_index)
     details_index = source.index("if show_details:", all_details_index)
 
     assert public_return_index < prior_snapshot_load_index < secondary_readiness_gate_index < lane_snapshot_index < top_summary_block_index
     assert top_summary_detail_drawer_index < queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < proof_closeout_summary_index < proof_closeout_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < secondary_readiness_gate_index < lane_snapshot_index < readiness_queue_cards_index < pilot_share_gate_index < top_summary_block_index < queue_detail_selector_index < queue_proof_review_drawer_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_section_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_detail_index < queue_outcome_ledger_index < readiness_queue_evidence_index < decision_queue_status_index < decision_queue_gate_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_lane_index < proof_detail_status_index < proof_detail_cards_index < proof_shell_cards_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < secondary_readiness_gate_index < lane_snapshot_index < readiness_queue_cards_index < pilot_share_gate_index < top_summary_block_index < queue_detail_selector_index < queue_proof_review_drawer_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_section_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_detail_index < queue_outcome_ledger_index < readiness_queue_evidence_index < decision_queue_status_index < decision_queue_gate_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_lane_index < proof_detail_status_index < proof_detail_cards_index < proof_shell_cards_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_ledger_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -15223,7 +15223,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_proof_detail_load_status(" in source
     assert "data_health_proof_detail_load_cards(proof_detail_status)" in source
     assert "data_health_proof_lane_shell_cards(proof_detail_status)" in source
-    assert 'st.expander("Reviewed batch proof drawer", expanded=False)' in source
+    assert 'st.expander("Proof evidence review drawer", expanded=False)' in source
     assert "decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)" in source
     assert "decision_proof_queue_operator_flow_cards(decision_queue_frame, decision_queue_freshness)" in source
     assert "Decision Proof Detail" in source
@@ -15411,7 +15411,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board), show_commands=False)" in source
     assert 'st.expander("Peer evidence drawer", expanded=False)' in source
     assert "render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)" in source
-    assert 'st.expander("Proof history evidence drawer", expanded=False)' in source
+    assert 'st.expander("Proof history evidence drawer", expanded=False)' not in source
     assert '"Pilot selection rule."' in source
     assert "fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)" in source
     assert "`make project-status` first" in source
@@ -27063,7 +27063,7 @@ def test_data_health_public_proof_drawer_uses_public_proof_cards():
 def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     proof_lane_index = source.index('elif selected_lane == "Proof History":')
-    batch_drawer_index = source.index('st.expander("Reviewed batch proof drawer", expanded=False)', proof_lane_index)
+    batch_drawer_index = source.index('st.expander("Proof evidence review drawer", expanded=False)', proof_lane_index)
     snapshot_render_index = source.index(
         "render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight), show_commands=False)",
         batch_drawer_index,
@@ -27076,7 +27076,7 @@ def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
         'render_section_header("Proof Record Command Builder"',
         apply_guard_render_index,
     )
-    proof_history_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', command_builder_index)
+    proof_history_drawer_index = source.index('render_section_header("Reviewed Data Proof Ledger"', command_builder_index)
     reviewed_proof_render_index = source.index(
         "render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)",
         proof_history_drawer_index,
@@ -27092,6 +27092,24 @@ def test_data_health_proof_history_drawers_hide_summary_commands_by_default():
         < reviewed_proof_render_index
         < additional_operator_index
     )
+
+
+def test_data_health_proof_history_uses_one_evidence_review_drawer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    proof_lane_index = source.index('elif selected_lane == "Proof History":')
+
+    combined_drawer_index = source.index('st.expander("Proof evidence review drawer", expanded=False)', proof_lane_index)
+    snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', combined_drawer_index)
+    command_builder_index = source.index('render_section_header("Proof Record Command Builder"', snapshot_gate_index)
+    ledger_index = source.index('render_section_header("Reviewed Data Proof Ledger"', command_builder_index)
+    batch_rows_index = source.index('render_section_header("Reviewed Batch Proof Rows"', ledger_index)
+    last_resort_index = source.index('st.expander("Last-resort diagnostic context", expanded=False)', batch_rows_index)
+    proof_lane_source = source[proof_lane_index:last_resort_index]
+
+    assert combined_drawer_index < snapshot_gate_index < command_builder_index < ledger_index < batch_rows_index < last_resort_index
+    assert 'st.expander("Reviewed batch proof drawer", expanded=False)' not in proof_lane_source
+    assert 'st.expander("Proof history evidence drawer", expanded=False)' not in proof_lane_source
+    assert "One evidence drawer keeps snapshot gate, proof-record fields, reviewed ledgers, and before/after proof together." in source
 
 
 def test_data_health_additional_operator_evidence_hides_summary_commands_by_default():

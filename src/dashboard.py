@@ -28818,7 +28818,11 @@ def render_data_health(
             )
         else:
             render_data_health_proof_history_operator_console(proof_timeline, batch_proof_frame, readiness_comparison)
-            with st.expander("Reviewed batch proof drawer", expanded=False):
+            with st.expander("Proof evidence review drawer", expanded=False):
+                render_context_note(
+                    "One proof evidence drawer.",
+                    "One evidence drawer keeps snapshot gate, proof-record fields, reviewed ledgers, and before/after proof together.",
+                )
                 render_section_header("Snapshot Gate", "Confirm the saved baseline before recording changed readiness counts.")
                 render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight), show_commands=False)
                 st.dataframe(clean_display_frame(data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)), width="stretch", hide_index=True)
@@ -28884,7 +28888,6 @@ def render_data_health(
                     width="stretch",
                     hide_index=True,
                 )
-            with st.expander("Proof history evidence drawer", expanded=False):
                 render_section_header("Proof History Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
                 render_signal_cards(
                     data_health_reviewed_proof_cards()
