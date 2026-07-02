@@ -851,7 +851,10 @@ def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd
             {
                 "Question": "What setup changes the gate?",
                 "Answer": needs_setup,
-                "Review Boundary": "Configure one missing source only after project status shows a real source gap.",
+                "Review Boundary": (
+                    "Configure one missing source only after project status shows a real source gap; "
+                    "keyed setup is not required for pilot/demo sharing."
+                ),
             },
             {
                 "Question": "What should not be retried?",

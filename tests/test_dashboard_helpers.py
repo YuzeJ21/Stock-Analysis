@@ -370,6 +370,7 @@ def test_data_health_provider_setup_first_answer_frame_summarizes_current_source
     assert "workflow evidence only; current source-proof queues are exhausted" in rendered
     assert "coverage_workflow_evidence" not in rendered
     assert "alpha_vantage, finnhub" in rendered
+    assert "keyed setup is not required for pilot/demo sharing" in rendered
     assert "fundamentals/share-count source ladder" in rendered
     assert "fundamentals_share_count_source_ladder" not in rendered
     assert "make " not in rendered
