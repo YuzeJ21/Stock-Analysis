@@ -27870,14 +27870,14 @@ def render_data_health(
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
     )
-    source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)
-    if source_exhaustion_pivot_cards:
-        render_section_header(
-            "Source-Proof Pivot",
-            "What to do when current queues have no source-backed import/apply step available.",
-        )
-        render_signal_cards(source_exhaustion_pivot_cards, show_commands=False, variant="queue")
     with st.expander("Optional source setup details", expanded=False):
+        source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)
+        if source_exhaustion_pivot_cards:
+            render_section_header(
+                "Source-Proof Pivot",
+                "What to do when current queues have no source-backed import/apply step available.",
+            )
+            render_signal_cards(source_exhaustion_pivot_cards, show_commands=False, variant="queue")
         render_section_header(
             "Auto Refresh Status",
             "Cached source activation, setup gaps, avoid-repeat lane, and next scheduler command before proof details.",

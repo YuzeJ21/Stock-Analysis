@@ -25796,11 +25796,14 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     lane_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", lane_answer_index)
     mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
     source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', mode_strip_index)
+    source_pivot_index = source.index('"Source-Proof Pivot"', source_details_index)
+    source_pivot_cards_index = source.index("render_signal_cards(source_exhaustion_pivot_cards", source_pivot_index)
     guidance_header_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_details_index)
     guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
     next_action_index = source.index('st.expander("Optional next-action details", expanded=False)', guidance_cards_index)
 
     assert lane_answer_index < lane_answer_cards_index < mode_strip_index < source_details_index
+    assert source_details_index < source_pivot_index < source_pivot_cards_index < guidance_header_index
     assert source_details_index < guidance_header_index < guidance_cards_index < next_action_index
     assert 'st.expander("Source setup and refresh details", expanded=False)' not in source
     assert 'st.expander("Secondary operator next-action detail", expanded=False)' not in source
