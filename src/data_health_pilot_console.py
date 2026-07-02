@@ -476,7 +476,7 @@ def pilot_handoff_summary_cards(frame: pd.DataFrame | None, *, limit: int = 5) -
             {
                 "kicker": question.upper(),
                 "title": answer,
-                "body": _card_sentence("Boundary", boundary),
+                "body": f"{_card_sentence('One answer', answer)} {_card_sentence('Boundary', boundary)}",
                 "badges": [status, "copy-only"],
                 "command": command,
             }

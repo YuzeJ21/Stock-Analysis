@@ -125,6 +125,7 @@ def test_data_health_pilot_handoff_summary_answers_reviewer_questions_before_tab
     assert "read-only" in rendered
     assert "copy-only" in rendered
     assert "recommendation unlock" in rendered
+    assert all(str(card["body"]).startswith("One answer:") for card in cards)
     assert "buy" not in rendered
     assert "sell" not in rendered
 
