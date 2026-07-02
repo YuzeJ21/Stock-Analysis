@@ -28097,9 +28097,12 @@ def render_data_health(
             render_signal_cards(data_health_reviewed_batch_preflight_cards(batch_preflight))
             st.dataframe(clean_display_frame(data_health_reviewed_batch_preflight_frame(batch_preflight)), width="stretch", hide_index=True)
             render_section_header("Reviewed Batch Ladder", "Copy-only packet, dry-run, capped execution, and proof steps for the selected data lane.")
-            render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))
+            render_signal_cards(
+                data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness),
+                show_commands=False,
+            )
             render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
-            render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
+            render_signal_cards(price_refresh_operator_plan_cards(readiness_summary), show_commands=False)
     elif selected_lane == "Fundamentals / DCF":
         fundamentals_preview_cards = data_health_trusted_pilot_cards(readiness_summary) + data_health_analysis_unlock_cards(readiness_summary)
         if pilot_preview.empty:

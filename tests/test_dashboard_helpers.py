@@ -1302,7 +1302,7 @@ def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_m
     assert "make diff-hygiene" in rendered
     assert "repeating" not in rendered
     assert "render_signal_cards(price_refresh_operator_plan_cards(summary), show_commands=False)" in source
-    assert "render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))" in source
+    assert "render_signal_cards(price_refresh_operator_plan_cards(readiness_summary), show_commands=False)" in source
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -15181,7 +15181,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "analyst_readiness_frame,\n            readiness_freshness" in source
     assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center))" in source
     assert "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))" in source
-    assert "render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))" in source
+    assert "data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness),\n                show_commands=False" in source
     assert "fundamentals_preview_cards = data_health_trusted_pilot_cards(readiness_summary) + data_health_analysis_unlock_cards(readiness_summary)" in source
     assert 'if selected_lane_key in {"fundamentals", "peers"}' in source
     assert "data_health_trusted_pilot_lane_board_frame(" in source
@@ -25390,6 +25390,34 @@ def test_data_health_optional_context_drawer_hides_summary_commands():
         < action_path_index
         < action_path_command_visibility_index
         < proof_history_index
+    )
+
+
+def test_data_health_price_drawer_hides_summary_commands():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    price_lane_index = source.index('if selected_lane == "Prices":')
+    drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', price_lane_index)
+    batch_ladder_index = source.index(
+        "data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness)",
+        drawer_index,
+    )
+    batch_ladder_command_visibility_index = source.index("show_commands=False", batch_ladder_index)
+    price_plan_index = source.index(
+        "price_refresh_operator_plan_cards(readiness_summary)",
+        batch_ladder_command_visibility_index,
+    )
+    price_plan_command_visibility_index = source.index("show_commands=False", price_plan_index)
+    fundamentals_lane_index = source.index('elif selected_lane == "Fundamentals / DCF":', price_plan_command_visibility_index)
+
+    assert (
+        price_lane_index
+        < drawer_index
+        < batch_ladder_index
+        < batch_ladder_command_visibility_index
+        < price_plan_index
+        < price_plan_command_visibility_index
+        < fundamentals_lane_index
     )
 
 
