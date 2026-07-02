@@ -2483,8 +2483,10 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in console_source
     assert "Open the lane evidence drawer or Operator context above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
-    assert 'if queue_details_loaded:\n        with st.expander("Queue outcome ledger summary", expanded=False)' in source
-    assert 'if queue_details_loaded:\n        with st.expander("Readiness queue evidence", expanded=False)' in source
+    assert 'if queue_details_loaded:\n        with st.expander("Queue proof review details", expanded=False)' in source
+    assert 'with st.expander("Queue outcome ledger summary", expanded=False)' not in source
+    assert 'with st.expander("Readiness queue evidence", expanded=False)' not in source
+    assert 'with st.expander("Data coverage proof queue detail", expanded=False)' not in source
     assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Optional context evidence drawer", expanded=False)' in source
@@ -14929,18 +14931,22 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     generated_artifact_detail_index = source.index("data_health_generated_churn_detail_frame(base_dir)", generated_artifact_frame_index)
     pilot_share_gate_index = source.index('render_section_header(\n            "Pilot Share Gate"', readiness_queue_cards_index)
     queue_detail_selector_index = source.index('label="Readiness queue detail level"', readiness_queue_cards_index)
-    coverage_proof_queue_section_index = source.index('render_section_header(\n            "Data Coverage Proof Queues"', queue_detail_selector_index)
+    queue_proof_review_drawer_index = source.index(
+        'st.expander("Queue proof review details", expanded=False)',
+        queue_detail_selector_index,
+    )
+    coverage_proof_queue_section_index = source.index('render_section_header(\n                "Data Coverage Proof Queues"', queue_proof_review_drawer_index)
     coverage_proof_queue_cards_index = source.index(
         "data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues)",
         coverage_proof_queue_section_index,
     )
-    trusted_source_review_drawer_index = source.index(
-        'st.expander("Trusted fundamentals source review", expanded=False)',
+    trusted_source_review_section_index = source.index(
+        'render_section_header(\n                "Trusted Fundamentals Source Review"',
         coverage_proof_queue_cards_index,
     )
     trusted_source_review_cards_index = source.index(
         "data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review)",
-        trusted_source_review_drawer_index,
+        trusted_source_review_section_index,
     )
     trusted_source_review_command_cards_index = source.index(
         "data_health_trusted_fundamentals_source_review_command_cards(trusted_fundamentals_source_review)",
@@ -14970,11 +14976,19 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
         'render_collapsed_detail_frame(\n                "Trusted fundamentals raw source-review row"',
         trusted_source_review_apply_gate_frame_index,
     )
-    coverage_proof_queue_drawer_index = source.index(
-        'st.expander("Data coverage proof queue detail", expanded=False)',
+    coverage_proof_queue_detail_index = source.index(
+        'render_section_header(\n                "Data Coverage Proof Queue Detail"',
         trusted_source_review_frame_index,
     )
-    decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", coverage_proof_queue_drawer_index)
+    queue_outcome_ledger_index = source.index(
+        'render_section_header(\n                "Queue Outcome Ledger Summary"',
+        coverage_proof_queue_detail_index,
+    )
+    readiness_queue_evidence_index = source.index(
+        'render_section_header(\n                "Readiness Queue Evidence"',
+        queue_outcome_ledger_index,
+    )
+    decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", readiness_queue_evidence_index)
     decision_queue_gate_index = source.index("if proof_details_requested:", decision_queue_status_index)
     decision_queue_drawer_index = source.index('st.expander("Decision proof queue drawer", expanded=False)', decision_queue_gate_index)
     decision_queue_completion_index = source.index("decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)", decision_queue_drawer_index)
@@ -15025,7 +15039,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
 
     assert public_return_index < prior_snapshot_load_index < secondary_readiness_gate_index < lane_snapshot_index < top_summary_block_index
     assert top_summary_detail_drawer_index < queue_summary_index < proof_checklist_summary_index < proof_checklist_cards_index < proof_planner_summary_index < proof_planner_cards_index < proof_closeout_summary_index < proof_closeout_cards_index < coverage_delta_index < coverage_delta_cards_index < coverage_delta_frame_index < generated_artifact_index < generated_artifact_cards_index < generated_artifact_drawer_index < generated_artifact_frame_index < generated_artifact_detail_index
-    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < secondary_readiness_gate_index < lane_snapshot_index < readiness_queue_cards_index < pilot_share_gate_index < top_summary_block_index < queue_detail_selector_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_drawer_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_drawer_index < decision_queue_status_index < decision_queue_gate_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_lane_index < proof_detail_status_index < proof_detail_cards_index < proof_shell_cards_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < current_mode_index < secondary_readiness_gate_index < lane_snapshot_index < readiness_queue_cards_index < pilot_share_gate_index < top_summary_block_index < queue_detail_selector_index < queue_proof_review_drawer_index < coverage_proof_queue_section_index < coverage_proof_queue_cards_index < trusted_source_review_section_index < trusted_source_review_cards_index < trusted_source_review_frame_index < coverage_proof_queue_detail_index < queue_outcome_ledger_index < readiness_queue_evidence_index < decision_queue_status_index < decision_queue_gate_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_context_index < fundamentals_drawer_index < peer_console_index < peer_context_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_lane_index < proof_detail_status_index < proof_detail_cards_index < proof_shell_cards_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "queue_details_requested = data_health_detail_selector_requested(" in source
     assert "batch_details_requested = data_health_detail_selector_requested(" in source
     assert "proof_details_requested = data_health_detail_selector_requested(" in source
@@ -15041,7 +15055,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert 'should_load_dcf_input_queue = selected_lane_key == "fundamentals" or queue_details_loaded or proof_details_requested' in source
     assert "data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues)" in source
     assert "trusted_fundamentals_source_review = (" in source
-    assert "Trusted fundamentals source review" in source
+    assert "Trusted Fundamentals Source Review" in source
     assert "data_health_trusted_fundamentals_source_review_cards(trusted_fundamentals_source_review)" in source
     assert "data_health_trusted_fundamentals_source_review_command_cards(trusted_fundamentals_source_review)" in source
     assert "data_health_trusted_fundamentals_source_review_command_frame(trusted_fundamentals_source_review)" in source
@@ -15053,7 +15067,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "Trusted fundamentals evidence-writer table" in source
     assert "Trusted fundamentals apply-decision gate table" in source
     assert "Trusted fundamentals raw source-review row" in source
-    assert "Data coverage proof queue detail" in source
+    assert "Data Coverage Proof Queue Detail" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source
     assert "data_health_operator_snapshot_cards(" in source
@@ -25584,10 +25598,11 @@ def test_data_health_batch_execution_hides_top_level_commands():
 def test_data_health_queue_route_overview_hides_commands_until_lane_expander():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    route_overview_index = source.index("data_health_readiness_queue_route_overview_cards(queue_drilldown)")
+    queue_review_drawer_index = source.index('st.expander("Queue proof review details", expanded=False)')
+    route_overview_index = source.index("data_health_readiness_queue_route_overview_cards(queue_drilldown)", queue_review_drawer_index)
     route_overview_command_visibility_index = source.index("show_commands=False", route_overview_index)
     lane_drilldowns_index = source.index(
-        'render_section_header(\n            "Lane Drilldowns"',
+        'render_section_header(\n                "Lane Drilldowns"',
         route_overview_command_visibility_index,
     )
     lane_expander_index = source.index("with st.expander(str(drilldown_row.get", lane_drilldowns_index)
@@ -25598,7 +25613,8 @@ def test_data_health_queue_route_overview_hides_commands_until_lane_expander():
     lane_detail_command_visibility_index = source.index("show_commands=True", lane_detail_cards_index)
 
     assert (
-        route_overview_index
+        queue_review_drawer_index
+        < route_overview_index
         < route_overview_command_visibility_index
         < lane_drilldowns_index
         < lane_expander_index
@@ -25610,30 +25626,35 @@ def test_data_health_queue_route_overview_hides_commands_until_lane_expander():
 def test_data_health_data_coverage_proof_queue_hides_top_level_commands():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    proof_queue_index = source.index(
-        'render_section_header(\n            "Data Coverage Proof Queues"',
+    queue_review_drawer_index = source.index(
+        'st.expander("Queue proof review details", expanded=False)',
         source.index("if queue_details_loaded:"),
+    )
+    proof_queue_index = source.index(
+        'render_section_header(\n                "Data Coverage Proof Queues"',
+        queue_review_drawer_index,
     )
     proof_queue_cards_index = source.index(
         "data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues)",
         proof_queue_index,
     )
     proof_queue_command_visibility_index = source.index("show_commands=False", proof_queue_cards_index)
-    source_review_expander_index = source.index(
-        'st.expander("Trusted fundamentals source review", expanded=False)',
+    source_review_section_index = source.index(
+        'render_section_header(\n                "Trusted Fundamentals Source Review"',
         proof_queue_command_visibility_index,
     )
     source_review_command_cards_index = source.index(
         "data_health_trusted_fundamentals_source_review_command_cards(",
-        source_review_expander_index,
+        source_review_section_index,
     )
     source_review_command_visibility_index = source.index("show_commands=True", source_review_command_cards_index)
 
     assert (
-        proof_queue_index
+        queue_review_drawer_index
+        < proof_queue_index
         < proof_queue_cards_index
         < proof_queue_command_visibility_index
-        < source_review_expander_index
+        < source_review_section_index
         < source_review_command_cards_index
         < source_review_command_visibility_index
     )
@@ -26961,12 +26982,12 @@ def test_data_health_queue_drilldown_places_route_strip_before_route_cards_and_t
     overview_wrapper_index = source.index("def data_health_readiness_queue_route_overview_cards")
     wrapper_index = source.index("def data_health_readiness_queue_route_strip_cards")
     overview_render_index = source.index("data_health_readiness_queue_route_overview_cards(queue_drilldown)")
-    drilldown_index = source.index('render_section_header(\n            "Lane Drilldowns"')
+    drilldown_index = source.index('render_section_header(\n                "Lane Drilldowns"')
     drilldown_cards_index = source.index("data_health_readiness_queue_drilldown_cards(drilldown_row)", drilldown_index)
     route_strip_index = source.index("data_health_readiness_queue_route_strip_cards(drilldown_row)", drilldown_cards_index)
     route_cards_index = source.index("data_health_readiness_queue_route_cards(drilldown_row)", route_strip_index)
     action_cards_index = source.index("data_health_readiness_queue_lane_action_cards(drilldown_row)", route_cards_index)
-    action_table_index = source.index('render_collapsed_detail_frame(\n                    "Lane route action table"', action_cards_index)
+    action_table_index = source.index('render_collapsed_detail_frame(\n                        "Lane route action table"', action_cards_index)
     raw_evidence_index = source.index('render_collapsed_detail_frame("Raw lane evidence row"', action_table_index)
 
     assert overview_wrapper_index < wrapper_index < overview_render_index < drilldown_index
