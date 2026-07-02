@@ -25270,6 +25270,40 @@ def test_data_health_fundamentals_lane_hides_top_level_dcf_commands():
     )
 
 
+def test_data_health_batch_execution_hides_top_level_commands():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    batch_section_index = source.index(
+        'render_section_header("Readiness Batch Execution"',
+        source.index("coverage_loop = ("),
+    )
+    top_level_cards_index = source.index(
+        "data_health_reviewed_batch_operator_flow_cards(",
+        batch_section_index,
+    )
+    top_level_command_visibility_index = source.index("show_commands=False", top_level_cards_index)
+    detail_selector_index = source.index("render_data_health_detail_selector(", top_level_command_visibility_index)
+    review_drawer_index = source.index(
+        'st.expander("Reviewed batch review drawer", expanded=False)',
+        detail_selector_index,
+    )
+    detail_cards_index = source.index(
+        "data_health_reviewed_batch_execution_cards(",
+        review_drawer_index,
+    )
+    detail_command_visibility_index = source.index("show_commands=True", detail_cards_index)
+
+    assert (
+        batch_section_index
+        < top_level_cards_index
+        < top_level_command_visibility_index
+        < detail_selector_index
+        < review_drawer_index
+        < detail_cards_index
+        < detail_command_visibility_index
+    )
+
+
 def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated():
     current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")

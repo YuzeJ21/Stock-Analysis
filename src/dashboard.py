@@ -28000,7 +28000,7 @@ def render_data_health(
                 readiness_freshness,
                 coverage_loop,
             ),
-            show_commands=True,
+            show_commands=False,
         )
         render_data_health_detail_selector(
             label="Batch execution detail level",
