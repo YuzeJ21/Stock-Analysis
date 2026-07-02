@@ -809,8 +809,11 @@ def _human_provider_gate(value: str) -> str:
     normalized = value.strip()
     labels = {
         "coverage_workflow_evidence": "Workflow evidence only; current source-proof queues are exhausted",
+        "fundamentals_share_count_source_ladder": "fundamentals/share-count source ladder",
     }
-    return labels.get(normalized, normalized)
+    for token, label in labels.items():
+        normalized = normalized.replace(token, label)
+    return normalized
 
 
 def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd.DataFrame:
@@ -830,10 +833,12 @@ def provider_setup_first_answer_frame(checklist: dict[str, object] | None) -> pd
         "needs_setup",
         _format_missing(first_answer.get("missing_key"), "-"),
     )
-    avoid_repeating = _checklist_current_gate_value(
-        payload,
-        "avoid_repeating",
-        _format_missing(first_answer.get("do_not_retry"), "Do not retry exhausted proof queues."),
+    avoid_repeating = _human_provider_gate(
+        _checklist_current_gate_value(
+            payload,
+            "avoid_repeating",
+            _format_missing(first_answer.get("do_not_retry"), "Do not retry exhausted proof queues."),
+        )
     )
     next_step_reason = _checklist_current_gate_value(payload, "next_step_reason", "")
     boundary = _format_missing(
