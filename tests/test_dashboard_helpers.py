@@ -250,6 +250,7 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
+        "PROVIDER RUN DECISION",
         "PROVIDER FIRST ANSWER",
         "COVERAGE UNLOCK DECISION",
         "PROVIDER SETUP CHECKLIST",
@@ -260,12 +261,16 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
         "OPTIONAL BROKER",
         "NEXT SAFE STEP",
     ]
-    assert cards[0]["title"] == "What source can I use next?"
-    assert cards[0]["command"] == "make provider-setup-checklist"
-    assert cards[1]["command"] == "make project-status"
-    assert cards[2]["command"] == "make provider-setup-checklist"
-    assert cards[3]["command"] == "make universe-scope TOP_N=10 && make risk-context"
-    assert cards[4]["command"] == "make project-status"
+    assert cards[0]["title"] == "Do I run coverage now?"
+    assert cards[0]["command"] == "make project-status"
+    assert cards[1]["title"] == "What source can I use next?"
+    assert cards[1]["command"] == "make provider-setup-checklist"
+    assert cards[2]["command"] == "make project-status"
+    assert cards[3]["command"] == "make provider-setup-checklist"
+    assert cards[4]["command"] == "make universe-scope TOP_N=10 && make risk-context"
+    assert cards[5]["command"] == "make project-status"
+    assert "do not run broad coverage from setup alone" in rendered
+    assert "reopen one reviewed ticker only after new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers appear" in rendered
     assert "what free source can run now" in rendered
     assert "what key is missing" in rendered
     assert "what should not be retried" in rendered

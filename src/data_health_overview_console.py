@@ -1009,6 +1009,17 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
     first_answer = _checklist_first_answer(payload)
     cards = [
         {
+            "kicker": "PROVIDER RUN DECISION",
+            "title": "Do I run coverage now?",
+            "body": (
+                "Do not run broad coverage from setup alone. Reopen one reviewed ticker only after new "
+                "source-backed rows, keyed provider data, reviewed manual rows, or changed blockers appear. "
+                "Use project-status first so provider setup stays source-boundary evidence, not data proof."
+            ),
+            "badges": ["answer first", "no broad batch", "source boundary"],
+            "command": "make project-status",
+        },
+        {
             "kicker": "PROVIDER FIRST ANSWER",
             "title": _human_provider_gate(_format_missing(first_answer.get("question"), "What source can I use next?")),
             "body": (
