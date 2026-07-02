@@ -178,6 +178,12 @@ def test_data_health_pilot_share_first_answer_frame_summarizes_release_gates():
             "Next Safe Action": "make diff-hygiene-summary",
         },
         {
+            "Question": "What stays collapsed?",
+            "Answer": "Release gate rows, proof queues, provider setup details, packet commands, and generated-artifact lists stay in review drawers until a reviewer opens them.",
+            "Share Boundary": "The first answer stays share-focused; detailed evidence remains available but not first-screen noise.",
+            "Next Safe Action": "Open the pilot/share evidence drawer only after the first answer is reviewed.",
+        },
+        {
             "Question": "What blocks deeper analysis?",
             "Answer": "Trusted Fundamentals Proof Queue: reviewed; fundamentals_bundle_plus_shares: 90.",
             "Share Boundary": "Source-proof blockers remain visible; sharing does not convert them into usable inputs.",
