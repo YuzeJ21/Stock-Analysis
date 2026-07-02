@@ -319,7 +319,7 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
             "kicker": "ANSWER FIRST",
             "title": f"{ticker} - {state}",
             "body": (
-                f"Use now: {review_now} Blocked/context: {blocked} Data Health handoff: {handoff} "
+                f"Use now: {review_now} Blocked/context: {blocked} Data Health only if blocked/freshness: {handoff} "
                 f"Manual review boundary: {route_stop_rule} "
                 "Read this first before detailed review. Previous proof comes from the saved readiness checks. "
                 f"Decision context: {decision}."
@@ -343,9 +343,9 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
         },
         {
             "kicker": "NEXT SAFE STEP",
-            "title": "Where Data Health fits",
+            "title": "Open Data Health only if blocked",
             "body": (
-                f"{handoff} Data Health handoff: {route_label}. "
+                f"{handoff} Open {route_label} only for the blocked or freshness question. "
                 f"{route_stop_rule} Commands stay in operator details; the dashboard does not run imports or refreshes."
             ),
             "badges": ["manual proof", "manual gate"],
