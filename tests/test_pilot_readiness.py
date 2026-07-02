@@ -645,6 +645,12 @@ def test_pilot_share_brief_summarizes_usable_blocked_and_share_boundary(tmp_path
     assert "DCF Input Proof Batches" in brief
     assert "fundamentals_bundle_plus_shares: 10" in brief
     assert "How to demo or review next" in brief
+    assert "Final share gate sequence" in brief
+    assert "GitHub sync" in brief
+    assert "generated artifact hygiene" in brief
+    assert "public-check" in brief
+    assert "license boundary" in brief
+    assert "source-proof blockers stay visible" in brief
     assert "make universe-scope TOP_N=10" in brief
     assert "make risk-context" in brief
     assert "make public-check" in brief
