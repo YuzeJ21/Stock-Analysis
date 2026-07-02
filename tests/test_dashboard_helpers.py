@@ -27118,9 +27118,10 @@ def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer()
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "use now:" in rendered
+    assert "answer:" in rendered
     assert "blocked/limited:" in rendered
     assert "context:" in rendered
+    assert "use now: do not use yet" not in rendered
     assert "next safe action:" not in rendered
     assert "stop rule:" not in rendered
     assert "proof to unlock:" not in rendered

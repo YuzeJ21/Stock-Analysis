@@ -8899,7 +8899,7 @@ def data_health_coverage_summary_cards(
                 "kicker": state.upper(),
                 "title": format_missing(row.get("lane")),
                 "body": (
-                    f"Use now: {use_now}. "
+                    f"Answer: {use_now}. "
                     f"Blocked/limited: {blocked}. "
                     f"Context: {context}."
                 ),
