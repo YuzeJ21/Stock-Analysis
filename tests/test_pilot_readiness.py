@@ -547,6 +547,9 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Provider Activation Plan" in body
     assert "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops." in body
     assert "Run that provider's one-ticker smoke command only; do not start a broad batch from setup." in body
+    assert "Configure first: FMP free tier" in body
+    assert "Broadest keyed fallback here: price, fundamentals, share count, and the largest stated free-tier daily cap." in body
+    assert "Do not configure all missing providers at once" in body
     assert "| Provider | Setup state | Unlock lanes | Usage | Smoke command | Cannot unlock | Safe next step |" in body
     assert "FMP free tier" in body
     assert "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in body
@@ -701,6 +704,9 @@ def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: P
 
     assert "How coverage expands next" in brief
     assert "make provider-setup-checklist" in brief
+    assert "Configure first: Finnhub free tier" in brief
+    assert "Second fallback after FMP" in brief
+    assert "Do not configure all missing providers at once" in brief
     assert "FMP free tier: configured -> price, fundamentals, share_count" in brief
     assert "smoke: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`" in brief
     assert "Alpha Vantage free tier: needs_key -> price, fundamentals, share_count" in brief

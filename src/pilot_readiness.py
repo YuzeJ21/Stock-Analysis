@@ -883,12 +883,34 @@ def _provider_activation_plan_lines() -> list[str]:
     return [f"- {step}" for step in steps]
 
 
+def _provider_one_setup_lines() -> list[str]:
+    checklist = build_provider_setup_checklist()
+    setup_order = checklist.get("one_provider_setup_order", [])
+    if not isinstance(setup_order, list):
+        return []
+    first = next((row for row in setup_order if isinstance(row, dict)), None)
+    if not first:
+        return []
+    provider = str(first.get("provider") or "-")
+    reason = str(first.get("why_first") or "Configure one provider before retrying broader source paths.")
+    setup_env = str(first.get("setup_env") or "-")
+    smoke_command = str(first.get("smoke_command") or "make session-source-preflight")
+    return [
+        f"- Configure first: {provider}.",
+        f"- Why first: {reason}",
+        f"- Setup env: `{setup_env}`.",
+        f"- One-ticker smoke command: `{smoke_command}`.",
+        "- Do not configure all missing providers at once; configure one, rerun preflight, smoke one ticker, then validate/preview before any apply.",
+    ]
+
+
 def _share_brief_provider_setup_lines() -> list[str]:
     checklist = build_provider_setup_checklist()
     lines = [
         "- Next setup view: `make provider-setup-checklist`.",
         "- Real key values are never printed.",
     ]
+    lines.extend(_provider_one_setup_lines())
     for row in checklist["rows"]:
         provider = str(row.get("provider") or "").strip()
         if provider not in {"FMP free tier", "Alpha Vantage free tier", "Finnhub free tier", "IBKR read-only"}:
@@ -1030,6 +1052,10 @@ def render_pilot_readiness_packet(
         "### Provider Activation Plan",
         "",
         *_provider_activation_plan_lines(),
+        "",
+        "### One-Provider Setup Decision",
+        "",
+        *_provider_one_setup_lines(),
         "",
         *_markdown_table(
             ["Provider", "Setup state", "Unlock lanes", "Usage", "Smoke command", "Cannot unlock", "Safe next step"],
