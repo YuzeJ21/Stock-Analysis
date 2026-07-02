@@ -295,8 +295,8 @@ def probe_ibkr_price(
             reason_code="not_configured",
             detail=f"{IBKR_HOST_ENV}, {IBKR_PORT_ENV}, and {IBKR_CLIENT_ID_ENV} are not fully configured.",
             next_action=(
-                f"Set {IBKR_HOST_ENV}, {IBKR_PORT_ENV}, and {IBKR_CLIENT_ID_ENV}; run IBKR Gateway/TWS; "
-                "then use make price-refresh TICKERS=<ticker> PROVIDER=ibkr."
+                "Leave IBKR disabled unless explicitly choosing optional read-only daily OHLCV; if intentionally enabled, "
+                f"configure {IBKR_HOST_ENV}, {IBKR_PORT_ENV}, and {IBKR_CLIENT_ID_ENV} and run Gateway/TWS."
             ),
             source_usage="read_only_daily_ohlcv",
             host=host or DEFAULT_IBKR_HOST,
@@ -861,8 +861,8 @@ def build_source_activation_console_v2(
         "finnhub": "Set FINNHUB_API_KEY in config/provider_keys.env; rerun make session-source-preflight.",
         "stooq": "Set STOOQ_API_KEY only if unauthenticated Stooq CSV access is unavailable; rerun make session-source-preflight.",
         "ibkr": (
-            "Optional read-only broker data only: set IBKR_HOST, IBKR_PORT, IBKR_CLIENT_ID and run Gateway/TWS; "
-            "otherwise leave disabled."
+            "Optional read-only broker data only; leave disabled unless explicitly choosing IBKR daily OHLCV. "
+            "If intentionally enabled, configure IBKR_HOST, IBKR_PORT, IBKR_CLIENT_ID and run Gateway/TWS."
         ),
     }
     next_executable_lane = preferred_lane_order[0] if preferred_lane_order else "coverage_workflow_evidence"
