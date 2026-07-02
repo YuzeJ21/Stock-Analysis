@@ -20349,6 +20349,92 @@ def data_health_operator_snapshot_cards(
     ]
 
 
+def data_health_selected_lane_answer_cards(
+    selected_lane_key: str,
+    readiness_freshness: FreshnessStatus,
+    *,
+    project_status_payload: dict[str, Any] | None = None,
+) -> list[dict[str, object]]:
+    """Return one plain-language answer for the selected Data Health lane."""
+
+    lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, "Prices")
+    summary = project_status_payload.get("summary", {}) if isinstance(project_status_payload, dict) else {}
+    recommended_rows = (
+        project_status_payload.get("recommended_next_command_rows", [])
+        if isinstance(project_status_payload, dict)
+        else []
+    )
+    first_recommendation = recommended_rows[0] if isinstance(recommended_rows, list) and recommended_rows else {}
+    next_command = (
+        str(first_recommendation.get("Command") or "").strip()
+        if isinstance(first_recommendation, dict)
+        else ""
+    )
+    next_reason = (
+        compact_card_fragment(first_recommendation.get("Reason"), fallback="Review the current source gate before opening proof details.", max_chars=170)
+        if isinstance(first_recommendation, dict)
+        else "Review the current source gate before opening proof details."
+    )
+    if not next_command:
+        next_command = "make project-status"
+
+    price_ready = int(summary.get("price_ready") or summary.get("tickers_with_prices") or 0)
+    fundamentals_ready = int(summary.get("fundamentals_ready") or summary.get("input_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or summary.get("operating_company_dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    data_gaps = int(summary.get("data_gaps") or summary.get("locked_input_rows") or 0)
+    freshness_status = public_status_label(str(readiness_freshness.status or "unknown")).lower()
+
+    lane_answers = {
+        "prices": (
+            f"{price_ready:,} tickers have price rows. Price context is usable where history depth is ready; short-history rows stay partial.",
+            "Price gaps or short history do not unlock fundamentals, DCF, peers, earnings, or estimates.",
+        ),
+        "fundamentals": (
+            f"{dcf_ready:,} DCF-ready and {fundamentals_ready:,} fundamentals-ready tickers can use source-backed company inputs.",
+            "Source proof remains blocked where revenue, cash flow, margins, shares, or related DCF inputs are missing.",
+        ),
+        "peers": (
+            f"{peer_ready:,} tickers have trusted peer context. Candidate peers remain context only until source-backed mapping proof exists.",
+            "Peer-relative analysis stays blocked when trusted mappings or mapped-peer inputs are missing.",
+        ),
+        "metrics": (
+            "Review metrics are usable only where the benchmark, risk, fundamentals, valuation, or peer metric family is readiness-supported.",
+            "Metric rows stay historical context; missing metric proof does not become a ranking or instruction.",
+        ),
+        "optional": (
+            "Optional earnings and analyst-estimate context is usable only when trusted local or provider-assisted rows are reviewed.",
+            "Empty optional rows remain locked; optional context never becomes a recommendation.",
+        ),
+        "proof": (
+            "Proof History is evidence review only: use it to verify reviewed outcomes before trusting changed readiness.",
+            "Proof rows do not apply data, refresh sources, or turn blocked inputs into supported analysis.",
+        ),
+    }
+    use_now, blocked = lane_answers.get(selected_lane_key, lane_answers["prices"])
+    return [
+        {
+            "kicker": "LANE ANSWER",
+            "title": lane_label,
+            "body": f"Use now: {use_now} Freshness is {freshness_status}.",
+            "badges": ["one lane", "use now"],
+        },
+        {
+            "kicker": "BLOCKER",
+            "title": "What stays locked",
+            "body": f"{blocked} {data_gaps:,} locked input row(s) remain visible instead of being inferred.",
+            "badges": ["blocked visible", "no inference"],
+        },
+        {
+            "kicker": "NEXT SAFE ACTION",
+            "title": "Open the next proof gate",
+            "body": f"{next_reason} This is not a recommendation and does not run imports from the dashboard.",
+            "badges": ["copy-only", "research-only"],
+            "command": next_command,
+        },
+    ]
+
+
 def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, object]]:
     status_columns = ["FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "FinalValueCategory", "Classification"]
     if title == "Value / Re-rating":
@@ -27619,6 +27705,19 @@ def render_data_health(
         readiness_freshness=readiness_freshness,
         batch_preflight=batch_preflight,
         metric_detail_status=metric_detail_status,
+    )
+    render_section_header(
+        "Selected Lane Answer",
+        "One plain-language answer for the selected lane before provider setup, pilot gates, or raw proof tables.",
+    )
+    render_signal_cards(
+        data_health_selected_lane_answer_cards(
+            selected_lane_key,
+            readiness_freshness,
+            project_status_payload=project_status_payload,
+        ),
+        show_commands=False,
+        variant="queue",
     )
     source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)
     if source_exhaustion_pivot_cards:

@@ -25437,16 +25437,54 @@ def test_data_health_current_mode_strip_uses_metric_proof_and_stale_modes():
     assert "sell" not in metric_html + proof_html + stale_html
 
 
+def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "fundamentals",
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+        project_status_payload={
+            "summary": {
+                "dcf_ready": 2691,
+                "fundamentals_ready": 2808,
+                "data_gaps": 207,
+            },
+            "recommended_next_command_rows": [
+                {
+                    "Step": "Review provider setup checklist",
+                    "Command": "make provider-setup-checklist",
+                    "Reason": "Current source-proof queues have no unreviewed executable company candidates.",
+                }
+            ],
+        },
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["LANE ANSWER", "BLOCKER", "NEXT SAFE ACTION"]
+    assert "fundamentals / dcf" in rendered
+    assert "2,691 dcf-ready" in rendered
+    assert "2,808 fundamentals-ready" in rendered
+    assert "source proof remains blocked" in rendered
+    assert cards[2]["command"] == "make provider-setup-checklist"
+    assert "not a recommendation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_data_health_source_readiness_guidance_renders_before_operator_next_action():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    mode_strip_index = source.index("render_data_health_current_mode_strip(")
+    public_return_index = source.index("        return\n    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
+    mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
+    lane_answer_index = source.index('render_section_header(\n        "Selected Lane Answer"', mode_strip_index)
+    lane_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", lane_answer_index)
     source_details_index = source.index('st.expander("Source setup and refresh details", expanded=False)', mode_strip_index)
     guidance_header_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_details_index)
     guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
     next_action_index = source.index('render_section_header(\n        "Next Operator Action"', guidance_cards_index)
 
-    assert mode_strip_index < source_details_index < guidance_header_index < guidance_cards_index < next_action_index
+    assert mode_strip_index < lane_answer_index < lane_answer_cards_index < source_details_index
+    assert source_details_index < guidance_header_index < guidance_cards_index < next_action_index
+    assert "One plain-language answer for the selected lane before provider setup, pilot gates, or raw proof tables." in source
     assert "Check freshness, source queues, rejected rows, and generated-artifact hygiene before interpreting counts." in source
 
 
