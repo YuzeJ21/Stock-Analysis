@@ -25,7 +25,7 @@ The repository is past prototype/internal-alpha for the core workflow because it
 | Financial-model gating and research-only safety | Green | DCF, peer valuation, earnings, and estimates stay withheld until trusted source rows pass validation, preview, rejected-row review, apply/skip decision, rebuilt readiness, and proof recording. |
 | UI/product-page clarity | Yellow | Dashboard and screenshot evidence are ready, and the controlled-pilot path is documented; pilot operators should still use the runbook to stay on the shortest share-safe path. |
 | Operator workflow | Green | Data Health, reviewed-batch packets, pilot readiness checks, proof queues, and commit/package handoffs exist and are copy-only. |
-| Test coverage | Green | Full test suite passes locally in the current package: `2025 passed, 1 warning` inside `make public-check`. |
+| Test coverage | Green | Full test suite passes locally in the current package: `2037 passed, 1 warning` inside `make public-check`. |
 | CI/release checks | Green | `make public-check` passed end-to-end in the current environment, including public wording, whitespace, full tests, dashboard smoke, browser QA evidence, and visitor-demo checks. |
 | Documentation/onboarding | Yellow | README, data strategy, public release checklist, and operator guide exist; this audit and the pilot runbook close the dedicated pilot-doc gap. |
 | Expansion roadmap | Yellow | Roadmap is extensive; this pass adds a concise controlled-pilot stage capsule so pilot entry/exit criteria are easier to find. |
@@ -48,7 +48,7 @@ The repository is past prototype/internal-alpha for the core workflow because it
 
 | Command | Result | Notes |
 | --- | --- | --- |
-| `git status --short --branch --untracked-files=no` | Passed with generated churn only | Current branch is synced with origin; dirty files are generated CSV/report churn and broad stock-report artifacts that stay excluded by default. |
+| `git status --short --branch --untracked-files=no` | Passed with generated churn only | Current branch is `ahead 5`; reviewed local commits still need push before the GitHub pilot link is current. Dirty files are generated CSV/report churn and broad stock-report artifacts that stay excluded by default. |
 | `git log -5 --oneline` | Passed | Latest commits include Data Health routing, pilot share package, provider setup, and workflow handoff improvements. |
 | `make diff-hygiene-summary` | Passed | Product/code/docs/test package was clean before this audit refresh; generated/sample report churn stays local unless individually reviewed evidence. |
 | `make pilot-readiness-check TOP_N=10` | Passed with manual gates | Verdict: `pilot-ready with manual gates`; public-check remains the explicit share gate. |

@@ -72,6 +72,13 @@ def test_public_docs_share_same_coverage_gate_rule():
     assert "provider smoke command" not in audit
 
 
+def test_pilot_readiness_audit_does_not_overstate_github_sync():
+    audit = _read("docs/PILOT_READINESS_AUDIT.md")
+
+    assert "reviewed local commits still need push" in audit
+    assert "Current branch is synced with origin" not in audit
+
+
 def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
 
