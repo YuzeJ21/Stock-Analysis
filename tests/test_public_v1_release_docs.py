@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 PUBLIC_V1_ROUTE = (
@@ -74,9 +75,11 @@ def test_public_docs_share_same_coverage_gate_rule():
 
 def test_pilot_readiness_audit_does_not_overstate_github_sync():
     audit = _read("docs/PILOT_READINESS_AUDIT.md")
+    lowered = audit.lower()
 
-    assert "reviewed local commits still need push" in audit
+    assert "reviewed local commits still need push" in lowered
     assert "Current branch is synced with origin" not in audit
+    assert not re.search(r"\bahead \d+\b", audit)
 
 
 def test_public_walkthrough_uses_stock_selector_before_single_stock_report():

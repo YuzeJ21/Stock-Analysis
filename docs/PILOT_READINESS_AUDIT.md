@@ -48,7 +48,7 @@ The repository is past prototype/internal-alpha for the core workflow because it
 
 | Command | Result | Notes |
 | --- | --- | --- |
-| `git status --short --branch --untracked-files=no` | Passed with generated churn only | Current branch is `ahead 5`; reviewed local commits still need push before the GitHub pilot link is current. Dirty files are generated CSV/report churn and broad stock-report artifacts that stay excluded by default. |
+| `git status --short --branch --untracked-files=no` | Passed with generated churn only | Current branch is ahead of origin; use the live status gate for the exact count. Reviewed local commits still need push before the GitHub pilot link is current. Dirty files are generated CSV/report churn and broad stock-report artifacts that stay excluded by default. |
 | `git log -5 --oneline` | Passed | Latest commits include Data Health routing, pilot share package, provider setup, and workflow handoff improvements. |
 | `make diff-hygiene-summary` | Passed | Product/code/docs/test package was clean before this audit refresh; generated/sample report churn stays local unless individually reviewed evidence. |
 | `make pilot-readiness-check TOP_N=10` | Passed with manual gates | Verdict: `pilot-ready with manual gates`; public-check remains the explicit share gate. |
