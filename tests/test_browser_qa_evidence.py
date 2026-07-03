@@ -442,7 +442,7 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "READINESS CONTEXT" in str(fast_view["First View Markers"])
     assert "Next Data-Readiness Action" not in str(fast_view["First View Markers"])
     assert "first 30 seconds" in rendered
-    assert "where to go next" in rendered
+    assert "primary workflow" in rendered
     assert "before you open the review" in rendered
     assert "report handoff" in rendered
     assert "stop rule" in rendered

@@ -28,15 +28,16 @@ def test_dashboard_navigation_public_path_labels_round_trip():
         "Data Health",
         "Proof History",
     ]
-    assert nav.public_path_label("Home") == "Start at Home"
-    assert nav.public_path_label("Single-Stock Report") == "Review one stock"
-    assert nav.public_path_label("Stock Selector") == "Explore ready names"
-    assert nav.public_path_label("Data Health") == "Check data coverage"
+    assert nav.public_path_label("Home") == "Home"
+    assert nav.public_path_label("Single-Stock Report") == "Single-Stock Report"
+    assert nav.public_path_label("Stock Selector") == "Stock Selector"
+    assert nav.public_path_label("Data Health") == "Data Health"
     assert nav.page_title_from_public_path("Check data coverage") == "Data Health"
-    assert nav.public_path_label("Proof History") == "Inspect proof"
+    assert nav.public_path_label("Proof History") == "Proof History"
     assert nav.page_title_from_public_path("Review one stock") == "Single-Stock Report"
     assert nav.page_title_from_public_path("Explore ready names") == "Stock Selector"
     assert nav.page_title_from_public_path("Inspect proof") == "Proof History"
+    assert nav.page_title_from_public_path("Improve data coverage") == "Data Health"
     assert nav.page_title_from_public_path("Data Health") == "Data Health"
 
 

@@ -371,15 +371,15 @@ def sidebar_path_index(initial_page: str, path_options: list[str]) -> int:
 
 def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
     if selected_page == "Home":
-        return "Start here.", "Home shows what is ready, what is blocked, recent progress, and the safest next review path."
+        return "Home.", "Start with what is ready, what is blocked, recent progress, and the safest next review path."
     if selected_page == "Single-Stock Report":
         return (
-            "Review one stock.",
+            "Single-Stock Report.",
             "Use this page to review one ticker's ready analysis, locked inputs, source notes, and next local proof step.",
         )
     if selected_page == STOCK_SELECTOR_PATH_TITLE:
         return (
-            "Explore ready names.",
+            "Stock Selector.",
             "Filter readiness-backed research candidates by coverage, blockers, and proof freshness without turning the queue into recommendations.",
         )
     if selected_page == "Value / Re-rating":
@@ -389,12 +389,12 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
         )
     if selected_page == "Data Health":
         return (
-            "Check data coverage.",
+            "Data Health.",
             "Use this page to see which trusted inputs are missing and which proof path should be checked next.",
         )
     if selected_page == PROOF_HISTORY_PATH_TITLE:
         return (
-            "Inspect proof.",
+            "Proof History.",
             "Review durable proof rows and batch outcomes before trusting changed readiness states.",
         )
     if selected_page == "Monthly Picks":
@@ -26966,20 +26966,20 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         stock_report_workflow_fit_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None),
         show_commands=False,
     )
-    render_signal_cards(stock_report_summary_cards(report_payload), show_commands=show_card_commands)
-    render_signal_cards(stock_report_evaluation_summary_cards(report_payload), show_commands=show_card_commands)
-    render_signal_cards(
-        stock_report_best_review_path_cards(
-            report_payload,
-            coverage if provider is not None and ticker else None,
-            peer_summary if provider is not None and ticker else None,
-        ),
-        show_commands=show_card_commands,
-    )
-    with st.expander("More quick-read cards", expanded=False):
+    with st.expander("Advanced quick-read context", expanded=False):
         render_context_note(
             "Extra context.",
-            "Open this only when you want performance, data-quality, and next-step cards before using the detailed tabs.",
+            "Open this only when the first answer is not enough. Performance, data-quality, and next-step cards stay secondary to the selected-ticker answer.",
+        )
+        render_signal_cards(stock_report_summary_cards(report_payload), show_commands=show_card_commands)
+        render_signal_cards(stock_report_evaluation_summary_cards(report_payload), show_commands=show_card_commands)
+        render_signal_cards(
+            stock_report_best_review_path_cards(
+                report_payload,
+                coverage if provider is not None and ticker else None,
+                peer_summary if provider is not None and ticker else None,
+            ),
+            show_commands=show_card_commands,
         )
         render_signal_cards(stock_report_analysis_quality_cards(report_payload), show_commands=show_card_commands)
         render_signal_cards(
@@ -27989,8 +27989,6 @@ def render_data_health(
             variant="queue",
         )
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
-        render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
-        render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
         if public_mode and project_status_payload is None:
             with st.expander("Refresh status note", expanded=False):
                 render_notice_card(
@@ -28001,19 +27999,22 @@ def render_data_health(
                 )
         render_context_note(
             "Public Data Health summary.",
-            "Start with the five public paths. Open the evidence drawer only when you want readiness proof; switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
+            "Use this page only when a selected ticker or lane is blocked. Open evidence details only when you need proof; switch to Operator mode for runbooks and validate / preview / apply workflow tables.",
             tone="success",
         )
-        render_research_loop_strip(
-            **data_health_research_loop_context(
-                selected_lane_key=selected_lane_key,
-                readiness_freshness=public_readiness_freshness,
-                next_action="Open the public evidence drawer",
-                public_mode=True,
+        with st.expander("Advanced public guidance", expanded=False):
+            render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
+            render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
+            render_research_loop_strip(
+                **data_health_research_loop_context(
+                    selected_lane_key=selected_lane_key,
+                    readiness_freshness=public_readiness_freshness,
+                    next_action="Open the public evidence drawer",
+                    public_mode=True,
+                )
             )
-        )
-        render_section_header("Visitor Paths", "Choose the clean public path before opening proof or operator details.")
-        render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
+            render_section_header("Public path options", "Use these only when the lane answer does not resolve the current question.")
+            render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
         public_evidence_drawer_expanded = selected_drawer == "proof"
         if public_focus_ticker:
             render_context_note(
@@ -30553,7 +30554,7 @@ def main() -> None:
         elif public_demo_mode:
             render_context_note(
                 "Clean visitor workflow.",
-                "Home -> Stock Selector -> Single-Stock Report -> Data Health. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
+                "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
             )
         if show_sidebar_operator_guides:
             with st.expander("Operator run commands", expanded=False):

@@ -1518,7 +1518,7 @@ def test_dashboard_page_query_supports_visitor_friendly_deep_links():
     assert dashboard.dashboard_page_from_query(None) == "Home"
     public_paths = dashboard.sidebar_path_options("Home")
     assert "Stock Selector" in public_paths
-    assert dashboard.public_path_label("Stock Selector") == "Explore ready names"
+    assert dashboard.public_path_label("Stock Selector") == "Stock Selector"
 
 
 def test_stock_selector_cards_keep_selection_readiness_gated():
@@ -2202,17 +2202,17 @@ def test_sidebar_navigation_note_matches_selected_page():
     portfolio_title, portfolio_body = dashboard.sidebar_navigation_note("Portfolio Review")
     unknown_title, unknown_body = dashboard.sidebar_navigation_note("Unknown Page")
 
-    assert home_title == "Start here."
+    assert home_title == "Home."
     assert "what is ready" in home_body
     assert "safest next review path" in home_body
-    assert report_title == "Review one stock."
+    assert report_title == "Single-Stock Report."
     assert "one ticker's ready analysis" in report_body
     assert "Home explains what is ready" not in report_body
     assert value_title == "Check valuation readiness."
     assert "valuation-ready companies" in value_body
     assert "peer-comparison limits" in value_body
     assert "DCF-ready review" not in value_body
-    assert health_title == "Check data coverage."
+    assert health_title == "Data Health."
     assert "trusted inputs are missing" in health_body
     assert "proof path should be checked" in health_body
     assert monthly_title == "Explore ready names."
@@ -3066,10 +3066,10 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
     assert [card[0] for card in cards] == [
-        "Explore ready names",
-        "Review one stock",
-        "Check data coverage",
-        "Inspect proof",
+        "Stock Selector",
+        "Single-Stock Report",
+        "Data Health",
+        "Proof History",
     ]
     assert [card[2] for card in cards] == [
         "?mode=public&page=stock-selector",
@@ -3108,10 +3108,10 @@ def test_home_route_choice_cards_delegate_to_public_home_workflow_helper():
         }
     )
 
-    assert cards[0][0] == "Explore ready names"
+    assert cards[0][0] == "Stock Selector"
     assert cards[0][3] == "warning"
     assert cards[2][3] == "warning"
-    assert cards[3][0] == "Inspect proof"
+    assert cards[3][0] == "Proof History"
 
 
 def test_home_page_renders_evaluation_workflow_before_next_steps():
@@ -15850,7 +15850,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert 'st.expander("Refresh status note", expanded=False)' in source
     assert 'public_evidence_drawer_expanded = selected_drawer == "proof"' in source
     assert 'st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded)' in source
-    assert "Start with the five public paths. Open the evidence drawer only when you want readiness proof" in source
+    assert "Use this page only when a selected ticker or lane is blocked." in source
     assert "Data Health Quick Read" in source
     assert "Which proof path should you inspect first, before opening detailed sections." in source
     assert "Diagnostic triage only; use this after the lane answer when a reviewer asks what evidence to inspect first." in source
@@ -16630,7 +16630,7 @@ def test_single_stock_page_collapses_secondary_interpretation_before_detailed_re
     summary_cards_index = source.index("stock_report_summary_cards(report_payload)")
     evaluation_cards_index = source.index("stock_report_evaluation_summary_cards(report_payload)")
     best_path_cards_index = source.index("stock_report_best_review_path_cards(", evaluation_cards_index)
-    quick_read_expander_index = source.index('st.expander("More quick-read cards"')
+    quick_read_expander_index = source.index('st.expander("Advanced quick-read context"')
     quality_cards_index = source.index("stock_report_analysis_quality_cards(report_payload)")
     next_step_cards_index = source.index("stock_report_next_step_cards(", quality_cards_index)
     interpretation_expander_index = source.index('st.expander("More report interpretation and methodology"')
@@ -16645,20 +16645,20 @@ def test_single_stock_page_collapses_secondary_interpretation_before_detailed_re
         < at_glance_index
         < workflow_fit_cards_index
         < workflow_fit_hidden_commands_index
+        < quick_read_expander_index
         < summary_cards_index
         < evaluation_cards_index
         < best_path_cards_index
-        < quick_read_expander_index
         < interpretation_expander_index
         < detail_review_index
         < tabs_index
     )
     assert quick_read_expander_index < quality_cards_index < next_step_cards_index
-    assert summary_cards_index < quick_read_expander_index
+    assert quick_read_expander_index < summary_cards_index
     assert evaluation_cards_index < interpretation_expander_index
     assert interpretation_expander_index < mode_guide_index < function_quality_index < brief_index < tabs_index
-    assert 'st.expander("More quick-read cards", expanded=False)' in source
-    assert "Open this only when you want performance, data-quality, and next-step cards" in source
+    assert 'st.expander("Advanced quick-read context", expanded=False)' in source
+    assert "Open this only when the first answer is not enough" in source
     assert 'st.expander("More report interpretation and methodology", expanded=False)' in source
     assert 'st.expander("Detailed readiness status", expanded=False)' in source
     assert 'st.expander("Detailed function status", expanded=False)' not in source
@@ -19741,7 +19741,8 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
         public_index,
     )
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_coverage_index)
-    visitor_paths_index = source.index('render_section_header("Visitor Paths"', first_30_index)
+    guidance_expander_index = source.index('st.expander("Advanced public guidance", expanded=False)', public_coverage_index)
+    visitor_paths_index = source.index('render_section_header("Public path options"', first_30_index)
     public_return_index = source.index("return", source.index("Operator details are hidden."))
     operator_coverage_index = source.index(
         "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
@@ -19753,7 +19754,7 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     )
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", operator_coverage_index)
 
-    assert public_index < public_coverage_index < first_30_index < visitor_paths_index
+    assert public_index < public_coverage_index < guidance_expander_index < first_30_index < visitor_paths_index
     assert public_return_index < operator_coverage_expander_index < operator_coverage_index < ops_index
     assert '"Coverage Summary / What Can I Use?"' in source
     assert 'st.expander("Coverage lane details", expanded=False)' in source
@@ -19799,7 +19800,8 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
-    visitor_paths_index = source.index('render_section_header("Visitor Paths"', public_index)
+    guidance_expander_index = source.index('st.expander("Advanced public guidance", expanded=False)', public_index)
+    visitor_paths_index = source.index('render_section_header("Public path options"', guidance_expander_index)
     visitor_cards_index = source.index("render_action_cards(data_health_public_visitor_path_cards(readiness_summary))", visitor_paths_index)
     quick_read_index = source.index('render_section_header("Data Health Quick Read"', visitor_cards_index)
     scope_index = source.index('render_section_header("Universe Scope Legend"', quick_read_index)
@@ -19811,10 +19813,10 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     public_return_index = source.index("return", source.index("Operator details are hidden."))
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
 
-    assert public_index < visitor_paths_index < visitor_cards_index < quick_read_index < scope_index < scope_risk_index < scope_risk_cards_index < public_return_index < ops_index
+    assert public_index < guidance_expander_index < visitor_paths_index < visitor_cards_index < quick_read_index < scope_index < scope_risk_index < scope_risk_cards_index < public_return_index < ops_index
     assert "render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=False)" in source
     assert "render_signal_cards(universe_scope_risk_handoff_cards(readiness_summary, ticker_readiness_frame), show_commands=False)" in source
-    assert "Choose the clean public path before opening proof or operator details." in source
+    assert "Use these only when the lane answer does not resolve the current question." in source
     assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
     assert "Choose a scoped review set before treating liquidity, correlation, or proxy-risk rows as usable context." in source
 
@@ -27370,9 +27372,9 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert dashboard.sidebar_path_index("Value / Re-rating", dashboard.sidebar_path_options("Value / Re-rating")) == 5
     assert dashboard.sidebar_path_index("Stock Selector", dashboard.sidebar_path_options("Stock Selector")) == 1
     assert dashboard.sidebar_path_index("Single-Stock Report", dashboard.sidebar_path_options("Single-Stock Report")) == 2
-    assert dashboard.public_path_label("Single-Stock Report") == "Review one stock"
-    assert dashboard.public_path_label("Data Health") == "Check data coverage"
-    assert dashboard.public_path_label("Proof History") == "Inspect proof"
+    assert dashboard.public_path_label("Single-Stock Report") == "Single-Stock Report"
+    assert dashboard.public_path_label("Data Health") == "Data Health"
+    assert dashboard.public_path_label("Proof History") == "Proof History"
     assert dashboard.public_path_label("More research views") == "More research views"
     assert dashboard.page_title_from_public_path("Check data coverage") == "Data Health"
     assert dashboard.page_title_from_public_path("Review one stock") == "Single-Stock Report"
@@ -27396,7 +27398,7 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert "Single-Stock Report" not in dashboard.ADVANCED_PAGE_TITLES
 
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
-    assert dashboard.public_path_label("Home") == "Start at Home"
+    assert dashboard.public_path_label("Home") == "Home"
     assert "Start at Home" not in navigation
     assert "Review one stock" in navigation
     assert "Inspect proof" in navigation
@@ -27849,8 +27851,9 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
+    guidance_expander_index = source.index('st.expander("Advanced public guidance", expanded=False)', public_index)
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_index)
-    visitor_paths_index = source.index('render_section_header("Visitor Paths"', first_30_index)
+    visitor_paths_index = source.index('render_section_header("Public path options"', first_30_index)
     drawer_open_state_index = source.index('public_evidence_drawer_expanded = selected_drawer == "proof"', public_index)
     drawer_index = source.index(
         'st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded)',
@@ -27866,6 +27869,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
 
     assert (
             public_index
+            < guidance_expander_index
             < first_30_index
         < visitor_paths_index
         < drawer_open_state_index
@@ -27878,7 +27882,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
         < ops_index
         < batch_execution_index
     )
-    assert "switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables." in source
+    assert "switch to Operator mode for runbooks and validate / preview / apply workflow tables." in source
     assert "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode." in source
     assert "Operator details are hidden." in source
     assert "Evidence details stay collapsed by default" in source

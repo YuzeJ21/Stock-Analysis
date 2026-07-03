@@ -15,12 +15,20 @@ PUBLIC_PATH_PAGE_TITLES = [
     PROOF_HISTORY_PATH_TITLE,
 ]
 PUBLIC_PATH_LABELS = {
-    "Home": "Start at Home",
-    "Single-Stock Report": "Review one stock",
-    STOCK_SELECTOR_PATH_TITLE: "Explore ready names",
-    "Data Health": "Check data coverage",
-    PROOF_HISTORY_PATH_TITLE: "Inspect proof",
+    "Home": "Home",
+    "Single-Stock Report": "Single-Stock Report",
+    STOCK_SELECTOR_PATH_TITLE: STOCK_SELECTOR_PATH_TITLE,
+    "Data Health": "Data Health",
+    PROOF_HISTORY_PATH_TITLE: PROOF_HISTORY_PATH_TITLE,
     DETAILED_PAGE_PATH_TITLE: "More research views",
+}
+LEGACY_PUBLIC_PATH_LABELS = {
+    "Start at Home": "Home",
+    "Review one stock": "Single-Stock Report",
+    "Explore ready names": STOCK_SELECTOR_PATH_TITLE,
+    "Check data coverage": "Data Health",
+    "Improve data coverage": "Data Health",
+    "Inspect proof": PROOF_HISTORY_PATH_TITLE,
 }
 PUBLIC_DEMO_MODE = "public"
 OPERATOR_DEMO_MODE = "operator"
@@ -166,7 +174,7 @@ def page_title_from_public_path(value: object) -> str:
     if text in PUBLIC_PATH_LABELS:
         return text
     label_to_page = {label: page for page, label in PUBLIC_PATH_LABELS.items()}
-    return label_to_page.get(text, text)
+    return label_to_page.get(text, LEGACY_PUBLIC_PATH_LABELS.get(text, text))
 
 
 def public_path_label(page_title: str) -> str:

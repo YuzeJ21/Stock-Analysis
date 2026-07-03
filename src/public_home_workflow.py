@@ -316,25 +316,25 @@ def public_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
 
     return [
         (
-            "Explore ready names",
+            "Stock Selector",
             selector_body,
             "?mode=public&page=stock-selector",
             selector_tone,
         ),
         (
-            "Review one stock",
+            "Single-Stock Report",
             review_body,
             "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
             "neutral",
         ),
         (
-            "Check data coverage",
+            "Data Health",
             improve_body,
             "?mode=public&page=data-health&drawer=proof",
             improve_tone,
         ),
         (
-            "Inspect proof",
+            "Proof History",
             proof_body,
             "?mode=public&page=proof-history",
             "neutral",
