@@ -28,6 +28,43 @@ DEMO_MODE_LABELS = {
     PUBLIC_DEMO_MODE: "Public visitor mode",
     OPERATOR_DEMO_MODE: "Operator mode",
 }
+PUBLIC_WORKFLOW_STEPS = {
+    "Home": {
+        "page": "Home",
+        "question": "What is this product and where do I start?",
+        "next_page": STOCK_SELECTOR_PATH_TITLE,
+        "next_action": "Start by exploring ready names.",
+        "stop_rule": "Stop before treating any output as advice or a trade instruction.",
+    },
+    STOCK_SELECTOR_PATH_TITLE: {
+        "page": STOCK_SELECTOR_PATH_TITLE,
+        "question": "Which stock can I review?",
+        "next_page": "Single-Stock Report",
+        "next_action": "Pick one ticker, then open its single-stock report.",
+        "stop_rule": "Stop if the selected ticker has no readiness-backed path.",
+    },
+    "Single-Stock Report": {
+        "page": "Single-Stock Report",
+        "question": "What can I use for this ticker right now?",
+        "next_page": "Data Health",
+        "next_action": "Use supported sections first; open Data Health only for blocked inputs.",
+        "stop_rule": "Stop if required inputs are blocked, excluded, or only candidate context.",
+    },
+    "Data Health": {
+        "page": "Data Health",
+        "question": "Why is something blocked and how do I fix it?",
+        "next_page": PROOF_HISTORY_PATH_TITLE,
+        "next_action": "Read the lane answer, then inspect proof only when evidence changed.",
+        "stop_rule": "Stop before applying or trusting rows without source proof.",
+    },
+    PROOF_HISTORY_PATH_TITLE: {
+        "page": PROOF_HISTORY_PATH_TITLE,
+        "question": "What evidence changed a readiness state?",
+        "next_page": "Home",
+        "next_action": "Verify the latest outcome, then return to the product path.",
+        "stop_rule": "Stop if the evidence is missing, stale, or not source-backed.",
+    },
+}
 
 
 def dashboard_page_slug(page_title: str) -> str:
@@ -35,6 +72,10 @@ def dashboard_page_slug(page_title: str) -> str:
     slug = slug.replace("&", "and")
     slug = re.sub(r"[^a-z0-9]+", "-", slug)
     return slug.strip("-")
+
+
+def public_workflow_step(page_title: str) -> dict[str, str]:
+    return dict(PUBLIC_WORKFLOW_STEPS.get(page_title, PUBLIC_WORKFLOW_STEPS["Home"]))
 
 
 def dashboard_page_from_query(value: object, user_page_titles: list[str]) -> str:

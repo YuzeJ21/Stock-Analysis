@@ -60,6 +60,26 @@ def test_dashboard_navigation_sidebar_options_keep_advanced_pages_secondary():
     )
 
 
+def test_public_workflow_steps_answer_one_question_and_next_action_per_page():
+    expected = {
+        "Home": ("What is this product and where do I start?", "Stock Selector"),
+        "Stock Selector": ("Which stock can I review?", "Single-Stock Report"),
+        "Single-Stock Report": ("What can I use for this ticker right now?", "Data Health"),
+        "Data Health": ("Why is something blocked and how do I fix it?", "Proof History"),
+        "Proof History": ("What evidence changed a readiness state?", "Home"),
+    }
+
+    for page, (question, next_page) in expected.items():
+        step = nav.public_workflow_step(page)
+        assert step["page"] == page
+        assert step["question"] == question
+        assert step["next_page"] == next_page
+        assert step["next_action"]
+        assert step["stop_rule"]
+
+    assert nav.public_workflow_step("Universe Manager") == nav.public_workflow_step("Home")
+
+
 def test_dashboard_navigation_mode_defaults_public_unless_advanced_context():
     advanced = ["Overview", "Monthly Picks", "Universe Manager"]
 

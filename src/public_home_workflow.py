@@ -33,7 +33,7 @@ def public_home_first_30_second_cards(summary: dict[str, object]) -> list[dict[s
             "title": f"{price_ready:,}/{master:,} price-ready; deeper work is gated",
             "body": (
                 f"{dcf_ready:,} names are DCF-ready and {peer_ready:,} are peer-ready today. "
-                "Use Home for the snapshot, Single-Stock Report for one ticker, and Data Health for source-proof gaps."
+                "Use Home for the snapshot, Stock Selector to choose a candidate, Single-Stock Report for one ticker, and Data Health for source-proof gaps."
             ),
             "badges": ["one connected loop", "proof before analysis"],
         },
@@ -316,16 +316,16 @@ def public_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
 
     return [
         (
-            "Review one stock",
-            review_body,
-            "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
-            "neutral",
-        ),
-        (
             "Explore ready names",
             selector_body,
             "?mode=public&page=stock-selector",
             selector_tone,
+        ),
+        (
+            "Review one stock",
+            review_body,
+            "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
+            "neutral",
         ),
         (
             "Check data coverage",

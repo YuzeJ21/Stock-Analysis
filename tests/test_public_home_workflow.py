@@ -27,6 +27,8 @@ def test_public_home_first_30_second_cards_explain_product_without_operator_deta
     assert "ready, blocked, partial, and excluded states stay visible" in rendered
     assert "3,538/3,538 price-ready" in rendered
     assert "59 names are dcf-ready and 26 are peer-ready today" in rendered
+    assert "stock selector to choose a candidate" in rendered
+    assert rendered.index("stock selector to choose a candidate") < rendered.index("single-stock report for one ticker")
     assert "single-stock report for one ticker" in rendered
     assert "data health for source-proof gaps" in rendered
     assert "3,479 blocked states remain withheld" in rendered
@@ -309,11 +311,11 @@ def test_public_home_route_choice_cards_warn_when_candidate_pages_should_stay_em
     )
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
-    assert cards[0][0] == "Review one stock"
-    assert cards[0][2] == "?mode=public&page=single-stock-report&ticker=NVDA&open=1"
-    assert cards[1][0] == "Explore ready names"
-    assert cards[1][2] == "?mode=public&page=stock-selector"
-    assert cards[1][3] == "warning"
+    assert cards[0][0] == "Explore ready names"
+    assert cards[0][2] == "?mode=public&page=stock-selector"
+    assert cards[0][3] == "warning"
+    assert cards[1][0] == "Review one stock"
+    assert cards[1][2] == "?mode=public&page=single-stock-report&ticker=NVDA&open=1"
     assert cards[2][0] == "Check data coverage"
     assert cards[2][2] == "?mode=public&page=data-health&drawer=proof"
     assert cards[2][3] == "warning"

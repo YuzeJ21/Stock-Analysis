@@ -136,6 +136,7 @@ from src.dashboard_navigation import (
     dashboard_page_slug,
     page_title_from_public_path,
     public_path_label,
+    public_workflow_step,
     route_rail_query_update,
     selected_page_from_route_rail,
     sidebar_path_index as _sidebar_path_index,
@@ -3352,6 +3353,48 @@ def apply_dashboard_theme() -> None:
           line-height: 1.32;
           margin-top: 0.24rem;
         }
+        .public-workflow-header {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.65rem;
+          margin: 0.7rem 0 1rem 0;
+        }
+        .public-workflow-cell {
+          border-radius: 8px;
+          border: 1px solid rgba(15, 118, 110, 0.16);
+          background: rgba(255, 255, 255, 0.94);
+          padding: 0.72rem 0.78rem;
+          min-height: 5.4rem;
+          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+        }
+        .public-workflow-label {
+          color: #526071;
+          font-size: 0.68rem;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0;
+          margin-bottom: 0.24rem;
+        }
+        .public-workflow-value {
+          color: #111827;
+          font-size: 0.9rem;
+          line-height: 1.32;
+          font-weight: 760;
+          overflow-wrap: anywhere;
+        }
+        @media (max-width: 960px) {
+          .public-workflow-header {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 640px) {
+          .public-workflow-header {
+            grid-template-columns: 1fr;
+          }
+          .public-workflow-cell {
+            min-height: auto;
+          }
+        }
         .subtle-panel {
           border: 1px solid var(--research-border);
           background: rgba(255, 254, 250, 0.78);
@@ -4686,6 +4729,31 @@ def public_proof_strip_html(items: list[tuple[str, str, str]]) -> str:
 
 def render_public_proof_strip(items: list[tuple[str, str, str]]) -> None:
     st.markdown(public_proof_strip_html(items), unsafe_allow_html=True)
+
+
+def public_workflow_header_html(page_title: str) -> str:
+    step = public_workflow_step(page_title)
+    cells = [
+        ("You are here", step["page"]),
+        ("Current question", step["question"]),
+        ("Primary next step", step["next_action"]),
+        ("Stop rule", step["stop_rule"]),
+    ]
+    return (
+        "<div class='public-workflow-header'>"
+        + "".join(
+            "<div class='public-workflow-cell'>"
+            f"<div class='public-workflow-label'>{html.escape(label)}</div>"
+            f"<div class='public-workflow-value'>{html.escape(value)}</div>"
+            "</div>"
+            for label, value in cells
+        )
+        + "</div>"
+    )
+
+
+def render_public_workflow_header(page_title: str) -> None:
+    st.markdown(public_workflow_header_html(page_title), unsafe_allow_html=True)
 
 
 def action_card_html(title: str, body: str, command: str = "", tone: str = "neutral") -> str:
@@ -21206,15 +21274,15 @@ def sidebar_guide_cards_html(rows: list[dict[str, str]], label_key: str, body_ke
 def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
     return [
         (
-            "Review one stock",
-            "Open a ticker-level report with ready, blocked, excluded, or monitor-only analysis.",
-            "Single-Stock Report",
-            "neutral",
-        ),
-        (
             "Explore ready names",
             "Filter readiness-backed candidates before choosing the next one-ticker review path.",
             "Stock Selector",
+            "neutral",
+        ),
+        (
+            "Review one stock",
+            "Open a ticker-level report with ready, blocked, excluded, or monitor-only analysis.",
+            "Single-Stock Report",
             "neutral",
         ),
         (
@@ -30506,6 +30574,8 @@ def main() -> None:
         compact=public_subpage_header or (selected_page == "Data Health" and not public_demo_mode),
     )
     st.caption("Local stock research dashboard. Data readiness first; analysis only when source-backed inputs are ready.")
+    if public_demo_mode:
+        render_public_workflow_header(selected_page)
 
     project_status_payload = None
 

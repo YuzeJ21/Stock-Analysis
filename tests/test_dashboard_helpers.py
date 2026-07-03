@@ -3066,14 +3066,14 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
     assert [card[0] for card in cards] == [
-        "Review one stock",
         "Explore ready names",
+        "Review one stock",
         "Check data coverage",
         "Inspect proof",
     ]
     assert [card[2] for card in cards] == [
-        "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         "?mode=public&page=stock-selector",
+        "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         "?mode=public&page=data-health&drawer=proof",
         "?mode=public&page=proof-history",
     ]
@@ -3108,8 +3108,8 @@ def test_home_route_choice_cards_delegate_to_public_home_workflow_helper():
         }
     )
 
-    assert cards[0][0] == "Review one stock"
-    assert cards[1][3] == "warning"
+    assert cards[0][0] == "Explore ready names"
+    assert cards[0][3] == "warning"
     assert cards[2][3] == "warning"
     assert cards[3][0] == "Inspect proof"
 
@@ -27382,14 +27382,14 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert "Portfolio Review" in dashboard.ADVANCED_PAGE_TITLES
     assert "Universe Manager" in dashboard.ADVANCED_PAGE_TITLES
     assert [card[0] for card in dashboard.dashboard_navigation_cards()] == [
-        "Review one stock",
         "Explore ready names",
+        "Review one stock",
         "Check data coverage",
         "Inspect proof",
     ]
     assert [card[2] for card in dashboard.dashboard_navigation_cards()] == [
-        "Single-Stock Report",
         "Stock Selector",
+        "Single-Stock Report",
         "Data Health",
         "Proof History",
     ]
@@ -27531,6 +27531,14 @@ def test_public_subpages_use_compact_header_before_page_content():
         in source
     )
     assert "render_app_header(\n        catalog,\n        output_frames," in source
+    render_header_index = source.index("render_app_header(\n        catalog,\n        output_frames,")
+    workflow_header_index = source.index("render_public_workflow_header(selected_page)", render_header_index)
+    dispatch_index = source.index('if selected_page == "Home":', workflow_header_index)
+    assert render_header_index < workflow_header_index < dispatch_index
+    assert "You are here" in source
+    assert "Current question" in source
+    assert "Primary next step" in source
+    assert "Stop rule" in source
 
 
 def test_public_compact_header_allows_mobile_status_wrap():
