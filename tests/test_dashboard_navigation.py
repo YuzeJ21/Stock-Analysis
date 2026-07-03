@@ -23,8 +23,8 @@ def test_dashboard_navigation_maps_page_query_aliases():
 def test_dashboard_navigation_public_path_labels_round_trip():
     assert nav.PUBLIC_PATH_PAGE_TITLES == [
         "Home",
-        "Single-Stock Report",
         "Stock Selector",
+        "Single-Stock Report",
         "Data Health",
         "Proof History",
     ]
@@ -47,6 +47,8 @@ def test_dashboard_navigation_sidebar_options_keep_advanced_pages_secondary():
     assert nav.sidebar_path_options("Overview", advanced) == nav.PUBLIC_PATH_PAGE_TITLES + [
         nav.DETAILED_PAGE_PATH_TITLE
     ]
+    assert nav.sidebar_path_index("Stock Selector", nav.PUBLIC_PATH_PAGE_TITLES, advanced) == 1
+    assert nav.sidebar_path_index("Single-Stock Report", nav.PUBLIC_PATH_PAGE_TITLES, advanced) == 2
     assert nav.sidebar_path_index("Data Health", nav.PUBLIC_PATH_PAGE_TITLES, advanced) == 3
     assert (
         nav.sidebar_path_index(

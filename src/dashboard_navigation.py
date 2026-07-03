@@ -9,8 +9,8 @@ PROOF_HISTORY_PATH_TITLE = "Proof History"
 STOCK_SELECTOR_PATH_TITLE = "Stock Selector"
 PUBLIC_PATH_PAGE_TITLES = [
     "Home",
-    "Single-Stock Report",
     STOCK_SELECTOR_PATH_TITLE,
+    "Single-Stock Report",
     "Data Health",
     PROOF_HISTORY_PATH_TITLE,
 ]

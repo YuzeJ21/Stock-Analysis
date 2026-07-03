@@ -2486,7 +2486,8 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "Outputs dir:" not in source
     assert "#### Local file paths" not in source
     assert 'st.expander("Technical paths"' not in source
-    assert 'st.expander("Optional: local commands"' in source
+    assert 'st.expander("Learn more", expanded=False)' in source
+    assert 'st.expander("Optional: local commands"' not in source
     assert 'st.expander("Advanced commands"' not in source
     assert 'st.expander("Complete valuation context table"' in source
     assert 'st.expander("Advanced valuation output table"' not in source
@@ -2605,7 +2606,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     market_command_index = source.index("render_market_command_center(", market_expander_index)
     next_proof_index = source.index('render_section_header(\n                "Next Data Proof Steps"', details_drawer_index)
     hidden_tables_note_index = source.index('render_context_note(\n            "Detailed tables are hidden."')
-    legacy_tables_drawer_index = source.index('with st.expander("Legacy evidence details", expanded=False):', hidden_tables_note_index)
+    legacy_tables_drawer_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):', hidden_tables_note_index)
     tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])', legacy_tables_drawer_index)
 
     assert hero_index < lane_nav_drawer_index < queue_index < lane_selector_index < price_drawer_index < details_drawer_index
@@ -2614,7 +2615,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert "Use only after the selected lane answer, lane evidence drawer, and last-resort diagnostic context do not answer the reviewer question." in source
     assert "Data Health Command Center" in source
     assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in console_source
-    assert "Open the lane evidence drawer or diagnostic context above for proof tables. Actions, Coverage, Sources, Price Updates, and Import Checks stay in the Legacy evidence details drawer." in source
+    assert "Open the lane evidence drawer or diagnostic context above for proof tables. Actions, Coverage, Sources, Price Updates, and Import Checks stay in the Advanced operator evidence details drawer." in source
     assert 'if show_details:\n        with st.expander("Last-resort market review", expanded=False)' in source
     assert 'if queue_details_loaded:\n        with st.expander("Queue proof review details", expanded=False)' in source
     assert 'with st.expander("Queue outcome ledger summary", expanded=False)' not in source
@@ -2627,7 +2628,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'st.expander("Operator context", expanded=False)' not in source
     assert "Last-resort diagnostic context is hidden" in source
     assert "Turn on reader tips to review last-resort diagnostic context." in source
-    assert 'with st.expander("Legacy evidence details", expanded=False):' in source
+    assert 'with st.expander("Advanced operator evidence details", expanded=False):' in source
     assert 'st.expander("Secondary diagnostic context", expanded=False)' not in source
     assert 'with st.expander("Legacy diagnostic tables", expanded=False):' not in source
     assert "Additional operator evidence" not in source
@@ -3007,18 +3008,17 @@ def test_home_page_renders_current_data_coverage_before_workflow():
         'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
         primary_workflow_index,
     )
-    route_expander_index = source.index('st.expander("Optional: choose another public path", expanded=False)', review_map_cards_index)
+    learn_more_index = source.index('st.expander("Learn more", expanded=False)', review_map_cards_index)
+    route_expander_index = learn_more_index
     route_header_index = source.index('render_section_header(\n                "Route Chooser"', route_expander_index)
     route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", route_header_index)
-    example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
+    example_state_index = source.index('render_section_header(\n                "Example State Walkthrough"', route_cards_index)
     details_gate_index = source.index("if show_details:")
-    coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
     coverage_index = source.index('render_section_header("Current Data Coverage"')
-    workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
 
-    assert proof_strip_index < first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_expander_index < coverage_index
-    assert coverage_index < workflow_expander_index < workflow_index
+    assert proof_strip_index < first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_index
+    assert coverage_index < workflow_index
     assert "One spine: Home -> choose ticker or scope -> single-stock answer -> Data Health only if blocked -> Proof History only for evidence review." in source
     assert '"Connected Workflow"' not in source
     assert '"Visitor Path"' not in source
@@ -3118,45 +3118,43 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     primary_workflow_index = source.index('render_section_header(\n            "Primary Workflow"')
-    route_expander_index = source.index('st.expander("Optional: choose another public path", expanded=False)', primary_workflow_index)
+    learn_more_index = source.index('st.expander("Learn more", expanded=False)', primary_workflow_index)
+    route_expander_index = learn_more_index
     route_header_index = source.index('render_section_header(\n                "Route Chooser"', route_expander_index)
     public_route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", route_header_index)
-    examples_public_expander_index = source.index('st.expander("Example state walkthrough", expanded=False)')
+    examples_public_expander_index = source.index('render_section_header(\n                "Example State Walkthrough"', public_route_cards_index)
     details_gate_index = source.index("if show_details:")
-    coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
+    coverage_index = source.index('render_section_header("Current Data Coverage"', details_gate_index)
     workflow_index = source.index('render_section_header("How Evaluation Works"')
-    price_refresh_expander_index = source.index('st.expander("Optional: price update plan", expanded=False)')
     price_refresh_index = source.index('render_section_header("Scalable Price Updates"')
-    examples_expander_index = source.index('st.expander("Optional: example reports", expanded=False)')
-    examples_index = source.index('render_section_header("Example Reports"', examples_expander_index)
-    learn_more_index = source.index('st.expander("Optional: methodology, roadmap, and transparency"')
+    examples_index = source.index('render_section_header("Example Reports"', price_refresh_index)
     methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
-    commands_index = source.index('st.expander("Optional: local commands"')
+    commands_index = source.index('st.code(\n                    "\\n".join(', methodology_index)
 
     assert primary_workflow_index < route_expander_index < route_header_index < public_route_cards_index < examples_public_expander_index < details_gate_index
-    assert details_gate_index < coverage_expander_index < workflow_index
-    assert workflow_index < price_refresh_expander_index < price_refresh_index
-    assert price_refresh_index < examples_expander_index < examples_index
-    assert examples_index < learn_more_index < commands_index
-    assert learn_more_index < methodology_index
+    assert details_gate_index < coverage_index < workflow_index
+    assert workflow_index < price_refresh_index
+    assert price_refresh_index < examples_index
+    assert learn_more_index < examples_index < methodology_index < commands_index
     assert '"Review one stock"' in source
     assert '"Inspect proof"' in source
     assert '"Check data coverage"' in source
     assert "render_action_cards(_plain_home_route_choice_cards(summary))" in source
     assert '"Review current ideas"' not in source
     assert '"Improve missing data"' not in source
-    assert 'st.expander("Optional: coverage details", expanded=False)' in source
-    assert 'st.expander("Optional: how evaluation works", expanded=False)' in source
-    assert 'st.expander("Optional: price update plan", expanded=False)' in source
+    assert 'st.expander("Learn more", expanded=False)' in source
+    assert 'st.expander("Optional: coverage details", expanded=False)' not in source
+    assert 'st.expander("Optional: how evaluation works", expanded=False)' not in source
+    assert 'st.expander("Optional: price update plan", expanded=False)' not in source
     assert 'st.expander("Advanced price refresh workflow", expanded=False)' not in source
     assert 'st.expander("Optional: workflow and next-step details", expanded=False)' not in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])' in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])' not in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Import Review"])' not in source
-    assert 'st.expander("Example state walkthrough", expanded=False)' in source
+    assert 'st.expander("Example state walkthrough", expanded=False)' not in source
     assert 'st.expander("Optional: workflow and next-step details", expanded=False)' not in source
-    assert 'st.expander("Optional: example reports", expanded=False)' in source
-    assert 'st.expander("Optional: methodology, roadmap, and transparency", expanded=False)' in source
+    assert 'st.expander("Optional: example reports", expanded=False)' not in source
+    assert 'st.expander("Optional: methodology, roadmap, and transparency", expanded=False)' not in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" not in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
@@ -3172,10 +3170,10 @@ def test_public_home_route_choices_are_collapsed_after_primary_workflow():
         'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
         primary_workflow_index,
     )
-    route_expander_index = source.index('st.expander("Optional: choose another public path", expanded=False)', review_map_cards_index)
+    route_expander_index = source.index('st.expander("Learn more", expanded=False)', review_map_cards_index)
     route_header_index = source.index('render_section_header(\n                "Route Chooser"', route_expander_index)
     route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", route_header_index)
-    example_state_index = source.index('st.expander("Example state walkthrough", expanded=False)')
+    example_state_index = source.index('render_section_header(\n                "Example State Walkthrough"', route_cards_index)
     top_level_between_workflow_and_expander = source[review_map_cards_index:route_expander_index]
 
     assert review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index
@@ -27349,28 +27347,29 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert dashboard.USER_PAGE_TITLES[0] == "Home"
     assert dashboard.PUBLIC_PATH_PAGE_TITLES == [
         "Home",
-        "Single-Stock Report",
         "Stock Selector",
+        "Single-Stock Report",
         "Data Health",
         "Proof History",
     ]
     assert dashboard.sidebar_path_options("Home") == [
         "Home",
-        "Single-Stock Report",
         "Stock Selector",
+        "Single-Stock Report",
         "Data Health",
         "Proof History",
     ]
     assert dashboard.sidebar_path_options("Value / Re-rating") == [
         "Home",
-        "Single-Stock Report",
         "Stock Selector",
+        "Single-Stock Report",
         "Data Health",
         "Proof History",
         "More research views",
     ]
     assert dashboard.sidebar_path_index("Value / Re-rating", dashboard.sidebar_path_options("Value / Re-rating")) == 5
-    assert dashboard.sidebar_path_index("Single-Stock Report", dashboard.sidebar_path_options("Single-Stock Report")) == 1
+    assert dashboard.sidebar_path_index("Stock Selector", dashboard.sidebar_path_options("Stock Selector")) == 1
+    assert dashboard.sidebar_path_index("Single-Stock Report", dashboard.sidebar_path_options("Single-Stock Report")) == 2
     assert dashboard.public_path_label("Single-Stock Report") == "Review one stock"
     assert dashboard.public_path_label("Data Health") == "Check data coverage"
     assert dashboard.public_path_label("Proof History") == "Inspect proof"
@@ -28017,7 +28016,7 @@ def test_last_resort_diagnostic_context_nests_guided_row_details():
 
 def test_last_resort_legacy_actions_tab_nests_raw_queue_rows():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     actions_tab_index = source.index("with health_tabs[0]:", legacy_tables_index)
     top_signals_index = source.index("render_signal_cards(top_priority_signals(action_queue_frame, limit=3))", actions_tab_index)
     nested_rows_index = source.index('st.expander("Legacy action queue rows", expanded=False)', top_signals_index)
@@ -28031,7 +28030,7 @@ def test_last_resort_legacy_actions_tab_nests_raw_queue_rows():
 
 def test_last_resort_legacy_coverage_tab_nests_dcf_readiness_rows():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
     dcf_header_index = source.index('render_section_header("DCF Readiness"', coverage_tab_index)
     first_proof_index = source.index('"First Trusted Fundamentals Proof"', dcf_header_index)
@@ -28046,7 +28045,7 @@ def test_last_resort_legacy_coverage_tab_nests_dcf_readiness_rows():
 
 def test_last_resort_legacy_coverage_tab_nests_data_quality_and_ticker_readiness_rows():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
     data_quality_drawer_index = source.index('st.expander("Legacy data-quality rows", expanded=False)', coverage_tab_index)
     data_quality_columns_index = source.index("data_quality_columns = [", data_quality_drawer_index)
@@ -28064,7 +28063,7 @@ def test_last_resort_legacy_coverage_tab_nests_data_quality_and_ticker_readiness
 
 def test_last_resort_legacy_coverage_tab_nests_liquidity_and_correlation_rows():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
     liquidity_context_index = source.index('st.expander("Liquidity Context", expanded=False)', coverage_tab_index)
     liquidity_rows_index = source.index('st.expander("Legacy liquidity rows", expanded=False)', liquidity_context_index)
@@ -28092,7 +28091,7 @@ def test_last_resort_legacy_coverage_tab_nests_liquidity_and_correlation_rows():
 
 def test_last_resort_legacy_coverage_tab_nests_top_action_rows():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
     top_actions_index = source.index('st.expander("Top Data Actions", expanded=False)', coverage_tab_index)
     nested_rows_index = source.index('st.expander("Legacy top action rows", expanded=False)', top_actions_index)
@@ -28107,7 +28106,7 @@ def test_last_resort_legacy_coverage_tab_nests_top_action_rows():
 
 def test_last_resort_legacy_coverage_tab_groups_worklist_rows():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
     top_actions_index = source.index('st.expander("Top Data Actions", expanded=False)', coverage_tab_index)
     worklists_index = source.index('st.expander("Legacy coverage worklists", expanded=False)', top_actions_index)
@@ -28128,7 +28127,7 @@ def test_last_resort_legacy_coverage_tab_groups_worklist_rows():
 
 def test_last_resort_legacy_sources_tab_groups_source_evidence_rows():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     sources_tab_index = source.index("with health_tabs[2]:", legacy_tables_index)
     summary_cards_index = source.index('data_health_tab_summary_cards(\n                    "Sources"', sources_tab_index)
     evidence_details_index = source.index('st.expander("Source evidence details", expanded=False)', summary_cards_index)
@@ -28144,7 +28143,7 @@ def test_last_resort_legacy_sources_tab_groups_source_evidence_rows():
 
 def test_last_resort_legacy_price_updates_tab_groups_price_evidence_rows():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     price_updates_tab_index = source.index("with health_tabs[3]:", legacy_tables_index)
     summary_cards_index = source.index('data_health_tab_summary_cards(\n                    "Price Updates"', price_updates_tab_index)
     fetched_metric_index = source.index('metric_cols[0].metric("Fetched"', summary_cards_index)
@@ -28163,7 +28162,7 @@ def test_last_resort_legacy_price_updates_tab_groups_price_evidence_rows():
 
 def test_last_resort_legacy_price_updates_tab_groups_non_price_worklists():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     price_updates_tab_index = source.index("with health_tabs[3]:", legacy_tables_index)
     price_evidence_index = source.index('st.expander("Price update evidence details", expanded=False)', price_updates_tab_index)
     non_price_worklists_index = source.index('st.expander("Non-price proof worklists", expanded=False)', price_evidence_index)
@@ -28196,7 +28195,7 @@ def test_last_resort_legacy_price_updates_tab_groups_non_price_worklists():
 
 def test_last_resort_legacy_import_checks_tab_groups_import_evidence_rows():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    legacy_tables_index = source.index('with st.expander("Legacy evidence details", expanded=False):')
+    legacy_tables_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):')
     import_checks_tab_index = source.index("with health_tabs[4]:", legacy_tables_index)
     summary_cards_index = source.index('data_health_tab_summary_cards(\n                    "Import Checks"', import_checks_tab_index)
     section_header_index = source.index('"Import Validation / Rejected Rows"', summary_cards_index)

@@ -26424,12 +26424,86 @@ def render_home_page(
             public=public_mode,
         )
     if public_mode:
-        with st.expander("Optional: choose another public path", expanded=False):
+        with st.expander("Learn more", expanded=False):
             render_section_header(
                 "Route Chooser",
                 "Choose another public path only when the primary workflow does not answer the visitor question.",
             )
             render_action_cards(_plain_home_route_choice_cards(summary))
+
+            render_section_header(
+                "Example State Walkthrough",
+                "Real local examples for ready, blocked, excluded, peer-limited, and fundamentals-gated states.",
+            )
+            render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)
+            st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
+            render_context_note(
+                "Research-only boundary.",
+                "Examples are secondary evidence, not the main workflow and not recommendations. They show which analysis is supported, locked, or excluded by the current local data.",
+                tone="success",
+            )
+
+            if show_details:
+                render_context_note(
+                    "Extra review detail is on.",
+                    "These sections explain methodology, local commands, and unlock workflows. Turn reader tips off for the clean visitor view.",
+                )
+
+                render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe proof path comes first.")
+                render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)
+
+                render_section_header("How Evaluation Works", "How the product moves from trusted data to supported analysis without overclaiming.")
+                render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)
+
+                render_section_header("Scalable Price Updates", "How to expand price coverage without repeating tiny batches by hand.")
+                render_signal_cards(price_refresh_operator_plan_cards(summary), show_commands=False)
+
+                render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
+                st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
+                render_context_note(
+                    "Example boundary.",
+                    "These are report examples, not recommendations. They show ready, blocked, and excluded analysis states from local data.",
+                )
+
+                render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
+                st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
+                st.caption("Full methodology: docs/METHODOLOGY.md")
+
+                render_section_header("Roadmap Status", "What is already implemented, what is waiting on trusted data, and the safest next command.")
+                render_signal_cards(roadmap_milestone_status_cards(summary), show_commands=False)
+                st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
+
+                render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and how the methodology is kept transparent.")
+                render_signal_cards(_plain_home_capability_cards())
+                render_section_header("Methodology And Provenance", "Plain-language provenance for the analysis functions and development aids.")
+                render_signal_cards(_plain_home_provenance_cards())
+                st.write(
+                    "This public review explains which functions are strong today, which data gaps still limit the product, "
+                    "and why the analysis shown to users comes from project code and local CSV inputs."
+                )
+                st.caption("Detailed analysis capability review.")
+                st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
+                st.code("docs/analysis_capability_audit.md", language="text")
+
+                st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
+                st.code(
+                    "\n".join(
+                        [
+                            "make status-check TOP_N=5",
+                            "make price-refresh-loop DRY_RUN=1",
+                            "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
+                            "make readiness-snapshot",
+                            "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
+                            "make diff-hygiene",
+                            "make readiness",
+                            "make project-status",
+                            "make stock-report-md TICKER=NVDA",
+                            "make dashboard-smoke",
+                        ]
+                    ),
+                    language="bash",
+                )
+                st.caption("Broad refresh changes should be inspected before they are committed or shared publicly.")
     else:
         render_section_header(
             "Research Workflow",
@@ -26442,47 +26516,6 @@ def render_home_page(
         render_section_header("Where To Go", "Choose the page that matches what you want to review.")
         render_action_cards(_plain_home_route_choice_cards(summary))
 
-    if public_mode:
-        with st.expander("Example state walkthrough", expanded=False):
-            render_section_header(
-                "Example State Walkthrough",
-                "Real local examples for ready, blocked, excluded, peer-limited, and fundamentals-gated states.",
-            )
-            render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)
-            st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
-        render_context_note(
-            "Research-only boundary.",
-            "Examples are secondary evidence, not the main workflow and not recommendations. They show which analysis is supported, locked, or excluded by the current local data.",
-            tone="success",
-        )
-
-    if show_details:
-        render_context_note(
-            "Extra review detail is on.",
-            "These sections explain methodology, local commands, and unlock workflows. Turn reader tips off for the clean visitor view.",
-        )
-
-    if show_details:
-        with st.expander("Optional: coverage details", expanded=False):
-            render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe proof path comes first.")
-            render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)
-
-        with st.expander("Optional: how evaluation works", expanded=False):
-            render_section_header("How Evaluation Works", "How the product moves from trusted data to supported analysis without overclaiming.")
-            render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)
-
-        with st.expander("Optional: price update plan", expanded=False):
-            render_section_header("Scalable Price Updates", "How to expand price coverage without repeating tiny batches by hand.")
-            render_signal_cards(price_refresh_operator_plan_cards(summary), show_commands=False)
-
-        with st.expander("Optional: example reports", expanded=False):
-            render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
-            st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
-            render_context_note(
-                "Example boundary.",
-                "These are report examples, not recommendations. They show ready, blocked, and excluded analysis states from local data.",
-            )
-
     if ticker_readiness_message or decisions_message:
         render_notice_card(
             "Some reports need refreshing",
@@ -26490,50 +26523,6 @@ def render_home_page(
             "",
             tone="warning",
         )
-
-    if show_details:
-        with st.expander("Optional: methodology, roadmap, and transparency", expanded=False):
-            render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
-            st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
-            st.caption("Full methodology: docs/METHODOLOGY.md")
-
-            render_section_header("Roadmap Status", "What is already implemented, what is waiting on trusted data, and the safest next command.")
-            render_signal_cards(roadmap_milestone_status_cards(summary), show_commands=False)
-            with st.expander("Roadmap status table", expanded=False):
-                st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
-
-            render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and how the methodology is kept transparent.")
-            render_signal_cards(_plain_home_capability_cards())
-            render_section_header("Methodology And Provenance", "Plain-language provenance for the analysis functions and development aids.")
-            render_signal_cards(_plain_home_provenance_cards())
-            with st.expander("Detailed analysis capability review", expanded=False):
-                st.write(
-                    "This public review explains which functions are strong today, which data gaps still limit the product, "
-                    "and why the analysis shown to users comes from project code and local CSV inputs."
-                )
-                st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
-                st.code("docs/analysis_capability_audit.md", language="text")
-
-        with st.expander("Optional: local commands", expanded=False):
-            st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
-            st.code(
-                "\n".join(
-                    [
-                        "make status-check TOP_N=5",
-                        "make price-refresh-loop DRY_RUN=1",
-                        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
-                        "make readiness-snapshot",
-                        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
-                        "make diff-hygiene",
-                        "make readiness",
-                        "make project-status",
-                        "make stock-report-md TICKER=NVDA",
-                        "make dashboard-smoke",
-                    ]
-                ),
-                language="bash",
-            )
-            st.caption("Broad refresh changes should be inspected before they are committed or shared publicly.")
 
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
@@ -29495,11 +29484,11 @@ def render_data_health(
     if not show_details:
         render_context_note(
             "Detailed tables are hidden.",
-            "Open the lane evidence drawer or diagnostic context above for proof tables. Actions, Coverage, Sources, Price Updates, and Import Checks stay in the Legacy evidence details drawer.",
+            "Open the lane evidence drawer or diagnostic context above for proof tables. Actions, Coverage, Sources, Price Updates, and Import Checks stay in the Advanced operator evidence details drawer.",
         )
         return
 
-    with st.expander("Legacy evidence details", expanded=False):
+    with st.expander("Advanced operator evidence details", expanded=False):
         health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])
 
         with health_tabs[0]:
