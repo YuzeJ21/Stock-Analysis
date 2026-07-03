@@ -1,25 +1,27 @@
 # License Decision Guide
 
-The repository does not currently grant public reuse rights because no `LICENSE`
-file has been selected yet.
+The repository now has a root `LICENSE` with controlled portfolio-demo terms.
+That keeps the product shareable for review while avoiding accidental
+open-source or broad reuse-rights claims.
 
-That is a safe temporary state for sharing the project as a portfolio demo, but
-it can confuse visitors who want to reuse, copy, or adapt the code. Before
-promoting the repository broadly, choose one of these paths:
+Current path: controlled portfolio/demo evaluation. Visitors can read and run
+the product for evaluation, but reuse, redistribution, sublicensing, hosted
+service use, and modified-publication rights are not granted without written
+permission.
 
-Recommended current path: keep this as a portfolio showcase until you intentionally choose a license.
-That keeps the product shareable as demo evidence while avoiding accidental
-open-source or reuse-rights claims.
+If the project later needs broader distribution, choose one of these paths and
+update both `LICENSE` and the README License section:
 
 | Goal | Common path | Visitor expectation |
 | --- | --- | --- |
-| Portfolio showcase only | Keep no license for now | Visitors can read the code, but reuse rights are not granted. |
+| Controlled portfolio showcase | Keep the current controlled demo license | Visitors can review the project, but reuse rights are not granted. |
 | Let others reuse with attribution | Add MIT or Apache-2.0 | Visitors can reuse under the selected license terms. |
 | Keep stronger control | Add a custom or proprietary notice | Visitors should ask before reuse; use legal review for custom wording. |
 
-Do not claim the project is open source until a license is added. Also do not
-hide normal Python dependencies; the product can truthfully say the application
-logic is implemented in project code and built with the Python data ecosystem.
+Do not claim the project is open source unless `LICENSE` is replaced with an
+open-source license and README wording is updated to match. Also do not hide
+normal Python dependencies; the product can truthfully say the application logic
+is implemented in project code and built with the Python data ecosystem.
 
-When ready, add a root-level `LICENSE` file and update the `README.md` License
-section to name the selected license.
+License status is a packaging/share gate only. It does not refresh data, unlock
+blocked inputs, or change research readiness.

@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 
 from src.readiness_ops import build_data_coverage_proof_queues
 from src.browser_qa_evidence import browser_qa_evidence_payload
-from src.license_status import NO_LICENSE_SHARE_BOUNDARY, build_license_status
+from src.license_status import CONTROLLED_DEMO_SHARE_BOUNDARY, NO_LICENSE_SHARE_BOUNDARY, build_license_status
 from src.reviewed_batch import readiness_freshness_status
 from src.session_source_preflight import load_session_source_preflight
 from src.source_activation_guide import build_provider_setup_checklist
@@ -449,14 +449,15 @@ def _public_check_gate() -> PilotReadinessCheck:
 
 
 def _license_status_check(root: Path) -> PilotReadinessCheck:
-    if (root / "LICENSE").exists():
+    status = build_license_status(root)
+    if status.get("license_present"):
         return PilotReadinessCheck(
             area="License status",
             status="green",
-            title="Root LICENSE file is present",
-            detail="Confirm README License wording matches the selected license before public reuse claims.",
+            title="Controlled demo LICENSE is present",
+            detail=str(status.get("safe_to_share_boundary") or CONTROLLED_DEMO_SHARE_BOUNDARY),
             command="make license-status",
-            stop_rule="Stop if README License wording conflicts with the selected license.",
+            stop_rule=str(status.get("stop_rule") or "Stop if README License wording conflicts with the selected license."),
         )
     return PilotReadinessCheck(
         area="License status",
@@ -657,10 +658,16 @@ def build_pilot_handoff_summary(
         "Keep these broad generated patterns out by default: "
         f"{_generated_exclusion_pattern_text()}. Stage only a specific artifact if it is intentionally reviewed evidence."
     )
-    share_answer = (
-        "Share as portfolio/demo only with manual gates; keep generated churn excluded; "
-        "source-proof blockers stay visible; license boundary still applies until a root LICENSE exists."
-    )
+    if license_status == "green":
+        share_answer = (
+            "Share as controlled portfolio/demo evidence with manual gates; keep generated churn excluded; "
+            "source-proof blockers stay visible; the root LICENSE keeps reuse restricted."
+        )
+    else:
+        share_answer = (
+            "Share as portfolio/demo only with manual gates; keep generated churn excluded; "
+            "source-proof blockers stay visible; license boundary still applies until a root LICENSE exists."
+        )
 
     return [
         PilotHandoffItem(
@@ -1206,6 +1213,22 @@ def render_pilot_share_brief(
         if license_check is not None
         else "Do not claim reuse rights until license status is reviewed."
     )
+    license_is_ready = license_check is not None and license_check.status == "green"
+    shareable_line = (
+        "- Shareable now: controlled portfolio/demo evidence with manual gates."
+        if license_is_ready
+        else "- Shareable now: portfolio/demo evidence with manual gates."
+    )
+    not_shareable_line = (
+        "- Not shareable as: open-source/reuse package or data-freshness proof."
+        if license_is_ready
+        else "- Not shareable as: open-source/reuse package or data-freshness proof until the license and generated-artifact gates are resolved."
+    )
+    reuse_line = (
+        f"- Reuse rights: {license_answer}; {license_boundary}"
+        if license_is_ready
+        else "- Reuse rights: not granted until a root `LICENSE` exists."
+    )
     sync_check = next((check for check in checks if check.area == "GitHub sync"), None)
     if sync_check is not None and sync_check.status == "manual":
         github_link_state = "not current until reviewed local commits are pushed."
@@ -1242,9 +1265,9 @@ def render_pilot_share_brief(
         "",
         "## Pilot Share Answer",
         "",
-        "- Shareable now: portfolio/demo evidence with manual gates.",
-        "- Not shareable as: open-source/reuse package or data-freshness proof until the license and generated-artifact gates are resolved.",
-        "- Reuse rights: not granted until a root `LICENSE` exists.",
+        shareable_line,
+        not_shareable_line,
+        reuse_line,
         f"- GitHub pilot link: {github_link_state}",
         "- Keep local: broad generated CSV/JSON/report churn unless a specific artifact is reviewed evidence.",
         "- Next gate: run `make public-check` and keep source-proof blockers visible.",
@@ -1283,7 +1306,7 @@ def render_pilot_share_brief(
         "- GitHub sync: confirm the branch state before using the GitHub pilot link.",
         "- generated artifact hygiene: keep broad CSV/JSON/report churn excluded unless exact artifacts are reviewed evidence.",
         "- Public-check: run the explicit public share gate before sharing.",
-        "- license boundary: keep portfolio/demo wording until license status is selected.",
+        "- license boundary: keep controlled portfolio/demo wording unless license status changes.",
         "- source-proof blockers stay visible; the share gate does not unlock blocked analysis inputs.",
         "",
         "## What must stay out of the share package",

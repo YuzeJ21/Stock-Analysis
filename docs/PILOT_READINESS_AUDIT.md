@@ -85,7 +85,7 @@ Assessment:
 - Source coverage: trusted fundamentals, share counts, peer mappings, earnings, and analyst estimates require reviewed source rows. Code must not invent these.
 - Provider setup: FMP, Alpha Vantage, and Finnhub are keyed free-tier fallbacks. Configure them only in local env files, run the reviewed one-ticker smoke command first, then validate and preview before applying any row.
 - Public-check confirmation: run `make public-check` immediately before sharing so the wording, whitespace, full tests, dashboard smoke, browser QA evidence, and visitor-demo gates are fresh.
-- License choice: the repository is public-reviewable, but no root license means it should not be described as open source until the owner chooses a license.
+- License choice: the repository is public-reviewable under the controlled portfolio-demo license, but it should not be described as open source or reusable software unless the owner intentionally changes the license.
 
 ## Pilot Readiness Verdict
 

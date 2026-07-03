@@ -880,8 +880,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "internal development notes, and stale repo links",
         "safe staging suggestion for product files and reviewed Markdown reports",
         "large generated CSV/JSON changes",
-        "Reuse terms are not specified yet",
-        "reuse rights are not granted until a license is added",
+        "controlled portfolio-demo license",
+        "copying, redistribution, sublicensing, hosted reuse",
         "[License Decision Guide](docs/LICENSE_DECISION_GUIDE.md)",
         "where the method lives",
         "analysis rules, valuation gates, decision buckets",
@@ -1486,7 +1486,7 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
         "docs/OPERATOR_GUIDE.md",
         "docs/METHODOLOGY.md",
         "docs/LICENSE_DECISION_GUIDE.md",
-        "public reuse rights are not granted yet",
+            "public reuse rights are intentionally restricted",
         "timestamp-only churn",
         "Research-only; no broker integration or order execution.",
         "make dashboard-smoke",
@@ -1540,21 +1540,22 @@ def test_readme_points_to_pilot_share_brief_for_concise_public_handoff():
         assert "does not refresh data" in doc
 
 
-def test_license_decision_guide_is_present_until_license_is_chosen():
+def test_license_decision_guide_names_current_controlled_demo_license():
     guide = Path("docs/LICENSE_DECISION_GUIDE.md").read_text(encoding="utf-8")
     readme = Path("README.md").read_text(encoding="utf-8")
     release_checklist = Path("docs/PUBLIC_RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
 
-    assert not Path("LICENSE").exists()
+    assert Path("LICENSE").exists()
+    assert "Controlled Portfolio Demo License" in Path("LICENSE").read_text(encoding="utf-8")
     for phrase in (
-        "does not currently grant public reuse rights",
-        "Recommended current path: keep this as a portfolio showcase until you intentionally choose a license",
-        "Portfolio showcase only",
-        "Do not claim the project is open source until a license is added",
-        "add a root-level `LICENSE` file",
+        "root `LICENSE` with controlled portfolio-demo terms",
+        "Current path: controlled portfolio/demo evaluation",
+        "Controlled portfolio showcase",
+        "Do not claim the project is open source unless `LICENSE` is replaced",
     ):
         assert phrase in guide
-    assert "reuse rights are not granted until a license is added" in readme
+    assert "controlled portfolio-demo license" in readme
+    assert "copying, redistribution, sublicensing, hosted reuse" in readme
     assert "make license-status" in readme
     assert "make license-status" in release_checklist
     assert "MIT License" not in readme
@@ -1577,9 +1578,10 @@ def test_license_status_launcher_prints_current_share_boundary():
     )
 
     assert "License Status" in result.stdout
-    assert "share_status: portfolio_demo_only" in result.stdout
-    assert "next_decision: choose_license_before_open_source_claim" in result.stdout
+    assert "share_status: controlled_demo_license" in result.stdout
+    assert "next_decision: confirm_readme_license_wording" in result.stdout
     assert "next_safe_command: docs/LICENSE_DECISION_GUIDE.md" in result.stdout
+    assert "do not describe as open source or reusable software" in result.stdout
 
 
 def test_public_check_runs_license_status_before_sharing():

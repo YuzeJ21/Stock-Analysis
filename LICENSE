@@ -1,0 +1,23 @@
+Controlled Portfolio Demo License
+
+Copyright (c) 2026 Yuze Jian. All rights reserved.
+
+This repository is shared for portfolio review, product demonstration, and
+read-only evaluation of the Stock Research Command Center.
+
+You may view the repository, run it locally for evaluation, and reference
+screenshots or public-demo descriptions when discussing the project.
+
+You may not copy, redistribute, sublicense, sell, host as a service, publish
+modified versions, or use substantial portions of the code, data structure,
+documentation, screenshots, or generated artifacts in another product without
+prior written permission from the copyright holder.
+
+No investment advice, broker service, order routing, auto-trading, or trading
+recommendation is provided by this repository. Data and generated outputs are
+research artifacts only and may be incomplete, stale, blocked, excluded, or
+source-gated.
+
+This software and its artifacts are provided "as is", without warranty of any
+kind, express or implied, including but not limited to the warranties of
+merchantability, fitness for a particular purpose, and noninfringement.

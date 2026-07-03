@@ -23,6 +23,7 @@ SOURCE_PREFIXES = (
 ROOT_PRODUCT_FILES = {
     ".gitignore",
     ".streamlit/config.toml",
+    "LICENSE",
     "README.md",
     "ROADMAP.md",
     "PRODUCT_SPEC.md",
@@ -61,7 +62,7 @@ REVIEWED_SCREENSHOT_ASSET_PATHS = (
 )
 
 LICENSE_DECISION_OPTIONS = (
-    "  - Portfolio showcase only | Keep no license for now | Visitors can read the code, but reuse rights are not granted.",
+    "  - Controlled portfolio showcase | Keep the current controlled demo license | Visitors can review the project, but reuse rights are not granted.",
     "  - Let others reuse with attribution | Add MIT or Apache-2.0 | Visitors can reuse under the selected license terms.",
     "  - Keep stronger control | Add a custom or proprietary notice | Visitors should ask before reuse; use legal review for custom wording.",
 )
@@ -192,9 +193,10 @@ def format_license_gate(repo_root: Path | None = None) -> list[str]:
     root = repo_root or Path(".")
     if (root / "LICENSE").exists():
         return [
-            "License gate: root LICENSE file found.",
+            "License gate: controlled demo LICENSE found.",
             "  Run make license-status before public sharing.",
-            "  Confirm README License wording matches the selected license before public reuse claims.",
+            "  Do not describe this as open source or reusable software under the current root LICENSE.",
+            "  Confirm README License wording matches the selected controlled-demo terms before public sharing.",
         ]
     return [
         "License gate: no root LICENSE file found.",
@@ -442,10 +444,10 @@ def public_release_share_now_lines(groups: dict[str, list[StatusEntry]]) -> list
     elif product:
         lines.append("  Not yet: commit the reviewed product package first, then rerun public-check.")
     else:
-        lines.append("  Share as portfolio/demo only after public-check passes and generated churn stays excluded.")
+        lines.append("  Share as controlled portfolio/demo evidence after public-check passes and generated churn stays excluded.")
     lines.extend(
         [
-            "  Do not call this open source until a root LICENSE exists.",
+            "  Do not call this open source or reusable software under the current root LICENSE.",
             "  If source-proof queues are exhausted, use provider setup before broad proof loops.",
         ]
     )

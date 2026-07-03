@@ -259,8 +259,8 @@ def test_public_release_package_reports_clean_push_path():
 
     assert "Public Release Package" in report
     assert "Share-now answer:" in report
-    assert "Share as portfolio/demo only after public-check passes and generated churn stays excluded." in report
-    assert "Do not call this open source until a root LICENSE exists." in report
+    assert "Share as controlled portfolio/demo evidence after public-check passes and generated churn stays excluded." in report
+    assert "Do not call this open source or reusable software under the current root LICENSE." in report
     assert "If source-proof queues are exhausted, use provider setup before broad proof loops." in report
     assert "Free public sources: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in report
     assert "Keyed free-tier fallbacks: configured -; needs key FMP free tier, Alpha Vantage free tier, Finnhub free tier" in report
@@ -273,14 +273,17 @@ def test_public_release_package_reports_clean_push_path():
     assert "make browser-qa-capture-plan" not in report
     assert "git push origin main" in report
     assert "only when explicitly asked" in report
-    assert "License gate: no root LICENSE file found" in report
-    assert "portfolio/demo only" in report
+    assert "License gate: controlled demo LICENSE found" in report
+    assert "root LICENSE" in report
     assert "make license-status" in report
-    assert "docs/LICENSE_DECISION_GUIDE.md" in report
-    assert "License decision options:" in report
-    assert "Portfolio showcase only | Keep no license for now" in report
-    assert "Let others reuse with attribution | Add MIT or Apache-2.0" in report
+    assert "controlled-demo terms" in report
     assert "investment advice" in report
+
+
+def test_root_license_is_product_candidate():
+    module = load_diff_hygiene_module()
+
+    assert module.classify_path("LICENSE") == "product_candidate"
 
 
 def test_public_release_package_stages_product_and_excludes_generated_churn():
@@ -325,13 +328,10 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "git status --short --branch" in report
     assert "git push origin main" in report
     assert "only when explicitly asked" in report
-    assert "License gate: no root LICENSE file found" in report
-    assert "portfolio/demo only" in report
+    assert "License gate: controlled demo LICENSE found" in report
+    assert "root LICENSE" in report
     assert "make license-status" in report
-    assert "docs/LICENSE_DECISION_GUIDE.md" in report
-    assert "License decision options:" in report
-    assert "Portfolio showcase only | Keep no license for now" in report
-    assert "Let others reuse with attribution | Add MIT or Apache-2.0" in report
+    assert "controlled-demo terms" in report
     assert "Provider setup gate:" in report
     assert "Coverage unlock decision:" in report
     assert "No broad coverage batch should run from setup alone" in report
@@ -443,13 +443,10 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
     assert "Branch status: ## main...origin/main" in report
     assert "Package status: product package pending commit; commit this package before starting another feature slice" in report
-    assert "License gate: no root LICENSE file found" in report
-    assert "portfolio/demo only" in report
+    assert "License gate: controlled demo LICENSE found" in report
+    assert "root LICENSE" in report
     assert "make license-status" in report
-    assert "docs/LICENSE_DECISION_GUIDE.md" in report
-    assert "License decision options:" in report
-    assert "Portfolio showcase only | Keep no license for now" in report
-    assert "Let others reuse with attribution | Add MIT or Apache-2.0" in report
+    assert "controlled-demo terms" in report
     assert "Provider setup gate:" in report
     assert "make provider-setup-checklist" in report
     assert "Configure first: FMP free tier" in report
@@ -591,7 +588,7 @@ def test_public_release_package_marks_generated_only_tree_as_local_churn():
     report = module.build_public_release_package_report(entries)
 
     assert "Share-now answer:" in report
-    assert "Share as portfolio/demo only after public-check passes and generated churn stays excluded." in report
+    assert "Share as controlled portfolio/demo evidence after public-check passes and generated churn stays excluded." in report
     assert "Generated churn can stay local; do not create a release commit just for it." in report
     assert "Product/code/docs/test candidates: 0 (0 changed, 0 new)" in report
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report

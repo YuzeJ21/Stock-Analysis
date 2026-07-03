@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.license_status import DECISION_OPTIONS, NO_LICENSE_SHARE_BOUNDARY
+from src.license_status import CONTROLLED_DEMO_SHARE_BOUNDARY, DECISION_OPTIONS, NO_LICENSE_SHARE_BOUNDARY
 
 
 DEFAULT_PACKET_PATH = Path("outputs/pilot_readiness_packet.md")
@@ -808,20 +808,38 @@ def public_share_final_gate_frame(
     def row_stop(row: pd.Series | None, fallback: str) -> str:
         return _compact_fragment(row.get("Stop Rule") if row is not None else None, fallback=fallback, max_chars=170)
 
+    share_review = (
+        "Share as controlled portfolio/demo evidence after public-check passes and generated churn stays excluded. "
+        "Do not call this open source or reusable software under the current root LICENSE. "
+        if license_present
+        else "Share as portfolio/demo only after public-check passes and generated churn stays excluded. "
+        "Do not call this open source until a root LICENSE exists. "
+    )
+    license_review = (
+        f"{CONTROLLED_DEMO_SHARE_BOUNDARY} {_license_decision_options_summary()}"
+        if license_present
+        else f"No root LICENSE file is present; {NO_LICENSE_SHARE_BOUNDARY} {_license_decision_options_summary()}"
+    )
+    license_stop_rule = (
+        "Stop if public wording claims open-source or broad reuse rights that the root LICENSE does not grant."
+        if license_present
+        else "Do not claim reuse rights until a root LICENSE is selected and README wording is updated."
+    )
+
     rows = [
         {
             "Gate": "Share-now answer",
-            "Status": "portfolio_demo_only",
+            "Status": "controlled_demo_license" if license_present else "portfolio_demo_only",
             "Review": (
-                "Share as portfolio/demo only after public-check passes and generated churn stays excluded. "
-                "Do not call this open source until a root LICENSE exists. "
+                share_review
+                +
                 "If source-proof queues are exhausted, use provider setup before broad proof loops. "
                 "Do not stage generated churn or sample reports unless exact artifacts are reviewed evidence."
             ),
             "Command": "make public-release-package",
             "Stop Rule": (
                 "Stop before sharing if public-check fails, generated churn is staged, or license wording "
-                "claims open-source reuse before a root LICENSE exists."
+                "claims open-source or broad reuse rights beyond the root LICENSE."
             ),
         },
         {
@@ -861,20 +879,10 @@ def public_share_final_gate_frame(
         },
         {
             "Gate": "License status",
-            "Status": "portfolio_demo_only" if not license_present else "license_present",
-            "Review": (
-                f"No root LICENSE file is present; {NO_LICENSE_SHARE_BOUNDARY} "
-                f"{_license_decision_options_summary()}"
-                if not license_present
-                else "Root LICENSE file is present; confirm README wording matches the selected license. "
-                f"{_license_decision_options_summary()}"
-            ),
+            "Status": "portfolio_demo_only" if not license_present else "controlled_demo_license",
+            "Review": license_review,
             "Command": "make license-status",
-            "Stop Rule": (
-                "Do not claim reuse rights until a root LICENSE is selected and README wording is updated."
-                if not license_present
-                else "Stop if README License wording conflicts with the selected license."
-            ),
+            "Stop Rule": license_stop_rule,
         },
         {
             "Gate": "Research-only boundary",
@@ -929,11 +937,24 @@ def pilot_share_first_answer_frame(
 
     license_status = status(license_row).lower()
     license_detail = detail(license_row, "No root LICENSE file found.").lower()
-    license_boundary = (
-        "not open source and no reuse rights until a root LICENSE exists; "
-        if "license_present" not in license_status and ("no root license" in license_detail or "license" in license_detail)
-        else ""
-    )
+    if "controlled_demo_license" in license_status or "controlled demo" in license_detail:
+        license_boundary = "controlled demo license; not open source or reusable software; "
+        license_decision_answer = (
+            "Keep controlled portfolio-demo terms unless the owner intentionally switches to MIT/Apache-2.0 "
+            "or another reviewed license."
+        )
+    elif "license_present" not in license_status and ("no root license" in license_detail or "license" in license_detail):
+        license_boundary = "not open source and no reuse rights until a root LICENSE exists; "
+        license_decision_answer = (
+            "Owner decision required before open-source or reuse claims: choose portfolio showcase, "
+            "MIT/Apache-2.0, or custom/proprietary notice."
+        )
+    else:
+        license_boundary = ""
+        license_decision_answer = (
+            "Keep controlled portfolio-demo terms unless the owner intentionally switches to MIT/Apache-2.0 "
+            "or another reviewed license."
+        )
 
     rows = [
         {
@@ -962,10 +983,7 @@ def pilot_share_first_answer_frame(
         },
         {
             "Question": "What license decision remains?",
-            "Answer": (
-                "Owner decision required before open-source or reuse claims: choose portfolio showcase, "
-                "MIT/Apache-2.0, or custom/proprietary notice."
-            ),
+            "Answer": license_decision_answer,
             "Share Boundary": (
                 "License status is a sharing/reuse gate only; it does not refresh data, unlock blocked inputs, "
                 "or change research readiness."
@@ -1050,7 +1068,7 @@ def public_share_final_gate_cards(frame: pd.DataFrame | None, *, limit: int = 8)
             "kicker": "PUBLIC SHARE GATE",
             "title": "Can I share this?",
             "body": (
-                "One-card answer: share as portfolio/demo evidence only after GitHub sync, public-check, "
+                "One-card answer: share as controlled portfolio/demo evidence only after GitHub sync, public-check, "
                 "real screenshots and screenshot evidence, generated churn and generated-churn exclusion, pilot packet, license boundary, "
                 "source-proof blockers, and research-only wording are reviewed. Keep blocked inputs visible."
             ),

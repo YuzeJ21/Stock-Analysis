@@ -26,11 +26,9 @@ GitHub or LinkedIn share.
 
 ## License Decision
 
-- Current state: no root-level `LICENSE` file is selected, so public reuse rights are not granted yet.
-- Visitor-safe wording: describe the repository as a portfolio/demo project
-  until a license is chosen.
-- Next action: read `docs/LICENSE_DECISION_GUIDE.md`, choose a license path,
-  then add `LICENSE` and update the README License section.
+- Current state: a root-level controlled portfolio-demo `LICENSE` is selected, so public reuse rights are intentionally restricted.
+- Visitor-safe wording: describe the repository as a controlled portfolio/demo project, not open-source or reusable software.
+- Next action: read `docs/LICENSE_DECISION_GUIDE.md` before changing reuse terms or replacing the current license.
 
 ## Methodology And Trust
 

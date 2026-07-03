@@ -8,9 +8,9 @@ from pathlib import Path
 
 DECISION_OPTIONS = [
     {
-        "goal": "Portfolio showcase only",
-        "path": "Keep no license for now",
-        "visitor_expectation": "Visitors can read the code, but reuse rights are not granted.",
+        "goal": "Controlled portfolio showcase",
+        "path": "Keep the current controlled demo license",
+        "visitor_expectation": "Visitors can review the project, but reuse rights are not granted.",
     },
     {
         "goal": "Let others reuse with attribution",
@@ -30,16 +30,22 @@ NO_LICENSE_SHARE_BOUNDARY = (
     "copying, redistribution, adaptation, or software reuse rights."
 )
 
+CONTROLLED_DEMO_SHARE_BOUNDARY = (
+    "Share as controlled portfolio/demo evidence under the root LICENSE; do not describe as open source "
+    "or reusable software. Visitors may review the project for evaluation, but copying, redistribution, "
+    "sublicensing, hosted reuse, and modified-publication rights are not granted without written permission."
+)
+
 
 def build_license_status(root: Path) -> dict[str, object]:
     license_path = root / "LICENSE"
     has_license = license_path.exists()
     if has_license:
-        share_status = "license_present"
+        share_status = "controlled_demo_license"
         next_decision = "confirm_readme_license_wording"
         owner_decision_required = False
-        boundary = "Root LICENSE is present; confirm README wording matches the selected license."
-        stop_rule = "Stop if README License wording conflicts with the selected license."
+        boundary = CONTROLLED_DEMO_SHARE_BOUNDARY
+        stop_rule = "Stop if public wording claims open-source or broad reuse rights that the root LICENSE does not grant."
     else:
         share_status = "portfolio_demo_only"
         next_decision = "choose_license_before_open_source_claim"

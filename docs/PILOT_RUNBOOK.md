@@ -282,7 +282,7 @@ If `make dashboard-smoke` cannot bind a local socket in a restricted environment
 - Earnings and analyst estimates are locked until trusted local rows exist.
 - Optional provider access can fail because of network, DNS, rate limits, credentials, or provider terms.
 - Screenshots are product evidence only; they are not data freshness proof.
-- No root license means the repository should not be described as open source until the owner chooses a license.
+- The root license is controlled portfolio/demo only, so the repository should not be described as open source or reusable software unless the owner intentionally changes the license.
 
 ## 12. Pilot Exit Criteria
 

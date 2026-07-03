@@ -448,14 +448,14 @@ def test_public_share_final_gate_combines_release_checks_without_data_writes():
     assert "generated churn" in rendered
     assert "screenshot evidence" in rendered
     assert "source-proof blockers" in rendered
-    assert "share as portfolio/demo only after public-check passes" in rendered
-    assert "do not call this open source until a root license exists" in rendered
+    assert "share as controlled portfolio/demo evidence after public-check passes" in rendered
+    assert "do not call this open source or reusable software under the current root license" in rendered
     assert "use provider setup before broad proof loops" in rendered
     assert "do not stage generated churn or sample reports unless exact artifacts are reviewed evidence" in rendered
     assert "real screenshots" in rendered
     assert "generated-churn exclusion" in rendered
     assert "packet generation is read-only" in rendered
-    assert "portfolio/demo only" in rendered
+    assert "controlled portfolio/demo" in rendered
     assert "do not describe as open source" in rendered
     assert "license decision options" in rendered
     assert "let others reuse with attribution" in rendered
@@ -485,7 +485,7 @@ def test_public_share_final_gate_deferred_state_names_all_release_gates():
     assert "make browser-qa-evidence" in rendered
     assert "make diff-hygiene-summary" in rendered
     assert "make license-status" in rendered
-    assert "portfolio/demo only" in rendered
+    assert "controlled portfolio/demo" in rendered
     assert "license decision options" in rendered
     assert "add mit or apache-2.0" in rendered
     assert "custom or proprietary notice" in rendered
@@ -503,9 +503,9 @@ def test_public_share_final_gate_uses_project_license_not_process_cwd(tmp_path: 
     license_row = frame.loc[frame["Gate"].eq("License status")].iloc[0]
     rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
 
-    assert license_row["Status"] == "portfolio_demo_only"
-    assert "no root license file is present" in rendered
-    assert "do not claim reuse rights until a root license is selected" in rendered
+    assert license_row["Status"] == "controlled_demo_license"
+    assert "controlled portfolio/demo evidence" in rendered
+    assert "not granted without written permission" in rendered
 
 
 def test_data_health_workflow_continuity_connects_evidence_queue_proof_and_artifacts():
