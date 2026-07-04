@@ -27165,13 +27165,23 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     valuation = report_payload["valuation_snapshot"]
     relative = valuation["relative_valuation"]
 
-    render_section_header(
-        "Detailed Review",
-        "Use these tabs after the review-status and readable-now sections clarify the readiness boundaries.",
-    )
-    snapshot_tab, valuation_tab, earnings_tab, sources_tab = st.tabs(
-        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]
-    )
+    if public_mode:
+        with st.expander("Advanced: detailed report sections", expanded=False):
+            render_section_header(
+                "Detailed Review",
+                "Use these tabs after the review-status and readable-now sections clarify the readiness boundaries.",
+            )
+            snapshot_tab, valuation_tab, earnings_tab, sources_tab = st.tabs(
+                ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]
+            )
+    else:
+        render_section_header(
+            "Detailed Review",
+            "Use these tabs after the review-status and readable-now sections clarify the readiness boundaries.",
+        )
+        snapshot_tab, valuation_tab, earnings_tab, sources_tab = st.tabs(
+            ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]
+        )
 
     with snapshot_tab:
         render_context_note("Snapshot view.", "Price, performance, and local financial context appear here first so you can confirm basic coverage before reading valuation detail.")

@@ -2713,7 +2713,11 @@ def test_loaded_single_stock_detail_tables_are_collapsed_after_workflow_fit():
 
     readable_now_index = source.index('render_section_header(\n        "What Can Be Read Now"')
     workflow_fit_index = source.index("stock_report_workflow_fit_cards(report_payload", readable_now_index)
-    detail_review_index = source.index('render_section_header(\n        "Detailed Review"', workflow_fit_index)
+    advanced_detail_index = source.index(
+        'st.expander("Advanced: detailed report sections", expanded=False)',
+        workflow_fit_index,
+    )
+    detail_review_index = source.index('"Detailed Review"', advanced_detail_index)
     setup_index = source.index('st.markdown("#### Price And Trend Context")', detail_review_index)
     setup_cards_index = source.index("stock_report_technical_context_cards(report_payload)", setup_index)
     setup_detail_index = source.index(
@@ -16653,8 +16657,12 @@ def test_single_stock_page_collapses_secondary_interpretation_before_detailed_re
     mode_guide_index = source.index('st.markdown("#### Analysis Mode Guide"')
     function_quality_index = source.index('st.markdown("#### What This Report Can Evaluate"')
     brief_index = source.index("stock_report_brief_html(report_payload)")
-    tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]')
-    detail_review_index = source.index('"Detailed Review"', best_path_cards_index)
+    advanced_detail_index = source.index(
+        'st.expander("Advanced: detailed report sections", expanded=False)',
+        interpretation_expander_index,
+    )
+    detail_review_index = source.index('"Detailed Review"', advanced_detail_index)
+    tabs_index = source.index('["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]', detail_review_index)
 
     assert (
         report_header_index
@@ -16666,6 +16674,7 @@ def test_single_stock_page_collapses_secondary_interpretation_before_detailed_re
         < evaluation_cards_index
         < best_path_cards_index
         < interpretation_expander_index
+        < advanced_detail_index
         < detail_review_index
         < tabs_index
     )
@@ -27953,10 +27962,23 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     one_answer_index = source.index("single_stock_one_answer_frame(report_one_answer_snapshot)", readable_now_index)
     first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", one_answer_index)
     at_a_glance_index = source.index("stock_report_at_a_glance_cards(", first_answer_index)
-    detail_index = source.index('"Detailed Review"', readable_now_index)
-    tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]', detail_index)
+    advanced_detail_index = source.index(
+        'st.expander("Advanced: detailed report sections", expanded=False)',
+        at_a_glance_index,
+    )
+    detail_index = source.index('"Detailed Review"', advanced_detail_index)
+    tabs_index = source.index('["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]', detail_index)
 
-    assert review_status_index < readable_now_index < one_answer_index < first_answer_index < at_a_glance_index < detail_index < tabs_index
+    assert (
+        review_status_index
+        < readable_now_index
+        < one_answer_index
+        < first_answer_index
+        < at_a_glance_index
+        < advanced_detail_index
+        < detail_index
+        < tabs_index
+    )
     assert '"At A Glance"' not in source[render_index:tabs_index]
     assert '"Reader Guide"' not in source[render_index:tabs_index]
     assert '"Review Summary"' not in source[render_index:tabs_index]
