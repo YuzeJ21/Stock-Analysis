@@ -27664,6 +27664,24 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     )
 
 
+def test_single_stock_public_selector_uses_one_primary_ticker_control():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    next_function_index = source.index("\ndef render_data_health(", render_index)
+    chunk = source[render_index:next_function_index]
+
+    public_branch_index = chunk.index("if public_mode:")
+    operator_branch_index = chunk.index("else:", public_branch_index)
+    public_selector_chunk = chunk[public_branch_index:operator_branch_index]
+    operator_selector_chunk = chunk[operator_branch_index:]
+
+    assert '"Choose ticker"' in public_selector_chunk
+    assert '"Enter ticker"' not in public_selector_chunk
+    assert '"Online lookup (off by default)"' not in public_selector_chunk
+    assert '"Enter ticker"' in operator_selector_chunk
+    assert '"Online lookup (off by default)"' in operator_selector_chunk
+
+
 def test_market_command_single_stock_drilldown_collapses_review_evidence_after_quick_read():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_market_command_center(")

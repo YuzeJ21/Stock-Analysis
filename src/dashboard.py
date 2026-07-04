@@ -26842,23 +26842,42 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         default_selection_index = ticker_options.index(query_ticker)
     elif query_ticker:
         default_selection_index = 0
-    selection_cols = st.columns([2, 2, 1])
-    selected = selection_cols[0].selectbox(
-        "Choose ticker",
-        ticker_options,
-        index=default_selection_index,
-        help="Defaults to NVDA when it exists in local data because it is a richer demo report.",
-    )
-    manual_default = query_ticker if selected == "Custom" and query_ticker else "" if selected != "Custom" else "AAPL"
-    manual_ticker = selection_cols[1].text_input("Enter ticker", value=manual_default)
-    use_yfinance = selection_cols[2].checkbox(
-        "Online lookup (off by default)",
-        value=False,
-        help=(
-            "Most visitors should leave this off. If enabled, online data is unofficial / research-grade "
-            "and should be checked against source readiness notes."
-        ),
-    )
+    if public_mode:
+        public_ticker_options = local_tickers or [query_ticker or "NVDA"]
+        if query_ticker and query_ticker not in public_ticker_options:
+            public_ticker_options = [query_ticker] + public_ticker_options
+        public_default_index = (
+            public_ticker_options.index(query_ticker)
+            if query_ticker and query_ticker in public_ticker_options
+            else min(max(preferred_single_stock_default(local_tickers) - 1, 0), len(public_ticker_options) - 1)
+        )
+        selected = st.selectbox(
+            "Choose ticker",
+            public_ticker_options,
+            index=public_default_index,
+            help="Pick one saved local ticker for a read-only review. Operator mode has manual and online lookup controls.",
+            key="single-stock-public-ticker",
+        )
+        manual_ticker = ""
+        use_yfinance = False
+    else:
+        selection_cols = st.columns([2, 2, 1])
+        selected = selection_cols[0].selectbox(
+            "Choose ticker",
+            ticker_options,
+            index=default_selection_index,
+            help="Defaults to NVDA when it exists in local data because it is a richer demo report.",
+        )
+        manual_default = query_ticker if selected == "Custom" and query_ticker else "" if selected != "Custom" else "AAPL"
+        manual_ticker = selection_cols[1].text_input("Enter ticker", value=manual_default)
+        use_yfinance = selection_cols[2].checkbox(
+            "Online lookup (off by default)",
+            value=False,
+            help=(
+                "Most visitors should leave this off. If enabled, online data is unofficial / research-grade "
+                "and should be checked against source readiness notes."
+            ),
+        )
     ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()
     provider_name = "yfinance" if use_yfinance else "local"
     coverage = pd.DataFrame()
