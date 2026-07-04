@@ -25743,8 +25743,8 @@ def stock_selector_shortlist_html(frame: pd.DataFrame) -> str:
     if frame is None or frame.empty:
         return (
             "<div class='selector-shortlist empty'>"
-            "<div class='selector-shortlist-title'>Compare review candidates</div>"
-            "<div class='selector-shortlist-body'>Select up to five rows to compare readiness, blockers, and next proof steps before opening a report.</div>"
+            "<div class='selector-shortlist-title'>Selected tickers for review</div>"
+            "<div class='selector-shortlist-body'>Select up to five rows to inspect readiness, blockers, and next proof steps before opening one report.</div>"
             "</div>"
         )
     cards: list[str] = []
@@ -25765,8 +25765,8 @@ def stock_selector_shortlist_html(frame: pd.DataFrame) -> str:
         )
     return (
         "<div class='selector-shortlist'>"
-        "<div class='selector-shortlist-title'>Compare review candidates</div>"
-        "<div class='selector-shortlist-body'>Use this comparison to choose a research path; it is not a ranking, rating, or action instruction.</div>"
+        "<div class='selector-shortlist-title'>Selected tickers for review</div>"
+        "<div class='selector-shortlist-body'>Use these selected rows to choose one research path; it is not a ranking, rating, or action instruction.</div>"
         "<div class='selector-shortlist-grid'>"
         + "".join(cards)
         + "</div></div>"
@@ -26091,6 +26091,13 @@ def render_stock_selector(
         "Filtered result set.",
         f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
     )
+    shortlist_options = filtered["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
+    default_shortlist = shortlist_options[: min(3, len(shortlist_options))]
+    if public_mode:
+        render_section_header("Next Reading Path", "Move from the first filtered ticker to one report and proof lane without turning the queue into a conclusion.")
+        render_action_cards(
+            stock_selector_next_reading_path_cards(filtered, default_shortlist)
+        )
     with st.expander("How this selector works", expanded=False):
         render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
         render_context_note(
@@ -26098,13 +26105,12 @@ def render_stock_selector(
             "This page helps choose what to review next. It keeps blockers, excluded states, and proof freshness visible before deeper analysis.",
             tone="success",
         )
-    shortlist_options = filtered["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
     selected_shortlist = st.multiselect(
-        "Compare selected rows",
+        "Selected tickers for review",
         shortlist_options,
-        default=shortlist_options[: min(3, len(shortlist_options))],
+        default=default_shortlist,
         max_selections=5,
-        help="Optional comparison tray for readiness, blockers, and proof steps. It does not create conclusions or account actions.",
+        help="Optional selected-ticker tray for readiness, blockers, and proof steps. It does not create conclusions or account actions.",
         key="stock-selector-shortlist",
     )
     st.markdown(
@@ -26121,12 +26127,6 @@ def render_stock_selector(
             "The full filtered table stays available for audit, but the public first-read view uses readiness rows and explicit actions.",
         )
         st.dataframe(clean_display_frame(filtered.head(120)), width="stretch", hide_index=True)
-
-    if public_mode:
-        render_section_header("Next Reading Path", "Move from selection to proof without turning the queue into a conclusion.")
-        render_action_cards(
-            stock_selector_next_reading_path_cards(filtered, selected_shortlist)
-        )
 
 
 def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
