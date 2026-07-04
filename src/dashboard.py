@@ -26926,6 +26926,15 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "One-Stock Review",
         "Choose a ticker to see what can be reviewed now, what stays locked, and which proof path comes next.",
     )
+    public_loading_placeholder = None
+    if public_mode:
+        public_loading_placeholder = st.empty()
+        with public_loading_placeholder.container():
+            render_context_note(
+                "Loading selected ticker.",
+                "Reading local readiness and source coverage now; the review status appears here before raw evidence drawers.",
+                tone="success",
+            )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
     query_open_review = single_stock_query_open(st.query_params.get("open"))
@@ -26983,6 +26992,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         peer_summary = provider.get_peer_summary(ticker)
         pre_report_cards = single_stock_pre_report_contract_cards(ticker, coverage, peer_summary)
+        if public_loading_placeholder is not None:
+            public_loading_placeholder.empty()
         if report_payload:
             render_section_header(
                 "Review Status",

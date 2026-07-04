@@ -27730,6 +27730,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     render_index = source.index("def render_single_stock_report(")
 
     section_index = source.index('"One-Stock Review"', render_index)
+    placeholder_index = source.index('"Loading selected ticker."', section_index)
     provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
     selected_readiness_index = source.index('"Review Status"', provider_ticker_load_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", selected_readiness_index)
@@ -27740,6 +27741,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     assert (
             render_index
             < section_index
+        < placeholder_index
         < provider_ticker_load_index
         < selected_readiness_index
         < contract_cards_index
