@@ -26565,7 +26565,6 @@ def render_home_page(
         render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
 
     if public_mode:
-        render_public_proof_strip(_public_home_snapshot_items(summary))
         render_section_header(
             "First 30 Seconds",
             "What the product does, how to read it, and when to stop before looking at examples.",

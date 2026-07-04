@@ -2153,8 +2153,8 @@ def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages(
 
     assert "render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))" in source
     assert source.count("data_health_research_loop_context(") >= 2
-    proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
-    public_first_scan_index = source.index('render_section_header(\n            "First 30 Seconds"', proof_strip_index)
+    render_home_index = source.index("def render_home_page(")
+    public_first_scan_index = source.index('render_section_header(\n            "First 30 Seconds"', render_home_index)
     home_workflow_index = source.index('render_section_header(\n            "Primary Workflow"', public_first_scan_index)
     single_stock_button_index = source.index('open_review_clicked = st.button("Open Review"')
     single_stock_loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
@@ -2162,7 +2162,9 @@ def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages(
     data_health_loop_index = source.index("render_research_loop_strip(\n        **data_health_research_loop_context(", data_health_nav_index)
     data_health_mode_index = source.index("render_data_health_current_mode_strip(", data_health_nav_index)
 
-    assert proof_strip_index < public_first_scan_index < home_workflow_index
+    home_public_block = source[render_home_index:home_workflow_index]
+    assert "render_public_proof_strip(_public_home_snapshot_items(summary))" not in home_public_block
+    assert public_first_scan_index < home_workflow_index
     assert single_stock_button_index < single_stock_loop_index
     assert data_health_nav_index < data_health_loop_index < data_health_mode_index
 
@@ -3001,11 +3003,11 @@ def test_home_current_data_coverage_cards_delegate_to_public_home_workflow_helpe
     assert dashboard._plain_home_current_data_coverage_cards(summary) == public_home_current_data_coverage_cards(summary)
 
 
-def test_home_page_renders_current_data_coverage_before_workflow():
+def test_home_page_keeps_duplicate_coverage_snapshot_out_of_first_view():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    proof_strip_index = source.index("render_public_proof_strip(_public_home_snapshot_items(summary))")
-    first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', proof_strip_index)
+    render_home_index = source.index("def render_home_page(")
+    first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', render_home_index)
     first_30_cards_index = source.index("render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)", first_30_index)
     primary_workflow_index = source.index('render_section_header(\n            "Primary Workflow"', first_30_cards_index)
     review_map_cards_index = source.index(
@@ -3020,8 +3022,10 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     details_gate_index = source.index("if show_details:")
     coverage_index = source.index('render_section_header("Current Data Coverage"')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
+    home_first_view_chunk = source[render_home_index:learn_more_index]
 
-    assert proof_strip_index < first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_index
+    assert "render_public_proof_strip(_public_home_snapshot_items(summary))" not in home_first_view_chunk
+    assert first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_index
     assert coverage_index < workflow_index
     assert "One spine: Home -> choose ticker or scope -> single-stock answer -> Data Health only if blocked -> Proof History only for evidence review." in source
     assert '"Connected Workflow"' not in source
@@ -3040,7 +3044,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4], show_commands=False)" not in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)" in source
-    assert "render_public_proof_strip(_public_home_snapshot_items(summary))" in source
+    assert "render_public_proof_strip(_public_home_snapshot_items(summary))" not in source
 
 
 def test_home_next_step_cards_delegate_to_public_home_workflow_helper():
