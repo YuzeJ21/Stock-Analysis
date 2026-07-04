@@ -251,7 +251,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
             "title": "What can I use now?",
             "body": (
                 "Use now: no lane summary is loaded yet. Blocked: run the read-only operations center before opening "
-                "raw proof tables. Context only: no candidate/context lane reported. Excluded/not applicable: no excluded lane reported. "
+                "advanced proof evidence. Context only: no candidate/context lane reported. Excluded/not applicable: no excluded lane reported. "
                 "Next safe action: open operator details for the selected lane."
             ),
             "badges": ["answer first", "raw details collapsed"],

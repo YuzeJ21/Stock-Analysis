@@ -28248,7 +28248,7 @@ def render_data_health(
     )
     render_section_header(
         "Selected Lane Answer",
-        "One plain-language answer for the selected lane before provider setup, pilot gates, or raw proof tables.",
+        "One plain-language answer for the selected lane before provider setup, pilot gates, or advanced proof evidence.",
     )
     render_signal_cards(
         data_health_selected_lane_answer_cards(
@@ -28500,7 +28500,7 @@ def render_data_health(
     with st.expander("Advanced: pilot/share details", expanded=False):
         render_section_header(
             "Readiness Lane Snapshot",
-            "Post-price bottlenecks before single-stock reports or raw proof tables.",
+            "Post-price bottlenecks before single-stock reports or advanced proof evidence.",
         )
         render_signal_cards(
             data_health_fundamentals_peer_metrics_queue_cards(readiness_queue),

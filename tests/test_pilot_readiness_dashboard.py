@@ -438,7 +438,8 @@ def test_data_health_operator_next_action_summary_wraps_first_screen_questions()
     assert "pilot-ready with manual gates" in rendered
     assert "generated artifact hygiene" in rendered
     assert "trusted fundamentals proof queue" in rendered
-    assert "raw tables and proof commands" in rendered
+    assert "advanced evidence details and copy-only proof commands" in rendered
+    assert "raw tables" not in rendered
     assert "copy-only" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

@@ -1305,7 +1305,7 @@ def pilot_operator_runbook_cards(frame: pd.DataFrame | None, *, limit: int = 6) 
             {
                 "kicker": "PILOT OPERATOR RUNBOOK",
                 "title": "Load pilot gates first",
-                "body": "Load share-readiness, provider setup, and source-proof queue state before opening raw proof tables.",
+                "body": "Load share-readiness, provider setup, and source-proof queue state before opening advanced proof evidence.",
                 "badges": ["read-only", "operator path"],
                 "command": "make pilot-readiness-check TOP_N=10",
             }
@@ -1529,7 +1529,7 @@ def operator_next_action_summary_frame(
         {
             "Question": "What should stay hidden first?",
             "Status": "copy-only",
-            "Answer": "Raw tables and proof commands",
+            "Answer": "Advanced evidence details and copy-only proof commands",
             "Next Safe Action": f"make pilot-readiness-packet OUTPUT={output_path.as_posix()}",
             "Evidence": "Use the packet or collapsed drawers for review detail; keep the first screen focused on status and next action.",
             "Boundary": "Commands remain copy-only; canonical data writes require validate, preview, rejected-row review, and explicit apply or skip.",

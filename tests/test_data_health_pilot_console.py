@@ -147,7 +147,8 @@ def test_operator_next_action_summary_answers_first_screen_questions():
     assert frame.iloc[0]["Answer"] == "Pilot-ready with manual gates"
     assert frame.iloc[1]["Answer"] == "Generated artifact hygiene"
     assert frame.iloc[2]["Answer"] == "Trusted Fundamentals Proof Queue"
-    assert frame.iloc[3]["Answer"] == "Raw tables and proof commands"
+    assert frame.iloc[3]["Answer"] == "Advanced evidence details and copy-only proof commands"
+    assert "raw tables" not in rendered
     assert "make dcf-input-source-command-plan" in rendered
     assert "validate, preview, rejected-row review" in rendered
     assert "copy-only" in rendered
@@ -607,6 +608,8 @@ def test_pilot_operator_runbook_connects_share_provider_and_exhausted_queues():
     assert frame.iloc[4]["Next Safe Action"] == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
     assert "pilot operator runbook" in rendered
     assert "share-readiness, provider setup, and exhausted proof queues" in rendered
+    assert "advanced proof evidence" in str(pilot_console.pilot_operator_runbook_cards(pd.DataFrame())[0]).lower()
+    assert "raw proof tables" not in rendered
     assert "do not reopen broad proof loops" in rendered
     assert "reviewed one-ticker smoke command" in rendered
     assert "validate / preview" in rendered

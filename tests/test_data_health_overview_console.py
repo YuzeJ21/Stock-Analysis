@@ -349,6 +349,16 @@ def test_overview_lane_answer_card_keeps_raw_commands_out_of_lane_answers():
     assert card["command"] == "make readiness-ops-center"
 
 
+def test_overview_lane_answer_fallback_points_to_advanced_proof_evidence():
+    card = overview_console.lane_answer_card(pd.DataFrame())
+    body = str(card["body"]).lower()
+
+    assert "advanced proof evidence" in body
+    assert "raw proof tables" not in body
+    assert "next safe action: open operator details for the selected lane" in body
+    assert card["command"] == "make readiness-ops-center"
+
+
 def test_overview_auto_refresh_status_cards_show_scheduler_next_step():
     cards = overview_console.auto_refresh_status_cards(
         {
