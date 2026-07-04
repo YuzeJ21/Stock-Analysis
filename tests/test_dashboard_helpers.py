@@ -15108,7 +15108,7 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
             "Boundary": "Return to Single-Stock or Data Health for interpretation; use Proof History only to verify evidence.",
         },
         {
-            "Question": "What should I do next?",
+            "Question": "When should I leave Proof History?",
             "Answer": "Return to the Single-Stock report for interpretation, or Data Health only when the reviewed evidence still shows a blocker.",
             "Next Safe Destination": "Leave Proof History after the evidence question is answered.",
             "Boundary": "No command runs from Proof History; details are audit evidence only.",
@@ -15117,6 +15117,8 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
     assert "make " not in rendered
     assert frame.iloc[0]["Question"] == "What is Proof History for?"
+    assert "what should i do next?" not in rendered
+    assert "leave proof history after the evidence question is answered" in rendered
     assert "command center" not in rendered
 
 

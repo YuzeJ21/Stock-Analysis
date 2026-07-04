@@ -11763,7 +11763,7 @@ def proof_history_first_answer_frame(
                 "Boundary": "Return to Single-Stock or Data Health for interpretation; use Proof History only to verify evidence.",
             },
             {
-                "Question": "What should I do next?",
+                "Question": "When should I leave Proof History?",
                 "Answer": "Return to the Single-Stock report for interpretation, or Data Health only when the reviewed evidence still shows a blocker.",
                 "Next Safe Destination": "Leave Proof History after the evidence question is answered.",
                 "Boundary": "No command runs from Proof History; details are audit evidence only.",
