@@ -25351,9 +25351,12 @@ def stock_selector_cockpit_cards(summary: dict[str, object] | None = None) -> li
     peer_ready = _summary_count(summary, "peer_ready")
     return [
         {
-            "kicker": "SELECTOR PURPOSE",
-            "title": "Research queue, not a recommendation list",
-            "body": "Use this as a research queue, not a recommendation list. It helps choose which ticker to review next after readiness gates are visible.",
+            "kicker": "SELECT FIRST",
+            "title": "Choose one ticker first",
+            "body": (
+                "Use this as a research queue, not a recommendation list. Choose one ticker first, then open a single-stock review "
+                "or the matching Data Health proof lane."
+            ),
             "badges": ["research-only", f"{universe:,} tracked rows" if universe else "saved universe"],
         },
         {
@@ -25937,12 +25940,6 @@ def render_stock_selector(
         STOCK_SELECTOR_PATH_TITLE,
         "Filter readiness-backed research candidates before opening a single-stock report.",
     )
-    render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
-    render_context_note(
-        "Research-only selector.",
-        "This page helps choose what to review next. It keeps blockers, excluded states, and proof freshness visible before deeper analysis.",
-        tone="success",
-    )
 
     if ticker_readiness_message or decisions_message or final_message:
         render_notice_card(
@@ -26024,6 +26021,13 @@ def render_stock_selector(
         "Filtered result set.",
         f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
     )
+    with st.expander("How this selector works", expanded=False):
+        render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
+        render_context_note(
+            "Research-only selector.",
+            "This page helps choose what to review next. It keeps blockers, excluded states, and proof freshness visible before deeper analysis.",
+            tone="success",
+        )
     shortlist_options = filtered["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
     selected_shortlist = st.multiselect(
         "Compare selected rows",
@@ -26265,6 +26269,49 @@ def methodology_ladder_frame() -> pd.DataFrame:
             },
         ]
     )
+
+
+def methodology_status_cards() -> list[dict[str, object]]:
+    """Return the visible methodology status contract for public pages."""
+
+    return [
+        {
+            "kicker": "METHOD VERSION",
+            "title": "Methodology v1: readiness-first deterministic gates",
+            "body": (
+                "The product checks data readiness before analysis and keeps unsupported sections blocked, partial, "
+                "or excluded instead of filling gaps."
+            ),
+            "badges": ["readiness first", "no fabricated inputs"],
+        },
+        {
+            "kicker": "FRESHNESS CHECK",
+            "title": "Freshness is lane-specific",
+            "body": (
+                "Latest price date, latest fundamentals filing date, peer review date, optional-context review date, "
+                "and proof-ledger date should be checked before relying on exact states."
+            ),
+            "badges": ["price date", "filing date", "proof date"],
+        },
+        {
+            "kicker": "PROVENANCE",
+            "title": "Source/as-of/review status stays visible",
+            "body": (
+                "Reports should separate source rows, product-calculated fields, as-of dates, reviewed imports, "
+                "candidate context, and trusted proof."
+            ),
+            "badges": ["source rows", "review status"],
+        },
+        {
+            "kicker": "LIMITS",
+            "title": "Research demo, not a complete valuation terminal",
+            "body": (
+                "DCF output is scenario math, peer context is source-gated, optional lanes can stay locked, "
+                "and all output remains not investment advice."
+            ),
+            "badges": ["research-only", "manual gates"],
+        },
+    ]
 
 
 def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> pd.DataFrame:
@@ -26521,6 +26568,11 @@ def render_home_page(
                 "Examples are secondary evidence, not the main workflow and not recommendations. They show which analysis is supported, locked, or excluded by the current local data.",
                 tone="success",
             )
+            render_section_header(
+                "Methodology Status",
+                "Version, freshness, provenance, and model limits before deeper method details.",
+            )
+            render_signal_cards(methodology_status_cards(), show_commands=False, variant="queue")
 
             if show_details:
                 render_context_note(
@@ -26832,7 +26884,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "One-Stock Review",
         "Choose a ticker to see what can be reviewed now, what stays locked, and which proof path comes next.",
     )
-    render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
     query_open_review = single_stock_query_open(st.query_params.get("open"))
@@ -26902,6 +26953,13 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 "A quick check of available data, locked analysis, and the next safe path.",
             )
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
+
+    render_context_note(
+        "What happens next.",
+        "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
+    )
+    open_review_clicked = st.button("Open Review", key="single-stock-report-button")
+    if provider is not None and ticker:
         with st.expander("Ticker Readiness Evidence", expanded=False):
             render_context_note(
                 "Coverage check.",
@@ -26917,12 +26975,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             readiness_cols[2].metric("Candidate Peers", peer_summary.get("candidate_peer_count", 0))
             readiness_cols[3].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[4].metric("Peer Market Context", peer_summary["peer_market_context_available"])
-
-    render_context_note(
-        "What happens next.",
-        "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
-    )
-    open_review_clicked = st.button("Open Review", key="single-stock-report-button")
     if (query_open_review and not report_payload) or open_review_clicked:
         if not ticker:
             st.warning("Enter a ticker to show a local report.")
@@ -26947,6 +26999,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         report_payload = None
     render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))
     with st.expander("Advanced: example report states", expanded=False):
+        render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)
         demo_note_title, demo_note_body = single_stock_demo_picker_note()
         render_context_note(demo_note_title, demo_note_body)
         render_signal_cards(single_stock_demo_picker_cards(), show_commands=show_card_commands)
@@ -27027,6 +27080,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         unsafe_allow_html=True,
     )
     with st.expander("More report interpretation and methodology", expanded=False):
+        render_section_header(
+            "Methodology Status",
+            "Version, freshness, provenance, and limits before detailed report interpretation.",
+        )
+        render_signal_cards(methodology_status_cards(), show_commands=False, variant="queue")
         st.markdown("#### Analysis Mode Guide")
         render_context_note(
             "Analysis mode guide.",
@@ -27907,26 +27965,6 @@ def render_data_health(
             "Data Health",
             "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next.",
         )
-        render_section_header(
-            "Data Health First Answer",
-            "Read the lane answer first; saved readiness details load below without refreshing, importing, or applying data.",
-        )
-        render_signal_cards(
-            [
-                {
-                    "kicker": "START HERE",
-                    "title": "One answer per lane",
-                    "body": (
-                        "Data Health separates ready, partial, blocked, excluded, and optional context states. "
-                        "Use it only when Home, Stock Selector, or a single-stock report shows a missing proof path."
-                    ),
-                    "badges": ["readiness first", "no data writes"],
-                    "command": "",
-                }
-            ],
-            show_commands=False,
-            variant="queue",
-        )
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
@@ -28012,13 +28050,13 @@ def render_data_health(
             "Data Quality / Readiness",
             "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
         )
+        render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
         render_section_header("Proof Map", "Plain-language proof lanes before any operations detail.")
         render_signal_cards(
             data_health_public_proof_map_cards(readiness_summary, readiness_freshness),
             show_commands=False,
             variant="queue",
         )
-        render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
         if public_mode and project_status_payload is None:
             with st.expander("Refresh status note", expanded=False):
                 render_notice_card(

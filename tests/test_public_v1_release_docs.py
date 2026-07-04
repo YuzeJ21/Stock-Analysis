@@ -78,6 +78,19 @@ def test_public_docs_share_same_coverage_gate_rule():
     assert "provider smoke command" not in audit
 
 
+def test_methodology_doc_surfaces_version_freshness_provenance_and_limits():
+    methodology = _read("docs/METHODOLOGY.md")
+
+    assert "## Methodology Status" in methodology
+    assert "Methodology v1 - readiness-first deterministic gates" in methodology
+    assert "latest price date, latest fundamentals filing date, peer review date, optional-context review date, and proof-ledger date" in methodology.lower()
+    assert "Source, as-of date, reviewed/import status" in methodology
+    assert "WACC, terminal growth, forecast years, growth caps, FCF margin caps" in methodology
+    assert "Candidate peers can guide review, but they are not trusted peer proof." in methodology
+    assert "not a complete valuation terminal, not investment advice, and not a recommendation engine" in methodology
+    assert "They do not unlock blocked inputs or prove today's market/fundamental data." in methodology
+
+
 def test_pilot_readiness_audit_does_not_overstate_github_sync():
     audit = _read("docs/PILOT_READINESS_AUDIT.md")
     lowered = audit.lower()

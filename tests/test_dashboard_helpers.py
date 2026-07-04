@@ -1536,11 +1536,12 @@ def test_stock_selector_cards_keep_selection_readiness_gated():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
-        "SELECTOR PURPOSE",
+        "SELECT FIRST",
         "FILTERS",
         "RESULT STATES",
         "GUARDRAIL",
     ]
+    assert "choose one ticker first" in rendered
     assert "research queue, not a recommendation list" in rendered
     assert "readiness, sector/theme, dcf-ready, peer-ready, price-ready, blocked reason, and proof freshness" in rendered
     assert "research now" in rendered
@@ -15843,9 +15844,10 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next." in source
     assert "if public_mode:\n        render_section_header(" in source
     public_header_index = source.index("if public_mode:", source.index("def render_data_health("))
-    fast_start_index = source.index('"Data Health First Answer"', public_header_index)
-    validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", fast_start_index)
-    assert public_header_index < fast_start_index < validation_load_index
+    validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", public_header_index)
+    coverage_summary_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", validation_load_index)
+    proof_map_index = source.index("data_health_public_proof_map_cards(readiness_summary, readiness_freshness)", coverage_summary_index)
+    assert public_header_index < validation_load_index < coverage_summary_index < proof_map_index
     assert "if public_mode and project_status_payload is None:" in source
     refresh_note_index = source.index('st.expander("Refresh status note"')
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
@@ -16564,18 +16566,19 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
 def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)")
     preview_note_index = source.index('render_context_note(\n        "What happens next."')
     build_button_index = source.index('st.button("Open Review"')
+    evidence_index = source.index('st.expander("Ticker Readiness Evidence", expanded=False)', build_button_index)
     loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
     state_expander_index = source.index('st.expander("Advanced: example report states", expanded=False)')
+    summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)", state_expander_index)
     note_index = source.index("demo_note_title, demo_note_body = single_stock_demo_picker_note()", state_expander_index)
     demo_index = source.index("render_signal_cards(single_stock_demo_picker_cards(), show_commands=show_card_commands)", state_expander_index)
     expander_index = source.index('st.expander("Advanced: how single-stock reports work"', state_expander_index)
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards(), show_commands=show_card_commands)", state_expander_index)
 
-    assert summary_index < preview_note_index < build_button_index < loop_index < state_expander_index
-    assert state_expander_index < note_index < demo_index < expander_index < full_intro_index
+    assert preview_note_index < build_button_index < evidence_index < loop_index < state_expander_index
+    assert state_expander_index < summary_index < note_index < demo_index < expander_index < full_intro_index
     assert 'st.expander("Advanced: example report states", expanded=False)' in source
     assert 'st.expander("Advanced: how single-stock reports work", expanded=False)' in source
     assert 'st.expander("Ticker Readiness Evidence", expanded=False)' in source
@@ -20039,6 +20042,28 @@ def test_methodology_ladder_explains_local_analysis_without_recommendations():
     assert "src/stock_report.py" in rendered
     assert "buy" not in rendered.lower()
     assert "sell" not in rendered.lower()
+
+
+def test_methodology_status_cards_surface_version_freshness_and_provenance():
+    cards = dashboard.methodology_status_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "METHOD VERSION",
+        "FRESHNESS CHECK",
+        "PROVENANCE",
+        "LIMITS",
+    ]
+    assert "methodology v1" in rendered
+    assert "readiness-first deterministic gates" in rendered
+    assert "latest price date" in rendered
+    assert "latest fundamentals filing date" in rendered
+    assert "peer review date" in rendered
+    assert "source/as-of/review status" in rendered
+    assert "not a complete valuation terminal" in rendered
+    assert "not investment advice" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_roadmap_milestone_status_frame_keeps_trusted_data_gaps_honest():
@@ -27642,25 +27667,22 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     render_index = source.index("def render_single_stock_report(")
 
     section_index = source.index('"One-Stock Review"', render_index)
-    first_screen_cards_index = source.index(
-        "render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)",
-        section_index,
-    )
-    provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", first_screen_cards_index)
+    provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
     selected_readiness_index = source.index('"Review Status"', provider_ticker_load_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", selected_readiness_index)
-    coverage_expander_index = source.index('st.expander("Ticker Readiness Evidence"', contract_cards_index)
-    report_button_index = source.index('st.button("Open Review"', coverage_expander_index)
+    report_button_index = source.index('st.button("Open Review"', contract_cards_index)
+    coverage_expander_index = source.index('st.expander("Ticker Readiness Evidence"', report_button_index)
+    intro_expander_index = source.index('st.expander("Advanced: example report states"', coverage_expander_index)
 
     assert (
             render_index
             < section_index
-        < first_screen_cards_index
         < provider_ticker_load_index
         < selected_readiness_index
         < contract_cards_index
-        < coverage_expander_index
         < report_button_index
+        < coverage_expander_index
+        < intro_expander_index
     )
 
 
@@ -27763,6 +27785,19 @@ def test_stock_selector_next_reading_path_uses_selected_ticker_not_fixed_demo_na
     assert shortlist_index < next_path_index < handoff_helper_index
     assert '?mode=public&page=single-stock-report&ticker=NVDA&open=1' not in selector_source
     assert '"?mode=public&page=data-health&drawer=proof"' not in selector_source
+
+
+def test_stock_selector_public_page_shows_filters_before_explanatory_cards():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
+    queue_header_index = source.index('render_section_header("Research Queue"', section_index)
+    preset_index = source.index("preset_label = st.selectbox(", queue_header_index)
+    cockpit_drawer_index = source.index('st.expander("How this selector works"', preset_index)
+    cockpit_cards_index = source.index("stock_selector_cockpit_cards(summary)", cockpit_drawer_index)
+    result_table_index = source.index("stock_selector_result_table_html(filtered", cockpit_cards_index)
+
+    assert section_index < queue_header_index < preset_index < cockpit_drawer_index < cockpit_cards_index < result_table_index
 
 
 def test_data_health_public_proof_map_cards_use_plain_readiness_labels():
@@ -27914,6 +27949,8 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
+    coverage_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", public_index)
+    proof_map_index = source.index("data_health_public_proof_map_cards(readiness_summary, readiness_freshness)", coverage_index)
     guidance_expander_index = source.index('st.expander("Advanced public guidance", expanded=False)', public_index)
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_index)
     visitor_paths_index = source.index('render_section_header("Public path options"', first_30_index)
@@ -27932,6 +27969,8 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
 
     assert (
             public_index
+            < coverage_index
+            < proof_map_index
             < guidance_expander_index
             < first_30_index
         < visitor_paths_index

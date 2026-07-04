@@ -9,6 +9,23 @@ This project is a local stock research command center. It does not ask a model t
 
 The methodology is intentionally conservative. Missing prices, fundamentals, peers, earnings, or analyst estimates are treated as quality-control blockers, not as values to infer.
 
+## Methodology Status
+
+Current public method version: **Methodology v1 - readiness-first deterministic gates**.
+
+This method is useful for a controlled research/demo product because it makes the data gate visible before analysis. It is not a complete valuation terminal, not investment advice, and not a recommendation engine.
+
+Use this quick model card before relying on a page or report:
+
+| Check | What to verify | Boundary |
+| --- | --- | --- |
+| Method version | The dashboard or report is using the readiness-first deterministic gates described here. | A newer method version should document changed gates, assumptions, and report wording. |
+| Freshness by lane | Latest price date, latest fundamentals filing date, peer review date, optional-context review date, and proof-ledger date. | Screenshots and sample reports are product evidence only; they do not prove current data freshness. |
+| Provenance | Source, as-of date, reviewed/import status, and whether the row is source-backed, candidate context, blocked, skipped, or excluded. | Metadata, candidate peers, or provider availability do not substitute for fundamentals, share-count, peer valuation, earnings, or analyst-estimate proof. |
+| DCF assumptions | WACC, terminal growth, forecast years, growth caps, FCF margin caps, and any normalization warning. | DCF output is scenario math, not a price target or instruction. |
+| Peer context | Candidate peers are separated from trusted peer mappings and mapped-peer valuation inputs. | Candidate peers can guide review, but they are not trusted peer proof. |
+| Public share boundary | Public screenshots, walkthroughs, and QA evidence show product behavior. | They do not unlock blocked inputs or prove today's market/fundamental data. |
+
 ## What Is Data Versus App Method
 
 The product separates source inputs from analysis rules so the report is not a black box.
