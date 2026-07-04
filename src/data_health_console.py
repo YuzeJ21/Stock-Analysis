@@ -168,7 +168,7 @@ def data_health_current_mode_strip_html(
         (
             "Detail boundary",
             "Review drawers stay collapsed",
-            "Queue drawers, route maps, proof ledgers, raw tables, provider setup details, and generated-artifact lists stay collapsed until opened.",
+            "Queue drawers, route maps, proof ledgers, advanced evidence tables, provider setup details, and generated-artifact lists stay collapsed until opened.",
         ),
         ("Next safe action", next_action, "Copy-only; research readiness, not a recommendation."),
     ]

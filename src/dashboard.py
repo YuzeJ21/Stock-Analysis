@@ -5172,7 +5172,7 @@ def data_health_operator_hero_html(snapshot_cards: list[dict[str, object]]) -> s
     )
     mode_title = friendly_dashboard_card_copy(mode.get("title", "Commands collapsed"))
     mode_body = compact_card_fragment(
-        friendly_dashboard_card_copy(mode.get("body", "Proof rows and raw tables stay available in evidence drawers.")),
+        friendly_dashboard_card_copy(mode.get("body", "Proof rows and advanced evidence details stay available in evidence drawers.")),
         max_chars=145,
     )
     next_badges = [friendly_dashboard_card_copy(str(badge)) for badge in next_action.get("badges", [])]
@@ -20663,7 +20663,7 @@ def data_health_operator_snapshot_cards(
             "title": f"Freshness: {public_status_label(freshness.status).lower()}",
             "body": (
                 f"{freshness.message} "
-                "Commands, proof rows, and raw tables are grouped below in evidence drawers so the first screen stays readable."
+                "Commands, proof rows, and advanced evidence details are grouped below in evidence drawers so the first screen stays readable."
             ),
             "badges": ["commands collapsed", "proof available"],
         },
@@ -28059,7 +28059,7 @@ def render_data_health(
         with public_loading_placeholder.container():
             render_context_note(
                 "Loading saved readiness answers.",
-                "Reading local readiness files now; the lane summary appears here before proof maps, raw tables, or operator details.",
+                "Reading local readiness files now; the lane summary appears here before proof maps, advanced evidence details, or operator details.",
                 tone="success",
             )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())

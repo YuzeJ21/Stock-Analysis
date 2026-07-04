@@ -26086,7 +26086,8 @@ def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_nex
     assert "next safe action" in rendered
     assert "open batch execution review details" in rendered
     assert "detail boundary" in rendered
-    assert "queue drawers, route maps, proof ledgers, raw tables, provider setup details, and generated-artifact lists stay collapsed until opened" in rendered
+    assert "queue drawers, route maps, proof ledgers, advanced evidence tables, provider setup details, and generated-artifact lists stay collapsed until opened" in rendered
+    assert "raw tables" not in rendered
     assert "copy-only" in rendered
     assert "research readiness" in rendered
     assert "buy" not in rendered
@@ -26136,7 +26137,7 @@ def test_data_health_operator_hero_is_context_not_duplicate_next_action():
             },
             {
                 "title": "Fast view",
-                "body": "Proof rows and raw tables stay available in evidence drawers.",
+                "body": "Proof rows and advanced evidence details stay available in evidence drawers.",
             },
         ]
     ).lower()
@@ -26144,6 +26145,8 @@ def test_data_health_operator_hero_is_context_not_duplicate_next_action():
     assert "data health command center" in html
     assert "readiness context" in html
     assert "source gate before proof loops" in html
+    assert "advanced evidence details" in html
+    assert "raw tables" not in html
     assert "next data-readiness action" not in html
     assert "next safe action" not in html
     assert "buy" not in html
