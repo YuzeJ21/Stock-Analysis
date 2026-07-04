@@ -1030,6 +1030,7 @@ def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
     assert "dry_run=1 make reviewed-batch-proof-record" in rendered
     assert "make diff-hygiene" in rendered
     assert "?mode=operator&page=data-health&lane=peers&drawer=queue" in rendered
+    assert "?mode=operator&page=data-health&lane=peers" in rendered
     assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
     assert "?mode=operator&page=data-health&lane=proof&drawer=proof-record" in rendered
     assert "navigation-only" in rendered
@@ -10906,7 +10907,8 @@ def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_hando
     assert "decision boundary: read this as research context only, not a ranking or action" in rendered
     assert "peer-relative valuation remains withheld" in rendered
     assert "do not infer missing inputs from nearby ready sections" in rendered
-    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
+    assert "?mode=operator&page=data-health&lane=peers" in rendered
+    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" not in rendered
     assert "peers source-proof lane" in rendered
     assert "the route is a manual proof path" in rendered
     assert "make focus-peers ticker=a" in rendered
@@ -11051,7 +11053,8 @@ def test_stock_report_workflow_fit_cards_route_price_setup_to_fundamentals_lane(
     assert "meta: price/setup review only" in rendered
     assert "price/setup review and missing-data diagnosis" in rendered
     assert "company valuation remains blocked" in rendered
-    assert "?mode=operator&page=data-health&lane=fundamentals&drawer=source-proof" in rendered
+    assert "?mode=operator&page=data-health&lane=fundamentals" in rendered
+    assert "?mode=operator&page=data-health&lane=fundamentals&drawer=source-proof" not in rendered
     assert "fundamentals / dcf source-proof lane" in rendered
     assert "the route is a manual proof path" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
@@ -25207,7 +25210,8 @@ def test_single_stock_data_health_handoff_cards_connect_report_to_lane_route():
     assert "standalone dcf context can be reviewed" in rendered
     assert "peer-relative context stays blocked" in rendered
     assert "peers source-proof lane" in rendered
-    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
+    assert "?mode=operator&page=data-health&lane=peers" in rendered
+    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" not in rendered
     assert "manual proof path" in rendered
     assert "do not turn missing, partial, locked, or excluded inputs into conclusions" in rendered
     assert "make focus-peers ticker=mu" in rendered

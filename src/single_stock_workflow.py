@@ -151,25 +151,25 @@ def single_stock_report_data_health_route(
         }
     if not price_ready:
         return {
-            "route": "?mode=operator&page=data-health&lane=prices&drawer=queue",
+            "route": "?mode=operator&page=data-health&lane=prices",
             "route_label": "Prices lane",
             "stop_rule": "Stop if price rows are missing, stale, rejected, or not tied to the selected ticker.",
         }
     if not dcf_ready:
         return {
-            "route": "?mode=operator&page=data-health&lane=fundamentals&drawer=source-proof",
+            "route": "?mode=operator&page=data-health&lane=fundamentals",
             "route_label": "Fundamentals / DCF source-proof lane",
             "stop_rule": "Stop if fundamentals, shares, market cap, or DCF inputs would be inferred or placeholder-backed.",
         }
     if not peer_ready:
         return {
-            "route": "?mode=operator&page=data-health&lane=peers&drawer=source-proof",
+            "route": "?mode=operator&page=data-health&lane=peers",
             "route_label": "Peers source-proof lane",
             "stop_rule": "Stop if peer mappings or peer valuation inputs lack source-backed rows.",
         }
     if not earnings_ready or not estimates_ready:
         return {
-            "route": "?mode=operator&page=data-health&lane=optional&drawer=queue",
+            "route": "?mode=operator&page=data-health&lane=optional",
             "route_label": "Optional context lane",
             "stop_rule": "Stop if earnings or analyst estimates are absent from trusted local rows.",
         }
@@ -529,7 +529,7 @@ def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[
             "kicker": "OPEN DATA HEALTH",
             "title": route_label,
             "body": (
-                f"Use {route} to continue the readiness loop in the matching lane or drawer. "
+                f"Use {route} to continue the readiness loop in the matching lane answer. "
                 "This is a manual proof path; the dashboard does not write canonical data."
             ),
             "badges": badges,

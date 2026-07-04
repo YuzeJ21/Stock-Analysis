@@ -99,7 +99,8 @@ def test_single_stock_data_health_handoff_cards_route_locked_inputs_to_matching_
     assert "what can be reviewed now: standalone dcf context can be reviewed" in rendered
     assert "peer-relative context stays blocked" in rendered
     assert "peers source-proof lane" in rendered
-    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" in rendered
+    assert "?mode=operator&page=data-health&lane=peers" in rendered
+    assert "?mode=operator&page=data-health&lane=peers&drawer=source-proof" not in rendered
     assert "dashboard does not write canonical data" in rendered
     assert "make focus-peers ticker=mu" in rendered
     assert "do not turn missing, partial, locked, or excluded inputs into conclusions" in rendered
@@ -139,7 +140,8 @@ def test_single_stock_data_health_handoff_cards_cover_missing_price_and_monitor_
     assert "universe and readiness refresh" in missing_rendered
     assert "stop until the ticker appears in local readiness outputs" in missing_rendered
     assert "prices lane" in price_rendered
-    assert "?mode=operator&page=data-health&lane=prices&drawer=queue" in price_rendered
+    assert "?mode=operator&page=data-health&lane=prices" in price_rendered
+    assert "?mode=operator&page=data-health&lane=prices&drawer=queue" not in price_rendered
     assert "trusted price history exists" in price_rendered
     assert "monitor context can be read" in monitor_rendered
     assert "operating-company dcf and peer valuation are excluded" in monitor_rendered
@@ -339,10 +341,12 @@ def test_single_stock_report_data_health_route_covers_readiness_gates():
     rendered = " ".join(str(value) for route in (monitor, price, fundamentals, peers, optional, proof) for value in route.values()).lower()
 
     assert monitor["route_label"] == "Proof History"
-    assert price["route"] == "?mode=operator&page=data-health&lane=prices&drawer=queue"
+    assert price["route"] == "?mode=operator&page=data-health&lane=prices"
     assert fundamentals["route_label"] == "Fundamentals / DCF source-proof lane"
-    assert peers["route"] == "?mode=operator&page=data-health&lane=peers&drawer=source-proof"
+    assert fundamentals["route"] == "?mode=operator&page=data-health&lane=fundamentals"
+    assert peers["route"] == "?mode=operator&page=data-health&lane=peers"
     assert optional["route_label"] == "Optional context lane"
+    assert optional["route"] == "?mode=operator&page=data-health&lane=optional"
     assert proof["stop_rule"] == "Stop if readiness changed since the report was generated; rebuild proof first."
     assert "placeholder-backed" in rendered
     assert "source-backed rows" in rendered
