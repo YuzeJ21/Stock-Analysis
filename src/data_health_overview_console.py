@@ -174,11 +174,27 @@ def _lane_next_safe_action(
     return "Open details for the source-backed next step."
 
 
+def _lane_first_scan(
+    ready: int,
+    partial: int,
+    blocked: int,
+    excluded: int,
+    *,
+    context_only: str = "-",
+) -> str:
+    context_label = "locked/manual" if context_only != "-" else "no"
+    return (
+        f"Ready: {ready:,} | Partial: {partial:,} | Blocked: {blocked:,} | "
+        f"Context: {context_label} | Excluded: {excluded:,}"
+    )
+
+
 def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
     """Return the default Data Health lane answer as one scan-friendly row per lane."""
     columns = [
         "Lane",
         "Primary Answer",
+        "First Scan",
         "Use Now",
         "Partial",
         "Blocked",
@@ -193,6 +209,7 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
                 {
                     "Lane": "Data Health",
                     "Primary Answer": "No lane summary is loaded yet.",
+                    "First Scan": "Lane summary not loaded",
                     "Use Now": "-",
                     "Partial": "-",
                     "Blocked": "lane summary not loaded",
@@ -223,6 +240,13 @@ def lane_answer_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
             {
                 "Lane": lane,
                 "Primary Answer": _lane_primary_answer(lane, mode, state, ready, partial, blocked, excluded),
+                "First Scan": _lane_first_scan(
+                    ready,
+                    partial,
+                    blocked,
+                    excluded,
+                    context_only=context_only,
+                ),
                 "Use Now": _count_label(ready, "ready row(s)"),
                 "Partial": _count_label(partial, "partial row(s)"),
                 "Blocked": _count_label(blocked, "blocked row(s)"),
@@ -250,7 +274,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
             "kicker": "LANE ANSWER",
             "title": "What can I use now?",
             "body": (
-                "Use now: no lane summary is loaded yet. Blocked: run the read-only operations center before opening "
+                "First scan: lane summary not loaded. Use now: no lane summary is loaded yet. Blocked: run the read-only operations center before opening "
                 "advanced proof evidence. Context only: no candidate/context lane reported. Excluded/not applicable: no excluded lane reported. "
                 "Next safe action: open operator details for the selected lane."
             ),
@@ -264,6 +288,7 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
     context_fragments: list[str] = []
     excluded_fragments: list[str] = []
     lane_answer_fragments: list[str] = []
+    scan_fragments: list[str] = []
     next_action_fragments: list[str] = []
 
     for _, row in ops_frame.iterrows():
@@ -275,6 +300,11 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
         partial = _series_int(row, "Partial", "partial")
         blocked = _series_int(row, "Blocked", "blocked")
         excluded = _series_int(row, "Excluded", "excluded")
+        has_context = "locked" in mode or "manual" in mode or "candidate" in state
+        context_label = "locked/manual" if has_context else "no"
+        scan_fragments.append(
+            f"{lane} -> ready {ready:,} / partial {partial:,} / blocked {blocked:,} / context {context_label} / excluded {excluded:,}"
+        )
 
         if not ready_fragments and ready > 0:
             ready_fragments.append(f"{lane} has {ready:,} ready row(s)")
@@ -284,13 +314,14 @@ def lane_answer_card(ops_frame: pd.DataFrame | None) -> dict[str, object]:
             blocked_fragments.append(f"{lane} has {blocked:,} blocked row(s)")
         if excluded > 0 or state == "excluded":
             excluded_fragments.append(f"{lane} has {excluded:,} excluded/not-applicable row(s)")
-        if ("locked" in mode or "manual" in mode or "candidate" in state) and not context_fragments:
+        if has_context and not context_fragments:
             context_fragments.append(f"{lane} is locked/manual until trusted optional rows exist")
         next_action = _lane_next_safe_action(lane, mode, state, ready, partial, blocked, excluded)
         if next_action and len(next_action_fragments) < 3:
             next_action_fragments.append(f"{lane} -> {next_action.rstrip(' .;:')}")
 
     body = (
+        f"First scan: {' | '.join(scan_fragments)}. "
         f"One answer per lane: {' | '.join(lane_answer_fragments)}. "
         f"Use now: {'; '.join(ready_fragments) if ready_fragments else 'no ready lane reported'}. "
         f"Partly usable: {'; '.join(partial_fragments) if partial_fragments else 'no partial lane reported'}. "

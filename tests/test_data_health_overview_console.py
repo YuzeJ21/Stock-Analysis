@@ -259,6 +259,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
     assert list(frame.columns) == [
         "Lane",
         "Primary Answer",
+        "First Scan",
         "Use Now",
         "Partial",
         "Blocked",
@@ -271,6 +272,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
         {
             "Lane": "Price Coverage",
             "Primary Answer": "Use ready price rows now; review 1 partial row only if freshness depth matters.",
+            "First Scan": "Ready: 3,537 | Partial: 1 | Blocked: 0 | Context: no | Excluded: 0",
             "Use Now": "3,537 ready row(s)",
             "Partial": "1 partial row(s)",
             "Blocked": "-",
@@ -282,6 +284,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
         {
             "Lane": "Peer Mapping Proof",
             "Primary Answer": "Use 29 ready row(s); keep 3,507 blocked row(s) locked until source proof exists.",
+            "First Scan": "Ready: 29 | Partial: 0 | Blocked: 3,507 | Context: no | Excluded: 2",
             "Use Now": "29 ready row(s)",
             "Partial": "-",
             "Blocked": "3,507 blocked row(s)",
@@ -293,6 +296,7 @@ def test_overview_lane_answer_frame_gives_one_clear_row_per_lane():
         {
             "Lane": "Earnings Locked Lane",
             "Primary Answer": "Do not use as analysis input yet; locked optional context needs trusted rows.",
+            "First Scan": "Ready: 0 | Partial: 0 | Blocked: 3,538 | Context: locked/manual | Excluded: 0",
             "Use Now": "-",
             "Partial": "-",
             "Blocked": "3,538 blocked row(s)",
@@ -337,6 +341,8 @@ def test_overview_lane_answer_card_keeps_raw_commands_out_of_lane_answers():
     lane_answer_text = body.split("next safe action:", maxsplit=1)[0]
 
     assert "one answer per lane:" in body
+    assert body.startswith("first scan: price coverage -> ready 3,537 / partial 1 / blocked 0")
+    assert "fundamentals / dcf proof -> ready 2,691 / partial 243 / blocked 90" in body
     assert "price coverage -> use ready price rows now; review 1 partial row only if freshness depth matters" in body
     assert "fundamentals / dcf proof -> use 2,691 ready row(s); review 243 partial row(s); keep 90 blocked row(s) locked" in body
     assert "make " not in lane_answer_text
@@ -354,6 +360,7 @@ def test_overview_lane_answer_fallback_points_to_advanced_proof_evidence():
     body = str(card["body"]).lower()
 
     assert "advanced proof evidence" in body
+    assert "first scan: lane summary not loaded" in body
     assert "raw proof tables" not in body
     assert "next safe action: open operator details for the selected lane" in body
     assert card["command"] == "make readiness-ops-center"

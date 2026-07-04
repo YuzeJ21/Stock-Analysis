@@ -19654,6 +19654,7 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
         "Stop if screenshots are used as proof of data freshness or source-input coverage.",
     ]
     assert "use now: identify the tracked company" in rendered
+    assert "scan: ready; 100 / 100" in rendered
     assert "use now: market setup" in rendered
     assert "only on dcf-ready companies" in rendered
     assert "why limited:" not in rendered
@@ -27978,6 +27979,7 @@ def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "use now:" in rendered
+    assert "scan:" in rendered
     assert "blocked:" in rendered
     assert "next proof:" in rendered
     assert "stop:" in rendered
@@ -27986,8 +27988,8 @@ def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer()
     assert "use now: do not use yet" not in rendered
     assert "next safe action:" not in rendered
     assert "proof to unlock:" not in rendered
-    assert max(len(str(card["body"])) for card in cards) <= 260
-    assert all(str(card["body"]).count("\n") >= 3 for card in cards)
+    assert max(len(str(card["body"])) for card in cards) <= 280
+    assert all(str(card["body"]).count("\n") >= 4 for card in cards)
     assert "make " not in rendered
 
 

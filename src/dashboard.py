@@ -9074,6 +9074,7 @@ def data_health_coverage_summary_cards(
         blocked = compact_card_fragment(row.get("blocked_or_limited"), max_chars=46)
         next_proof = compact_card_fragment(row.get("proof_to_unlock"), max_chars=48)
         stop_rule = compact_card_fragment(row.get("stop_rule"), max_chars=48)
+        scan = f"{state}; {format_missing(row.get('ready_coverage'))}"
         use_label = "Current use" if str(row.get("one_clear_answer", "")).lower().startswith("do not use yet") else "Use now"
         if use_label == "Use now":
             use_now_lower = use_now.lower()
@@ -9098,6 +9099,7 @@ def data_health_coverage_summary_cards(
                 "kicker": state.upper(),
                 "title": lane,
                 "body": (
+                    f"Scan: {scan}.\n"
                     f"{use_label}: {use_now}.\n"
                     f"Blocked: {blocked}.\n"
                     f"Next proof: {next_proof}.\n"
