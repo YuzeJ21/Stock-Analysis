@@ -84,6 +84,10 @@ def test_methodology_doc_surfaces_version_freshness_provenance_and_limits():
 
     assert "## Methodology Status" in methodology
     assert "Methodology v1 - readiness-first deterministic gates" in methodology
+    assert "## Public Workflow Boundary" in methodology
+    assert PUBLIC_V1_ROUTE in methodology
+    assert "The public page order is a reading workflow, not an analysis shortcut." in methodology
+    assert "Home starts with the visitor question, next safe action, and stop rule before readiness counts." in methodology
     assert "latest price date, latest fundamentals filing date, peer review date, optional-context review date, and proof-ledger date" in methodology.lower()
     assert "Source, as-of date, reviewed/import status" in methodology
     assert "WACC, terminal growth, forecast years, growth caps, FCF margin caps" in methodology

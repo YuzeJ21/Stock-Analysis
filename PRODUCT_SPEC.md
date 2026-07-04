@@ -90,13 +90,16 @@ The per-feature subset of tickers with enough data for a specific module, such a
 
 The product is now organized around a few research-facing surfaces:
 
-- `Home`: plain-language readiness cards and next-action cards first, with methodology ladder and example report comparisons in collapsed sections.
+- `Home`: workflow question, one primary next action, stop rule, and then readiness context before deeper counts or examples.
+- `Stock Selector`: readiness-backed queue with the next reading path before filters, plus selected-ticker handoff into one report or Data Health proof.
 - `Single-Stock Report`: ticker-level visitor scan cue, At A Glance status, Reader Guide, Evaluation Snapshot, Proof Checklist, Best Review Path, data-confidence cue, methodology cue, analysis quality, valuation state, source readiness check, and read-only proof steps.
-- `Data Health`: trusted local data paths, import validation, rejected-row reports, and proof review paths.
-- `Value / Re-rating`: DCF-ready, peer-limited, blocked, and ETF/index/fund excluded valuation states.
+- `Data Health`: one lane answer first, then trusted local data paths, import validation, rejected-row reports, and proof review paths behind public/advanced or operator detail.
+- `Proof History`: evidence-only page for reviewed outcomes; it does not refresh data, apply imports, or unlock blocked inputs.
 - Markdown reports under `outputs/stock_reports/`: small visitor-readable examples of richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data modes.
 
-These surfaces must show supported, blocked, partial, and excluded states before showing detailed tables. Broad-universe tables should stay filtered and row-limited by default.
+The primary public path is: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence.
+
+These surfaces must show supported, blocked, partial, and excluded states before showing detailed tables. Broad-universe tables, command blocks, route maps, and proof ledgers should stay filtered, row-limited, collapsed, or operator-scoped by default.
 
 ## MVP Definition
 
