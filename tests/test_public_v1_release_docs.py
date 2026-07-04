@@ -129,6 +129,8 @@ def test_public_release_checklist_names_v1_routes_and_primary_surfaces():
     assert "Stock Selector is the primary public stock-selection surface" in checklist
     assert "Proof History evidence is the public proof-inspection surface" in checklist
     assert "Data Health lane answer" in checklist
+    assert "one answer per lane before queue drawers, route maps, advanced evidence details, or proof ledgers" in checklist
+    assert "one answer per lane before queue drawers, route maps, raw tables, or proof ledgers" not in checklist
     assert "Operator context" in checklist
     assert "`make public-check` now includes `make license-status`" in checklist
     assert "license/reuse boundary is checked in the same share gate" in checklist

@@ -223,7 +223,7 @@ In public Data Health, visitors see the three simple paths first: review one sto
 
 Use `make readiness-ops-evidence` as the compact evidence checklist before packaging work. It restates the proof gate, locked optional lanes, excluded/not-applicable boundary, and broad CSV/JSON churn policy. Data Health surfaces the same operations-center and coverage-frontier views before the trusted-data pilot and detailed tables so the product starts from batch lanes rather than one-name manual loops.
 
-In Operator mode, Data Health is organized as a readiness operations command center rather than a long proof dump. Start with the Executive Snapshot, choose one lane in the Operator Queue, then open an evidence drawer only when you need copy-only commands, proof rows, or detailed tables. Public mode keeps the quick-read visitor path separate from the operator runbooks.
+In Operator mode, Data Health is organized as a readiness operations command center rather than a long proof dump. Start with the Executive Snapshot, choose one lane in the Operator Queue, then open advanced evidence details only when you need copy-only commands, proof rows, or detailed evidence tables. Public mode keeps the quick-read visitor path separate from the operator runbooks.
 
 ## Reviewed Batch Execution V1
 
@@ -235,7 +235,7 @@ Use the reviewed batch packet after `make coverage-frontier TOP_N=10` identifies
 
 In the dashboard, use Operator mode -> Data Health -> selected lane as the V2 workflow surface. The page shows one reviewed-batch lane at a time, source/freshness warnings before commands, a capped reviewed packet action, and a collapsed review drawer with dry-run, capped execution, validate, preview, apply, proof, rollback, and generated-artifact hygiene steps. Public mode intentionally hides these operator-heavy details.
 
-The reviewed-batch drawer now starts with a Batch Execution Checklist so the full loop can be reviewed without stitching together raw tables: choose lane, read source/freshness warnings, generate the reviewed packet, preview the capped batch, pass the validate/preview/apply gate, compare before/after readiness, dry-run the proof record, and classify generated artifacts. Metrics remain read-only in that checklist; price, fundamentals, peers, and optional-context lanes keep their lane-specific validation and preview gates.
+The reviewed-batch drawer now starts with a Batch Execution Checklist so the full loop can be reviewed through advanced evidence details instead of stitching together raw data views: choose lane, read source/freshness warnings, generate the reviewed packet, preview the capped batch, pass the validate/preview/apply gate, compare before/after readiness, dry-run the proof record, and classify generated artifacts. Metrics remain read-only in that checklist; price, fundamentals, peers, and optional-context lanes keep their lane-specific validation and preview gates.
 
 Use `DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10` when the next work is metric-readiness triage rather than a source-row import. This packet is read-only: it runs the SPY/QQQ metric-readiness board, summarizes blocker families, and tells the operator which underlying source lane needs proof. It does not apply metric rows, infer missing Sharpe/Sortino/beta/drawdown/trend/multiple values, or bypass the price, fundamentals, market-context, or peer-input gates.
 
@@ -251,7 +251,7 @@ Use `make reviewed-batch-compare LANE=prices BATCH_ID=<id> REVIEW_DATE=<yyyy-mm-
 
 Use `make data-release-decision` after any reviewed batch or local refresh creates dirty CSV/report artifacts. It is read-only and does not stage, delete, refresh, rewrite, or publish data. It separates three choices: keep generated artifacts local for working evidence, publish a reviewed data snapshot only when those exact artifacts are the deliverable, or clean back to a public code/docs release state. This keeps broad generated CSV/JSON churn out of public commits by default while still supporting intentional reviewed evidence packages.
 
-In Data Health -> Proof History, the Reviewed Batch Proof drawer now puts the completion loop first: latest reviewed packet, before/after comparison status, and proof-record scaffold. The detailed reviewed data ledger, reviewed batch ledger, and comparison table remain available underneath, but the operator can finish the batch proof without scanning raw tables first.
+In Data Health -> Proof History, the Reviewed Batch Proof drawer now puts the completion loop first: latest reviewed packet, before/after comparison status, and proof-record scaffold. The detailed reviewed data ledger, reviewed batch ledger, and comparison table remain available underneath, but the operator can finish the batch proof from advanced evidence details without scanning raw data views first.
 
 The dashboard also surfaces a Snapshot Gate before reviewed batch work. If the current readiness report is missing, the operator sees `make readiness` first. If the prior baseline snapshot is missing, the operator sees `make readiness-snapshot` before packet, dry-run, capped execution, comparison, or proof-record commands. A supported outcome should not be recorded until the baseline snapshot, source proof, validation, preview/apply decision, rebuilt readiness, and artifact classification are all reviewed.
 

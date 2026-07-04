@@ -1538,6 +1538,9 @@ def test_readme_points_to_pilot_share_brief_for_concise_public_handoff():
         assert "make pilot-share-brief" in doc
         assert "outputs/pilot_share_brief.md" in doc
         assert "does not refresh data" in doc
+    assert "advanced evidence details" in data_strategy
+    assert "without stitching together raw tables" not in data_strategy
+    assert "without scanning raw tables first" not in data_strategy
 
 
 def test_license_decision_guide_names_current_controlled_demo_license():
