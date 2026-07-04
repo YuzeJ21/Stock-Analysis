@@ -505,14 +505,14 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "title": f"{page}: what can I analyze now?",
             "body": f"Analyze now: {guide['analyze']}",
             "badges": ["plain English", "readiness first"],
-            "command": guide["command"],
+            "command": "",
         },
         {
             "kicker": "LOCKED / EXCLUDED",
             "title": "What stays unavailable?",
             "body": f"Still locked: {guide['locked']}",
             "badges": ["no inference", "data honest"],
-            "command": guide["command"],
+            "command": "",
         },
         {
             "kicker": "NEXT SAFE STEP",
@@ -531,14 +531,14 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "title": "How should I read this page?",
             "body": f"Read path: {guide['read']}",
             "badges": ["plain language", "no overclaim"],
-            "command": guide["command"],
+            "command": "",
         },
         {
             "kicker": "REVIEW ROUTE",
             "title": "Where does this fit in the stock review path?",
             "body": f"Review route: {guide['review_route']}",
             "badges": ["one review path", "proof before interpretation"],
-            "command": guide["command"],
+            "command": "",
         },
     ]
 

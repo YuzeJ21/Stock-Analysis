@@ -1937,6 +1937,10 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
 
     assert len(cards) == 20
     assert all(card["kicker"] in {"PAGE GUIDE", "LOCKED / EXCLUDED", "NEXT SAFE STEP", "READ PATH", "REVIEW ROUTE"} for card in cards)
+    for page in pages:
+        page_cards = dashboard.dashboard_page_reader_cards(page)
+        command_cards = [card for card in page_cards if str(card.get("command", "")).strip()]
+        assert [card["kicker"] for card in command_cards] == ["NEXT SAFE STEP"]
     assert "Review route:" in rendered_original
     assert "Guided path:" not in rendered_original
     assert "home: what can i analyze now?" in rendered
