@@ -26059,7 +26059,14 @@ def render_stock_selector(
         )
         return
 
-    render_section_header("Research Queue", "Use filters to narrow the next one-ticker review candidate.")
+    render_section_header("Research Queue", "Start with one saved candidate, then use filters only when you need a narrower queue.")
+    initial_shortlist_options = selector_frame["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
+    initial_shortlist = initial_shortlist_options[: min(3, len(initial_shortlist_options))]
+    if public_mode:
+        render_section_header("Next Reading Path", "Open one saved ticker first; use filters below only to change the queue.")
+        render_action_cards(
+            stock_selector_next_reading_path_cards(selector_frame, initial_shortlist)
+        )
     saved_presets = stock_selector_saved_filter_presets()
     preset_label = st.selectbox(
         "Saved filter",
@@ -26122,11 +26129,6 @@ def render_stock_selector(
     )
     shortlist_options = filtered["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
     default_shortlist = shortlist_options[: min(3, len(shortlist_options))]
-    if public_mode:
-        render_section_header("Next Reading Path", "Move from the first filtered ticker to one report and proof lane without turning the queue into a conclusion.")
-        render_action_cards(
-            stock_selector_next_reading_path_cards(filtered, default_shortlist)
-        )
     with st.expander("How this selector works", expanded=False):
         render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
         render_context_note(

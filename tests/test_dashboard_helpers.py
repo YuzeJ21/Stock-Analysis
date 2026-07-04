@@ -27925,32 +27925,31 @@ def test_stock_selector_next_reading_path_uses_selected_ticker_proof_lane():
 def test_stock_selector_next_reading_path_uses_selected_ticker_not_fixed_demo_name():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
-    filtered_note_index = source.index('render_context_note(\n        "Filtered result set."', render_index)
-    default_shortlist_index = source.index("default_shortlist = shortlist_options[: min(3, len(shortlist_options))]", filtered_note_index)
-    next_path_index = source.index('render_section_header("Next Reading Path"', default_shortlist_index)
-    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(filtered, default_shortlist)", next_path_index)
+    initial_shortlist_index = source.index("initial_shortlist = initial_shortlist_options[: min(3, len(initial_shortlist_options))]", render_index)
+    next_path_index = source.index('render_section_header("Next Reading Path"', initial_shortlist_index)
+    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_frame, initial_shortlist)", next_path_index)
     shortlist_index = source.index("selected_shortlist = st.multiselect(", handoff_helper_index)
     result_table_index = source.index("stock_selector_result_table_html(filtered", handoff_helper_index)
     data_health_index = source.index("def price_refresh_operator_plan_cards(", result_table_index)
     selector_source = source[render_index:data_health_index]
 
-    assert filtered_note_index < default_shortlist_index < next_path_index < handoff_helper_index < shortlist_index < result_table_index
+    assert initial_shortlist_index < next_path_index < handoff_helper_index < shortlist_index < result_table_index
     assert '?mode=public&page=single-stock-report&ticker=NVDA&open=1' not in selector_source
     assert '"?mode=public&page=data-health&drawer=proof"' not in selector_source
 
 
-def test_stock_selector_public_page_shows_filters_before_explanatory_cards():
+def test_stock_selector_public_page_shows_next_path_before_filters_on_mobile():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
     section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
     queue_header_index = source.index('render_section_header("Research Queue"', section_index)
-    preset_index = source.index("preset_label = st.selectbox(", queue_header_index)
-    next_path_index = source.index('render_section_header("Next Reading Path"', preset_index)
+    next_path_index = source.index('render_section_header("Next Reading Path"', queue_header_index)
+    preset_index = source.index("preset_label = st.selectbox(", next_path_index)
     cockpit_drawer_index = source.index('st.expander("How this selector works"', next_path_index)
     cockpit_cards_index = source.index("stock_selector_cockpit_cards(summary)", cockpit_drawer_index)
     result_table_index = source.index("stock_selector_result_table_html(filtered", cockpit_cards_index)
 
-    assert section_index < queue_header_index < preset_index < next_path_index < cockpit_drawer_index < cockpit_cards_index < result_table_index
+    assert section_index < queue_header_index < next_path_index < preset_index < cockpit_drawer_index < cockpit_cards_index < result_table_index
 
 
 def test_data_health_public_proof_map_cards_use_plain_readiness_labels():
