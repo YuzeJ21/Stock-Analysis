@@ -20721,8 +20721,8 @@ def data_health_selected_lane_answer_cards(
             )
             ticker_fragment = f" for {ticker}" if ticker else ""
             lane_inspection_note = (
-                f" Lane-specific inspection: {dataset_key.replace('_', ' ')} blocker{ticker_fragment}. {reason} "
-                "Details stay in the lane evidence drawer; this does not stage, apply, or unlock blocked inputs."
+                f"\nLane inspection: {dataset_key.replace('_', ' ')} blocker{ticker_fragment}. {reason}"
+                "\nDetails: Lane evidence drawer only; this does not stage, apply, or unlock blocked inputs."
             )
             break
     if not next_command:
@@ -20796,14 +20796,16 @@ def data_health_selected_lane_answer_cards(
     }
     use_now, blocked, context_only, excluded, next_proof, stop_rule = lane_answers.get(selected_lane_key, lane_answers["prices"])
     if source_gate_exhausted:
+        source_gate_current = compact_card_fragment(next_reason, fallback="Review provider setup before proof loops.", max_chars=120)
         next_action_card = {
             "kicker": "SOURCE GATE",
             "title": "Review provider setup before proof loops",
             "body": (
-                f"{next_reason} Do not repeat broad proof queues until new source-backed rows, keyed providers, "
-                "reviewed manual rows, or changed blockers exist. "
-                "Stop: do not reopen proof loops until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers exist. "
-                "This is not a recommendation and does not run imports from the dashboard."
+                f"Current gate: {source_gate_current}\n"
+                "Do not repeat: Broad proof queues are paused; do not repeat broad proof queues until source state changes.\n"
+                "Resume when: New source-backed rows, keyed providers, reviewed manual rows, or changed blockers exist.\n"
+                "Stop: Do not reopen proof loops until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers exist.\n"
+                "Boundary: Not a recommendation; does not run imports from the dashboard."
                 f"{lane_inspection_note}"
             ),
             "badges": ["source gate", "no repeat loops"],

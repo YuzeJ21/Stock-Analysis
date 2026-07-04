@@ -26339,6 +26339,14 @@ def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_ex
 
     assert next_action["kicker"] == "SOURCE GATE"
     assert next_action["title"] == "Review provider setup before proof loops"
+    source_gate_body = str(next_action["body"]).lower()
+    assert "current gate:" in source_gate_body
+    assert "do not repeat:" in source_gate_body
+    assert "resume when:" in source_gate_body
+    assert "stop:" in source_gate_body
+    assert "boundary:" in source_gate_body
+    assert source_gate_body.count("\n") >= 4
+    assert max(len(line) for line in source_gate_body.splitlines()) <= 150
     assert "command" not in next_action
     assert "no unreviewed executable company candidates" in rendered
     assert "do not repeat broad proof queues" in rendered
@@ -26388,8 +26396,10 @@ def test_data_health_selected_lane_answer_cards_include_lane_specific_inspection
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[2]["kicker"] == "SOURCE GATE"
-    assert "lane-specific inspection: fundamentals blocker for bot" in rendered
-    assert "details stay in the lane evidence drawer; this does not stage, apply, or unlock blocked inputs" in rendered
+    source_gate_body = str(cards[2]["body"]).lower()
+    assert "lane inspection: fundamentals blocker for bot" in source_gate_body
+    assert "details: lane evidence drawer only; this does not stage, apply, or unlock blocked inputs" in source_gate_body
+    assert source_gate_body.count("\n") >= 6
     assert "make " not in rendered
     assert "universe-preview-summary" not in rendered
     assert "buy" not in rendered
