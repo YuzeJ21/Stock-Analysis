@@ -15,6 +15,10 @@ def _read(path: str) -> str:
 def test_readme_product_tour_matches_v1_public_route_model():
     readme = _read("README.md")
 
+    assert "## Pilot In 60 Seconds" in readme
+    assert "Open `http://localhost:8501/?mode=public`" in readme
+    assert "Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs." in readme
+    assert "Use `make status-check TOP_N=5` for current local readiness counts." in readme
     assert "Start with the five public paths" in readme
     assert "| Home |" in readme
     assert "| Stock Selector |" in readme
@@ -86,6 +90,10 @@ def test_pilot_readiness_audit_does_not_overstate_github_sync():
 def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
 
+    assert "## Share Boundary" in walkthrough
+    assert "Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs." in walkthrough
+    assert "Use `make status-check TOP_N=5` for current coverage and blocker counts." in walkthrough
+    assert "controlled portfolio/demo license" in walkthrough
     assert PUBLIC_V1_ROUTE in walkthrough
     assert "Open Stock Selector" in walkthrough
     assert "Check Proof History" in walkthrough

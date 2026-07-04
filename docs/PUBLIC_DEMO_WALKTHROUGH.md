@@ -2,6 +2,14 @@
 
 Use this when sharing the project from GitHub or LinkedIn. The walkthrough is read-only until you intentionally run local report commands, and it does not refresh broad data or import trusted rows.
 
+## Share Boundary
+
+- Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs.
+- Use `make status-check TOP_N=5` for current coverage and blocker counts.
+- Share under the controlled portfolio/demo license; do not describe the repository as open source or reusable software.
+- Keep the demo research-only: no investment advice, broker action, order routing, auto-trading, or direct buy/sell instructions.
+- Stop before claiming a blocked lane is ready unless source proof, validation, preview, apply, rebuilt readiness, and proof history all support it.
+
 ## One-Minute Story
 
 This project is a local research command center. It checks data readiness before analysis, shows what can be reviewed now, and keeps missing or non-applicable analysis visibly locked or excluded.

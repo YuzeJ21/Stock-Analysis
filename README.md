@@ -5,6 +5,17 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 > Data readiness first, analysis second, research decision last.
 
 ![Dashboard preview](docs/assets/public-demo-home-real.jpg)
+
+## Pilot In 60 Seconds
+
+1. Open `http://localhost:8501/?mode=public` after running `make dashboard`.
+2. Follow the public path: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
+3. Start with Stock Selector, then open one ticker such as `NVDA` before inspecting Data Health.
+4. Use `make status-check TOP_N=5` for current local readiness counts.
+5. Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs.
+6. Share under the controlled portfolio/demo license, not as open-source or reusable software.
+7. Stop before any trading, broker action, broad refresh, or unsupported data claim.
+
 ## What It Does
 
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
@@ -19,7 +30,9 @@ flowchart LR
 
 ## LinkedIn Visitor Snapshot
 
-- Best first click: open the real dashboard preview, then skim the example reports for `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`; the LinkedIn Featured thumbnail is `docs/assets/linkedin-public-dashboard.png`, while `make status-check TOP_N=5` remains the source for current local counts and `make browser-qa-evidence` checks public screenshot assets before replacement.
+- Best first click: open the real dashboard preview, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
+- Example reports to skim: `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`.
+- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and other screenshots show the product UI only; `make status-check TOP_N=5` remains the source for current local counts, and `make browser-qa-evidence` checks public screenshot assets before replacement.
 - Core product idea: missing data is a quality-control signal, not something to hide or guess.
 - Strongest demo: ready data is analyzed, blocked data stays visible, and ETF/index methods are excluded instead of forced.
 - Share-safe boundary: this is research software, not investment advice, broker integration, or an execution system.
@@ -118,27 +131,14 @@ make stock-report-md TICKER=CRDO  # fundamentals/DCF proof example
 Optional local proof checks:
 
 ```bash
-make project-status && make provider-setup-checklist
-make data-coverage-proof-queues TOP_N=10  # only when project-status shows executable proof candidates
-make universe-scope TICKERS=NVDA,META TOP_N=10
-make risk-context
+make project-status && make provider-setup-checklist && make universe-scope TICKERS=NVDA,META TOP_N=10 && make risk-context
 make trusted-data-pilot-candidates TOP_N=10  # only when status shows executable company candidates
-make metric-readiness TOP_N=5 BENCHMARK=SPY
 make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKER=CRDO
-make stock-report-md TICKER=SMH && make stock-report-md TICKER=APLD
 ```
 
 The shortest public walkthrough is: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence, with NVDA, META, QQQ, MU, and CRDO available as optional state examples. That shows the core idea quickly: the product can filter candidates by readiness, analyze ready data, explain blocked data, separate master/active/ready/missing-data scopes, show liquidity/correlation context without turning it into a conclusion, exclude methods that do not apply, show peer-limited DCF, and print the trusted-data proof path without pretending missing rows exist.
 
-Example map:
-
-| Example | What it demonstrates | What to check |
-| --- | --- | --- |
-| [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | Reader Guide, assumptions, sensitivity, peer caveats, source readiness notes. |
-| [A](outputs/stock_reports/a.md) / [MU](outputs/stock_reports/mu.md) | Standalone DCF review where peer-relative valuation is still locked. | Reader Guide, DCF assumptions, and mapped-peer valuation-input proof steps. |
-| [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Reader Guide, supported setup analysis, valuation blockers, and caveats. |
-| [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Reader Guide plus Operating-company DCF is excluded, not failed. |
-| [APLD](outputs/stock_reports/apld.md) / [CRDO](outputs/stock_reports/crdo.md) | Price/setup review with valuation still locked, plus fundamentals-gated proof workflow. | Reader Guide, supported setup context, one-company pilot packet, and the next trusted fundamentals proof step. |
+Example map: [NVDA](outputs/stock_reports/nvda.md) shows Company DCF assumptions and source-backed peer context; [A](outputs/stock_reports/a.md) / MU show Standalone DCF review where peer-relative valuation is still locked; [META](outputs/stock_reports/meta.md) shows Price/setup review where valuation remains gated; [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) show ETF/index context where Operating-company DCF is excluded, not failed; [APLD](outputs/stock_reports/apld.md) / CRDO show Price/setup review with valuation still locked and the next trusted fundamentals proof step. Optional reports: `make stock-report-md TICKER=A`, `make stock-report-md TICKER=SMH`, and `make stock-report-md TICKER=APLD`.
 
 In the dashboard, start on `Home`, open `Stock Selector` to narrow the next readiness-backed candidate, then open `Single-Stock Report` for one ticker or `Data Health` when the selected row says analysis is blocked. Check `Proof History` before trusting a changed readiness state. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what trusted input matters next, what evidence proves the current mode, what to read first, and which read-only proof step comes next. They show `Copyable Proof Commands` only when local data gaps block analysis; use `make stock-report TICKER=NVDA` only when you also want optional local report data for inspection.
 
