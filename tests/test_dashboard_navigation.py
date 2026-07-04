@@ -74,6 +74,7 @@ def test_public_workflow_steps_answer_one_question_and_next_action_per_page():
         step = nav.public_workflow_step(page)
         assert step["page"] == page
         assert step["question"] == question
+        assert step["short_answer"]
         assert step["next_page"] == next_page
         assert step["next_action"]
         assert step["stop_rule"]

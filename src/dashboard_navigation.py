@@ -40,6 +40,7 @@ PUBLIC_WORKFLOW_STEPS = {
     "Home": {
         "page": "Home",
         "question": "What is this product and where do I start?",
+        "short_answer": "A readiness-first research workflow; start by choosing a reviewable ticker.",
         "next_page": STOCK_SELECTOR_PATH_TITLE,
         "next_action": "Start by exploring ready names.",
         "stop_rule": "Stop before treating any output as advice or a trade instruction.",
@@ -47,6 +48,7 @@ PUBLIC_WORKFLOW_STEPS = {
     STOCK_SELECTOR_PATH_TITLE: {
         "page": STOCK_SELECTOR_PATH_TITLE,
         "question": "Which stock can I review?",
+        "short_answer": "Use readiness filters to pick one ticker for a single-stock review.",
         "next_page": "Single-Stock Report",
         "next_action": "Pick one ticker, then open its single-stock report.",
         "stop_rule": "Stop if the selected ticker has no readiness-backed path.",
@@ -54,6 +56,7 @@ PUBLIC_WORKFLOW_STEPS = {
     "Single-Stock Report": {
         "page": "Single-Stock Report",
         "question": "What can I use for this ticker right now?",
+        "short_answer": "Read supported sections first; blocked inputs stay locked.",
         "next_page": "Data Health",
         "next_action": "Use supported sections first; open Data Health only for blocked inputs.",
         "stop_rule": "Stop if required inputs are blocked, excluded, or only candidate context.",
@@ -61,6 +64,7 @@ PUBLIC_WORKFLOW_STEPS = {
     "Data Health": {
         "page": "Data Health",
         "question": "Why is something blocked and how do I fix it?",
+        "short_answer": "Check one lane answer before opening proof, queues, or operator details.",
         "next_page": PROOF_HISTORY_PATH_TITLE,
         "next_action": "Read the lane answer, then inspect proof only when evidence changed.",
         "stop_rule": "Stop before applying or trusting rows without source proof.",
@@ -68,6 +72,7 @@ PUBLIC_WORKFLOW_STEPS = {
     PROOF_HISTORY_PATH_TITLE: {
         "page": PROOF_HISTORY_PATH_TITLE,
         "question": "What evidence changed a readiness state?",
+        "short_answer": "Review evidence only; this page does not refresh or unlock data.",
         "next_page": "Home",
         "next_action": "Verify the latest outcome, then return to the product path.",
         "stop_rule": "Stop if the evidence is missing, stale, or not source-backed.",

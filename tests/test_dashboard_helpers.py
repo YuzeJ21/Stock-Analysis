@@ -1840,7 +1840,9 @@ def test_stock_selector_public_copy_uses_plain_plural_labels():
     assert "shares_outstanding" not in rendered
     assert "fcf_margin" not in rendered
     assert "saved rows" in source
-    assert "saved row(s)" not in source[source.index("def render_stock_selector(") : source.index('with st.expander("Full filtered selector rows"')]
+    assert "saved row(s)" not in source[
+        source.index("def render_stock_selector(") : source.index('with st.expander("Advanced: full filtered selector rows"')
+    ]
 
 
 def test_public_action_cards_render_query_routes_as_clickable_links():
@@ -2487,7 +2489,7 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "Outputs dir:" not in source
     assert "#### Local file paths" not in source
     assert 'st.expander("Technical paths"' not in source
-    assert 'st.expander("Learn more", expanded=False)' in source
+    assert 'st.expander("Advanced: learn more", expanded=False)' in source
     assert 'st.expander("Optional: local commands"' not in source
     assert 'st.expander("Advanced commands"' not in source
     assert 'st.expander("Complete valuation context table"' in source
@@ -3009,7 +3011,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
         'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
         primary_workflow_index,
     )
-    learn_more_index = source.index('st.expander("Learn more", expanded=False)', review_map_cards_index)
+    learn_more_index = source.index('st.expander("Advanced: learn more", expanded=False)', review_map_cards_index)
     route_expander_index = learn_more_index
     route_header_index = source.index('render_section_header(\n                "Route Chooser"', route_expander_index)
     route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", route_header_index)
@@ -3119,7 +3121,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     primary_workflow_index = source.index('render_section_header(\n            "Primary Workflow"')
-    learn_more_index = source.index('st.expander("Learn more", expanded=False)', primary_workflow_index)
+    learn_more_index = source.index('st.expander("Advanced: learn more", expanded=False)', primary_workflow_index)
     route_expander_index = learn_more_index
     route_header_index = source.index('render_section_header(\n                "Route Chooser"', route_expander_index)
     public_route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", route_header_index)
@@ -3143,7 +3145,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert "render_action_cards(_plain_home_route_choice_cards(summary))" in source
     assert '"Review current ideas"' not in source
     assert '"Improve missing data"' not in source
-    assert 'st.expander("Learn more", expanded=False)' in source
+    assert 'st.expander("Advanced: learn more", expanded=False)' in source
     assert 'st.expander("Optional: coverage details", expanded=False)' not in source
     assert 'st.expander("Optional: how evaluation works", expanded=False)' not in source
     assert 'st.expander("Optional: price update plan", expanded=False)' not in source
@@ -3171,7 +3173,7 @@ def test_public_home_route_choices_are_collapsed_after_primary_workflow():
         'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
         primary_workflow_index,
     )
-    route_expander_index = source.index('st.expander("Learn more", expanded=False)', review_map_cards_index)
+    route_expander_index = source.index('st.expander("Advanced: learn more", expanded=False)', review_map_cards_index)
     route_header_index = source.index('render_section_header(\n                "Route Chooser"', route_expander_index)
     route_cards_index = source.index("render_action_cards(_plain_home_route_choice_cards(summary))", route_header_index)
     example_state_index = source.index('render_section_header(\n                "Example State Walkthrough"', route_cards_index)
@@ -15080,7 +15082,7 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
         {
             "Question": "Where is the evidence?",
             "Answer": "Reviewed lane proof and reviewed batch proof rows; generated CSV/report churn stays excluded unless intentionally reviewed evidence. Details stay collapsed until opened.",
-            "Next Safe Destination": "Proof ledger details when evidence inspection is needed.",
+            "Next Safe Destination": "Advanced proof ledger details when evidence inspection is needed.",
             "Boundary": "Ledger details are for audit; they are not an analysis or action page.",
         },
         {
@@ -15107,7 +15109,7 @@ def test_proof_history_public_page_renders_first_answer_frame_before_ledger_deta
     render_index = source.index("def render_proof_history(")
     first_answer_index = source.index('"Proof History First Answer"', render_index)
     frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", first_answer_index)
-    details_index = source.index('st.expander("Proof ledger details", expanded=False)', frame_index)
+    details_index = source.index('st.expander("Advanced: proof ledger details", expanded=False)', frame_index)
 
     assert first_answer_index < frame_index < details_index
     assert '"Proof History One Answer"' in source
@@ -16566,16 +16568,16 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     preview_note_index = source.index('render_context_note(\n        "What happens next."')
     build_button_index = source.index('st.button("Open Review"')
     loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
-    state_expander_index = source.index('st.expander("Example report states", expanded=False)')
+    state_expander_index = source.index('st.expander("Advanced: example report states", expanded=False)')
     note_index = source.index("demo_note_title, demo_note_body = single_stock_demo_picker_note()", state_expander_index)
     demo_index = source.index("render_signal_cards(single_stock_demo_picker_cards(), show_commands=show_card_commands)", state_expander_index)
-    expander_index = source.index('st.expander("How single-stock reports work"', state_expander_index)
+    expander_index = source.index('st.expander("Advanced: how single-stock reports work"', state_expander_index)
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards(), show_commands=show_card_commands)", state_expander_index)
 
     assert summary_index < preview_note_index < build_button_index < loop_index < state_expander_index
     assert state_expander_index < note_index < demo_index < expander_index < full_intro_index
-    assert 'st.expander("Example report states", expanded=False)' in source
-    assert 'st.expander("How single-stock reports work", expanded=False)' in source
+    assert 'st.expander("Advanced: example report states", expanded=False)' in source
+    assert 'st.expander("Advanced: how single-stock reports work", expanded=False)' in source
     assert 'st.expander("Ticker Readiness Evidence", expanded=False)' in source
     assert 'st.expander("Evidence row details", expanded=False)' in source
     assert 'st.expander("Ticker coverage and peer context"' not in source
@@ -19758,7 +19760,7 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     assert public_index < public_coverage_index < guidance_expander_index < first_30_index < visitor_paths_index
     assert public_return_index < operator_coverage_expander_index < operator_coverage_index < ops_index
     assert '"Coverage Summary / What Can I Use?"' in source
-    assert 'st.expander("Coverage lane details", expanded=False)' in source
+    assert 'st.expander("Advanced: coverage lane details", expanded=False)' in source
     source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', ops_index)
     auto_refresh_index = source.index('render_section_header(\n            "Auto Refresh Status"', source_details_index)
     source_setup_index = source.index('render_section_header(\n            "Source Setup Guide"', auto_refresh_index)
@@ -27540,8 +27542,10 @@ def test_public_subpages_use_compact_header_before_page_content():
     assert render_header_index < workflow_header_index < dispatch_index
     assert "You are here" in source
     assert "Current question" in source
+    assert "Short answer" in source
     assert "Primary next step" in source
     assert "Stop rule" in source
+    assert "grid-template-columns: repeat(5, minmax(0, 1fr))" in source
 
 
 def test_public_compact_header_allows_mobile_status_wrap():

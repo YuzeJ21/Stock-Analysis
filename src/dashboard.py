@@ -3355,7 +3355,7 @@ def apply_dashboard_theme() -> None:
         }
         .public-workflow-header {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
+          grid-template-columns: repeat(5, minmax(0, 1fr));
           gap: 0.65rem;
           margin: 0.7rem 0 1rem 0;
         }
@@ -4736,6 +4736,7 @@ def public_workflow_header_html(page_title: str) -> str:
     cells = [
         ("You are here", step["page"]),
         ("Current question", step["question"]),
+        ("Short answer", step["short_answer"]),
         ("Primary next step", step["next_action"]),
         ("Stop rule", step["stop_rule"]),
     ]
@@ -9040,7 +9041,7 @@ def render_data_health_coverage_summary(
         show_commands=False,
         variant="queue",
     )
-    with st.expander("Coverage lane details", expanded=False):
+    with st.expander("Advanced: coverage lane details", expanded=False):
         st.dataframe(
             clean_display_frame(data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame, root=BASE_DIR)),
             width="stretch",
@@ -11671,7 +11672,7 @@ def proof_history_first_answer_frame(
             {
                 "Question": "Where is the evidence?",
                 "Answer": "Reviewed lane proof and reviewed batch proof rows; generated CSV/report churn stays excluded unless intentionally reviewed evidence. Details stay collapsed until opened.",
-                "Next Safe Destination": "Proof ledger details when evidence inspection is needed.",
+                "Next Safe Destination": "Advanced proof ledger details when evidence inspection is needed.",
                 "Boundary": "Ledger details are for audit; they are not an analysis or action page.",
             },
             {
@@ -11796,7 +11797,7 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         tone="success",
     )
     render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
-    with st.expander("Proof ledger details", expanded=False):
+    with st.expander("Advanced: proof ledger details", expanded=False):
         render_section_header("Reviewed Data Proof Ledger", "Durable lane proof rows, not generated CSV churn.")
         if proof_timeline.empty:
             st.caption("No reviewed proof rows are recorded yet.")
@@ -26025,7 +26026,7 @@ def render_stock_selector(
         stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=30),
         unsafe_allow_html=True,
     )
-    with st.expander("Full filtered selector rows", expanded=False):
+    with st.expander("Advanced: full filtered selector rows", expanded=False):
         render_context_note(
             "Detailed selector evidence.",
             "The full filtered table stays available for audit, but the public first-read view uses readiness rows and explicit actions.",
@@ -26487,7 +26488,7 @@ def render_home_page(
             public=public_mode,
         )
     if public_mode:
-        with st.expander("Learn more", expanded=False):
+        with st.expander("Advanced: learn more", expanded=False):
             render_section_header(
                 "Route Chooser",
                 "Choose another public path only when the primary workflow does not answer the visitor question.",
@@ -26911,11 +26912,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     if st.session_state.get("single_stock_report_ticker") != ticker:
         report_payload = None
     render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))
-    with st.expander("Example report states", expanded=False):
+    with st.expander("Advanced: example report states", expanded=False):
         demo_note_title, demo_note_body = single_stock_demo_picker_note()
         render_context_note(demo_note_title, demo_note_body)
         render_signal_cards(single_stock_demo_picker_cards(), show_commands=show_card_commands)
-        with st.expander("How single-stock reports work", expanded=False):
+        with st.expander("Advanced: how single-stock reports work", expanded=False):
             render_signal_cards(single_stock_report_intro_cards(), show_commands=show_card_commands)
     if not report_payload:
         return
