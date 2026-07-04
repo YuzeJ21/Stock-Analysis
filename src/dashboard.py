@@ -3406,6 +3406,32 @@ def apply_dashboard_theme() -> None:
         @media (max-width: 640px) {
           .public-workflow-header {
             grid-template-columns: 1fr;
+            gap: 0.42rem;
+            margin: 0.42rem 0 0.58rem 0;
+          }
+          .public-workflow-primary,
+          .public-workflow-supporting {
+            padding: 0.5rem 0.58rem;
+            box-shadow: none;
+          }
+          .public-workflow-primary,
+          .public-workflow-supporting {
+            gap: 0.34rem;
+          }
+          .public-workflow-item {
+            display: grid;
+            grid-template-columns: 5.25rem minmax(0, 1fr);
+            column-gap: 0.42rem;
+            align-items: start;
+          }
+          .public-workflow-label {
+            font-size: 0.58rem;
+            line-height: 1.15;
+            margin-bottom: 0;
+          }
+          .public-workflow-value {
+            font-size: 0.78rem;
+            line-height: 1.18;
           }
         }
         .subtle-panel {

@@ -27655,6 +27655,20 @@ def test_public_workflow_header_collapses_guidance_into_two_visual_groups():
     assert "Stop rule" in html
 
 
+def test_public_workflow_header_has_compact_mobile_rules():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    mobile_index = source.index("@media (max-width: 640px)")
+    mobile_chunk = source[mobile_index : mobile_index + 1200]
+
+    assert ".public-workflow-item" in mobile_chunk
+    assert "grid-template-columns: 5.25rem minmax(0, 1fr)" in mobile_chunk
+    assert ".public-workflow-label" in mobile_chunk
+    assert "margin-bottom: 0" in mobile_chunk
+    assert ".public-workflow-value" in mobile_chunk
+    assert "font-size: 0.78rem" in mobile_chunk
+
+
 def test_public_compact_header_allows_mobile_status_wrap():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
