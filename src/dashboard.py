@@ -9069,20 +9069,38 @@ def data_health_coverage_summary_cards(
     cards: list[dict[str, object]] = []
     for row in frame.to_dict("records"):
         state = format_missing(row.get("state"), "blocked")
-        use_now = compact_card_fragment(row.get("one_clear_answer"), max_chars=92)
-        blocked = compact_card_fragment(row.get("blocked_or_limited"), max_chars=72)
-        context = compact_card_fragment(row.get("supporting_coverage"), max_chars=62)
-        next_proof = compact_card_fragment(row.get("proof_to_unlock"), max_chars=82)
-        stop_rule = compact_card_fragment(row.get("stop_rule"), max_chars=78)
+        lane = format_missing(row.get("lane"))
+        use_now = compact_card_fragment(row.get("one_clear_answer"), max_chars=52)
+        blocked = compact_card_fragment(row.get("blocked_or_limited"), max_chars=46)
+        next_proof = compact_card_fragment(row.get("proof_to_unlock"), max_chars=48)
+        stop_rule = compact_card_fragment(row.get("stop_rule"), max_chars=48)
+        use_label = "Current use" if str(row.get("one_clear_answer", "")).lower().startswith("do not use yet") else "Use now"
+        if use_label == "Use now":
+            use_now_lower = use_now.lower()
+            if use_now_lower.startswith("use now to "):
+                use_now = use_now[11:]
+            elif use_now_lower.startswith("use now for "):
+                use_now = use_now[12:]
+            elif use_now_lower.startswith("use "):
+                use_now = use_now[4:]
+            if use_now:
+                use_now = use_now[0].upper() + use_now[1:]
+        if lane == "Peers":
+            stop_rule = "Do not promote candidate peers to trusted peers"
+        if lane == "Earnings":
+            use_now = "Do not use until trusted earnings rows exist"
+        if lane == "Analyst estimates":
+            use_now = "Do not use until trusted estimate rows exist"
+        if lane == "Proof / demo evidence":
+            use_now = "Product evidence only, not data freshness"
         cards.append(
             {
                 "kicker": state.upper(),
-                "title": format_missing(row.get("lane")),
+                "title": lane,
                 "body": (
-                    f"Answer: {use_now}. "
-                    f"Blocked/limited: {blocked}. "
-                    f"Context: {context}. "
-                    f"Next proof: {next_proof}. "
+                    f"{use_label}: {use_now}.\n"
+                    f"Blocked: {blocked}.\n"
+                    f"Next proof: {next_proof}.\n"
                     f"Stop: {stop_rule}."
                 ),
                 "badges": [state, format_missing(row.get("ready_coverage"))],

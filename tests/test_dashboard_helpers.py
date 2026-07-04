@@ -19637,19 +19637,19 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
         "Stop if estimates are absent, scraped without review, or treated as a recommendation.",
         "Stop if screenshots are used as proof of data freshness or source-input coverage.",
     ]
-    assert "use now to identify the tracked company" in rendered
-    assert "use now for market setup" in rendered
-    assert "use only on dcf-ready companies" in rendered
+    assert "use now: identify the tracked company" in rendered
+    assert "use now: market setup" in rendered
+    assert "only on dcf-ready companies" in rendered
     assert "why limited:" not in rendered
     assert "next proof:" in rendered
     assert "stop:" in rendered
     assert "candidate peers are context only" not in rendered
     assert "reviewed trusted peer mapping rows" in rendered
-    assert "stop if candidate peers are promoted to trusted peers" in rendered
+    assert "do not promote candidate peers to trusted peers" in rendered
     assert "Candidate peers are context only" in " ".join(map(str, frame["why_blocked_or_limited"]))
     assert "Reviewed trusted peer mapping rows" in " ".join(map(str, frame["proof_to_unlock"]))
     assert "Stop if candidate peers are promoted to trusted peers" in " ".join(map(str, frame["stop_rule"]))
-    assert "do not use yet unless trusted local earnings rows exist" in rendered
+    assert "do not use until trusted earnings rows exist" in rendered
     assert "not data freshness" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -27920,15 +27920,17 @@ def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer()
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "answer:" in rendered
-    assert "blocked/limited:" in rendered
-    assert "context:" in rendered
+    assert "use now:" in rendered
+    assert "blocked:" in rendered
     assert "next proof:" in rendered
     assert "stop:" in rendered
+    assert "context:" not in rendered
+    assert "blocked/limited:" not in rendered
     assert "use now: do not use yet" not in rendered
     assert "next safe action:" not in rendered
     assert "proof to unlock:" not in rendered
-    assert max(len(str(card["body"])) for card in cards) <= 390
+    assert max(len(str(card["body"])) for card in cards) <= 260
+    assert all(str(card["body"]).count("\n") >= 3 for card in cards)
     assert "make " not in rendered
 
 
