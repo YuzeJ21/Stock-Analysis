@@ -3090,7 +3090,7 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     assert [card[2] for card in cards] == [
         "?mode=public&page=stock-selector",
         "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
-        "?mode=public&page=data-health&drawer=proof",
+        "?mode=public&page=data-health",
         "?mode=public&page=proof-history",
     ]
     assert cards[2][3] == "warning"

@@ -330,7 +330,7 @@ def public_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
         (
             "Data Health",
             improve_body,
-            "?mode=public&page=data-health&drawer=proof",
+            "?mode=public&page=data-health",
             improve_tone,
         ),
         (

@@ -317,7 +317,7 @@ def test_public_home_route_choice_cards_warn_when_candidate_pages_should_stay_em
     assert cards[1][0] == "Single-Stock Report"
     assert cards[1][2] == "?mode=public&page=single-stock-report&ticker=NVDA&open=1"
     assert cards[2][0] == "Data Health"
-    assert cards[2][2] == "?mode=public&page=data-health&drawer=proof"
+    assert cards[2][2] == "?mode=public&page=data-health"
     assert cards[2][3] == "warning"
     assert cards[3][0] == "Proof History"
     assert cards[3][2] == "?mode=public&page=proof-history"
