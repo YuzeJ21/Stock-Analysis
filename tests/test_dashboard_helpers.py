@@ -1339,13 +1339,13 @@ def test_monthly_ideas_hero_label_explains_locked_zero_state():
 def test_dashboard_hero_uses_public_product_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "A local, explainable command center" in source
+    assert "A guided workflow for deciding what can be used now" in source
     assert "Start with readiness" in source
     assert "Research-only review; no external account actions." in source
     assert ".hero-kicker {\n          color: #b8f5e8;" in source
     assert ".hero-kicker {\n          color: #b8f5e8;\n          font-size: 0.78rem;\n          font-weight: 850;\n          letter-spacing: 0.14em;\n        }" in source
     assert "A local, explainable research cockpit" not in source
-    assert "A local, explainable workflow" not in source
+    assert "A local, explainable command center" not in source
     assert "Research workflow only." not in source
 
 
@@ -1365,7 +1365,9 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
     lowered = html.lower()
 
     assert "command-topbar" in html
-    assert "Stock Research Command Center" in html
+    assert "Stock Research Guided Workflow" in html
+    assert "About this center" not in html
+    assert "How this works" in html
     assert "What can I use now?" in html
     assert "Data readiness first" in html
     assert "Readiness-gated coverage" in html
@@ -2481,7 +2483,8 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "if show_sidebar_operator_guides:" in source
     assert 'if not public_demo_mode and selected_page == "Data Health":' in source
     assert '"Data Health operator."' in source
-    assert "Use the command center and lane buttons on the page. Copy-only commands stay inside evidence drawers." in source
+    assert "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers." in source
+    assert "Use the command center and lane buttons" not in source
     assert 'st.expander("Help for using the app"' not in source
     assert 'st.expander("Help, commands, and paths"' not in source
     assert 'st.expander("Quick help and safe commands"' not in source
@@ -2624,7 +2627,8 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert details_drawer_index < next_proof_index < market_details_gate_index < market_expander_index < hidden_tables_note_index < legacy_tables_drawer_index < tabs_index
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Use only after the selected lane answer, lane evidence drawer, and last-resort diagnostic context do not answer the reviewer question." in source
-    assert "Data Health Command Center" in source
+    assert "Data Health Workspace" in source
+    assert "Data Health Command Center" not in source
     assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in console_source
     assert "Open the lane evidence drawer or diagnostic context above for proof tables. Actions, Coverage, Sources, Price Updates, and Import Checks stay in the Advanced operator evidence details drawer." in source
     assert 'if show_details:\n        with st.expander("Last-resort market review", expanded=False)' in source
@@ -3446,7 +3450,7 @@ def test_command_center_header_uses_semantic_product_heading():
     )
 
     assert "<header" in html
-    assert "<h1 class='command-title-v2'>Stock Research Command Center</h1>" in html
+    assert "<h1 class='command-title-v2'>Stock Research Guided Workflow</h1>" in html
     assert "<nav" in html
     assert "aria-label='Public workflow status'" in html
 
@@ -15020,7 +15024,8 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
 
     assert "latest lane proof" in rendered
     assert "evidence only" in rendered
-    assert "not another command center" in rendered
+    assert "not a second dashboard" in rendered
+    assert "not another command center" not in rendered
     assert "what this proves:" in rendered
     assert "what it does not prove:" in rendered
     assert "evidence review only:" in rendered
@@ -15991,7 +15996,7 @@ def test_proof_history_public_page_paints_first_answer_before_ledger_reads():
     render_index = source.index("def render_proof_history(")
 
     first_answer_index = source.index('"Evidence-only page."', render_index)
-    first_boundary_index = source.index("not another command center", first_answer_index)
+    first_boundary_index = source.index("not a second dashboard", first_answer_index)
     proof_timeline_index = source.index("proof_timeline = data_health_reviewed_proof_timeline_frame()", first_boundary_index)
     batch_frame_index = source.index("batch_proof_frame = data_health_reviewed_batch_proof_frame()", proof_timeline_index)
 
@@ -26142,7 +26147,8 @@ def test_data_health_operator_hero_is_context_not_duplicate_next_action():
         ]
     ).lower()
 
-    assert "data health command center" in html
+    assert "data health workspace" in html
+    assert "data health command center" not in html
     assert "readiness context" in html
     assert "source gate before proof loops" in html
     assert "advanced evidence details" in html

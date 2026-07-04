@@ -5182,7 +5182,7 @@ def data_health_operator_hero_html(snapshot_cards: list[dict[str, object]]) -> s
         "<div class='ops-hero-grid'>"
         "<div>"
         "<div class='ops-eyebrow'>Executive Snapshot</div>"
-        "<div class='ops-title'>Data Health Command Center</div>"
+        "<div class='ops-title'>Data Health Workspace</div>"
         f"<div class='ops-copy'>{html.escape(snapshot_body)}</div>"
         "<div class='ops-stat-strip'>"
         "<div class='ops-stat'>"
@@ -5277,7 +5277,7 @@ def command_center_header_html(
         "</div>"
         "<div class='command-top-right'>"
         "<a class='command-top-link' href='?mode=public&page=data-health' target='_self'>Data Health</a>"
-        "<span class='command-status-item command-about'>About this center</span>"
+        "<span class='command-status-item command-about'>How this works</span>"
         "</div>"
         "</nav>"
     )
@@ -5291,9 +5291,9 @@ def command_center_header_html(
         f"{topbar_html}"
         f"<div class='command-hero-v2{compact_class}'>"
         "<div class='command-hero-copy'>"
-        "<h1 class='command-title-v2'>Stock Research Command Center</h1>"
+        "<h1 class='command-title-v2'>Stock Research Guided Workflow</h1>"
         "<div class='command-subtitle-v2'>Data readiness first <span>&bull;</span> Research-only</div>"
-        "<div class='command-body-v2'>A local, explainable command center for deciding what can be used now. Start with readiness, open one ticker, and inspect proof only when a lane is blocked. Research-only review; no external account actions.</div>"
+        "<div class='command-body-v2'>A guided workflow for deciding what can be used now. Start with readiness, open one ticker, and inspect proof only when a lane is blocked. Research-only review; no external account actions.</div>"
         "</div>"
         "<div class='command-kpi-panel'>"
         f"<div class='command-kpi-grid'>{kpi_html}</div>"
@@ -11812,7 +11812,7 @@ def proof_history_public_detail_cards(
             "kicker": "PROOF HISTORY",
             "title": f"{proof_count} lane proof records",
             "body": (
-                "Evidence only; not another command center. "
+                "Evidence only; not a second dashboard. "
                 "What this proves: reviewed source-proof outcomes were recorded for specific lanes or batches. "
                 "What it does not prove: Proof History does not refresh data, apply imports, record outcomes, or unlock blocked inputs. "
                 "Evidence review only: read the latest lane and batch outcome, then open Data Health only if the evidence shows a remaining blocker. "
@@ -11840,7 +11840,7 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         render_context_note(
             "Evidence-only page.",
             (
-                "Use this after Data Health to verify reviewed outcomes; it is not another command center "
+                "Use this after Data Health to verify reviewed outcomes; it is not a second dashboard "
                 "and does not refresh data, apply imports, or unlock blocked inputs."
             ),
             tone="success",
@@ -27715,7 +27715,7 @@ def render_market_command_center(
         }
     render_section_header(
         "Readiness Guardrail Check",
-        "A compact check that the command center is still readiness-first, copy-only, row-limited, and data-honest.",
+        "A compact check that the workflow is still readiness-first, copy-only, row-limited, and data-honest.",
     )
     peer_studio_audit = build_peer_mapping_studio_frame(
         peer_readiness_frame,
@@ -30699,7 +30699,7 @@ def main() -> None:
         if not public_demo_mode and selected_page == "Data Health":
             render_context_note(
                 "Data Health operator.",
-                "Use the command center and lane buttons on the page. Copy-only commands stay inside evidence drawers.",
+                "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers.",
                 tone="success",
             )
         else:
@@ -30735,7 +30735,7 @@ def main() -> None:
         output_frames,
         compact=public_subpage_header or (selected_page == "Data Health" and not public_demo_mode),
     )
-    st.caption("Local stock research dashboard. Data readiness first; analysis only when source-backed inputs are ready.")
+    st.caption("Local stock research guided workflow. Data readiness first; analysis only when source-backed inputs are ready.")
     if public_demo_mode:
         render_public_workflow_header(selected_page)
 
