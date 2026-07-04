@@ -26196,6 +26196,46 @@ def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
     assert "broker" not in rendered
 
 
+def test_data_health_price_lane_uses_saved_project_status_counts(tmp_path: Path):
+    outputs_dir = tmp_path / "outputs"
+    outputs_dir.mkdir()
+    (outputs_dir / "project_status.json").write_text(
+        json.dumps(
+            {
+                "summary": {
+                    "tickers_total": 3538,
+                    "tickers_with_prices": 3538,
+                    "tickers_usable_for_momentum": 3535,
+                    "tickers_fundamentals_ready": 2808,
+                    "tickers_dcf_ready": 2691,
+                    "tickers_peer_ready": 29,
+                    "data_gaps": 207,
+                },
+                "recommended_next_command_rows": [
+                    {
+                        "Command": "make provider-setup-checklist",
+                        "Reason": "Current source-proof queues have no unreviewed executable company candidates.",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = dashboard.load_saved_project_status_payload(tmp_path)
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "prices",
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+        project_status_payload=payload,
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "3,538 tickers have price rows" in rendered
+    assert "0 tickers have price rows" not in rendered
+    assert "make " not in rendered
+    assert "not a recommendation" in rendered
+
+
 def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_exhausted():
     cards = dashboard.data_health_selected_lane_answer_cards(
         "fundamentals",

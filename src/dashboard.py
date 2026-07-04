@@ -8792,6 +8792,19 @@ def _cached_session_source_preflight_payload(root: Path | None = None) -> dict[s
     return payload if isinstance(payload, dict) else None
 
 
+def load_saved_project_status_payload(root: Path | None = None) -> dict[str, Any] | None:
+    """Load the latest saved project status without refreshing generated artifacts."""
+
+    path = (root or BASE_DIR) / "outputs" / "project_status.json"
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def _source_activation_free_tier_limit_summary(console: dict[str, object]) -> str:
     limits = console.get("free_tier_batch_limits", {})
     if not isinstance(limits, dict):
@@ -20663,11 +20676,11 @@ def data_health_selected_lane_answer_cards(
         or "project-status" in source_gate_command
     )
 
-    price_ready = int(summary.get("price_ready") or summary.get("tickers_with_prices") or 0)
-    fundamentals_ready = int(summary.get("fundamentals_ready") or summary.get("input_ready") or 0)
-    dcf_ready = int(summary.get("dcf_ready") or summary.get("operating_company_dcf_ready") or 0)
-    peer_ready = int(summary.get("peer_ready") or 0)
-    data_gaps = int(summary.get("data_gaps") or summary.get("locked_input_rows") or 0)
+    price_ready = _summary_count(summary, "price_ready", "tickers_with_prices")
+    fundamentals_ready = _summary_count(summary, "fundamentals_ready", "input_ready", "tickers_fundamentals_ready")
+    dcf_ready = _summary_count(summary, "dcf_ready", "operating_company_dcf_ready", "tickers_dcf_ready")
+    peer_ready = _summary_count(summary, "peer_ready", "tickers_peer_ready")
+    data_gaps = _summary_count(summary, "data_gaps", "locked_input_rows")
     freshness_status = public_status_label(str(readiness_freshness.status or "unknown")).lower()
 
     lane_answers = {
@@ -25286,6 +25299,8 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
 def _summary_count(summary: dict[str, object] | None, *keys: str) -> int:
     summary = summary or {}
     for key in keys:
+        if key not in summary or summary.get(key) in (None, ""):
+            continue
         try:
             return int(summary.get(key) or 0)
         except (TypeError, ValueError):
@@ -30574,7 +30589,7 @@ def main() -> None:
     if public_demo_mode:
         render_public_workflow_header(selected_page)
 
-    project_status_payload = None
+    project_status_payload = load_saved_project_status_payload(BASE_DIR)
 
     universe_summary = None
     if selected_page in {"Overview", "Universe Manager"}:
