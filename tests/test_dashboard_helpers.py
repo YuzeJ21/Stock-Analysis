@@ -10956,30 +10956,23 @@ def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_r
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
-        "RESEARCH LOOP",
         "SELECTED TICKER",
         "REVIEW NOW",
         "BLOCKED / EXCLUDED",
-        "REPORT HANDOFF",
-        "NEXT SAFE ACTION",
-        "STOP RULE",
+        "NEXT STEP",
     ]
-    assert "meta: review starting point" in rendered
-    assert "previous proof: home readiness snapshot plus selected-ticker data coverage" in rendered
-    assert "current step: decide what the selected ticker can support before opening the review" in rendered
-    assert "next safe action: data health fundamentals lane" in rendered
     assert "meta: price context ready; fundamentals gated" in rendered
+    assert "start here, then read the supported sections only" in rendered
     assert "local price context can be reviewed" in rendered
     assert "trusted fundamentals, shares, fcf, market cap, and valuation inputs remain source-proof work" in rendered
-    assert "open the review, then follow the locks" in rendered
-    assert "loop: select ticker, open the review, read supported sections" in rendered
-    assert "route any locked input to data health fundamentals lane" in rendered
     assert "data health fundamentals lane" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "does not run imports, refreshes, or proof writes" in rendered
-    assert "no trusted input, no conclusion" in rendered
+    assert "stop rule: stop if fundamentals, shares, market cap, fcf, or valuation inputs would be inferred" in rendered
     assert "fundamentals, shares, market cap, fcf, or valuation inputs would be inferred" in rendered
-    assert "not a recommendation or ranking" in rendered
+    assert "previous proof" not in rendered
+    assert "current step" not in rendered
+    assert "report handoff" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -11029,19 +11022,17 @@ def test_single_stock_pre_report_contract_cards_route_price_and_peer_gates():
     assert "make focus-price ticker=apld" in price_rendered
     assert "setup, trend, dcf, peer, optional context, and review metrics stay locked" in price_rendered
     assert "price rows are missing, stale, rejected, or not tied to the selected ticker" in price_rendered
-    assert "open the review, then follow the locks" in price_rendered
-    assert "next safe action: data health price lane" in price_rendered
+    assert "data health price lane" in price_rendered
+    assert "use this as the one next path for this ticker" in price_rendered
     assert "nvda: core inputs present; peer context gated" in peer_rendered
     assert "data health peers lane" in peer_rendered
-    assert "next safe action: data health peers lane" in peer_rendered
     assert "make focus-peers ticker=nvda" in peer_rendered
     assert "peer mappings or peer valuation inputs lack source-backed rows" in peer_rendered
-    assert "open the review, then follow the locks" in peer_rendered
     assert "crdo: ready to open the review" in ready_rendered
-    assert "next safe action: single-stock report" in ready_rendered
+    assert "single-stock report" in ready_rendered
     assert "make stock-report-md ticker=crdo" in ready_rendered
     assert "readiness changed after a local import, refresh, or proof update" in ready_rendered
-    assert "open the review, then follow the locks" in ready_rendered
+    assert "report handoff" not in ready_rendered
 
 
 def test_stock_report_workflow_fit_cards_route_price_setup_to_fundamentals_lane():
@@ -20158,8 +20149,8 @@ def test_roadmap_milestone_status_frame_keeps_trusted_data_gaps_honest():
     assert "3/3,538 peer-ready" in rendered
     assert "0/3,538 earnings-ready" in rendered
     assert "0/3,538 analyst-estimate-ready" in rendered
-    assert "operations cockpit" in rendered.lower()
-    assert "reviewed-batch packet path" in rendered
+    assert "guided lane answers" in rendered.lower()
+    assert "reviewed-batch packet paths" in rendered
     assert "counts should improve only after SEC staging workflow or trusted manual CSV imports" in rendered
     assert "empty optional context is intentional" in rendered
     assert "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10" in rendered

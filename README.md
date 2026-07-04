@@ -176,4 +176,4 @@ The app is organized around dashboard, readiness, decision, report, provider, lo
 
 ## Roadmap Snapshot
 
-The next product stage is not more indicators. It is a clearer research operations path: Data Health starts with a lane cockpit, readiness comparison proof, peer sub-state drilldown, reviewed-batch planning, reviewed-batch proof history, and readiness-gated review metric routing, while fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.
+The next product stage is not more indicators. It is a cleaner guided pilot path: each public page should answer one question first, show one primary next step, and keep proof ledgers, command blocks, route maps, and raw tables behind Advanced or Operator details. Data Health remains the repair surface for blocked lanes, but the public workflow should stay Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.

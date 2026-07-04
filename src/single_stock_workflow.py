@@ -661,20 +661,12 @@ def single_stock_pre_report_contract_cards(
 
     return [
         {
-            "kicker": "RESEARCH LOOP",
-            "title": f"{ticker_text}: review starting point",
-            "body": (
-                "Previous proof: Home readiness snapshot plus selected-ticker data coverage. "
-                "Current step: decide what the selected ticker can support before opening the review. "
-                f"Next safe action: {next_lane}. Stop rule: {stop_rule}"
-            ),
-            "badges": ["where am I", "proof first"],
-            "command": next_command,
-        },
-        {
             "kicker": "SELECTED TICKER",
             "title": f"{ticker_text}: {state_title}",
-            "body": f"{available_datasets} data source row(s) are present before the review opens. Peer mappings: {peer_count}.",
+            "body": (
+                f"{available_datasets} local data source row(s) are present before the review opens. "
+                f"Peer mappings: {peer_count}. Start here, then read the supported sections only."
+            ),
             "badges": ["selected ticker", "data coverage"],
             "command": _stock_report_md_command(ticker_text),
         },
@@ -691,27 +683,13 @@ def single_stock_pre_report_contract_cards(
             "badges": ["blocked visible", "no inference"],
         },
         {
-            "kicker": "REPORT HANDOFF",
-            "title": "Open the review, then follow the locks",
-            "body": (
-                "Loop: select ticker, open the review, read supported sections, then route any locked input "
-                f"to {next_lane} before returning after proof."
-            ),
-            "badges": ["one loop", "review first"],
-            "command": _stock_report_md_command(ticker_text),
-        },
-        {
-            "kicker": "NEXT SAFE ACTION",
+            "kicker": "NEXT STEP",
             "title": next_lane,
-            "body": "Use this as the next manual proof path. The dashboard does not run imports, refreshes, or proof writes.",
+            "body": (
+                f"Use this as the one next path for this ticker. Stop rule: {stop_rule} "
+                "The dashboard does not run imports, refreshes, or proof writes."
+            ),
             "badges": badges,
             "command": next_command,
-        },
-        {
-            "kicker": "STOP RULE",
-            "title": "No trusted input, no conclusion",
-            "body": f"{stop_rule} This is a handoff boundary, not a recommendation or ranking.",
-            "badges": ["research only", "blocked stays blocked"],
-            "command": "make readiness",
         },
     ]

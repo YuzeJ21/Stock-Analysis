@@ -26410,7 +26410,7 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
             {
                 "Roadmap Area": "Batch operations workflow",
                 "Current Status": "Implemented, proof-first",
-                "Evidence": "Data Health now opens with an operations cockpit, lane operations board, coverage frontier, reviewed proof timeline, and reviewed-batch packet path.",
+                "Evidence": "Data Health now starts with guided lane answers, then keeps coverage frontier, reviewed proof timeline, and reviewed-batch packet paths behind proof-first details.",
                 "Next Safe Step": "Inspect the lane frontier, then create a copy-only reviewed batch packet before any capped execution.",
                 "Copy Command": "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
             },

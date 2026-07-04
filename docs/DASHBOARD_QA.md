@@ -9,7 +9,7 @@ This file records lightweight browser QA evidence for public-facing dashboard po
 | `docs/assets/linkedin-public-dashboard.png` | Ready | GitHub/LinkedIn thumbnail from the real public dashboard. |
 | `docs/assets/public-demo-home-real.jpg` | Ready | README first-screen product preview. |
 | `docs/assets/operator-data-health-metrics-real.jpg` | Ready | Operator metrics lane proof that Data Health is readiness-gated and copy-only. |
-| `docs/assets/single-stock-workflow-fit-real.jpg` | Ready | Public single-stock workflow proof with selected-ticker readiness, report handoff, and stop rule. |
+| `docs/assets/single-stock-workflow-fit-real.jpg` | Ready | Public single-stock workflow proof with selected-ticker readiness, usable-now scope, blocked inputs, and one next step. |
 | `docs/assets/operator-data-health-proof-real.jpg` | Ready | Operator proof-lane screenshot showing progressive proof detail rather than raw tables first. |
 | `docs/assets/operator-data-health-queue-routing-real.jpg` | Ready | Operator queue drawer routing proof from source proof to comparison, proof record, and artifact hygiene. |
 

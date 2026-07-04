@@ -384,9 +384,9 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "browser qa evidence is product evidence only" in rendered
     assert "first 30 seconds" in rendered
     assert "single-stock workflow fit screenshot" in rendered
-    assert "before you open the review" in rendered
-    assert "report handoff" in rendered
-    assert "stop rule" in rendered
+    assert "review status" in rendered
+    assert "selected ticker" in rendered
+    assert "next step" in rendered
     assert "operator-data-health-proof-real.jpg" in rendered
     assert "route map" in rendered
     assert "artifact hygiene" in rendered
@@ -443,9 +443,9 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Next Data-Readiness Action" not in str(fast_view["First View Markers"])
     assert "first 30 seconds" in rendered
     assert "primary workflow" in rendered
-    assert "before you open the review" in rendered
-    assert "report handoff" in rendered
-    assert "stop rule" in rendered
+    assert "review status" in rendered
+    assert "selected ticker" in rendered
+    assert "next step" in rendered
     assert "proof lane shell" in rendered
     assert "intentionally deferred" in rendered
     assert "navigation-only" in rendered
@@ -491,8 +491,9 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "data health proof lane progressive load" in output
     assert "data health queue drawer routing" in output
     assert "first 30 seconds" in output
-    assert "before you open the review" in output
-    assert "report handoff" in output
+    assert "review status" in output
+    assert "selected ticker" in output
+    assert "next step" in output
     assert "readiness context" in output
     assert "next data-readiness action" not in output
     assert "does not unlock fundamentals" in output
