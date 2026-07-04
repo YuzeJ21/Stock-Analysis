@@ -98,9 +98,9 @@ def test_public_wording_scan_scope_is_public_but_not_tests_or_generated_csvs():
 def test_dashboard_preview_asset_uses_three_public_paths_in_order():
     svg = Path("docs/assets/dashboard-preview.svg").read_text(encoding="utf-8")
 
-    review_index = svg.index("Review one stock: make stock-report-md TICKER=NVDA")
-    improve_index = svg.index("Check data coverage: trusted-data candidate list")
-    proof_index = svg.index("Inspect proof: readiness snapshots and proof ledger")
+    review_index = svg.index("Single-Stock Report: one ticker at a time")
+    improve_index = svg.index("Data Health: lane answer before proof detail")
+    proof_index = svg.index("Proof History: evidence for changed states")
 
     assert review_index < improve_index < proof_index
     assert "Stock Research Command Center dashboard preview" in svg

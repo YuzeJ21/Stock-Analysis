@@ -78,11 +78,11 @@ Start with the five public paths the dashboard is built around:
 
 | Path | Use it when | First place to open |
 | --- | --- | --- |
-| Start at Home | You want the current local readiness snapshot, next safe action, and stop rule before choosing a route. | `Home` |
-| Explore ready names | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |
-| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |
-| Check data coverage | You want to understand what trusted input is missing and which proof path should be reviewed next. | `Data Health` |
-| Inspect proof | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |
+| Home | You want the current local readiness snapshot, next safe action, and stop rule before choosing a route. | `Home` |
+| Stock Selector | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |
+| Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |
+| Data Health | You want to understand what trusted input is missing and which proof path should be reviewed next. | `Data Health` |
+| Proof History | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |
 
 The dashboard starts in public visitor mode so people can follow the real workflow first: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence. Home now opens with the command-center shell, current readiness snapshot, research loop, next safe action, and stop rule. Stock Selector is the primary public stock-selection surface: it filters readiness-backed candidates, keeps blockers and proof steps visible, and links rows to `?mode=public&page=single-stock-report&ticker=NVDA&open=1` or the matching proof route without framing the queue as advice. Single-Stock Report shows selected-ticker readiness before the report button, then repeats the loop locally for the loaded ticker before detailed report sections; a focused Data Health handoff card names the matching lane answer for locked inputs, while read-only proof steps stay in collapsed proof detail. Data Health starts with Coverage Summary / What Can I Use, giving one clear answer per lane plus the blocker reason, proof needed to unlock, and stop rule before source-proof drawers or raw tables. Proof History evidence is the public proof-inspection surface before trusting a changed state. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public visitor mode in the sidebar when you want internal Operator context, detailed boards, and local proof commands. Focused public pages now cover Home, Stock Selector, Single-Stock Report, Data Health, and Proof History; advanced pages remain secondary, and watchlist-style outputs stay readiness-state output, not an action list.
 

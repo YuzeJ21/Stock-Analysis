@@ -67,7 +67,7 @@ def test_overview_public_visitor_path_cards_are_plain_language():
     )
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
-    assert [card[0] for card in cards] == ["Review one stock", "Check data coverage", "Inspect proof"]
+    assert [card[0] for card in cards] == ["Single-Stock Report", "Data Health", "Proof History"]
     assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Proof History"]
     assert "3,536 price-ready" in rendered
     assert "stop if source rows, freshness, or proof history are missing" in rendered

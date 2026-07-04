@@ -1393,17 +1393,19 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
 def test_command_center_loop_and_workbench_follow_reference_structure():
     rendered = dashboard.command_center_overview_html(
         {"master_universe": 5000, "price_ready": 4912, "dcf_ready": 4102, "peer_ready": 3043},
-        active_step="Explore ready names",
+        active_step="Stock Selector",
     )
 
     assert "The research loop" in rendered
     assert "research-loop-connector" in rendered
     assert "research-loop-glyph" in rendered
-    assert "Explore ready names" in rendered
-    assert "One-Ticker Review" in rendered
-    assert "Data Health (source-proof)" in rendered
-    assert "Value / Re-rating" in rendered
-    assert "Method Guardrails" in rendered
+    assert "Home" in rendered
+    assert "Stock Selector" in rendered
+    assert "Single-Stock Report" in rendered
+    assert "Data Health" in rendered
+    assert "Proof History" in rendered
+    assert "Value / Re-rating" not in rendered
+    assert "Method Guardrails" not in rendered
     assert "Proof History" in rendered
     assert "Next safe action" in rendered
     assert "Stop rule" in rendered
@@ -1891,10 +1893,10 @@ def test_research_cockpit_summary_cards_prioritize_future_selector_path():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["title"] for card in cards] == [
-        "Review one stock",
-        "Explore ready names",
-        "Check data coverage",
-        "Inspect proof",
+        "Single-Stock Report",
+        "Stock Selector",
+        "Data Health",
+        "Proof History",
     ]
     assert "stock selector" in rendered
     assert "filter readiness-backed candidates" in rendered
@@ -2215,7 +2217,7 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert health_title == "Data Health."
     assert "trusted inputs are missing" in health_body
     assert "proof path should be checked" in health_body
-    assert monthly_title == "Explore ready names."
+    assert monthly_title == "Monthly Picks."
     assert "data-gated candidate list" in monthly_body
     assert "refused to force weak or unsupported names" in monthly_body
     assert watchlist_title == "Read research states."
@@ -2439,12 +2441,11 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert '"Page to review"' not in source
     assert "Start with Home, then open one focused page" not in source
     assert "Operator commands." in source
-    assert "check data coverage" in source.lower()
+    assert "Open Data Health when you want to see the missing trusted input." in source
     assert "improve data coverage" not in source.lower()
     assert "Start with Home for the coverage snapshot." in source
-    assert "Review one stock when you want a ticker-level report." in source
-    assert "Check data coverage when you want to see the missing trusted input." in source
-    assert "Inspect proof before treating a changed readiness state as supported." in source
+    assert "Open Single-Stock Report when you want a ticker-level report." in source
+    assert "Open Proof History before treating a changed readiness state as supported." in source
     assert "Open Single-Stock Report to review one ticker." not in source
     assert "Open Data Health only when you want proof commands." not in source
     assert "Operator commands stay copy-only and hidden from the public path." in source
@@ -3136,9 +3137,9 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert workflow_index < price_refresh_index
     assert price_refresh_index < examples_index
     assert learn_more_index < examples_index < methodology_index < commands_index
-    assert '"Review one stock"' in source
-    assert '"Inspect proof"' in source
-    assert '"Check data coverage"' in source
+    assert '"Single-Stock Report"' in source
+    assert '"Proof History"' in source
+    assert '"Data Health"' in source
     assert "render_action_cards(_plain_home_route_choice_cards(summary))" in source
     assert '"Review current ideas"' not in source
     assert '"Improve missing data"' not in source
@@ -11807,7 +11808,7 @@ def test_data_health_public_visitor_path_cards_are_plain_language_without_comman
     )
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
-    assert [card[0] for card in cards] == ["Review one stock", "Check data coverage", "Inspect proof"]
+    assert [card[0] for card in cards] == ["Single-Stock Report", "Data Health", "Proof History"]
     assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Proof History"]
     assert cards[1][3] == "warning"
     assert "3,536 price-ready" in rendered
@@ -27118,13 +27119,13 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "valuation-style analysis" in rendered
     assert "make runbook-prices-broader" in rendered
     assert len(navigation_cards) == 4
-    assert "review one stock" in nav_rendered
+    assert "single-stock report" in nav_rendered
     assert "ready, blocked, excluded, or monitor-only" in nav_rendered
-    assert "explore ready names" in nav_rendered
+    assert "stock selector" in nav_rendered
     assert "filter readiness-backed candidates" in nav_rendered
-    assert "inspect proof" in nav_rendered
+    assert "proof history" in nav_rendered
     assert "readiness snapshots, reviewed batch packets, proof ledgers, and still-blocked fields" in nav_rendered
-    assert "check data coverage" in nav_rendered
+    assert "data health" in nav_rendered
     assert "improve data coverage" not in nav_rendered
     assert "blocking analysis" in nav_rendered
     assert "make status-check top_n=5" in rendered
@@ -27384,10 +27385,10 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert "Portfolio Review" in dashboard.ADVANCED_PAGE_TITLES
     assert "Universe Manager" in dashboard.ADVANCED_PAGE_TITLES
     assert [card[0] for card in dashboard.dashboard_navigation_cards()] == [
-        "Explore ready names",
-        "Review one stock",
-        "Check data coverage",
-        "Inspect proof",
+        "Stock Selector",
+        "Single-Stock Report",
+        "Data Health",
+        "Proof History",
     ]
     assert [card[2] for card in dashboard.dashboard_navigation_cards()] == [
         "Stock Selector",
@@ -27400,9 +27401,9 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
     assert dashboard.public_path_label("Home") == "Home"
     assert "Start at Home" not in navigation
-    assert "Review one stock" in navigation
-    assert "Inspect proof" in navigation
-    assert "Check data coverage" in navigation
+    assert "Review one stock" not in navigation
+    assert "Inspect proof" not in navigation
+    assert "Check data coverage" not in navigation
     assert "Improve data coverage" not in navigation
     assert "Single-Stock Report" in navigation
     assert "Data Health" in navigation

@@ -16,14 +16,14 @@ def test_readme_product_tour_matches_v1_public_route_model():
     readme = _read("README.md")
 
     assert "Start with the five public paths" in readme
-    assert "| Start at Home |" in readme
-    assert "| Explore ready names |" in readme
-    assert "| Review one stock |" in readme
-    assert "| Check data coverage |" in readme
-    assert "| Inspect proof |" in readme
-    assert "| Explore ready names | You want to filter readiness-backed candidates" in readme
-    assert "| Inspect proof | You want to see the proof ledger" in readme
-    assert "| Inspect proof |" in readme and "| `Proof History` |" in readme
+    assert "| Home |" in readme
+    assert "| Stock Selector |" in readme
+    assert "| Single-Stock Report |" in readme
+    assert "| Data Health |" in readme
+    assert "| Proof History |" in readme
+    assert "| Stock Selector | You want to filter readiness-backed candidates" in readme
+    assert "| Proof History | You want to see the proof ledger" in readme
+    assert "| Proof History |" in readme and "| `Proof History` |" in readme
     assert PUBLIC_V1_ROUTE in readme
     assert "Data Health source-proof lane" not in readme
     assert "Proof History is the public proof-inspection surface" not in readme

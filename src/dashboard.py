@@ -399,7 +399,7 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
         )
     if selected_page == "Monthly Picks":
         return (
-            "Explore ready names.",
+            "Monthly Picks.",
             "Use this page as a data-gated candidate list; empty slots mean the filters refused to force weak or unsupported names.",
         )
     if selected_page == "Final Watchlist":
@@ -5256,39 +5256,34 @@ def command_center_header_html(
 def command_center_loop_steps() -> list[dict[str, str]]:
     return [
         {
-            "name": "Explore ready names",
-            "body": "Filter readiness-backed candidates before opening a report.",
+            "name": "Home",
+            "body": "Start with the readiness snapshot and stop rule.",
             "glyph": "01",
         },
         {
-            "name": "One-Ticker Review",
-            "body": "Start with a single company research report.",
+            "name": "Stock Selector",
+            "body": "Filter readiness-backed candidates before opening a report.",
             "glyph": "02",
         },
         {
-            "name": "Data Health (source-proof)",
-            "body": "Check readiness, routing, and source coverage.",
+            "name": "Single-Stock Report",
+            "body": "Review one ticker's supported, blocked, and excluded sections.",
             "glyph": "03",
         },
         {
-            "name": "Value / Re-rating",
-            "body": "Run DCF, sensitivity, and scenario analysis only when ready.",
+            "name": "Data Health",
+            "body": "Check readiness, routing, and source coverage.",
             "glyph": "04",
         },
         {
-            "name": "Method Guardrails",
-            "body": "Confirm rules, limits, and quality discipline.",
-            "glyph": "05",
-        },
-        {
             "name": "Proof History",
-            "body": "Review actions and source-proof trail.",
-            "glyph": "06",
+            "body": "Review evidence before trusting changed readiness.",
+            "glyph": "05",
         },
     ]
 
 
-def command_center_loop_html(active_step: str = "Explore ready names") -> str:
+def command_center_loop_html(active_step: str = "Stock Selector") -> str:
     active = str(active_step or "").strip().lower()
     steps = command_center_loop_steps()
     step_html = "".join(
@@ -5311,7 +5306,7 @@ def command_center_loop_html(active_step: str = "Explore ready names") -> str:
     )
 
 
-def command_center_action_strip_html(summary: dict[str, object] | None, active_step: str = "Explore ready names") -> str:
+def command_center_action_strip_html(summary: dict[str, object] | None, active_step: str = "Stock Selector") -> str:
     summary = summary or {}
     dcf_ready = _summary_count(summary, "dcf_ready")
     peer_ready = _summary_count(summary, "peer_ready")
@@ -5378,12 +5373,12 @@ def command_center_workbench_html(summary: dict[str, object] | None) -> str:
     return (
         "<div class='command-workbench-grid'>"
         "<div class='command-workbench-card'>"
-        "<div class='command-workbench-title'>One-Ticker Review</div>"
+        "<div class='command-workbench-title'>Single-Stock Report</div>"
         "<div class='command-workbench-body'>Generate a local research report for a single company.</div>"
         f"<div class='command-mini-list'>{report_rows}</div>"
         "</div>"
         "<div class='command-workbench-card'>"
-        "<div class='command-workbench-title'>Data Health (source-proof)</div>"
+        "<div class='command-workbench-title'>Data Health</div>"
         "<div class='command-workbench-body'>Check what is ready, what is blocked, and why.</div>"
         f"<div class='command-mini-list'>{proof_rows}</div>"
         "</div>"
@@ -5400,7 +5395,7 @@ def command_center_workbench_html(summary: dict[str, object] | None) -> str:
 def command_center_overview_html(
     summary: dict[str, object] | None,
     *,
-    active_step: str = "Explore ready names",
+    active_step: str = "Stock Selector",
 ) -> str:
     return (
         command_center_loop_html(active_step)
@@ -5409,7 +5404,7 @@ def command_center_overview_html(
     )
 
 
-def render_command_center_overview(summary: dict[str, object] | None, *, active_step: str = "Explore ready names") -> None:
+def render_command_center_overview(summary: dict[str, object] | None, *, active_step: str = "Stock Selector") -> None:
     st.markdown(command_center_overview_html(summary, active_step=active_step), unsafe_allow_html=True)
 
 
@@ -21274,25 +21269,25 @@ def sidebar_guide_cards_html(rows: list[dict[str, str]], label_key: str, body_ke
 def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
     return [
         (
-            "Explore ready names",
+            "Stock Selector",
             "Filter readiness-backed candidates before choosing the next one-ticker review path.",
             "Stock Selector",
             "neutral",
         ),
         (
-            "Review one stock",
+            "Single-Stock Report",
             "Open a ticker-level report with ready, blocked, excluded, or monitor-only analysis.",
             "Single-Stock Report",
             "neutral",
         ),
         (
-            "Check data coverage",
+            "Data Health",
             "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
             "Data Health",
             "warning",
         ),
         (
-            "Inspect proof",
+            "Proof History",
             "Open readiness snapshots, reviewed batch packets, proof ledgers, and still-blocked fields before trusting a result.",
             "Proof History",
             "neutral",
@@ -21303,9 +21298,9 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
 def sidebar_quick_help_lines() -> list[str]:
     return [
         "Start with Home for the coverage snapshot.",
-        "Review one stock when you want a ticker-level report.",
-        "Check data coverage when you want to see the missing trusted input.",
-        "Inspect proof before treating a changed readiness state as supported.",
+        "Open Single-Stock Report when you want a ticker-level report.",
+        "Open Data Health when you want to see the missing trusted input.",
+        "Open Proof History before treating a changed readiness state as supported.",
         "Operator commands stay copy-only and hidden from the public path.",
     ]
 
@@ -25307,25 +25302,25 @@ def research_cockpit_summary_cards(summary: dict[str, object] | None = None) -> 
     return [
         {
             "kicker": "ONE-STOCK REVIEW",
-            "title": "Review one stock",
+            "title": "Single-Stock Report",
             "body": "Open a ticker only after readiness first tells you which analysis is supported, locked, or excluded.",
             "badges": ["one ticker", "readiness first"],
         },
         {
             "kicker": "STOCK SELECTOR",
-            "title": "Explore ready names",
+            "title": "Stock Selector",
             "body": f"Stock Selector can filter readiness-backed candidates before single-stock review. Current saved view has {price_ready:,} price-ready rows and {dcf_ready:,} DCF-ready rows.",
             "badges": ["research queue", "filter readiness-backed candidates"],
         },
         {
             "kicker": "DATA HEALTH",
-            "title": "Check data coverage",
+            "title": "Data Health",
             "body": f"Use Data Health when {blocked:,} row(s) still need proof before analysis or when a queue item explains a missing input.",
             "badges": ["proof before analysis", "trusted inputs"],
         },
         {
             "kicker": "EVIDENCE",
-            "title": "Inspect proof",
+            "title": "Proof History",
             "body": "Check latest proof before analysis changes become part of the research workflow.",
             "badges": ["proof before analysis", "source notes"],
         },
@@ -25887,7 +25882,7 @@ def stock_selector_next_reading_path_cards(
             "neutral",
         ),
         (
-            "Inspect proof history",
+            "Proof History",
             "Review durable proof rows before trusting changed readiness states.",
             "?mode=public&page=proof-history",
             "neutral",

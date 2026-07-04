@@ -718,7 +718,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Evaluation Snapshot",
         "Best Review Path",
         "At A Glance + Proof Checklist before tables",
-        "Inspect proof: readiness snapshots and proof ledger",
+        "Proof History: evidence for changed states",
         "Mode + decision",
         "DCF + peers",
         "What not to infer",
@@ -762,10 +762,10 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "Stock Selector is the primary public stock-selection surface" in readme
     assert "Use terminal commands only when you want to inspect the same proof artifacts locally." in readme
     assert "Optional local proof checks:" in readme
-    assert "| Start at Home | You want the current local readiness snapshot, next safe action, and stop rule before choosing a route. | `Home` |" in readme
-    assert "| Explore ready names | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |" in readme
-    assert "| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
-    assert "| Inspect proof | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |" in readme
+    assert "| Home | You want the current local readiness snapshot, next safe action, and stop rule before choosing a route. | `Home` |" in readme
+    assert "| Stock Selector | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |" in readme
+    assert "| Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
+    assert "| Proof History | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |" in readme
     assert "`Home`, then focused review pages" not in readme
     assert "The shortest public walkthrough is: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence" in readme
     assert "with NVDA, META, QQQ, MU, and CRDO available as optional state examples" in readme
@@ -1681,7 +1681,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "`docs/assets/operator-data-health-queue-routing-real.jpg`",
         "Screenshot evidence is product evidence only",
         "2026-06-07 Public Product Flow Pass",
-        "`Review one stock`, `Check data coverage`, and `Inspect proof`",
+        "`Stock Selector`, `Single-Stock Report`, `Data Health`, and `Proof History`",
         "trusted-data pilot path for improving 5-10 companies first",
         "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, then `Best Review Path`",
         "routes the DCF/peer-ready `NVDA` example to review DCF, peers, and source readiness",
@@ -1690,7 +1690,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "2026-06-10 Trusted Pilot Candidate UX Pass",
         "2026-06-11 Public Route Alignment Pass",
         "main navigation control reads `Choose your path`",
-        "`Review one stock`, `Check data coverage`, and `Inspect proof`",
+        "`Stock Selector`, `Single-Stock Report`, `Data Health`, and `Proof History`",
         "detailed pages remain available under `Optional research views`",
         "Automation Boundary table separates repeatable checks from human-reviewed source judgment",
         "demo walkthrough points visitors to `make project-status` first",
@@ -1702,8 +1702,8 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "`next-step context` instead of internal-tool operational wording",
         "prints a company starter set and separates `QQQ` / `SMH` as ETF/index monitor examples",
         "standalone DCF peer wording no longer repeats `DCF assumptions and sensitivity`",
-        "Product Tour routes `Inspect proof` to the Proof History route",
-        "Inspect proof: readiness snapshots and proof ledger",
+        "Product Tour routes `Proof History` to the Proof History route",
+        "Proof History: evidence for changed states",
         "generated Monthly Picks CSV remains local working output",
         "2026-06-11 Visitor Guide Browser Pass",
         "Monthly Picks: confirmed the page renders the new `Reader Guide`",

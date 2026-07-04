@@ -435,15 +435,15 @@ def public_visitor_path_cards(readiness_summary: dict[str, object]) -> list[tupl
         f"{dcf_ready:,} DCF-ready, and {peer_ready:,} peer-ready."
     )
     return [
-        ("Review one stock", review_body, "Single-Stock Report", "neutral"),
+        ("Single-Stock Report", review_body, "Single-Stock Report", "neutral"),
         (
-            "Check data coverage",
+            "Data Health",
             "You are here. Read Quick Read first; the public page shows what is ready, what is blocked, and which trusted-data lane needs attention next.",
             "Data Health",
             "warning",
         ),
         (
-            "Inspect proof",
+            "Proof History",
             "Use the latest reviewed evidence before treating a changed readiness state as supported. Stop if source rows, freshness, or proof history are missing. Operator detail stays behind deeper drawers by default.",
             "Proof History",
             "neutral",

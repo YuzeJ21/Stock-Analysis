@@ -50,7 +50,7 @@ Boundary checked:
 Checked by tests and local read-only commands:
 
 - Public Home: added a First 30 Seconds view before visitor path examples so a new viewer sees what the product does, how to read readiness, and when to stop.
-- Public Home later moved the route choice to a visible `Where To Go Next` block before optional workflow detail, so screenshot review should confirm the first path reads as product navigation rather than a command-heavy demo.
+- Public Home later moved route choices behind the clearer `Primary Workflow` and `Learn more` structure, so screenshot review should confirm the first path reads as page navigation rather than a command-heavy demo.
 - Single-Stock Report: added a compact current-step / next-safe-action / stop-rule loop before dense ticker details and added the same report-step cue to loaded reports.
 - Data Health queue drawers: added a navigation-only route map before the detailed lane drawers and action tables so operators see queue -> source proof -> comparison -> proof record -> artifact hygiene without jumping across sections.
 - Trusted Fundamentals / DCF source loop: added source-review route cards before the checklist table so source fields, guard, validate/preview, apply/skip, and proof-record boundaries stay in sequence.
@@ -182,7 +182,7 @@ Boundary checked:
 
 Checked pages:
 
-- Home: confirmed the visitor route shows `Review one stock`, `Check data coverage`, and `Inspect proof`, plus a trusted-data pilot path for improving 5-10 companies first.
+- Home: confirmed the visitor route shows `Stock Selector`, `Single-Stock Report`, `Data Health`, and `Proof History`, plus a trusted-data pilot path for improving 5-10 companies first.
 - Single-Stock Report: confirmed a local `NVDA` preview renders the visitor scan cue, `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, then `Best Review Path` before detailed tabs.
 
 Boundary checked:
@@ -239,8 +239,8 @@ Boundary checked:
 
 Checked pages and assets:
 
-- README: confirmed the Product Tour routes `Inspect proof` to the Proof History route.
-- Dashboard preview asset: confirmed the visual route copy now says `Inspect proof: readiness snapshots and proof ledger`.
+- README: confirmed the Product Tour routes `Proof History` to the Proof History route.
+- Dashboard preview asset: confirmed the visual route copy now says `Proof History: evidence for changed states`.
 - Public checks: confirmed `make public-check` passes after the route and preview alignment.
 
 Boundary checked:
