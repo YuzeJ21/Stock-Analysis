@@ -15108,12 +15108,17 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
 def test_proof_history_public_page_renders_first_answer_frame_before_ledger_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
-    first_answer_index = source.index('"Proof History First Answer"', render_index)
-    frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", first_answer_index)
+    next_function_index = source.index("\ndef ", render_index + 1)
+    proof_history_chunk = source[render_index:next_function_index]
+    first_answer_index = source.index('"Evidence-only page."', render_index)
+    cards_index = source.index("proof_history_public_detail_cards(proof_timeline, batch_proof_frame)", first_answer_index)
+    answer_table_index = source.index('st.expander("Advanced: proof answer table", expanded=False)', cards_index)
+    frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", answer_table_index)
     details_index = source.index('st.expander("Advanced: proof ledger details", expanded=False)', frame_index)
 
-    assert first_answer_index < frame_index < details_index
-    assert '"Proof History One Answer"' in source
+    assert first_answer_index < cards_index < answer_table_index < frame_index < details_index
+    assert '"Proof History First Answer"' not in proof_history_chunk
+    assert '"Proof History One Answer"' not in proof_history_chunk
 
 
 def test_reviewed_batch_execution_checklist_covers_lane_to_ledger_loop():
@@ -15968,14 +15973,12 @@ def test_proof_history_public_page_paints_first_answer_before_ledger_reads():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
 
-    header_index = source.index("render_section_header(", render_index)
-    first_answer_index = source.index('"Proof History First Answer"', header_index)
-    first_cards_index = source.index("render_signal_cards(", first_answer_index)
+    first_answer_index = source.index('"Evidence-only page."', render_index)
     first_boundary_index = source.index("not another command center", first_answer_index)
-    proof_timeline_index = source.index("proof_timeline = data_health_reviewed_proof_timeline_frame()", first_cards_index)
+    proof_timeline_index = source.index("proof_timeline = data_health_reviewed_proof_timeline_frame()", first_boundary_index)
     batch_frame_index = source.index("batch_proof_frame = data_health_reviewed_batch_proof_frame()", proof_timeline_index)
 
-    assert render_index < header_index < first_answer_index < first_cards_index < first_boundary_index < proof_timeline_index < batch_frame_index
+    assert render_index < first_answer_index < first_boundary_index < proof_timeline_index < batch_frame_index
 
 
 def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():

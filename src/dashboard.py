@@ -11818,48 +11818,41 @@ def proof_history_public_detail_cards(
 
 
 def render_proof_history(*, public_mode: bool = True) -> None:
-    render_section_header(
-        PROOF_HISTORY_PATH_TITLE,
-        "Review source-proof trail and durable batch proof before trusting changed readiness states.",
-    )
     if public_mode:
-        render_section_header(
-            "Proof History First Answer",
-            "Evidence-only trail first; reviewed proof ledgers load below and do not refresh or unlock data.",
+        render_context_note(
+            "Evidence-only page.",
+            (
+                "Use this after Data Health to verify reviewed outcomes; it is not another command center "
+                "and does not refresh data, apply imports, or unlock blocked inputs."
+            ),
+            tone="success",
         )
-        render_signal_cards(
-            [
-                {
-                    "kicker": "EVIDENCE ONLY",
-                    "title": "Use this after Data Health",
-                    "body": (
-                        "Proof History shows reviewed outcomes for source-proof work; it is not another command center. "
-                        "It does not run refreshes, apply imports, or turn blocked inputs into usable analysis."
-                    ),
-                    "badges": ["review trail", "no data writes"],
-                    "command": "",
-                }
-            ],
-            show_commands=False,
-            variant="queue",
+    else:
+        render_section_header(
+            PROOF_HISTORY_PATH_TITLE,
+            "Review source-proof trail and durable batch proof before trusting changed readiness states.",
         )
     proof_timeline = data_health_reviewed_proof_timeline_frame()
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
-    render_section_header(
-        "Proof History One Answer",
-        "Supported outcome, remaining blocker or context-only state, evidence location, and next safe action before ledger details.",
-    )
-    st.table(clean_display_frame(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)))
-    st.markdown(
-        proof_history_public_summary_html(proof_timeline, batch_proof_frame),
-        unsafe_allow_html=True,
-    )
-    render_context_note(
-        "Evidence only.",
-        "Proof History records data-readiness evidence. It is not performance reporting, investment advice, or an account-action surface.",
-        tone="success",
-    )
     render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
+    if public_mode:
+        with st.expander("Advanced: proof answer table", expanded=False):
+            st.table(clean_display_frame(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)))
+            st.markdown(
+                proof_history_public_summary_html(proof_timeline, batch_proof_frame),
+                unsafe_allow_html=True,
+            )
+    else:
+        st.table(clean_display_frame(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)))
+        st.markdown(
+            proof_history_public_summary_html(proof_timeline, batch_proof_frame),
+            unsafe_allow_html=True,
+        )
+        render_context_note(
+            "Evidence only.",
+            "Proof History records data-readiness evidence. It is not performance reporting, investment advice, or an account-action surface.",
+            tone="success",
+        )
     with st.expander("Advanced: proof ledger details", expanded=False):
         render_section_header("Reviewed Data Proof Ledger", "Durable lane proof rows, not generated CSV churn.")
         if proof_timeline.empty:
