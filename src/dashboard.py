@@ -28101,10 +28101,10 @@ def render_data_health(
     )
     st.table(clean_display_frame(overview_console.lane_answer_frame(ops_center)))
     source_gate_next_action = data_health_source_gate_next_action(project_status_payload)
-    with st.expander("Optional coverage summary details", expanded=False):
+    with st.expander("Advanced: operator coverage summary details", expanded=False):
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
     render_data_health_operator_hero(operator_snapshot_cards)
-    with st.expander("Optional lane navigation details", expanded=False):
+    with st.expander("Advanced: operator lane navigation details", expanded=False):
         render_data_health_operator_queue_header()
         render_data_health_operator_lane_nav(selected_lane_key)
     render_research_loop_strip(
@@ -28134,7 +28134,7 @@ def render_data_health(
         metric_detail_status=metric_detail_status,
         source_gate_next_action=source_gate_next_action,
     )
-    with st.expander("Optional scope and risk context", expanded=False):
+    with st.expander("Advanced: operator scope and risk context", expanded=False):
         render_section_header(
             "Scope Before Risk Context",
             "Choose scope before source setup reruns, risk context, or broad proof queues.",
@@ -28158,7 +28158,7 @@ def render_data_health(
         "What can run now, what setup could change the gate, what should not be retried, and the review boundary before provider details.",
     )
     st.table(clean_display_frame(data_health_provider_setup_first_answer_frame(BASE_DIR)))
-    with st.expander("Optional source setup details", expanded=False):
+    with st.expander("Advanced: operator source setup details", expanded=False):
         source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)
         if source_exhaustion_pivot_cards:
             render_section_header(
@@ -28285,7 +28285,7 @@ def render_data_health(
         data_coverage_proof_queues,
         output_path=DEFAULT_PACKET_PATH,
     )
-    with st.expander("Optional next-action details", expanded=False):
+    with st.expander("Advanced: operator next-action details", expanded=False):
         render_section_header(
             "Secondary Review Cue",
             "Optional operator detail after the selected lane answer; use it only when a reviewer asks for the underlying queue row.",
@@ -28332,7 +28332,7 @@ def render_data_health(
         output_path=DEFAULT_PACKET_PATH,
     )
     controlled_pilot_outcome = data_health_controlled_pilot_outcome_frame(batch_proof_summary_frame)
-    with st.expander("Optional pilot/share details", expanded=False):
+    with st.expander("Advanced: pilot/share details", expanded=False):
         render_section_header(
             "Readiness Lane Snapshot",
             "Post-price bottlenecks before single-stock reports or raw proof tables.",
@@ -28361,8 +28361,8 @@ def render_data_health(
             show_commands=False,
             variant="queue",
         )
-        with st.expander("Pilot/share reviewed evidence drawer", expanded=False):
-            with st.expander("Pilot/share detailed review workflow", expanded=False):
+        with st.expander("Advanced: pilot/share reviewed evidence drawer", expanded=False):
+            with st.expander("Advanced: pilot/share detailed review workflow", expanded=False):
                 render_section_header(
                     "Pilot Operator Runbook",
                     "Share gate, source gate, provider setup, reviewed one-ticker smoke command, validate/preview, packet, and hygiene in one compact path.",

@@ -2598,7 +2598,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     console_source = Path("src/data_health_console.py").read_text(encoding="utf-8")
 
     hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)")
-    lane_nav_drawer_index = source.index('st.expander("Optional lane navigation details", expanded=False)', hero_index)
+    lane_nav_drawer_index = source.index('st.expander("Advanced: operator lane navigation details", expanded=False)', hero_index)
     queue_index = source.index("render_data_health_operator_queue_header()", lane_nav_drawer_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', lane_selector_index)
@@ -15229,7 +15229,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     current_mode_index = source.index("render_data_health_current_mode_strip(", lane_selector_index)
     secondary_readiness_gate_index = source.index(
-        'st.expander("Optional pilot/share details", expanded=False)',
+        'st.expander("Advanced: pilot/share details", expanded=False)',
         current_mode_index,
     )
     lane_snapshot_index = source.index(
@@ -15267,7 +15267,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     generated_artifact_detail_index = source.index("data_health_generated_churn_detail_frame(base_dir)", generated_artifact_frame_index)
     pilot_share_gate_index = source.index('render_section_header(\n            "Pilot Share Answer"', readiness_queue_cards_index)
     pilot_share_evidence_drawer_index = source.index(
-        'st.expander("Pilot/share reviewed evidence drawer", expanded=False)',
+        'st.expander("Advanced: pilot/share reviewed evidence drawer", expanded=False)',
         pilot_share_gate_index,
     )
     queue_detail_selector_index = source.index('label="Readiness queue detail level"', readiness_queue_cards_index)
@@ -15927,7 +15927,7 @@ def test_data_health_operator_renders_structured_lane_answer_before_detail_drawe
 
     selected_lane_index = source.index('"Selected Lane Answer"')
     lane_answer_index = source.index("lane_answer_frame(ops_center)", selected_lane_index)
-    queue_details_index = source.index('"Optional lane navigation details"', selected_lane_index)
+    queue_details_index = source.index('"Advanced: operator lane navigation details"', selected_lane_index)
 
     assert selected_lane_index < lane_answer_index < queue_details_index
     assert '"One Answer Per Lane"' in source
@@ -19752,7 +19752,7 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
         public_return_index,
     )
     operator_coverage_expander_index = source.index(
-        'st.expander("Optional coverage summary details", expanded=False)',
+        'st.expander("Advanced: operator coverage summary details", expanded=False)',
         public_return_index,
     )
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", operator_coverage_index)
@@ -19761,11 +19761,11 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     assert public_return_index < operator_coverage_expander_index < operator_coverage_index < ops_index
     assert '"Coverage Summary / What Can I Use?"' in source
     assert 'st.expander("Advanced: coverage lane details", expanded=False)' in source
-    source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', ops_index)
+    source_details_index = source.index('st.expander("Advanced: operator source setup details", expanded=False)', ops_index)
     auto_refresh_index = source.index('render_section_header(\n            "Auto Refresh Status"', source_details_index)
     source_setup_index = source.index('render_section_header(\n            "Source Setup Guide"', auto_refresh_index)
     source_guidance_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_setup_index)
-    next_action_index = source.index('st.expander("Optional next-action details", expanded=False)', source_guidance_index)
+    next_action_index = source.index('st.expander("Advanced: operator next-action details", expanded=False)', source_guidance_index)
 
     assert ops_index < source_details_index < auto_refresh_index < source_setup_index < source_guidance_index < next_action_index
     assert 'st.expander("Source setup and refresh details", expanded=False)' not in source
@@ -19829,7 +19829,7 @@ def test_data_health_operator_surfaces_scope_risk_pivot_before_source_setup():
 
     public_return_index = source.index("        return\n    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
     mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
-    scope_details_index = source.index('st.expander("Optional scope and risk context", expanded=False)', mode_strip_index)
+    scope_details_index = source.index('st.expander("Advanced: operator scope and risk context", expanded=False)', mode_strip_index)
     scope_header_index = source.index('render_section_header(\n            "Scope Before Risk Context"', scope_details_index)
     scope_cards_index = source.index(
         "universe_scope_risk_handoff_cards(readiness_summary, ticker_readiness_frame)",
@@ -19839,7 +19839,7 @@ def test_data_health_operator_surfaces_scope_risk_pivot_before_source_setup():
     risk_header_index = source.index('render_section_header(\n            "Risk Context Readiness"', scope_command_visibility_index)
     risk_cards_index = source.index("data_health_risk_context_cards(liquidity_frame, correlation_frame)", risk_header_index)
     risk_command_visibility_index = source.index("show_commands=False", risk_cards_index)
-    source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', risk_command_visibility_index)
+    source_details_index = source.index('st.expander("Advanced: operator source setup details", expanded=False)', risk_command_visibility_index)
 
     assert mode_strip_index < scope_details_index < scope_header_index < scope_cards_index
     assert scope_cards_index < scope_command_visibility_index < risk_header_index < risk_cards_index
@@ -19868,7 +19868,7 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     commit_frame_index = source.index("pilot_commit_package = data_health_pilot_commit_package_frame", handoff_frame_index)
     packaging_frame_index = source.index("pilot_packaging_summary = data_health_pilot_packaging_summary_frame")
     secondary_readiness_gate_index = source.index(
-        'st.expander("Optional pilot/share details", expanded=False)',
+        'st.expander("Advanced: pilot/share details", expanded=False)',
         packaging_frame_index,
     )
     share_answer_header_index = source.index('render_section_header(\n            "Pilot Share Answer"', secondary_readiness_gate_index)
@@ -19877,10 +19877,10 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     share_gate_summary_cards_index = source.index("data_health_pilot_handoff_summary_cards(pilot_handoff_summary)", share_answer_header_index)
     share_gate_summary_commands_index = source.index("show_commands=False", share_gate_summary_cards_index)
     reviewed_evidence_drawer_index = source.index(
-        'st.expander("Pilot/share reviewed evidence drawer", expanded=False)',
+        'st.expander("Advanced: pilot/share reviewed evidence drawer", expanded=False)',
         share_gate_summary_commands_index,
     )
-    detailed_review_workflow_index = source.index('st.expander("Pilot/share detailed review workflow", expanded=False)', reviewed_evidence_drawer_index)
+    detailed_review_workflow_index = source.index('st.expander("Advanced: pilot/share detailed review workflow", expanded=False)', reviewed_evidence_drawer_index)
     operator_runbook_header_index = source.index('"Pilot Operator Runbook"', detailed_review_workflow_index)
     operator_runbook_cards_index = source.index("data_health_pilot_operator_runbook_cards(pilot_operator_runbook)", operator_runbook_header_index)
     operator_runbook_commands_index = source.index("show_commands=False", operator_runbook_cards_index)
@@ -19956,7 +19956,7 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     assert "One compact pilot/share answer before runbooks, packets, commit package, or raw release tables." in source
     assert "Pilot Share First Answer" in source
     assert "Share status, sync, public-check, browser evidence, generated churn, license boundary, source blocker, and next packet before release details." in source
-    assert "Pilot/share reviewed evidence drawer" in source
+    assert "Advanced: pilot/share reviewed evidence drawer" in source
     assert "Can share, manual gates, generated-churn boundary, license boundary, and next safe packet command before release details." in source
     assert "Release evidence, final gate, workflow continuity, commit package, packaging summary, walkthrough, and packet detail stay here." in source
     assert "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables." in source
@@ -19974,8 +19974,8 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
 def test_pilot_share_evidence_drawer_nests_detailed_review_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    drawer_index = source.index('st.expander("Pilot/share reviewed evidence drawer", expanded=False)')
-    detailed_workflow_index = source.index('st.expander("Pilot/share detailed review workflow", expanded=False)', drawer_index)
+    drawer_index = source.index('st.expander("Advanced: pilot/share reviewed evidence drawer", expanded=False)')
+    detailed_workflow_index = source.index('st.expander("Advanced: pilot/share detailed review workflow", expanded=False)', drawer_index)
     operator_runbook_index = source.index('"Pilot Operator Runbook"', detailed_workflow_index)
     evidence_detail_index = source.index('"Evidence Review Detail"', operator_runbook_index)
     final_gate_index = source.index('"Final Share Gate Detail"', evidence_detail_index)
@@ -26290,12 +26290,12 @@ def test_data_health_source_readiness_guidance_renders_before_operator_next_acti
     research_loop_source_gate_index = source.index("source_gate_next_action=source_gate_next_action", research_loop_next_action_index)
     mode_strip_index = source.index("render_data_health_current_mode_strip(", public_return_index)
     mode_strip_source_gate_index = source.index("source_gate_next_action=source_gate_next_action", mode_strip_index)
-    source_details_index = source.index('st.expander("Optional source setup details", expanded=False)', mode_strip_index)
+    source_details_index = source.index('st.expander("Advanced: operator source setup details", expanded=False)', mode_strip_index)
     source_pivot_index = source.index('"Source-Proof Pivot"', source_details_index)
     source_pivot_cards_index = source.index("render_signal_cards(source_exhaustion_pivot_cards", source_pivot_index)
     guidance_header_index = source.index('render_section_header(\n            "Source Readiness Guidance"', source_details_index)
     guidance_cards_index = source.index("data_health_source_readiness_guidance_cards(", guidance_header_index)
-    next_action_index = source.index('st.expander("Optional next-action details", expanded=False)', guidance_cards_index)
+    next_action_index = source.index('st.expander("Advanced: operator next-action details", expanded=False)', guidance_cards_index)
 
     assert lane_answer_index < lane_answer_cards_index < source_gate_action_index < research_loop_index
     assert research_loop_index < research_loop_next_action_index < research_loop_source_gate_index < mode_strip_index
@@ -26315,7 +26315,7 @@ def test_data_health_secondary_operator_action_is_collapsed_after_lane_answer():
 
     public_return_index = source.index("        return\n    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
     lane_answer_index = source.index('render_section_header(\n        "Selected Lane Answer"', public_return_index)
-    secondary_expander_index = source.index('st.expander("Optional next-action details", expanded=False)', lane_answer_index)
+    secondary_expander_index = source.index('st.expander("Advanced: operator next-action details", expanded=False)', lane_answer_index)
     secondary_header_index = source.index('render_section_header(\n            "Secondary Review Cue"', secondary_expander_index)
     next_action_cards_index = source.index(
         "data_health_operator_next_action_summary_cards(operator_next_action_summary)",
@@ -27777,7 +27777,7 @@ def test_data_health_operator_route_shows_selected_lane_answer_before_broad_summ
     )
     coverage_summary_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", operator_index)
     operator_hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", coverage_summary_index)
-    lane_nav_drawer_index = source.index('st.expander("Optional lane navigation details", expanded=False)', operator_hero_index)
+    lane_nav_drawer_index = source.index('st.expander("Advanced: operator lane navigation details", expanded=False)', operator_hero_index)
     queue_header_index = source.index("render_data_health_operator_queue_header()", lane_nav_drawer_index)
 
     assert operator_index < selected_answer_header_index < selected_answer_cards_index < one_answer_header_index
