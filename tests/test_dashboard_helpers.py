@@ -27680,7 +27680,7 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert '"Generated status may be stale"' in source
 
 
-def test_public_subpages_use_compact_header_before_page_content():
+def test_public_pages_use_compact_shell_before_page_content():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "def dashboard_output_frames_for_page(" in source
@@ -27692,9 +27692,9 @@ def test_public_subpages_use_compact_header_before_page_content():
     assert "if selected_page in {\"Data Health\", PROOF_HISTORY_PATH_TITLE}:" in source
     assert "return {}" in source[source.index("def dashboard_output_frames_for_page(") : output_frames_index]
 
-    assert 'public_subpage_header = public_demo_mode and selected_page != "Home"' in source
+    assert "public_page_header = public_demo_mode" in source
     assert (
-        'compact=public_subpage_header or (selected_page == "Data Health" and not public_demo_mode)'
+        'compact=public_page_header or (selected_page == "Data Health" and not public_demo_mode)'
         in source
     )
     assert "render_app_header(\n        catalog,\n        output_frames," in source

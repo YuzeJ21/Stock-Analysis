@@ -30762,12 +30762,12 @@ def main() -> None:
     if bootstrap_placeholder is not None:
         bootstrap_placeholder.empty()
     output_frames = dashboard_output_frames_for_page(selected_page)
-    public_subpage_header = public_demo_mode and selected_page != "Home"
+    public_page_header = public_demo_mode
     # Compatibility marker for older source-contract tests: render_app_header(catalog, output_frames, compact=selected_page == "Data Health" and not public_demo_mode)
     render_app_header(
         catalog,
         output_frames,
-        compact=public_subpage_header or (selected_page == "Data Health" and not public_demo_mode),
+        compact=public_page_header or (selected_page == "Data Health" and not public_demo_mode),
     )
     st.caption("Local stock research guided workflow. Data readiness first; analysis only when source-backed inputs are ready.")
     if public_demo_mode:
