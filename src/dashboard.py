@@ -28250,15 +28250,16 @@ def render_data_health(
         show_commands=False,
         variant="queue",
     )
-    render_section_header(
-        "One Answer Per Lane",
-        "One row per lane: usable now, blocked, context-only, excluded, and boundary before detailed operations.",
-    )
-    st.table(clean_display_frame(overview_console.lane_answer_frame(ops_center)))
     source_gate_next_action = data_health_source_gate_next_action(project_status_payload)
     with st.expander("Advanced: operator coverage summary details", expanded=False):
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
     render_data_health_operator_hero(operator_snapshot_cards)
+    with st.expander("Advanced: all lane answers table", expanded=False):
+        render_section_header(
+            "One Answer Per Lane",
+            "One row per lane: usable now, blocked, context-only, excluded, and boundary before detailed operations.",
+        )
+        st.table(clean_display_frame(overview_console.lane_answer_frame(ops_center)))
     with st.expander("Advanced: operator lane navigation details", expanded=False):
         render_data_health_operator_queue_header()
         render_data_health_operator_lane_nav(selected_lane_key)
