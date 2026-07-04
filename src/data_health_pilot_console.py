@@ -757,7 +757,7 @@ def pilot_evidence_review_cards(frame: pd.DataFrame | None, *, limit: int = 6) -
             "kicker": "PILOT EVIDENCE REVIEW",
             "title": "Screenshots, packet, public gate, churn, and source proof in one place",
             "body": (
-                "Use this review strip before opening raw tables. It does not refresh data, apply imports, "
+                "Use this review strip before opening advanced evidence details. It does not refresh data, apply imports, "
                 "record proof rows, stage files, commit, push, or unlock blocked inputs."
             ),
             "badges": ["review first", "copy-only"],
@@ -1143,7 +1143,7 @@ def data_health_workflow_continuity_frame(
             "Primary View": "Readiness Context",
             "Next Safe Action": gate_command,
             "Route": "?mode=operator&page=data-health",
-            "Stop Rule": "Do not jump to raw tables before the current gate is understood.",
+            "Stop Rule": "Do not open advanced evidence details before the current gate is understood.",
         },
         {
             "Step": "4. Selected lane evidence drawer",
@@ -1187,7 +1187,7 @@ def data_health_workflow_continuity_cards(frame: pd.DataFrame | None, *, limit: 
             {
                 "kicker": "DATA HEALTH FLOW",
                 "title": "Load operator workflow",
-                "body": "Load pilot evidence, share gate, queue route, proof lane, and artifact hygiene before raw tables.",
+                "body": "Load pilot evidence, share gate, queue route, proof lane, and artifact hygiene before advanced evidence details.",
                 "badges": ["read-only", "operator flow"],
                 "command": "make pilot-readiness-check TOP_N=10",
             }
@@ -1199,7 +1199,7 @@ def data_health_workflow_continuity_cards(frame: pd.DataFrame | None, *, limit: 
             "title": "One operator path, then drawers",
             "body": (
                 "Follow evidence review -> final share gate -> readiness context -> selected lane evidence drawer -> "
-                "proof lane -> artifact hygiene before opening raw tables. Commands remain copy-only."
+                "proof lane -> artifact hygiene before opening advanced evidence details. Commands remain copy-only."
             ),
             "badges": ["one flow", "drawers later"],
             "command": "make pilot-readiness-check TOP_N=10",
@@ -1316,7 +1316,7 @@ def pilot_operator_runbook_cards(frame: pd.DataFrame | None, *, limit: int = 6) 
             "kicker": "PILOT OPERATOR RUNBOOK",
             "title": "One path across share and source gates",
             "body": (
-                "Connect share-readiness, provider setup, and exhausted proof queues before raw tables. "
+                "Connect share-readiness, provider setup, and exhausted proof queues before advanced evidence details. "
                 "Do not reopen broad proof loops; move through a reviewed one-ticker smoke command, validate / preview, packet, and hygiene."
             ),
             "badges": ["share gate", "source gate", "copy-only"],
@@ -1427,7 +1427,7 @@ def pilot_reviewer_walkthrough_cards(frame: pd.DataFrame | None, *, limit: int =
             {
                 "kicker": "PILOT REVIEWER PATH",
                 "title": "Run the pilot gate first",
-                "body": "Load the pilot checklist and source-proof queues before opening raw tables or sharing a pilot link.",
+                "body": "Load the pilot checklist and source-proof queues before opening advanced evidence details or sharing a pilot link.",
                 "badges": ["read-only", "copy-only"],
                 "command": "make pilot-readiness-check TOP_N=10",
             }
@@ -1435,7 +1435,7 @@ def pilot_reviewer_walkthrough_cards(frame: pd.DataFrame | None, *, limit: int =
     cards: list[dict[str, object]] = [
         {
             "kicker": "PILOT REVIEWER PATH",
-            "title": "One compact path before raw tables",
+            "title": "One compact path before advanced evidence details",
             "body": (
                 "Reviewer flow: confirm pilot gate, inspect the leading source-proof blocker, write the packet, "
                 "then run public-check. Commands stay copy-only and broad generated churn stays excluded."
@@ -1544,7 +1544,7 @@ def operator_next_action_summary_cards(frame: pd.DataFrame | None, *, limit: int
             {
                 "kicker": "NEXT ACTION",
                 "title": "Run pilot readiness check",
-                "body": "Load pilot gate and source-proof status before opening raw tables or data-changing workflows.",
+                "body": "Load pilot gate and source-proof status before opening advanced evidence details or data-changing workflows.",
                 "badges": ["read-only", "research-only"],
                 "command": "make pilot-readiness-check TOP_N=10",
             }
@@ -1603,7 +1603,7 @@ def pilot_reviewer_walkthrough_strip_html(frame: pd.DataFrame | None, *, limit: 
         "<div class='pilot-flow'>"
         "<div class='pilot-flow-head'>"
         "<div class='pilot-flow-kicker'>Pilot workflow</div>"
-        "<div class='pilot-flow-summary'>Gate, proof focus, packet, and public-check before raw tables.</div>"
+        "<div class='pilot-flow-summary'>Gate, proof focus, packet, and public-check before advanced evidence details.</div>"
         "</div>"
         "<div class='pilot-flow-grid'>"
         + "".join(steps)

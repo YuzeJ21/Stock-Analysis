@@ -124,7 +124,8 @@ def test_pilot_reviewer_walkthrough_strip_is_compact_and_safe():
 
     assert "pilot-flow" in rendered
     assert "pilot workflow" in rendered
-    assert "gate, proof focus, packet, and public-check before raw tables" in rendered
+    assert "gate, proof focus, packet, and public-check before advanced evidence details" in rendered
+    assert "raw tables" not in rendered
     assert "trusted fundamentals proof queue" in rendered
     assert "make pilot-readiness-packet" in rendered
     assert "make public-check" in rendered
@@ -553,7 +554,8 @@ def test_data_health_workflow_continuity_cards_hide_route_map_language():
 
     assert "selected lane evidence drawer" in rendered
     assert "route map" not in rendered
-    assert "raw tables" in rendered
+    assert "advanced evidence details" in rendered
+    assert "raw tables" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

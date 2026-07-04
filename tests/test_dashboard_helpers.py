@@ -20016,11 +20016,13 @@ def test_data_health_pilot_share_gate_collapses_release_sections_into_one_summar
     assert "Release evidence, final gate, workflow continuity, commit package, packaging summary, walkthrough, and packet detail stay here." in source
     assert "Screenshots, reviewer packet, public-check boundary, generated-churn policy, and source-proof blocker before detailed pilot tables." in source
     assert "Sync, public-check, screenshot evidence, generated-churn exclusion, pilot packet, and research-only boundary before GitHub or LinkedIn sharing." in source
-    assert "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables." in source
+    assert "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before advanced evidence details." in source
+    assert "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables." not in source
     assert "Share gate, source gate, provider setup, reviewed one-ticker smoke command, validate/preview, packet, and hygiene in one compact path." in source
     assert "data_health_pilot_operator_runbook_cards(pilot_operator_runbook)" in source
     assert "data_health_pilot_handoff_summary_cards(pilot_handoff_summary)" in source
-    assert "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers." in source
+    assert "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before advanced proof evidence." in source
+    assert "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers." not in source
     assert "Copy-only product staging, staged hygiene, commit, and generated-churn exclusion before pilot sharing." in source
     assert "One glance at share status, manual gate, source-proof blocker, packet command, and generated-churn boundary." in source
     assert 'st.expander("Pilot Share Gate details", expanded=False)' not in source

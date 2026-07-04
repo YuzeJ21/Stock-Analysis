@@ -315,7 +315,8 @@ def test_data_health_pilot_reviewer_walkthrough_wraps_compact_path():
     rendered = " ".join(str(card) for card in cards).lower()
     rendered_strip = strip.lower()
 
-    assert "one compact path before raw tables" in rendered
+    assert "one compact path before advanced evidence details" in rendered
+    assert "raw tables" not in rendered
     assert "trusted fundamentals proof queue" in rendered
     assert "make public-check" in rendered
     assert "copy-only" in rendered

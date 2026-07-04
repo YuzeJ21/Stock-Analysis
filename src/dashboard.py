@@ -28559,7 +28559,7 @@ def render_data_health(
                 st.dataframe(clean_display_frame(public_share_final_gate), width="stretch", hide_index=True)
                 render_section_header(
                     "Workflow Continuity Detail",
-                    "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before raw tables.",
+                    "One review path from pilot evidence to queue route, proof lane, artifact hygiene, and reviewer packet before advanced evidence details.",
                 )
                 render_signal_cards(
                     data_health_workflow_continuity_cards(workflow_continuity),
@@ -28569,7 +28569,7 @@ def render_data_health(
                 st.dataframe(clean_display_frame(workflow_continuity), width="stretch", hide_index=True)
                 render_section_header(
                     "Controlled Pilot Outcome Detail",
-                    "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before raw proof ledgers.",
+                    "Reviewed packet outcomes toward the 5 to 10 company pilot exit criteria before advanced proof evidence.",
                 )
                 render_signal_cards(
                     data_health_controlled_pilot_outcome_cards(controlled_pilot_outcome),
