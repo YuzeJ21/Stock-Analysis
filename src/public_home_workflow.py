@@ -242,7 +242,7 @@ def public_home_visitor_path_cards(summary: dict[str, object]) -> list[dict[str,
             "title": "Route locks to Data Health",
             "body": (
                 f"{blocked:,} blocked states stay visible. Data Health names the source-proof lane, manual gate, and stop rule "
-                "without making visitors read raw CSV tables first."
+                "without making visitors open advanced evidence details first."
             ),
             "badges": ["source proof", "evidence collapsed"],
         },

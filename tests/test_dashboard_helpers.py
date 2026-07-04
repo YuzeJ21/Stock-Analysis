@@ -26628,7 +26628,15 @@ def test_data_health_fundamentals_drawer_starts_with_dcf_evidence_answer():
 
     assert dcf_drawer_index < answer_index < answer_cards_index < answer_commands_index < proof_queue_index
     assert proof_queue_index < family_filter_index < command_cards_index
-    assert "One DCF lane answer before family filters, command cards, source-review scaffolds, or raw proof rows." in source
+    assert (
+        "One DCF lane answer before family filters, source-review scaffolds, command detail, "
+        "or advanced proof evidence."
+    ) in source
+    assert "raw proof rows" not in source[
+        source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)') : source.index(
+            'elif selected_lane == "Peers":'
+        )
+    ]
 
 
 def test_data_health_optional_context_drawer_hides_summary_commands():

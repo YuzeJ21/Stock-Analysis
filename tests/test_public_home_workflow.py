@@ -287,7 +287,8 @@ def test_public_home_visitor_path_cards_show_four_step_public_loop_without_opera
     assert "selected ticker" in rendered
     assert "where data health fits next" in rendered
     assert "3,479 blocked states stay visible" in rendered
-    assert "without making visitors read raw csv tables first" in rendered
+    assert "without making visitors open advanced evidence details first" in rendered
+    assert "raw csv tables" not in rendered
     assert "59 dcf-ready and 26 peer-ready" in rendered
     assert "changed states need rebuilt readiness and proof history before interpretation" in rendered
     assert "make " not in rendered

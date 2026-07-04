@@ -28683,7 +28683,7 @@ def render_data_health(
             )
             render_section_header(
                 "Data Coverage Proof Queues",
-                "DCF input, shares-outstanding, trusted fundamentals, peer mapping, and peer valuation proof queues before raw CSV work.",
+                "DCF input, shares-outstanding, trusted fundamentals, peer mapping, and peer valuation proof queues before advanced evidence work.",
             )
             render_signal_cards(
                 data_health_data_coverage_proof_queue_cards(data_coverage_proof_queues),
@@ -28937,7 +28937,7 @@ def render_data_health(
         with st.expander("Fundamentals / DCF evidence drawer", expanded=False):
             render_section_header(
                 "DCF Evidence Answer",
-                "One DCF lane answer before family filters, command cards, source-review scaffolds, or raw proof rows.",
+                "One DCF lane answer before family filters, source-review scaffolds, command detail, or advanced proof evidence.",
             )
             render_signal_cards(
                 data_health_dcf_input_proof_queue_dashboard_cards(dcf_input_queue),
