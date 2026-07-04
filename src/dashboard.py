@@ -3355,17 +3355,30 @@ def apply_dashboard_theme() -> None:
         }
         .public-workflow-header {
           display: grid;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-          gap: 0.65rem;
-          margin: 0.7rem 0 1rem 0;
+          grid-template-columns: minmax(15rem, 0.95fr) minmax(22rem, 2.1fr);
+          gap: 0.55rem;
+          align-items: stretch;
+          margin: 0.56rem 0 0.74rem 0;
         }
-        .public-workflow-cell {
+        .public-workflow-primary,
+        .public-workflow-supporting {
           border-radius: 8px;
           border: 1px solid rgba(15, 118, 110, 0.16);
           background: rgba(255, 255, 255, 0.94);
-          padding: 0.72rem 0.78rem;
-          min-height: 5.4rem;
+          padding: 0.62rem 0.72rem;
           box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+        }
+        .public-workflow-primary {
+          display: grid;
+          gap: 0.4rem;
+        }
+        .public-workflow-supporting {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.54rem;
+        }
+        .public-workflow-item {
+          min-width: 0;
         }
         .public-workflow-label {
           color: #526071;
@@ -3384,15 +3397,15 @@ def apply_dashboard_theme() -> None:
         }
         @media (max-width: 960px) {
           .public-workflow-header {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
+          }
+          .public-workflow-supporting {
+            grid-template-columns: 1fr;
           }
         }
         @media (max-width: 640px) {
           .public-workflow-header {
             grid-template-columns: 1fr;
-          }
-          .public-workflow-cell {
-            min-height: auto;
           }
         }
         .subtle-panel {
@@ -4733,23 +4746,34 @@ def render_public_proof_strip(items: list[tuple[str, str, str]]) -> None:
 
 def public_workflow_header_html(page_title: str) -> str:
     step = public_workflow_step(page_title)
-    cells = [
+    primary_cells = [
         ("You are here", step["page"]),
         ("Current question", step["question"]),
+    ]
+    supporting_cells = [
         ("Short answer", step["short_answer"]),
         ("Primary next step", step["next_action"]),
         ("Stop rule", step["stop_rule"]),
     ]
+    primary_html = "".join(
+        "<div class='public-workflow-item'>"
+        f"<div class='public-workflow-label'>{html.escape(label)}</div>"
+        f"<div class='public-workflow-value'>{html.escape(value)}</div>"
+        "</div>"
+        for label, value in primary_cells
+    )
+    supporting_html = "".join(
+        "<div class='public-workflow-item'>"
+        f"<div class='public-workflow-label'>{html.escape(label)}</div>"
+        f"<div class='public-workflow-value'>{html.escape(value)}</div>"
+        "</div>"
+        for label, value in supporting_cells
+    )
     return (
         "<div class='public-workflow-header'>"
-        + "".join(
-            "<div class='public-workflow-cell'>"
-            f"<div class='public-workflow-label'>{html.escape(label)}</div>"
-            f"<div class='public-workflow-value'>{html.escape(value)}</div>"
-            "</div>"
-            for label, value in cells
-        )
-        + "</div>"
+        f"<div class='public-workflow-primary'>{primary_html}</div>"
+        f"<div class='public-workflow-supporting'>{supporting_html}</div>"
+        "</div>"
     )
 
 
@@ -27960,11 +27984,6 @@ def render_data_health(
     show_details: bool = False,
     public_mode: bool = True,
 ) -> None:
-    if public_mode:
-        render_section_header(
-            "Data Health",
-            "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next.",
-        )
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
@@ -28046,10 +28065,6 @@ def render_data_health(
     readiness_freshness = data_health_freshness_status(BASE_DIR)
     public_readiness_freshness = public_freshness_status(readiness_freshness) if public_mode else readiness_freshness
     if public_mode:
-        render_section_header(
-            "Data Quality / Readiness",
-            "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
-        )
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
         render_section_header("Proof Map", "Plain-language proof lanes before any operations detail.")
         render_signal_cards(

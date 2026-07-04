@@ -15841,13 +15841,16 @@ def test_data_health_valuation_unlock_snapshot_handles_missing_readiness_without
 def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next." in source
-    assert "if public_mode:\n        render_section_header(" in source
-    public_header_index = source.index("if public_mode:", source.index("def render_data_health("))
-    validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", public_header_index)
+    function_index = source.index("def render_data_health(")
+    provider_none_index = source.index("if provider is None:", function_index)
+    validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", provider_none_index)
+    public_header_index = source.index("if public_mode:", validation_load_index)
     coverage_summary_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", validation_load_index)
     proof_map_index = source.index("data_health_public_proof_map_cards(readiness_summary, readiness_freshness)", coverage_summary_index)
-    assert public_header_index < validation_load_index < coverage_summary_index < proof_map_index
+    assert provider_none_index < validation_load_index < public_header_index < coverage_summary_index < proof_map_index
+    assert source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", public_header_index) < source.index(
+        'render_section_header("Proof Map"', public_header_index
+    )
     assert "if public_mode and project_status_payload is None:" in source
     refresh_note_index = source.index('st.expander("Refresh status note"')
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
@@ -19741,7 +19744,11 @@ def test_data_health_coverage_summary_reads_current_source_activation_key_names(
 def test_data_health_coverage_summary_renders_before_public_and_operator_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    public_index = source.index("if public_mode:", source.index("def render_data_health("))
+    function_index = source.index("def render_data_health(")
+    provider_none_index = source.index("if provider is None:", function_index)
+    public_intro_chunk = source[function_index:provider_none_index]
+    assert 'render_section_header(\n            "Data Health"' not in public_intro_chunk
+    public_index = source.index("if public_mode:", provider_none_index)
     public_coverage_index = source.index(
         "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
         public_index,
@@ -19749,6 +19756,8 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_coverage_index)
     guidance_expander_index = source.index('st.expander("Advanced public guidance", expanded=False)', public_coverage_index)
     visitor_paths_index = source.index('render_section_header("Public path options"', first_30_index)
+    public_lead_in_chunk = source[public_index:guidance_expander_index]
+    assert '"Data Quality / Readiness"' not in public_lead_in_chunk
     public_return_index = source.index("return", source.index("Operator details are hidden."))
     operator_coverage_index = source.index(
         "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
@@ -27610,7 +27619,22 @@ def test_public_subpages_use_compact_header_before_page_content():
     assert "Short answer" in source
     assert "Primary next step" in source
     assert "Stop rule" in source
-    assert "grid-template-columns: repeat(5, minmax(0, 1fr))" in source
+    assert "public-workflow-primary" in source
+    assert "public-workflow-supporting" in source
+    assert "grid-template-columns: minmax(15rem, 0.95fr) minmax(22rem, 2.1fr)" in source
+
+
+def test_public_workflow_header_collapses_guidance_into_two_visual_groups():
+    html = dashboard.public_workflow_header_html("Single-Stock Report")
+
+    assert html.count("public-workflow-cell") == 0
+    assert html.count("public-workflow-primary") == 1
+    assert html.count("public-workflow-supporting") == 1
+    assert "You are here" in html
+    assert "Current question" in html
+    assert "Short answer" in html
+    assert "Primary next step" in html
+    assert "Stop rule" in html
 
 
 def test_public_compact_header_allows_mobile_status_wrap():
@@ -28333,12 +28357,13 @@ def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("") == ""
 
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    public_index = source.index("if public_mode:", source.index("def render_data_health("))
-    focus_assignment_index = source.index("public_focus_ticker = data_health_focus_ticker(st.query_params.get(\"ticker\"))", public_index)
+    function_index = source.index("def render_data_health(")
+    public_index = source.index("if public_mode:", function_index)
+    focus_assignment_index = source.index("public_focus_ticker = data_health_focus_ticker(st.query_params.get(\"ticker\"))", function_index)
     focus_note_index = source.index('"Ticker proof focus."', focus_assignment_index)
     drawer_index = source.index('st.expander("Public evidence drawer"', focus_note_index)
 
-    assert focus_assignment_index < focus_note_index < drawer_index
+    assert focus_assignment_index < public_index < focus_note_index < drawer_index
 
 
 def test_data_health_queue_drilldown_places_route_strip_before_route_cards_and_tables():
