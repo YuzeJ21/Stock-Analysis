@@ -53,7 +53,7 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
         public_mode=False,
     )
 
-    assert home["current_step"] == "Home readiness snapshot"
+    assert home["current_step"] == "Home workflow start"
     assert home["current_note"] == "3,538 price-ready / 59 DCF-ready / 26 peer-ready"
     assert home["next_action"] == "Open a Single-Stock Report"
     assert home_stale["proof_note"] == "make readiness"

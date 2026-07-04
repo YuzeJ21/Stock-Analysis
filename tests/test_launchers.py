@@ -742,7 +742,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert stale_preview_phrase not in preview
     assert "## Quick Start" in readme
     assert "flowchart LR" in readme
-    assert 'Home["Home: ready vs blocked"] --> Selector["Stock Selector: readiness-backed queue"]' in readme
+    assert 'Home["Home: workflow start"] --> Selector["Stock Selector: readiness-backed queue"]' in readme
     assert 'Selector --> Report["Single-Stock Report: one ticker"]' in readme
     assert 'Report --> Health["Data Health: missing input"]' in readme
     assert 'Health --> Proof["Proof History: source-proof trail"]' in readme
@@ -758,16 +758,16 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "A tracked ticker is not automatically ready for every analysis family" in readme
     assert "## What Works Today" in readme
     assert "## Try This Visitor Workflow" in readme
-    assert "Open the product first: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence." in readme
+    assert "Open the product first: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence." in readme
     assert "Stock Selector is the primary public stock-selection surface" in readme
     assert "Use terminal commands only when you want to inspect the same proof artifacts locally." in readme
     assert "Optional local proof checks:" in readme
-    assert "| Home | You want the current local readiness snapshot, next safe action, and stop rule before choosing a route. | `Home` |" in readme
+    assert "| Home | You want the workflow question, next safe action, stop rule, and then readiness context before choosing a route. | `Home` |" in readme
     assert "| Stock Selector | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |" in readme
     assert "| Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
     assert "| Proof History | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |" in readme
     assert "`Home`, then focused review pages" not in readme
-    assert "The shortest public walkthrough is: Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence" in readme
+    assert "The shortest public walkthrough is: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence" in readme
     assert "with NVDA, META, QQQ, MU, and CRDO available as optional state examples" in readme
     assert "[Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" not in readme
@@ -2362,7 +2362,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert '@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."' in makefile
     assert "@echo \"Visitor workflow path:\"" in makefile
-    assert "@echo \"   Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence\"" in makefile
+    assert "@echo \"   Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence\"" in makefile
     assert "@echo \"   Optional state examples: NVDA ready, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated\"" in makefile
     assert "@echo \"What this proves: readiness-backed selection comes first, ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced.\"" in makefile
     assert "@echo \"Data-confidence note: data confidence describes readiness and review routing, not investment conviction.\"" in makefile

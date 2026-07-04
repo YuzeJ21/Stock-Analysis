@@ -103,7 +103,7 @@ def home_research_loop_context(summary: dict[str, object], freshness: object) ->
     if dcf_ready <= 0:
         next_action = "Open Data Health lane answers"
     return {
-        "current_step": "Home readiness snapshot",
+        "current_step": "Home workflow start",
         "current_note": current_state,
         "current_href": "?mode=public",
         "previous_proof": proof_state,
@@ -154,8 +154,8 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
         "current_step": "Single-Stock Report",
         "current_note": f"Selected ticker: {ticker_label}",
         "current_href": f"?mode=public&page=single-stock-report&ticker={ticker_href}&open=1",
-        "previous_proof": "Home readiness snapshot",
-        "proof_note": "Use saved readiness counts to understand whether this ticker can support deeper review.",
+        "previous_proof": "Home workflow start",
+        "proof_note": "Use the Home workflow question, stop rule, and readiness context before deeper review.",
         "proof_href": "?mode=public",
         "next_action": "Open Review",
         "action_href": "",

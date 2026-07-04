@@ -25346,7 +25346,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "kicker": "VISITOR STEP 1",
             "title": "Preview the visitor path",
             "body": (
-                "Follow Home readiness snapshot -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence. "
+                "Follow Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence. "
                 "This is a read-only tour of the research loop before any local data changes."
             ),
             "badges": ["share path", "read-only"],

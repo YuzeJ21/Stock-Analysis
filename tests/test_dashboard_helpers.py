@@ -2023,7 +2023,7 @@ def test_dashboard_page_reader_summary_cards_keep_first_screen_compact():
 
 def test_research_loop_strip_connects_current_proof_next_action_and_stop_rule():
     rendered = dashboard.research_loop_strip_html(
-        current_step="Home readiness snapshot",
+        current_step="Home workflow start",
         previous_proof="Saved readiness snapshot is current",
         next_action="Open a Single-Stock Report",
         stop_rule="Do not infer missing inputs",
@@ -2048,7 +2048,7 @@ def test_research_loop_strip_connects_current_proof_next_action_and_stop_rule():
     assert "previous proof" in rendered
     assert "next safe action" in rendered
     assert "stop rule" in rendered
-    assert "home readiness snapshot" in rendered
+    assert "home workflow start" in rendered
     assert "saved readiness snapshot is current" in rendered
     assert "open a single-stock report" in rendered
     assert "do not infer missing inputs" in rendered
@@ -2080,7 +2080,7 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
         public_mode=False,
     )
 
-    assert home["current_step"] == "Home readiness snapshot"
+    assert home["current_step"] == "Home workflow start"
     assert "3,538 price-ready / 59 DCF-ready / 26 peer-ready" in home["current_note"]
     assert home["current_href"] == "?mode=public"
     assert home["proof_href"] == "?mode=public&page=data-health&drawer=proof"
@@ -2901,7 +2901,7 @@ def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
         "VISITOR STEP 5",
     ]
     assert "preview the visitor path" in rendered
-    assert "home readiness snapshot -> stock selector -> single-stock report -> data health lane answer -> proof history evidence" in rendered
+    assert "home workflow start -> stock selector -> single-stock report -> data health lane answer -> proof history evidence" in rendered
     assert "data health source-proof lane" not in rendered
     assert "read-only tour of the research loop" in rendered
     assert "demo command" not in visible_rendered

@@ -3,7 +3,7 @@ import re
 
 
 PUBLIC_V1_ROUTE = (
-    "Home readiness snapshot -> Stock Selector -> Single-Stock Report -> "
+    "Home workflow start -> Stock Selector -> Single-Stock Report -> "
     "Data Health lane answer -> Proof History evidence"
 )
 
@@ -32,6 +32,7 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "Data Health source-proof lane" not in readme
     assert "Proof History is the public proof-inspection surface" not in readme
     assert "Operator context" in readme
+    assert "Home readiness snapshot ->" not in readme
     assert "Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history" not in readme
     assert "Start with the three paths" not in readme
 
@@ -111,6 +112,7 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     assert "Open Stock Selector" in walkthrough
     assert "Check Proof History" in walkthrough
     assert "Data Health source-proof lane" not in walkthrough
+    assert "Home readiness snapshot ->" not in walkthrough
     assert "Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history" not in walkthrough
 
 
