@@ -26244,16 +26244,26 @@ def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["LANE ANSWER", "BLOCKER", "SOURCE GATE"]
+    lane_answer_body = str(cards[0]["body"]).lower()
     assert "fundamentals / dcf" in rendered
     assert "2,691 dcf-ready" in rendered
     assert "2,808 fundamentals-ready" in rendered
+    assert "use now:" in lane_answer_body
+    assert "context only:" in lane_answer_body
+    assert "excluded:" in lane_answer_body
+    assert "next proof:" in lane_answer_body
+    assert "stop:" in lane_answer_body
+    assert "freshness:" in lane_answer_body
+    assert lane_answer_body.count("\n") >= 5
+    assert max(len(line) for line in lane_answer_body.splitlines()) <= 150
     assert "context only: metadata, candidate peers, universe membership, and optional rows stay separate from trusted fundamentals proof" in rendered
-    assert "excluded/not applicable: etf/index/fund rows keep operating-company dcf excluded instead of failed" in rendered
+    assert "excluded: etf/index/fund rows keep operating-company dcf excluded instead of failed" in rendered
     assert "source proof remains blocked" in rendered
     assert "next proof:" in rendered
     assert "stop:" in rendered
     assert "validate, preview, rejected-row review, source provenance, and rebuilt readiness" in rendered
     assert "stop: do not interpret missing source proof as a weak-company conclusion" in rendered
+    assert "freshness is current" not in lane_answer_body
     assert cards[2]["title"] == "Review provider setup before proof loops"
     assert "do not repeat broad proof queues" in rendered
     assert "command" not in cards[2]

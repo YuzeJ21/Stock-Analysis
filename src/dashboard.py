@@ -20820,7 +20820,14 @@ def data_health_selected_lane_answer_cards(
         {
             "kicker": "LANE ANSWER",
             "title": lane_label,
-            "body": f"Use now: {use_now} {context_only} {excluded} {next_proof} {stop_rule} Freshness is {freshness_status}.",
+            "body": (
+                f"Use now: {use_now}\n"
+                f"Context only: {context_only.removeprefix('Context only: ')}\n"
+                f"Excluded: {excluded.removeprefix('Excluded/not applicable: ')}\n"
+                f"Next proof: {next_proof.removeprefix('Next proof: ')}\n"
+                f"Stop: {stop_rule.removeprefix('Stop: ')}\n"
+                f"Freshness: {freshness_status}"
+            ),
             "badges": ["one lane", "use now"],
         },
         {
