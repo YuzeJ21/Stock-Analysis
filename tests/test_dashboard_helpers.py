@@ -19787,6 +19787,24 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     ]
 
 
+def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    function_index = source.index("def render_data_health(")
+    provider_none_index = source.index("if provider is None:", function_index)
+    placeholder_index = source.index("public_loading_placeholder = st.empty()", provider_none_index)
+    placeholder_copy_index = source.index('"Loading saved readiness answers."', placeholder_index)
+    validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", placeholder_index)
+    clear_placeholder_index = source.index("public_loading_placeholder.empty()", validation_load_index)
+    coverage_summary_index = source.index(
+        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
+        clear_placeholder_index,
+    )
+
+    assert provider_none_index < placeholder_index < placeholder_copy_index < validation_load_index
+    assert validation_load_index < clear_placeholder_index < coverage_summary_index
+
+
 def test_universe_layer_cards_separate_scope_from_analysis_readiness():
     summary = {
         "master_universe": 3538,
@@ -28358,12 +28376,12 @@ def test_data_health_public_ticker_query_adds_proof_focus_context():
 
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     function_index = source.index("def render_data_health(")
-    public_index = source.index("if public_mode:", function_index)
     focus_assignment_index = source.index("public_focus_ticker = data_health_focus_ticker(st.query_params.get(\"ticker\"))", function_index)
+    public_render_index = source.index("if public_mode:", focus_assignment_index)
     focus_note_index = source.index('"Ticker proof focus."', focus_assignment_index)
     drawer_index = source.index('st.expander("Public evidence drawer"', focus_note_index)
 
-    assert focus_assignment_index < public_index < focus_note_index < drawer_index
+    assert focus_assignment_index < public_render_index < focus_note_index < drawer_index
 
 
 def test_data_health_queue_drilldown_places_route_strip_before_route_cards_and_tables():

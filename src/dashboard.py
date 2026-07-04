@@ -27987,6 +27987,15 @@ def render_data_health(
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
+    public_loading_placeholder = None
+    if public_mode:
+        public_loading_placeholder = st.empty()
+        with public_loading_placeholder.container():
+            render_context_note(
+                "Loading saved readiness answers.",
+                "Reading local readiness files now; the lane summary appears here before proof maps, raw tables, or operator details.",
+                tone="success",
+            )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
     action_queue_frame, action_queue_message = load_action_queue()
     health_tables = load_research_health_tables()
@@ -28065,6 +28074,8 @@ def render_data_health(
     readiness_freshness = data_health_freshness_status(BASE_DIR)
     public_readiness_freshness = public_freshness_status(readiness_freshness) if public_mode else readiness_freshness
     if public_mode:
+        if public_loading_placeholder is not None:
+            public_loading_placeholder.empty()
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
         render_section_header("Proof Map", "Plain-language proof lanes before any operations detail.")
         render_signal_cards(
