@@ -19818,6 +19818,7 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
     provider_none_index = source.index("if provider is None:", function_index)
     placeholder_index = source.index("public_loading_placeholder = st.empty()", provider_none_index)
     placeholder_copy_index = source.index('"Loading saved readiness answers."', placeholder_index)
+    placeholder_contract_index = source.index("usable now, blocked, next proof, and stop rule", placeholder_copy_index)
     validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", placeholder_index)
     clear_placeholder_index = source.index("public_loading_placeholder.empty()", validation_load_index)
     coverage_summary_index = source.index(
@@ -19825,7 +19826,7 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
         clear_placeholder_index,
     )
 
-    assert provider_none_index < placeholder_index < placeholder_copy_index < validation_load_index
+    assert provider_none_index < placeholder_index < placeholder_copy_index < placeholder_contract_index < validation_load_index
     assert validation_load_index < clear_placeholder_index < coverage_summary_index
 
 
@@ -27682,6 +27683,15 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
 def test_public_subpages_use_compact_header_before_page_content():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    assert "def dashboard_output_frames_for_page(" in source
+    assert "output_frames = dashboard_output_frames_for_page(selected_page)" in source
+    initial_catalog_index = source.index("catalog = LocalDataCatalog(BASE_DIR)")
+    selected_page_index = source.index("selected_page = selected_page_from_route_rail(")
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(selected_page)")
+    assert initial_catalog_index < selected_page_index < output_frames_index
+    assert "if selected_page in {\"Data Health\", PROOF_HISTORY_PATH_TITLE}:" in source
+    assert "return {}" in source[source.index("def dashboard_output_frames_for_page(") : output_frames_index]
+
     assert 'public_subpage_header = public_demo_mode and selected_page != "Home"' in source
     assert (
         'compact=public_subpage_header or (selected_page == "Data Health" and not public_demo_mode)'
@@ -27760,6 +27770,26 @@ def test_compact_header_keeps_about_link_classed_for_mobile():
     assert "command-topbar compact" in html
     assert "command-status-item command-about" in html
     assert "Stock Research Command Center" not in html
+
+
+def test_header_saved_name_count_falls_back_to_universe_when_outputs_are_deferred():
+    frame = pd.DataFrame([{"ticker": "NVDA"}, {"ticker": "META"}])
+
+    assert dashboard.header_saved_name_count(frame, tickers=100) == 2
+    assert dashboard.header_saved_name_count(None, tickers=100) == 100
+
+
+def test_public_data_health_bootstrap_renders_before_sidebar_route_work():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "def render_public_route_bootstrap(" in source
+    assert "bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)" in source
+    bootstrap_index = source.index("bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)")
+    sidebar_index = source.index("with st.sidebar:", bootstrap_index)
+    clear_index = source.index("if bootstrap_placeholder is not None:", sidebar_index)
+    assert bootstrap_index < sidebar_index < clear_index
+    assert "Data Health is loading lane answers" in source
+    assert "No commands run here" in source
 
 
 def test_public_subpages_do_not_insert_home_loop_before_page_content():

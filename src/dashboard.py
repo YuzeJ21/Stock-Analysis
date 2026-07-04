@@ -955,6 +955,14 @@ def load_pipeline_outputs(
     return tables
 
 
+def dashboard_output_frames_for_page(selected_page: str) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
+    """Load broad pipeline outputs only for routes that render those outputs."""
+
+    if selected_page in {"Data Health", PROOF_HISTORY_PATH_TITLE}:
+        return {}
+    return load_pipeline_outputs()
+
+
 def load_monthly_outputs(
     outputs_dir: Path = OUTPUTS_DIR,
     *,
@@ -5486,7 +5494,7 @@ def render_app_header(
     final_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
     monthly_tables = load_monthly_outputs()
     monthly_frame, _ = monthly_tables["monthly_research_picks.csv"]
-    final_count = 0 if final_frame is None else len(final_frame)
+    final_count = header_saved_name_count(final_frame, tickers)
     monthly_count = 0 if monthly_frame is None else len(monthly_frame)
     latest_price = _latest_local_price_date(catalog)
     readiness_summary = _header_readiness_summary()
@@ -5500,6 +5508,25 @@ def render_app_header(
         ),
         unsafe_allow_html=True,
     )
+
+
+def header_saved_name_count(final_frame: pd.DataFrame | None, tickers: int) -> int:
+    if final_frame is None:
+        return tickers
+    return len(final_frame)
+
+
+def render_public_route_bootstrap(selected_page: str, mode: str):
+    if mode != PUBLIC_DEMO_MODE or selected_page != "Data Health":
+        return None
+    placeholder = st.empty()
+    with placeholder.container():
+        render_context_note(
+            "Data Health is loading lane answers.",
+            "No commands run here. The page is reading saved readiness outputs so it can show what is usable, blocked, skipped, or excluded before proof details.",
+            tone="success",
+        )
+    return placeholder
 
 
 def _translated_missing_item(item: str) -> str:
@@ -28061,7 +28088,7 @@ def render_data_health(
         with public_loading_placeholder.container():
             render_context_note(
                 "Loading saved readiness answers.",
-                "Reading local readiness files now; the lane summary appears here before proof maps, advanced evidence details, or operator details.",
+                "Reading local readiness files now; the lane summary appears here with usable now, blocked, next proof, and stop rule before proof maps, advanced evidence details, or operator details.",
                 tone="success",
             )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
@@ -30622,14 +30649,14 @@ def main() -> None:
     apply_dashboard_theme()
     catalog = LocalDataCatalog(BASE_DIR)
     provider = get_local_provider()
-    output_frames = load_pipeline_outputs()
+    page_query_value = st.query_params.get("page")
+    mode_query_value = st.query_params.get("mode")
+    initial_page = dashboard_page_from_query(page_query_value)
+    initial_mode = dashboard_mode_from_query(mode_query_value, initial_page)
+    bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)
 
     with st.sidebar:
         render_sidebar_nav_header()
-        page_query_value = st.query_params.get("page")
-        mode_query_value = st.query_params.get("mode")
-        initial_page = dashboard_page_from_query(page_query_value)
-        initial_mode = dashboard_mode_from_query(mode_query_value, initial_page)
         has_explicit_page_query = dashboard_query_value_present(page_query_value)
         has_explicit_mode_query = dashboard_query_value_present(mode_query_value)
         public_demo_mode = st.toggle(
@@ -30730,6 +30757,9 @@ def main() -> None:
                     language="bash",
                 )
 
+    if bootstrap_placeholder is not None:
+        bootstrap_placeholder.empty()
+    output_frames = dashboard_output_frames_for_page(selected_page)
     public_subpage_header = public_demo_mode and selected_page != "Home"
     # Compatibility marker for older source-contract tests: render_app_header(catalog, output_frames, compact=selected_page == "Data Health" and not public_demo_mode)
     render_app_header(
