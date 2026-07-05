@@ -105,7 +105,7 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
             "ops-mode-strip",
             "Selected Lane Answer",
             "Fundamentals / DCF",
-            "Source Gate",
+            "SOURCE GATE",
         ),
         min_width=1000,
         min_height=600,
@@ -180,7 +180,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Data Health queue drawer routing",
         route="http://localhost:8501/?mode=operator&page=data-health&lane=fundamentals&drawer=queue",
-        first_view_markers=("research-loop-strip", "ops-mode-strip", "Selected Lane Answer", "Fundamentals / DCF", "Source Gate"),
+        first_view_markers=("research-loop-strip", "ops-mode-strip", "Selected Lane Answer", "Fundamentals / DCF", "SOURCE GATE"),
         details_boundary="The lane answer and source gate appear before route maps, per-lane drawers, and detailed action tables.",
         qa_focus="Operator can see why a fundamentals lane is blocked before opening advanced route-map evidence.",
         stop_rule="Stop if route links execute commands, expose raw tables first, or imply generated churn belongs in the default staging set.",
