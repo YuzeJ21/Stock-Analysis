@@ -145,7 +145,7 @@ make universe-preview
 Use the full preview only for intentionally reviewed row inspection. To stage reviewed source-driven rows:
 
 ```bash
-make universe-stage
+make universe-stage OVERWRITE=1
 ```
 
 Apply only after reviewing the staged universe rows and source warnings:

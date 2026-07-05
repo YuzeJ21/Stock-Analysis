@@ -21,6 +21,14 @@ NVDA,NVIDIA Corporation,Information Technology
 MSFT,Microsoft Corporation,Information Technology
 """
 
+SP500_LONG_FIXTURE = """Symbol,Security,GICS Sector
+A,Agilent Technologies,Health Care
+AAPL,Apple Inc.,Information Technology
+ABNB,Airbnb,Consumer Discretionary
+ABT,Abbott Laboratories,Health Care
+ACN,Accenture,Information Technology
+"""
+
 NASDAQ_FIXTURE = """Symbol|Security Name|Test Issue|ETF
 NVDA|NVIDIA Corporation Common Stock|N|N
 QQQM|Invesco Nasdaq 100 ETF|N|Y
@@ -142,6 +150,21 @@ def test_build_universe_preview_parses_smh_holdings_fixture(tmp_path: Path):
     assert rows.loc[rows["ticker"] == "NVDA", "etf_membership"].iloc[0] == "SMH"
 
 
+def test_capped_universe_preview_prioritizes_smh_rows_before_generic_sp500_rows(tmp_path: Path):
+    _setup_base_dir(tmp_path)
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="sp500,smh",
+        max_tickers=2,
+        loader=_loader({SOURCE_URLS["sp500"]: SP500_LONG_FIXTURE, SOURCE_URLS["smh"]: SMH_FIXTURE}),
+    )
+    rows = pd.DataFrame(result["rows"])
+
+    assert set(rows["ticker"]) == {"AVGO", "NVDA"}
+    assert rows["in_smh"].fillna(False).astype(bool).all()
+    assert result["summary"]["membership_counts"]["in_smh"] == 2
+
+
 def test_build_universe_preview_uses_smh_fallback_when_primary_source_fails(tmp_path: Path):
     _setup_base_dir(tmp_path)
     result = build_universe_preview(
@@ -247,6 +270,11 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert "status: ok" in output
     assert "does not unlock fundamentals, share count, DCF, peer valuation, earnings, analyst estimates, or recommendations" in output
     assert "row_count:" in output
+    assert "apply_effect:" in output
+    assert "apply boundary: universe-apply preserves meaningful existing local fields and keeps true membership flags" in output
+    assert "protected_sample:" in output
+    assert "- NVDA: preserves theme, sector_etf, market_cap_bucket" in output
+    assert "staged_import:" in output
     assert "sources:" in output
     assert "smh: loaded" in output
     assert "smh: primary source unavailable (redirect/cookie/location handling)." in output
@@ -262,7 +290,7 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert "stage data/imports/universe.csv as the manual SMH fallback" not in output
     assert "next:" in output
     assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json" in output
-    assert "make universe-stage" in output
+    assert "make universe-stage OVERWRITE=1" in output
     assert "make universe-apply" in output
     assert '"rows"' not in output
     assert '"ticker": "NVDA"' not in output
@@ -295,7 +323,7 @@ def test_universe_preview_summary_json_keeps_raw_rows_hidden(
         "Review source warnings and row counts before writing any universe import.",
         "Use full --json only for intentionally reviewed row inspection.",
         "To inspect full preview rows without writing: make universe-preview.",
-        "To stage reviewed rows only after row-scope review: make universe-stage.",
+        "To stage reviewed rows only after row-scope review: make universe-stage OVERWRITE=1.",
         "To apply staged rows after review: make universe-apply.",
     ]
     assert "rows" not in payload
@@ -333,6 +361,55 @@ def test_universe_preview_summary_json_surfaces_fallback_and_apply_gate(
     assert review["unavailable_sources"] == []
     assert "review source warnings and row counts" in review["next_safe_step"].lower()
     assert "rows" not in payload
+
+
+def test_universe_preview_summary_json_surfaces_safe_apply_effect(
+    tmp_path: Path,
+    capsys,
+):
+    _setup_base_dir(tmp_path)
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="sp500,smh,holdings",
+        loader=_loader({SOURCE_URLS["sp500"]: SP500_FIXTURE, SOURCE_URLS["smh"]: SMH_FIXTURE}),
+    )
+
+    _print_result(result, as_json=False, summary_json=True)
+    payload = json.loads(capsys.readouterr().out)
+    apply_effect = payload["summary"]["apply_effect"]
+
+    assert apply_effect["new_rows"] == 2
+    assert apply_effect["updated_rows"] == 1
+    assert apply_effect["protected_existing_value_count"] >= 3
+    assert "protected_existing_value_sample" not in apply_effect
+    assert "preserves meaningful existing local fields" in apply_effect["boundary"]
+
+
+def test_universe_preview_surfaces_existing_staged_import_boundary(
+    tmp_path: Path,
+    capsys,
+):
+    _setup_base_dir(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "universe.csv"
+    staged_path.write_text(
+        "ticker,theme,sector_etf,default_purpose,market_cap_bucket,notes,in_sp500\n"
+        "NVDA,AI Semiconductors,SMH,Momentum Leader,Large,old staged,True\n",
+        encoding="utf-8",
+    )
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="sp500,smh,holdings",
+        loader=_loader({SOURCE_URLS["sp500"]: SP500_FIXTURE, SOURCE_URLS["smh"]: SMH_FIXTURE}),
+    )
+
+    _print_result(result, as_json=False)
+    output = capsys.readouterr().out
+
+    assert "staged_import: exists; rows=1; validation=valid" in output
+    assert "Do not run universe-apply until the staged import file is intentionally reviewed" in output
+    assert "make universe-stage OVERWRITE=1" in output
+    assert result["summary"]["staged_import"]["exists"] is True
+    assert result["summary"]["staged_import"]["row_count"] == 1
 
 
 def test_universe_preview_summary_json_surfaces_unavailable_sources(

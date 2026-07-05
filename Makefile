@@ -276,7 +276,7 @@ help-full:
 	@echo "                        Use IMPORT_TICKERS for narrow reviewed slices; broad imports-apply requires ALLOW_BROAD_IMPORT_APPLY=1 after full staged-scope review"
 	@echo "  make universe-preview"
 	@echo "  make universe-preview-summary"
-	@echo "  make universe-stage  Stage reviewed universe rows without applying them"
+	@echo "  make universe-stage [OVERWRITE=1]  Stage reviewed universe rows without applying them"
 	@echo "  make universe-apply  Apply staged universe rows after review"
 	@echo "  make universe-refresh Refresh master/active universe reports"
 	@echo "  make universe-report  Write data/reports/universe_coverage_report.csv"
@@ -1029,7 +1029,7 @@ universe-preview-summary:
 	@python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
 
 universe-stage:
-	python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50
+	python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50 $(if $(OVERWRITE),--overwrite,)
 
 universe-apply:
 	python3 -m src.universe_builder --apply-import

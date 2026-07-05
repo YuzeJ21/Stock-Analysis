@@ -661,6 +661,98 @@ def _merge_universe_rows(frame: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(merged_rows, columns=CANONICAL_UNIVERSE_COLUMNS).sort_values("ticker").reset_index(drop=True)
 
 
+def _merge_staged_values_into_canonical(
+    canonical_row: pd.Series,
+    staged_row: pd.Series,
+) -> tuple[dict[str, Any], list[str]]:
+    merged = canonical_row.to_dict()
+    protected_fields: list[str] = []
+    for column in CANONICAL_UNIVERSE_COLUMNS:
+        if column == "ticker":
+            continue
+        existing_value = merged.get(column, "")
+        staged_value = staged_row.get(column)
+        if column in MEMBERSHIP_COLUMNS + ["is_etf"]:
+            new_value = _normalize_bool(staged_value) or _normalize_bool(existing_value)
+        else:
+            new_value = staged_value if _meaningful_value(staged_value, column) else existing_value
+        if existing_value != staged_value and new_value == existing_value:
+            protected_fields.append(column)
+        merged[column] = new_value
+    return merged, protected_fields
+
+
+def _build_apply_effect_summary(merged: pd.DataFrame, current_universe: pd.DataFrame) -> dict[str, Any]:
+    current_lookup = current_universe.set_index("ticker") if not current_universe.empty else pd.DataFrame()
+    new_rows = 0
+    updated_rows = 0
+    unchanged_rows = 0
+    protected_field_count = 0
+    protected_sample: list[dict[str, Any]] = []
+    for _, row in merged.iterrows():
+        ticker = row["ticker"]
+        if current_lookup.empty or ticker not in current_lookup.index:
+            new_rows += 1
+            continue
+        current_row = current_lookup.loc[ticker]
+        if isinstance(current_row, pd.DataFrame):
+            current_row = current_row.iloc[-1]
+        final_row, protected_fields = _merge_staged_values_into_canonical(current_row, row)
+        protected_field_count += len(protected_fields)
+        if protected_fields and len(protected_sample) < 8:
+            protected_sample.append(
+                {
+                    "ticker": str(ticker),
+                    "protected_fields": protected_fields,
+                }
+            )
+        changed = any(current_row.get(column) != final_row.get(column) for column in CANONICAL_UNIVERSE_COLUMNS if column != "ticker")
+        if changed:
+            updated_rows += 1
+        else:
+            unchanged_rows += 1
+    return {
+        "new_rows": new_rows,
+        "updated_rows": updated_rows,
+        "unchanged_rows": unchanged_rows,
+        "protected_existing_value_count": protected_field_count,
+        "protected_existing_value_sample": protected_sample,
+        "boundary": (
+            "universe-apply preserves meaningful existing local fields and keeps true membership flags; "
+            "review protected fields before applying metadata rows."
+        ),
+    }
+
+
+def _prioritize_capped_preview_rows(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    prioritized = frame.copy()
+    for column in MEMBERSHIP_COLUMNS:
+        if column not in prioritized.columns:
+            prioritized[column] = False
+    priority_order = ["in_holdings", "in_custom", "in_local_sample", "in_smh", "in_sp500", "in_nasdaq"]
+    for index, column in enumerate(priority_order):
+        prioritized[f"_cap_priority_{index}"] = ~prioritized[column].fillna(False).astype(bool)
+    prioritized = prioritized.sort_values([*(f"_cap_priority_{index}" for index in range(len(priority_order))), "ticker"]).reset_index(drop=True)
+    return prioritized.drop(columns=[f"_cap_priority_{index}" for index in range(len(priority_order))], errors="ignore")
+
+
+def _staged_import_status(base_dir: Path) -> dict[str, Any]:
+    path = base_dir / "data" / "imports" / "universe.csv"
+    validation, frame = validate_local_dataset("universe", path)
+    return {
+        "path": str(path),
+        "exists": path.exists(),
+        "validation_status": validation.status,
+        "row_count": len(frame) if frame is not None else 0,
+        "boundary": (
+            "Do not run universe-apply until the staged import file is intentionally reviewed; "
+            "replace stale staged rows with OVERWRITE=1 only after row-scope review."
+        ),
+    }
+
+
 def _load_source_frame(
     source_name: str,
     *,
@@ -757,7 +849,7 @@ def build_universe_preview(
     duplicate_count = int(combined.duplicated(subset=["ticker"]).sum()) if not combined.empty else 0
     merged = _merge_universe_rows(combined)
     if max_tickers is not None and max_tickers > 0:
-        merged = merged.head(max_tickers).copy()
+        merged = _prioritize_capped_preview_rows(merged).head(max_tickers).sort_values("ticker").reset_index(drop=True)
     current_universe = _canonicalize_universe_frame(_read_local_csv(base_dir / "data" / "universe.csv"))
     current_universe = current_universe.drop(columns=["_source_priority"], errors="ignore")
     current_lookup = current_universe.set_index("ticker") if not current_universe.empty else pd.DataFrame()
@@ -810,6 +902,7 @@ def build_universe_preview(
         )
 
     membership_counts = {column: int(merged[column].fillna(False).astype(bool).sum()) for column in MEMBERSHIP_COLUMNS if column in merged.columns}
+    apply_effect = _build_apply_effect_summary(merged, current_universe)
     return {
         "status": "ok" if not merged.empty else "empty",
         "sources": source_results,
@@ -823,6 +916,8 @@ def build_universe_preview(
             "unchanged_tickers": unchanged_tickers,
             "membership_counts": membership_counts,
             "warnings": sorted(set(build_warnings)),
+            "apply_effect": apply_effect,
+            "staged_import": _staged_import_status(base_dir),
             "review_sample": sorted(
                 review_sample,
                 key=lambda item: (
@@ -930,20 +1025,14 @@ def apply_universe_import(*, base_dir: Path | None = None, backup: bool = True) 
             merged_rows.append({"ticker": ticker, **staged_row.to_dict()})
             new_rows += 1
             continue
-        merged = canonical_row.to_dict()
+        merged, _protected_fields = _merge_staged_values_into_canonical(canonical_row, staged_row) if staged_row is not None else (canonical_row.to_dict(), [])
         changed = False
         if staged_row is not None:
             for column in CANONICAL_UNIVERSE_COLUMNS:
                 if column == "ticker":
                     continue
-                staged_value = staged_row.get(column)
-                if column in MEMBERSHIP_COLUMNS + ["is_etf"]:
-                    new_value = _normalize_bool(staged_value) or _normalize_bool(merged.get(column))
-                else:
-                    new_value = staged_value if _meaningful_value(staged_value, column) else merged.get(column, "")
-                if merged.get(column) != new_value:
+                if canonical_row.get(column) != merged.get(column):
                     changed = True
-                    merged[column] = new_value
         merged_rows.append({"ticker": ticker, **merged})
         if changed:
             updated += 1
@@ -1118,6 +1207,35 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
         f"updated={summary.get('updated_tickers', 0)}; "
         f"unchanged={summary.get('unchanged_tickers', 0)}"
     )
+    apply_effect = summary.get("apply_effect") or {}
+    if apply_effect:
+        print(
+            "apply_effect: "
+            f"new={apply_effect.get('new_rows', 0)}; "
+            f"updated={apply_effect.get('updated_rows', 0)}; "
+            f"unchanged={apply_effect.get('unchanged_rows', 0)}; "
+            f"protected_existing_values={apply_effect.get('protected_existing_value_count', 0)}"
+        )
+        print(f"apply boundary: {apply_effect.get('boundary', '-')}")
+        protected_sample = apply_effect.get("protected_existing_value_sample") or []
+        if protected_sample:
+            print("protected_sample:")
+            for item in protected_sample[:5]:
+                ticker = _normalize_ticker(item.get("ticker")) if isinstance(item, dict) else ""
+                fields = item.get("protected_fields") if isinstance(item, dict) else []
+                field_text = ", ".join(str(field) for field in fields) if isinstance(fields, list) else str(fields)
+                print(f"- {ticker}: preserves {field_text}")
+    staged_import = summary.get("staged_import") or {}
+    if staged_import:
+        exists_text = "exists" if staged_import.get("exists") else "absent"
+        print(
+            "staged_import: "
+            f"{exists_text}; rows={staged_import.get('row_count', 0)}; "
+            f"validation={staged_import.get('validation_status', '-')}; "
+            f"path={staged_import.get('path', '-')}"
+        )
+        if staged_import.get("exists"):
+            print(f"staged boundary: {staged_import.get('boundary', '-')}")
     memberships = summary.get("membership_counts") or {}
     if memberships:
         membership_text = "; ".join(f"{key}={value}" for key, value in memberships.items())
@@ -1160,7 +1278,7 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     print("- Review source warnings and row counts before writing any universe import.")
     print("- To inspect raw rows intentionally: python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json")
     print("- To inspect full preview rows without writing: make universe-preview")
-    print("- To stage reviewed rows only after row-scope review: make universe-stage")
+    print("- To stage reviewed rows only after row-scope review: make universe-stage OVERWRITE=1")
     print("- To apply staged rows after review: make universe-apply")
 
 
@@ -1170,6 +1288,11 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if isinstance(summary, dict) and isinstance(sources, list):
         compact_summary = dict(summary)
         compact_summary.pop("review_sample", None)
+        apply_effect = compact_summary.get("apply_effect")
+        if isinstance(apply_effect, dict):
+            compact_apply_effect = dict(apply_effect)
+            compact_apply_effect.pop("protected_existing_value_sample", None)
+            compact_summary["apply_effect"] = compact_apply_effect
         compact_sources: list[dict[str, Any]] = []
         for source in sources:
             if not isinstance(source, dict):
@@ -1189,7 +1312,7 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 "Review source warnings and row counts before writing any universe import.",
                 "Use full --json only for intentionally reviewed row inspection.",
                 "To inspect full preview rows without writing: make universe-preview.",
-                "To stage reviewed rows only after row-scope review: make universe-stage.",
+                "To stage reviewed rows only after row-scope review: make universe-stage OVERWRITE=1.",
                 "To apply staged rows after review: make universe-apply.",
             ],
         }
