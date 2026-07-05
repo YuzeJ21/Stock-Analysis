@@ -350,10 +350,14 @@ def test_browser_qa_share_recommendation_prefers_ready_public_image_and_keeps_bl
     assert rows[0]["State"] == "ready"
     assert rows[0]["Recommendation"] == "docs/assets/linkedin-public-dashboard.png"
     assert rows[1]["State"] == "manual_capture_pending"
+    assert rows[2]["Review Item"] == "Screenshot copy freshness"
+    assert rows[2]["State"] == "route_markers_only"
+    assert "exact current copy" in rows[2]["Recommendation"].lower()
     assert "data health proof lane screenshot" in rendered
     assert "use make status-check top_n=5 for current counts" in rendered
     assert "screenshots do not unlock fundamentals" in rendered
     assert "generated thumbnails" in rendered
+    assert "normal local browser" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
@@ -370,7 +374,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     rendered = json.dumps(payload).lower()
 
     assert payload["verdict"] == "ready_with_manual_capture_pending"
-    assert len(payload["public_share_recommendation"]) == 3
+    assert len(payload["public_share_recommendation"]) == 4
     assert len(payload["committed_screenshot_assets"]) == 3
     assert len(payload["manual_capture_targets"]) == 3
     assert len(payload["pending_capture_closeout"]) == 3

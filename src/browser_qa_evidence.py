@@ -451,6 +451,15 @@ def browser_qa_share_recommendation_rows(
             "Boundary": pending_action,
         },
         {
+            "Review Item": "Screenshot copy freshness",
+            "State": "route_markers_only",
+            "Recommendation": (
+                "Committed screenshots prove route markers, dimensions, and share packaging; "
+                "recapture in a normal local browser when exact current copy matters."
+            ),
+            "Boundary": "Do not treat screenshot text as the current data snapshot or latest UI-copy proof after product-code changes.",
+        },
+        {
             "Review Item": "Data readiness claim",
             "State": "blocked_inputs_remain_blocked",
             "Recommendation": "Use make status-check TOP_N=5 for current counts; do not treat screenshots as data freshness proof.",
