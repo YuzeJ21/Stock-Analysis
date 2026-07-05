@@ -26665,7 +26665,7 @@ def render_home_page(
         render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)
         render_section_header(
             "Primary Workflow",
-            "One spine: Home -> choose ticker or scope -> single-stock answer -> Data Health only if blocked -> Proof History only for evidence review.",
+            "One path: choose a ticker, read supported sections, route blockers to Data Health, and check Proof History only for evidence.",
         )
         render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")
     if generated_stale_warning:

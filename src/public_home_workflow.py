@@ -23,8 +23,8 @@ def public_home_first_30_second_cards(summary: dict[str, object]) -> list[dict[s
             "kicker": "WHAT THIS IS",
             "title": "A readiness-first research workflow",
             "body": (
-                "The app checks local data coverage before showing analysis. "
-                "Ready, blocked, partial, and excluded states stay visible instead of being blended into one score."
+                "The app checks what local data can support before analysis appears. "
+                "Ready, partial, blocked, and excluded states stay separate."
             ),
             "badges": ["research-only", "data readiness first"],
         },
@@ -33,7 +33,7 @@ def public_home_first_30_second_cards(summary: dict[str, object]) -> list[dict[s
             "title": f"{price_ready:,}/{master:,} price-ready; deeper work is gated",
             "body": (
                 f"{dcf_ready:,} names are DCF-ready and {peer_ready:,} are peer-ready today. "
-                "Use Home for the snapshot, Stock Selector to choose a candidate, Single-Stock Report for one ticker, and Data Health for source-proof gaps."
+                "Choose one ticker in Stock Selector, open its report, and use Data Health only for blocked fields."
             ),
             "badges": ["one connected loop", "proof before analysis"],
         },
@@ -41,8 +41,7 @@ def public_home_first_30_second_cards(summary: dict[str, object]) -> list[dict[s
             "kicker": "WHEN TO STOP",
             "title": f"{blocked:,} blocked states remain withheld",
             "body": (
-                "If trusted fundamentals, shares, peers, earnings, estimates, valuation inputs, or metrics are missing, "
-                "the product stops at the data gap and keeps the conclusion unavailable."
+                "If trusted inputs are missing, that section stays unavailable instead of filling the gap with a guess."
             ),
             "badges": ["no data, no conclusion", "blocked stays blocked"],
         },
@@ -136,7 +135,7 @@ def public_home_review_map_cards(summary: dict[str, object]) -> list[dict[str, o
             "title": "Start from the readiness snapshot",
             "body": (
                 f"{price_ready:,}/{master:,} tracked names have price coverage. "
-                "The Home page answers what the local data can support before any interpretation."
+                "Home is the saved coverage snapshot, not a recommendation surface."
             ),
             "badges": ["snapshot", "ready vs blocked"],
         },
@@ -145,7 +144,7 @@ def public_home_review_map_cards(summary: dict[str, object]) -> list[dict[str, o
             "title": "Open one ticker only after the state is clear",
             "body": (
                 f"{dcf_ready:,} names are DCF-ready and {peer_ready:,} are peer-ready. "
-                "Single-Stock Report starts with what can be reviewed now, what is blocked, and where proof fits next."
+                "Single-Stock Report starts with usable sections, blocked inputs, and the next proof step."
             ),
             "badges": ["one ticker", "review scope"],
         },
@@ -154,7 +153,7 @@ def public_home_review_map_cards(summary: dict[str, object]) -> list[dict[str, o
             "title": "Route missing inputs to Data Health",
             "body": (
                 f"{blocked:,} blocked states remain source-proof work. "
-                "Data Health keeps the source lane, manual gate, proof packet, and stop rule together."
+                "Data Health keeps the source lane, proof packet, manual gate, and stop rule together."
             ),
             "badges": ["source proof", "visitor first"],
         },
@@ -162,8 +161,7 @@ def public_home_review_map_cards(summary: dict[str, object]) -> list[dict[str, o
             "kicker": "STOP RULE",
             "title": "Do not conclude from missing inputs",
             "body": (
-                "If trusted fundamentals, shares, peers, earnings, estimates, valuation inputs, or metrics are unavailable, "
-                "the section stays blocked or excluded until reviewed proof exists."
+                "Missing proof keeps the section blocked or excluded until reviewed source evidence exists."
             ),
             "badges": ["no data, no conclusion", "research-only"],
         },

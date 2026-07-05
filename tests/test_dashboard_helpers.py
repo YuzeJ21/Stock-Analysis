@@ -3043,7 +3043,7 @@ def test_home_page_keeps_duplicate_coverage_snapshot_out_of_first_view():
     assert "render_public_proof_strip(_public_home_snapshot_items(summary))" not in home_first_view_chunk
     assert first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_index
     assert coverage_index < workflow_index
-    assert "One spine: Home -> choose ticker or scope -> single-stock answer -> Data Health only if blocked -> Proof History only for evidence review." in source
+    assert "One path: choose a ticker, read supported sections, route blockers to Data Health, and check Proof History only for evidence." in source
     assert '"Connected Workflow"' not in source
     assert '"Visitor Path"' not in source
     assert 'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")' not in source

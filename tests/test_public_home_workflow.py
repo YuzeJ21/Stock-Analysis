@@ -24,15 +24,14 @@ def test_public_home_first_30_second_cards_explain_product_without_operator_deta
 
     assert [card["kicker"] for card in cards] == ["WHAT THIS IS", "HOW TO READ IT", "WHEN TO STOP"]
     assert "a readiness-first research workflow" in rendered
-    assert "ready, blocked, partial, and excluded states stay visible" in rendered
+    assert "ready, partial, blocked, and excluded states stay separate" in rendered
     assert "3,538/3,538 price-ready" in rendered
     assert "59 names are dcf-ready and 26 are peer-ready today" in rendered
-    assert "stock selector to choose a candidate" in rendered
-    assert rendered.index("stock selector to choose a candidate") < rendered.index("single-stock report for one ticker")
-    assert "single-stock report for one ticker" in rendered
-    assert "data health for source-proof gaps" in rendered
+    assert "choose one ticker in stock selector" in rendered
+    assert rendered.index("choose one ticker in stock selector") < rendered.index("open its report")
+    assert "use data health only for blocked fields" in rendered
     assert "3,479 blocked states remain withheld" in rendered
-    assert "keeps the conclusion unavailable" in rendered
+    assert "stays unavailable instead of filling the gap with a guess" in rendered
     assert "make " not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -248,12 +247,13 @@ def test_public_home_review_map_cards_show_current_step_next_action_and_stop_rul
     ]
     assert "start from the readiness snapshot" in rendered
     assert "3,538/3,538 tracked names have price coverage" in rendered
+    assert "not a recommendation surface" in rendered
     assert "59 names are dcf-ready and 26 are peer-ready" in rendered
-    assert "single-stock report starts with what can be reviewed now" in rendered
+    assert "single-stock report starts with usable sections" in rendered
     assert "3,479 blocked states remain source-proof work" in rendered
-    assert "manual gate, proof packet, and stop rule together" in rendered
+    assert "proof packet, manual gate, and stop rule together" in rendered
     assert "do not conclude from missing inputs" in rendered
-    assert "stays blocked or excluded until reviewed proof exists" in rendered
+    assert "missing proof keeps the section blocked or excluded" in rendered
     assert "make " not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
