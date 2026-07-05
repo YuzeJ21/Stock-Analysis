@@ -27919,6 +27919,7 @@ def test_stock_selector_next_reading_path_uses_selected_ticker_proof_lane():
     assert cards[0][2] == "?mode=public&page=single-stock-report&ticker=MU&open=1"
     assert cards[1][2] == "?mode=public&page=data-health&ticker=MU&lane=peers&drawer=proof"
     assert "selected ticker" in rendered
+    assert "current top readiness-backed row" in rendered
     assert "generic proof" not in rendered
 
 
