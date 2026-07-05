@@ -62,6 +62,17 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
 
 
+def test_readme_has_external_reviewer_handoff_before_operator_detail():
+    readme = _read("README.md")
+
+    assert "## External Reviewer Handoff" in readme
+    assert "| Review first | Dashboard preview, then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
+    assert "| Skip unless operating locally | Broad CSV/report churn, provider setup, validate/preview/apply commands, and raw proof ledgers. |" in readme
+    assert "| Do not claim | Screenshots prove data freshness, blocked inputs are ready, the repo is open source, or the product gives buy/sell instructions. |" in readme
+    assert "| Best next question | Can a reviewer understand what is ready, blocked, excluded, and proof-backed before opening advanced details? |" in readme
+    assert readme.index("## External Reviewer Handoff") < readme.index("## Data Coverage Strategy")
+
+
 def test_public_docs_share_same_coverage_gate_rule():
     readme = _read("README.md")
     checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")

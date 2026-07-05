@@ -7,7 +7,6 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 ![Dashboard preview](docs/assets/public-demo-home-real.jpg)
 
 ## Pilot In 60 Seconds
-
 1. Open `http://localhost:8501/?mode=public` after running `make dashboard`.
 2. Follow the public path: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 3. Start with Stock Selector, then open one ticker such as `NVDA` before inspecting Data Health.
@@ -17,7 +16,6 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 7. Stop before any trading, broker action, broad refresh, or unsupported data claim.
 
 ## What It Does
-
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
 
 ```mermaid
@@ -29,30 +27,33 @@ flowchart LR
 ```
 
 ## LinkedIn Visitor Snapshot
-
 - Best first click: open the real dashboard preview, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Example reports to skim: `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.
 - Share-safe boundary: research software only, not investment advice, broker integration, or an execution system.
 
 ## What You Can Analyze
-
 When trusted local data is available, the product can produce price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, portfolio purpose checks, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 
 ## How Analysis Works
-
 The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed. Price-ready rows can support setup/risk context and benchmark/risk review metrics, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context. Missing fundamentals, peer inputs, earnings, or estimates stay locked; company valuation is excluded for ETF/index/fund monitor rows, not failed.
 
 ## Current Snapshot
-
 The local sample currently tracks a broad universe of 3,538 tickers, with a smaller subset ready for each analysis feature. Exact ready counts can change after local refresh/import work, so use `make status-check TOP_N=5` or the dashboard Home page for the current snapshot.
-
 Read the counts in three layers: master universe for broad coverage planning, active universe for the demo/research workflow, and analysis-ready subsets for DCF, peer context, or candidate review. A tracked ticker is not automatically ready for every analysis family; blocked rows stay visibly locked.
-
 Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, visitor path, and public checks are working. Broad fundamentals, DCF, peers, earnings, and analyst estimates remain visibly blocked by missing trusted data until trusted rows exist, so those gaps should be read as source-proof work rather than broken analysis.
 
-## Data Coverage Strategy
+## External Reviewer Handoff
+Use this as the short GitHub/LinkedIn review path before reading operator detail:
+| Question | Short answer |
+| --- | --- |
+| Review first | Dashboard preview, then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |
+| Use as evidence | Public pages, committed real screenshots, sample Markdown reports, methodology docs, and `make public-check` output. |
+| Skip unless operating locally | Broad CSV/report churn, provider setup, validate/preview/apply commands, and raw proof ledgers. |
+| Do not claim | Screenshots prove data freshness, blocked inputs are ready, the repo is open source, or the product gives buy/sell instructions. |
+| Best next question | Can a reviewer understand what is ready, blocked, excluded, and proof-backed before opening advanced details? |
 
+## Data Coverage Strategy
 | Data lane | Best next move | Why it matters |
 | --- | --- | --- |
 | Prices | Use `make price-history-proof-queue TOP_N=25` before `make price-refresh-loop DRY_RUN=1`; `PROVIDER=auto` tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub price fallbacks. | Price coverage can scale safely, but refreshed CSVs should be reviewed before commit. |
@@ -72,15 +73,11 @@ For reviewed execution planning, use `make coverage-expansion-loop TOP_N=10`, th
 After a reviewed scope is finished or intentionally skipped, `make reviewed-batch-compare LANE=prices BATCH_ID=<id> REVIEW_DATE=<date>` compares prior/current readiness snapshots, then `DRY_RUN=1 make reviewed-batch-proof-record ... FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded>` previews the exact ledger row before recording the durable batch outcome in `data/reviewed_batch_proofs.csv`. Use `candidate_context_only` when generated or classification-based peer context can route review work but must not be promoted to trusted peer proof.
 
 ## What Works Today
-
 This is a working local research prototype with deterministic outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data needed before analysis`.
-
 Useful with limits: price/momentum, fundamentals/DCF, peer review, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer comparison, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker/execution system, or auto-refreshing trading system.
 
 ## Product Tour
-
 Start with the five public paths the dashboard is built around:
-
 | Path | Use it when | First place to open |
 | --- | --- | --- |
 | Home | You want the workflow question, next safe action, stop rule, and then readiness context before choosing a route. | `Home` |
@@ -88,9 +85,7 @@ Start with the five public paths the dashboard is built around:
 | Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |
 | Data Health | You want to understand what trusted input is missing and which proof path should be reviewed next. | `Data Health` |
 | Proof History | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |
-
 The dashboard starts in public visitor mode at `http://localhost:8501/?mode=public`.
-
 - Home answers what the product is, where to start, and when to stop.
 - Stock Selector filters readiness-backed candidates without framing the queue as advice.
 - Single-Stock Report shows selected-ticker readiness, usable sections, blocked inputs, and one next step before detailed report sections.
@@ -100,7 +95,6 @@ The dashboard starts in public visitor mode at `http://localhost:8501/?mode=publ
 Switch off Public visitor mode only for internal Operator context, detailed boards, local proof commands, and validate / preview / apply guidance. Advanced pages remain secondary, and watchlist-style outputs stay readiness-state output, not an action list.
 
 ## Quick Start
-
 Run these from the repository root so `make` can find the project targets. This first path is visitor-safe: it does not rebuild broad generated outputs before you have seen the product.
 
 ```bash
@@ -115,7 +109,6 @@ make dashboard
 When you want to run a controlled pilot, use the [Pilot Runbook](docs/PILOT_RUNBOOK.md). When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps.
 
 ## Try This Visitor Workflow
-
 Open the product first and follow the five-page path. Use terminal commands only when you want to inspect the same proof artifacts locally.
 
 ```bash
