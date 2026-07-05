@@ -45,6 +45,27 @@ Boundary checked:
   estimates, valuation inputs, or metrics.
 - The selector is a research queue, not a recommendation list.
 
+## 2026-07-05 Public Home First-Viewport Copy Pass
+
+Checked by tests, public gates, and one accepted in-app browser screenshot:
+
+- Public Home still shows the five-page route rail, readiness-first header,
+  `First 30 Seconds`, and `Primary Workflow` markers in the first viewport.
+- The first-scan Home cards now use shorter copy so the workflow header,
+  product explanation, and primary workflow do not repeat the full route in
+  every visible block.
+- The committed screenshot assets remain valid product evidence for route
+  markers and share packaging, but they are not data freshness proof and may not
+  reflect every latest copy edit pixel-for-pixel.
+
+Capture limitation:
+
+- The in-app browser accepted `/tmp/stock-first-viewport-audit-20260705/desktop-home.png`
+  for the Home review, then timed out during later `Page.captureScreenshot`
+  calls.
+- Keep the committed real screenshots until a normal local browser can recapture
+  and visually review any asset that needs exact current-copy proof.
+
 ## 2026-06-19 Workflow Continuity And Route Card Pass
 
 Checked by tests and local read-only commands:
