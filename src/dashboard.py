@@ -5316,7 +5316,7 @@ def command_center_header_html(
         "<span class='command-status-item'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
-        "<a class='command-top-link' href='?mode=public&page=data-health' target='_self'>Data Health</a>"
+        "<a class='command-top-link' href='?mode=public&page=data-health' target='_self'>Blocked? Data Health</a>"
         "<span class='command-status-item command-about'>How this works</span>"
         "</div>"
         "</nav>"
