@@ -82,6 +82,14 @@ def test_public_workflow_steps_answer_one_question_and_next_action_per_page():
     assert nav.public_workflow_step("Universe Manager") == nav.public_workflow_step("Home")
 
 
+def test_public_workflow_stop_rules_keep_research_only_boundary_visible():
+    for page in nav.PUBLIC_PATH_PAGE_TITLES:
+        stop_rule = nav.public_workflow_step(page)["stop_rule"].lower()
+        assert "research-only" in stop_rule
+        assert "not advice" in stop_rule
+        assert "trade instruction" in stop_rule
+
+
 def test_dashboard_navigation_mode_defaults_public_unless_advanced_context():
     advanced = ["Overview", "Monthly Picks", "Universe Manager"]
 

@@ -43,7 +43,7 @@ PUBLIC_WORKFLOW_STEPS = {
         "short_answer": "A readiness-first research workflow; start by choosing a reviewable ticker.",
         "next_page": STOCK_SELECTOR_PATH_TITLE,
         "next_action": "Start by exploring ready names.",
-        "stop_rule": "Stop before treating any output as advice or a trade instruction.",
+        "stop_rule": "Research-only: not advice; stop before treating any output as a trade instruction.",
     },
     STOCK_SELECTOR_PATH_TITLE: {
         "page": STOCK_SELECTOR_PATH_TITLE,
@@ -51,7 +51,7 @@ PUBLIC_WORKFLOW_STEPS = {
         "short_answer": "Use readiness filters to pick one ticker for a single-stock review.",
         "next_page": "Single-Stock Report",
         "next_action": "Pick one ticker, then open its single-stock report.",
-        "stop_rule": "Stop if the selected ticker has no readiness-backed path.",
+        "stop_rule": "Research-only: not advice; stop if the selected ticker has no readiness-backed path or trade instruction.",
     },
     "Single-Stock Report": {
         "page": "Single-Stock Report",
@@ -59,7 +59,7 @@ PUBLIC_WORKFLOW_STEPS = {
         "short_answer": "Read supported sections first; blocked inputs stay locked.",
         "next_page": "Data Health",
         "next_action": "Use supported sections first; open Data Health only for blocked inputs.",
-        "stop_rule": "Stop if required inputs are blocked, excluded, or only candidate context.",
+        "stop_rule": "Research-only: not advice; stop if required inputs are blocked, excluded, candidate context, or trade instruction.",
     },
     "Data Health": {
         "page": "Data Health",
@@ -67,7 +67,7 @@ PUBLIC_WORKFLOW_STEPS = {
         "short_answer": "Check one lane answer before opening proof, queues, or operator details.",
         "next_page": PROOF_HISTORY_PATH_TITLE,
         "next_action": "Read the lane answer, then inspect proof only when evidence changed.",
-        "stop_rule": "Stop before applying or trusting rows without source proof.",
+        "stop_rule": "Research-only: not advice; stop before applying, trusting rows, or creating any trade instruction without source proof.",
     },
     PROOF_HISTORY_PATH_TITLE: {
         "page": PROOF_HISTORY_PATH_TITLE,
@@ -75,7 +75,7 @@ PUBLIC_WORKFLOW_STEPS = {
         "short_answer": "Review evidence only; this page does not refresh or unlock data.",
         "next_page": "Home",
         "next_action": "Verify the latest outcome, then return to the product path.",
-        "stop_rule": "Stop if the evidence is missing, stale, or not source-backed.",
+        "stop_rule": "Research-only: not advice; stop if evidence is missing, stale, not source-backed, or used as a trade instruction.",
     },
 }
 
