@@ -1861,6 +1861,7 @@ def test_public_action_cards_render_query_routes_as_clickable_links():
 
     assert "<a " in rendered
     assert "href='?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1'" in rendered
+    assert "aria-label='Open one review'" in rendered
     assert "target='_self'" in rendered
     assert "Open ?mode=public" not in rendered
     assert "command-chip" not in rendered
@@ -27737,6 +27738,18 @@ def test_public_workflow_header_has_compact_mobile_rules():
     assert "margin-bottom: 0" in mobile_chunk
     assert ".public-workflow-value" in mobile_chunk
     assert "font-size: 0.78rem" in mobile_chunk
+
+
+def test_dashboard_theme_removes_framework_heading_links_from_keyboard_flow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert '[data-testid="stHeaderActionElements"]' in source
+    assert "display: none !important;" in source[
+        source.index('[data-testid="stHeaderActionElements"]') : source.index('[data-testid="stSidebar"]')
+    ]
+    assert "[data-testid=\"stMain\"]:focus-visible" in source
+    assert "[data-testid=\"stSidebar\"] [role=\"radiogroup\"] label:focus-within" in source
+    assert "outline: 3px solid #0f766e !important;" in source
 
 
 def test_public_compact_header_allows_mobile_status_wrap():

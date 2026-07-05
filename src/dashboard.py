@@ -1940,6 +1940,33 @@ def apply_dashboard_theme() -> None:
           display: none !important;
           visibility: hidden !important;
         }
+        [data-testid="stHeaderActionElements"] {
+          display: none !important;
+          visibility: hidden !important;
+          height: 0 !important;
+          width: 0 !important;
+          overflow: hidden !important;
+        }
+        [data-testid="stMain"]:focus-visible,
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible,
+        [role="button"]:focus-visible,
+        [role="radio"]:focus-visible,
+        [role="tab"]:focus-visible,
+        [tabindex]:not([tabindex="-1"]):focus-visible {
+          outline: 3px solid #0f766e !important;
+          outline-offset: 3px !important;
+          box-shadow: 0 0 0 5px rgba(15, 118, 110, 0.18) !important;
+          border-radius: 8px;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label:focus-within {
+          outline: 3px solid #22c55e !important;
+          outline-offset: 3px !important;
+          box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.20) !important;
+        }
         [data-testid="stSidebar"] {
           background: #07111d !important;
           border-right: 1px solid rgba(255,255,255,0.08);
@@ -4819,7 +4846,12 @@ def action_card_html(title: str, body: str, command: str = "", tone: str = "neut
     tone_class = "warning" if tone == "warning" else "danger" if tone == "danger" else ""
     command_text = str(command or "").strip()
     if command_text.startswith("?") or command_text.startswith("http://") or command_text.startswith("https://"):
-        command_html = f"<a class='action-link' href='{html.escape(command_text, quote=True)}' target='_self'>Open</a>"
+        title_text = str(title or "").strip()
+        action_label = title_text if title_text.lower().startswith("open ") else f"Open {title_text}".strip()
+        command_html = (
+            f"<a class='action-link' href='{html.escape(command_text, quote=True)}' "
+            f"aria-label='{html.escape(action_label, quote=True)}' target='_self'>Open</a>"
+        )
     else:
         command_html = f"<div class='command-chip'>{html.escape(command_text)}</div>" if command_text else ""
     return (
