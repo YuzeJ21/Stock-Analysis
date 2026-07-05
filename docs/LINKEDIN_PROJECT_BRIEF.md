@@ -8,7 +8,11 @@ The dashboard and single-stock reports show what can be reviewed now, what is bl
 
 Best demos: `NVDA` for DCF-ready company review, `META` for valuation still gated by trusted fundamentals, `QQQ` for ETF/index monitor context, `MU` for standalone DCF with peer valuation still locked, and `CRDO` for a fundamentals-gated proof workflow.
 
-The latest product layer adds a readiness operations center and reviewed batch packet: instead of improving tickers one by one, the app can pick a data-readiness lane, generate a dry-run-first reviewed packet, show validation/preview/apply gates, and document rollback/proof steps before local data changes.
+Best first click: open the dashboard preview, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
+
+The first story is the public workflow, not operator automation. Keep reviewed batch packets, provider setup, and validate / preview / apply mechanics as operator detail after the visitor understands the product.
+
+Use the refreshed `docs/assets/linkedin-public-dashboard.png` thumbnail for the LinkedIn Featured card.
 
 ## Suggested LinkedIn Post
 
