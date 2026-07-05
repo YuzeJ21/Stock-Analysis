@@ -125,9 +125,12 @@ def test_peer_mapping_source_review_packet_builds_two_review_slots_per_candidate
 
 def test_peer_mapping_source_review_prioritizes_active_universe_blockers(tmp_path: Path):
     packet = build_peer_mapping_source_review_packet(_sample_root_with_active_peer_blocker(tmp_path), top_n=2)
+    rendered = render_peer_mapping_source_review_preview(packet)
 
+    assert packet.selection_source == "project_status_top_actions"
     assert packet.tickers[:2] == ("CCC", "AAA")
     assert [row.ticker for row in packet.rows[:4]] == ["CCC", "CCC", "AAA", "AAA"]
+    assert "selection_source: project_status_top_actions" in rendered
 
 
 def test_peer_mapping_source_review_surfaces_candidate_context_only_layer(tmp_path: Path):

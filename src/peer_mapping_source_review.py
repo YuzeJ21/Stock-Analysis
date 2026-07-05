@@ -94,6 +94,7 @@ class PeerMappingSourceReviewPacket:
     top_n: int
     tickers: tuple[str, ...]
     rows: tuple[PeerMappingReviewRow, ...]
+    selection_source: str = "not_loaded"
 
 
 @dataclass(frozen=True)
@@ -382,19 +383,21 @@ def render_peer_mapping_writeback_guard(guard: PeerMappingWriteBackGuard, row: P
     return "\n".join(lines) + "\n"
 
 
-def _candidate_tickers(root: Path, top_n: int, tickers: tuple[str, ...]) -> tuple[str, ...]:
+def _candidate_tickers_with_source(root: Path, top_n: int, tickers: tuple[str, ...]) -> tuple[tuple[str, ...], str]:
     if tickers:
-        return tickers[: max(top_n, 0)]
+        return tickers[: max(top_n, 0)], "explicit_tickers"
     candidates: list[str] = []
     top_actions = _read_csv(root / PROJECT_STATUS_TOP_ACTIONS_PATH)
+    selection_source = ""
     for row in top_actions:
         dataset = str(row.get("dataset") or "").strip().lower()
         target_file = str(row.get("target_file") or "").strip()
         ticker = str(row.get("ticker") or "").strip().upper()
         if dataset == "peers" and target_file == "data/imports/peers.csv" and ticker and ticker not in candidates:
             candidates.append(ticker)
+            selection_source = "project_status_top_actions"
         if len(candidates) >= top_n:
-            return tuple(candidates)
+            return tuple(candidates), "project_status_top_actions"
     try:
         from src.data_onboarding import build_peer_mapping_queue, build_ticker_coverage
 
@@ -410,16 +413,29 @@ def _candidate_tickers(root: Path, top_n: int, tickers: tuple[str, ...]) -> tupl
         ticker = str(getattr(row, "ticker", "") or "").strip().upper()
         if ticker and ticker not in candidates:
             candidates.append(ticker)
+            if selection_source == "project_status_top_actions":
+                selection_source = "project_status_top_actions_plus_peer_mapping_queue"
+            elif not selection_source:
+                selection_source = "peer_mapping_queue"
         if len(candidates) >= top_n:
-            return tuple(candidates)
+            return tuple(candidates), selection_source or "peer_mapping_queue"
     rows = _read_csv(root / PEER_READINESS_PATH)
     for row in rows:
         ticker = str(row.get("ticker") or "").strip().upper()
         if ticker and ticker not in candidates and _missing_mapping(row):
             candidates.append(ticker)
+            if selection_source and not selection_source.endswith("_plus_peer_readiness_report"):
+                selection_source = f"{selection_source}_plus_peer_readiness_report"
+            elif not selection_source:
+                selection_source = "peer_readiness_report"
         if len(candidates) >= top_n:
             break
-    return tuple(candidates)
+    return tuple(candidates), selection_source or "peer_readiness_report"
+
+
+def _candidate_tickers(root: Path, top_n: int, tickers: tuple[str, ...]) -> tuple[str, ...]:
+    candidates, _selection_source = _candidate_tickers_with_source(root, top_n, tickers)
+    return candidates
 
 
 def _candidate_context_by_ticker(root: Path) -> dict[str, dict[str, str]]:
@@ -469,7 +485,7 @@ def build_peer_mapping_source_review_packet(
     root = Path(root)
     selected_tickers = _split_tickers(tickers)
     freshness = readiness_freshness_status(root)
-    candidates = _candidate_tickers(root, top_n, selected_tickers)
+    candidates, selection_source = _candidate_tickers_with_source(root, top_n, selected_tickers)
     candidate_context = _candidate_context_by_ticker(root)
     review_rows: list[PeerMappingReviewRow] = []
     for ticker in candidates:
@@ -525,6 +541,7 @@ def build_peer_mapping_source_review_packet(
         top_n=top_n,
         tickers=candidates,
         rows=tuple(review_rows),
+        selection_source=selection_source,
     )
 
 
@@ -539,6 +556,7 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
         f"- Freshness status: `{packet.freshness.status}`",
         f"- Freshness note: {packet.freshness.message}",
         f"- Refresh command if blocked: `{packet.freshness.refresh_command}`",
+        f"- Selection source: `{packet.selection_source}`",
         f"- Ticker scope: `{', '.join(packet.tickers) if packet.tickers else 'none'}`",
         f"- Review rows: `{len(packet.rows)}`",
         "",
@@ -617,6 +635,7 @@ def render_peer_mapping_source_review_preview(packet: PeerMappingSourceReviewPac
         f"status: preview",
         f"packet_status: {status}",
         f"freshness_status: {packet.freshness.status}",
+        f"selection_source: {packet.selection_source}",
         f"rows: {len(packet.rows)}",
         f"tickers: {','.join(packet.tickers) if packet.tickers else '-'}",
         "message: Previewed peer mapping source-review packet; no Markdown or CSV artifacts were written.",
