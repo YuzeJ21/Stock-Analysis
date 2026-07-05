@@ -73,6 +73,38 @@ def _sample_root_with_candidate_context(tmp_path: Path) -> Path:
     return root
 
 
+def _sample_root_with_active_peer_blocker(tmp_path: Path) -> Path:
+    root = _sample_root(tmp_path)
+    data = root / "data"
+    reports = data / "reports"
+    outputs = root / "outputs"
+    outputs.mkdir(exist_ok=True)
+    (outputs / "project_status_top_actions.csv").write_text(
+        "priority,ticker,dataset,status,reason,recommended_action,target_file,focus_command,example_command\n"
+        "3,CCC,peers,manual_input_needed,No local peer mapping is configured.,Run make focus-peers TICKER=CCC,data/imports/peers.csv,make focus-peers TICKER=CCC,make templates\n"
+        "3,AAA,peers,manual_input_needed,No local peer mapping is configured.,Run make focus-peers TICKER=AAA,data/imports/peers.csv,make focus-peers TICKER=AAA,make templates\n",
+        encoding="utf-8",
+    )
+    (data / "universe_active.csv").write_text(
+        "ticker\n"
+        "CCC\n",
+        encoding="utf-8",
+    )
+    (data / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-01,AAA,10,100\n"
+        "2026-01-01,CCC,12,100\n",
+        encoding="utf-8",
+    )
+    (reports / "ticker_readiness_report.csv").write_text(
+        "ticker,price_ready,dcf_ready,peer_ready,overall_readiness_state\n"
+        "AAA,true,true,false,partial\n"
+        "CCC,true,true,false,partial\n",
+        encoding="utf-8",
+    )
+    return root
+
+
 def test_peer_mapping_source_review_packet_builds_two_review_slots_per_candidate(tmp_path: Path):
     packet = build_peer_mapping_source_review_packet(_sample_root(tmp_path), top_n=1)
     rendered = render_peer_mapping_source_review_markdown(packet)
@@ -89,6 +121,13 @@ def test_peer_mapping_source_review_packet_builds_two_review_slots_per_candidate
     assert "CSV row: `blocked until completion-ready`" in rendered
     assert "Do not fabricate peer mappings" in rendered
     assert "does not provide direct buy/sell instructions" in rendered
+
+
+def test_peer_mapping_source_review_prioritizes_active_universe_blockers(tmp_path: Path):
+    packet = build_peer_mapping_source_review_packet(_sample_root_with_active_peer_blocker(tmp_path), top_n=2)
+
+    assert packet.tickers[:2] == ("CCC", "AAA")
+    assert [row.ticker for row in packet.rows[:4]] == ["CCC", "CCC", "AAA", "AAA"]
 
 
 def test_peer_mapping_source_review_surfaces_candidate_context_only_layer(tmp_path: Path):

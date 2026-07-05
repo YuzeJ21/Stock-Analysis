@@ -19,6 +19,7 @@ from src.reviewed_batch import FreshnessStatus, readiness_freshness_status
 
 DEFAULT_MD_OUTPUT = Path("outputs/peer_mapping_source_review.md")
 DEFAULT_CSV_OUTPUT = Path("outputs/peer_mapping_source_review.csv")
+PROJECT_STATUS_TOP_ACTIONS_PATH = Path("outputs/project_status_top_actions.csv")
 PEER_READINESS_PATH = Path("data/reports/peer_readiness_report.csv")
 CANONICAL_PEERS_PATH = Path("data/peers.csv")
 IMPORT_PEERS_PATH = Path("data/imports/peers.csv")
@@ -384,8 +385,34 @@ def render_peer_mapping_writeback_guard(guard: PeerMappingWriteBackGuard, row: P
 def _candidate_tickers(root: Path, top_n: int, tickers: tuple[str, ...]) -> tuple[str, ...]:
     if tickers:
         return tickers[: max(top_n, 0)]
-    rows = _read_csv(root / PEER_READINESS_PATH)
     candidates: list[str] = []
+    top_actions = _read_csv(root / PROJECT_STATUS_TOP_ACTIONS_PATH)
+    for row in top_actions:
+        dataset = str(row.get("dataset") or "").strip().lower()
+        target_file = str(row.get("target_file") or "").strip()
+        ticker = str(row.get("ticker") or "").strip().upper()
+        if dataset == "peers" and target_file == "data/imports/peers.csv" and ticker and ticker not in candidates:
+            candidates.append(ticker)
+        if len(candidates) >= top_n:
+            return tuple(candidates)
+    try:
+        from src.data_onboarding import build_peer_mapping_queue, build_ticker_coverage
+
+        coverage_rows = build_ticker_coverage(root)
+        queue_rows = build_peer_mapping_queue(coverage_rows, root)
+    except Exception:
+        queue_rows = []
+    for row in queue_rows:
+        if bool(getattr(row, "has_peer_mapping", False)):
+            continue
+        if str(getattr(row, "candidate_context_state", "") or "").strip() == "excluded":
+            continue
+        ticker = str(getattr(row, "ticker", "") or "").strip().upper()
+        if ticker and ticker not in candidates:
+            candidates.append(ticker)
+        if len(candidates) >= top_n:
+            return tuple(candidates)
+    rows = _read_csv(root / PEER_READINESS_PATH)
     for row in rows:
         ticker = str(row.get("ticker") or "").strip().upper()
         if ticker and ticker not in candidates and _missing_mapping(row):
