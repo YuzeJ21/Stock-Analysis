@@ -1651,6 +1651,8 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "make status-check TOP_N=5",
         "read-only command-center summary without refreshing local artifacts",
         "exact copyable local commands for the next proof step",
+        "Readiness-first local stock research dashboard for source-gated analysis workflows",
+        "`python`, `research-tool`, `streamlit`, `data-readiness`, `equity-research`, `stock-research`",
     ):
         assert phrase in brief
 

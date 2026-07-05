@@ -45,6 +45,14 @@ LinkedIn Featured description:
 
 `A Python + Streamlit portfolio project that checks stock data readiness before showing analysis. It separates ready, blocked, partial, and excluded states, keeps source-proof steps visible, and stays research-only with no broker integration, auto-trading, or investment advice.`
 
+GitHub About description:
+
+`Readiness-first local stock research dashboard for source-gated analysis workflows`
+
+GitHub topics:
+
+`python`, `research-tool`, `streamlit`, `data-readiness`, `equity-research`, `stock-research`
+
 About-section sentence:
 
 `I also build portfolio projects that turn messy data-readiness problems into guided product workflows, including a readiness-first Stock Research Command Center for equity research review.`
