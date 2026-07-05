@@ -95,7 +95,7 @@ Do not run unattended jobs that apply fundamentals, peer mappings, earnings, ana
 
 ## Recommended Pilot
 
-Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 to 10 companies that matter for the public demo or active research list.
+Do not try to turn the full universe into analysis-ready rows at once. Start with 5 to 10 companies that matter for the public demo or active research list.
 
 Before choosing a company, run `make universe-scope TICKERS=NVDA,META TOP_N=10` when you need the active, ticker-list, sector/theme, ready-only, and missing-data scopes without opening broad tables. Run `make risk-context` when you need the current liquidity, correlation, and proxy-risk readiness summary from local outputs. Both commands are copy-only and do not refresh, import, apply, or infer missing values; they help choose the review scope and risk-context lane before deeper source proof.
 

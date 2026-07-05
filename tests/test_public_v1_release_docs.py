@@ -111,7 +111,9 @@ def test_pilot_readiness_audit_does_not_overstate_github_sync():
     audit = _read("docs/PILOT_READINESS_AUDIT.md")
     lowered = audit.lower()
 
-    assert "latest refresh showed `## main...origin/main`; rerun the live status gate before sharing" in lowered
+    assert "rerun the live status gate before sharing" in lowered
+    assert "local reviewed commits may be ahead of github until pushed" in lowered
+    assert "generated csv/report churn" in lowered
     assert "reviewed local commits still need push" not in lowered
     assert "Current branch is synced with origin" not in audit
     assert not re.search(r"\bahead \d+\b", audit)

@@ -1402,7 +1402,7 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "dashboard `Data Health` page visible as the safe freshness guide" in checklist
     assert "read-only routine first, capped price dry-run before real refreshes" in checklist
     assert "review-required lanes for fundamentals, peers, earnings, and analyst estimates" in checklist
-    assert "not told to manually refresh all 3,538 tickers every day" in checklist
+    assert "not told to manually refresh the full universe every day" in checklist
     assert "lane-specific freshness and generated-data hygiene" in checklist
     assert "make demo`, `make status-check TOP_N=5`, `make stock-report-md TICKER=NVDA`, and `make dashboard" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
@@ -1981,7 +1981,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Prices are the safest lane to refresh at scale because they are repeatable time-series rows" in data_strategy
     assert "Fundamentals, peer mappings, earnings, and analyst estimates are judgment-required lanes" in data_strategy
     assert "Missing trusted rows are a product signal." in data_strategy
-    assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
+    assert "Do not try to turn the full universe into analysis-ready rows at once" in data_strategy
     assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
     assert "run `make project-status` first" in data_strategy
     assert "Only run `make trusted-data-pilot-candidates TOP_N=10` when project-status shows executable company candidates" in data_strategy
