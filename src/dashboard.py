@@ -5549,13 +5549,26 @@ def header_saved_name_count(final_frame: pd.DataFrame | None, tickers: int) -> i
 
 
 def render_public_route_bootstrap(selected_page: str, mode: str):
-    if mode != PUBLIC_DEMO_MODE or selected_page != "Data Health":
+    if mode != PUBLIC_DEMO_MODE:
         return None
+    if selected_page == "Data Health":
+        title = "Data Health is loading lane answers."
+        body = (
+            "No commands run here. The page is reading saved readiness outputs so it can show what is usable, "
+            "blocked, skipped, or excluded before proof details."
+        )
+    else:
+        step = public_workflow_step(selected_page)
+        title = f"{step['page']} public workflow is loading."
+        body = (
+            f"{step['question']} The page is reading saved local outputs before showing the short answer, "
+            "primary next step, and research-only stop rule."
+        )
     placeholder = st.empty()
     with placeholder.container():
         render_context_note(
-            "Data Health is loading lane answers.",
-            "No commands run here. The page is reading saved readiness outputs so it can show what is usable, blocked, skipped, or excluded before proof details.",
+            title,
+            body,
             tone="success",
         )
     return placeholder
@@ -30794,8 +30807,6 @@ def main() -> None:
                     language="bash",
                 )
 
-    if bootstrap_placeholder is not None:
-        bootstrap_placeholder.empty()
     output_frames = dashboard_output_frames_for_page(selected_page)
     public_page_header = public_demo_mode
     # Compatibility marker for older source-contract tests: render_app_header(catalog, output_frames, compact=selected_page == "Data Health" and not public_demo_mode)
@@ -30832,6 +30843,8 @@ def main() -> None:
         render_proof_history(public_mode=public_demo_mode)
     elif selected_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
+    if bootstrap_placeholder is not None:
+        bootstrap_placeholder.empty()
 
 
 if __name__ == "__main__":

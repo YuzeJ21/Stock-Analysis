@@ -27802,9 +27802,23 @@ def test_public_data_health_bootstrap_renders_before_sidebar_route_work():
     bootstrap_index = source.index("bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)")
     sidebar_index = source.index("with st.sidebar:", bootstrap_index)
     clear_index = source.index("if bootstrap_placeholder is not None:", sidebar_index)
+    data_health_render_index = source.index("render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)")
     assert bootstrap_index < sidebar_index < clear_index
+    assert data_health_render_index < clear_index
     assert "Data Health is loading lane answers" in source
     assert "No commands run here" in source
+
+
+def test_public_route_bootstrap_covers_all_public_workflow_pages():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    start_index = source.index("def render_public_route_bootstrap(")
+    end_index = source.index("def _translated_missing_item(", start_index)
+    chunk = source[start_index:end_index]
+
+    assert 'mode != PUBLIC_DEMO_MODE' in chunk
+    assert 'selected_page != "Data Health"' not in chunk
+    assert "Data Health is loading lane answers" in chunk
+    assert "public workflow is loading" in chunk
 
 
 def test_public_subpages_do_not_insert_home_loop_before_page_content():
