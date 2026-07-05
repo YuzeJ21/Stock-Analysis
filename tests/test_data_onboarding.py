@@ -1729,7 +1729,10 @@ def test_data_onboarding_cli_peer_runbook_text_surfaces_manual_peer_step(tmp_pat
         sys.argv = previous_argv
 
     assert "peer mapping bundle" in output
-    assert "fill peer mappings manually" in output
+    assert "review source packet" in output
+    assert "dry_run=1 make peer-mapping-source-review" in output
+    assert output.index("review source packet") < output.index("fill only reviewed peer mappings")
+    assert "fill only reviewed peer mappings" in output
     assert "data/imports/peers.csv" in output
     assert "make imports-validate" in output
     assert "make imports-preview" in output

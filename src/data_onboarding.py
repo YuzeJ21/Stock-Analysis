@@ -345,6 +345,18 @@ def focus_command_for_ticker(lane: str, ticker: str) -> str:
     return ""
 
 
+def peer_mapping_source_review_command(tickers: str, *, top_n: int | None = None) -> str:
+    ticker_text = ",".join(
+        ticker.strip().upper()
+        for ticker in str(tickers or "").split(",")
+        if ticker.strip()
+    )
+    if not ticker_text:
+        return "DRY_RUN=1 make peer-mapping-source-review TOP_N=10"
+    count = top_n if top_n is not None else max(1, len(ticker_text.split(",")))
+    return f"DRY_RUN=1 make peer-mapping-source-review TICKERS={ticker_text} TOP_N={count}"
+
+
 def bundle_shortcut_for_scope(lane: str, scope: str, view: str) -> str:
     lane_key = str(lane or "").strip().lower()
     scope_key = str(scope or "").strip().lower()
@@ -2674,6 +2686,7 @@ def build_command_bundles(
         if not peer_targets:
             return
         tickers = ",".join(row.ticker for row in peer_targets)
+        source_review_command = peer_mapping_source_review_command(tickers, top_n=len(peer_targets))
         why_it_matters = (
             "These holdings are closest to peer-relative coverage once manually researched peer mappings are added locally."
             if scope == "holdings_first"
@@ -2692,13 +2705,14 @@ def build_command_bundles(
                 bundle_shortcut_command=bundle_shortcut_for_scope("peers", scope, "bundle"),
                 detail_shortcut_command=bundle_shortcut_for_scope("peers", scope, "detail"),
                 runbook_shortcut_command=bundle_shortcut_for_scope("peers", scope, "runbook"),
-                primary_command="make templates",
+                primary_command=source_review_command,
                 follow_up_command="data/imports/peers.csv",
                 target_file="data/imports/peers.csv",
                 why_it_matters=why_it_matters,
                 safe_next_step=(
-                    "Fill only manually researched peers for the listed tickers, then run make imports-validate, "
-                    "make imports-preview, and make imports-apply before make status refreshes readiness and action outputs."
+                    "Review the peer source-review packet first. Fill only completion-ready, source-backed peer rows for "
+                    "the listed tickers, then run make imports-validate, make imports-preview, and make imports-apply "
+                    "before make status refreshes readiness and action outputs."
                 ),
             )
         )
@@ -2777,8 +2791,16 @@ def build_command_bundle_details(
                     target_goal = "Unlock Peer Relative"
                     target_history_rows = 0
                     suggested_start_date = ""
-                    fallback_manual_command = ""
-                    exact_next_command = str(coverage.focus_command or focus_command_for_ticker("peers", ticker) or "")
+                    if not coverage.has_peer_mapping:
+                        fallback_manual_command = "make templates"
+                        exact_next_command = peer_mapping_source_review_command(ticker, top_n=1)
+                        recommended_action = (
+                            f"Review {exact_next_command} before editing data/imports/peers.csv. "
+                            "Only source-backed, completion-ready peer rows should proceed to validate and preview."
+                        )
+                    else:
+                        fallback_manual_command = ""
+                        exact_next_command = str(coverage.focus_command or focus_command_for_ticker("peers", ticker) or "")
                 else:
                     target_history_rows = 0
                     suggested_start_date = ""
@@ -2849,6 +2871,8 @@ def build_command_bundle_runbook(
                     continue
                 peer_focus_command = focus_command_for_ticker("peers", detail.ticker)
                 if candidate in {peer_focus_command, "make templates", "data/imports/peers.csv"}:
+                    continue
+                if candidate.startswith("DRY_RUN=1 make peer-mapping-source-review"):
                     continue
                 peer_input_command = candidate
                 break
@@ -2944,11 +2968,11 @@ def build_command_bundle_runbook(
                 ]
             else:
                 step_specs = [
-                    ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
+                    ("Review source packet", bundle.primary_command, bundle.safe_next_step),
                     (
-                        "Fill peer mappings manually",
+                        "Fill only reviewed peer mappings",
                         "data/imports/peers.csv",
-                        "Fill only manually researched peer mappings for the listed tickers and keep missing peer context explicit when you do not have a trusted comparison set.",
+                        "Fill only peer mappings whose source-review rows are completion-ready; keep missing peer context explicit when you do not have a trusted comparison set.",
                     ),
                     (
                         "Validate peer mapping import files",
