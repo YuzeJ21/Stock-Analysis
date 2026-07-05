@@ -230,6 +230,37 @@ def test_apply_universe_import_creates_backup_and_merges_by_ticker(tmp_path: Pat
     assert bool(merged.loc[merged["ticker"] == "NVDA", "in_sp500"].iloc[0]) is True
 
 
+def test_apply_universe_import_preserves_existing_membership_labels(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    imports_dir = data_dir / "imports"
+    imports_dir.mkdir(parents=True)
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sector_etf,default_purpose,market_cap_bucket,notes,company_name,"
+        "universe_source,source_detail,index_membership,etf_membership,exchange,is_etf,as_of_date,"
+        "in_local_sample,in_sp500,in_nasdaq,in_smh,in_holdings,in_custom\n"
+        "AAPL,Unclassified,,Core Compounder,Unknown,sp500 and nasdaq notes,Apple Inc.,"
+        "\"sp500, nasdaq\",,\"S&P 500, Nasdaq-listed\",,NASDAQ,False,,False,True,True,False,False,False\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "universe.csv").write_text(
+        "ticker,theme,sector_etf,default_purpose,market_cap_bucket,notes,company_name,"
+        "universe_source,source_detail,index_membership,etf_membership,exchange,is_etf,as_of_date,"
+        "in_local_sample,in_sp500,in_nasdaq,in_smh,in_holdings,in_custom\n"
+        "AAPL,Unclassified,,Core Compounder,Unknown,sp500 notes,Apple Inc.,"
+        "sp500,Information Technology,S&P 500,,NASDAQ,False,,False,True,False,False,False,False\n",
+        encoding="utf-8",
+    )
+
+    result = apply_universe_import(base_dir=tmp_path)
+
+    assert result["status"] == "applied"
+    merged = pd.read_csv(data_dir / "universe.csv")
+    aapl = merged.loc[merged["ticker"] == "AAPL"].iloc[0]
+    assert aapl["universe_source"] == "sp500, nasdaq"
+    assert aapl["index_membership"] == "S&P 500, Nasdaq-listed"
+    assert bool(aapl["in_nasdaq"]) is True
+
+
 def test_build_universe_preview_handles_missing_remote_source_gracefully(tmp_path: Path):
     _setup_base_dir(tmp_path)
     result = build_universe_preview(base_dir=tmp_path, sources="sp500,holdings", loader=_loader({}))

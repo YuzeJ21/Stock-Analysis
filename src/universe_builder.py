@@ -667,6 +667,27 @@ def _merge_staged_values_into_canonical(
 ) -> tuple[dict[str, Any], list[str]]:
     merged = canonical_row.to_dict()
     protected_fields: list[str] = []
+    merge_delimiters = {
+        "universe_source": ", ",
+        "index_membership": ", ",
+        "etf_membership": ", ",
+        "notes": " | ",
+        "source_detail": " | ",
+    }
+
+    def _merge_text_values(existing: Any, staged: Any, delimiter: str) -> str:
+        separator = "|" if delimiter.strip() == "|" else ","
+        values: list[str] = []
+        for raw in (existing, staged):
+            text = _normalize_text(raw)
+            if not text:
+                continue
+            for item in text.split(separator):
+                value = item.strip()
+                if value and value not in values:
+                    values.append(value)
+        return delimiter.join(values)
+
     for column in CANONICAL_UNIVERSE_COLUMNS:
         if column == "ticker":
             continue
@@ -674,6 +695,8 @@ def _merge_staged_values_into_canonical(
         staged_value = staged_row.get(column)
         if column in MEMBERSHIP_COLUMNS + ["is_etf"]:
             new_value = _normalize_bool(staged_value) or _normalize_bool(existing_value)
+        elif column in merge_delimiters:
+            new_value = _merge_text_values(existing_value, staged_value, merge_delimiters[column])
         else:
             new_value = staged_value if _meaningful_value(staged_value, column) else existing_value
         if existing_value != staged_value and new_value == existing_value:

@@ -47,6 +47,7 @@ GENERATED_MARKDOWN_ARTIFACTS = {
 
 REVIEWED_CANONICAL_DATA_PATHS = {
     "data/peers.csv": "peers",
+    "data/universe.csv": "universe_metadata",
 }
 
 SUPPORTED_REVIEW_OUTCOMES = {
@@ -520,7 +521,11 @@ def staged_supported_proof_tickers(repo_root: Path, *, lane: str, path: str) -> 
         if path not in line:
             continue
         if ticker:
-            supported.add(ticker)
+            supported.update(
+                token.strip().upper()
+                for token in ticker.replace(";", ",").split(",")
+                if token.strip()
+            )
     return supported
 
 

@@ -702,3 +702,33 @@ def test_staged_hygiene_blocks_peer_data_without_supported_proof(monkeypatch):
     assert "Staged hygiene check failed." in report
     assert "Generated CSV/JSON churn currently staged:" in report
     assert "data/peers.csv" in report
+
+
+def test_staged_hygiene_accepts_proof_backed_universe_metadata(monkeypatch):
+    module = load_diff_hygiene_module()
+    staged_lines = {
+        "data/universe.csv": [
+            "ARM,,,,,Arm Holdings plc,smh,SMH weight: 1.15%,,SMH,,False,2026-07-05,False,False,False,True,False,False",
+            "STM,,,,,STMicroelectronics N.V.,smh,SMH weight: 1.28%,,SMH,,False,2026-07-05,False,False,False,True,False,False",
+            "TSM,,,,,Taiwan Semiconductor Manufacturing Company Limited,smh,SMH weight: 9.40%,,SMH,,False,2026-07-05,False,False,False,True,False,False",
+        ],
+        "data/reviewed_batch_proofs.csv": [
+            "RB-1,2026-07-05,Codex source review,universe_metadata,reviewed universe metadata slice,\"ARM,STM,TSM\",validate,valid,preview,apply,pre,post,Universe metadata rows applied,\"ARM,STM,TSM\",data/imports/universe.csv; data/universe.csv,human_reviewed_supported,source reviewed",
+        ],
+    }
+    monkeypatch.setattr(
+        module,
+        "load_staged_added_lines",
+        lambda _root, path: staged_lines.get(path, []),
+    )
+    entries = [
+        module.StatusEntry("M", "data/universe.csv"),
+        module.StatusEntry("M", "data/reviewed_batch_proofs.csv"),
+    ]
+
+    report = module.build_staged_check_report(entries, Path("."))
+
+    assert module.staged_hygiene_has_blockers_for_repo(entries, Path(".")) is False
+    assert "Staged hygiene check passed." in report
+    assert "Reviewed canonical data accepted by proof ledger:" in report
+    assert "data/universe.csv" in report
