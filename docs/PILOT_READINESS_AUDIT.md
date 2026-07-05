@@ -2,7 +2,7 @@
 
 Date: 2026-06-22
 
-Last repo-truth refresh: 2026-07-02
+Last repo-truth refresh: 2026-07-05
 
 Verdict: ready for a controlled pilot with manual gates.
 
@@ -25,7 +25,7 @@ The repository is past prototype/internal-alpha for the core workflow because it
 | Financial-model gating and research-only safety | Green | DCF, peer valuation, earnings, and estimates stay withheld until trusted source rows pass validation, preview, rejected-row review, apply/skip decision, rebuilt readiness, and proof recording. |
 | UI/product-page clarity | Yellow | Dashboard and screenshot evidence are ready, and the controlled-pilot path is documented; pilot operators should still use the runbook to stay on the shortest share-safe path. |
 | Operator workflow | Green | Data Health, reviewed-batch packets, pilot readiness checks, proof queues, and commit/package handoffs exist and are copy-only. |
-| Test coverage | Green | Full test suite passes locally in the current package: `2037 passed, 1 warning` inside `make public-check`. |
+| Test coverage | Green | Full test suite passes locally in the current package: `2054 passed, 1 warning` inside `make public-check`. |
 | CI/release checks | Green | `make public-check` passed end-to-end in the current environment, including public wording, whitespace, full tests, dashboard smoke, browser QA evidence, and visitor-demo checks. |
 | Documentation/onboarding | Yellow | README, data strategy, public release checklist, and operator guide exist; this audit and the pilot runbook close the dedicated pilot-doc gap. |
 | Expansion roadmap | Yellow | Roadmap is extensive; this pass adds a concise controlled-pilot stage capsule so pilot entry/exit criteria are easier to find. |
@@ -40,7 +40,7 @@ The repository is past prototype/internal-alpha for the core workflow because it
 | PB-003 | Screenshot QA status stale in docs | Medium | Reviewer could think three real workflow screenshots are still pending even though `make browser-qa-evidence` reports ready. | `docs/DASHBOARD_QA.md` listed single-stock workflow, Data Health proof lane, and queue drawer routing as manual capture pending. | Yes | Update QA status table and matching regression expectation. | Fixed |
 | PB-004 | Pilot entry/exit criteria hard to find | Medium | Roadmap is comprehensive but long; a pilot reviewer needs a short stage capsule. | `ROADMAP.md` has detailed milestones but no compact controlled-pilot criteria block near current state. | Yes | Add a controlled-pilot stage gate with entry criteria, exit criteria, next priorities, post-pilot work, risks, non-goals, and what not to build before pilot. | Fixed |
 | PB-005 | Broad trusted data coverage incomplete | High | Many tickers still cannot support DCF, peer mapping, earnings, or analyst-estimate context. | `make readiness-ops-center`: DCF ready 2,691, partial 243, blocked 90, excluded 514; share count ready 3,447 and blocked 91; peer mapping ready 29, blocked 3,507, excluded 2; earnings and estimates blocked 3,538. | Partly source-dependent | Keep lanes visibly blocked; use `make provider-setup-checklist` when source-proof queues have no unreviewed executable company candidates, then run one reviewed source-proof slice only when new source-backed rows exist. | External/manual gate |
-| PB-006 | Dashboard smoke can be environment-limited | Medium | Local socket restrictions can prevent in-session product-page smoke even when code is valid, but the current environment passed dashboard smoke through `make public-check`. | `make public-check` completed dashboard smoke successfully on 2026-07-02; rerun the gate immediately before sharing. | No, environment dependent | Run `make public-check` before public sharing; if dashboard smoke later fails because a local port cannot bind, verify `make dashboard-smoke` or `make dashboard` in a normal local shell. | Manual recheck gate |
+| PB-006 | Dashboard smoke can be environment-limited | Medium | Local socket restrictions can prevent in-session product-page smoke even when code is valid, but the current environment passed dashboard smoke through `make public-check`. | `make public-check` completed dashboard smoke successfully on 2026-07-05; rerun the gate immediately before sharing. | No, environment dependent | Run `make public-check` before public sharing; if dashboard smoke later fails because a local port cannot bind, verify `make dashboard-smoke` or `make dashboard` in a normal local shell. | Manual recheck gate |
 | PB-007 | Optional provider access can be unavailable | Medium | SEC/Yahoo paths may fail in restricted sessions, so broad unattended data proof cannot be guaranteed. | Session preflight commands can return `session_sec_unavailable` or `session_yfinance_unavailable`. | No, network/provider dependent | Use local reviewed rows when present; otherwise mark ticker/lane `still_blocked`, `skipped`, or `excluded` and move to the next executable lane. | External/manual gate |
 | PB-008 | Keyed free-tier providers not configured | Medium | More fundamentals/share-count fallback coverage cannot expand through FMP, Alpha Vantage, or Finnhub until local keys are configured. | `make session-source-preflight` reports FMP, Alpha Vantage, and Finnhub as `provider_key_missing`; `make project-status` says the best next proof is `make provider-setup-checklist`. | No, owner setup dependent | Keep real keys out of the repo; use the reviewed one-ticker smoke command before broad batches after setup. | External/manual gate |
 
@@ -48,8 +48,8 @@ The repository is past prototype/internal-alpha for the core workflow because it
 
 | Command | Result | Notes |
 | --- | --- | --- |
-| `git status --short --branch --untracked-files=no` | Passed with generated churn only | Current branch is ahead of origin; use the live status gate for the exact count. Reviewed local commits still need push before the GitHub pilot link is current. Dirty files are generated CSV/report churn and broad stock-report artifacts that stay excluded by default. |
-| `git log -5 --oneline` | Passed | Latest commits include Data Health routing, pilot share package, provider setup, and workflow handoff improvements. |
+| `git status --short --branch --untracked-files=no` | Passed with generated churn only | Latest refresh showed `## main...origin/main`; rerun the live status gate before sharing. Dirty files are generated CSV/report churn and broad stock-report artifacts that stay excluded by default. |
+| `git log -5 --oneline` | Passed | Latest commits include public workflow screenshot evidence, responsive workflow cues, LinkedIn/GitHub metadata alignment, and share-brief workflow alignment. |
 | `make diff-hygiene-summary` | Passed | Product/code/docs/test package was clean before this audit refresh; generated/sample report churn stays local unless individually reviewed evidence. |
 | `make pilot-readiness-check TOP_N=10` | Passed with manual gates | Verdict: `pilot-ready with manual gates`; public-check remains the explicit share gate. |
 | `make project-status` | Passed | Reports 3,538 tickers with price rows, 2,808 fundamentals/input-ready, 2,691 operating-company DCF-ready, and 29 peer-ready tickers. |
