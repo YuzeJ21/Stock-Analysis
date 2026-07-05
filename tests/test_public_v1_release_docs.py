@@ -3,8 +3,7 @@ import re
 
 
 PUBLIC_V1_ROUTE = (
-    "Home workflow start -> Stock Selector -> Single-Stock Report -> "
-    "Data Health lane answer -> Proof History evidence"
+    "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History"
 )
 
 
@@ -41,10 +40,10 @@ def test_readme_and_roadmap_name_pilot_operator_runbook():
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
 
-    assert "Pilot Operator Runbook" in readme
-    assert "navigation-only queue route map" in readme
-    assert "share gate -> source gate -> provider setup -> reviewed one-ticker smoke command -> validate/preview -> packet and hygiene" in readme
-    assert "does not refresh data, apply imports, or promote metadata into fundamentals proof" in readme
+    assert "Pilot packaging is read-only first" in readme
+    assert "make pilot-share-brief" in readme
+    assert "does not refresh data or unlock blocked inputs" in readme
+    assert "Provider setup is only an activation boundary" in readme
 
     assert "Pilot Operator Runbook V1" in roadmap
     assert "share gate, source gate, provider setup, reviewed one-ticker smoke command, validate/preview, packet, and hygiene" in roadmap
@@ -70,7 +69,8 @@ def test_public_docs_share_same_coverage_gate_rule():
 
     for doc in (readme, checklist, runbook):
         assert "No broad coverage batch should run from setup alone" in doc
-        assert "Provider setup only makes a source executable" in doc
+        assert "Provider setup is only an activation boundary" in doc
+        assert "it can activate a source" in doc
         assert "readiness changes still require validate, preview, rejected-row review" in doc
         assert "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist" in doc
     assert "run only the listed reviewed one-ticker smoke command before any broader batch" in checklist
@@ -113,8 +113,8 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     assert "Use `make status-check TOP_N=5` for current coverage and blocker counts." in walkthrough
     assert "controlled portfolio/demo license" in walkthrough
     assert PUBLIC_V1_ROUTE in walkthrough
-    assert "Open Stock Selector" in walkthrough
-    assert "Check Proof History" in walkthrough
+    assert "Stock Selector" in walkthrough
+    assert "Proof History" in walkthrough
     assert "Data Health source-proof lane" not in walkthrough
     assert "Home readiness snapshot ->" not in walkthrough
     assert "Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history" not in walkthrough
@@ -134,7 +134,7 @@ def test_public_release_checklist_names_v1_routes_and_primary_surfaces():
 
     assert "Stock Selector is the primary public stock-selection surface" in checklist
     assert "Proof History evidence is the public proof-inspection surface" in checklist
-    assert "Data Health lane answer" in checklist
+    assert "Data Health should stay the first coverage-readiness surface" in checklist
     assert "one answer per lane before queue drawers, route maps, advanced evidence details, or proof ledgers" in checklist
     assert "one answer per lane before queue drawers, route maps, raw tables, or proof ledgers" not in checklist
     assert "Operator context" in checklist

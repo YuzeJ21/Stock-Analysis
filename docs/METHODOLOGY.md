@@ -31,7 +31,7 @@ Use this quick model card before relying on a page or report:
 The public page order is a reading workflow, not an analysis shortcut.
 
 ```text
-Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence
+Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History
 ```
 
 Home starts with the visitor question, next safe action, and stop rule before readiness counts. Stock Selector chooses one readiness-backed candidate; Single-Stock Report explains what can be used for that ticker; Data Health explains one blocked lane at a time; Proof History verifies reviewed evidence before trusting a changed state. This page order helps a visitor understand the product, but it does not turn blocked fundamentals, share counts, peers, earnings, estimates, valuation inputs, or metrics into usable inputs. Those fields still require source-backed rows, validation, preview, rejected-row review, apply, rebuilt readiness, and proof history.

@@ -447,11 +447,10 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "review status" in rendered
     assert "selected ticker" in rendered
     assert "next step" in rendered
-    assert "proof lane shell" in rendered
-    assert "intentionally deferred" in rendered
-    assert "navigation-only" in rendered
-    assert "route map appears before per-lane drawers" in rendered
-    assert "artifact hygiene" in rendered
+    assert "selected lane answer" in rendered
+    assert "before advanced proof detail" in rendered
+    assert "source gate" in rendered
+    assert "before route maps" in rendered
     assert "generated churn" in rendered
     assert "execute commands" in rendered
     assert "investment advice" not in rendered

@@ -758,8 +758,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "A tracked ticker is not automatically ready for every analysis family" in readme
     assert "## What Works Today" in readme
     assert "## Try This Visitor Workflow" in readme
-    assert "Open the product first: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence." in readme
-    assert "Stock Selector is the primary public stock-selection surface" in readme
+    assert "Open the product first and follow the five-page path." in readme
+    assert "Stock Selector filters readiness-backed candidates without framing the queue as advice." in readme
     assert "Use terminal commands only when you want to inspect the same proof artifacts locally." in readme
     assert "Optional local proof checks:" in readme
     assert "| Home | You want the workflow question, next safe action, stop rule, and then readiness context before choosing a route. | `Home` |" in readme
@@ -767,8 +767,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "| Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
     assert "| Proof History | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |" in readme
     assert "`Home`, then focused review pages" not in readme
-    assert "The shortest public walkthrough is: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence" in readme
-    assert "with NVDA, META, QQQ, MU, and CRDO available as optional state examples" in readme
+    assert "The shortest public walkthrough uses NVDA, META, QQQ, MU, and CRDO only as optional state examples." in readme
     assert "[Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" not in readme
     assert "make project-status" in public_demo
@@ -849,16 +848,11 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
             "single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes",
         "The report is not a black box",
         "project rules decide what can be analyzed",
-        "Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears",
-        "Supported analysis: price-ready rows can support setup/risk context",
+        "Price-ready rows can support setup/risk context",
         "DCF-ready rows can support assumptions and sensitivity",
         "peer-ready rows can support source-backed relative context",
-        "Locked or excluded boundaries: missing fundamentals, peer inputs, earnings, or estimates stay locked",
+        "Missing fundamentals, peer inputs, earnings, or estimates stay locked",
         "company valuation is excluded for ETF/index/fund monitor rows, not failed",
-        "Report explanation: single-stock reports show what came from source rows",
-        "what the product calculated",
-        "what stayed withheld",
-        "next local proof step",
         "Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path`",
         "what evidence proves the current mode",
         "what valuation is supported or blocked",
@@ -2364,7 +2358,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert '@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."' in makefile
     assert "@echo \"Visitor workflow path:\"" in makefile
-    assert "@echo \"   Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence\"" in makefile
+    assert "@echo \"   Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History\"" in makefile
     assert "@echo \"   Optional state examples: NVDA ready, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated\"" in makefile
     assert "@echo \"What this proves: readiness-backed selection comes first, ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced.\"" in makefile
     assert "@echo \"Data-confidence note: data confidence describes readiness and review routing, not investment conviction.\"" in makefile

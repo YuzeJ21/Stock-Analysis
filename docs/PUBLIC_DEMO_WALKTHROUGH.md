@@ -17,24 +17,28 @@ This project is a local research command center. It checks data readiness before
 Best visitor path:
 
 1. Open the README and dashboard preview.
-2. Run `make demo` to print the safe walkthrough.
-3. Run `make dashboard` and open `http://localhost:8501/?mode=public` for the clean visitor view.
-4. Open Stock Selector at `?mode=public&page=stock-selector` to show the readiness-backed queue before one-ticker analysis.
-5. Open `?mode=public&page=single-stock-report&ticker=NVDA&open=1` for a DCF-ready company example.
-6. Open Data Health at `?mode=public&page=data-health` when a selector row or report section is blocked by source data.
-7. Check Proof History at `?mode=public&page=proof-history` before trusting changed readiness.
-8. Run `make status-check TOP_N=5` only when you want terminal proof of current coverage and blockers.
-9. Open `outputs/stock_reports/mu.md` for standalone DCF with mapped-peer valuation inputs still locked.
-10. Open `outputs/stock_reports/qqq.md` for ETF/index monitor context where operating-company DCF is excluded.
-11. Run `make project-status`, then `make provider-setup-checklist`, to show the current source gate before any coverage-improvement queue.
-12. Run `make trusted-data-pilot-candidates TOP_N=10` only when project status shows executable company candidates; if the shortlist starts with peer inputs, open `make trusted-data-pilot-packet TICKER=MU`; for fundamentals/DCF proof, open `make trusted-data-pilot-packet TICKER=CRDO`.
+2. Run `make demo` to print the safe walkthrough without changing local data.
+3. Run `make dashboard` and open `http://localhost:8501/?mode=public`.
+4. Follow the five public pages: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
+5. Use the examples below only to show different readiness states.
+6. Run `make status-check TOP_N=5` only when you want terminal proof of current coverage and blockers.
+
+What each page answers:
+
+| Page | First question | What to show |
+| --- | --- | --- |
+| Home | What is this product and where do I start? | Readiness-first workflow, next safe action, stop rule. |
+| Stock Selector | Which stock can I review? | Readiness-backed queue before one-ticker analysis. |
+| Single-Stock Report | What can I use for this ticker right now? | Selected ticker state, usable sections, blocked inputs. |
+| Data Health | Why is something blocked and how do I fix it? | One lane answer before proof drawers or raw tables. |
+| Proof History | What evidence changed a readiness state? | Evidence-only trail before trusting a changed state. |
 
 ## Demo Examples
 
 | Example | What it proves | Good line to point out |
 | --- | --- | --- |
 | `NVDA` | Ready company review. | DCF assumptions and source readiness appear because inputs passed readiness. |
-| `MU` | Standalone DCF, peer valuation still locked. | Mapped-peer price/fundamental inputs are required before peer-relative valuation appears. |
+| `MU` | Standalone DCF, mapped-peer valuation inputs still locked. | Mapped-peer price/fundamental inputs are required before peer-relative valuation appears. |
 | `META` | Price/setup review with valuation gated. | Missing fundamentals keep valuation locked instead of inferred. |
 | `QQQ` / `SMH` | ETF/index or sector monitor context. | Operating-company DCF is excluded, not failed. |
 | `CRDO` / `APLD` | Blocked company examples. | The report shows the next trusted-data proof step instead of fabricating inputs. |
@@ -56,7 +60,9 @@ make trusted-data-pilot-packet TICKER=CRDO
 make dashboard
 ```
 
-The dashboard defaults to Public visitor mode. The first path is the real workflow: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence. Home starts with the visitor question, next safe action, and stop rule before readiness counts. Stock Selector is the public stock-selection surface; Single-Stock Report stays one ticker at a time; Data Health explains blocked source inputs with one lane answer first; Proof History evidence records source-proof changes before a changed state is trusted. Switch Public visitor mode off in the sidebar only when you want Operator context, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
+The dashboard defaults to Public visitor mode. Keep visitors on the five-page path first; switch Public visitor mode off only for Operator context, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
+
+Provider setup is an operator-side follow-up, not a demo prerequisite. If `make project-status` says source-proof queues are exhausted, run `make provider-setup-checklist` to see which free/public sources are usable now and which optional keyed providers need local keys. Setup alone does not unlock coverage; readiness still requires source proof, validation, preview, rejected-row review, apply/skip decision, rebuilt readiness, and proof history.
 
 ## What To Say About Data Gaps
 

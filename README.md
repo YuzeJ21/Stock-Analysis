@@ -32,22 +32,16 @@ flowchart LR
 
 - Best first click: open the real dashboard preview, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Example reports to skim: `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`.
-- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and other screenshots show the product UI only; `make status-check TOP_N=5` remains the source for current local counts, and `make browser-qa-evidence` checks public screenshot assets before replacement.
-- Core product idea: missing data is a quality-control signal, not something to hide or guess.
-- Strongest demo: ready data is analyzed, blocked data stays visible, and ETF/index methods are excluded instead of forced.
-- Share-safe boundary: this is research software, not investment advice, broker integration, or an execution system.
+- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.
+- Share-safe boundary: research software only, not investment advice, broker integration, or an execution system.
+
 ## What You Can Analyze
 
 When trusted local data is available, the product can produce price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, portfolio purpose checks, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 
 ## How Analysis Works
 
-The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed.
-
-1. Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears.
-2. Supported analysis: price-ready rows can support setup/risk context and benchmark/risk review metrics, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context.
-3. Locked or excluded boundaries: missing fundamentals, peer inputs, earnings, or estimates stay locked; company valuation is excluded for ETF/index/fund monitor rows, not failed.
-4. Report explanation: single-stock reports show what came from source rows, what the product calculated, what stayed withheld, and the next local proof step.
+The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed. Price-ready rows can support setup/risk context and benchmark/risk review metrics, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context. Missing fundamentals, peer inputs, earnings, or estimates stay locked; company valuation is excluded for ETF/index/fund monitor rows, not failed.
 
 ## Current Snapshot
 
@@ -59,8 +53,6 @@ Visitor status: the product workflow, dashboard, single-stock reports, readiness
 
 ## Data Coverage Strategy
 
-The product separates refreshable data from judgment-required data:
-
 | Data lane | Best next move | Why it matters |
 | --- | --- | --- |
 | Prices | Use `make price-history-proof-queue TOP_N=25` before `make price-refresh-loop DRY_RUN=1`; `PROVIDER=auto` tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub price fallbacks. | Price coverage can scale safely, but refreshed CSVs should be reviewed before commit. |
@@ -69,9 +61,9 @@ The product separates refreshable data from judgment-required data:
 | Peers | Use `DRY_RUN=1 make peer-batch-proof TOP_N=10` to preview source-backed peer mappings separately from mapped-peer valuation inputs; use `DRY_RUN=1 make peer-mapping-source-review TOP_N=10` before editing `data/imports/peers.csv`; use `make peer-mapping-writeback-guard ...` to block placeholders, self-peers, and duplicate peer pairs before copy/paste, then dry-run the proof-record scaffold; use the ranked pilot packet first when a peer-input lane leads, such as `make trusted-data-pilot-packet TICKER=MU`. | Peer trend and peer valuation stay separate; guessed peers or file row counts do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
 
-Pilot packaging starts with read-only gates: `make pilot-readiness-check TOP_N=10` for sync, hygiene, freshness, source-proof queues, proof ledger, screenshot evidence, public-check, and guardrails; `make pilot-share-brief` for the concise public/demo share brief at `outputs/pilot_share_brief.md`; `make pilot-readiness-packet` for the full reviewer packet at `outputs/pilot_readiness_packet.md`; and `make diff-hygiene-summary` to keep broad generated patterns such as `data/*.csv`, `data/reports/*.csv`, and `outputs/*.csv` excluded unless a specific artifact is reviewed evidence. The share brief is a snapshot handoff only: it does not refresh data or unlock blocked inputs. When source-proof queues are exhausted, `make provider-setup-checklist` shows the current source gate and the provider-specific reviewed one-ticker smoke command to run before any broader batch.
+Pilot packaging is read-only first: `make pilot-readiness-check TOP_N=10` checks sync, hygiene, freshness, source-proof queues, proof ledger, screenshot evidence, public-check, and guardrails; `make pilot-share-brief` writes the concise public/demo share brief at `outputs/pilot_share_brief.md`, which does not refresh data or unlock blocked inputs; `make pilot-readiness-packet` writes the fuller reviewer packet; and `make diff-hygiene-summary` keeps broad generated patterns excluded unless a specific artifact is reviewed evidence.
 
-Data Health mirrors that same pilot handoff before detailed tables. The Pilot Evidence Review strip puts share status, screenshot evidence, reviewer packet, public-check boundary, generated-churn policy, and the leading source-proof blocker in one place before raw tables. The Public Share Final Gate then combines GitHub sync, public-check, browser evidence, generated-churn exclusion, packet status, and research-only wording before GitHub or LinkedIn sharing. A workflow continuity strip connects that review to the next safe action, navigation-only queue route map, proof lane, artifact hygiene, and reviewer packet. The Pilot Operator Runbook then gives the compact operating sequence: share gate -> source gate -> provider setup -> reviewed one-ticker smoke command -> validate/preview -> packet and hygiene. It does not refresh data, apply imports, or promote metadata into fundamentals proof. No broad coverage batch should run from setup alone. Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence. Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.
+When proof queues are exhausted, use `make project-status` and then `make provider-setup-checklist`. Provider setup is only an activation boundary: it can activate a source, but readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence. No broad coverage batch should run from setup alone. Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.
 
 For batch planning after the pilot gate, use `make readiness-ops-center`, `make readiness-queue TOP_N=10`, `make data-coverage-proof-queues TOP_N=10`, `make coverage-frontier TOP_N=10`, and `make data-coverage-planner TOP_N=10`. The readiness queue summarizes fundamentals/DCF, peer mapping, mapped-peer valuation inputs, optional locked lanes, and SPY/QQQ metric-readiness blockers before opening ticker-level proof. The data-coverage proof queue portfolio then puts the DCF input batches, shares-outstanding proof, trusted fundamentals proof, peer mapping proof, and peer valuation-input proof queues side by side with next commands, stop rules, and generated-churn policy.
 
@@ -97,7 +89,15 @@ Start with the five public paths the dashboard is built around:
 | Data Health | You want to understand what trusted input is missing and which proof path should be reviewed next. | `Data Health` |
 | Proof History | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |
 
-The dashboard starts in public visitor mode so people can follow the real workflow first: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence. Home now opens with the workflow question, next safe action, stop rule, and then readiness context, so counts support the path instead of replacing it. Stock Selector is the primary public stock-selection surface: it filters readiness-backed candidates, keeps blockers and proof steps visible, and links rows to `?mode=public&page=single-stock-report&ticker=NVDA&open=1` or the matching proof route without framing the queue as advice. Single-Stock Report shows selected-ticker readiness before the report button, then repeats the loop locally for the loaded ticker before detailed report sections; a focused Data Health handoff card names the matching lane answer for locked inputs, while read-only proof steps stay in collapsed proof detail. Data Health starts with Coverage Summary / What Can I Use, giving one clear answer per lane plus the blocker reason, proof needed to unlock, and stop rule before source-proof drawers or raw tables. Proof History evidence is the public proof-inspection surface before trusting a changed state. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public visitor mode in the sidebar when you want internal Operator context, detailed boards, and local proof commands. Focused public pages now cover Home, Stock Selector, Single-Stock Report, Data Health, and Proof History; advanced pages remain secondary, and watchlist-style outputs stay readiness-state output, not an action list.
+The dashboard starts in public visitor mode at `http://localhost:8501/?mode=public`.
+
+- Home answers what the product is, where to start, and when to stop.
+- Stock Selector filters readiness-backed candidates without framing the queue as advice.
+- Single-Stock Report shows selected-ticker readiness, usable sections, blocked inputs, and one next step before detailed report sections.
+- Data Health starts with Coverage Summary / What Can I Use, one answer per lane, and advanced proof drawers collapsed.
+- Proof History is evidence-only before trusting a changed readiness state.
+
+Switch off Public visitor mode only for internal Operator context, detailed boards, local proof commands, and validate / preview / apply guidance. Advanced pages remain secondary, and watchlist-style outputs stay readiness-state output, not an action list.
 
 ## Quick Start
 
@@ -116,7 +116,7 @@ When you want to run a controlled pilot, use the [Pilot Runbook](docs/PILOT_RUNB
 
 ## Try This Visitor Workflow
 
-Open the product first: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence. Use terminal commands only when you want to inspect the same proof artifacts locally.
+Open the product first and follow the five-page path. Use terminal commands only when you want to inspect the same proof artifacts locally.
 
 ```bash
 make demo                         # print the visitor path without changing local data
@@ -136,7 +136,7 @@ make trusted-data-pilot-candidates TOP_N=10  # only when status shows executable
 make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKER=CRDO
 ```
 
-The shortest public walkthrough is: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence, with NVDA, META, QQQ, MU, and CRDO available as optional state examples. That shows the core idea quickly: the product can filter candidates by readiness, analyze ready data, explain blocked data, separate master/active/ready/missing-data scopes, show liquidity/correlation context without turning it into a conclusion, exclude methods that do not apply, show peer-limited DCF, and print the trusted-data proof path without pretending missing rows exist.
+The shortest public walkthrough uses NVDA, META, QQQ, MU, and CRDO only as optional state examples. That shows the core idea quickly: filter by readiness, analyze ready data, explain blocked data, exclude methods that do not apply, and show the trusted-data proof path without pretending missing rows exist.
 
 Example map: [NVDA](outputs/stock_reports/nvda.md) shows Company DCF assumptions and source-backed peer context; [A](outputs/stock_reports/a.md) / MU show Standalone DCF review where peer-relative valuation is still locked; [META](outputs/stock_reports/meta.md) shows Price/setup review where valuation remains gated; [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) show ETF/index context where Operating-company DCF is excluded, not failed; [APLD](outputs/stock_reports/apld.md) / CRDO show Price/setup review with valuation still locked and the next trusted fundamentals proof step. Optional reports: `make stock-report-md TICKER=A`, `make stock-report-md TICKER=SMH`, and `make stock-report-md TICKER=APLD`.
 
