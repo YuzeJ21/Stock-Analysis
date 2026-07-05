@@ -93,7 +93,10 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         "question": "What source can I use next?",
         "free_source_now": "SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance",
         "missing_key": "Alpha Vantage free tier, Finnhub free tier",
-        "do_not_retry": "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
+        "do_not_retry": (
+            "Do not retry exhausted proof queues. Do not retry fundamentals/share-count source ladder until "
+            "new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist."
+        ),
         "setup_prerequisite": "FMP free tier is configured; choose one reviewed ticker before running the reviewed one-ticker smoke command.",
         "ticker_scope_rule": "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list.",
         "reviewed_one_ticker_smoke": (

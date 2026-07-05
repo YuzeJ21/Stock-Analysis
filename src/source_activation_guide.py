@@ -411,7 +411,10 @@ def _coverage_unlock_decision(rows: list[dict[str, Any]], current_gate: dict[str
         f"Do not retry {avoid_repeating} until new source-backed rows, keyed provider data, reviewed manual rows, "
         "or changed blockers exist."
         if avoid_repeating and avoid_repeating != "-"
-        else "Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist."
+        else (
+            "Do not retry exhausted proof queues. Do not retry fundamentals/share-count source ladder until "
+            "new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist."
+        )
     )
     return {
         "answer": "No broad coverage batch should run from setup alone.",

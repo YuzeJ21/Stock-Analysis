@@ -436,7 +436,7 @@ def _reviewed_non_actionable_tickers(root: Path | None) -> set[str]:
     ledger = _read_csv(ledger_path)
     if ledger.empty or "tickers" not in ledger.columns or "final_outcome" not in ledger.columns:
         return set()
-    relevant_lanes = {"fundamentals", "share_count"}
+    relevant_lanes = {"dcf_inputs", "fundamentals", "fundamentals_share_count", "share_count"}
     non_actionable = {"candidate_context_only", "still_blocked", "skipped", "excluded"}
     if "lane" in ledger.columns:
         ledger = ledger.loc[ledger["lane"].astype(str).str.lower().str.strip().isin(relevant_lanes)]

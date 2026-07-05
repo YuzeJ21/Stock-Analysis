@@ -572,6 +572,36 @@ def test_dcf_input_queue_deprioritizes_reviewed_non_actionable_blockers(tmp_path
     assert "reviewed proof ledger already records" in by_ticker["META"].source_note.lower()
 
 
+def test_dcf_input_queue_deprioritizes_reviewed_dcf_input_blockers(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "reviewed_batch_proofs.csv").write_text(
+        "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,"
+        "preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,"
+        "changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,"
+        "final_outcome,notes\n"
+        "RB-META-DCF,2026-07-05,local reviewer,dcf_inputs,reviewed scope,META,"
+        "make dcf-input-proof-queue TOP_N=10,passed,valid,not_applied,before,after,"
+        "none,none,data/imports/fundamentals.csv,excluded,still_blocked,"
+        "source ladder confirmed missing revenue and free cash flow remain unavailable\n",
+        encoding="utf-8",
+    )
+
+    rows = build_dcf_input_proof_queue(
+        root=tmp_path,
+        universe=_sample_universe(),
+        fundamentals=_sample_fundamentals(),
+        prices=_sample_prices(),
+        top_n=10,
+    )
+    by_ticker = {row.ticker: row for row in rows}
+
+    assert [row.ticker for row in rows[:2]] == ["AMD", "HOOD"]
+    assert rows[-1].ticker == "META"
+    assert "reviewed proof ledger already records" in by_ticker["META"].source_note.lower()
+
+
 def test_dcf_input_queue_deprioritizes_partial_tickers_from_supported_batch_notes(tmp_path, monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "research@example.com")
     data_dir = tmp_path / "data"
