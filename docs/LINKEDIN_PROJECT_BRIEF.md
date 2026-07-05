@@ -35,11 +35,33 @@ The most important design choice was refusing to present every ticker as complet
 
 GitHub: https://github.com/YuzeJ21/Stock-Analysis
 
-LinkedIn Featured title: `Stock Research Command Center - Readiness-First Research Dashboard`
+## Copy/Paste LinkedIn Profile Updates
 
-LinkedIn Featured description: `A Python and Streamlit portfolio project that checks data readiness before showing stock research workflows. It separates ready, blocked, partial, and excluded states, keeps proof steps visible, and stays research-only with no broker integration or auto-trading.`
+LinkedIn Featured title:
+
+`Stock Research Command Center | Readiness-First Stock Research Workflow`
+
+LinkedIn Featured description:
+
+`A Python + Streamlit portfolio project that checks stock data readiness before showing analysis. It separates ready, blocked, partial, and excluded states, keeps source-proof steps visible, and stays research-only with no broker integration, auto-trading, or investment advice.`
+
+About-section sentence:
+
+`I also build portfolio projects that turn messy data-readiness problems into guided product workflows, including a readiness-first Stock Research Command Center for equity research review.`
+
+Optional LinkedIn post:
+
+`I have been building a Stock Research Command Center as a portfolio project. The core idea is simple: data readiness first, analysis second, research decision last. The app checks whether stock data is ready before showing analysis, separates ready / partial / blocked / excluded states, and keeps source-proof steps visible when inputs are missing. It is built with Python and Streamlit, and stays research-only: no broker integration, no auto-trading, no order routing, and no investment advice. This project reflects the kind of data-product work I care about: turning messy coverage, quality, and workflow problems into a guided user experience.`
+
+What not to claim:
+
+- Do not call it an investment-advice tool, stock picker, broker integration, execution system, account-action workflow, or data-freshness proof.
+- Do not imply blocked fundamentals, peer valuation, earnings, or analyst-estimate lanes are complete.
+- Do not describe the repository as open source or reusable software under the current controlled demo license.
 
 Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`. It is a real product screenshot of the public visitor path; use `make status-check TOP_N=5` for current local readiness counts because screenshot counts can become stale after local refresh/import work. Keep `docs/assets/operator-data-health-metrics-real.jpg` only for deeper operator-mode discussion.
+
+LinkedIn can cache older GitHub preview images. If the Featured card still shows the old screenshot after GitHub is pushed, remove and re-add the Featured link, or refresh the URL through LinkedIn's post inspector before adding it again.
 
 ## Resume Bullet Options
 

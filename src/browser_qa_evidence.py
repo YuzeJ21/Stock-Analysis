@@ -45,7 +45,7 @@ DEFAULT_BROWSER_QA_EVIDENCE: tuple[BrowserQaEvidence, ...] = (
         name="LinkedIn public dashboard thumbnail",
         path=Path("docs/assets/linkedin-public-dashboard.png"),
         route="http://localhost:8501/?mode=public",
-        expected_markers=("research-loop-strip", "Public visitor mode", "First 30 Seconds", "Primary Workflow"),
+        expected_markers=("research-loop-strip", "What can I use now?", "First 30 Seconds", "Primary Workflow"),
         min_width=1200,
         min_height=600,
         use="LinkedIn Featured and GitHub preview image.",
@@ -118,7 +118,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Public visitor home",
         route="http://localhost:8501/?mode=public",
-        first_view_markers=("research-loop-strip", "Public visitor mode", "First 30 Seconds", "Primary Workflow"),
+        first_view_markers=("research-loop-strip", "What can I use now?", "First 30 Seconds", "Primary Workflow"),
         details_boundary="Operator commands and proof tables stay out of the first public view.",
         qa_focus="Visitor understands readiness-first workflow and research-only boundary in under 30 seconds.",
         stop_rule="Stop if the first view shows raw CSV tables, command-heavy copy, traceback text, or stale generated-thumbnail proof.",

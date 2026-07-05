@@ -63,7 +63,7 @@ def test_browser_qa_evidence_rows_keep_routes_assets_and_boundaries_visible(tmp_
             name="Public dashboard",
             path=Path("docs/assets/linkedin-public-dashboard.png"),
             route="http://localhost:8501/?mode=public",
-            expected_markers=("research-loop-strip", "Public visitor mode"),
+            expected_markers=("research-loop-strip", "What can I use now?"),
             min_width=1200,
             min_height=600,
             use="LinkedIn thumbnail.",
@@ -77,6 +77,7 @@ def test_browser_qa_evidence_rows_keep_routes_assets_and_boundaries_visible(tmp_
     assert rows[0]["Dimensions"].startswith("1200x627")
     assert "localhost:8501/?mode=public" in rendered
     assert "research-loop-strip" in rendered
+    assert "what can i use now?" in rendered
     assert "linkedin thumbnail" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -92,7 +93,7 @@ def test_browser_qa_evidence_verdict_blocks_missing_or_small_assets(tmp_path):
             name="Small asset",
             path=Path("docs/assets/small.png"),
             route="http://localhost:8501/?mode=public",
-            expected_markers=("Public visitor mode",),
+            expected_markers=("What can I use now?",),
             min_width=1200,
             min_height=600,
             use="Too small for public evidence.",
