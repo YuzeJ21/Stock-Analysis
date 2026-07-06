@@ -11750,6 +11750,20 @@ def _proof_history_public_text(value: object, fallback: str = "Not recorded") ->
     return cleaned.replace("record(s)", "records").replace("row(s)", "rows")
 
 
+def proof_history_changed_tickers_summary(text: str, *, sample_limit: int = 6) -> str:
+    cleaned = format_missing(text, "").strip()
+    if not cleaned or cleaned.lower() == "none":
+        return "no changed tickers recorded"
+    tickers = [part.strip().upper() for part in re.split(r"[;,]", cleaned) if part.strip()]
+    if not tickers:
+        return compact_card_fragment(_proof_history_public_text(cleaned), max_chars=120)
+    unique_tickers = list(dict.fromkeys(tickers))
+    sample = ", ".join(unique_tickers[:sample_limit])
+    if len(unique_tickers) <= sample_limit:
+        return sample
+    return f"{len(unique_tickers)} changed tickers; sample: {sample}"
+
+
 def proof_history_public_summary_html(proof_timeline: pd.DataFrame | None, batch_proof_frame: pd.DataFrame | None) -> str:
     proof_count = 0 if proof_timeline is None else len(proof_timeline)
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
@@ -11868,6 +11882,7 @@ def proof_history_public_detail_cards(
     latest_batch_tickers = _proof_history_public_text(
         _proof_history_first_text(batch_proof_frame, "Changed Tickers", fallback="No changed tickers recorded.")
     )
+    latest_batch_tickers_summary = proof_history_changed_tickers_summary(latest_batch_tickers)
     latest_batch_notes = _proof_history_public_text(_proof_history_first_text(batch_proof_frame, "Notes", fallback="No batch note recorded."))
     proof_count = 0 if proof_timeline is None else len(proof_timeline)
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
@@ -11900,8 +11915,8 @@ def proof_history_public_detail_cards(
             "kicker": "LATEST BATCH PROOF",
             "title": f"{latest_batch_lane}: {latest_batch_outcome}",
             "body": (
-                f"{card_sentence('Changed tickers', latest_batch_tickers)} "
-                f"{card_sentence('Review note', latest_batch_notes)}"
+                f"{card_sentence('Changed tickers', latest_batch_tickers_summary)} "
+                f"{card_sentence('Review note', compact_card_fragment(latest_batch_notes, max_chars=180))}"
             ),
             "badges": [latest_batch_date, f"{batch_count} batch records"],
             "command": "",

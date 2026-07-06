@@ -15049,6 +15049,43 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
     assert "sell" not in rendered
 
 
+def test_public_proof_history_batch_card_summarizes_long_changed_ticker_lists():
+    proof_timeline = pd.DataFrame(
+        [
+            {
+                "Proof Date": "2026-06-20",
+                "Lane": "fundamentals",
+                "Final Outcome": "supported",
+                "What Changed": "trusted rows reviewed",
+                "Still Blocked": "no blocker recorded",
+            }
+        ]
+    )
+    changed_tickers = "ADI,ALAB,AMAT,AMD,ARM,ASML,AVGO,CDNS,INTC,KLAC,LRCX"
+    batch_proof = pd.DataFrame(
+        [
+            {
+                "Review Date": "2026-07-05",
+                "Lane": "universe_metadata",
+                "Final Outcome": "human_reviewed_supported",
+                "Changed Tickers": changed_tickers,
+                "Notes": "Universe membership is source metadata only and does not unlock fundamentals or trading actions.",
+            }
+        ]
+    )
+
+    rendered = " ".join(
+        str(value)
+        for card in dashboard.proof_history_public_detail_cards(proof_timeline, batch_proof)
+        for value in card.values()
+    )
+
+    assert "11 changed tickers; sample: ADI, ALAB, AMAT, AMD, ARM, ASML" in rendered
+    assert changed_tickers not in rendered
+    assert "does not unlock fundamentals" in rendered
+    assert "trading actions" in rendered
+
+
 def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and_next_action():
     proof_timeline = pd.DataFrame(
         [
