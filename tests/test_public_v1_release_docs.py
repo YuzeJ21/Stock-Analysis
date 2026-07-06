@@ -65,11 +65,17 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
 def test_readme_has_external_reviewer_handoff_before_operator_detail():
     readme = _read("README.md")
 
+    assert "## Two-Minute External Review Path" in readme
+    assert "- GitHub-only review: start with the preview image, the five-page workflow map, and the `docs/PUBLIC_DEMO_WALKTHROUGH.md` script." in readme
+    assert "- Live dashboard review: run `make dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History." in readme
+    assert "- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts." in readme
+    assert "- Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof." in readme
     assert "## External Reviewer Handoff" in readme
     assert "| Review first | Dashboard preview, then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
     assert "| Skip unless operating locally | Broad CSV/report churn, provider setup, validate/preview/apply commands, and raw proof ledgers. |" in readme
     assert "| Do not claim | Screenshots prove data freshness, blocked inputs are ready, the repo is open source, or the product gives buy/sell instructions. |" in readme
     assert "| Best next question | Can a reviewer understand what is ready, blocked, excluded, and proof-backed before opening advanced details? |" in readme
+    assert readme.index("## Two-Minute External Review Path") < readme.index("## External Reviewer Handoff")
     assert readme.index("## External Reviewer Handoff") < readme.index("## Data Coverage Strategy")
 
 

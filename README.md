@@ -26,11 +26,11 @@ flowchart LR
     Health --> Proof["Proof History: source-proof trail"]
 ```
 
-## LinkedIn Visitor Snapshot
-- Best first click: open the real dashboard preview, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
-- Example reports to skim: `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`.
+## Two-Minute External Review Path
+- GitHub-only review: start with the preview image, the five-page workflow map, and the `docs/PUBLIC_DEMO_WALKTHROUGH.md` script.
+- Live dashboard review: run `make dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.
-- Share-safe boundary: research software only, not investment advice, broker integration, or an execution system.
+- Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
 
 ## What You Can Analyze
 When trusted local data is available, the product can produce price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, portfolio purpose checks, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
