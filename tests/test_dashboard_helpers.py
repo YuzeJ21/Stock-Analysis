@@ -28014,6 +28014,40 @@ def test_dashboard_theme_removes_framework_heading_links_from_keyboard_flow():
     assert "outline: 3px solid #0f766e !important;" in source
 
 
+def test_public_workflow_adds_keyboard_skip_link_before_sidebar_controls():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "def public_workflow_skip_link_html(" in source
+    assert "def public_workflow_skip_target_html(" in source
+    assert ".public-skip-link" in source
+    assert "clip-path: inset(50%)" in source
+    assert ".public-skip-link:focus" in source
+    assert "clip-path: none" in source
+    assert "href='#public-page-answer'" in source
+    assert "id='public-page-answer'" in source
+    assert "tabindex='-1'" in source
+
+    sidebar_index = source.index("with st.sidebar:")
+    nav_header_index = source.index("render_sidebar_nav_header()", sidebar_index)
+    skip_link_index = source.index("render_public_workflow_skip_link()", nav_header_index)
+    toggle_index = source.index("public_demo_mode = st.toggle(", skip_link_index)
+    assert nav_header_index < skip_link_index < toggle_index
+
+    render_header_index = source.index("render_app_header(\n        catalog,\n        output_frames,")
+    skip_target_index = source.index("render_public_workflow_skip_target()", render_header_index)
+    workflow_header_index = source.index("render_public_workflow_header(selected_page)", skip_target_index)
+    assert render_header_index < skip_target_index < workflow_header_index
+
+    html = dashboard.public_workflow_skip_link_html()
+    assert "Skip to page answer" in html
+    assert "href='#public-page-answer'" in html
+    assert "aria-label='Skip to page answer'" in html
+
+    target_html = dashboard.public_workflow_skip_target_html()
+    assert "id='public-page-answer'" in target_html
+    assert "tabindex='-1'" in target_html
+
+
 def test_public_compact_header_allows_mobile_status_wrap():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

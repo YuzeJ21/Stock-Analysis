@@ -1967,6 +1967,38 @@ def apply_dashboard_theme() -> None:
           outline-offset: 3px !important;
           box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.20) !important;
         }
+        .public-skip-link {
+          position: absolute;
+          top: 0.55rem;
+          left: 0.55rem;
+          z-index: 10000;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+          white-space: nowrap;
+          color: #022c22 !important;
+          background: #ccfbf1;
+          border: 2px solid #22c55e;
+          border-radius: 8px;
+          padding: 0.46rem 0.6rem;
+          font-size: 0.76rem;
+          font-weight: 900;
+          text-decoration: none !important;
+          box-shadow: 0 14px 32px rgba(0,0,0,0.24);
+        }
+        .public-skip-link:focus {
+          width: auto;
+          height: auto;
+          overflow: visible;
+          clip-path: none;
+          white-space: normal;
+        }
+        .public-workflow-skip-target {
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+        }
         [data-testid="stSidebar"] {
           background: #07111d !important;
           border-right: 1px solid rgba(255,255,255,0.08);
@@ -4866,6 +4898,25 @@ def public_workflow_header_html(page_title: str) -> str:
 
 def render_public_workflow_header(page_title: str) -> None:
     st.markdown(public_workflow_header_html(page_title), unsafe_allow_html=True)
+
+
+def public_workflow_skip_link_html() -> str:
+    return (
+        "<a class='public-skip-link' href='#public-page-answer' "
+        "aria-label='Skip to page answer'>Skip to page answer</a>"
+    )
+
+
+def render_public_workflow_skip_link() -> None:
+    st.markdown(public_workflow_skip_link_html(), unsafe_allow_html=True)
+
+
+def public_workflow_skip_target_html() -> str:
+    return "<div id='public-page-answer' class='public-workflow-skip-target' tabindex='-1'></div>"
+
+
+def render_public_workflow_skip_target() -> None:
+    st.markdown(public_workflow_skip_target_html(), unsafe_allow_html=True)
 
 
 def action_link_label(title: str) -> str:
@@ -30874,6 +30925,7 @@ def main() -> None:
 
     with st.sidebar:
         render_sidebar_nav_header()
+        render_public_workflow_skip_link()
         has_explicit_page_query = dashboard_query_value_present(page_query_value)
         has_explicit_mode_query = dashboard_query_value_present(mode_query_value)
         public_demo_mode = st.toggle(
@@ -30985,6 +31037,7 @@ def main() -> None:
     )
     st.caption("Local stock research guided workflow. Data readiness first; analysis only when source-backed inputs are ready.")
     if public_demo_mode:
+        render_public_workflow_skip_target()
         render_public_workflow_header(selected_page)
 
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
