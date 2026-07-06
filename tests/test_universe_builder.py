@@ -302,8 +302,10 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert "status: ok" in output
     assert "does not unlock fundamentals, share count, DCF, peer valuation, earnings, analyst estimates, or recommendations" in output
     assert "row_count:" in output
-    assert "apply_effect:" in output
-    assert "apply boundary: universe-apply preserves meaningful existing local fields and keeps true membership flags" in output
+    assert "source_differences:" in output
+    assert "source difference boundary: source rows may differ from local metadata before protected-field merge" in output
+    assert "canonical_apply_effect:" in output
+    assert "canonical apply boundary: universe-apply preserves meaningful existing local fields and keeps true membership flags" in output
     assert "protected_sample:" in output
     assert "- NVDA: preserves theme, sector_etf, market_cap_bucket" in output
     assert "staged_import:" in output

@@ -1225,21 +1225,25 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     print(f"status: {payload.get('status', '-')}")
     print(f"row_count: {summary.get('row_count', 0)}")
     print(
-        "changes: "
+        "source_differences: "
         f"new={summary.get('new_tickers', 0)}; "
         f"updated={summary.get('updated_tickers', 0)}; "
         f"unchanged={summary.get('unchanged_tickers', 0)}"
     )
+    print(
+        "source difference boundary: source rows may differ from local metadata before protected-field merge; "
+        "review row scope before staging or applying universe metadata."
+    )
     apply_effect = summary.get("apply_effect") or {}
     if apply_effect:
         print(
-            "apply_effect: "
+            "canonical_apply_effect: "
             f"new={apply_effect.get('new_rows', 0)}; "
             f"updated={apply_effect.get('updated_rows', 0)}; "
             f"unchanged={apply_effect.get('unchanged_rows', 0)}; "
             f"protected_existing_values={apply_effect.get('protected_existing_value_count', 0)}"
         )
-        print(f"apply boundary: {apply_effect.get('boundary', '-')}")
+        print(f"canonical apply boundary: {apply_effect.get('boundary', '-')}")
         protected_sample = apply_effect.get("protected_existing_value_sample") or []
         if protected_sample:
             print("protected_sample:")
