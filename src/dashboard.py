@@ -2691,6 +2691,43 @@ def apply_dashboard_theme() -> None:
           line-height: 1.38;
           margin-top: 0.34rem;
         }
+        .public-proof-answer-cards {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 0.62rem;
+          margin: 0.45rem 0 0.4rem 0;
+        }
+        .public-proof-answer-card {
+          min-width: 0;
+          border: 1px solid rgba(15, 23, 42, 0.1);
+          border-radius: 8px;
+          background: #ffffff;
+          padding: 0.74rem 0.78rem;
+        }
+        .public-proof-answer-question {
+          color: #0f766e;
+          font-size: 0.72rem;
+          font-weight: 950;
+          line-height: 1.24;
+        }
+        .public-proof-answer-body {
+          color: #111827;
+          font-size: 0.8rem;
+          font-weight: 800;
+          line-height: 1.35;
+          margin-top: 0.34rem;
+        }
+        .public-proof-answer-next,
+        .public-proof-answer-boundary {
+          color: #526071;
+          font-size: 0.74rem;
+          line-height: 1.34;
+          margin-top: 0.3rem;
+        }
+        .public-proof-answer-label {
+          color: #475569;
+          font-weight: 950;
+        }
         @media (max-width: 980px) {
           [data-testid="stSidebar"] {
             width: 9rem !important;
@@ -11974,6 +12011,35 @@ def proof_history_first_answer_frame(
     )
 
 
+def proof_history_first_answer_cards_html(frame: pd.DataFrame | None) -> str:
+    if frame is None or frame.empty:
+        return (
+            "<div class='public-proof-answer-cards'>"
+            "<div class='public-proof-answer-card'>"
+            "<div class='public-proof-answer-question'>Proof History answer</div>"
+            "<div class='public-proof-answer-body'>No reviewed proof answer is available yet.</div>"
+            "<div class='public-proof-answer-boundary'><span class='public-proof-answer-label'>Boundary:</span> "
+            "This does not refresh or unlock data.</div>"
+            "</div>"
+            "</div>"
+        )
+    rows = []
+    for row in frame.to_dict("records"):
+        question = html.escape(str(row.get("Question", "") or "Proof History answer"))
+        answer = html.escape(compact_card_fragment(str(row.get("Answer", "") or "Not recorded"), max_chars=180))
+        next_step = html.escape(compact_card_fragment(str(row.get("Next Safe Destination", "") or "Not recorded"), max_chars=120))
+        boundary = html.escape(compact_card_fragment(str(row.get("Boundary", "") or "Not recorded"), max_chars=150))
+        rows.append(
+            "<div class='public-proof-answer-card'>"
+            f"<div class='public-proof-answer-question'>{question}</div>"
+            f"<div class='public-proof-answer-body'>{answer}</div>"
+            f"<div class='public-proof-answer-next'><span class='public-proof-answer-label'>Next:</span> {next_step}</div>"
+            f"<div class='public-proof-answer-boundary'><span class='public-proof-answer-label'>Boundary:</span> {boundary}</div>"
+            "</div>"
+        )
+    return "<div class='public-proof-answer-cards'>" + "".join(rows) + "</div>"
+
+
 def proof_history_public_detail_cards(
     proof_timeline: pd.DataFrame | None,
     batch_proof_frame: pd.DataFrame | None,
@@ -12055,8 +12121,11 @@ def render_proof_history(*, public_mode: bool = True) -> None:
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
     render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
     if public_mode:
-        with st.expander("Advanced: proof answer table", expanded=False):
-            st.table(clean_display_frame(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)))
+        with st.expander("Advanced: proof answer cards", expanded=False):
+            st.markdown(
+                proof_history_first_answer_cards_html(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)),
+                unsafe_allow_html=True,
+            )
             st.markdown(
                 proof_history_public_summary_html(proof_timeline, batch_proof_frame),
                 unsafe_allow_html=True,

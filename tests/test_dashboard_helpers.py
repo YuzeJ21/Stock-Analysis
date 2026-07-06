@@ -15267,13 +15267,54 @@ def test_proof_history_public_page_renders_first_answer_frame_before_ledger_deta
     proof_history_chunk = source[render_index:next_function_index]
     first_answer_index = source.index('"Evidence-only page."', render_index)
     cards_index = source.index("proof_history_public_detail_cards(proof_timeline, batch_proof_frame)", first_answer_index)
-    answer_table_index = source.index('st.expander("Advanced: proof answer table", expanded=False)', cards_index)
-    frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", answer_table_index)
+    answer_cards_index = source.index('st.expander("Advanced: proof answer cards", expanded=False)', cards_index)
+    card_html_index = source.index("proof_history_first_answer_cards_html(", answer_cards_index)
+    frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", card_html_index)
     details_index = source.index('st.expander("Advanced: proof ledger details", expanded=False)', frame_index)
 
-    assert first_answer_index < cards_index < answer_table_index < frame_index < details_index
+    assert first_answer_index < cards_index < answer_cards_index < card_html_index < frame_index < details_index
     assert '"Proof History First Answer"' not in proof_history_chunk
     assert '"Proof History One Answer"' not in proof_history_chunk
+
+
+def test_public_proof_history_answer_drawer_uses_compact_cards_not_table():
+    proof_timeline = pd.DataFrame(
+        [
+            {
+                "Proof Date": "2026-06-20",
+                "Lane": "peer_mapping",
+                "Final Outcome": "human_reviewed_supported",
+                "What Changed": "trusted peer rows reviewed",
+                "Still Blocked": "No remaining peer mapping blocker for reviewed rows.",
+            }
+        ]
+    )
+    batch_proof = pd.DataFrame(
+        [
+            {
+                "Review Date": "2026-06-21",
+                "Lane": "optional_context",
+                "Final Outcome": "candidate_context_only",
+                "Changed Tickers": "AAPL, MSFT",
+                "Notes": "provider-assisted optional context reviewed as candidate context only",
+            }
+        ]
+    )
+    frame = dashboard.proof_history_first_answer_frame(proof_timeline, batch_proof)
+
+    rendered = dashboard.proof_history_first_answer_cards_html(frame).lower()
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    answer_drawer_index = source.index('st.expander("Advanced: proof answer cards", expanded=False)')
+    operator_else_index = source.index("\n    else:", answer_drawer_index)
+    answer_drawer_chunk = source[answer_drawer_index:operator_else_index]
+
+    assert "public-proof-answer-cards" in rendered
+    assert "what is proof history for?" in rendered
+    assert "evidence review only" in rendered
+    assert "leave proof history after the evidence question is answered" in rendered
+    assert "<table" not in rendered
+    assert "st.table(" not in answer_drawer_chunk
+    assert "proof_history_first_answer_cards_html(" in answer_drawer_chunk
 
 
 def test_reviewed_batch_execution_checklist_covers_lane_to_ledger_loop():
