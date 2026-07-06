@@ -162,7 +162,10 @@ def test_optional_context_readiness_cli_prints_unlock_paths(tmp_path: Path, caps
     assert "data/staged/analyst_estimates/" in output
     assert "data/imports/earnings.csv" in output
     assert "data/imports/analyst_estimates.csv" in output
-    assert "make import-earnings or make import-analyst-estimates" in output
+    assert "make optional-context-source-ladder-queue top_n=10" in output
+    assert "make optional-context-source-ladder tickers=<resolved-tickers>" in output
+    assert "make templates only when trusted provider/manual rows are unavailable or you need schema files" in output
+    assert "make import-earnings or make import-analyst-estimates only after trusted staged files exist" in output
     assert "make imports-validate import_tickers=<ticker> -> make imports-preview import_tickers=<ticker> -> make imports-apply import_tickers=<ticker> -> make optional-context-readiness" in output
     assert "data/earnings_import_rejected.csv" in output
     assert "data/analyst_estimates_import_rejected.csv" in output
