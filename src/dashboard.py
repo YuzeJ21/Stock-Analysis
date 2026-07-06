@@ -26107,11 +26107,10 @@ def render_stock_selector(
         )
         return
 
-    render_section_header("Research Queue", "Start with one saved candidate, then use filters only when you need a narrower queue.")
+    render_section_header("Choose One Ticker", "Open one saved ticker first; use filters below only when you need a narrower queue.")
     initial_shortlist_options = selector_frame["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
     initial_shortlist = initial_shortlist_options[: min(3, len(initial_shortlist_options))]
     if public_mode:
-        render_section_header("Next Reading Path", "Open one saved ticker first; use filters below only to change the queue.")
         render_action_cards(
             stock_selector_next_reading_path_cards(selector_frame, initial_shortlist)
         )
