@@ -5698,8 +5698,8 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
     else:
         title = "Loading Coverage Summary / What Can I Use?"
         body = (
-            "No commands run here. The page is reading saved readiness outputs so it can show what is usable, "
-            "blocked, skipped, or excluded before proof details."
+            "Use now: wait for one lane answer. Blocked: raw proof, queues, and route maps stay hidden. "
+            "Next: open proof only if evidence changed. Stop: no commands run and no data is unlocked here."
         )
     placeholder = st.empty()
     with placeholder.container():
@@ -27316,7 +27316,9 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         with public_loading_placeholder.container():
             render_context_note(
                 "Loading selected ticker answer.",
-                "Reading local readiness and source coverage now; the next section will show the selected ticker answer with readable-now sections, blocked inputs, and the next proof step before raw evidence drawers.",
+                "Use now: the selected ticker state loads first. Blocked: locked inputs stay withheld. "
+                "Next: read supported sections, then open Data Health only for blocked proof. "
+                "Stop: do not treat partial, candidate-only, or loading sections as conclusions.",
                 tone="success",
             )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -28427,7 +28429,8 @@ def render_data_health(
         with public_loading_placeholder.container():
             render_context_note(
                 "Loading Coverage Summary / What Can I Use?",
-                "Reading saved readiness files now; the next section will show one lane answer with usable now, blocked inputs, next proof, and stop rule before proof maps or advanced evidence details.",
+                "Use now: wait for one lane answer. Blocked: raw tables, route maps, queues, and proof ledgers stay hidden. "
+                "Next: inspect proof only when evidence changed. Stop: no commands run and no data is unlocked here.",
                 tone="success",
             )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())

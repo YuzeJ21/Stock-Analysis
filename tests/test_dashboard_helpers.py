@@ -20034,7 +20034,11 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
     provider_none_index = source.index("if provider is None:", function_index)
     placeholder_index = source.index("public_loading_placeholder = st.empty()", provider_none_index)
     placeholder_copy_index = source.index('"Loading Coverage Summary / What Can I Use?"', placeholder_index)
-    placeholder_contract_index = source.index("one lane answer with usable now, blocked inputs, next proof, and stop rule", placeholder_copy_index)
+    placeholder_contract_index = source.index(
+        "raw tables, route maps, queues, and proof ledgers stay hidden",
+        placeholder_copy_index,
+    )
+    placeholder_stop_index = source.index("no commands run and no data is unlocked here", placeholder_contract_index)
     validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", placeholder_index)
     clear_placeholder_index = source.index("public_loading_placeholder.empty()", validation_load_index)
     coverage_summary_index = source.index(
@@ -20042,7 +20046,14 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
         clear_placeholder_index,
     )
 
-    assert provider_none_index < placeholder_index < placeholder_copy_index < placeholder_contract_index < validation_load_index
+    assert (
+        provider_none_index
+        < placeholder_index
+        < placeholder_copy_index
+        < placeholder_contract_index
+        < placeholder_stop_index
+        < validation_load_index
+    )
     assert validation_load_index < clear_placeholder_index < coverage_summary_index
 
 
@@ -28170,7 +28181,8 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     loading_note_index = source.index("render_context_note(", workflow_bootstrap_index)
     assert workflow_bootstrap_index < loading_note_index
     assert "Loading Coverage Summary / What Can I Use?" in source
-    assert "No commands run here" in source
+    assert "Use now: wait for one lane answer" in source
+    assert "Stop: no commands run and no data is unlocked here" in source
 
 
 def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy():
@@ -28183,6 +28195,7 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert 'selected_page not in {STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
     assert "Stock Selector is loading readiness filters" in chunk
     assert "Loading Coverage Summary / What Can I Use?" in chunk
+    assert "raw proof, queues, and route maps stay hidden" in chunk
     assert "Proof History is loading evidence cards" in chunk
     assert "public workflow is loading" not in chunk
 
@@ -28210,9 +28223,10 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     section_index = source.index('"One-Stock Review"', render_index)
     placeholder_index = source.index('"Loading selected ticker answer."', section_index)
     placeholder_contract_index = source.index(
-        "selected ticker answer with readable-now sections, blocked inputs, and the next proof step",
+        "Use now: the selected ticker state loads first",
         placeholder_index,
     )
+    placeholder_stop_index = source.index("do not treat partial, candidate-only, or loading sections as conclusions", placeholder_index)
     provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
     report_button_index = source.index('st.button("Open Review"', contract_cards_index)
@@ -28227,6 +28241,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
             < section_index
         < placeholder_index
         < placeholder_contract_index
+        < placeholder_stop_index
         < provider_ticker_load_index
         < contract_cards_index
         < report_button_index
