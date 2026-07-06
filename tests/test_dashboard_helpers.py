@@ -1391,6 +1391,8 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
     assert "4,102 DCF-ready" in html
     assert "3,043 peer-ready" in html
     assert "88 blocked" in html
+    assert "5,000 tracked names are available for review" in html
+    assert "47 saved names are available for review" not in html
     assert "98%" not in html
     assert "Prices: ON" not in html
     assert "Fundamentals: ON" not in html

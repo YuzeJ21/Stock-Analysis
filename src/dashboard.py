@@ -5451,7 +5451,7 @@ def command_center_header_html(
     if compact:
         return (
             f"{topbar_html}"
-            f"<div class='command-kpi-proof'>Readiness reflects current local outputs. {final_count:,} saved names are available for review.</div>"
+            f"<div class='command-kpi-proof'>Readiness reflects current local outputs. {total:,} tracked names are available for review.</div>"
             "</header>"
         )
     return (
@@ -5464,7 +5464,7 @@ def command_center_header_html(
         "</div>"
         "<div class='command-kpi-panel'>"
         f"<div class='command-kpi-grid'>{kpi_html}</div>"
-        f"<div class='command-kpi-proof'>Readiness reflects current local outputs. {final_count:,} saved names are available for review. See Data Health for details and proof.</div>"
+        f"<div class='command-kpi-proof'>Readiness reflects current local outputs. {total:,} tracked names are available for review. See Data Health for details and proof.</div>"
         "</div>"
         "</div>"
         "</header>"
