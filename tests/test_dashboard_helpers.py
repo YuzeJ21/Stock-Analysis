@@ -28231,9 +28231,11 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     assert data_health_render_index < proof_history_branch_index < proof_clear_index < proof_render_index
     assert "bootstrap_placeholder = None" in source[proof_clear_index:proof_render_index]
     bootstrap_function_index = source.index("def render_public_route_bootstrap(")
-    workflow_bootstrap_index = source.index("public_workflow_header_html(step[\"page\"])", bootstrap_function_index)
-    loading_note_index = source.index("render_context_note(", workflow_bootstrap_index)
-    assert workflow_bootstrap_index < loading_note_index
+    loading_note_index = source.index("render_context_note(", bootstrap_function_index)
+    end_index = source.index("def _translated_missing_item(", bootstrap_function_index)
+    bootstrap_chunk = source[bootstrap_function_index:end_index]
+    assert "public_workflow_header_html" not in bootstrap_chunk
+    assert bootstrap_function_index < loading_note_index
     assert "Loading Coverage Summary / What Can I Use?" in source
     assert "Use now: wait for one lane answer" in source
     assert "Stop: no commands run and no data is unlocked here" in source

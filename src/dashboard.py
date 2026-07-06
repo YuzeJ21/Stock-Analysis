@@ -5744,7 +5744,6 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
         return None
     if selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return None
-    step = public_workflow_step(selected_page)
     if selected_page == "Home":
         title = "Home is loading the readiness answer."
         body = (
@@ -5771,7 +5770,6 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
         )
     placeholder = st.empty()
     with placeholder.container():
-        st.markdown(public_workflow_header_html(step["page"]), unsafe_allow_html=True)
         render_context_note(
             title,
             body,
