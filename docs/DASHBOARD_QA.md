@@ -45,6 +45,51 @@ Boundary checked:
   estimates, valuation inputs, or metrics.
 - The selector is a research queue, not a recommendation list.
 
+## 2026-07-06 Mobile And Wide-Desktop Public Flow Pass
+
+Checked by the live local Streamlit app, source-level responsive tests, and
+phone-width Chrome screenshots saved under
+`/tmp/stock-command-center-mobile-audit-20260706`:
+
+- Home: phone-width first viewport shows the public route rail, page answer,
+  primary Stock Selector handoff, and research-only stop rule without horizontal
+  overflow.
+- Stock Selector: phone-width first viewport opens on one readiness-backed
+  ticker handoff before filters and avoids raw table or command-heavy detail.
+- Single-Stock Report: phone-width first viewport shows selected ticker state,
+  readable-now scope, blocked/excluded inputs, and the Data Health handoff before
+  detailed report sections.
+- Data Health: phone-width first viewport shows one lane answer before proof
+  rows, queue drawers, route maps, provider setup, or raw tables.
+- Proof History: phone-width first viewport stays evidence-only and keeps raw
+  ledger rows collapsed.
+
+Accepted evidence:
+
+- `/tmp/stock-command-center-mobile-audit-20260706/home-mobile.png`
+- `/tmp/stock-command-center-mobile-audit-20260706/stock-selector-mobile.png`
+- `/tmp/stock-command-center-mobile-audit-20260706/single-stock-mobile.png`
+- `/tmp/stock-command-center-mobile-audit-20260706/data-health-mobile.png`
+- `/tmp/stock-command-center-mobile-audit-20260706/proof-history-mobile.png`
+- `/tmp/stock-command-center-responsive-audit-20260706/01-home-desktop-after-width-cap-ready.png`
+- `/tmp/stock-command-center-responsive-audit-20260706/02-stock-selector-desktop-after-width-cap.png`
+- `/tmp/stock-command-center-responsive-audit-20260706/03-single-stock-desktop-ready-recheck.png`
+- `/tmp/stock-command-center-responsive-audit-20260706/04-data-health-desktop-after-width-cap.png`
+- `/tmp/stock-command-center-responsive-audit-20260706/05-proof-history-desktop-after-width-cap.png`
+
+Accepted fix:
+
+- Cap the public Streamlit content width on ultrawide desktop so Data Health lane
+  cards stay centered and readable.
+- Keep the compact mobile topbar focused on the readiness answer, no-account
+  stop cue, and Data Health blocked-input handoff.
+
+Boundary checked:
+
+- These screenshots are product evidence only. They do not prove data freshness,
+  apply imports, record proof rows, or unlock blocked source inputs.
+- Generated CSV/report/sample-report churn stayed excluded from staging.
+
 ## 2026-07-05 Public Home First-Viewport Copy Pass
 
 Checked by tests, public gates, and one accepted in-app browser screenshot:
