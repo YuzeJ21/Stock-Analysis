@@ -2085,6 +2085,22 @@ def test_research_loop_strip_connects_current_proof_next_action_and_stop_rule():
     assert "order routing" not in rendered
 
 
+def test_research_loop_strip_mobile_keeps_first_viewport_compact():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    desktop_loop_index = source.index(".research-loop-strip {")
+    mobile_index = source.index("@media (max-width: 760px)", desktop_loop_index)
+    loop_index = source.index(".research-loop-strip {", mobile_index)
+    mobile_loop_chunk = source[loop_index : loop_index + 900]
+
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in mobile_loop_chunk
+    assert ".research-loop-strip .research-loop-item:nth-child(2)" in mobile_loop_chunk
+    assert "display: none;" in mobile_loop_chunk
+    assert ".research-loop-strip .research-loop-note" in mobile_loop_chunk
+    assert ".research-loop-strip .research-loop-label" in mobile_loop_chunk
+    assert ".research-loop-strip .research-loop-value" in mobile_loop_chunk
+
+
 def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     freshness = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
@@ -28015,6 +28031,11 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     data_health_render_index = source.index("render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)")
     assert bootstrap_index < sidebar_index < data_health_branch_index < clear_index < data_health_render_index
     assert "bootstrap_placeholder = None" in source[clear_index:data_health_render_index]
+    proof_history_branch_index = source.index("elif selected_page == PROOF_HISTORY_PATH_TITLE:", data_health_render_index)
+    proof_clear_index = source.index("if bootstrap_placeholder is not None:", proof_history_branch_index)
+    proof_render_index = source.index("render_proof_history(public_mode=public_demo_mode)", proof_history_branch_index)
+    assert data_health_render_index < proof_history_branch_index < proof_clear_index < proof_render_index
+    assert "bootstrap_placeholder = None" in source[proof_clear_index:proof_render_index]
     bootstrap_function_index = source.index("def render_public_route_bootstrap(")
     workflow_bootstrap_index = source.index("public_workflow_header_html(step[\"page\"])", bootstrap_function_index)
     loading_note_index = source.index("render_context_note(", workflow_bootstrap_index)

@@ -4264,8 +4264,26 @@ def apply_dashboard_theme() -> None:
             margin-top: -0.3rem;
           }
           .research-loop-strip {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             margin-top: 0.35rem;
+            gap: 0.28rem;
+            padding: 0.3rem;
+          }
+          .research-loop-strip .research-loop-item:nth-child(2) {
+            display: none;
+          }
+          .research-loop-strip .research-loop-item {
+            padding: 0.38rem 0.4rem;
+          }
+          .research-loop-strip .research-loop-note {
+            display: none;
+          }
+          .research-loop-strip .research-loop-label {
+            font-size: 0.54rem;
+          }
+          .research-loop-strip .research-loop-value {
+            font-size: 0.72rem;
+            line-height: 1.12;
           }
           .pilot-flow {
             padding: 0.46rem;
@@ -30978,6 +30996,9 @@ def main() -> None:
             bootstrap_placeholder = None
         render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)
     elif selected_page == PROOF_HISTORY_PATH_TITLE:
+        if bootstrap_placeholder is not None:
+            bootstrap_placeholder.empty()
+            bootstrap_placeholder = None
         render_proof_history(public_mode=public_demo_mode)
     elif selected_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
