@@ -349,8 +349,13 @@ def test_project_status_optional_context_next_step_does_not_sound_required():
         [],
     )
 
-    assert rows[0]["Step"] == "Review optional context only if trusted rows exist (AACI)"
-    assert rows[0]["Command"] == "make templates"
+    assert rows[0]["Step"] == "Dry-run optional context source ladder (AACI)"
+    assert rows[0]["Command"] == "make optional-context-source-ladder-queue TOP_N=10"
+    assert "candidate context" in rows[0]["Reason"]
+    assert "do not unlock optional readiness" in rows[0]["Reason"]
+    assert "optional context source ladder" in rows[0]["SourceContext"]
+    assert "local import templates only after a trusted source row exists" in rows[0]["SourceContext"]
+    assert "candidate_context_only rows remain locked" in rows[0]["FreshnessContext"]
     assert "Fix top earnings blocker" not in rows[0]["Step"]
 
 

@@ -1294,17 +1294,34 @@ def _recommended_next_command_rows(
             if dataset_key == "prices" and price_coverage_complete:
                 step = "Review short price-history blocker" + (f" ({ticker})" if ticker else "")
             elif dataset_key in {"earnings", "analyst_estimates"}:
-                step = "Review optional context only if trusted rows exist" + (f" ({ticker})" if ticker else "")
+                step = "Dry-run optional context source ladder" + (f" ({ticker})" if ticker else "")
+                command = "make optional-context-source-ladder-queue TOP_N=10"
             else:
                 step = f"Fix top {dataset} blocker" + (f" ({ticker})" if ticker else "")
             reason = _first_non_empty(top_action.get("reason"), top_action.get("recommended_action"))
+            source_context = _source_context(top_action)
+            freshness_context = _freshness_context(top_action)
+            if dataset_key in {"earnings", "analyst_estimates"}:
+                reason = (
+                    f"{reason} Use the optional source ladder before templates; provider-assisted date-only or "
+                    "target-only rows can be candidate context but do not unlock optional readiness without "
+                    "supported fields and validate/preview/apply gates."
+                ).strip()
+                source_context = (
+                    "optional context source ladder with yfinance and configured FMP/Alpha Vantage/Finnhub fallbacks; "
+                    "local import templates only after a trusted source row exists"
+                )
+                freshness_context = (
+                    "dry-run first; candidate_context_only rows remain locked until supported fields validate, "
+                    "preview cleanly, and are intentionally applied"
+                )
             rows.append(
                 _command_row(
                     step,
                     command,
                     reason,
-                    source_context=_source_context(top_action),
-                    freshness_context=_freshness_context(top_action),
+                    source_context=source_context,
+                    freshness_context=freshness_context,
                 )
             )
             if dataset_key in {"fundamentals", "peers"} and not os.environ.get("SEC_USER_AGENT", "").strip():
