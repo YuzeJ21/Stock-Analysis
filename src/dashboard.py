@@ -5551,19 +5551,14 @@ def header_saved_name_count(final_frame: pd.DataFrame | None, tickers: int) -> i
 def render_public_route_bootstrap(selected_page: str, mode: str):
     if mode != PUBLIC_DEMO_MODE:
         return None
+    if selected_page != "Data Health":
+        return None
     step = public_workflow_step(selected_page)
-    if selected_page == "Data Health":
-        title = "Data Health is loading lane answers."
-        body = (
-            "No commands run here. The page is reading saved readiness outputs so it can show what is usable, "
-            "blocked, skipped, or excluded before proof details."
-        )
-    else:
-        title = f"{step['page']} public workflow is loading."
-        body = (
-            f"{step['question']} The page is reading saved local outputs before showing the short answer, "
-            "primary next step, and research-only stop rule."
-        )
+    title = "Data Health is loading lane answers."
+    body = (
+        "No commands run here. The page is reading saved readiness outputs so it can show what is usable, "
+        "blocked, skipped, or excluded before proof details."
+    )
     placeholder = st.empty()
     with placeholder.container():
         st.markdown(public_workflow_header_html(step["page"]), unsafe_allow_html=True)
@@ -27102,7 +27097,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     show_card_commands = not public_mode
     render_section_header(
         "One-Stock Review",
-        "Choose a ticker to see what can be reviewed now, what stays locked, and which proof path comes next.",
+        "Choose a ticker to see the current review status, what stays locked, and which proof path comes next.",
     )
     public_loading_placeholder = None
     if public_mode:
@@ -27196,16 +27191,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
         if report_payload:
-            render_section_header(
-                "Review Status",
-                "Compact readiness state for the selected ticker.",
-            )
             render_signal_cards(pre_report_cards[:3], show_commands=False, variant="queue")
         else:
-            render_section_header(
-                "Review Status",
-                "A quick check of available data, locked analysis, and the next safe path.",
-            )
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
     if report_payload:

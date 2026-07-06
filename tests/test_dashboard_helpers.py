@@ -2364,7 +2364,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Developer detail: raw report JSON" not in source
     assert "st.json(report_payload" not in source
     assert "One-Stock Review" in source
-    assert "Choose a ticker to see what can be reviewed now" in source
+    assert "Choose a ticker to see the current review status" in source
     assert "One-ticker research review" not in source
     assert "One-ticker research workflow" not in source
     assert "Structured research workflow for one ticker" not in source
@@ -27942,16 +27942,16 @@ def test_public_data_health_bootstrap_renders_before_sidebar_route_work():
     assert "No commands run here" in source
 
 
-def test_public_route_bootstrap_covers_all_public_workflow_pages():
+def test_public_route_bootstrap_is_data_health_only_to_avoid_duplicate_headers():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     start_index = source.index("def render_public_route_bootstrap(")
     end_index = source.index("def _translated_missing_item(", start_index)
     chunk = source[start_index:end_index]
 
     assert 'mode != PUBLIC_DEMO_MODE' in chunk
-    assert 'selected_page != "Data Health"' not in chunk
+    assert 'selected_page != "Data Health"' in chunk
     assert "Data Health is loading lane answers" in chunk
-    assert "public workflow is loading" in chunk
+    assert "public workflow is loading" not in chunk
 
 
 def test_public_subpages_do_not_insert_home_loop_before_page_content():
@@ -27977,18 +27977,19 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     section_index = source.index('"One-Stock Review"', render_index)
     placeholder_index = source.index('"Loading selected ticker."', section_index)
     provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
-    selected_readiness_index = source.index('"Review Status"', provider_ticker_load_index)
-    contract_cards_index = source.index("render_signal_cards(pre_report_cards", selected_readiness_index)
+    contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
     report_button_index = source.index('st.button("Open Review"', contract_cards_index)
     coverage_expander_index = source.index('st.expander("Ticker Readiness Evidence"', report_button_index)
     intro_expander_index = source.index('st.expander("Advanced: example report states"', coverage_expander_index)
+    next_function_index = source.index("\ndef render_data_health(", render_index)
+    single_stock_chunk = source[render_index:next_function_index]
 
+    assert '"Review Status"' not in single_stock_chunk
     assert (
             render_index
             < section_index
         < placeholder_index
         < provider_ticker_load_index
-        < selected_readiness_index
         < contract_cards_index
         < report_button_index
         < coverage_expander_index
@@ -28215,8 +28216,8 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")
 
-    review_status_index = source.index('"Review Status"', render_index)
-    readable_now_index = source.index('"What Can Be Read Now"', review_status_index)
+    review_intro_index = source.index('"One-Stock Review"', render_index)
+    readable_now_index = source.index('"What Can Be Read Now"', review_intro_index)
     one_answer_index = source.index("single_stock_one_answer_frame(report_one_answer_snapshot)", readable_now_index)
     first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", one_answer_index)
     at_a_glance_index = source.index("stock_report_at_a_glance_cards(", first_answer_index)
@@ -28228,7 +28229,7 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     tabs_index = source.index('["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]', detail_index)
 
     assert (
-        review_status_index
+        review_intro_index
         < readable_now_index
         < one_answer_index
         < first_answer_index
@@ -28238,6 +28239,7 @@ def test_single_stock_public_page_uses_simplified_review_sections():
         < tabs_index
     )
     assert '"At A Glance"' not in source[render_index:tabs_index]
+    assert '"Review Status"' not in source[render_index:tabs_index]
     assert '"Reader Guide"' not in source[render_index:tabs_index]
     assert '"Review Summary"' not in source[render_index:tabs_index]
     assert '"Suggested Reading Path"' not in source[render_index:tabs_index]
