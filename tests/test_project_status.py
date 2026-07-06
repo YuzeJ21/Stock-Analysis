@@ -619,6 +619,54 @@ def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: py
     assert "wrote:" not in output
 
 
+def test_project_status_human_output_names_actionable_peer_blocker(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    pd.DataFrame(
+        [
+            {"ticker": "ARM", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "NVDA", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": True},
+        ]
+    ).to_csv(tmp_path / "data" / "reports" / "ticker_readiness_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "priority": 3,
+                "ticker": "ARM",
+                "dataset": "peers",
+                "status": "missing_or_incomplete",
+                "reason": "No local peer mapping is configured for this ticker.",
+                "recommended_action": "Run make focus-peers TICKER=ARM first.",
+                "focus_command": "make focus-peers TICKER=ARM",
+                "example_command": "make templates",
+            },
+        ]
+    ).to_csv(tmp_path / "outputs" / "data_onboarding_actions.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "Step": "Fix top peers blocker (ARM)",
+                "Command": "make focus-peers TICKER=ARM",
+                "Reason": "No local peer mapping is configured for this ticker.",
+                "SourceContext": "data/imports/peers.csv",
+                "FreshnessContext": "manual_input_needed",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "project_status_next_steps.csv", index=False)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+    assert payload is not None
+
+    project_status._print_human(payload)
+    output = capsys.readouterr().out.lower()
+
+    assert "best next proof: make focus-peers ticker=arm for the top peer-mapping blocker" in output
+    assert "best next proof: make trusted-data-pilot-candidates" not in output
+    assert "source-backed peer rows" in output
+
+
 def test_project_status_filters_preview_available_source_actions_from_blocker_counts():
     rows = [
             {

@@ -1613,6 +1613,11 @@ def _print_human(payload: dict[str, Any]) -> None:
             "no unreviewed executable company candidates, so wait for new provider data, keyed sources, "
             "reviewed manual rows, or changed blockers before repeating the trusted-data pilot loop."
         )
+    elif first_command.startswith("make focus-peers"):
+        print(
+            f"- Best next proof: {first_command} for the top peer-mapping blocker; "
+            "add only source-backed peer rows and keep candidate peers as context until validated."
+        )
     elif _price_coverage_complete(summary):
         print(
             f"- Best next proof: {TRUSTED_DATA_PILOT_CANDIDATES_COMMAND} for company-depth work; "
