@@ -25393,6 +25393,17 @@ def _public_home_snapshot_items(summary: dict[str, object]) -> list[tuple[str, s
     ]
 
 
+def _plain_home_primary_start_action_cards() -> list[tuple[str, str, str, str]]:
+    return [
+        (
+            "Start with Stock Selector",
+            "Pick one readiness-backed ticker before opening a report. This keeps the first step concrete on mobile.",
+            "?mode=public&page=stock-selector",
+            "success",
+        )
+    ]
+
+
 def _plain_home_public_loop_cards(summary: dict[str, object]) -> list[dict[str, object]]:
     return public_home_loop_cards(summary)
 
@@ -26738,6 +26749,7 @@ def render_home_page(
         render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
 
     if public_mode:
+        render_action_cards(_plain_home_primary_start_action_cards())
         render_section_header(
             "First 30 Seconds",
             "What the product does, how to read it, and when to stop before looking at examples.",

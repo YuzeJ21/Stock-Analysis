@@ -3020,11 +3020,34 @@ def test_home_current_data_coverage_cards_delegate_to_public_home_workflow_helpe
     assert dashboard._plain_home_current_data_coverage_cards(summary) == public_home_current_data_coverage_cards(summary)
 
 
+def test_public_home_primary_start_action_points_to_stock_selector_without_operator_copy():
+    cards = dashboard._plain_home_primary_start_action_cards()
+    rendered = " ".join(str(value) for card in cards for value in card).lower()
+
+    assert cards == [
+        (
+            "Start with Stock Selector",
+            "Pick one readiness-backed ticker before opening a report. This keeps the first step concrete on mobile.",
+            "?mode=public&page=stock-selector",
+            "success",
+        )
+    ]
+    assert "readiness-backed ticker" in rendered
+    assert "mobile" in rendered
+    assert "make " not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_home_page_keeps_duplicate_coverage_snapshot_out_of_first_view():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     render_home_index = source.index("def render_home_page(")
-    first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', render_home_index)
+    primary_start_index = source.index("render_action_cards(_plain_home_primary_start_action_cards())", render_home_index)
+    first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', primary_start_index)
     first_30_cards_index = source.index("render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)", first_30_index)
     primary_workflow_index = source.index('render_section_header(\n            "Primary Workflow"', first_30_cards_index)
     review_map_cards_index = source.index(
@@ -3042,7 +3065,7 @@ def test_home_page_keeps_duplicate_coverage_snapshot_out_of_first_view():
     home_first_view_chunk = source[render_home_index:learn_more_index]
 
     assert "render_public_proof_strip(_public_home_snapshot_items(summary))" not in home_first_view_chunk
-    assert first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_index
+    assert primary_start_index < first_30_index < first_30_cards_index < primary_workflow_index < review_map_cards_index < route_expander_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_index
     assert coverage_index < workflow_index
     assert "One path: choose a ticker, read supported sections, route blockers to Data Health, and check Proof History only for evidence." in source
     assert '"Connected Workflow"' not in source
