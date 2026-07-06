@@ -86,6 +86,17 @@ Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`. It is a rea
 
 LinkedIn can cache older GitHub preview images. If the Featured card still shows the old screenshot after GitHub is pushed, remove and re-add the Featured link, or refresh the URL through LinkedIn's post inspector before adding it again.
 
+## Final LinkedIn Visual Checklist
+
+Use this after GitHub is synced:
+
+1. Open your LinkedIn profile and confirm the Featured card title matches `Stock Research Command Center | Readiness-First Stock Research Workflow`.
+2. Confirm the Featured card description says the project is research-only and mentions no broker integration, auto-trading, or investment advice.
+3. Confirm the Featured image is `docs/assets/linkedin-public-dashboard.png` when you want the curated product screenshot.
+4. If LinkedIn shows a generated GitHub URL card instead, leave it only if you are okay with GitHub's OpenGraph image; otherwise remove and re-add the Featured item with the curated screenshot.
+5. Open the GitHub link from LinkedIn and confirm the README starts with `Pilot In 60 Seconds`.
+6. Stop before claiming screenshots prove current data freshness, coverage completion, or investment advice.
+
 ## Resume Bullet Options
 
 - Built a Python and Streamlit stock research command center that evaluates market-wide ticker readiness before generating research decisions.
