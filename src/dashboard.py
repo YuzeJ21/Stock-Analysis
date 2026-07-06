@@ -5314,8 +5314,10 @@ def command_center_header_html(
     final_count: int,
     latest_price: str,
     compact: bool = False,
+    current_page: str = "Home",
 ) -> str:
     summary = summary or {}
+    normalized_current_page = str(current_page or "Home").strip()
     total = _readiness_total(summary, tickers)
     price_ready = _summary_count(summary, "price_ready")
     dcf_ready = _summary_count(summary, "dcf_ready")
@@ -5336,17 +5338,19 @@ def command_center_header_html(
         for label, value, note, tone in kpis
     )
     compact_class = " compact" if compact else ""
+    home_current_attr = " aria-current='page'" if normalized_current_page == "Home" else ""
+    data_health_current_attr = " aria-current='page'" if normalized_current_page == "Data Health" else ""
     topbar_html = (
         f"<header class='command-shell{compact_class}'>"
         f"<nav class='command-topbar{compact_class}' aria-label='Public workflow status'>"
         "<div class='command-top-left'>"
-        "<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'>What can I use now?</a>"
+        f"<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'{home_current_attr}>What can I use now?</a>"
         f"<span class='command-status-item'>Data snapshot: {html.escape(str(latest_price))}</span>"
         "<span class='command-status-item'>Readiness-gated coverage <span class='command-status-dot'></span></span>"
         "<span class='command-status-item'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
-        "<a class='command-top-link' href='?mode=public&page=data-health' target='_self'>Blocked? Data Health</a>"
+        f"<a class='command-top-link' href='?mode=public&page=data-health' target='_self'{data_health_current_attr}>Blocked? Data Health</a>"
         "<a class='command-top-link command-about' href='?mode=public' target='_self'>How this works</a>"
         "</div>"
         "</nav>"
@@ -5550,6 +5554,7 @@ def render_app_header(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
     compact: bool = False,
+    current_page: str = "Home",
 ) -> None:
     universe = catalog.load_dataframe("universe")
     tickers = 0 if universe is None or universe.empty else len(universe)
@@ -5567,6 +5572,7 @@ def render_app_header(
             final_count=final_count,
             latest_price=latest_price,
             compact=compact,
+            current_page=current_page,
         ),
         unsafe_allow_html=True,
     )
@@ -30970,6 +30976,7 @@ def main() -> None:
         catalog,
         output_frames,
         compact=public_page_header or (selected_page == "Data Health" and not public_demo_mode),
+        current_page=selected_page,
     )
     st.caption("Local stock research guided workflow. Data readiness first; analysis only when source-backed inputs are ready.")
     if public_demo_mode:

@@ -1372,7 +1372,10 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
     assert "<span class='command-status-item command-about'>How this works</span>" not in html
     assert "Blocked? Data Health" in html
     assert "What can I use now?" in html
-    assert "<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'>What can I use now?</a>" in html
+    assert (
+        "<a class='command-status-item primary command-home-link' href='?mode=public' "
+        "target='_self' aria-current='page'>What can I use now?</a>"
+    ) in html
     assert "<span class='command-status-item primary'>What can I use now?</span>" not in html
     assert "Data readiness first" in html
     assert "Readiness-gated coverage" in html
@@ -3525,6 +3528,32 @@ def test_command_center_header_uses_semantic_product_heading():
     assert "<h1 class='command-title-v2'>Stock Research Guided Workflow</h1>" in html
     assert "<nav" in html
     assert "aria-label='Public workflow status'" in html
+
+
+def test_command_center_header_marks_current_public_shortcut_for_a11y():
+    home_html = dashboard.command_center_header_html(
+        {"master_universe": 100, "price_ready": 20, "dcf_ready": 5, "peer_ready": 2},
+        tickers=100,
+        final_count=12,
+        latest_price="2026-06-05",
+        current_page="Home",
+    )
+    data_health_html = dashboard.command_center_header_html(
+        {"master_universe": 100, "price_ready": 20, "dcf_ready": 5, "peer_ready": 2},
+        tickers=100,
+        final_count=12,
+        latest_price="2026-06-05",
+        current_page="Data Health",
+        compact=True,
+    )
+
+    assert (
+        "<a class='command-status-item primary command-home-link' href='?mode=public' "
+        "target='_self' aria-current='page'>What can I use now?</a>"
+    ) in home_html
+    assert "href='?mode=public&page=data-health' target='_self' aria-current='page'" not in home_html
+    assert "href='?mode=public&page=data-health' target='_self' aria-current='page'" in data_health_html
+    assert "command-home-link' href='?mode=public' target='_self' aria-current='page'" not in data_health_html
 
 
 def test_chart_panel_title_normalizes_spacing_and_trailing_punctuation():
