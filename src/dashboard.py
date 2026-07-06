@@ -5643,7 +5643,11 @@ def compact_reason(value: object, max_sentences: int = 2, max_chars: int = 260) 
     if compact and not compact.endswith((".", "?", "!")):
         compact += "."
     if len(compact) > max_chars:
-        compact = compact[: max_chars - 1].rstrip() + "..."
+        truncated = compact[: max_chars - 3].rstrip()
+        boundary_index = max(truncated.rfind(" "), truncated.rfind(","), truncated.rfind(";"), truncated.rfind(":"))
+        if boundary_index >= max(12, max_chars // 2):
+            truncated = truncated[:boundary_index].rstrip()
+        compact = truncated + "..."
     return compact
 
 
@@ -5651,6 +5655,7 @@ def compact_card_fragment(value: object, fallback: str = "Not available", *, max
     """Return a scan-friendly phrase for embedding inside dashboard card sentences."""
 
     compact = compact_reason(format_missing(value, fallback), max_sentences=max_sentences, max_chars=max_chars)
+    compact = re.sub(r"[\s,;:]+(\.\.\.)$", r"\1", compact)
     if compact.endswith("..."):
         return compact
     return compact.rstrip(" .;:")
@@ -9196,11 +9201,11 @@ def data_health_coverage_summary_cards(
                 "kicker": state.upper(),
                 "title": lane,
                 "body": (
-                    f"Scan: {scan}.\n"
-                    f"{use_label}: {use_now}.\n"
-                    f"Blocked: {blocked}.\n"
-                    f"Next proof: {next_proof}.\n"
-                    f"Stop: {stop_rule}."
+                    f"{card_sentence('Scan', scan)}\n"
+                    f"{card_sentence(use_label, use_now)}\n"
+                    f"{card_sentence('Blocked', blocked)}\n"
+                    f"{card_sentence('Next proof', next_proof)}\n"
+                    f"{card_sentence('Stop', stop_rule)}"
                 ),
                 "badges": [state, format_missing(row.get("ready_coverage"))],
             }

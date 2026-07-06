@@ -19754,6 +19754,34 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
     assert "order routing" not in rendered
 
 
+def test_data_health_coverage_summary_cards_do_not_show_broken_ellipsis_fragments():
+    cards = dashboard.data_health_coverage_summary_cards(
+        {
+            "master_universe": 3541,
+            "metadata_ready": 3541,
+            "price_ready": 3540,
+            "momentum_ready": 3530,
+            "liquidity_ready": 3500,
+            "fundamentals_ready": 2693,
+            "dcf_ready": 2693,
+            "peer_ready": 10,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = "\n".join(str(card.get("body", "")) for card in cards)
+
+    assert "...." not in rendered
+    assert ",..." not in rendered
+    assert ";..." not in rendered
+    assert ":..." not in rendered
+    assert " ris..." not in rendered
+    assert " ne..." not in rendered
+    assert "Use now:" in rendered
+    assert "Next proof:" in rendered
+    assert "Stop:" in rendered
+
+
 def test_data_health_coverage_summary_includes_cached_source_activation_context(tmp_path):
     root = tmp_path
     outputs_dir = root / "outputs"
