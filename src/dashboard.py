@@ -5505,7 +5505,7 @@ def command_center_header_html(
         "<span class='command-status-item command-stop-status'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
-        f"<a class='command-top-link' href='?mode=public&page=data-health' target='_self'{data_health_current_attr}>Blocked? Data Health</a>"
+        f"<a class='command-top-link' href='?mode=public&page=data-health' target='_self'{data_health_current_attr}>Blocked inputs? Data Health</a>"
         "<a class='command-top-link command-about' href='?mode=public' target='_self'>How this works</a>"
         "</div>"
         "</nav>"
