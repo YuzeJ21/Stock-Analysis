@@ -26153,7 +26153,7 @@ def render_stock_selector(
 
     render_section_header(
         STOCK_SELECTOR_PATH_TITLE,
-        "Filter readiness-backed research candidates before opening a single-stock report.",
+        "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
     )
 
     if ticker_readiness_message or decisions_message or final_message:
@@ -26175,7 +26175,6 @@ def render_stock_selector(
         )
         return
 
-    render_section_header("Choose One Ticker", "Open one saved ticker first; use filters below only when you need a narrower queue.")
     initial_shortlist_options = selector_frame["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
     initial_shortlist = initial_shortlist_options[: min(3, len(initial_shortlist_options))]
     selector_path_cards: list[tuple[str, str, str, str]] = []
