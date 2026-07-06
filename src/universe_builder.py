@@ -381,7 +381,7 @@ def _fallback_loaded_warnings(source_name: str, warnings: Sequence[str]) -> list
                 flags=re.DOTALL,
             )
         normalized.append(text)
-    return normalized
+    return _unique_texts(normalized)
 
 
 def _parse_sp500_source(text: str) -> pd.DataFrame:
