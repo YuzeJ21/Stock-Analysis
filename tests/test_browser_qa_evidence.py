@@ -388,6 +388,8 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert len(payload["route_qa_checklist"]) >= 7
     assert "browser qa evidence is product evidence only" in rendered
     assert "first 30 seconds" in rendered
+    assert "data health workspace" in rendered
+    assert "selected lane answer" in rendered
     assert "single-stock workflow fit screenshot" in rendered
     assert "what can be read now" in rendered
     assert "selected ticker" in rendered
