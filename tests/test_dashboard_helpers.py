@@ -28246,7 +28246,9 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     chunk = source[start_index:end_index]
 
     assert 'mode != PUBLIC_DEMO_MODE' in chunk
-    assert 'selected_page not in {STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
+    assert 'selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
+    assert "Home is loading the readiness answer" in chunk
+    assert "wait for the start path and first 30-second answer" in chunk
     assert "Stock Selector is loading readiness filters" in chunk
     assert "Loading Coverage Summary / What Can I Use?" in chunk
     assert "raw proof, queues, and route maps stay hidden" in chunk

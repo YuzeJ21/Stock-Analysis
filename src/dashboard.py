@@ -5742,10 +5742,16 @@ def header_saved_name_count(final_frame: pd.DataFrame | None, tickers: int) -> i
 def render_public_route_bootstrap(selected_page: str, mode: str):
     if mode != PUBLIC_DEMO_MODE:
         return None
-    if selected_page not in {STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}:
+    if selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return None
     step = public_workflow_step(selected_page)
-    if selected_page == STOCK_SELECTOR_PATH_TITLE:
+    if selected_page == "Home":
+        title = "Home is loading the readiness answer."
+        body = (
+            "Use now: wait for the start path and first 30-second answer. Blocked: no analysis appears until "
+            "source-backed readiness supports it. Next: start with Stock Selector when the page finishes loading."
+        )
+    elif selected_page == STOCK_SELECTOR_PATH_TITLE:
         title = "Stock Selector is loading readiness filters."
         body = (
             "No recommendations run here. The page is reading saved readiness rows so you can choose one "
