@@ -23,6 +23,7 @@ from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose
 from src.readiness_ops import build_reviewed_batch_ledger_summaries
 from src.research_health import research_health_outputs_current
 from src.research_health import run as run_research_health
+from src.trusted_data_pilot import load_trusted_data_pilot_candidates
 
 
 PROBLEM_SOURCE_STATUSES = {"partial", "missing_file", "source_unavailable", "manual_only"}
@@ -498,6 +499,7 @@ def _fast_status_payload_from_outputs(
         _peer_action_tickers(normalized_actions),
     )
     dcf_source_ladder_has_unreviewed = _dcf_source_ladder_has_unreviewed_rows(root, data_path)
+    trusted_data_pilot_has_candidates = _trusted_data_pilot_has_candidates(root, top_n=top_n)
     optional_context_covered = _optional_context_ledger_covers_current_universe(root, len(readiness))
     normalized_actions = _drop_reviewed_non_actionable_price_actions(root, normalized_actions)
     normalized_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, normalized_actions)
@@ -570,7 +572,10 @@ def _fast_status_payload_from_outputs(
                 had_actions_before_review_filter=had_actions_before_review_filter,
                 dcf_source_ladder_has_unreviewed=dcf_source_ladder_has_unreviewed,
             ),
-            include_trusted_data_pilot=bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False,
+            include_trusted_data_pilot=(
+                trusted_data_pilot_has_candidates is not False
+                and (bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False)
+            ),
         )
     if not command_rows:
         command_rows = _recommended_next_command_rows(
@@ -583,16 +588,26 @@ def _fast_status_payload_from_outputs(
                 had_actions_before_review_filter=had_actions_before_review_filter,
                 dcf_source_ladder_has_unreviewed=dcf_source_ladder_has_unreviewed,
             ),
-            include_trusted_data_pilot=bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False,
+            include_trusted_data_pilot=(
+                trusted_data_pilot_has_candidates is not False
+                and (bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False)
+            ),
         )
     elif not allowed and not any(
         str(row.get("Command") or "").strip() == TRUSTED_DATA_PILOT_CANDIDATES_COMMAND
         for row in command_rows
-    ) and (bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False):
+    ) and trusted_data_pilot_has_candidates is not False and (
+        bool(sorted_actions) or dcf_source_ladder_has_unreviewed is not False
+    ):
         command_rows.append(_trusted_data_pilot_command_row())
     if dcf_source_ladder_has_unreviewed is False:
         command_rows = _ensure_exhausted_source_scope_rows(command_rows)
     command_rows = _prioritize_public_command_rows(command_rows)
+    command_rows = _pivot_to_provider_setup_when_trusted_candidates_empty(
+        command_rows,
+        trusted_data_pilot_has_candidates=trusted_data_pilot_has_candidates,
+        price_coverage_complete=price_complete,
+    )
 
     return {
         "project_root": str(root),
@@ -917,6 +932,20 @@ def _workflow_evidence_command_row() -> dict[str, str]:
     )
 
 
+def _trusted_data_pilot_has_candidates(root: Path, *, top_n: int = 10) -> bool | None:
+    required_paths = [
+        root / "outputs" / "fundamentals_peer_worklist.csv",
+        root / "outputs" / "peer_unlock_worklist.csv",
+        root / "data" / "reports" / "ticker_readiness_report.csv",
+    ]
+    if not all(path.exists() for path in required_paths):
+        return None
+    try:
+        return bool(load_trusted_data_pilot_candidates(root=root, top_n=top_n))
+    except Exception:
+        return None
+
+
 def _scope_and_risk_context_command_rows() -> list[dict[str, str]]:
     return [
         _command_row(
@@ -964,6 +993,29 @@ def _ensure_exhausted_source_scope_rows(rows: list[dict[str, str]]) -> list[dict
         1,
     )
     return [*filtered[:insert_at], *wanted, *filtered[insert_at:]]
+
+
+def _pivot_to_provider_setup_when_trusted_candidates_empty(
+    rows: list[dict[str, str]],
+    *,
+    trusted_data_pilot_has_candidates: bool | None,
+    price_coverage_complete: bool,
+) -> list[dict[str, str]]:
+    if trusted_data_pilot_has_candidates is not False or not price_coverage_complete:
+        return rows
+    workflow_row = _workflow_evidence_command_row()
+    scope_rows = _scope_and_risk_context_command_rows()
+    suppressed_commands = {
+        TRUSTED_DATA_PILOT_CANDIDATES_COMMAND,
+        "make provider-setup-checklist",
+        *{row["Command"] for row in scope_rows},
+    }
+    remaining = [
+        row
+        for row in rows
+        if str(row.get("Command") or "").strip() not in suppressed_commands
+    ]
+    return [workflow_row, *scope_rows, *remaining]
 
 
 def _price_coverage_complete(summary: dict[str, Any]) -> bool:
@@ -1431,6 +1483,7 @@ def build_project_status_payload(
         enriched_actions = [row for row in enriched_actions if str(row.get("ticker", "")).upper().strip() in allowed]
     had_actions_before_review_filter = bool(enriched_actions)
     dcf_source_ladder_has_unreviewed = _dcf_source_ladder_has_unreviewed_rows(root, data_path)
+    trusted_data_pilot_has_candidates = _trusted_data_pilot_has_candidates(root, top_n=top_n)
     optional_context_covered = _optional_context_ledger_covers_current_universe(root, len(coverage))
     filtered_actions = _drop_reviewed_non_actionable_price_actions(root, enriched_actions)
     filtered_actions = _drop_reviewed_non_actionable_fundamentals_actions(root, filtered_actions)
@@ -1483,7 +1536,15 @@ def build_project_status_payload(
             had_actions_before_review_filter=had_actions_before_review_filter,
             dcf_source_ladder_has_unreviewed=dcf_source_ladder_has_unreviewed,
         ),
-        include_trusted_data_pilot=bool(actions) or dcf_source_ladder_has_unreviewed is not False,
+        include_trusted_data_pilot=(
+            trusted_data_pilot_has_candidates is not False
+            and (bool(actions) or dcf_source_ladder_has_unreviewed is not False)
+        ),
+    )
+    command_rows = _pivot_to_provider_setup_when_trusted_candidates_empty(
+        command_rows,
+        trusted_data_pilot_has_candidates=trusted_data_pilot_has_candidates,
+        price_coverage_complete=_price_coverage_complete(summary),
     )
     return {
         "project_root": str(root),

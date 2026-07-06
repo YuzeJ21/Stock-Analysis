@@ -1045,6 +1045,24 @@ def test_project_status_fast_check_pivots_when_dcf_source_ladder_has_no_unreview
     assert payload["top_onboarding_actions"] == []
 
 
+def test_project_status_fast_check_pivots_when_trusted_data_shortlist_is_empty(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _write_fast_status_artifacts(tmp_path)
+    monkeypatch.setattr(project_status, "_trusted_data_pilot_has_candidates", lambda _root, top_n=10: False)
+    monkeypatch.setattr(project_status, "_price_coverage_complete", lambda _summary: True)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
+    assert commands[0] == "make provider-setup-checklist"
+    assert commands[1] == "make universe-scope TOP_N=10"
+    assert commands[2] == "make risk-context"
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in commands
+
+
 def test_project_status_routes_exhausted_proof_queues_to_workflow_evidence(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
