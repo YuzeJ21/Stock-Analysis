@@ -27226,7 +27226,12 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         peer_summary = provider.get_peer_summary(ticker)
-        pre_report_cards = single_stock_pre_report_contract_cards(ticker, coverage, peer_summary)
+        pre_report_cards = single_stock_pre_report_contract_cards(
+            ticker,
+            coverage,
+            peer_summary,
+            report_open=bool(report_payload),
+        )
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
         if report_payload:

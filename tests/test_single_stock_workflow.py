@@ -459,3 +459,24 @@ def test_single_stock_pre_report_contract_cards_route_price_peer_and_ready_state
     assert "single-stock report" in ready_rendered
     assert "make stock-report-md ticker=crdo" in ready_rendered
     assert "readiness changed after a local import, refresh, or proof update" in ready_rendered
+
+
+def test_single_stock_pre_report_contract_cards_use_open_report_copy_when_report_is_open():
+    cards = single_stock_pre_report_contract_cards(
+        "CRDO",
+        pd.DataFrame(
+            [
+                {"dataset": "prices", "ticker": "CRDO", "ticker_present": True},
+                {"dataset": "fundamentals", "ticker": "CRDO", "ticker_present": True},
+                {"dataset": "peers", "ticker": "CRDO", "ticker_present": True},
+            ]
+        ),
+        {"peer_dataset_present": True, "peer_count": 4},
+        report_open=True,
+    )
+    rendered = _render(cards)
+
+    assert cards[1]["title"] == "What can be read in the open review"
+    assert "read the supported price, fundamentals, and peer sections in the open review" in rendered
+    assert "what can be reviewed before opening details" not in rendered
+    assert "before price history is trusted" not in rendered

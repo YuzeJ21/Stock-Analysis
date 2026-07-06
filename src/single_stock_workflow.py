@@ -589,6 +589,8 @@ def single_stock_pre_report_contract_cards(
     ticker: str,
     coverage: pd.DataFrame,
     peer_summary: dict[str, object],
+    *,
+    report_open: bool = False,
 ) -> list[dict[str, object]]:
     """Return a compact pre-click readiness contract for the selected ticker."""
 
@@ -614,7 +616,11 @@ def single_stock_pre_report_contract_cards(
 
     if not price_ready:
         state_title = "Price proof comes first"
-        review_now = "Only ticker identity and local row status should be reviewed before price history is trusted."
+        review_now = (
+            "The open review can show local ticker status, but price-backed sections stay locked until price rows are trusted."
+            if report_open
+            else "Only ticker identity and local row status should be reviewed before price history is trusted."
+        )
         blocked = "Setup, trend, DCF, peer, optional context, and review metrics stay locked until price rows are ready."
         stop_rule = "Stop if price rows are missing, stale, rejected, or not tied to the selected ticker."
         next_command = _ticker_focus_command("prices", ticker_text, fallback=f"make price-refresh TICKERS={ticker_text}")
@@ -622,7 +628,11 @@ def single_stock_pre_report_contract_cards(
         badges = ["price first", "blocked"]
     elif not fundamentals_ready:
         state_title = "Price context ready; fundamentals gated"
-        review_now = "Local price context can be reviewed, but DCF and fundamentals trend panels stay unavailable."
+        review_now = (
+            "Read the price-backed sections in the open review; DCF and fundamentals trend panels stay unavailable."
+            if report_open
+            else "Local price context can be reviewed, but DCF and fundamentals trend panels stay unavailable."
+        )
         blocked = "Trusted fundamentals, shares, FCF, market cap, and valuation inputs remain source-proof work."
         stop_rule = "Stop if fundamentals, shares, market cap, FCF, or valuation inputs would be inferred or placeholder-backed."
         next_command = (
@@ -637,7 +647,11 @@ def single_stock_pre_report_contract_cards(
         badges = ["price ready", "fundamentals gated"]
     elif not peer_ready:
         state_title = "Core inputs present; peer context gated"
-        review_now = "Price and fundamentals context can be reviewed before opening the full review."
+        review_now = (
+            "Read the supported price and fundamentals sections in the open review; peer-relative context remains gated."
+            if report_open
+            else "Price and fundamentals context can be reviewed before opening the full review."
+        )
         blocked = "Peer-relative context stays unavailable until source-backed mappings and peer inputs exist."
         stop_rule = "Stop if peer mappings or peer valuation inputs lack source-backed rows."
         next_command = (
@@ -652,7 +666,11 @@ def single_stock_pre_report_contract_cards(
         badges = ["core review", "peer gated"]
     else:
         state_title = "Ready to open the review"
-        review_now = "The selected ticker has price, fundamentals, and peer setup context available for the review."
+        review_now = (
+            "Read the supported price, fundamentals, and peer sections in the open review; optional locked sections stay labeled."
+            if report_open
+            else "The selected ticker has price, fundamentals, and peer setup context available for the review."
+        )
         blocked = "Optional earnings, analyst estimates, or metric families may still be locked inside the report."
         stop_rule = "Stop if readiness changed after a local import, refresh, or proof update; rebuild the report first."
         next_command = _stock_report_md_command(ticker_text)
@@ -672,9 +690,9 @@ def single_stock_pre_report_contract_cards(
         },
         {
             "kicker": "REVIEW NOW",
-            "title": "What can be reviewed before opening details",
+            "title": "What can be read in the open review" if report_open else "What can be reviewed before opening details",
             "body": review_now,
-            "badges": ["before review", "readiness-gated"],
+            "badges": (["open review", "readiness-gated"] if report_open else ["before review", "readiness-gated"]),
         },
         {
             "kicker": "BLOCKED / EXCLUDED",
