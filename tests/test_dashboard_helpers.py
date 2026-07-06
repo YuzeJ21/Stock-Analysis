@@ -20428,11 +20428,14 @@ def test_market_wide_readiness_summary_uses_current_report_ready_columns(monkeyp
     summary = dashboard.market_wide_readiness_summary(readiness, current_schema_coverage, pd.DataFrame())
     audit = dashboard.product_page_logic_audit_frame(summary, pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
     readiness_row = audit.loc[audit["check"].eq("Readiness before conclusions")].iloc[0]
+    row_limit = audit.loc[audit["check"].eq("Row-limited active workflow")].iloc[0]
 
     assert summary["price_ready"] == 2
     assert summary["momentum_ready"] == 1
     assert summary["peer_ready"] == 1
     assert "2 price-covered ticker(s)" in readiness_row["evidence"]
+    assert "broad 3-row universe" in row_limit["evidence"]
+    assert "3,538-row universe" not in row_limit["evidence"]
 
 
 def test_dashboard_readiness_summary_supports_current_coverage_schema_without_ticker_readiness(monkeypatch):

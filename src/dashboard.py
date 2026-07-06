@@ -17522,11 +17522,13 @@ def product_page_logic_audit_frame(
     )
 
     queue_rows = len(queue)
+    universe_rows = int(summary.get("master_universe") or summary.get("master_count") or summary.get("universe_count") or 0)
+    universe_label = f"{universe_rows:,}-row universe" if universe_rows else "broad universe"
     rows.append(
         {
             "check": "Row-limited active workflow",
             "status": "pass" if 0 < queue_rows <= 25 else "review",
-            "evidence": f"{queue_rows} active queue row(s) displayed; broad 3,538-row universe stays out of the default workflow.",
+            "evidence": f"{queue_rows} active queue row(s) displayed; broad {universe_label} stays out of the default workflow.",
             "operator_action": "Keep default product-page workflow focused on active tickers and grouped queues.",
             "source": "dashboard active evaluation queue",
         }
