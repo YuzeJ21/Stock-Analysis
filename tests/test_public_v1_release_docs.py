@@ -140,6 +140,26 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     assert "Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history" not in walkthrough
 
 
+def test_external_review_story_is_consistent_across_public_docs():
+    readme = _read("README.md")
+    walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
+    linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
+
+    assert "## Two-Minute External Review Path" in readme
+    assert "## Two-Minute External Review Path" in walkthrough
+    assert "Two-minute external review path:" in linkedin
+    for doc in (readme, walkthrough, linkedin):
+        assert "GitHub-only review" in doc
+        assert "Live dashboard review" in doc
+        assert PUBLIC_V1_ROUTE in doc
+        assert "screenshots show product UI only" in doc
+        assert "make status-check TOP_N=5" in doc
+        assert "controlled portfolio/demo" in doc
+        assert "data-freshness proof" in doc
+        assert "open-source reuse" in doc
+    assert walkthrough.index("## Two-Minute External Review Path") < walkthrough.index("## Demo Examples")
+
+
 def test_public_release_checklist_names_v1_routes_and_primary_surfaces():
     checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
 
