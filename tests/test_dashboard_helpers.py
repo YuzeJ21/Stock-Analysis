@@ -1863,11 +1863,36 @@ def test_public_action_cards_render_query_routes_as_clickable_links():
     assert "<a " in rendered
     assert "href='?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1'" in rendered
     assert "aria-label='Open one review'" in rendered
+    assert ">Open one review</a>" in rendered
     assert "target='_self'" in rendered
     assert "Open ?mode=public" not in rendered
     assert "command-chip" not in rendered
     assert "buy" not in rendered.lower()
     assert "sell" not in rendered.lower()
+
+
+def test_public_action_cards_use_specific_visible_labels_for_mobile_clarity():
+    start = dashboard.action_card_html(
+        "Start with Stock Selector",
+        "Pick one readiness-backed ticker.",
+        "?mode=public&page=stock-selector",
+        "success",
+    )
+    route = dashboard.action_card_html(
+        "Data Health",
+        "Check missing inputs.",
+        "?mode=public&page=data-health",
+        "warning",
+    )
+
+    assert "aria-label='Start with Stock Selector'" in start
+    assert ">Start with Stock Selector</a>" in start
+    assert "aria-label='Open Data Health'" in route
+    assert ">Open Data Health</a>" in route
+    assert ">Open</a>" not in start + route
+    assert "command-chip" not in start + route
+    assert "buy" not in (start + route).lower()
+    assert "sell" not in (start + route).lower()
 
 
 def test_stock_selector_result_grid_keeps_actions_inside_public_viewport():

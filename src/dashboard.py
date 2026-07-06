@@ -4842,15 +4842,24 @@ def render_public_workflow_header(page_title: str) -> None:
     st.markdown(public_workflow_header_html(page_title), unsafe_allow_html=True)
 
 
+def action_link_label(title: str) -> str:
+    title_text = str(title or "").strip()
+    if not title_text:
+        return "Open"
+    direct_verbs = ("open ", "start ", "start with ", "check ", "verify ", "review ", "read ", "route ")
+    if title_text.lower().startswith(direct_verbs):
+        return title_text
+    return f"Open {title_text}".strip()
+
+
 def action_card_html(title: str, body: str, command: str = "", tone: str = "neutral") -> str:
     tone_class = "warning" if tone == "warning" else "danger" if tone == "danger" else ""
     command_text = str(command or "").strip()
     if command_text.startswith("?") or command_text.startswith("http://") or command_text.startswith("https://"):
-        title_text = str(title or "").strip()
-        action_label = title_text if title_text.lower().startswith("open ") else f"Open {title_text}".strip()
+        action_label = action_link_label(title)
         command_html = (
             f"<a class='action-link' href='{html.escape(command_text, quote=True)}' "
-            f"aria-label='{html.escape(action_label, quote=True)}' target='_self'>Open</a>"
+            f"aria-label='{html.escape(action_label, quote=True)}' target='_self'>{html.escape(action_label)}</a>"
         )
     else:
         command_html = f"<div class='command-chip'>{html.escape(command_text)}</div>" if command_text else ""
