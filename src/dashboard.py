@@ -26178,10 +26178,10 @@ def render_stock_selector(
     render_section_header("Choose One Ticker", "Open one saved ticker first; use filters below only when you need a narrower queue.")
     initial_shortlist_options = selector_frame["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
     initial_shortlist = initial_shortlist_options[: min(3, len(initial_shortlist_options))]
+    selector_path_cards: list[tuple[str, str, str, str]] = []
     if public_mode:
-        render_action_cards(
-            stock_selector_next_reading_path_cards(selector_frame, initial_shortlist)
-        )
+        selector_path_cards = stock_selector_next_reading_path_cards(selector_frame, initial_shortlist)
+        render_action_cards(selector_path_cards[:1])
     saved_presets = stock_selector_saved_filter_presets()
     preset_label = st.selectbox(
         "Saved filter",
@@ -26246,6 +26246,12 @@ def render_stock_selector(
     default_shortlist = shortlist_options[: min(3, len(shortlist_options))]
     with st.expander("How this selector works", expanded=False):
         render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
+        if public_mode and len(selector_path_cards) > 1:
+            render_context_note(
+                "Secondary paths.",
+                "Use these only after a ticker is selected or when proof freshness is the main question.",
+            )
+            render_action_cards(selector_path_cards[1:])
         render_context_note(
             "Research-only selector.",
             "This page helps choose what to review next. It keeps blockers, excluded states, and proof freshness visible before deeper analysis.",
