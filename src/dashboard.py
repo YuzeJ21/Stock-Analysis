@@ -27182,8 +27182,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Loading selected ticker.",
-                "Reading local readiness and source coverage now; the review status appears here before raw evidence drawers.",
+                "Loading selected ticker answer.",
+                "Reading local readiness and source coverage now; the next section will show the selected ticker answer with readable-now sections, blocked inputs, and the next proof step before raw evidence drawers.",
                 tone="success",
             )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
