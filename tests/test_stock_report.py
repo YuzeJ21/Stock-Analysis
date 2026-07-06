@@ -2196,11 +2196,11 @@ def test_stock_report_cli_optional_context_source_ladder_writes_import_files(mon
     assert (tmp_path / "data" / "imports" / "earnings.csv").exists()
     assert (tmp_path / "data" / "imports" / "analyst_estimates.csv").exists()
     assert payload["recommended_next_commands"] == [
-        "make imports-validate IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
-        "make imports-preview IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+        "make imports-validate IMPORT_TICKERS=NVDA IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+        "make imports-preview IMPORT_TICKERS=NVDA IMPORT_FILES=earnings.csv,analyst_estimates.csv",
         "make optional-context-readiness",
     ]
-    assert payload["apply_gate_command"] == "make imports-apply IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv"
+    assert payload["apply_gate_command"] == "make imports-apply IMPORT_TICKERS=NVDA IMPORT_FILES=earnings.csv,analyst_estimates.csv"
     assert "only after validation passes" in payload["apply_gate_boundary"]
     assert payload["has_staged_changes"] is True
     assert payload["no_apply_needed"] is False
@@ -2323,7 +2323,7 @@ def test_stock_report_cli_optional_context_source_ladder_dry_run_does_not_write_
     assert payload["analyst_estimates_write"]["rows_found"] == 1
     assert not (tmp_path / "data" / "imports" / "earnings.csv").exists()
     assert not (tmp_path / "data" / "imports" / "analyst_estimates.csv").exists()
-    assert payload["recommended_next_commands"][0] == "make optional-context-source-ladder TICKERS=<resolved_tickers>"
+    assert payload["recommended_next_commands"][0] == "make optional-context-source-ladder TICKERS=NVDA"
 
 
 def test_stock_report_cli_optional_context_source_ladder_prints_staging_status(monkeypatch, tmp_path: Path, capsys):

@@ -4330,6 +4330,7 @@ def main() -> None:
         }
         has_staged_changes = (not args.optional_context_dry_run) and "staged" in write_statuses
         no_apply_needed = (not args.optional_context_dry_run) and not has_staged_changes
+        resolved_ticker_arg = ",".join(result.get("resolved_tickers") or []) or "<resolved_tickers>"
         payload = {
             **result,
             **write_result,
@@ -4342,9 +4343,9 @@ def main() -> None:
             ),
             "recommended_next_commands": (
                 [
-                    "make optional-context-source-ladder TICKERS=<resolved_tickers>",
-                    "make imports-validate IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
-                    "make imports-preview IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                    f"make optional-context-source-ladder TICKERS={resolved_ticker_arg}",
+                    f"make imports-validate IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                    f"make imports-preview IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
                 ]
                 if args.optional_context_dry_run
                 else [
@@ -4352,12 +4353,12 @@ def main() -> None:
                 ]
                 if no_apply_needed
                 else [
-                    "make imports-validate IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
-                    "make imports-preview IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                    f"make imports-validate IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                    f"make imports-preview IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
                     "make optional-context-readiness",
                 ]
             ),
-            "apply_gate_command": "make imports-apply IMPORT_TICKERS=<resolved_tickers> IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+            "apply_gate_command": f"make imports-apply IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
             "apply_gate_boundary": (
                 "Run only after validation passes, preview scope is intended, rejected rows are zero, "
                 "and optional-context source provenance is present."
