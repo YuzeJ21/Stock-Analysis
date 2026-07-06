@@ -180,6 +180,8 @@ def test_public_release_checklist_names_v1_routes_and_primary_surfaces():
     assert "Operator context" in checklist
     assert "`make public-check` now includes `make license-status`" in checklist
     assert "license/reuse boundary is checked in the same share gate" in checklist
+    assert "`make linkedin-share-check` for the final LinkedIn Featured-card checklist" in checklist
+    assert "it does not open LinkedIn, upload files, edit your profile, refresh data, stage files, commit, or push" in checklist
 
 
 def test_dashboard_qa_tracks_v1_replacement_browser_checks():
@@ -201,3 +203,5 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert "readiness-backed selection comes first" in makefile
     assert "Review one stock, Improve data coverage, and Inspect proof" not in makefile
     assert "Check data coverage:     make readiness-ops-center" in makefile
+    assert "make linkedin-share-check" in makefile
+    assert "GitHub's generated OpenGraph card" in makefile

@@ -74,6 +74,7 @@ def test_makefile_contains_convenience_targets():
         "lane-outcome-history",
         "price-reviewed-run",
         "public-demo-readiness-pack",
+        "linkedin-share-check",
         "pilot-share-brief",
         "readiness-ops-center",
         "coverage-frontier",
@@ -211,6 +212,8 @@ def test_makefile_help_documents_key_workflows():
         "Print keep-local, reviewed-data-release, and cleanup choices after local data-output changes",
         "make public-demo-readiness-pack",
         "Print the small shareable public demo proof set",
+        "make linkedin-share-check",
+        "Print the final LinkedIn Featured-card checklist",
         "make readiness-ops-center",
         "Print the broad lane-level readiness operations center",
         "make coverage-frontier",
@@ -242,6 +245,8 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates",
         "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan",
         "make public-demo-readiness-pack Print the small shareable public demo proof set",
+        "make linkedin-share-check",
+        "Print the final LinkedIn Featured-card checklist",
         "make pilot-share-brief",
         "Write the concise public/demo share brief without refreshing or applying data",
         "make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data",
@@ -274,6 +279,8 @@ def test_makefile_help_documents_key_workflows():
         "Scan public docs, dashboard copy, and sample reports for unsupported advice/execution wording",
         "make public-check",
         "Run share-safe checks before posting the repo link; does not refresh broad local data",
+        "Public share check: LinkedIn visual checklist",
+        "@$(MAKE) --silent linkedin-share-check",
         "Run these from the repository root so make can find the project targets.",
         "make status [TOP_N=5]",
         "make status-check [TICKERS=NVDA,MSFT] [TOP_N=5]",
@@ -375,6 +382,24 @@ def test_makefile_help_documents_key_workflows():
     assert makefile.index("make price-refresh-loop [MAX_CANDIDATES=3500]") < makefile.index(
         "make price-refresh TICKERS=NVDA,MSFT"
     )
+
+
+def test_linkedin_share_check_prints_read_only_final_checklist():
+    result = subprocess.run(
+        ["make", "linkedin-share-check"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    output = result.stdout
+    assert "LinkedIn Share Check" in output
+    assert "Read-only: this target prints the final LinkedIn visual checklist only." in output
+    assert "Stock Research Command Center | Readiness-First Stock Research Workflow" in output
+    assert "docs/assets/linkedin-public-dashboard.png" in output
+    assert "GitHub's generated OpenGraph card" in output
+    assert "screenshots prove current data freshness" in output
+    assert "make public-check" in output
 
 
 def test_make_help_output_stays_visitor_friendly():
