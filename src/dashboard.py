@@ -28293,8 +28293,8 @@ def render_data_health(
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Loading saved readiness answers.",
-                "Reading local readiness files now; the lane summary appears here with usable now, blocked, next proof, and stop rule before proof maps or advanced evidence details.",
+                "Loading Coverage Summary / What Can I Use?",
+                "Reading saved readiness files now; the next section will show one lane answer with usable now, blocked inputs, next proof, and stop rule before proof maps or advanced evidence details.",
                 tone="success",
             )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())

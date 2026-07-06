@@ -19961,8 +19961,8 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
     function_index = source.index("def render_data_health(")
     provider_none_index = source.index("if provider is None:", function_index)
     placeholder_index = source.index("public_loading_placeholder = st.empty()", provider_none_index)
-    placeholder_copy_index = source.index('"Loading saved readiness answers."', placeholder_index)
-    placeholder_contract_index = source.index("usable now, blocked, next proof, and stop rule", placeholder_copy_index)
+    placeholder_copy_index = source.index('"Loading Coverage Summary / What Can I Use?"', placeholder_index)
+    placeholder_contract_index = source.index("one lane answer with usable now, blocked inputs, next proof, and stop rule", placeholder_copy_index)
     validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", placeholder_index)
     clear_placeholder_index = source.index("public_loading_placeholder.empty()", validation_load_index)
     coverage_summary_index = source.index(
