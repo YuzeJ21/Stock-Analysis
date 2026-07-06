@@ -26475,6 +26475,35 @@ def test_data_health_selected_lane_answer_cards_use_lane_relevant_project_status
     assert "sell" not in fundamentals_next + peers_next
 
 
+def test_data_health_optional_lane_explains_provider_rows_can_stay_locked():
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "optional",
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+        project_status_payload={
+            "summary": {
+                "data_gaps": 207,
+            },
+            "recommended_next_command_rows": [
+                {
+                    "Step": "Review optional context source ladder",
+                    "Command": "make optional-context-source-ladder-queue TOP_N=10",
+                    "Reason": "Provider-assisted rows can be reviewed, but optional readiness still requires supported earnings metrics or estimates.",
+                }
+            ],
+        },
+    )
+
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "supported earnings metrics or eps/revenue estimates" in rendered
+    assert "date-only earnings rows or target-price-only estimate rows can validate but still remain locked" in rendered
+    assert "provider-assisted dates and price targets can route review after validation" in rendered
+    assert "not a recommendation" in rendered
+    assert "make " not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_selected_lane_answer_cards_include_lane_specific_inspection_cue():
     cards = dashboard.data_health_selected_lane_answer_cards(
         "fundamentals",

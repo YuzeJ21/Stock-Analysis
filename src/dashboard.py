@@ -20885,11 +20885,11 @@ def data_health_selected_lane_answer_cards(
             "Stop: do not turn metrics into rankings or instructions.",
         ),
         "optional": (
-            "Optional earnings and analyst-estimate context is usable only when trusted local or provider-assisted rows are reviewed.",
-            "Empty optional rows remain locked; optional context never becomes a recommendation.",
-            "Context only: optional rows can add background after review but do not unlock DCF or peer proof.",
+            "Optional earnings and analyst-estimate context is usable only when trusted rows include supported earnings metrics or EPS/revenue estimates.",
+            "Date-only earnings rows or target-price-only estimate rows can validate but still remain locked.",
+            "Context only: provider-assisted dates and price targets can route review after validation, but they do not unlock DCF or peer proof.",
             "Excluded/not applicable: optional context can stay unavailable without failing the core readiness workflow.",
-            "Next proof: trusted optional rows that pass validation, preview, and optional-context readiness.",
+            "Next proof: trusted optional rows with earnings metrics or EPS/revenue estimates that pass validation, preview, and optional-context readiness.",
             "Stop: do not treat optional context as a recommendation or core readiness unlock.",
         ),
         "proof": (
