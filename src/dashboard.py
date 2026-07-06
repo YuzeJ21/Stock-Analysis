@@ -2048,6 +2048,28 @@ def apply_dashboard_theme() -> None:
           padding: 0 !important;
           overflow: hidden !important;
         }
+        @media (max-width: 760px) {
+          .sidebar-nav-header {
+            padding: 0.18rem 0.22rem 0.36rem 0.22rem;
+            margin-bottom: 0.22rem;
+          }
+          .sidebar-nav-kicker {
+            font-size: 0.54rem;
+            letter-spacing: 0.08em;
+          }
+          .sidebar-nav-title {
+            font-size: 0.98rem;
+            line-height: 1;
+            margin-top: 0.12rem;
+          }
+          [data-testid="stSidebar"] [role="radiogroup"] {
+            gap: 0.16rem;
+          }
+          [data-testid="stSidebar"] [role="radiogroup"] label {
+            min-height: 2.45rem;
+            padding: 0.32rem 0.42rem;
+          }
+        }
         [data-testid="stSidebar"] [data-testid="stRadio"] > label {
           color: rgba(226,232,240,0.72) !important;
           font-size: 0.62rem !important;
@@ -5032,7 +5054,7 @@ def sidebar_nav_header_html() -> str:
     <div class="sidebar-nav-header">
       <div class="sidebar-nav-kicker">READINESS-FIRST</div>
       <div class="sidebar-nav-title">Research paths</div>
-      <div class="sidebar-nav-copy">Readiness-first research paths. Choose one path; open proof only when a section is locked.</div>
+      <div class="sidebar-nav-copy">Choose one path; open proof only when locked.</div>
     </div>
     """
 
@@ -31037,6 +31059,7 @@ def main() -> None:
             format_func=public_path_label,
             help="Most visitors only need these paths: review one stock, explore ready names, check data coverage, or inspect proof.",
             key=path_widget_key,
+            label_visibility="collapsed",
         )
         selected_page = selected_page_from_route_rail(
             initial_page=initial_page,

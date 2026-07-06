@@ -2494,6 +2494,7 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "var(--research-radius)" in source
     assert "pointer-events: none;" in source
     assert '"Choose your path"' in source
+    assert 'label_visibility="collapsed"' in source
     assert '"Choose a page"' not in source
     assert 'st.expander("Research view switcher"' in source
     assert 'if not public_demo_mode and selected_page != "Data Health":\n            with st.expander("Research view switcher"' in source
