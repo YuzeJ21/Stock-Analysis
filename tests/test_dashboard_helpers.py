@@ -27991,15 +27991,16 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     assert "No commands run here" in source
 
 
-def test_public_route_bootstrap_is_data_health_only_to_avoid_duplicate_headers():
+def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     start_index = source.index("def render_public_route_bootstrap(")
     end_index = source.index("def _translated_missing_item(", start_index)
     chunk = source[start_index:end_index]
 
     assert 'mode != PUBLIC_DEMO_MODE' in chunk
-    assert 'selected_page != "Data Health"' in chunk
+    assert 'selected_page not in {"Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
     assert "Data Health is loading lane answers" in chunk
+    assert "Proof History is loading evidence cards" in chunk
     assert "public workflow is loading" not in chunk
 
 
