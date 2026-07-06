@@ -3455,8 +3455,8 @@ def apply_dashboard_theme() -> None:
           }
           .public-workflow-item {
             display: grid;
-            grid-template-columns: 5.25rem minmax(0, 1fr);
-            column-gap: 0.42rem;
+            grid-template-columns: 1fr;
+            row-gap: 0.12rem;
             align-items: start;
           }
           .public-workflow-label {

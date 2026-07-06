@@ -27773,7 +27773,8 @@ def test_public_workflow_header_has_compact_mobile_rules():
     mobile_chunk = source[mobile_index : mobile_index + 1200]
 
     assert ".public-workflow-item" in mobile_chunk
-    assert "grid-template-columns: 5.25rem minmax(0, 1fr)" in mobile_chunk
+    assert "grid-template-columns: 1fr" in mobile_chunk
+    assert "row-gap: 0.12rem" in mobile_chunk
     assert ".public-workflow-label" in mobile_chunk
     assert "margin-bottom: 0" in mobile_chunk
     assert ".public-workflow-value" in mobile_chunk
