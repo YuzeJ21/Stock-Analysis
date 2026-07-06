@@ -85,6 +85,7 @@ def test_public_workflow_steps_answer_one_question_and_next_action_per_page():
 def test_public_workflow_stop_rules_keep_research_only_boundary_visible():
     for page in nav.PUBLIC_PATH_PAGE_TITLES:
         stop_rule = nav.public_workflow_step(page)["stop_rule"].lower()
+        assert len(stop_rule) <= 95
         assert "research-only" in stop_rule
         assert "not advice" in stop_rule
         assert "trade instruction" in stop_rule

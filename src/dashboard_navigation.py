@@ -51,7 +51,7 @@ PUBLIC_WORKFLOW_STEPS = {
         "short_answer": "Use readiness filters to pick one ticker for a single-stock review.",
         "next_page": "Single-Stock Report",
         "next_action": "Pick one ticker, then open its single-stock report.",
-        "stop_rule": "Research-only: not advice; stop if the selected ticker has no readiness-backed path or trade instruction.",
+        "stop_rule": "Research-only: not advice; stop if no readiness-backed path or trade instruction.",
     },
     "Single-Stock Report": {
         "page": "Single-Stock Report",
@@ -59,7 +59,7 @@ PUBLIC_WORKFLOW_STEPS = {
         "short_answer": "Read supported sections first; blocked inputs stay locked.",
         "next_page": "Data Health",
         "next_action": "Use supported sections first; open Data Health only for blocked inputs.",
-        "stop_rule": "Research-only: not advice; stop if required inputs are blocked, excluded, candidate context, or trade instruction.",
+        "stop_rule": "Research-only: not advice; stop if inputs are blocked, candidate-only, or trade instruction.",
     },
     "Data Health": {
         "page": "Data Health",
@@ -67,7 +67,7 @@ PUBLIC_WORKFLOW_STEPS = {
         "short_answer": "Check one lane answer before opening proof, queues, or advanced details.",
         "next_page": PROOF_HISTORY_PATH_TITLE,
         "next_action": "Read the lane answer, then inspect proof only when evidence changed.",
-        "stop_rule": "Research-only: not advice; stop before changing local data, trusting unsupported evidence, or creating any trade instruction.",
+        "stop_rule": "Research-only: not advice; stop before changing local data or trusting trade instruction.",
     },
     PROOF_HISTORY_PATH_TITLE: {
         "page": PROOF_HISTORY_PATH_TITLE,
@@ -75,7 +75,7 @@ PUBLIC_WORKFLOW_STEPS = {
         "short_answer": "Review evidence only; this page does not refresh or unlock data.",
         "next_page": "Home",
         "next_action": "Verify the latest outcome, then return to the product path.",
-        "stop_rule": "Research-only: not advice; stop if evidence is missing, stale, not source-backed, or used as a trade instruction.",
+        "stop_rule": "Research-only: not advice; stop if evidence is missing, stale, or a trade instruction.",
     },
 }
 
