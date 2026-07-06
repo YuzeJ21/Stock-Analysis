@@ -1044,6 +1044,11 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
     assert "free-tier limits: fmp<=250/day and <=25/run" in output
     assert "alpha_vantage<=25/day and <=5/run" in output
     assert "finnhub<=60/day and <=10/run" in output
+    assert "configure first provider: fmp_api_key" in output
+    assert (
+        "reviewed one-ticker smoke after setup: make fmp-stage tickers=<ticker> && "
+        "make imports-validate import_tickers=<ticker> && make imports-preview import_tickers=<ticker>"
+    ) in output
     assert "avoid repeating now: fundamentals/share-count source ladder" in output
     assert "avoid repeating now: fundamentals_share_count_source_ladder" not in output
 

@@ -392,6 +392,50 @@ def _source_operator_free_tier_limit_summary(source_operator_summary: dict[str, 
     return ", ".join(pieces)
 
 
+_KEYED_PROVIDER_OPERATOR_GUIDANCE: dict[str, dict[str, str]] = {
+    "fmp": {
+        "setup_env": "FMP_API_KEY",
+        "smoke_command": (
+            "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+            "&& make imports-preview IMPORT_TICKERS=<ticker>"
+        ),
+    },
+    "finnhub": {
+        "setup_env": "FINNHUB_API_KEY",
+        "smoke_command": (
+            "make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+            "&& make imports-preview IMPORT_TICKERS=<ticker>"
+        ),
+    },
+    "alpha_vantage": {
+        "setup_env": "ALPHA_VANTAGE_API_KEY",
+        "smoke_command": (
+            "make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
+            "&& make imports-preview IMPORT_TICKERS=<ticker>"
+        ),
+    },
+}
+
+_KEYED_PROVIDER_SETUP_ORDER = ("fmp", "finnhub", "alpha_vantage")
+
+
+def _source_operator_first_setup_guidance(source_operator_summary: dict[str, Any]) -> dict[str, str]:
+    needs_setup = [
+        str(item).strip().lower()
+        for item in source_operator_summary.get("needs_setup", [])
+        if str(item).strip()
+    ]
+    for provider in _KEYED_PROVIDER_SETUP_ORDER:
+        if provider in needs_setup:
+            guidance = _KEYED_PROVIDER_OPERATOR_GUIDANCE[provider]
+            return {
+                "provider": provider,
+                "setup_env": guidance["setup_env"],
+                "smoke_command": guidance["smoke_command"],
+            }
+    return {}
+
+
 def _fast_status_payload_from_outputs(
     project_root: Path | str | None = None,
     *,
@@ -1591,6 +1635,10 @@ def _print_human(payload: dict[str, Any]) -> None:
         free_tier_limits = _source_operator_free_tier_limit_summary(source_operator_summary)
         if free_tier_limits:
             print(f"- Free-tier limits: {free_tier_limits}.")
+        first_setup = _source_operator_first_setup_guidance(source_operator_summary)
+        if first_setup:
+            print(f"- Configure first provider: {first_setup['setup_env']}.")
+            print(f"- Reviewed one-ticker smoke after setup: {first_setup['smoke_command']}.")
         if avoid_repeating:
             print(f"- Avoid repeating now: {_friendly_cli_guidance(', '.join(avoid_repeating))}.")
     print("- Details below are capped and copy-only.")
