@@ -5551,6 +5551,7 @@ def header_saved_name_count(final_frame: pd.DataFrame | None, tickers: int) -> i
 def render_public_route_bootstrap(selected_page: str, mode: str):
     if mode != PUBLIC_DEMO_MODE:
         return None
+    step = public_workflow_step(selected_page)
     if selected_page == "Data Health":
         title = "Data Health is loading lane answers."
         body = (
@@ -5558,7 +5559,6 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
             "blocked, skipped, or excluded before proof details."
         )
     else:
-        step = public_workflow_step(selected_page)
         title = f"{step['page']} public workflow is loading."
         body = (
             f"{step['question']} The page is reading saved local outputs before showing the short answer, "
@@ -5566,6 +5566,7 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
         )
     placeholder = st.empty()
     with placeholder.container():
+        st.markdown(public_workflow_header_html(step["page"]), unsafe_allow_html=True)
         render_context_note(
             title,
             body,

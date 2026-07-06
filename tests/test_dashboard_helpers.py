@@ -27934,6 +27934,10 @@ def test_public_data_health_bootstrap_renders_before_sidebar_route_work():
     data_health_render_index = source.index("render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)")
     assert bootstrap_index < sidebar_index < clear_index
     assert data_health_render_index < clear_index
+    bootstrap_function_index = source.index("def render_public_route_bootstrap(")
+    workflow_bootstrap_index = source.index("public_workflow_header_html(step[\"page\"])", bootstrap_function_index)
+    loading_note_index = source.index("render_context_note(", workflow_bootstrap_index)
+    assert workflow_bootstrap_index < loading_note_index
     assert "Data Health is loading lane answers" in source
     assert "No commands run here" in source
 
