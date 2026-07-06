@@ -2532,6 +2532,12 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert '[data-testid="stSidebar"] [role="radiogroup"] label[data-baseweb="radio"] > div:first-child' in source
     assert "--research-shadow-soft" in source
     assert '[data-testid="stMainBlockContainer"]' in source
+    main_block_index = source.index('[data-testid="stMainBlockContainer"]')
+    main_block_chunk = source[main_block_index : main_block_index + 360]
+    assert "max-width: 1600px !important" in main_block_chunk
+    assert "margin-left: auto !important" in main_block_chunk
+    assert "margin-right: auto !important" in main_block_chunk
+    assert "max-width: none !important" not in main_block_chunk
     assert '[data-testid="stExpander"] details > summary' in source
     assert '[data-testid="stDataFrame"] [role="columnheader"]' in source
     assert "var(--research-radius)" in source

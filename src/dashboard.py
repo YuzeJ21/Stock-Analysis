@@ -1911,7 +1911,9 @@ def apply_dashboard_theme() -> None:
           height: 0 !important;
         }
         [data-testid="stMainBlockContainer"] {
-          max-width: none !important;
+          max-width: 1600px !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
           padding-top: 1.05rem !important;
           padding-left: 1.35rem !important;
           padding-right: 1.35rem !important;
