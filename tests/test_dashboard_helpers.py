@@ -27998,7 +27998,8 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     chunk = source[start_index:end_index]
 
     assert 'mode != PUBLIC_DEMO_MODE' in chunk
-    assert 'selected_page not in {"Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
+    assert 'selected_page not in {STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
+    assert "Stock Selector is loading readiness filters" in chunk
     assert "Data Health is loading lane answers" in chunk
     assert "Proof History is loading evidence cards" in chunk
     assert "public workflow is loading" not in chunk

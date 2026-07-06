@@ -5560,10 +5560,16 @@ def header_saved_name_count(final_frame: pd.DataFrame | None, tickers: int) -> i
 def render_public_route_bootstrap(selected_page: str, mode: str):
     if mode != PUBLIC_DEMO_MODE:
         return None
-    if selected_page not in {"Data Health", PROOF_HISTORY_PATH_TITLE}:
+    if selected_page not in {STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return None
     step = public_workflow_step(selected_page)
-    if selected_page == PROOF_HISTORY_PATH_TITLE:
+    if selected_page == STOCK_SELECTOR_PATH_TITLE:
+        title = "Stock Selector is loading readiness filters."
+        body = (
+            "No recommendations run here. The page is reading saved readiness rows so you can choose one "
+            "reviewable ticker before opening a single-stock report."
+        )
+    elif selected_page == PROOF_HISTORY_PATH_TITLE:
         title = "Proof History is loading evidence cards."
         body = (
             "No data refresh runs here. The page is reading reviewed proof rows so it can show the latest "
