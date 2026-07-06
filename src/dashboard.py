@@ -30911,6 +30911,9 @@ def main() -> None:
     elif selected_page == "Single-Stock Report":
         render_single_stock_report(provider, show_source_details, public_mode=public_demo_mode)
     elif selected_page == "Data Health":
+        if bootstrap_placeholder is not None:
+            bootstrap_placeholder.empty()
+            bootstrap_placeholder = None
         render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)
     elif selected_page == PROOF_HISTORY_PATH_TITLE:
         render_proof_history(public_mode=public_demo_mode)

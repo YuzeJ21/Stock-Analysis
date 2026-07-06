@@ -27923,17 +27923,18 @@ def test_header_saved_name_count_falls_back_to_universe_when_outputs_are_deferre
     assert dashboard.header_saved_name_count(None, tickers=100) == 100
 
 
-def test_public_data_health_bootstrap_renders_before_sidebar_route_work():
+def test_public_data_health_bootstrap_clears_before_data_health_body():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "def render_public_route_bootstrap(" in source
     assert "bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)" in source
     bootstrap_index = source.index("bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)")
     sidebar_index = source.index("with st.sidebar:", bootstrap_index)
-    clear_index = source.index("if bootstrap_placeholder is not None:", sidebar_index)
+    data_health_branch_index = source.index('elif selected_page == "Data Health":', sidebar_index)
+    clear_index = source.index("if bootstrap_placeholder is not None:", data_health_branch_index)
     data_health_render_index = source.index("render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)")
-    assert bootstrap_index < sidebar_index < clear_index
-    assert data_health_render_index < clear_index
+    assert bootstrap_index < sidebar_index < data_health_branch_index < clear_index < data_health_render_index
+    assert "bootstrap_placeholder = None" in source[clear_index:data_health_render_index]
     bootstrap_function_index = source.index("def render_public_route_bootstrap(")
     workflow_bootstrap_index = source.index("public_workflow_header_html(step[\"page\"])", bootstrap_function_index)
     loading_note_index = source.index("render_context_note(", workflow_bootstrap_index)
