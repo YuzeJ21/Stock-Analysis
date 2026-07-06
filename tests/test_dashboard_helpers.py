@@ -28089,7 +28089,7 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     workflow_bootstrap_index = source.index("public_workflow_header_html(step[\"page\"])", bootstrap_function_index)
     loading_note_index = source.index("render_context_note(", workflow_bootstrap_index)
     assert workflow_bootstrap_index < loading_note_index
-    assert "Data Health is loading lane answers" in source
+    assert "Loading Coverage Summary / What Can I Use?" in source
     assert "No commands run here" in source
 
 
@@ -28102,7 +28102,7 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert 'mode != PUBLIC_DEMO_MODE' in chunk
     assert 'selected_page not in {STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
     assert "Stock Selector is loading readiness filters" in chunk
-    assert "Data Health is loading lane answers" in chunk
+    assert "Loading Coverage Summary / What Can I Use?" in chunk
     assert "Proof History is loading evidence cards" in chunk
     assert "public workflow is loading" not in chunk
 

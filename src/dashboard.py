@@ -5608,7 +5608,7 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
             "outcome before raw ledgers or advanced evidence details."
         )
     else:
-        title = "Data Health is loading lane answers."
+        title = "Loading Coverage Summary / What Can I Use?"
         body = (
             "No commands run here. The page is reading saved readiness outputs so it can show what is usable, "
             "blocked, skipped, or excluded before proof details."
