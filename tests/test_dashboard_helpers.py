@@ -3052,13 +3052,13 @@ def test_public_home_primary_start_action_points_to_stock_selector_without_opera
     assert cards == [
         (
             "Start with Stock Selector",
-            "Pick one readiness-backed ticker before opening a report. This keeps the first step concrete on mobile.",
+            "Pick one readiness-backed ticker before opening a report. This keeps the first step concrete before any details.",
             "?mode=public&page=stock-selector",
             "success",
         )
     ]
     assert "readiness-backed ticker" in rendered
-    assert "mobile" in rendered
+    assert "mobile" not in rendered
     assert "make " not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
