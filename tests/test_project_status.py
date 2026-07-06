@@ -730,7 +730,10 @@ def test_project_status_labels_preview_available_source_command_as_review_bounda
 
     assert rows[0]["Step"] == "Advance SMH holdings source"
     assert rows[0]["Command"] == "make universe-preview-summary"
-    assert rows[0]["FreshnessContext"] == "preview available; review source rows before apply"
+    assert (
+        rows[0]["FreshnessContext"]
+        == "preview available; apply only if canonical preview shows new or updated rows"
+    )
 
 
 def test_project_status_scope_and_risk_rows_keep_scope_before_context():
