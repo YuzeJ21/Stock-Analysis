@@ -28117,6 +28117,8 @@ def test_public_compact_header_allows_mobile_status_wrap():
     mobile_compact_chunk = source[mobile_compact_index : mobile_compact_index + 700]
     assert "white-space: normal" in compact_status_chunk
     assert "overflow-wrap: anywhere" in compact_status_chunk
+    assert ".command-shell.compact .command-kpi-proof" in source
+    assert "font-size: 0.72rem" in source
     assert "align-items: flex-start" in mobile_compact_chunk
     assert "gap: 0.28rem" in mobile_compact_chunk
     assert ".command-topbar.compact .command-top-left .command-status-item:not(.primary)" in mobile_compact_chunk
@@ -28137,6 +28139,8 @@ def test_compact_header_keeps_about_link_classed_for_mobile():
     assert "command-top-link command-about" in html
     assert "command-home-link" in html
     assert "Blocked? Data Health" in html
+    assert "100 tracked names; local readiness snapshot only." in html
+    assert "tracked names are available for review" not in html
     assert "Stock Research Command Center" not in html
 
 

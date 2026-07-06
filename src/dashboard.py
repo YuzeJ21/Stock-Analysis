@@ -2287,6 +2287,13 @@ def apply_dashboard_theme() -> None:
           color: #64748b;
           font-size: 0.78rem;
         }
+        .command-shell.compact .command-kpi-proof {
+          border-top: 0;
+          margin: -0.18rem 0 0.48rem 0;
+          padding: 0 0.72rem 0.05rem 0.72rem;
+          font-size: 0.72rem;
+          line-height: 1.22;
+        }
         .research-loop-v2 {
           border: 1px solid rgba(15, 23, 42, 0.12);
           border-radius: 8px;
@@ -3211,6 +3218,12 @@ def apply_dashboard_theme() -> None:
           }
           .command-topbar.compact .command-top-right {
             width: auto;
+          }
+          .command-shell.compact .command-kpi-proof {
+            margin: -0.12rem 0 0.42rem 0;
+            padding: 0 0.54rem 0.04rem 0.54rem;
+            font-size: 0.66rem;
+            line-height: 1.18;
           }
           .app-hero.compact .hero-subtitle {
             display: none;
@@ -5451,7 +5464,7 @@ def command_center_header_html(
     if compact:
         return (
             f"{topbar_html}"
-            f"<div class='command-kpi-proof'>Readiness reflects current local outputs. {total:,} tracked names are available for review.</div>"
+            f"<div class='command-kpi-proof'>{total:,} tracked names; local readiness snapshot only.</div>"
             "</header>"
         )
     return (
