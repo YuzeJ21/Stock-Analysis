@@ -9193,10 +9193,10 @@ def data_health_coverage_summary_cards(
     for row in frame.to_dict("records"):
         state = format_missing(row.get("state"), "blocked")
         lane = format_missing(row.get("lane"))
-        use_now = compact_card_fragment(row.get("one_clear_answer"), max_chars=52)
-        blocked = compact_card_fragment(row.get("blocked_or_limited"), max_chars=46)
-        next_proof = compact_card_fragment(row.get("proof_to_unlock"), max_chars=48)
-        stop_rule = compact_card_fragment(row.get("stop_rule"), max_chars=48)
+        use_now = compact_card_fragment(row.get("one_clear_answer"), max_chars=140)
+        blocked = compact_card_fragment(row.get("blocked_or_limited"), max_chars=120)
+        next_proof = compact_card_fragment(row.get("proof_to_unlock"), max_chars=140)
+        stop_rule = compact_card_fragment(row.get("stop_rule"), max_chars=130)
         scan = f"{state}; {format_missing(row.get('ready_coverage'))}"
         use_label = "Current use" if str(row.get("one_clear_answer", "")).lower().startswith("do not use yet") else "Use now"
         if use_label == "Use now":

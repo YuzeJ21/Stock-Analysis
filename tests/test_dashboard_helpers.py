@@ -19804,6 +19804,9 @@ def test_data_health_coverage_summary_cards_do_not_show_broken_ellipsis_fragment
     assert "Use now:" in rendered
     assert "Next proof:" in rendered
     assert "Stop:" in rendered
+    assert "..." not in rendered
+    assert "Validated fundamentals imports, preview, rejected-row review, apply decision, and rebuilt readiness" in rendered
+    assert "Current app screenshot evidence plus public-check; data freshness still comes from readiness commands" in rendered
 
 
 def test_data_health_coverage_summary_includes_cached_source_activation_context(tmp_path):
@@ -28331,8 +28334,9 @@ def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer()
     assert "use now: do not use yet" not in rendered
     assert "next safe action:" not in rendered
     assert "proof to unlock:" not in rendered
-    assert max(len(str(card["body"])) for card in cards) <= 280
+    assert max(len(str(card["body"])) for card in cards) <= 420
     assert all(str(card["body"]).count("\n") >= 4 for card in cards)
+    assert "..." not in rendered
     assert "make " not in rendered
 
 
