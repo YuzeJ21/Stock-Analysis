@@ -26106,6 +26106,23 @@ def stock_selector_saved_filter_presets() -> list[dict[str, str]]:
     ]
 
 
+def stock_selector_current_filter_values(
+    saved_presets: list[dict[str, str]],
+    session_values: dict[str, object],
+) -> dict[str, str]:
+    """Return the selector filters already stored in the session before widgets render."""
+
+    preset_label = str(session_values.get("stock-selector-saved-filter") or "Custom").strip()
+    selected_preset = next((preset for preset in saved_presets if preset["label"] == preset_label), saved_presets[0])
+    return {
+        "state_filter": str(session_values.get("stock-selector-state") or selected_preset["state"]).strip() or "All",
+        "readiness_filter": str(session_values.get("stock-selector-readiness") or selected_preset["readiness"]).strip() or "All",
+        "detail_filter": str(session_values.get("stock-selector-detail") or selected_preset["detail"]).strip() or "All",
+        "theme_filter": str(session_values.get("stock-selector-theme") or selected_preset["theme"]).strip() or "All",
+        "search": str(session_values.get("stock-selector-search") or selected_preset["search"]).strip(),
+    }
+
+
 def stock_selector_next_reading_path_cards(
     frame: pd.DataFrame,
     selected_tickers: list[str] | tuple[str, ...],
@@ -26207,13 +26224,15 @@ def render_stock_selector(
         )
         return
 
-    initial_shortlist_options = selector_frame["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
+    saved_presets = stock_selector_saved_filter_presets()
+    current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
+    selector_action_frame = stock_selector_apply_filters(selector_frame, **current_filter_values)
+    initial_shortlist_options = selector_action_frame["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
     initial_shortlist = initial_shortlist_options[: min(3, len(initial_shortlist_options))]
     selector_path_cards: list[tuple[str, str, str, str]] = []
     if public_mode:
-        selector_path_cards = stock_selector_next_reading_path_cards(selector_frame, initial_shortlist)
+        selector_path_cards = stock_selector_next_reading_path_cards(selector_action_frame, initial_shortlist)
         render_action_cards(selector_path_cards[:1])
-    saved_presets = stock_selector_saved_filter_presets()
     preset_label = st.selectbox(
         "Saved filter",
         [preset["label"] for preset in saved_presets],

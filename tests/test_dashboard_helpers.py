@@ -28173,7 +28173,7 @@ def test_stock_selector_next_reading_path_uses_selected_ticker_not_fixed_demo_na
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
     initial_shortlist_index = source.index("initial_shortlist = initial_shortlist_options[: min(3, len(initial_shortlist_options))]", render_index)
-    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_frame, initial_shortlist)", initial_shortlist_index)
+    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_action_frame, initial_shortlist)", initial_shortlist_index)
     shortlist_index = source.index("selected_shortlist = st.multiselect(", handoff_helper_index)
     result_table_index = source.index("stock_selector_result_table_html(filtered", handoff_helper_index)
     data_health_index = source.index("def price_refresh_operator_plan_cards(", result_table_index)
@@ -28184,11 +28184,49 @@ def test_stock_selector_next_reading_path_uses_selected_ticker_not_fixed_demo_na
     assert '"?mode=public&page=data-health&drawer=proof"' not in selector_source
 
 
+def test_stock_selector_current_filter_values_use_saved_session_state_for_primary_action():
+    presets = dashboard.stock_selector_saved_filter_presets()
+    values = dashboard.stock_selector_current_filter_values(
+        presets,
+        {
+            "stock-selector-saved-filter": "Custom",
+            "stock-selector-state": "Research Now",
+            "stock-selector-readiness": "partial",
+            "stock-selector-detail": "All",
+            "stock-selector-theme": "Semiconductors",
+            "stock-selector-search": "peer",
+        },
+    )
+
+    assert values == {
+        "state_filter": "Research Now",
+        "readiness_filter": "partial",
+        "detail_filter": "All",
+        "theme_filter": "Semiconductors",
+        "search": "peer",
+    }
+
+
+def test_stock_selector_primary_handoff_uses_current_filters_before_filter_controls():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
+    preset_setup_index = source.index("saved_presets = stock_selector_saved_filter_presets()", section_index)
+    current_filter_index = source.index("current_filter_values = stock_selector_current_filter_values", preset_setup_index)
+    filtered_action_index = source.index("selector_action_frame = stock_selector_apply_filters", current_filter_index)
+    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_action_frame", filtered_action_index)
+    primary_handoff_index = source.index("render_action_cards(selector_path_cards[:1])", handoff_helper_index)
+    preset_control_index = source.index("preset_label = st.selectbox(", primary_handoff_index)
+
+    assert preset_setup_index < current_filter_index < filtered_action_index < handoff_helper_index
+    assert handoff_helper_index < primary_handoff_index < preset_control_index
+
+
 def test_stock_selector_public_page_shows_one_ticker_handoff_before_filters_on_mobile():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
     section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
-    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_frame, initial_shortlist)", section_index)
+    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_action_frame", section_index)
     primary_handoff_index = source.index("render_action_cards(selector_path_cards[:1])", handoff_helper_index)
     preset_index = source.index("preset_label = st.selectbox(", primary_handoff_index)
     cockpit_drawer_index = source.index('st.expander("How this selector works"', primary_handoff_index)
