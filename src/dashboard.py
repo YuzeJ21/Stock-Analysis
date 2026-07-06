@@ -3235,11 +3235,36 @@ def apply_dashboard_theme() -> None:
           .command-topbar.compact .command-top-link {
             font-size: 0.68rem;
           }
-          .command-topbar.compact .command-top-left .command-status-item:not(.primary) {
+          .command-topbar.compact .command-top-left .command-status-item:not(.primary):not(.command-stop-status) {
             display: none;
+          }
+          .command-topbar.compact .command-top-link.command-about {
+            display: none;
+          }
+          .command-topbar.compact .command-status-item.primary,
+          .command-topbar.compact .command-stop-status,
+          .command-topbar.compact .command-top-link {
+            min-height: 1.7rem;
+            display: inline-flex;
+            align-items: center;
           }
           .command-topbar.compact .command-top-right {
             width: auto;
+          }
+          .action-grid,
+          .signal-grid,
+          .signal-grid.queue-grid,
+          .metric-card-grid {
+            grid-template-columns: 1fr;
+            gap: 0.42rem;
+            margin: 0.45rem 0 0.62rem 0;
+          }
+          .action-card,
+          .signal-card,
+          .signal-grid.queue-grid .signal-card,
+          .metric-card {
+            padding: 0.58rem 0.64rem;
+            box-shadow: none;
           }
           .command-shell.compact .command-kpi-proof {
             margin: -0.12rem 0 0.42rem 0;
@@ -5475,7 +5500,7 @@ def command_center_header_html(
         f"<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'{home_current_attr}>What can I use now?</a>"
         f"<span class='command-status-item'>Data snapshot: {html.escape(str(latest_price))}</span>"
         "<span class='command-status-item'>Readiness-gated coverage <span class='command-status-dot'></span></span>"
-        "<span class='command-status-item'>No account actions</span>"
+        "<span class='command-status-item command-stop-status'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
         f"<a class='command-top-link' href='?mode=public&page=data-health' target='_self'{data_health_current_attr}>Blocked? Data Health</a>"

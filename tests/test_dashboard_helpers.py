@@ -1403,6 +1403,49 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
     assert "sell" not in lowered
 
 
+def test_compact_command_header_keeps_mobile_stop_rule_visible():
+    html = dashboard.command_center_header_html(
+        {
+            "master_universe": 5000,
+            "price_ready": 4912,
+            "dcf_ready": 4102,
+            "peer_ready": 3043,
+        },
+        tickers=5000,
+        final_count=47,
+        latest_price="2025-05-18",
+        compact=True,
+    )
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    compact_index = source.index(".command-topbar.compact .command-top-left")
+    mobile_block = source[
+        source.rindex("@media (max-width: 760px)", 0, compact_index) : source.index(".app-hero.compact .hero-subtitle", compact_index)
+    ]
+
+    assert "command-stop-status" in html
+    assert "<span class='command-status-item command-stop-status'>No account actions</span>" in html
+    assert ".command-status-item:not(.primary):not(.command-stop-status)" in mobile_block
+    assert ".command-topbar.compact .command-top-link.command-about" in mobile_block
+    assert "display: none;" in mobile_block
+    assert "min-height: 1.7rem" in mobile_block
+
+
+def test_mobile_public_cards_collapse_to_one_column_before_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    compact_index = source.index(".command-topbar.compact .command-top-left")
+    mobile_block = source[
+        source.rindex("@media (max-width: 760px)", 0, compact_index) : source.index(".app-hero.compact .hero-subtitle", compact_index)
+    ]
+
+    assert ".action-grid" in mobile_block
+    assert ".signal-grid.queue-grid" in mobile_block
+    assert ".metric-card-grid" in mobile_block
+    assert "grid-template-columns: 1fr;" in mobile_block
+    assert ".action-card" in mobile_block
+    assert ".metric-card" in mobile_block
+    assert "box-shadow: none;" in mobile_block
+
+
 def test_command_center_loop_and_workbench_follow_reference_structure():
     rendered = dashboard.command_center_overview_html(
         {"master_universe": 5000, "price_ready": 4912, "dcf_ready": 4102, "peer_ready": 3043},
