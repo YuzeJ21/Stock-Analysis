@@ -11872,13 +11872,13 @@ def proof_history_first_answer_frame(
                 "Question": "What is Proof History for?",
                 "Answer": "Evidence review only: verify what was reviewed, what changed, and what still needs proof.",
                 "Next Safe Destination": "Leave Proof History after the evidence question is answered.",
-                "Boundary": "Proof History does not refresh data, apply imports, record outcomes, or unlock blocked inputs.",
+                "Boundary": "Proof History does not change local data, record outcomes, or unlock blocked inputs.",
             },
             {
                 "Question": "What was supported?",
                 "Answer": f"{latest_proof_lane}: {latest_proof_outcome}; {latest_proof_change}.",
                 "Next Safe Destination": "Single-Stock Report for interpretation.",
-                "Boundary": "Evidence only; this does not refresh data, apply imports, or unlock blocked inputs.",
+                "Boundary": "Evidence only; this does not change local data or unlock blocked inputs.",
             },
             {
                 "Question": "What is still blocked or context only?",
@@ -11951,9 +11951,9 @@ def proof_history_public_detail_cards(
             "body": (
                 "Evidence only; not a second dashboard. "
                 "What this proves: reviewed source-proof outcomes by lane or batch. "
-                "What it does not prove: Proof History does not refresh data, apply imports, record outcomes, or unlock blocked inputs. "
+                "What it does not prove: Proof History does not change local data, record outcomes, or unlock blocked inputs. "
                 "Evidence review only: read the latest lane and batch outcome; open Data Health only if a blocker remains. "
-                "Raw proof ledgers and proof-record scaffolds stay collapsed."
+                "Detailed proof ledgers and evidence scaffolds stay collapsed."
             ),
             "badges": ["evidence trail", "reviewed changes"],
             "command": "",
@@ -11977,7 +11977,7 @@ def render_proof_history(*, public_mode: bool = True) -> None:
             "Evidence-only page.",
             (
                 "Use this after Data Health to verify reviewed outcomes; it is not a second dashboard "
-                "and does not refresh data, apply imports, or unlock blocked inputs."
+                "and does not change local data or unlock blocked inputs."
             ),
             tone="success",
         )
@@ -28291,7 +28291,7 @@ def render_data_health(
         with public_loading_placeholder.container():
             render_context_note(
                 "Loading saved readiness answers.",
-                "Reading local readiness files now; the lane summary appears here with usable now, blocked, next proof, and stop rule before proof maps, advanced evidence details, or operator details.",
+                "Reading local readiness files now; the lane summary appears here with usable now, blocked, next proof, and stop rule before proof maps or advanced evidence details.",
                 tone="success",
             )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())

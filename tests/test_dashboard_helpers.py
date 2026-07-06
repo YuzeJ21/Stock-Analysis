@@ -15092,8 +15092,8 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
     assert "what it does not prove:" in rendered
     assert "evidence review only:" in rendered
     assert "next safe review action:" not in rendered
-    assert "proof history does not refresh data, apply imports, record outcomes, or unlock blocked inputs" in rendered
-    assert "raw proof ledgers and proof-record scaffolds stay collapsed" in rendered
+    assert "proof history does not change local data, record outcomes, or unlock blocked inputs" in rendered
+    assert "detailed proof ledgers and evidence scaffolds stay collapsed" in rendered
     assert "peer valuation inputs" in rendered
     assert "still blocked" in rendered
     assert "latest batch proof" in rendered
@@ -15186,13 +15186,13 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
             "Question": "What is Proof History for?",
             "Answer": "Evidence review only: verify what was reviewed, what changed, and what still needs proof.",
             "Next Safe Destination": "Leave Proof History after the evidence question is answered.",
-            "Boundary": "Proof History does not refresh data, apply imports, record outcomes, or unlock blocked inputs.",
+            "Boundary": "Proof History does not change local data, record outcomes, or unlock blocked inputs.",
         },
         {
             "Question": "What was supported?",
             "Answer": "peer mapping: human reviewed supported; trusted peer rows reviewed.",
             "Next Safe Destination": "Single-Stock Report for interpretation.",
-            "Boundary": "Evidence only; this does not refresh data, apply imports, or unlock blocked inputs.",
+            "Boundary": "Evidence only; this does not change local data or unlock blocked inputs.",
         },
         {
             "Question": "What is still blocked or context only?",

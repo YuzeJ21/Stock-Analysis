@@ -89,6 +89,11 @@ def test_public_workflow_stop_rules_keep_research_only_boundary_visible():
         assert "not advice" in stop_rule
         assert "trade instruction" in stop_rule
 
+    data_health_stop = nav.public_workflow_step("Data Health")["stop_rule"].lower()
+    assert "changing local data" in data_health_stop
+    assert "applying" not in data_health_stop
+    assert "trusting rows" not in data_health_stop
+
 
 def test_dashboard_navigation_mode_defaults_public_unless_advanced_context():
     advanced = ["Overview", "Monthly Picks", "Universe Manager"]

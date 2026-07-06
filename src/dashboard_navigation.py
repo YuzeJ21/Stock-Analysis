@@ -64,10 +64,10 @@ PUBLIC_WORKFLOW_STEPS = {
     "Data Health": {
         "page": "Data Health",
         "question": "Why is something blocked and how do I fix it?",
-        "short_answer": "Check one lane answer before opening proof, queues, or operator details.",
+        "short_answer": "Check one lane answer before opening proof, queues, or advanced details.",
         "next_page": PROOF_HISTORY_PATH_TITLE,
         "next_action": "Read the lane answer, then inspect proof only when evidence changed.",
-        "stop_rule": "Research-only: not advice; stop before applying, trusting rows, or creating any trade instruction without source proof.",
+        "stop_rule": "Research-only: not advice; stop before changing local data, trusting unsupported evidence, or creating any trade instruction.",
     },
     PROOF_HISTORY_PATH_TITLE: {
         "page": PROOF_HISTORY_PATH_TITLE,
