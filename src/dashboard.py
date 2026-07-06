@@ -27093,6 +27093,29 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     if st.session_state.get("single_stock_report_ticker") != ticker:
         report_payload = None
 
+    def open_selected_report() -> None:
+        nonlocal report_payload
+        if not ticker:
+            st.warning("Enter a ticker to show a local report.")
+            return
+        try:
+            chosen_provider = build_provider(provider_name, base_dir=BASE_DIR)
+            report = build_stock_report(ticker, chosen_provider)
+            history = chosen_provider.get_price_history(ticker, period="1y", interval="1d")
+            st.session_state["single_stock_report_payload"] = report.to_dict()
+            st.session_state["single_stock_report_download"] = export_stock_report_json(report)
+            st.session_state["single_stock_report_ticker"] = ticker
+            st.session_state["single_stock_report_provider"] = provider_name
+            st.session_state["single_stock_report_history"] = history
+            report_payload = st.session_state["single_stock_report_payload"]
+        except RuntimeError as exc:
+            st.error(str(exc))
+        except (LookupError, FileNotFoundError, ValueError) as exc:
+            st.warning(str(exc))
+
+    if query_open_review and not report_payload:
+        open_selected_report()
+
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         peer_summary = provider.get_peer_summary(ticker)
@@ -27112,11 +27135,18 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             )
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
-    render_context_note(
-        "What happens next.",
-        "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
-    )
-    open_review_clicked = st.button("Open Review", key="single-stock-report-button")
+    if report_payload:
+        render_context_note(
+            "Review is open.",
+            "The selected ticker review is shown below. It was built from saved local outputs and did not refresh prices, import files, or contact external accounts.",
+        )
+        open_review_clicked = False
+    else:
+        render_context_note(
+            "What happens next.",
+            "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
+        )
+        open_review_clicked = st.button("Open Review", key="single-stock-report-button")
     if provider is not None and ticker:
         with st.expander("Ticker Readiness Evidence", expanded=False):
             render_context_note(
@@ -27133,24 +27163,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             readiness_cols[2].metric("Candidate Peers", peer_summary.get("candidate_peer_count", 0))
             readiness_cols[3].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[4].metric("Peer Market Context", peer_summary["peer_market_context_available"])
-    if (query_open_review and not report_payload) or open_review_clicked:
-        if not ticker:
-            st.warning("Enter a ticker to show a local report.")
-        else:
-            try:
-                chosen_provider = build_provider(provider_name, base_dir=BASE_DIR)
-                report = build_stock_report(ticker, chosen_provider)
-                history = chosen_provider.get_price_history(ticker, period="1y", interval="1d")
-                st.session_state["single_stock_report_payload"] = report.to_dict()
-                st.session_state["single_stock_report_download"] = export_stock_report_json(report)
-                st.session_state["single_stock_report_ticker"] = ticker
-                st.session_state["single_stock_report_provider"] = provider_name
-                st.session_state["single_stock_report_history"] = history
-                report_payload = st.session_state["single_stock_report_payload"]
-            except RuntimeError as exc:
-                st.error(str(exc))
-            except (LookupError, FileNotFoundError, ValueError) as exc:
-                st.warning(str(exc))
+    if open_review_clicked:
+        open_selected_report()
 
     report_payload = st.session_state.get("single_stock_report_payload")
     if st.session_state.get("single_stock_report_ticker") != ticker:

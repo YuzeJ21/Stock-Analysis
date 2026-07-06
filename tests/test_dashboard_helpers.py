@@ -16586,11 +16586,13 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "sell" not in demo_picker_rendered
 
 
-def test_single_stock_page_keeps_full_intro_collapsed_before_build():
+def test_single_stock_page_keeps_full_intro_collapsed_and_uses_open_state():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    preview_note_index = source.index('render_context_note(\n        "What happens next."')
-    build_button_index = source.index('st.button("Open Review"')
+    auto_open_index = source.index("if query_open_review and not report_payload:")
+    review_open_note_index = source.index('"Review is open."', auto_open_index)
+    preview_note_index = source.index('"What happens next."', review_open_note_index)
+    build_button_index = source.index('st.button("Open Review"', preview_note_index)
     evidence_index = source.index('st.expander("Ticker Readiness Evidence", expanded=False)', build_button_index)
     loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
     state_expander_index = source.index('st.expander("Advanced: example report states", expanded=False)')
@@ -16600,7 +16602,7 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     expander_index = source.index('st.expander("Advanced: how single-stock reports work"', state_expander_index)
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards(), show_commands=show_card_commands)", state_expander_index)
 
-    assert preview_note_index < build_button_index < evidence_index < loop_index < state_expander_index
+    assert auto_open_index < review_open_note_index < preview_note_index < build_button_index < evidence_index < loop_index < state_expander_index
     assert state_expander_index < summary_index < note_index < demo_index < expander_index < full_intro_index
     assert 'st.expander("Advanced: example report states", expanded=False)' in source
     assert 'st.expander("Advanced: how single-stock reports work", expanded=False)' in source
@@ -28144,7 +28146,9 @@ def test_single_stock_query_open_flag_controls_deep_link_review_opening():
 
     assert "query_open_review = single_stock_query_open(st.query_params.get(\"open\"))" in source
     assert "open_review_clicked = st.button(\"Open Review\"" in source
-    assert "if (query_open_review and not report_payload) or open_review_clicked:" in source
+    auto_open_index = source.index("if query_open_review and not report_payload:")
+    click_open_index = source.index("if open_review_clicked:", auto_open_index)
+    assert auto_open_index < click_open_index
 
 
 def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
