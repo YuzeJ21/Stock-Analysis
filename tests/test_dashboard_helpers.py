@@ -28049,6 +28049,18 @@ def test_compact_header_keeps_about_link_classed_for_mobile():
     assert "Stock Research Command Center" not in html
 
 
+def test_public_header_current_shortcut_has_visible_state():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert ".command-topbar a[aria-current=\"page\"]" in source
+    current_state_index = source.index(".command-topbar a[aria-current=\"page\"]")
+    current_state_chunk = source[current_state_index : current_state_index + 360]
+
+    assert "box-shadow" in current_state_chunk
+    assert "border-color" in current_state_chunk
+    assert "background" in current_state_chunk
+
+
 def test_header_saved_name_count_falls_back_to_universe_when_outputs_are_deferred():
     frame = pd.DataFrame([{"ticker": "NVDA"}, {"ticker": "META"}])
 

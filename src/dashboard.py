@@ -2164,6 +2164,11 @@ def apply_dashboard_theme() -> None:
           padding: 0.28rem 0.52rem;
           background: #f0fdf4;
         }
+        .command-topbar a[aria-current="page"] {
+          border-color: rgba(15, 118, 110, 0.48);
+          background: #ccfbf1;
+          box-shadow: inset 0 -2px 0 #0f766e;
+        }
         .command-hero-v2 {
           display: grid;
           grid-template-columns: minmax(0, 1fr) minmax(390px, 0.94fr);
