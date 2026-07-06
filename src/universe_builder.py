@@ -1212,6 +1212,34 @@ def _universe_review_sample(payload: dict[str, Any], *, limit: int = 5) -> list[
     return sample[: max(limit, 0)]
 
 
+def _canonical_apply_has_changes(apply_effect: dict[str, Any] | None) -> bool:
+    if not isinstance(apply_effect, dict):
+        return True
+    return int(apply_effect.get("new_rows", 0) or 0) > 0 or int(apply_effect.get("updated_rows", 0) or 0) > 0
+
+
+def _universe_preview_next_steps(*, canonical_apply_has_changes: bool, summary_json: bool = False) -> list[str]:
+    steps = [
+        "Review source warnings and row counts before writing any universe import.",
+        (
+            "Use full --json only for intentionally reviewed row inspection."
+            if summary_json
+            else "To inspect raw rows intentionally: python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json"
+        ),
+        "To inspect full preview rows without writing: make universe-preview.",
+    ]
+    if canonical_apply_has_changes:
+        steps.extend(
+            [
+                "To stage reviewed rows only after row-scope review: make universe-stage OVERWRITE=1.",
+                "To apply staged rows after review: make universe-apply.",
+            ]
+        )
+    else:
+        steps.append("No universe apply needed: canonical merge would not add or update rows.")
+    return steps
+
+
 def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
     summary = payload.get("summary") or {}
     source_review = _source_review_payload(payload.get("sources") or [])
@@ -1235,6 +1263,7 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
         "review row scope before staging or applying universe metadata."
     )
     apply_effect = summary.get("apply_effect") or {}
+    canonical_has_changes = _canonical_apply_has_changes(apply_effect)
     if apply_effect:
         print(
             "canonical_apply_effect: "
@@ -1243,6 +1272,7 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
             f"unchanged={apply_effect.get('unchanged_rows', 0)}; "
             f"protected_existing_values={apply_effect.get('protected_existing_value_count', 0)}"
         )
+        print(f"canonical_apply_state: {'review_required' if canonical_has_changes else 'no_apply_needed'}")
         print(f"canonical apply boundary: {apply_effect.get('boundary', '-')}")
         protected_sample = apply_effect.get("protected_existing_value_sample") or []
         if protected_sample:
@@ -1302,11 +1332,8 @@ def _print_universe_preview_summary(payload: dict[str, Any]) -> None:
             )
         print("review sample is capped; use full --json only for intentional row-scope review")
     print("next:")
-    print("- Review source warnings and row counts before writing any universe import.")
-    print("- To inspect raw rows intentionally: python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 --json")
-    print("- To inspect full preview rows without writing: make universe-preview")
-    print("- To stage reviewed rows only after row-scope review: make universe-stage OVERWRITE=1")
-    print("- To apply staged rows after review: make universe-apply")
+    for step in _universe_preview_next_steps(canonical_apply_has_changes=canonical_has_changes):
+        print(f"- {step}")
 
 
 def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -1330,18 +1357,16 @@ def _summary_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
             compact_source["available_column_count"] = len(available_columns) if isinstance(available_columns, list) else 0
             compact_sources.append(compact_source)
         source_review = _source_review_payload(compact_sources)
+        canonical_has_changes = _canonical_apply_has_changes(compact_summary.get("apply_effect"))
         return {
             "status": payload.get("status", "-"),
             "summary": compact_summary,
             "sources": compact_sources,
             "source_review": source_review,
-            "next_steps": [
-                "Review source warnings and row counts before writing any universe import.",
-                "Use full --json only for intentionally reviewed row inspection.",
-                "To inspect full preview rows without writing: make universe-preview.",
-                "To stage reviewed rows only after row-scope review: make universe-stage OVERWRITE=1.",
-                "To apply staged rows after review: make universe-apply.",
-            ],
+            "next_steps": _universe_preview_next_steps(
+                canonical_apply_has_changes=canonical_has_changes,
+                summary_json=True,
+            ),
         }
     return payload
 

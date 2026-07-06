@@ -330,6 +330,34 @@ def test_universe_preview_default_output_is_compact_and_keeps_raw_rows_hidden(
     assert '"ticker": "NVDA"' not in output
 
 
+def test_universe_preview_noop_apply_effect_does_not_recommend_apply(
+    tmp_path: Path,
+    capsys,
+):
+    _setup_base_dir(tmp_path)
+    result = build_universe_preview(
+        base_dir=tmp_path,
+        sources="local",
+    )
+    result["summary"]["apply_effect"] = {
+        "new_rows": 0,
+        "updated_rows": 0,
+        "unchanged_rows": 1,
+        "protected_existing_value_count": 0,
+        "protected_existing_value_sample": [],
+        "boundary": "universe-apply preserves meaningful existing local fields and keeps true membership flags.",
+    }
+
+    _print_result(result, as_json=False)
+    output = capsys.readouterr().out
+
+    assert "canonical_apply_effect: new=0; updated=0;" in output
+    assert "canonical_apply_state: no_apply_needed" in output
+    assert "No universe apply needed: canonical merge would not add or update rows." in output
+    assert "make universe-stage OVERWRITE=1" not in output
+    assert "make universe-apply" not in output
+
+
 def test_universe_preview_summary_json_keeps_raw_rows_hidden(
     tmp_path: Path,
     capsys,
