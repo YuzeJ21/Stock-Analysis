@@ -1134,12 +1134,28 @@ def _peer_support_follow_through(
     )
 
 
+OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND = "make optional-context-source-ladder-queue TOP_N=10"
+
+
+def _optional_context_source_ladder_command(ticker: str = "") -> str:
+    ticker_arg = str(ticker or "").strip().upper() or "<ticker>"
+    return f"make optional-context-source-ladder TICKERS={ticker_arg}"
+
+
+def _optional_context_action_text(target_file: str = "data/imports/earnings.csv or data/imports/analyst_estimates.csv") -> str:
+    return (
+        f"Run {OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND} first, then "
+        f"{_optional_context_source_ladder_command()}; use make templates only when trusted "
+        f"provider/manual rows are unavailable and you need the import schema for {target_file}."
+    )
+
+
 def _earnings_action_text() -> str:
-    return "Run make templates, then fill data/imports/earnings.csv manually only if you have a trusted source."
+    return _optional_context_action_text("data/imports/earnings.csv")
 
 
 def _analyst_estimates_action_text() -> str:
-    return "Run make templates, then fill data/imports/analyst_estimates.csv manually only if you have a trusted source."
+    return _optional_context_action_text("data/imports/analyst_estimates.csv")
 
 
 def _scoped_import_sequence(ticker: str) -> str:
@@ -1537,12 +1553,12 @@ def build_ticker_coverage(
                 ) = _peer_support_follow_through(provisional.ticker, peers, fundamentals, prices, root)
         elif not provisional.has_earnings:
             provisional.target_file = "data/imports/earnings.csv"
-            provisional.focus_command = "make templates"
-            provisional.example_command = "make templates"
+            provisional.focus_command = OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND
+            provisional.example_command = _optional_context_source_ladder_command(provisional.ticker)
         elif not provisional.has_analyst_estimates:
             provisional.target_file = "data/imports/analyst_estimates.csv"
-            provisional.focus_command = "make templates"
-            provisional.example_command = "make templates"
+            provisional.focus_command = OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND
+            provisional.example_command = _optional_context_source_ladder_command(provisional.ticker)
         rows.append(provisional)
     return rows
 
@@ -1633,8 +1649,8 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     reason="No local earnings row is configured.",
                     recommended_action=_earnings_action_text(),
                     target_file="data/imports/earnings.csv",
-                    focus_command="make templates",
-                    example_command="make templates",
+                    focus_command=OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND,
+                    example_command=_optional_context_source_ladder_command(row.ticker),
                 )
             )
         if not row.has_analyst_estimates:
@@ -1647,8 +1663,8 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     reason="No local analyst-estimate row is configured.",
                     recommended_action=_analyst_estimates_action_text(),
                     target_file="data/imports/analyst_estimates.csv",
-                    focus_command="make templates",
-                    example_command="make templates",
+                    focus_command=OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND,
+                    example_command=_optional_context_source_ladder_command(row.ticker),
                 )
             )
     actions.append(
@@ -1785,8 +1801,8 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     why_it_matters="Earnings context improves the stock report but does not block core ranking or valuation.",
                     recommended_action=_earnings_action_text(),
                     target_file="data/imports/earnings.csv",
-                    focus_command="make templates",
-                    example_command="make templates",
+                    focus_command=OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND,
+                    example_command=_optional_context_source_ladder_command(row.ticker),
                     safe_next_step="Leave earnings blank when no trusted local source exists.",
                 )
             )
@@ -1801,8 +1817,8 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     why_it_matters="Estimate context is optional and should not be treated as a recommendation.",
                     recommended_action=_analyst_estimates_action_text(),
                     target_file="data/imports/analyst_estimates.csv",
-                    focus_command="make templates",
-                    example_command="make templates",
+                    focus_command=OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND,
+                    example_command=_optional_context_source_ladder_command(row.ticker),
                     safe_next_step="It is safe to leave analyst estimates missing.",
                 )
             )
@@ -2010,7 +2026,7 @@ def build_optional_context_worklist(coverage_rows: list[TickerCoverage]) -> list
             safe_next_step = "No optional context action is required for this ticker."
         else:
             priority = 5 if len(missing_context) == 2 else 6
-            focus_command = "make templates"
+            focus_command = OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND
             if missing_context == ["earnings"]:
                 recommended_action = _earnings_action_text()
                 target_file = "data/imports/earnings.csv"
@@ -2018,12 +2034,11 @@ def build_optional_context_worklist(coverage_rows: list[TickerCoverage]) -> list
                 recommended_action = _analyst_estimates_action_text()
                 target_file = "data/imports/analyst_estimates.csv"
             else:
-                recommended_action = (
-                    "Run make templates, then fill data/imports/earnings.csv and data/imports/analyst_estimates.csv "
-                    "manually only from trusted local sources."
+                recommended_action = _optional_context_action_text(
+                    "data/imports/earnings.csv and data/imports/analyst_estimates.csv"
                 )
                 target_file = "data/imports/earnings.csv and data/imports/analyst_estimates.csv"
-            example_command = "make templates"
+            example_command = _optional_context_source_ladder_command(coverage.ticker)
             safe_next_step = "It is safe to leave optional context missing until you have verified local data."
 
         rows.append(
@@ -2374,9 +2389,8 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
             elif coverage.has_earnings and not coverage.has_analyst_estimates:
                 recommended_action = _analyst_estimates_action_text()
             else:
-                recommended_action = (
-                    "Run make templates, then fill data/imports/earnings.csv and data/imports/analyst_estimates.csv "
-                    "manually only from trusted local sources."
+                recommended_action = _optional_context_action_text(
+                    "data/imports/earnings.csv and data/imports/analyst_estimates.csv"
                 )
             target_file = (
                 "data/imports/earnings.csv"
@@ -2385,8 +2399,8 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
                 if coverage.has_earnings and not coverage.has_analyst_estimates
                 else "data/imports/earnings.csv and data/imports/analyst_estimates.csv"
             )
-            focus_command = "make templates"
-            example_command = "make templates"
+            focus_command = OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND
+            example_command = _optional_context_source_ladder_command(coverage.ticker)
             safe_next_step = "It is safe to leave optional context missing until you have verified local data."
         else:
             current_unlock_stage = "ready"

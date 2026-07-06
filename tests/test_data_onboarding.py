@@ -148,8 +148,16 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
     assert any(row["dataset"] == "peers" and row["priority"] == 3 for row in amd_actions)
     assert any(row["dataset"] == "peers" and row["focus_command"] == "make focus-peers TICKER=AMD" for row in amd_actions)
     assert any(row["dataset"] == "peers" and "make focus-peers TICKER=AMD" in row["recommended_action"] for row in amd_actions)
-    assert any(row["dataset"] == "earnings" and row["focus_command"] == "make templates" for row in amd_actions)
-    assert any(row["dataset"] == "analyst_estimates" and row["focus_command"] == "make templates" for row in amd_actions)
+    assert any(
+        row["dataset"] == "earnings"
+        and row["focus_command"] == "make optional-context-source-ladder-queue TOP_N=10"
+        for row in amd_actions
+    )
+    assert any(
+        row["dataset"] == "analyst_estimates"
+        and row["focus_command"] == "make optional-context-source-ladder-queue TOP_N=10"
+        for row in amd_actions
+    )
     assert any(row["dataset"] == "analyst_estimates" and row["priority"] == 5 for row in amd_actions)
     smh_action = next(row for row in payload["onboarding_actions"] if row["dataset"] == "smh_holdings")
     assert smh_action["focus_command"] == "make universe-preview-summary"
@@ -519,15 +527,15 @@ def test_data_coverage_wizard_normalizes_stale_action_text():
     assert "run make templates" in tsla_row.recommended_action
 
 
-def test_optional_context_worklist_surfaces_template_focus_command(tmp_path: Path):
+def test_optional_context_worklist_surfaces_source_ladder_first(tmp_path: Path):
     _write_fixture(tmp_path)
 
     coverage = build_ticker_coverage(tmp_path)
     worklist = build_optional_context_worklist(coverage)
     amd = next(row.to_dict() for row in worklist if row.ticker == "AMD")
 
-    assert amd["focus_command"] == "make templates"
-    assert amd["example_command"] == "make templates"
+    assert amd["focus_command"] == "make optional-context-source-ladder-queue TOP_N=10"
+    assert amd["example_command"] == "make optional-context-source-ladder TICKERS=AMD"
     assert "data/imports/earnings.csv" in amd["target_file"]
 
 
@@ -557,8 +565,16 @@ def test_data_coverage_wizard_ranks_core_unlocks_before_optional_context(tmp_pat
     assert any(row["focus_command"] == "make focus-price TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "prices")
     assert any(row["focus_command"] == "make focus-fundamentals TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "fundamentals")
     assert any(row["focus_command"] == "make focus-peers TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "peers")
-    assert any(row["focus_command"] == "make templates" for row in amd_rows if row["blocking_dataset"] == "earnings")
-    assert any(row["focus_command"] == "make templates" for row in amd_rows if row["blocking_dataset"] == "analyst_estimates")
+    assert any(
+        row["focus_command"] == "make optional-context-source-ladder-queue TOP_N=10"
+        for row in amd_rows
+        if row["blocking_dataset"] == "earnings"
+    )
+    assert any(
+        row["focus_command"] == "make optional-context-source-ladder-queue TOP_N=10"
+        for row in amd_rows
+        if row["blocking_dataset"] == "analyst_estimates"
+    )
     assert any(
         "make focus-price TICKER=AMD" in row["recommended_action"]
         and row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
@@ -863,7 +879,8 @@ def test_data_onboarding_cli_optional_context_worklist_text_surfaces_unlock_summ
     assert "data/analyst_estimates_import_rejected.csv" in output
     assert "earnings locked" in output
     assert "analyst estimates locked" in output
-    assert "guidance: use make templates" in output
+    assert "make optional-context-source-ladder-queue top_n=10 first" in output
+    assert "use make templates only when trusted provider/manual rows are unavailable" in output
     assert "next:" not in output
     assert str(tmp_path).lower() not in output
 
@@ -1270,8 +1287,8 @@ def test_optional_context_worklist_keeps_optional_gaps_lower_priority(tmp_path: 
     assert worklist["AMD"]["priority"] == 5
     assert "earnings" in worklist["AMD"]["missing_optional_context"]
     assert "analyst_estimates" in worklist["AMD"]["missing_optional_context"]
-    assert worklist["AMD"]["example_command"] == "make templates"
-    assert "run make templates" in worklist["AMD"]["recommended_action"].lower()
+    assert worklist["AMD"]["example_command"] == "make optional-context-source-ladder TICKERS=AMD"
+    assert "use make templates only" in worklist["AMD"]["recommended_action"].lower()
     assert worklist["NVDA"]["priority"] == 6
     assert worklist["NVDA"]["has_earnings"] is True
     assert worklist["NVDA"]["has_analyst_estimates"] is False

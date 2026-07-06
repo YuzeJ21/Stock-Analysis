@@ -92,6 +92,21 @@ STALE_DATA_GAP_ACTIONS = {
     },
 }
 
+OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND = "make optional-context-source-ladder-queue TOP_N=10"
+
+
+def _optional_context_source_ladder_command(ticker: str = "") -> str:
+    ticker_arg = _normalized_ticker(ticker) or "<ticker>"
+    return f"make optional-context-source-ladder TICKERS={ticker_arg}"
+
+
+def _optional_context_action_text(target_file: str) -> str:
+    return (
+        f"Run {OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND} first, then "
+        f"{_optional_context_source_ladder_command()}; use make templates only when trusted "
+        f"provider/manual rows are unavailable and you need the import schema for {target_file}."
+    )
+
 
 def _apply_gated_import_action(text: str) -> str:
     """Keep import review actions from presenting apply as an automatic next step."""
@@ -151,6 +166,17 @@ def _normalize_global_gap_recommended_action(dataset: str, focus_command: str, r
                 "passes, preview scope is intended, and rejected rows are zero. Then make status "
                 "before relying on peer-relative valuation."
             )
+    if normalized_dataset in {"earnings", "analyst_estimates"}:
+        target_file = (
+            "data/imports/earnings.csv"
+            if normalized_dataset == "earnings"
+            else "data/imports/analyst_estimates.csv"
+        )
+        if (
+            "make optional-context-source-ladder-queue" not in normalized_recommended.lower()
+            or "make templates" not in normalized_recommended.lower()
+        ):
+            return _optional_context_action_text(target_file)
     return _apply_gated_import_action(normalized_recommended)
 
 
@@ -506,6 +532,13 @@ def _normalize_onboarding_recommended_action(
         return _fundamentals_focus_recommended_action(ticker)
     if dataset == "peers" and ticker and normalized_focus.startswith("make focus-peers") and "make focus-peers" not in text:
         return _peer_focus_recommended_action(ticker, missing_mapping=status == "manual_input_needed")
+    if dataset in {"earnings", "analyst_estimates"}:
+        target_file = (
+            "data/imports/earnings.csv"
+            if dataset == "earnings"
+            else "data/imports/analyst_estimates.csv"
+        )
+        return _optional_context_action_text(target_file)
     return text
 
 
@@ -516,6 +549,8 @@ def _normalize_onboarding_example_command(
     example_command: str,
 ) -> str:
     text = _normalize_queue_command(str(example_command or "").strip())
+    if dataset in {"earnings", "analyst_estimates"}:
+        return _optional_context_source_ladder_command(ticker)
     fallback = _example_command_for_focus_command(focus_command, ticker)
     if not fallback:
         return text
@@ -617,11 +652,13 @@ def _global_gap_command(dataset: str, command_bundles: pd.DataFrame) -> str:
     if dataset in {"sp500_constituents", "nasdaq_symbols", "universe"}:
         return "make universe-preview-summary"
     if dataset in {"earnings", "analyst_estimates"}:
-        return "make templates"
+        return OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND
     return "make status"
 
 
 def _global_gap_example_command(dataset: str, command_bundles: pd.DataFrame) -> str:
+    if dataset in {"earnings", "analyst_estimates"}:
+        return _optional_context_source_ladder_command()
     if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"}:
         return _global_gap_command(dataset, command_bundles)
     if dataset in {"sp500_constituents", "nasdaq_symbols", "universe", "smh_holdings"}:
@@ -822,6 +859,8 @@ def build_action_queue_rows(
             priority_value = int(pd.to_numeric(pd.Series([row.get("priority")]), errors="coerce").fillna(5).iloc[0])
             urgency = "critical" if priority_value == 1 else "high" if priority_value <= 3 else "medium"
             focus_command = str(row.get("focus_command", "")).strip()
+            if dataset in {"earnings", "analyst_estimates"}:
+                focus_command = OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND
             if not focus_command and ticker and dataset in {"prices", "fundamentals", "peers"}:
                 focus_command = focus_command_for_ticker(dataset, ticker)
             recommended_action = _normalize_onboarding_recommended_action(
@@ -868,6 +907,8 @@ def build_action_queue_rows(
             if dataset == "earnings":
                 priority = 4
             focus_command = str(row.get("focus_command", "")).strip()
+            if dataset in {"earnings", "analyst_estimates"}:
+                focus_command = OPTIONAL_CONTEXT_SOURCE_LADDER_QUEUE_COMMAND
             if not focus_command:
                 focus_command = (
                     focus_command_for_ticker("prices", ticker)

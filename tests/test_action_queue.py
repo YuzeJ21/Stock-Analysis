@@ -38,10 +38,14 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
                     "dataset": "analyst_estimates",
                     "status": "optional_missing",
                     "reason": "No analyst row.",
-                    "recommended_action": "Run make templates, then fill data/imports/analyst_estimates.csv manually only if you have a trusted source.",
+                    "recommended_action": (
+                        "Run make optional-context-source-ladder-queue TOP_N=10 first, then "
+                        "make optional-context-source-ladder TICKERS=<ticker>; use make templates only when "
+                        "trusted provider/manual rows are unavailable and you need the import schema."
+                    ),
                     "target_file": "data/imports/analyst_estimates.csv",
-                    "focus_command": "make templates",
-                    "example_command": "make templates",
+                    "focus_command": "make optional-context-source-ladder-queue TOP_N=10",
+                    "example_command": "make optional-context-source-ladder TICKERS=NVDA",
                 }
             ]
         ),
@@ -57,7 +61,7 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
     assert "normalize verified downloaded ohlcv files" in rows[0].recommended_action.lower()
     assert "price-validate" in rows[0].reason.lower()
     assert rows[-1].action_type == "analyst_estimates"
-    assert rows[-1].focus_command == "make templates"
+    assert rows[-1].focus_command == "make optional-context-source-ladder-queue TOP_N=10"
 
 
 def test_action_queue_uses_status_first_fallback_for_price_failures_without_ticker():
@@ -907,8 +911,8 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     assert peers_row.source_file == "data/imports/peers.csv"
 
     earnings_row = next(row for row in rows if row.action_type == "earnings" and not row.ticker)
-    assert earnings_row.focus_command == "make templates"
-    assert earnings_row.example_command == "make templates"
+    assert earnings_row.focus_command == "make optional-context-source-ladder-queue TOP_N=10"
+    assert earnings_row.example_command == "make optional-context-source-ladder TICKERS=<ticker>"
     assert earnings_row.target_file == "data/imports/earnings.csv"
     assert earnings_row.source_file == "data/imports/earnings.csv"
 
@@ -1107,10 +1111,10 @@ def test_action_queue_payload_refreshes_stale_data_gap_actions(tmp_path: Path):
 
     earnings_row = next(row for row in payload["action_queue"] if row["action_type"] == "earnings" and not row["ticker"])
     analyst_row = next(row for row in payload["action_queue"] if row["action_type"] == "analyst_estimates" and not row["ticker"])
-    assert earnings_row["focus_command"] == "make templates"
-    assert earnings_row["recommended_action"].startswith("Run make templates")
-    assert analyst_row["focus_command"] == "make templates"
-    assert analyst_row["recommended_action"].startswith("Run make templates")
+    assert earnings_row["focus_command"] == "make optional-context-source-ladder-queue TOP_N=10"
+    assert earnings_row["recommended_action"].startswith("Run make optional-context-source-ladder-queue TOP_N=10")
+    assert analyst_row["focus_command"] == "make optional-context-source-ladder-queue TOP_N=10"
+    assert analyst_row["recommended_action"].startswith("Run make optional-context-source-ladder-queue TOP_N=10")
 
 
 def test_action_queue_payload_refreshes_stale_smh_onboarding_row(tmp_path: Path):
