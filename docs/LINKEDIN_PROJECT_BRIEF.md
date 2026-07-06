@@ -10,7 +10,11 @@ Best demos: `NVDA` for DCF-ready company review, `META` for valuation still gate
 
 Best first click: open the dashboard preview, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 
+Each public page now opens with one question, one short answer, one primary next action, and one stop rule. The public workflow is checked at desktop and mobile widths. The current-page shortcut is visible so visitors know where they are.
+
 The first story is the public workflow, not operator automation. Keep reviewed batch packets, provider setup, and validate / preview / apply mechanics as operator detail after the visitor understands the product.
+
+Operator details stay collapsed until someone intentionally leaves the public path.
 
 Use the refreshed `docs/assets/linkedin-public-dashboard.png` thumbnail for the LinkedIn Featured card.
 
