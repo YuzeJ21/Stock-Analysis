@@ -15,6 +15,7 @@ Use this when sharing the project from GitHub or LinkedIn. The walkthrough is re
 - GitHub-only review: start with the preview image, the five-page workflow map, and this walkthrough script.
 - Live dashboard review: run `make dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.
+- Responsive evidence: desktop and phone-width public-flow checks are summarized in `docs/DASHBOARD_QA.md`; they prove layout behavior, not data freshness.
 - Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
 
 ## One-Minute Story
