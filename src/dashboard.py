@@ -5638,6 +5638,13 @@ def compact_card_fragment(value: object, fallback: str = "Not available", *, max
     return compact.rstrip(" .;:")
 
 
+def compact_public_card_fragment(value: object, fallback: str = "Not available", *, max_sentences: int = 1, max_chars: int = 180) -> str:
+    """Return scan-first public copy without surfacing raw local commands."""
+
+    fragment = compact_card_fragment(value, fallback=fallback, max_sentences=max_sentences, max_chars=max_chars)
+    return re.sub(r"\bmake\s+[^.;,\n]+", "the saved proof command", fragment, flags=re.IGNORECASE)
+
+
 def card_sentence(label: str, fragment: str) -> str:
     """Build a labeled card sentence without adding punctuation after ellipses."""
 
@@ -20774,14 +20781,14 @@ def data_health_selected_lane_answer_cards(
         if isinstance(project_status_payload, dict)
         else []
     )
-    first_recommendation = recommended_rows[0] if isinstance(recommended_rows, list) and recommended_rows else {}
+    first_recommendation = data_health_lane_recommendation_row(selected_lane_key, recommended_rows)
     next_command = (
         str(first_recommendation.get("Command") or "").strip()
         if isinstance(first_recommendation, dict)
         else ""
     )
     next_reason = (
-        compact_card_fragment(first_recommendation.get("Reason"), fallback="Review the current source gate before opening proof details.", max_chars=170)
+        compact_public_card_fragment(first_recommendation.get("Reason"), fallback="Review the current source gate before opening proof details.", max_chars=170)
         if isinstance(first_recommendation, dict)
         else "Review the current source gate before opening proof details."
     )
@@ -20803,7 +20810,7 @@ def data_health_selected_lane_answer_cards(
             if not focus_command:
                 continue
             ticker = str(gap_row.get("ticker") or "").strip().upper()
-            reason = compact_card_fragment(
+            reason = compact_public_card_fragment(
                 gap_row.get("reason"),
                 fallback="Inspect the lane blocker before choosing any source path.",
                 max_chars=110,
@@ -20832,6 +20839,17 @@ def data_health_selected_lane_answer_cards(
     peer_ready = _summary_count(summary, "peer_ready", "tickers_peer_ready")
     data_gaps = _summary_count(summary, "data_gaps", "locked_input_rows")
     freshness_status = public_status_label(str(readiness_freshness.status or "unknown")).lower()
+    source_setup_note = ""
+    if isinstance(summary, dict):
+        source_total = _summary_count(summary, "data_sources_total")
+        source_available = _summary_count(summary, "data_sources_available")
+        optional_locked = _summary_count(summary, "data_sources_optional_locked")
+        required_attention = _summary_count(summary, "data_sources_needing_attention")
+        if source_total or source_available or optional_locked or required_attention:
+            source_setup_note = (
+                f"\nSource setup: {source_available:,}/{source_total:,} data sources available; "
+                f"{optional_locked:,} optional provider gap(s); {required_attention:,} required gap(s)."
+            )
 
     lane_answers = {
         "prices": (
@@ -20886,17 +20904,23 @@ def data_health_selected_lane_answer_cards(
     use_now, blocked, context_only, excluded, next_proof, stop_rule = lane_answers.get(selected_lane_key, lane_answers["prices"])
     if source_gate_exhausted:
         source_gate_current = compact_card_fragment(next_reason, fallback="Review provider setup before proof loops.", max_chars=120)
+        source_gate_lines = [
+            f"Current gate: {source_gate_current}",
+        ]
+        if source_setup_note:
+            source_gate_lines.append(source_setup_note.lstrip())
+        source_gate_lines.extend(
+            [
+                "Do not repeat: Broad proof queues are paused; do not repeat broad proof queues until source state changes.",
+                "Resume when: New source-backed rows, keyed providers, reviewed manual rows, or changed blockers exist.",
+                "Stop: Do not reopen proof loops until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers exist.",
+                "Boundary: Not a recommendation; does not run imports from the dashboard.",
+            ]
+        )
         next_action_card = {
             "kicker": "SOURCE GATE",
             "title": "Review provider setup before proof loops",
-            "body": (
-                f"Current gate: {source_gate_current}\n"
-                "Do not repeat: Broad proof queues are paused; do not repeat broad proof queues until source state changes.\n"
-                "Resume when: New source-backed rows, keyed providers, reviewed manual rows, or changed blockers exist.\n"
-                "Stop: Do not reopen proof loops until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers exist.\n"
-                "Boundary: Not a recommendation; does not run imports from the dashboard."
-                f"{lane_inspection_note}"
-            ),
+            "body": "\n".join(source_gate_lines) + lane_inspection_note,
             "badges": ["source gate", "no repeat loops"],
         }
     else:
@@ -20929,6 +20953,34 @@ def data_health_selected_lane_answer_cards(
         },
         next_action_card,
     ]
+
+
+def data_health_lane_recommendation_row(selected_lane_key: str, rows: object) -> dict[str, object]:
+    """Choose the project-status recommendation that belongs to the selected lane."""
+
+    if not isinstance(rows, list):
+        return {}
+    candidates = [row for row in rows if isinstance(row, dict)]
+    if not candidates:
+        return {}
+    lane_terms = {
+        "prices": ("price", "prices", "momentum", "history"),
+        "fundamentals": ("fundamentals", "dcf", "share", "trusted-data-pilot"),
+        "peers": ("peer", "peers"),
+        "metrics": ("metric", "risk", "benchmark"),
+        "optional": ("earning", "estimate", "optional"),
+        "proof": ("proof", "reviewed", "ledger"),
+    }.get(selected_lane_key, ())
+    if not lane_terms:
+        return candidates[0]
+    for row in candidates:
+        haystack = " ".join(
+            str(row.get(column) or "")
+            for column in ("Step", "Command", "Reason", "SourceContext", "FreshnessContext")
+        ).lower()
+        if any(term in haystack for term in lane_terms):
+            return row
+    return candidates[0]
 
 
 def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, object]]:

@@ -26285,6 +26285,10 @@ def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
         dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
         project_status_payload={
             "summary": {
+                "data_sources_total": 10,
+                "data_sources_available": 7,
+                "data_sources_optional_locked": 3,
+                "data_sources_needing_attention": 0,
                 "dcf_ready": 2691,
                 "fundamentals_ready": 2808,
                 "data_gaps": 207,
@@ -26377,6 +26381,10 @@ def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_ex
         dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
         project_status_payload={
             "summary": {
+                "data_sources_total": 10,
+                "data_sources_available": 7,
+                "data_sources_optional_locked": 3,
+                "data_sources_needing_attention": 0,
                 "dcf_ready": 2691,
                 "fundamentals_ready": 2808,
                 "data_gaps": 207,
@@ -26398,6 +26406,10 @@ def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_ex
     assert next_action["title"] == "Review provider setup before proof loops"
     source_gate_body = str(next_action["body"]).lower()
     assert "current gate:" in source_gate_body
+    assert "source setup:" in source_gate_body
+    assert "7/10 data sources available" in source_gate_body
+    assert "3 optional provider gap(s)" in source_gate_body
+    assert "0 required gap(s)" in source_gate_body
     assert "do not repeat:" in source_gate_body
     assert "resume when:" in source_gate_body
     assert "stop:" in source_gate_body
@@ -26413,6 +26425,54 @@ def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_ex
     assert "open the next proof gate" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_data_health_selected_lane_answer_cards_use_lane_relevant_project_status_action():
+    project_status_payload = {
+        "summary": {
+            "dcf_ready": 2691,
+            "fundamentals_ready": 2808,
+            "data_gaps": 207,
+        },
+        "recommended_next_command_rows": [
+            {
+                "Step": "Fix top peers blocker (ARM)",
+                "Command": "make focus-peers TICKER=ARM",
+                "Reason": "No local peer mapping is configured for this ticker.",
+                "SourceContext": "data/imports/peers.csv",
+                "FreshnessContext": "manual_input_needed",
+            },
+            {
+                "Step": "Rank trusted data pilot candidates",
+                "Command": "make trusted-data-pilot-candidates TOP_N=10",
+                "Reason": "Rank current operating-company blockers first, inspect one company with make trusted-data-pilot-packet TICKER=<ticker>, then use selected names before importing trusted fundamentals or peer rows.",
+                "SourceContext": "trusted local CSVs plus SEC/manual review paths",
+                "FreshnessContext": "read-only ranking",
+            },
+        ],
+    }
+
+    fundamentals_cards = dashboard.data_health_selected_lane_answer_cards(
+        "fundamentals",
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+        project_status_payload=project_status_payload,
+    )
+    peers_cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+        project_status_payload=project_status_payload,
+    )
+
+    fundamentals_next = str(fundamentals_cards[2]["body"]).lower()
+    peers_next = str(peers_cards[2]["body"]).lower()
+
+    assert "rank current operating-company blockers" in fundamentals_next
+    assert "the saved proof command" in fundamentals_next
+    assert "no local peer mapping" not in fundamentals_next
+    assert "no local peer mapping" in peers_next
+    assert "make " not in fundamentals_next + peers_next
+    assert "buy" not in fundamentals_next + peers_next
+    assert "sell" not in fundamentals_next + peers_next
 
 
 def test_data_health_selected_lane_answer_cards_include_lane_specific_inspection_cue():
