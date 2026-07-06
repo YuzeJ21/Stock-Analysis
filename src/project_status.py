@@ -1293,6 +1293,8 @@ def _recommended_next_command_rows(
             ticker = _first_non_empty(top_action.get("ticker"))
             if dataset_key == "prices" and price_coverage_complete:
                 step = "Review short price-history blocker" + (f" ({ticker})" if ticker else "")
+            elif dataset_key in {"earnings", "analyst_estimates"}:
+                step = "Review optional context only if trusted rows exist" + (f" ({ticker})" if ticker else "")
             else:
                 step = f"Fix top {dataset} blocker" + (f" ({ticker})" if ticker else "")
             reason = _first_non_empty(top_action.get("reason"), top_action.get("recommended_action"))

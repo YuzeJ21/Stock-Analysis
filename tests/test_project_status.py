@@ -334,6 +334,26 @@ def test_project_status_full_price_coverage_uses_short_history_next_step():
     assert rows[1]["Command"] == "make trusted-data-pilot-candidates TOP_N=10"
 
 
+def test_project_status_optional_context_next_step_does_not_sound_required():
+    rows = project_status._recommended_next_command_rows(
+        [
+            {
+                "dataset": "earnings",
+                "ticker": "AACI",
+                "reason": "No local earnings row is configured.",
+                "focus_command": "make templates",
+                "example_command": "make templates",
+            }
+        ],
+        [],
+        [],
+    )
+
+    assert rows[0]["Step"] == "Review optional context only if trusted rows exist (AACI)"
+    assert rows[0]["Command"] == "make templates"
+    assert "Fix top earnings blocker" not in rows[0]["Step"]
+
+
 def test_project_status_surfaces_staged_fundamentals_follow_through_in_next_steps(tmp_path: Path):
     _write_minimal_local_data(tmp_path)
     imports_dir = tmp_path / "data" / "imports"
