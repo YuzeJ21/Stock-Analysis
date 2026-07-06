@@ -10,7 +10,13 @@ For a copy-only setup summary that never prints real key values, run:
 
 ```bash
 make source-activation-guide
+make provider-setup-checklist
 ```
+
+`make provider-setup-checklist` also reports whether `config/provider_keys.env`
+exists and whether its variable names are stale versus
+`config/provider_keys.env.example`. It inspects names only; it never prints
+provider key values.
 
 ```bash
 cp config/provider_keys.env.example config/provider_keys.env

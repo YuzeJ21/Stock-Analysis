@@ -223,6 +223,39 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "direct buy/sell instructions" in rendered
 
 
+def test_provider_setup_checklist_reports_stale_local_credential_template_without_values(tmp_path, monkeypatch):
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / "provider_keys.env.example").write_text(
+        "FMP_API_KEY=\nALPHA_VANTAGE_API_KEY=\nFINNHUB_API_KEY=\nIBKR_HOST=\nIBKR_PORT=\nIBKR_CLIENT_ID=\n",
+        encoding="utf-8",
+    )
+    (config_dir / "provider_keys.env").write_text(
+        "FMP_API_KEY=real-value-should-not-print\nALPHA_VANTAGE_API_KEY=\nFINNHUB_API_KEY=\n",
+        encoding="utf-8",
+    )
+
+    checklist = build_provider_setup_checklist(root=tmp_path)
+    rendered = render_provider_setup_checklist(checklist)
+
+    assert checklist["credential_file_status"] == {
+        "local_file": "present",
+        "example_file": "present",
+        "ignored_by_git_policy": "yes",
+        "template_status": "local_file_stale",
+        "missing_variable_names": "IBKR_CLIENT_ID, IBKR_HOST, IBKR_PORT",
+        "extra_variable_names": "-",
+        "next_action": "refresh missing variable names from config/provider_keys.env.example; keep real values local",
+        "secret_boundary": "Only variable names are inspected; provider key values are never printed.",
+    }
+    assert "Local credential file status:" in rendered
+    assert "template_status: local_file_stale" in rendered
+    assert "missing_variable_names: IBKR_CLIENT_ID, IBKR_HOST, IBKR_PORT" in rendered
+    assert "real-value-should-not-print" not in rendered
+    assert "provider key values are never printed" in rendered
+
+
 def test_provider_setup_checklist_starts_with_source_boundary_decision_table(monkeypatch):
     monkeypatch.setenv("FMP_API_KEY", "secret-fmp-key")
     monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)

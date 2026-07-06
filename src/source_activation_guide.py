@@ -72,6 +72,55 @@ WORKFLOW_PIVOT = [
 ]
 
 
+def _env_names_from_file(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    names: set[str] = set()
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return names
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        name = stripped.split("=", 1)[0].strip()
+        if name:
+            names.add(name)
+    return names
+
+
+def _credential_file_status(root: Path | str | None = None) -> dict[str, str]:
+    project_root = resolve_project_root(Path(root or "."))
+    local_path = project_root / "config" / "provider_keys.env"
+    example_path = project_root / "config" / "provider_keys.env.example"
+    local_names = _env_names_from_file(local_path)
+    example_names = _env_names_from_file(example_path)
+    missing_names = sorted(example_names - local_names)
+    extra_names = sorted(local_names - example_names)
+
+    if not local_path.exists():
+        template_status = "local_file_absent"
+        next_action = "copy config/provider_keys.env.example to config/provider_keys.env, chmod 600 it, then edit locally"
+    elif missing_names:
+        template_status = "local_file_stale"
+        next_action = "refresh missing variable names from config/provider_keys.env.example; keep real values local"
+    else:
+        template_status = "local_file_matches_example_keys"
+        next_action = "fill at most one keyed provider locally before running a reviewed one-ticker smoke command"
+
+    return {
+        "local_file": "present" if local_path.exists() else "absent",
+        "example_file": "present" if example_path.exists() else "absent",
+        "ignored_by_git_policy": "yes",
+        "template_status": template_status,
+        "missing_variable_names": ", ".join(missing_names) if missing_names else "-",
+        "extra_variable_names": ", ".join(extra_names) if extra_names else "-",
+        "next_action": next_action,
+        "secret_boundary": "Only variable names are inspected; provider key values are never printed.",
+    }
+
+
 def _human_source_gate(value: object) -> str:
     text = str(value or "-")
     labels = {
@@ -475,7 +524,11 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
     }
 
 
-def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = None) -> dict[str, Any]:
+def build_provider_setup_checklist(
+    current_preflight: dict[str, Any] | None = None,
+    *,
+    root: Path | str | None = None,
+) -> dict[str, Any]:
     guide = build_source_activation_guide()
     rows = []
     for row in guide["providers"]:
@@ -505,6 +558,7 @@ def build_provider_setup_checklist(current_preflight: dict[str, Any] | None = No
         "first_answer": _first_provider_answer(rows, current_gate),
         "source_boundary_decision": _source_boundary_decision(rows),
         "coverage_unlock_decision": _coverage_unlock_decision(rows, current_gate),
+        "credential_file_status": _credential_file_status(root),
         "one_provider_setup_order": _one_provider_setup_order(rows),
         "workflow_pivot": WORKFLOW_PIVOT,
         "apply_gate": guide["apply_gate"],
@@ -598,6 +652,22 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
         "Local setup commands:",
     ])
     lines.extend(f"- {command}" for command in checklist.get("setup_commands", []))
+    credential_status = checklist.get("credential_file_status", {})
+    if isinstance(credential_status, dict) and credential_status:
+        lines.extend(
+            [
+                "",
+                "Local credential file status:",
+                f"- local_file: {credential_status.get('local_file', '-')}",
+                f"- example_file: {credential_status.get('example_file', '-')}",
+                f"- ignored_by_git_policy: {credential_status.get('ignored_by_git_policy', '-')}",
+                f"- template_status: {credential_status.get('template_status', '-')}",
+                f"- missing_variable_names: {credential_status.get('missing_variable_names', '-')}",
+                f"- extra_variable_names: {credential_status.get('extra_variable_names', '-')}",
+                f"- next_action: {credential_status.get('next_action', '-')}",
+                f"- secret_boundary: {credential_status.get('secret_boundary', '-')}",
+            ]
+        )
     lines.extend(["", "Activation plan:"])
     lines.extend(f"- {step}" for step in checklist.get("activation_plan", []))
     workflow_pivot = checklist.get("workflow_pivot", [])
@@ -735,7 +805,7 @@ def main(argv: list[str] | None = None) -> int:
     root = resolve_project_root(Path(args.root))
     load_provider_environment(root)
     if args.checklist:
-        checklist = build_provider_setup_checklist(load_session_source_preflight(root))
+        checklist = build_provider_setup_checklist(load_session_source_preflight(root), root=root)
         if args.json:
             print(json.dumps(checklist, indent=2, sort_keys=True))
         else:

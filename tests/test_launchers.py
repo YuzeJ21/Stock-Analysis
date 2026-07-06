@@ -547,6 +547,9 @@ def test_source_activation_guide_documents_provider_setup_without_real_keys():
     assert "read-only daily OHLCV" in guide
     assert "disabled by default" in guide
     assert "Do not commit" in guide
+    assert "make provider-setup-checklist" in guide
+    assert "whether its variable names are stale" in guide
+    assert "It inspects names only; it never prints" in guide
     assert "price" in guide
     assert "fundamentals" in guide
     assert "share count" in guide
