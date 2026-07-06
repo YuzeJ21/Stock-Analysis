@@ -1008,6 +1008,19 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
     configured_keyed = _format_missing(source_answer.get("configured_keyed"), "-")
     needs_key = _format_missing(source_answer.get("needs_key"), "-")
     optional_broker = _format_missing(source_answer.get("optional_broker"), "-")
+    credential_status = payload.get("credential_file_status")
+    credential_status = credential_status if isinstance(credential_status, dict) else {}
+    configured_provider_key_names = _format_missing(credential_status.get("configured_provider_key_names"), "-")
+    unconfigured_provider_key_names = _format_missing(credential_status.get("unconfigured_provider_key_names"), "-")
+    credential_secret_boundary = _format_missing(
+        credential_status.get("secret_boundary"),
+        "Provider key values are never printed.",
+    )
+    credential_state = (
+        f"Configured provider key names: {configured_provider_key_names}. "
+        f"Unconfigured provider key names: {unconfigured_provider_key_names}. "
+        f"{credential_secret_boundary}"
+    )
     source_state = (
         f"Free public sources: {free_public_now}. "
         f"Keyed free-tier fallbacks: configured {configured_keyed}; needs key {needs_key}. "
@@ -1100,7 +1113,10 @@ def provider_setup_checklist_cards(checklist: dict[str, object] | None) -> list[
         {
             "kicker": "PROVIDER SETUP CHECKLIST",
             "title": "Source setup states without secrets",
-            "body": f"{concise_answer} {source_state}.{current_gate_summary} {secret_policy} Detailed rows: {all_summary}.",
+            "body": (
+                f"{concise_answer} {source_state}. {credential_state}.{current_gate_summary} "
+                f"{secret_policy} Detailed rows: {all_summary}."
+            ),
             "badges": ["setup states", "no secrets"],
             "command": "make provider-setup-checklist",
         },

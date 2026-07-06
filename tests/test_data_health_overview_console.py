@@ -495,6 +495,11 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
                 "do_not_retry": "Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.",
                 "proof_boundary": "Provider setup only makes a source executable; readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence.",
             },
+            "credential_file_status": {
+                "configured_provider_key_names": "FMP_API_KEY",
+                "unconfigured_provider_key_names": "ALPHA_VANTAGE_API_KEY, FINNHUB_API_KEY",
+                "secret_boundary": "Only variable names and empty/non-empty status are inspected; provider key values are never printed.",
+            },
             "rows": [
                 {
                     "provider": "SEC Companyfacts",
@@ -566,6 +571,9 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     assert "reopen one reviewed ticker only after new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers appear" in rendered
     assert "what free source can run now" in rendered
     assert "what key is missing" in rendered
+    assert "configured provider key names: fmp_api_key" in rendered
+    assert "unconfigured provider key names: alpha_vantage_api_key, finnhub_api_key" in rendered
+    assert "provider key values are never printed" in rendered
     assert "what should not be retried" in rendered
     assert "review boundary" in rendered
     assert "one safe smoke test" not in rendered
