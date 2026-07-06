@@ -82,7 +82,7 @@ What not to claim:
 - Do not imply blocked fundamentals, peer valuation, earnings, or analyst-estimate lanes are complete.
 - Do not describe the repository as open source or reusable software under the current controlled demo license.
 
-Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`. It is a real product screenshot of the public visitor path; use `make status-check TOP_N=5` for current local readiness counts because screenshot counts can become stale after local refresh/import work. Keep `docs/assets/operator-data-health-metrics-real.jpg` only for deeper operator-mode discussion.
+Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`. It is a real product screenshot of the public visitor path; use `make status-check TOP_N=5` for current local readiness counts because screenshot counts can become stale after local refresh/import work. Keep `docs/assets/operator-data-health-metrics-real.jpg` only for deeper operator-mode discussion. The plain GitHub URL card can use GitHub's generated OpenGraph image, so use LinkedIn Featured when you want the curated product screenshot.
 
 LinkedIn can cache older GitHub preview images. If the Featured card still shows the old screenshot after GitHub is pushed, remove and re-add the Featured link, or refresh the URL through LinkedIn's post inspector before adding it again.
 
