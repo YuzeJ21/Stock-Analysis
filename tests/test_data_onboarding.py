@@ -1737,6 +1737,9 @@ def test_data_onboarding_cli_peer_runbook_text_surfaces_manual_peer_step(tmp_pat
     assert "make imports-validate" in output
     assert "make imports-preview" in output
     assert "make imports-apply" in output
+    assert "rejected rows are zero" in output
+    assert "preview scope is intended" in output
+    assert "source provenance exists" in output
 
 
 def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_path: Path):

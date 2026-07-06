@@ -2987,7 +2987,7 @@ def build_command_bundle_runbook(
                     (
                         "Apply peer mapping merge",
                         "make imports-apply",
-                        "Apply the peer mapping import file merge only after validation and preview are clean.",
+                        "Apply the peer mapping import file merge only after validation passes, preview scope is intended, rejected rows are zero, and source provenance exists.",
                     ),
                     (
                         "Refresh status outputs",
@@ -3506,6 +3506,8 @@ def _print_command_bundles(payload: dict[str, Any], *, top_n: int | None = None)
         )
         if row.get("goal_summary"):
             print(f"  goal: {row['goal_summary']}")
+        if row.get("safe_next_step"):
+            print(f"  detail: {_plain_action_text(row['safe_next_step'])}")
         if row.get("target_history_rows"):
             print(
                 f"  target_history_rows: {row['target_history_rows']} "
@@ -3546,6 +3548,8 @@ def _print_command_bundle_runbook(payload: dict[str, Any], *, top_n: int | None 
         )
         if row.get("goal_summary"):
             print(f"  goal: {row['goal_summary']}")
+        if row.get("safe_next_step"):
+            print(f"  detail: {_plain_action_text(row['safe_next_step'])}")
         if row.get("target_history_rows"):
             print(
                 f"  target_history_rows: {row['target_history_rows']} "
