@@ -133,7 +133,10 @@ def single_stock_research_loop_context(ticker: str, report_payload: dict[str, ob
         next_action = f"Open Data Health if {ticker_label} has locked fields"
         if dcf_state.lower() in {"ready", "excluded"}:
             next_action = "Review Detailed Review tabs after the readiness summary"
-        proof_note = "Review Status and What Can Be Read Now summarize ready, blocked, excluded, and monitor-only sections."
+        proof_note = (
+            "Selected ticker state, What Can Be Read Now, and blocked inputs summarize "
+            "ready, blocked, excluded, and monitor-only sections."
+        )
         return {
             "current_step": f"{ticker_label} report review",
             "current_note": f"Mode: {_format_missing(mode, 'local report')}",

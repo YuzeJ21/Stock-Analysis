@@ -79,7 +79,7 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
         first_view_markers=(
             "research-loop-strip",
             "One-Stock Review",
-            "Review Status",
+            "What Can Be Read Now",
             "SELECTED TICKER",
             "NEXT STEP",
         ),
@@ -129,7 +129,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         first_view_markers=(
             "research-loop-strip",
             "One-Stock Review",
-            "Review Status",
+            "What Can Be Read Now",
             "SELECTED TICKER",
             "NEXT STEP",
         ),

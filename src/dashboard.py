@@ -453,7 +453,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         "Single-Stock Report": {
             "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source readiness notes.",
             "locked": "Company valuation, peer comparison, earnings, and estimate sections stay withheld when trusted inputs are missing or excluded.",
-            "read": "Read Review Status, then What Can Be Read Now, then the source readiness check. Locked sections are boundaries, not hidden conclusions.",
+            "read": "Read the selected ticker state, then What Can Be Read Now, then blocked inputs and source readiness. Locked sections are boundaries, not hidden conclusions.",
             "proof": "After trusted rows change, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
             "review_route": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact missing-input path if anything is still locked.",
             "review_area": "Single-Stock Review",
@@ -8461,7 +8461,7 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "title": "Start with a demo or one selected ticker",
             "body": (
                 "For a visitor demo, use one example ticker. For your own ticker, select a saved name above, "
-                "open the review, then read Review Status and What Can Be Read Now before opening Detailed Review tabs."
+                "open the review, then read the selected ticker state and What Can Be Read Now before opening Detailed Review tabs."
             ),
             "badges": ["visitor path", "one ticker"],
             "command": "make stock-report-md TICKER=NVDA",

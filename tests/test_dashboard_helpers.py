@@ -16564,7 +16564,7 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "does not convert partial data into a portfolio action" in rendered
     assert "start with a demo or one selected ticker" in rendered
     assert "for a visitor demo, use one example ticker" in rendered
-    assert "open the review, then read review status and what can be read now before opening detailed review tabs" in rendered
+    assert "open the review, then read the selected ticker state and what can be read now before opening detailed review tabs" in rendered
     assert len(summary_cards) == 1
     assert summary_cards[0]["kicker"] == "ONE-TICKER REVIEW"
     assert "open one ticker review" in summary_rendered
@@ -16660,7 +16660,7 @@ def test_single_stock_public_page_uses_product_language_not_engineering_terms():
 
     for phrase in [
         "One-Stock Review",
-        "Review Status",
+        "What Can Be Read Now",
         "Ticker Readiness Evidence",
         "Evidence row details",
         "Open Review",
