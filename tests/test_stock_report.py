@@ -2326,6 +2326,81 @@ def test_stock_report_cli_optional_context_source_ladder_dry_run_does_not_write_
     assert payload["recommended_next_commands"][0] == "make optional-context-source-ladder TICKERS=NVDA"
 
 
+def test_stock_report_cli_optional_context_source_ladder_labels_candidate_only_rows(
+    monkeypatch, tmp_path: Path, capsys
+):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    monkeypatch.setattr(
+        "src.stock_report.build_optional_context_source_ladder_rows",
+        lambda requested_tickers, **_kwargs: {
+            "requested_tickers": requested_tickers,
+            "resolved_tickers": requested_tickers,
+            "unresolved_tickers": [],
+            "earnings_rows": [
+                {
+                    "ticker": requested_tickers[0],
+                    "next_earnings_date": "2026-08-15",
+                    "source": "yfinance_research_api",
+                }
+            ],
+            "analyst_estimate_rows": [
+                {
+                    "ticker": requested_tickers[0],
+                    "target_mean_price": 125.0,
+                    "target_high_price": 140.0,
+                    "target_low_price": 110.0,
+                    "source": "yfinance_research_api",
+                }
+            ],
+            "row_summaries": [
+                {
+                    "ticker": requested_tickers[0],
+                    "dataset_name": "earnings",
+                    "source": "yfinance_research_api",
+                    "populated_fields": ["next_earnings_date", "updated_at"],
+                    "warnings": [],
+                },
+                {
+                    "ticker": requested_tickers[0],
+                    "dataset_name": "analyst_estimates",
+                    "source": "yfinance_research_api",
+                    "populated_fields": ["target_high_price", "target_low_price", "target_mean_price", "updated_at"],
+                    "warnings": [],
+                },
+            ],
+            "warnings": [],
+            "provider_attempts": [{"provider": "yfinance", "status": "resolved_rows", "reason_code": "ok"}],
+        },
+    )
+
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--optional-context-source-ladder",
+        "--optional-context-dry-run",
+        "--tickers",
+        "NVDA",
+        "--json",
+    ]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+    assert payload["optional_context_outcome_state"] == "candidate_context_only"
+    assert "date-only or target-price-only" in payload["optional_context_outcome_reason"]
+    assert payload["apply_gate_command"] == ""
+    assert "do not apply candidate-context-only rows for readiness unlocks" in payload["apply_gate_boundary"].lower()
+    assert "make imports-apply" not in "\n".join(payload["recommended_next_commands"])
+
+
 def test_stock_report_cli_optional_context_source_ladder_prints_staging_status(monkeypatch, tmp_path: Path, capsys):
     (tmp_path / "data").mkdir()
     previous_cwd = Path.cwd()

@@ -3776,6 +3776,50 @@ def _resolve_optional_context_queue_tickers(base_dir: Path, data_dir: Path, *, t
     return tickers
 
 
+_OPTIONAL_CONTEXT_SUPPORTED_FIELDS = {
+    "earnings": {
+        "eps_actual",
+        "eps_estimate",
+        "revenue_actual",
+        "revenue_estimate",
+        "surprise_pct",
+    },
+    "analyst_estimates": {
+        "eps_estimate",
+        "revenue_estimate",
+        "current_quarter_eps",
+        "next_quarter_eps",
+        "current_year_eps",
+        "next_year_eps",
+        "current_quarter_revenue",
+        "next_quarter_revenue",
+        "current_year_revenue",
+        "next_year_revenue",
+    },
+}
+
+
+def _classify_optional_context_ladder_result(result: dict[str, Any]) -> tuple[str, str]:
+    row_summaries = result.get("row_summaries") or []
+    if not row_summaries:
+        return "still_blocked", "No source-backed optional context rows were found."
+
+    for row in row_summaries:
+        dataset_name = str(row.get("dataset_name", "")).strip()
+        populated_fields = {str(field).strip() for field in row.get("populated_fields", []) if str(field).strip()}
+        supported_fields = _OPTIONAL_CONTEXT_SUPPORTED_FIELDS.get(dataset_name, set())
+        if populated_fields & supported_fields:
+            return (
+                "source_backed_review_required",
+                "At least one row has optional-context fields that may support readiness after validate, preview, and apply.",
+            )
+
+    return (
+        "candidate_context_only",
+        "Rows contain date-only or target-price-only optional context; review as context, not readiness-unlocking proof.",
+    )
+
+
 def _resolve_sec_tickers(args: argparse.Namespace, base_dir: Path, data_dir: Path, output_dir: Path) -> list[str]:
     tickers: set[str] = set()
     if args.tickers:
@@ -4331,10 +4375,29 @@ def main() -> None:
         has_staged_changes = (not args.optional_context_dry_run) and "staged" in write_statuses
         no_apply_needed = (not args.optional_context_dry_run) and not has_staged_changes
         resolved_ticker_arg = ",".join(result.get("resolved_tickers") or []) or "<resolved_tickers>"
+        optional_context_outcome_state, optional_context_outcome_reason = _classify_optional_context_ladder_result(result)
+        is_candidate_context_only = optional_context_outcome_state == "candidate_context_only"
+        apply_gate_command = (
+            ""
+            if is_candidate_context_only
+            else f"make imports-apply IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv"
+        )
+        apply_gate_boundary = (
+            "Candidate-context-only optional rows can be reviewed with validate/preview, but do not apply "
+            "candidate-context-only rows for readiness unlocks. Record candidate_context_only or skipped unless "
+            "intentionally preserving context."
+            if is_candidate_context_only
+            else (
+                "Run only after validation passes, preview scope is intended, rejected rows are zero, "
+                "and optional-context source provenance is present."
+            )
+        )
         payload = {
             **result,
             **write_result,
             "dry_run": bool(args.optional_context_dry_run),
+            "optional_context_outcome_state": optional_context_outcome_state,
+            "optional_context_outcome_reason": optional_context_outcome_reason,
             "readiness_boundary": (
                 "Valid optional-context import rows do not automatically unlock analysis. "
                 "Optional readiness still requires supported earnings or estimate fields; unchanged, date-only, "
@@ -4347,6 +4410,13 @@ def main() -> None:
                     f"make imports-validate IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
                     f"make imports-preview IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
                 ]
+                if args.optional_context_dry_run and not is_candidate_context_only
+                else [
+                    f"make optional-context-source-ladder TICKERS={resolved_ticker_arg}",
+                    f"make imports-validate IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                    f"make imports-preview IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
+                    "make optional-context-readiness",
+                ]
                 if args.optional_context_dry_run
                 else [
                     "make optional-context-readiness",
@@ -4358,11 +4428,8 @@ def main() -> None:
                     "make optional-context-readiness",
                 ]
             ),
-            "apply_gate_command": f"make imports-apply IMPORT_TICKERS={resolved_ticker_arg} IMPORT_FILES=earnings.csv,analyst_estimates.csv",
-            "apply_gate_boundary": (
-                "Run only after validation passes, preview scope is intended, rejected rows are zero, "
-                "and optional-context source provenance is present."
-            ),
+            "apply_gate_command": apply_gate_command,
+            "apply_gate_boundary": apply_gate_boundary,
             "has_staged_changes": has_staged_changes,
             "no_apply_needed": no_apply_needed,
         }
@@ -4404,12 +4471,16 @@ def main() -> None:
                     )
             else:
                 print("- none")
+            print(f"optional_context_outcome_state: {payload['optional_context_outcome_state']}")
+            print(f"optional_context_outcome_reason: {payload['optional_context_outcome_reason']}")
             print(f"readiness_boundary: {payload['readiness_boundary']}")
             print("next:")
             for command in payload["recommended_next_commands"]:
                 print(f"- {command}")
             if payload["no_apply_needed"]:
                 print("apply gate: no apply needed; optional-context import rows are unchanged or empty.")
+            elif payload["optional_context_outcome_state"] == "candidate_context_only":
+                print(f"apply gate: {payload['apply_gate_boundary']}")
             else:
                 print("apply gate:")
                 print(f"- {payload['apply_gate_command']} only after validation passes, preview scope is intended, rejected rows are zero, and source provenance is present.")
