@@ -2142,6 +2142,9 @@ def apply_dashboard_theme() -> None:
           color: #0f766e;
           font-weight: 950;
         }
+        a.command-status-item {
+          text-decoration: none !important;
+        }
         .command-status-dot {
           display: inline-block;
           width: 0.45rem;
@@ -5337,14 +5340,14 @@ def command_center_header_html(
         f"<header class='command-shell{compact_class}'>"
         f"<nav class='command-topbar{compact_class}' aria-label='Public workflow status'>"
         "<div class='command-top-left'>"
-        "<span class='command-status-item primary'>What can I use now?</span>"
+        "<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'>What can I use now?</a>"
         f"<span class='command-status-item'>Data snapshot: {html.escape(str(latest_price))}</span>"
         "<span class='command-status-item'>Readiness-gated coverage <span class='command-status-dot'></span></span>"
         "<span class='command-status-item'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
         "<a class='command-top-link' href='?mode=public&page=data-health' target='_self'>Blocked? Data Health</a>"
-        "<span class='command-status-item command-about'>How this works</span>"
+        "<a class='command-top-link command-about' href='?mode=public' target='_self'>How this works</a>"
         "</div>"
         "</nav>"
     )

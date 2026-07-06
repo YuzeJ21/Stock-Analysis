@@ -1368,8 +1368,12 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
     assert "Stock Research Guided Workflow" in html
     assert "About this center" not in html
     assert "How this works" in html
+    assert "<a class='command-top-link command-about' href='?mode=public' target='_self'>How this works</a>" in html
+    assert "<span class='command-status-item command-about'>How this works</span>" not in html
     assert "Blocked? Data Health" in html
     assert "What can I use now?" in html
+    assert "<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'>What can I use now?</a>" in html
+    assert "<span class='command-status-item primary'>What can I use now?</span>" not in html
     assert "Data readiness first" in html
     assert "Readiness-gated coverage" in html
     assert "Research-only" in html
@@ -28007,7 +28011,8 @@ def test_compact_header_keeps_about_link_classed_for_mobile():
     )
 
     assert "command-topbar compact" in html
-    assert "command-status-item command-about" in html
+    assert "command-top-link command-about" in html
+    assert "command-home-link" in html
     assert "Blocked? Data Health" in html
     assert "Stock Research Command Center" not in html
 
