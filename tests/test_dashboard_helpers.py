@@ -20083,7 +20083,7 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
     function_index = source.index("def render_data_health(")
     provider_none_index = source.index("if provider is None:", function_index)
     placeholder_index = source.index("public_loading_placeholder = st.empty()", provider_none_index)
-    placeholder_copy_index = source.index('"Loading Coverage Summary / What Can I Use?"', placeholder_index)
+    placeholder_copy_index = source.index('"Preparing Coverage Summary / What Can I Use?"', placeholder_index)
     placeholder_contract_index = source.index(
         "raw tables, route maps, queues, and proof ledgers stay hidden",
         placeholder_copy_index,
@@ -28236,7 +28236,7 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     bootstrap_chunk = source[bootstrap_function_index:end_index]
     assert "public_workflow_header_html" not in bootstrap_chunk
     assert bootstrap_function_index < loading_note_index
-    assert "Loading Coverage Summary / What Can I Use?" in source
+    assert "Preparing Coverage Summary / What Can I Use?" in source
     assert "Use now: wait for one lane answer" in source
     assert "Stop: no commands run and no data is unlocked here" in source
 
@@ -28249,12 +28249,12 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
 
     assert 'mode != PUBLIC_DEMO_MODE' in chunk
     assert 'selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
-    assert "Home is loading the readiness answer" in chunk
+    assert "Home is preparing the readiness answer" in chunk
     assert "wait for the start path and first 30-second answer" in chunk
-    assert "Stock Selector is loading readiness filters" in chunk
-    assert "Loading Coverage Summary / What Can I Use?" in chunk
+    assert "Stock Selector is preparing readiness filters" in chunk
+    assert "Preparing Coverage Summary / What Can I Use?" in chunk
     assert "raw proof, queues, and route maps stay hidden" in chunk
-    assert "Proof History is loading evidence cards" in chunk
+    assert "Proof History is preparing evidence cards" in chunk
     assert "public workflow is loading" not in chunk
 
 
@@ -28279,12 +28279,12 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     render_index = source.index("def render_single_stock_report(")
 
     section_index = source.index('"One-Stock Review"', render_index)
-    placeholder_index = source.index('"Loading selected ticker answer."', section_index)
+    placeholder_index = source.index('"Preparing selected ticker answer."', section_index)
     placeholder_contract_index = source.index(
         "Use now: the selected ticker state loads first",
         placeholder_index,
     )
-    placeholder_stop_index = source.index("do not treat partial, candidate-only, or loading sections as conclusions", placeholder_index)
+    placeholder_stop_index = source.index("do not treat partial, candidate-only, or preparing sections as conclusions", placeholder_index)
     provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
     report_button_index = source.index('st.button("Open Review"', contract_cards_index)

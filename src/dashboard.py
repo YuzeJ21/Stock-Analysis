@@ -5745,25 +5745,25 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
     if selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return None
     if selected_page == "Home":
-        title = "Home is loading the readiness answer."
+        title = "Home is preparing the readiness answer."
         body = (
             "Use now: wait for the start path and first 30-second answer. Blocked: no analysis appears until "
-            "source-backed readiness supports it. Next: start with Stock Selector when the page finishes loading."
+            "source-backed readiness supports it. Next: start with Stock Selector when the page finishes preparing."
         )
     elif selected_page == STOCK_SELECTOR_PATH_TITLE:
-        title = "Stock Selector is loading readiness filters."
+        title = "Stock Selector is preparing readiness filters."
         body = (
             "No recommendations run here. The page is reading saved readiness rows so you can choose one "
             "reviewable ticker before opening a single-stock report."
         )
     elif selected_page == PROOF_HISTORY_PATH_TITLE:
-        title = "Proof History is loading evidence cards."
+        title = "Proof History is preparing evidence cards."
         body = (
             "No data refresh runs here. The page is reading reviewed proof rows so it can show the latest "
             "outcome before raw ledgers or advanced evidence details."
         )
     else:
-        title = "Loading Coverage Summary / What Can I Use?"
+        title = "Preparing Coverage Summary / What Can I Use?"
         body = (
             "Use now: wait for one lane answer. Blocked: raw proof, queues, and route maps stay hidden. "
             "Next: open proof only if evidence changed. Stop: no commands run and no data is unlocked here."
@@ -27381,10 +27381,10 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Loading selected ticker answer.",
+                "Preparing selected ticker answer.",
                 "Use now: the selected ticker state loads first. Blocked: locked inputs stay withheld. "
                 "Next: read supported sections, then open Data Health only for blocked proof. "
-                "Stop: do not treat partial, candidate-only, or loading sections as conclusions.",
+                "Stop: do not treat partial, candidate-only, or preparing sections as conclusions.",
                 tone="success",
             )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -28494,7 +28494,7 @@ def render_data_health(
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Loading Coverage Summary / What Can I Use?",
+                "Preparing Coverage Summary / What Can I Use?",
                 "Use now: wait for one lane answer. Blocked: raw tables, route maps, queues, and proof ledgers stay hidden. "
                 "Next: inspect proof only when evidence changed. Stop: no commands run and no data is unlocked here.",
                 tone="success",
