@@ -15064,6 +15064,9 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
         )
         for card in dashboard.proof_history_public_detail_cards(proof_timeline, batch_proof)
     ).lower()
+    proof_history_card = next(
+        card for card in dashboard.proof_history_public_detail_cards(proof_timeline, batch_proof) if card["kicker"] == "PROOF HISTORY"
+    )
 
     assert "latest lane proof" in rendered
     assert "evidence only" in rendered
@@ -15095,6 +15098,7 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
     assert "peer_valuation_inputs" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+    assert len(str(proof_history_card["body"])) <= 430
 
 
 def test_public_proof_history_batch_card_summarizes_long_changed_ticker_lists():

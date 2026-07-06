@@ -11932,11 +11932,10 @@ def proof_history_public_detail_cards(
             "title": f"{proof_count} lane proof records",
             "body": (
                 "Evidence only; not a second dashboard. "
-                "What this proves: reviewed source-proof outcomes were recorded for specific lanes or batches. "
+                "What this proves: reviewed source-proof outcomes by lane or batch. "
                 "What it does not prove: Proof History does not refresh data, apply imports, record outcomes, or unlock blocked inputs. "
-                "Evidence review only: read the latest lane and batch outcome, then open Data Health only if the evidence shows a remaining blocker. "
-                "Use this trail to see whether readiness changes were supported, still blocked, skipped, or excluded after review. "
-                "Raw proof ledgers and proof-record scaffolds stay collapsed until review details are explicitly opened."
+                "Evidence review only: read the latest lane and batch outcome; open Data Health only if a blocker remains. "
+                "Raw proof ledgers and proof-record scaffolds stay collapsed."
             ),
             "badges": ["evidence trail", "reviewed changes"],
             "command": "",
