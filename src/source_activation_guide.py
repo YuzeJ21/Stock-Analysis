@@ -90,14 +90,42 @@ def _env_names_from_file(path: Path) -> set[str]:
     return names
 
 
+def _env_value_presence_from_file(path: Path) -> dict[str, bool]:
+    if not path.exists():
+        return {}
+    presence: dict[str, bool] = {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return presence
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        name, raw_value = stripped.split("=", 1)
+        name = name.strip()
+        value = raw_value.strip().strip("\"'")
+        if name:
+            presence[name] = bool(value)
+    return presence
+
+
 def _credential_file_status(root: Path | str | None = None) -> dict[str, str]:
     project_root = resolve_project_root(Path(root or "."))
     local_path = project_root / "config" / "provider_keys.env"
     example_path = project_root / "config" / "provider_keys.env.example"
     local_names = _env_names_from_file(local_path)
     example_names = _env_names_from_file(example_path)
+    local_value_presence = _env_value_presence_from_file(local_path)
     missing_names = sorted(example_names - local_names)
     extra_names = sorted(local_names - example_names)
+    keyed_env_names = sorted(KEYED_PROVIDER_ENVS.values())
+    configured_provider_key_names = [
+        name for name in keyed_env_names if bool(local_value_presence.get(name, False))
+    ]
+    unconfigured_provider_key_names = [
+        name for name in keyed_env_names if name in local_names and not bool(local_value_presence.get(name, False))
+    ]
 
     if not local_path.exists():
         template_status = "local_file_absent"
@@ -116,8 +144,12 @@ def _credential_file_status(root: Path | str | None = None) -> dict[str, str]:
         "template_status": template_status,
         "missing_variable_names": ", ".join(missing_names) if missing_names else "-",
         "extra_variable_names": ", ".join(extra_names) if extra_names else "-",
+        "configured_provider_key_names": ", ".join(configured_provider_key_names) if configured_provider_key_names else "-",
+        "unconfigured_provider_key_names": (
+            ", ".join(unconfigured_provider_key_names) if unconfigured_provider_key_names else "-"
+        ),
         "next_action": next_action,
-        "secret_boundary": "Only variable names are inspected; provider key values are never printed.",
+        "secret_boundary": "Only variable names and empty/non-empty status are inspected; provider key values are never printed.",
     }
 
 
@@ -664,6 +696,8 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 f"- template_status: {credential_status.get('template_status', '-')}",
                 f"- missing_variable_names: {credential_status.get('missing_variable_names', '-')}",
                 f"- extra_variable_names: {credential_status.get('extra_variable_names', '-')}",
+                f"- configured_provider_key_names: {credential_status.get('configured_provider_key_names', '-')}",
+                f"- unconfigured_provider_key_names: {credential_status.get('unconfigured_provider_key_names', '-')}",
                 f"- next_action: {credential_status.get('next_action', '-')}",
                 f"- secret_boundary: {credential_status.get('secret_boundary', '-')}",
             ]

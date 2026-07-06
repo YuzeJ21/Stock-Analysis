@@ -246,14 +246,40 @@ def test_provider_setup_checklist_reports_stale_local_credential_template_withou
         "template_status": "local_file_stale",
         "missing_variable_names": "IBKR_CLIENT_ID, IBKR_HOST, IBKR_PORT",
         "extra_variable_names": "-",
+        "configured_provider_key_names": "FMP_API_KEY",
+        "unconfigured_provider_key_names": "ALPHA_VANTAGE_API_KEY, FINNHUB_API_KEY",
         "next_action": "refresh missing variable names from config/provider_keys.env.example; keep real values local",
-        "secret_boundary": "Only variable names are inspected; provider key values are never printed.",
+        "secret_boundary": "Only variable names and empty/non-empty status are inspected; provider key values are never printed.",
     }
     assert "Local credential file status:" in rendered
     assert "template_status: local_file_stale" in rendered
     assert "missing_variable_names: IBKR_CLIENT_ID, IBKR_HOST, IBKR_PORT" in rendered
+    assert "configured_provider_key_names: FMP_API_KEY" in rendered
+    assert "unconfigured_provider_key_names: ALPHA_VANTAGE_API_KEY, FINNHUB_API_KEY" in rendered
     assert "real-value-should-not-print" not in rendered
     assert "provider key values are never printed" in rendered
+
+
+def test_provider_setup_checklist_distinguishes_present_file_from_configured_keys(tmp_path, monkeypatch):
+    for env_name in ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY"):
+        monkeypatch.delenv(env_name, raising=False)
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    template = "FMP_API_KEY=\nALPHA_VANTAGE_API_KEY=\nFINNHUB_API_KEY=\n"
+    (config_dir / "provider_keys.env.example").write_text(template, encoding="utf-8")
+    (config_dir / "provider_keys.env").write_text(template, encoding="utf-8")
+
+    checklist = build_provider_setup_checklist(root=tmp_path)
+    rendered = render_provider_setup_checklist(checklist)
+
+    assert checklist["credential_file_status"]["template_status"] == "local_file_matches_example_keys"
+    assert checklist["credential_file_status"]["configured_provider_key_names"] == "-"
+    assert checklist["credential_file_status"]["unconfigured_provider_key_names"] == (
+        "ALPHA_VANTAGE_API_KEY, FINNHUB_API_KEY, FMP_API_KEY"
+    )
+    assert "configured_provider_key_names: -" in rendered
+    assert "unconfigured_provider_key_names: ALPHA_VANTAGE_API_KEY, FINNHUB_API_KEY, FMP_API_KEY" in rendered
+    assert "key values are never printed" in rendered
 
 
 def test_provider_setup_checklist_starts_with_source_boundary_decision_table(monkeypatch):
