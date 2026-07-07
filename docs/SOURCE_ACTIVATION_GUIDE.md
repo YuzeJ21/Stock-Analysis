@@ -49,7 +49,7 @@ broad proof loops just to get another blocked ledger row. Use the provider setup
 flow as the next evidence step:
 
 1. Run `make project-status` first; if it says queues are exhausted, do not reopen broad proof loops.
-2. Configure at most one missing keyed free-tier provider locally, then rerun `make session-source-preflight`.
+2. Configure at most one missing keyed free-tier provider locally, then rerun `make session-source-preflight`. When all keyed providers are missing, start with FMP because it is the broadest fallback in this workflow.
 3. Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup.
 4. Continue only through validate, preview, rejected-row review, and source-provenance checks.
 5. If no source-backed row is staged, record `still_blocked`, `skipped`, or `excluded` and pivot.

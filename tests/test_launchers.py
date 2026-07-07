@@ -559,6 +559,7 @@ def test_source_activation_guide_documents_provider_setup_without_real_keys():
     assert "unlimited batch coverage" not in guide.lower()
     assert "full-universe refresh without caps" in guide
     assert "FMP free tier" in guide and "small batch" in guide
+    assert "When all keyed providers are missing, start with FMP" in guide
     assert "| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | <=250 requests/day; <=25 tickers/run | `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>` | full-universe refresh without caps |" in guide
     assert "| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | <=25 requests/day; <=5 tickers/run | `make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>` | full-universe refresh without caps |" in guide
     assert "| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | <=60 requests/day; <=10 tickers/run | `make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>` | full-universe refresh without caps |" in guide
