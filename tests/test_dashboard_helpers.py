@@ -20061,7 +20061,8 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
 
     assert public_index < public_coverage_index < guidance_expander_index < first_30_index < visitor_paths_index
     assert public_return_index < operator_coverage_expander_index < operator_coverage_index < ops_index
-    assert '"Coverage Summary / What Can I Use?"' in source
+    assert '"Selected Lane Answer"' in source
+    assert "Coverage Summary / What Can I Use? One clear answer per lane" in source
     assert 'st.expander("Advanced: coverage lane details", expanded=False)' in source
     source_details_index = source.index('st.expander("Advanced: operator source setup details", expanded=False)', ops_index)
     auto_refresh_index = source.index('render_section_header(\n            "Auto Refresh Status"', source_details_index)
@@ -20083,7 +20084,7 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
     function_index = source.index("def render_data_health(")
     provider_none_index = source.index("if provider is None:", function_index)
     placeholder_index = source.index("public_loading_placeholder = st.empty()", provider_none_index)
-    placeholder_copy_index = source.index('"Preparing Coverage Summary / What Can I Use?"', placeholder_index)
+    placeholder_copy_index = source.index('"Preparing Selected Lane Answer / Coverage Summary"', placeholder_index)
     placeholder_contract_index = source.index(
         "raw tables, route maps, queues, and proof ledgers stay hidden",
         placeholder_copy_index,
@@ -20095,6 +20096,12 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
         "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
         clear_placeholder_index,
     )
+    coverage_summary_function_index = source.index("def render_data_health_coverage_summary(")
+    selected_lane_answer_index = source.index('"Selected Lane Answer"', coverage_summary_function_index)
+    coverage_summary_copy_index = source.index(
+        "Coverage Summary / What Can I Use? One clear answer per lane",
+        selected_lane_answer_index,
+    )
 
     assert (
         provider_none_index
@@ -20105,6 +20112,7 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
         < validation_load_index
     )
     assert validation_load_index < clear_placeholder_index < coverage_summary_index
+    assert coverage_summary_function_index < selected_lane_answer_index < coverage_summary_copy_index
 
 
 def test_universe_layer_cards_separate_scope_from_analysis_readiness():
@@ -28236,7 +28244,7 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     bootstrap_chunk = source[bootstrap_function_index:end_index]
     assert "public_workflow_header_html" not in bootstrap_chunk
     assert bootstrap_function_index < loading_note_index
-    assert "Preparing Coverage Summary / What Can I Use?" in source
+    assert "Preparing Selected Lane Answer / Coverage Summary" in source
     assert "Use now: wait for one lane answer" in source
     assert "Stop: no commands run and no data is unlocked here" in source
 
@@ -28252,7 +28260,7 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "Home is preparing the readiness answer" in chunk
     assert "wait for the start path and first 30-second answer" in chunk
     assert "Stock Selector is preparing readiness filters" in chunk
-    assert "Preparing Coverage Summary / What Can I Use?" in chunk
+    assert "Preparing Selected Lane Answer / Coverage Summary" in chunk
     assert "raw proof, queues, and route maps stay hidden" in chunk
     assert "Proof History is preparing evidence cards" in chunk
     assert "public workflow is loading" not in chunk
@@ -28279,7 +28287,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     render_index = source.index("def render_single_stock_report(")
 
     section_index = source.index('"One-Stock Review"', render_index)
-    placeholder_index = source.index('"Preparing selected ticker answer."', section_index)
+    placeholder_index = source.index('"Preparing SELECTED TICKER answer."', section_index)
     placeholder_contract_index = source.index(
         "Use now: the selected ticker state loads first",
         placeholder_index,

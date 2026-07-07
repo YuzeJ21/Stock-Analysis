@@ -5763,7 +5763,7 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
             "outcome before raw ledgers or advanced evidence details."
         )
     else:
-        title = "Preparing Coverage Summary / What Can I Use?"
+        title = "Preparing Selected Lane Answer / Coverage Summary"
         body = (
             "Use now: wait for one lane answer. Blocked: raw proof, queues, and route maps stay hidden. "
             "Next: open proof only if evidence changed. Stop: no commands run and no data is unlocked here."
@@ -9404,8 +9404,8 @@ def render_data_health_coverage_summary(
     peer_readiness_frame: pd.DataFrame | None = None,
 ) -> None:
     render_section_header(
-        "Coverage Summary / What Can I Use?",
-        "One clear answer per lane before operations, proof details, or research conclusions.",
+        "Selected Lane Answer",
+        "Coverage Summary / What Can I Use? One clear answer per lane before operations, proof details, or research conclusions.",
     )
     render_signal_cards(
         data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame, root=BASE_DIR),
@@ -27381,7 +27381,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Preparing selected ticker answer.",
+                "Preparing SELECTED TICKER answer.",
                 "Use now: the selected ticker state loads first. Blocked: locked inputs stay withheld. "
                 "Next: read supported sections, then open Data Health only for blocked proof. "
                 "Stop: do not treat partial, candidate-only, or preparing sections as conclusions.",
@@ -28494,7 +28494,7 @@ def render_data_health(
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Preparing Coverage Summary / What Can I Use?",
+                "Preparing Selected Lane Answer / Coverage Summary",
                 "Use now: wait for one lane answer. Blocked: raw tables, route maps, queues, and proof ledgers stay hidden. "
                 "Next: inspect proof only when evidence changed. Stop: no commands run and no data is unlocked here.",
                 tone="success",
