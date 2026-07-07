@@ -16819,8 +16819,12 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
 
 def test_single_stock_page_keeps_full_intro_collapsed_and_uses_open_state():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
 
-    auto_open_index = source.index("if query_open_review and not report_payload:")
+    provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", render_index)
+    contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
+    auto_open_index = source.index("if query_open_review and not report_payload:", contract_cards_index)
+    opening_note_index = source.index('"Opening saved review evidence."', auto_open_index)
     review_open_note_index = source.index('"Review is open."', auto_open_index)
     preview_note_index = source.index('"What happens next."', review_open_note_index)
     build_button_index = source.index('st.button("Open Review"', preview_note_index)
@@ -16833,6 +16837,7 @@ def test_single_stock_page_keeps_full_intro_collapsed_and_uses_open_state():
     expander_index = source.index('st.expander("Advanced: how single-stock reports work"', state_expander_index)
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards(), show_commands=show_card_commands)", state_expander_index)
 
+    assert provider_ticker_load_index < contract_cards_index < auto_open_index < opening_note_index
     assert auto_open_index < review_open_note_index < preview_note_index < build_button_index < evidence_index < loop_index < state_expander_index
     assert state_expander_index < summary_index < note_index < demo_index < expander_index < full_intro_index
     assert 'st.expander("Advanced: example report states", expanded=False)' in source
