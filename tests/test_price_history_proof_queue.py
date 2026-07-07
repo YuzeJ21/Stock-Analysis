@@ -110,6 +110,31 @@ def test_price_history_proof_queue_renderer_is_research_only_and_read_only(tmp_p
     assert "price target" not in lowered
     assert "undervalued" not in lowered
 
+    focused = render_price_history_proof_queue(rows[:1], payload).lower()
+    assert "focused proof detail" in focused
+    assert "dry-run before refresh" in focused
+    assert "next safest action: make price-refresh-loop dry_run=1" in focused
+    assert "import gate" in focused
+    assert "rebuild proof" in focused
+
+
+def test_price_history_proof_queue_focus_detail_suppresses_retry_for_reviewed_non_actionable(tmp_path: Path):
+    _write_fixture(tmp_path)
+    proofs = tmp_path / "data" / "reviewed_batch_proofs.csv"
+    proofs.write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-PRICE-AMD,prices,AMD,still_blocked,none,"
+        "\"AMD public provider path already tried; do not retry without a new verified OHLCV source.\"\n",
+        encoding="utf-8",
+    )
+
+    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10, tickers=["AMD"])
+    rendered = render_price_history_proof_queue(rows, build_onboarding_payload(tmp_path))
+
+    assert "Follow-up: wait for new verified OHLCV source or changed provider behavior." in rendered
+    assert "Dry-run before refresh" not in rendered
+    assert "Focused proof detail" in rendered
+
 
 def test_price_history_proof_queue_empty_scope_explains_no_blockers(tmp_path: Path):
     data_dir = tmp_path / "data"

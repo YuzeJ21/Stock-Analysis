@@ -254,11 +254,14 @@ def render_price_history_proof_queue(rows: list[PriceHistoryProofRow], payload: 
     partial = sum(1 for row in rows if row.state == "partial")
     lines.append(f"Rows shown: {len(rows)}; blocked: {blocked}; partial: {partial}.")
     all_reviewed_non_actionable = all("reviewed proof ledger already records" in row.source_note.lower() for row in rows)
+    focused_single_ticker = len(rows) == 1
     if all_reviewed_non_actionable:
         lines.append(
             "Next safest action: No unreviewed executable price-history blockers are shown; "
             "do not repeat these source paths unless new provider data, a verified manual OHLCV file, or changed source behavior appears."
         )
+    elif focused_single_ticker:
+        lines.append(f"Next safest action: {rows[0].dry_run_batch_command}.")
     else:
         lines.append(f"Next safest action: {rows[0].next_safe_command}.")
     if _price_rows_complete(payload):
@@ -272,6 +275,9 @@ def render_price_history_proof_queue(rows: list[PriceHistoryProofRow], payload: 
     lines.append("Priority | Ticker | State | Local rows | Next goal | Rows needed | Next proof command")
     lines.append("---: | --- | --- | ---: | --- | ---: | ---")
     for row in rows:
+        next_command = row.next_safe_command
+        if focused_single_ticker and next_command.startswith("make focus-price"):
+            next_command = row.dry_run_batch_command
         lines.append(
             " | ".join(
                 [
@@ -281,10 +287,22 @@ def render_price_history_proof_queue(rows: list[PriceHistoryProofRow], payload: 
                     str(row.current_history_rows),
                     row.next_goal,
                     str(row.rows_needed),
-                    row.next_safe_command,
+                    next_command,
                 ]
             )
         )
+    if len(rows) == 1:
+        row = rows[0]
+        lines.append("")
+        lines.append("Focused proof detail:")
+        lines.append(f"- Source note: {row.source_note}")
+        if "reviewed proof ledger already records" in row.source_note.lower():
+            lines.append(f"- Follow-up: {row.next_safe_command}.")
+        else:
+            lines.append(f"- Dry-run before refresh: {row.dry_run_batch_command}.")
+            lines.append(f"- Import gate: {row.validate_preview_apply_gate}.")
+            lines.append(f"- Rebuild proof: {row.post_run_proof_command}.")
+        lines.append(f"- Stop rule: {row.stop_rule}")
     lines.append("")
     lines.append("Review checklist:")
     lines.append("- Inspect the ticker first with the focus command before planning a capped batch.")
