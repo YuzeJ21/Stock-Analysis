@@ -50,6 +50,34 @@ def test_readme_and_roadmap_name_pilot_operator_runbook():
     assert "without reopening broad proof loops" in roadmap
 
 
+def test_roadmap_current_counts_are_live_command_gated():
+    roadmap = _read("ROADMAP.md")
+
+    assert "Broad-universe command center visibility for the tracked master universe" in roadmap
+    assert "Master universe rows: use `make project-status` or `make status-check TOP_N=5`" in roadmap
+    assert "Active research rows: use `make project-status` or the dashboard Home page" in roadmap
+    assert "whole tracked universe is analysis-ready" in roadmap
+    assert "tracked master universe, active universe, and analysis-ready subset" in roadmap
+    assert "current 3,538-ticker" not in roadmap
+    assert "Master universe rows: 3,538" not in roadmap
+    assert "whole 3,538-ticker universe" not in roadmap
+
+
+def test_public_docs_do_not_reintroduce_old_three_path_navigation():
+    docs = {
+        "README.md": _read("README.md"),
+        "ROADMAP.md": _read("ROADMAP.md"),
+        "docs/DATA_STRATEGY.md": _read("docs/DATA_STRATEGY.md"),
+        "docs/PUBLIC_DEMO_WALKTHROUGH.md": _read("docs/PUBLIC_DEMO_WALKTHROUGH.md"),
+    }
+
+    for body in docs.values():
+        assert "three main paths" not in body
+        assert "three simple paths" not in body
+        assert "More pages" not in body
+        assert PUBLIC_V1_ROUTE in body
+
+
 def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     readme = _read("README.md")
 
@@ -61,6 +89,20 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     assert "No broad coverage batch should run from setup alone." in readme
     assert "`make linkedin-share-check` for the final LinkedIn Featured-card checklist" in readme
     assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
+
+
+def test_public_docs_match_auto_price_ladder_order():
+    readme = _read("README.md")
+    strategy = _read("docs/DATA_STRATEGY.md")
+    operator_guide = _read("docs/OPERATOR_GUIDE.md")
+    roadmap = _read("ROADMAP.md")
+
+    for doc in (readme, strategy, operator_guide, roadmap):
+        assert "PROVIDER=auto" in doc
+        assert "Stooq, Yahoo" in doc
+        assert "optional IBKR read-only" in doc
+        assert "FMP" in doc and "Alpha Vantage" in doc and "Finnhub" in doc
+        assert "Yahoo, Stooq" not in doc
 
 
 def test_readme_has_external_reviewer_handoff_before_operator_detail():

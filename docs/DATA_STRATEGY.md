@@ -6,6 +6,8 @@ Provider-assisted does not mean provider-decided. A provider can help populate l
 
 ## Public Visitor FAQ
 
+The public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Use this data strategy as the explanation layer behind that path, not as a second navigation model.
+
 Use this section when someone asks whether the product is doing the analysis or copying a third-party answer:
 
 - The product analysis comes from this repository's readiness gates, DCF calculations, peer gates, decision buckets, and report wording.
@@ -20,7 +22,7 @@ Use this guide before changing local data:
 
 | If the gap is... | Do this first | Do not do this |
 | --- | --- | --- |
-| Missing or stale prices | Run `make price-history-proof-queue TOP_N=25`, then `make price-refresh-loop DRY_RUN=1 ... PROVIDER=auto`, then snapshot readiness before any capped refresh; the automatic ladder tries Yahoo, Stooq, then configured FMP/Alpha Vantage/Finnhub before the last manual import path. | Do not refresh the full universe blindly or commit broad CSV churn by default. |
+| Missing or stale prices | Run `make price-history-proof-queue TOP_N=25`, then `make price-refresh-loop DRY_RUN=1 ... PROVIDER=auto`, then snapshot readiness before any capped refresh; the automatic ladder tries Stooq, Yahoo, optional IBKR read-only if explicitly configured, then configured FMP/Alpha Vantage/Finnhub before the last manual import path. | Do not refresh the full universe blindly or commit broad CSV churn by default. |
 | Missing fundamentals or DCF fields | Run `make dcf-input-proof-queue TOP_N=25`, then use `make fundamentals-source-ladder TICKERS=<ticker>` or `make fundamentals-source-ladder-queue TOP_N=25` so SEC, yfinance, configured FMP, configured Alpha Vantage, and configured Finnhub are tried before trusted local imports. | Do not fill placeholder fundamentals to make valuation appear ready. |
 | Missing `shares_outstanding` | Run `make share-count-proof-queue TOP_N=10`, then use the fundamentals source ladder or reviewed local rows for the named tickers. | Do not infer share count from price, market cap, peers, or placeholder rows. |
 | Missing peers | Run `make peer-mapping-queue TOP_N=25`, then `DRY_RUN=1 make peer-mapping-source-review TOP_N=10` before adding source-backed mappings or mapped-peer price/fundamental inputs. | Do not turn sector or industry similarity, memory, popularity, or row-count convenience into trusted peer valuation. |
@@ -219,7 +221,7 @@ Use `make data-coverage-planner TOP_N=10` after the frontier check to convert th
 
 Use `make coverage-expansion-loop TOP_N=10` when the operator is ready to turn the planner into one reviewed loop. It keeps the flow copy-only: selected lane, compact lane readiness board, source-proof intake checklist, preflight gate, reviewed packet, readiness snapshot, dry run, capped command boundary, validate/preview/apply gate, rebuilt readiness, before/after comparison, proof-record dry run, and diff hygiene. The lane board shows why one lane was selected while keeping locked/manual lanes and excluded states visible. The source-proof intake checklist names acceptable evidence, rejected shortcuts, review commands, and the proof-ready boundary for the selected lane. If the current report, prior snapshot, or freshness gate is not ready, the loop stops at the preflight fix instead of treating stale counts as proof.
 
-In public Data Health, visitors see the three simple paths first: review one stock, check data coverage, and inspect proof. The same coverage expansion loop appears only as a compact operator card before the detailed batch tables. The full loop rows stay inside the reviewed-batch drawer so the page starts with the next safe action instead of raw command sprawl.
+In public Data Health, visitors see one plain-language lane answer first: what is usable now, what is candidate context only, what is blocked, and what proof changed the state. The same coverage expansion loop appears only as a compact operator card before the detailed batch tables. The full loop rows stay inside the reviewed-batch drawer so the page starts with the next safe action instead of raw command sprawl.
 
 Use `make readiness-ops-evidence` as the compact evidence checklist before packaging work. It restates the proof gate, locked optional lanes, excluded/not-applicable boundary, and broad CSV/JSON churn policy. Data Health surfaces the same operations-center and coverage-frontier views before the trusted-data pilot and detailed tables so the product starts from batch lanes rather than one-name manual loops.
 

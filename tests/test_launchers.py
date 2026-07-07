@@ -2027,8 +2027,10 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1" in data_strategy
     assert "default candidate output is compact" in data_strategy
     assert "row-level proof detail" in data_strategy
-    assert "review one stock, check data coverage, and inspect proof" in data_strategy
+    assert "one plain-language lane answer first" in data_strategy
     assert "review one stock, improve data coverage, and inspect proof" not in data_strategy
+    assert "review one stock, check data coverage, and inspect proof" not in data_strategy
+    assert "three simple paths" not in data_strategy
     assert "row-level diagnostic" not in data_strategy
     assert "make trusted-data-pilot-packet TICKER=CRDO" in data_strategy
     assert "make trusted-data-pilot TOP_N=10" in data_strategy

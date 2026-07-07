@@ -25,15 +25,15 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Monthly picks staying empty when data is insufficient.
 - [x] Dashboard smoke passing.
 - [x] Test suite passing.
-- [x] Broad-universe command center visibility for the current 3,538-ticker master universe.
+- [x] Broad-universe command center visibility for the tracked master universe, with exact current counts coming from `make project-status` or `make status-check TOP_N=5`.
 - [x] Product-page readiness filters, row limits, and single-stock drilldown.
 - [x] Peer Mapping Studio V1 with peer blocker filters and safe command cards.
 - [x] Feature readiness summary and readiness-gated decision subtype reporting.
 - [x] Single-stock report mode with readiness, methodology, source readiness check, DCF/peer gating, and ETF/index DCF exclusion.
 - [x] Public-facing methodology documentation that explains readiness gates, fundamentals review, DCF formula path, peer boundaries, score limits, and report explanation.
 - [x] Public README/dashboard polish for visitor-friendly demo paths, screenshot preview, generated-data hygiene, deep links, and research-only guardrails.
-- [x] Visitor-first dashboard navigation with three main paths: review one stock, improve data coverage, and explore ready names, while detailed pages remain available under `More pages`.
-- [x] Public Data Health polish with the three visitor paths before quick-read proof cards, while operator commands stay behind drawers.
+- [x] Visitor-first dashboard navigation with the five-page public workflow: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
+- [x] Public Data Health polish with one lane answer before quick-read proof cards, while operator commands stay behind drawers.
 - [x] Public data-strategy guidance that separates safe automation from human-reviewed source judgment.
 - [x] Data Health freshness routine promoted into the beginner flow with read-only checks, capped price dry-run guidance, and review-required lanes.
 - [x] Blocked single-stock reports hold peer-relative valuation behind fundamentals/DCF readiness so peer rows cannot bypass core company gates.
@@ -120,8 +120,8 @@ The product is partially decision-useful for DCF-ready company research, but pee
 
 Current readiness pattern:
 
-- Master universe rows: 3,538.
-- Active research rows: 12.
+- Master universe rows: use `make project-status` or `make status-check TOP_N=5` for the current local count.
+- Active research rows: use `make project-status` or the dashboard Home page for the current local count.
 - Price, momentum, liquidity, and correlation coverage can improve through capped local refresh/import workflows.
 - Fundamentals and DCF coverage remain limited to trusted local/SEC-backed rows.
 - Peer readiness remains intentionally sparse until source-backed peer mappings and peer inputs are imported.
@@ -498,11 +498,11 @@ Reason: the blocker is not the lack of indicators. The blocker is missing truste
 
 Goal: turn the public project into a usable research workflow while the data universe grows through safe, reviewable proof steps.
 
-This stage should improve breadth without pretending the whole 3,538-ticker universe is analysis-ready. It should favor capped refreshes, preview-first imports, source readiness visibility, and plain-English next actions.
+This stage should improve breadth without pretending the whole tracked universe is analysis-ready. It should favor capped refreshes, preview-first imports, source readiness visibility, and plain-English next actions.
 
 | Workstream | Next product step | Safe command path | Completion signal |
 | --- | --- | --- | --- |
-| Scalable price refresh | Separate complete price coverage from short-history blockers, then use capped batches only after review; `PROVIDER=auto` should use Yahoo, Stooq, and configured FMP/Alpha Vantage/Finnhub fallbacks without manual provider hopping. | `make price-history-proof-queue TOP_N=10`, `make focus-price TICKER=...`, then `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto`, then `make readiness-snapshot`, then capped `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30` only if reviewed, then `make diff-hygiene`. | Price-ready coverage stays honest while short-history momentum/track-record blockers move only from source-backed rows. |
+| Scalable price refresh | Separate complete price coverage from short-history blockers, then use capped batches only after review; `PROVIDER=auto` should use Stooq, Yahoo, optional IBKR read-only if explicitly configured, and configured FMP/Alpha Vantage/Finnhub fallbacks without manual provider hopping. | `make price-history-proof-queue TOP_N=10`, `make focus-price TICKER=...`, then `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto`, then `make readiness-snapshot`, then capped `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30` only if reviewed, then `make diff-hygiene`. | Price-ready coverage stays honest while short-history momentum/track-record blockers move only from source-backed rows. |
 | Trusted fundamentals | Use the session-aware fundamentals source ladder, then trusted local imports when no configured source path is available. | `make session-source-preflight`, `make fundamentals-source-ladder-queue TOP_N=25`, `make focus-fundamentals TICKER=...`, then `make imports-validate IMPORT_TICKERS=...` and `make imports-preview IMPORT_TICKERS=...`; apply only after source-backed scope review, intended preview scope, and zero rejected rows. | `fundamentals_ready` and `dcf_ready` improve only from trusted rows; SEC/Yahoo failures pivot to configured FMP, Alpha Vantage, or Finnhub instead of stopping the workflow. |
 | Source-backed peers | Prioritize active-universe and DCF-ready peer blockers before broad peer work. | `make peer-mapping-queue TOP_N=25`, `make focus-peers TICKER=...`, `make templates`, then `make imports-validate IMPORT_TICKERS=...` and `make imports-preview IMPORT_TICKERS=...`; apply only after reviewed peer scope, intended preview scope, and zero rejected rows. | Peer trend and peer valuation states are separated; peer valuation appears only when trusted peer inputs pass readiness. |
 | Optional context | Keep earnings and analyst estimates locked until trusted local or reviewed provider-assisted rows exist. | `make optional-context-worklist TOP_N=25`, `make optional-context-source-ladder-queue TOP_N=10`, `make import-earnings`, `make import-analyst-estimates`, then `make imports-validate IMPORT_TICKERS=...` and `make imports-preview IMPORT_TICKERS=...`; apply only after reviewed optional-context scope, intended preview scope, and zero rejected rows. | Empty optional context reads as intentionally locked, not broken or inferred. |
@@ -513,7 +513,7 @@ Public-share rules for this stage:
 
 - Keep the README demo path and sample reports short enough for GitHub/LinkedIn visitors.
 - Keep dashboard pages plain-language first, with commands and file paths behind focused help or tables.
-- Keep the sidebar focused on the three main visitor paths, with `More pages` still reachable for deeper local review.
+- Keep the sidebar focused on the five-page public workflow, with operator evidence reachable only after the public answer is clear.
 - Do not publish broad generated CSV churn unless it is the reviewed artifact for that release.
 - Do not add workflows that run imports, refreshes, account actions, direct recommendations, fabricated data, or valuation labels without ready inputs.
 
@@ -521,7 +521,7 @@ Public-share rules for this stage:
 
 The next roadmap milestone is complete when:
 
-- [x] The product page clearly separates the 3,538-ticker master universe, 12-ticker active universe, and analysis-ready subset through the top-level Universe Layers cards and table.
+- [x] The product page clearly separates the tracked master universe, active universe, and analysis-ready subset through the top-level Universe Layers cards and table.
 - [x] The product page includes a grouped next-action console with safe capped or ticker-targeted commands.
 - [x] Next-action rows include source readiness context and clearly state that dashboard commands are copyable only.
 - [x] `SEC_USER_AGENT` is detected locally, and manual fundamentals imports validate/preview through the trusted CSV workflow.
@@ -533,7 +533,7 @@ The next roadmap milestone is complete when:
 - [x] `ARKF` and risk warnings are resolved or clearly classified.
 - [x] Single-stock research mode can generate a data-honest report.
 - [x] Single-stock reports distinguish clean peer readiness from peer readiness with missing valuation-metric caveats.
-- [x] Dashboard navigation defaults to public visitor paths while preserving `More pages` and deep links.
+- [x] Dashboard navigation defaults to the public five-page workflow while preserving deep links.
 - [x] Public data-strategy docs explain what can be automated and what still requires trusted source judgment.
 - [x] `make pipeline` passes in the latest full data-output verification run.
 - [x] `make onboarding` passes in the latest full data-output verification run.
