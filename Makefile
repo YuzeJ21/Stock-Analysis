@@ -814,8 +814,7 @@ focus-peers:
 ifndef TICKER
 	$(error TICKER is required, for example: make focus-peers TICKER=NVDA)
 endif
-	python3 -m src.data_onboarding --command-bundle-details --lane peers --tickers $(TICKER)
-	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --tickers $(TICKER)
+	python3 -m src.data_onboarding --peer-mapping-queue --top-n 1 --tickers $(TICKER)
 
 onboarding:
 	python3 -m src.manual_price_import --coverage-only --top-n $(or $(TOP_N),20)

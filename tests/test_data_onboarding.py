@@ -1210,6 +1210,17 @@ def test_peer_mapping_queue_text_counts_excluded_monitor_rows_separately(tmp_pat
     assert "1 excluded/not-applicable row(s)" in output
 
 
+def test_peer_mapping_queue_empty_scope_does_not_self_loop(tmp_path: Path, capsys):
+    data_onboarding._print_peer_mapping_queue({"peer_mapping_queue": []})
+    output = capsys.readouterr().out.lower()
+
+    assert "0 total row(s)" in output
+    assert "no peer mapping rows are queued for the selected scope" in output
+    assert "make provider-setup-checklist" in output
+    assert "wait for new source-backed peer rows" in output
+    assert "use make focus-peers ticker=..." not in output
+
+
 def test_peer_mapping_queue_does_not_treat_unclassified_context_as_candidate_peers(tmp_path: Path):
     _write_fixture(tmp_path)
     with (tmp_path / "data" / "universe.csv").open("a", encoding="utf-8") as handle:

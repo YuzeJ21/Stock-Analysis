@@ -3451,10 +3451,17 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         "Boundary: peer trend can be reviewed from mapped peer price history when ready; "
         "peer valuation needs source-backed mappings plus trusted peer fundamentals or market metrics."
     )
-    print(
-        "Proof path: use make focus-peers TICKER=... or fill data/imports/peers.csv, "
-        "then validate, preview, apply, and rerun readiness."
-    )
+    if not rows:
+        print(
+            "Proof path: no peer mapping rows are queued for the selected scope. "
+            "If project-status says source-proof queues are exhausted, use make provider-setup-checklist "
+            "or wait for new source-backed peer rows before repeating peer proof commands."
+        )
+    else:
+        print(
+            "Proof path: use make focus-peers TICKER=... or fill data/imports/peers.csv, "
+            "then validate, preview, apply, and rerun readiness."
+        )
     for row in _limited_rows(rows, top_n=top_n, default=30):
         print(
             f"- P{row['priority']} {row['ticker']}: "
