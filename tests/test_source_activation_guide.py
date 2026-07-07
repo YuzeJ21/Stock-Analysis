@@ -451,17 +451,17 @@ def test_provider_setup_checklist_includes_current_gate_without_fetching_sources
             "status": "not_required",
             "reason_code": "workflow_evidence_only",
             "detail": "Sources are reachable, but current blockers already have reviewed non-actionable proof.",
-            "next_action": "Use project-status or provider setup evidence until new data appears.",
+            "next_action": "Use provider setup evidence after project-status confirms source-proof queues are exhausted.",
         },
         "source_activation_console_v2": {
             "next_executable_lane": "coverage_workflow_evidence",
-            "next_executable_command": "make project-status",
+            "next_executable_command": "make provider-setup-checklist",
             "operator_summary": {
                 "can_run_now": ["coverage_workflow_evidence"],
                 "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
                 "avoid_repeating": ["fundamentals_share_count_source_ladder"],
-                "next_step": "make project-status",
-                "next_step_reason": "Wait for new provider data before repeating the source ladder.",
+                "next_step": "make provider-setup-checklist",
+                "next_step_reason": "Review provider setup before repeating the source ladder.",
             },
         },
     }
@@ -473,11 +473,11 @@ def test_provider_setup_checklist_includes_current_gate_without_fetching_sources
         "can_run_now": "coverage_workflow_evidence",
         "needs_setup": "fmp, alpha_vantage, finnhub",
         "avoid_repeating": "fundamentals_share_count_source_ladder",
-        "next_step": "make project-status",
-        "next_step_reason": "Wait for new provider data before repeating the source ladder.",
+        "next_step": "make provider-setup-checklist",
+        "next_step_reason": "Review provider setup before repeating the source ladder.",
         "source_activation_reason": "workflow_evidence_only",
         "source_activation_detail": "Sources are reachable, but current blockers already have reviewed non-actionable proof.",
-        "source_activation_next_action": "Use project-status or provider setup evidence until new data appears.",
+        "source_activation_next_action": "Use provider setup evidence after project-status confirms source-proof queues are exhausted.",
     }
     assert "Current source gate:" in rendered
     assert "source_activation_reason: workflow evidence only" in rendered
@@ -486,5 +486,5 @@ def test_provider_setup_checklist_includes_current_gate_without_fetching_sources
     assert "can_run_now: workflow evidence only; current source-proof queues are exhausted" in rendered
     assert "needs_setup: fmp, alpha_vantage, finnhub" in rendered
     assert "avoid_repeating: fundamentals/share-count source ladder" in rendered
-    assert "next_step: make project-status" in rendered
+    assert "next_step: make provider-setup-checklist" in rendered
     assert "secret-fmp-key" not in json.dumps(checklist)

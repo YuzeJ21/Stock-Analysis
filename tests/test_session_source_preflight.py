@@ -610,17 +610,17 @@ def test_session_source_preflight_distinguishes_reachable_sources_from_actionabl
         "do not treat source reachability as a coverage unlock."
     )
     assert preflight["source_activation"]["next_action"] == (
-        "Use make project-status or provider setup evidence until new provider data, keyed sources, reviewed manual rows, "
+        "Use make provider-setup-checklist after project-status confirms source-proof queues are exhausted; wait for new provider data, keyed sources, reviewed manual rows, "
         "or changed blockers create an executable source-backed slice."
     )
     assert preflight["source_activation_console_v2"]["next_executable_lane"] == "coverage_workflow_evidence"
-    assert preflight["source_activation_console_v2"]["next_executable_command"] == "make project-status"
+    assert preflight["source_activation_console_v2"]["next_executable_command"] == "make provider-setup-checklist"
     assert preflight["source_activation_console_v2"]["operator_summary"] == {
         "can_run_now": ["coverage_workflow_evidence"],
         "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
         "avoid_repeating": ["fundamentals_share_count_source_ladder"],
-        "next_step": "make project-status",
-        "next_step_reason": "Current fundamentals/share-count blockers already have reviewed non-actionable proof; wait for new source data or improve workflow evidence.",
+        "next_step": "make provider-setup-checklist",
+        "next_step_reason": "Current fundamentals/share-count blockers already have reviewed non-actionable proof; review provider setup before repeating source ladders.",
     }
     assert "source_actionability:" in rendered
     assert "unreviewed_fundamentals_share_count_candidates: 0" in rendered

@@ -490,7 +490,7 @@ def build_source_activation_status(
                 "do not treat source reachability as a coverage unlock."
             ),
             next_action=(
-                "Use make project-status or provider setup evidence until new provider data, keyed sources, reviewed manual rows, "
+                "Use make provider-setup-checklist after project-status confirms source-proof queues are exhausted; wait for new provider data, keyed sources, reviewed manual rows, "
                 "or changed blockers create an executable source-backed slice."
             ),
             activation_commands=(),
@@ -889,14 +889,14 @@ def build_source_activation_console_v2(
     next_executable_command = "make coverage-frontier TOP_N=10"
     if source_actionability and source_actionability.get("do_not_repeat_without_new_source"):
         next_executable_lane = "coverage_workflow_evidence"
-        next_executable_command = "make project-status"
+        next_executable_command = "make provider-setup-checklist"
     avoid_repeating = list(do_not_retry_paths)
     next_step_reason = "Use the next executable lane; unavailable source paths are recorded for this session."
     if source_actionability and source_actionability.get("do_not_repeat_without_new_source"):
         avoid_repeating = ["fundamentals_share_count_source_ladder"]
         next_step_reason = (
             "Current fundamentals/share-count blockers already have reviewed non-actionable proof; "
-            "wait for new source data or improve workflow evidence."
+            "review provider setup before repeating source ladders."
         )
 
     return {
