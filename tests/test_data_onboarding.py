@@ -867,14 +867,19 @@ def test_data_onboarding_cli_optional_context_worklist_text_surfaces_unlock_summ
     assert "project: current repository root" in output
     assert "data: data" in output
     assert "outputs: outputs" in output
-    assert "proof path: make templates -> make import-earnings or make import-analyst-estimates" in output
+    assert "proof path: make optional-context-source-ladder-queue top_n=10" in output
+    assert "make optional-context-source-ladder tickers=<ticker>" in output
     assert (
-        "make imports-validate import_tickers=<ticker> -> make imports-preview import_tickers=<ticker> -> "
-        "make imports-apply import_tickers=<ticker> -> make optional-context-readiness"
+        "make imports-validate import_tickers=<ticker> import_files=earnings.csv,analyst_estimates.csv -> "
+        "make imports-preview import_tickers=<ticker> import_files=earnings.csv,analyst_estimates.csv -> "
+        "make optional-context-readiness"
         in output
     )
-    assert "data/staged/earnings/" in output
-    assert "data/staged/analyst_estimates/" in output
+    assert "apply only reviewed supported rows" in output
+    assert "keep candidate-context-only rows locked" in output
+    assert "template fallback:" in output
+    assert "data/imports/earnings.csv" in output
+    assert "data/imports/analyst_estimates.csv" in output
     assert "data/earnings_import_rejected.csv" in output
     assert "data/analyst_estimates_import_rejected.csv" in output
     assert "earnings locked" in output

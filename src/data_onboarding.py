@@ -3375,12 +3375,15 @@ def _print_optional_context_worklist(payload: dict[str, Any], *, top_n: int | No
         "missing rows should stay locked rather than inferred from price, DCF, peer, or sector data."
     )
     print(
-        "Proof path: make templates -> make import-earnings or make import-analyst-estimates -> "
-        "make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> "
-        "make imports-apply IMPORT_TICKERS=<ticker> -> make optional-context-readiness."
+        "Proof path: make optional-context-source-ladder-queue TOP_N=10 -> "
+        "make optional-context-source-ladder TICKERS=<ticker> -> "
+        "make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=earnings.csv,analyst_estimates.csv -> "
+        "make imports-preview IMPORT_TICKERS=<ticker> IMPORT_FILES=earnings.csv,analyst_estimates.csv -> "
+        "make optional-context-readiness. Apply only reviewed supported rows; keep candidate-context-only rows locked."
     )
     print(
-        "Local folders to use: data/staged/earnings/ and data/staged/analyst_estimates/. "
+        "Template fallback: use make templates and data/imports/earnings.csv or "
+        "data/imports/analyst_estimates.csv only when trusted provider/manual rows are unavailable. "
         "Rejected rows: data/earnings_import_rejected.csv and data/analyst_estimates_import_rejected.csv."
     )
     for row in _limited_rows(rows, top_n=top_n, default=30):
