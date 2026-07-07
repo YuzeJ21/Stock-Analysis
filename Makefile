@@ -808,8 +808,7 @@ focus-fundamentals:
 ifndef TICKER
 	$(error TICKER is required, for example: make focus-fundamentals TICKER=NVDA)
 endif
-	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --tickers $(TICKER)
-	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --tickers $(TICKER)
+	python3 -m src.dcf_input_proof_queue --top-n 1 --tickers $(TICKER)
 
 focus-peers:
 ifndef TICKER

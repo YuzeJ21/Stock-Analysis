@@ -2306,6 +2306,12 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     focus_price_block = makefile[makefile.index("focus-price:"):makefile.index("focus-fundamentals:")]
     assert "--command-bundle-details --lane prices" not in focus_price_block
     assert "--command-bundle-runbook --lane prices" not in focus_price_block
+    focus_fundamentals_block = makefile[
+        makefile.index("focus-fundamentals:"):makefile.index("focus-peers:")
+    ]
+    assert "python3 -m src.dcf_input_proof_queue --top-n 1 --tickers $(TICKER)" in focus_fundamentals_block
+    assert "--command-bundle-details --lane fundamentals" not in focus_fundamentals_block
+    assert "--command-bundle-runbook --lane fundamentals" not in focus_fundamentals_block
     assert "price-worklist:\n\tpython3 -m src.data_onboarding --price-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "fundamentals-peer-worklist:\n\tpython3 -m src.data_onboarding --fundamentals-peer-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "optional-context-worklist:\n\tpython3 -m src.data_onboarding --optional-context-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
