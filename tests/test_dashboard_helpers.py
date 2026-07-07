@@ -19984,7 +19984,8 @@ def test_data_health_coverage_summary_includes_cached_source_activation_context(
     assert "sec, sec_submissions, yfinance_stage, stooq" in source_row["supporting_coverage"]
     assert "fmp, alpha_vantage, finnhub" in source_row["blocked_or_limited"]
     assert "ibkr disabled unless explicitly configured" in source_row["why_blocked_or_limited"].lower()
-    assert "export FMP_API_KEY='<key>'" in source_row["proof_to_unlock"]
+    assert "Configure FMP_API_KEY locally" in source_row["proof_to_unlock"]
+    assert "one-ticker validate/preview smoke before any apply" in source_row["proof_to_unlock"]
     assert "last tried: sec=ok" in source_row["stop_rule"].lower()
     assert "do not retry this session: fmp" in source_row["stop_rule"].lower()
     assert "free-tier limits: fmp<=250/day and <=25/run" in source_row["stop_rule"].lower()
@@ -19998,7 +19999,7 @@ def test_data_health_coverage_summary_includes_cached_source_activation_context(
     assert "optional read-only broker path stays disabled unless explicitly configured" in rendered_source_row
     assert "validate/preview/apply" in rendered_source_row
     assert "cached session source preflight" in rendered
-    assert "export fmp_api_key='<key>'" in source_row["proof_to_unlock"].lower()
+    assert "configure fmp_api_key locally" in source_row["proof_to_unlock"].lower()
     assert "free-tier limits" in source_row["stop_rule"].lower()
     assert "do not retry this session: fmp" in source_row["stop_rule"].lower()
     assert "buy" not in rendered
@@ -20084,12 +20085,13 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
     function_index = source.index("def render_data_health(")
     provider_none_index = source.index("if provider is None:", function_index)
     placeholder_index = source.index("public_loading_placeholder = st.empty()", provider_none_index)
-    placeholder_copy_index = source.index('"Preparing Selected Lane Answer / Coverage Summary"', placeholder_index)
+    placeholder_copy_index = source.index('"Loading the lane answer / coverage summary"', placeholder_index)
+    placeholder_answer_index = source.index("The page opens with one lane answer", placeholder_copy_index)
     placeholder_contract_index = source.index(
-        "raw tables, route maps, queues, and proof ledgers stay hidden",
-        placeholder_copy_index,
+        "Raw tables, route maps, queues, proof ledgers, and commands stay closed",
+        placeholder_answer_index,
     )
-    placeholder_stop_index = source.index("no commands run and no data is unlocked here", placeholder_contract_index)
+    placeholder_stop_index = source.index("tone=\"success\"", placeholder_contract_index)
     validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", placeholder_index)
     clear_placeholder_index = source.index("public_loading_placeholder.empty()", validation_load_index)
     coverage_summary_index = source.index(
@@ -25470,6 +25472,62 @@ def test_single_stock_one_answer_frame_hides_commands_and_routes_one_next_action
     assert "sell" not in rendered
 
 
+def test_single_stock_public_answer_cards_make_one_answer_mobile_safe():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Use Now": "Standalone DCF assumptions and source readiness can be reviewed.",
+                "Still Blocked": "Peer-relative valuation remains locked.",
+                "Context Only": "Optional context is not a recommendation.",
+                "Next Safe Action": "Open Data Health peer lane.",
+                "Review Boundary": "Stop if peer proof is missing.",
+            }
+        ]
+    )
+
+    cards = dashboard.single_stock_public_answer_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["USE NOW", "BLOCKED / CONTEXT", "NEXT STEP"]
+    assert "nvda: supported sections" in rendered
+    assert "peer-relative valuation remains locked" in rendered
+    assert "open data health peer lane" in rendered
+    assert "stop if peer proof is missing" in rendered
+    assert "make " not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_public_answer_cards_hide_report_answer_table_commands():
+    frame = pd.DataFrame(
+        [
+            {
+                "Question": "What can I read now?",
+                "Answer": "Standalone DCF review.",
+                "Next Safe Action": "make focus-peers TICKER=MU",
+            }
+        ]
+    )
+
+    cards = dashboard.stock_report_public_answer_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["REPORT ANSWER"]
+    assert "what can i read now" in rendered
+    assert "standalone dcf review" in rendered
+    assert "open the matching evidence drawer" in rendered
+    assert "make " not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_single_stock_data_health_handoff_cards_connect_report_to_lane_route():
     snapshot = {
         "ticker": "MU",
@@ -28244,9 +28302,9 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     bootstrap_chunk = source[bootstrap_function_index:end_index]
     assert "public_workflow_header_html" not in bootstrap_chunk
     assert bootstrap_function_index < loading_note_index
-    assert "Preparing Selected Lane Answer / Coverage Summary" in source
-    assert "Use now: wait for one lane answer" in source
-    assert "Stop: no commands run and no data is unlocked here" in source
+    assert "Loading the lane answer / coverage summary" in source
+    assert "The page opens with one lane answer" in source
+    assert "Raw proof, queues, route maps, and commands stay closed" in source
 
 
 def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy():
@@ -28257,12 +28315,13 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
 
     assert 'mode != PUBLIC_DEMO_MODE' in chunk
     assert 'selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
-    assert "Home is preparing the readiness answer" in chunk
-    assert "wait for the start path and first 30-second answer" in chunk
-    assert "Stock Selector is preparing readiness filters" in chunk
-    assert "Preparing Selected Lane Answer / Coverage Summary" in chunk
-    assert "raw proof, queues, and route maps stay hidden" in chunk
-    assert "Proof History is preparing evidence cards" in chunk
+    assert "Loading the public start answer" in chunk
+    assert "where to start, and the research-only stop rule" in chunk
+    assert "Loading readiness-backed ticker choices" in chunk
+    assert "Loading the lane answer / coverage summary" in chunk
+    assert "Raw proof, queues, route maps, and commands stay closed" in chunk
+    assert "Proof History is preparing evidence cards" not in chunk
+    assert "Loading evidence cards" in chunk
     assert "public workflow is loading" not in chunk
 
 
@@ -28287,12 +28346,12 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     render_index = source.index("def render_single_stock_report(")
 
     section_index = source.index('"One-Stock Review"', render_index)
-    placeholder_index = source.index('"Preparing SELECTED TICKER answer."', section_index)
+    placeholder_index = source.index('"Loading the selected-ticker answer."', section_index)
     placeholder_contract_index = source.index(
-        "Use now: the selected ticker state loads first",
+        "The page opens with selected ticker state",
         placeholder_index,
     )
-    placeholder_stop_index = source.index("do not treat partial, candidate-only, or preparing sections as conclusions", placeholder_index)
+    placeholder_stop_index = source.index("do not treat loading, partial, candidate-only, or locked sections as conclusions", placeholder_index)
     provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
     report_button_index = source.index('st.button("Open Review"', contract_cards_index)
@@ -28578,6 +28637,10 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     readable_now_index = source.index('"What Can Be Read Now"', review_intro_index)
     one_answer_index = source.index("single_stock_one_answer_frame(report_one_answer_snapshot)", readable_now_index)
     first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", one_answer_index)
+    public_cards_index = source.index("single_stock_public_answer_cards(single_answer_frame)", first_answer_index)
+    report_cards_index = source.index("stock_report_public_answer_cards(report_answer_frame)", public_cards_index)
+    advanced_tables_index = source.index('st.expander("Advanced: answer tables", expanded=False)', report_cards_index)
+    advanced_dataframe_index = source.index("st.dataframe(clean_display_frame(single_answer_frame)", advanced_tables_index)
     at_a_glance_index = source.index("stock_report_at_a_glance_cards(", first_answer_index)
     advanced_detail_index = source.index(
         'st.expander("Advanced: detailed report sections", expanded=False)',
@@ -28591,6 +28654,10 @@ def test_single_stock_public_page_uses_simplified_review_sections():
         < readable_now_index
         < one_answer_index
         < first_answer_index
+        < public_cards_index
+        < report_cards_index
+        < advanced_tables_index
+        < advanced_dataframe_index
         < at_a_glance_index
         < advanced_detail_index
         < detail_index

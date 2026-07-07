@@ -5374,6 +5374,70 @@ def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool =
     )
 
 
+def public_safe_next_action_text(value: object) -> str:
+    text = format_missing(value, "Open Data Health only if a field is blocked.")
+    text = re.sub(
+        r"\bmake\s+[A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_./=-]+)*",
+        "open the matching evidence drawer",
+        text,
+    )
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
+def single_stock_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
+    """Convert the one-row single-stock answer table into mobile-safe public cards."""
+
+    if frame is None or frame.empty:
+        return []
+    row = frame.iloc[0].to_dict()
+    ticker = format_missing(row.get("Ticker"), "Selected ticker")
+    blocked = format_missing(row.get("Still Blocked"), "No blocker reported.")
+    context = format_missing(row.get("Context Only"), "No context-only note reported.")
+    next_action = public_safe_next_action_text(row.get("Next Safe Action"))
+    boundary = format_missing(row.get("Review Boundary"), "Keep the review research-only.")
+    return [
+        {
+            "kicker": "USE NOW",
+            "title": f"{ticker}: supported sections",
+            "body": format_missing(row.get("Use Now"), "No supported section is available yet."),
+            "badges": ["read first", "readiness-gated"],
+        },
+        {
+            "kicker": "BLOCKED / CONTEXT",
+            "title": "What stays withheld",
+            "body": f"Blocked: {blocked} Context only: {context}",
+            "badges": ["blocked visible", "no inference"],
+        },
+        {
+            "kicker": "NEXT STEP",
+            "title": "Where to go next",
+            "body": f"Next: {next_action} Boundary: {boundary}",
+            "badges": ["one next action", "research-only"],
+        },
+    ]
+
+
+def stock_report_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
+    """Convert loaded-report answer rows into responsive cards for public mode."""
+
+    if frame is None or frame.empty:
+        return []
+    cards: list[dict[str, object]] = []
+    for row in frame.to_dict("records"):
+        question = format_missing(row.get("Question"), "Review question")
+        answer = format_missing(row.get("Answer"), "No answer available.")
+        next_action = public_safe_next_action_text(row.get("Next Safe Action"))
+        cards.append(
+            {
+                "kicker": "REPORT ANSWER",
+                "title": question,
+                "body": f"{answer} Next: {next_action}",
+                "badges": ["plain answer", "advanced table hidden"],
+            }
+        )
+    return cards
+
+
 def render_operator_queue_preview(cards: list[dict[str, object]], *, limit: int = 4) -> None:
     render_signal_cards(cards[: max(limit, 0)], show_commands=False, variant="queue")
 
@@ -5745,28 +5809,28 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
     if selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return None
     if selected_page == "Home":
-        title = "Home is preparing the readiness answer."
+        title = "Loading the public start answer."
         body = (
-            "Use now: wait for the start path and first 30-second answer. Blocked: no analysis appears until "
-            "source-backed readiness supports it. Next: start with Stock Selector when the page finishes preparing."
+            "The page opens with what this product is, where to start, and the research-only stop rule. "
+            "No analysis appears until source-backed readiness supports it. Next: start with Stock Selector."
         )
     elif selected_page == STOCK_SELECTOR_PATH_TITLE:
-        title = "Stock Selector is preparing readiness filters."
+        title = "Loading readiness-backed ticker choices."
         body = (
             "No recommendations run here. The page is reading saved readiness rows so you can choose one "
             "reviewable ticker before opening a single-stock report."
         )
     elif selected_page == PROOF_HISTORY_PATH_TITLE:
-        title = "Proof History is preparing evidence cards."
+        title = "Loading evidence cards."
         body = (
             "No data refresh runs here. The page is reading reviewed proof rows so it can show the latest "
             "outcome before raw ledgers or advanced evidence details."
         )
     else:
-        title = "Preparing Selected Lane Answer / Coverage Summary"
+        title = "Loading the lane answer / coverage summary"
         body = (
-            "Use now: wait for one lane answer. Blocked: raw proof, queues, and route maps stay hidden. "
-            "Next: open proof only if evidence changed. Stop: no commands run and no data is unlocked here."
+            "The page opens with one lane answer: usable now, context only, blocked, skipped or excluded, "
+            "and the next proof boundary. Raw proof, queues, route maps, and commands stay closed."
         )
     placeholder = st.empty()
     with placeholder.container():
@@ -9171,9 +9235,13 @@ def _source_activation_summary_row(console: dict[str, object]) -> dict[str, obje
     if not isinstance(setup_commands, dict):
         setup_commands = {}
     first_setup_key = keyed_missing[0] if keyed_missing else ""
-    next_setup_command = str(setup_commands.get(first_setup_key, "")).strip() if first_setup_key else ""
-    if not next_setup_command:
-        next_setup_command = str(setup_commands.get("provider_env_file", "")).strip()
+    next_setup_key = first_setup_key or ("provider_env_file" if setup_commands.get("provider_env_file") else "")
+    next_setup_env = {
+        "fmp": "FMP_API_KEY",
+        "alpha_vantage": "ALPHA_VANTAGE_API_KEY",
+        "finnhub": "FINNHUB_API_KEY",
+        "stooq": "STOOQ_API_KEY",
+    }.get(next_setup_key, next_setup_key.upper())
     source_path_last_tried = console.get("source_path_last_tried", {})
     if isinstance(source_path_last_tried, dict):
         last_tried_items = [
@@ -9216,8 +9284,8 @@ def _source_activation_summary_row(console: dict[str, object]) -> dict[str, obje
             else "Broker sources remain optional and disabled unless explicitly configured."
         ),
         "proof_to_unlock": (
-            f"Next setup: {next_setup_command}"
-            if next_setup_command
+            f"Configure {next_setup_env} locally, then rerun source preflight and one-ticker validate/preview smoke before any apply."
+            if next_setup_key and next_setup_key != "provider_env_file"
             else "Refresh cached session source preflight, then use validate/preview/apply gates for any source-backed rows."
         ),
         "stop_rule": (
@@ -27381,10 +27449,10 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Preparing SELECTED TICKER answer.",
-                "Use now: the selected ticker state loads first. Blocked: locked inputs stay withheld. "
-                "Next: read supported sections, then open Data Health only for blocked proof. "
-                "Stop: do not treat partial, candidate-only, or preparing sections as conclusions.",
+                "Loading the selected-ticker answer.",
+                "The page opens with selected ticker state, usable sections, blocked inputs, and one next step. "
+                "Advanced evidence stays closed while the saved review evidence loads. "
+                "Stop: do not treat loading, partial, candidate-only, or locked sections as conclusions.",
                 tone="success",
             )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -27557,8 +27625,17 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             report_readiness.get("analyst_estimates_available") or report_readiness.get("analyst_estimates_ready")
         ),
     }
-    st.table(clean_display_frame(single_stock_one_answer_frame(report_one_answer_snapshot)))
-    st.table(clean_display_frame(stock_report_first_answer_frame(report_payload)))
+    single_answer_frame = single_stock_one_answer_frame(report_one_answer_snapshot)
+    report_answer_frame = stock_report_first_answer_frame(report_payload)
+    if public_mode:
+        render_signal_cards(single_stock_public_answer_cards(single_answer_frame), show_commands=False, variant="queue")
+        render_signal_cards(stock_report_public_answer_cards(report_answer_frame), show_commands=False, variant="queue")
+        with st.expander("Advanced: answer tables", expanded=False):
+            st.dataframe(clean_display_frame(single_answer_frame), width="stretch", hide_index=True)
+            st.dataframe(clean_display_frame(report_answer_frame), width="stretch", hide_index=True)
+    else:
+        st.table(clean_display_frame(single_answer_frame))
+        st.table(clean_display_frame(report_answer_frame))
     at_a_glance_cards = stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None)
     render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
     render_signal_cards(
@@ -28494,9 +28571,9 @@ def render_data_health(
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Preparing Selected Lane Answer / Coverage Summary",
-                "Use now: wait for one lane answer. Blocked: raw tables, route maps, queues, and proof ledgers stay hidden. "
-                "Next: inspect proof only when evidence changed. Stop: no commands run and no data is unlocked here.",
+                "Loading the lane answer / coverage summary",
+                "The page opens with one lane answer: usable now, context only, blocked, skipped or excluded, "
+                "and the next proof boundary. Raw tables, route maps, queues, proof ledgers, and commands stay closed.",
                 tone="success",
             )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
