@@ -802,6 +802,7 @@ focus-price:
 ifndef TICKER
 	$(error TICKER is required, for example: make focus-price TICKER=AMD)
 endif
+	python3 -m src.price_history_proof_queue --top-n 1 --tickers $(TICKER)
 	python3 -m src.data_onboarding --command-bundle-details --lane prices --tickers $(TICKER)
 	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --tickers $(TICKER)
 
