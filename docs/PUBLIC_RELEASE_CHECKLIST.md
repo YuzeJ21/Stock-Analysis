@@ -33,10 +33,10 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
 - Use `docs/assets/linkedin-public-dashboard.png` as the LinkedIn Featured thumbnail unless you intentionally want an operator-mode screenshot; treat image counts as illustrative and use `make status-check TOP_N=5` for current local counts.
-- Run `make browser-qa-evidence` before sharing or replacing public screenshots. It shows the current public-share image recommendation, committed asset checks, pending real-app captures, route expectations, and capture boundaries without refreshing data or writing reports.
+- Run `make browser-qa-evidence` before sharing or replacing public screenshots. It shows the current public-share image recommendation, committed asset checks, current real-app capture status, route expectations, and capture boundaries without refreshing data or writing reports.
 - Run `make linkedin-share-check` for the final LinkedIn Featured-card checklist. It is read-only: it does not open LinkedIn, upload files, edit your profile, refresh data, stage files, commit, or push.
 - Run `make browser-qa-capture-plan` only when you need the real-screenshot capture sequence for replacing GitHub or LinkedIn visuals.
-- Confirm pending screenshot captures stay labeled as manual capture work; do not use generated thumbnails, GitHub cards, or screenshots with tracebacks as proof of product workflow.
+- Confirm any future pending screenshot captures stay labeled as manual capture work; do not use generated thumbnails, GitHub cards, or screenshots with tracebacks as proof of product workflow.
 - Keep `docs/METHODOLOGY.md` linked from the README so visitors can see the readiness gates, DCF formula path, peer boundaries, and report-explanation rules.
 - Confirm sample stock reports include the visitor scan cue, `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Proof Commands` sections before sharing.
 - Review `docs/DIFF_HYGIENE_AUDIT.md` before staging so broad local CSV churn stays out of the public branch.
