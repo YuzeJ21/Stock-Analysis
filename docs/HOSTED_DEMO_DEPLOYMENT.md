@@ -9,6 +9,14 @@ Use this only when you want a clickable public app in addition to the GitHub por
 - Screenshots remain product evidence only; a hosted app does not prove data freshness or unlock blocked inputs.
 - The app stays research-only: no investment advice, broker trading, order routing, auto-trading, direct buy/sell instructions, or fabricated data.
 
+For the repo-side readiness check before opening an external hosting account, run:
+
+```bash
+make hosted-demo-readiness
+```
+
+This command is read-only. It checks the root Streamlit entrypoint, runtime dependency manifest, hosted URL boundary, provider-secret boundary, and public verification commands. It does not deploy, open accounts, print secrets, refresh data, stage files, commit, or push.
+
 ## Safe Hosting Boundary
 
 Streamlit Community Cloud or a similar Python app host can run the public dashboard if it can install the `pyproject.toml` dependencies and launch the Streamlit entrypoint used by `make dashboard`.
@@ -49,6 +57,7 @@ Provider setup is not proof. Readiness changes still require source provenance, 
 Run these from the repo before changing LinkedIn or README wording to point at a hosted app:
 
 ```bash
+make hosted-demo-readiness
 make public-check
 make browser-qa-evidence
 make pilot-readiness-check TOP_N=10

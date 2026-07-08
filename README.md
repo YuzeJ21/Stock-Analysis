@@ -38,7 +38,7 @@ Use this table to decide what to do next without reopening exhausted proof loops
 | Stage | Current state | Next safe move |
 | --- | --- | --- |
 | LinkedIn publish | Ready now | Use GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |
-| Hosted Streamlit demo | External account required | Follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |
+| Hosted Streamlit demo | External account required | Run `make hosted-demo-readiness`, then follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |
 | FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |
 | Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |
 | Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |
