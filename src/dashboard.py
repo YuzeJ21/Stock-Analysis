@@ -21173,10 +21173,25 @@ def data_health_selected_lane_answer_cards(
         if isinstance(first_recommendation, dict)
         else ""
     )
+    lane_action_fallbacks = {
+        "prices": "Review price history depth, provider notes, and rebuilt price coverage before relying on changed price context.",
+        "fundamentals": "Review the fundamentals and share-count source gate before opening proof details.",
+        "peers": "Review trusted peer mapping proof before treating candidate peers as supported peer context.",
+        "metrics": "Review current readiness, benchmark history, and metric-family source evidence before interpreting metrics.",
+        "optional": "Review optional-context source rows; date-only or target-price-only rows stay candidate context until supported fields exist.",
+        "proof": "Review proof ledger fields and rebuilt readiness only; proof history does not apply rows or unlock blocked inputs.",
+    }
     next_reason = (
-        compact_public_card_fragment(first_recommendation.get("Reason"), fallback="Review the current source gate before opening proof details.", max_chars=170)
+        compact_public_card_fragment(
+            first_recommendation.get("Reason"),
+            fallback=lane_action_fallbacks.get(
+                selected_lane_key,
+                "Review the current source gate before opening proof details.",
+            ),
+            max_chars=170,
+        )
         if isinstance(first_recommendation, dict)
-        else "Review the current source gate before opening proof details."
+        else lane_action_fallbacks.get(selected_lane_key, "Review the current source gate before opening proof details.")
     )
     lane_gap_dataset_keys = {
         "prices": {"prices", "price_history"},
@@ -21364,9 +21379,17 @@ def data_health_lane_recommendation_row(selected_lane_key: str, rows: object) ->
             str(row.get(column) or "")
             for column in ("Step", "Command", "Reason", "SourceContext", "FreshnessContext")
         ).lower()
+        if (
+            "provider-setup" in haystack
+            or "project-status" in haystack
+            or "source-proof queues" in haystack
+            or "no unreviewed executable" in haystack
+            or "reviewed or exhausted" in haystack
+        ):
+            return row
         if any(term in haystack for term in lane_terms):
             return row
-    return candidates[0]
+    return {}
 
 
 def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, object]]:

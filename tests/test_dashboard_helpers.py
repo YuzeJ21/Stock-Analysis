@@ -26791,6 +26791,46 @@ def test_data_health_selected_lane_answer_cards_use_lane_relevant_project_status
     assert "sell" not in fundamentals_next + peers_next
 
 
+def test_data_health_selected_lane_answer_cards_do_not_reuse_peer_action_for_metrics_or_proof():
+    project_status_payload = {
+        "summary": {
+            "peer_ready": 29,
+            "data_gaps": 207,
+        },
+        "recommended_next_command_rows": [
+            {
+                "Step": "Fix top peers blocker (ARM)",
+                "Command": "make focus-peers TICKER=ARM",
+                "Reason": "No local peer mapping is configured for this ticker.",
+                "SourceContext": "data/imports/peers.csv",
+                "FreshnessContext": "manual_input_needed",
+            }
+        ],
+    }
+
+    metrics_cards = dashboard.data_health_selected_lane_answer_cards(
+        "metrics",
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+        project_status_payload=project_status_payload,
+    )
+    proof_cards = dashboard.data_health_selected_lane_answer_cards(
+        "proof",
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+        project_status_payload=project_status_payload,
+    )
+
+    metrics_next = str(metrics_cards[2]["body"]).lower()
+    proof_next = str(proof_cards[2]["body"]).lower()
+
+    assert "no local peer mapping" not in metrics_next
+    assert "no local peer mapping" not in proof_next
+    assert "metric-family source evidence" in metrics_next
+    assert "proof ledger" in proof_next
+    assert "make " not in metrics_next + proof_next
+    assert "buy" not in metrics_next + proof_next
+    assert "sell" not in metrics_next + proof_next
+
+
 def test_data_health_optional_lane_explains_provider_rows_can_stay_locked():
     cards = dashboard.data_health_selected_lane_answer_cards(
         "optional",
