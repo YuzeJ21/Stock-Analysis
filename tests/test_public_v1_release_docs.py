@@ -119,6 +119,9 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "FINNHUB_API_KEY" in hosted
     assert "Provider setup is not proof." in hosted
     assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in hosted
+    assert "Set the hosted app entrypoint to `dashboard.py`" in hosted
+    assert "The root `dashboard.py` file is a compatibility wrapper around `src.dashboard`" in hosted
+    assert "Keep `make dashboard` as the local verification path" in hosted
     assert "Use the GitHub repository link unless the hosted app exists" in hosted
     assert "stock picks" not in hosted.lower()
     assert "buy/sell" in hosted

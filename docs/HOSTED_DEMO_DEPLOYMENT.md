@@ -13,6 +13,8 @@ Use this only when you want a clickable public app in addition to the GitHub por
 
 Streamlit Community Cloud or a similar Python app host can run the public dashboard if it can install the `pyproject.toml` dependencies and launch the Streamlit entrypoint used by `make dashboard`.
 
+Set the hosted app entrypoint to `dashboard.py`. The root `dashboard.py` file is a compatibility wrapper around `src.dashboard`, which keeps hosted platforms on a simple root-level Streamlit file while local operators keep using the source module directly. Keep `make dashboard` as the local verification path before and after deployment-specific changes.
+
 Before sharing a hosted URL:
 
 1. Confirm the app opens directly to public mode or clearly routes visitors there.
