@@ -20091,7 +20091,7 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
     provider_none_index = source.index("if provider is None:", function_index)
     placeholder_index = source.index("public_loading_placeholder = st.empty()", provider_none_index)
     placeholder_copy_index = source.index('"Loading the lane answer / coverage summary"', placeholder_index)
-    placeholder_answer_index = source.index("The page opens with one lane answer", placeholder_copy_index)
+    placeholder_answer_index = source.index("Real lane cards are still loading", placeholder_copy_index)
     placeholder_contract_index = source.index(
         "Raw tables, route maps, queues, proof ledgers, and commands stay closed",
         placeholder_answer_index,
@@ -28308,7 +28308,8 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     assert "public_workflow_header_html" not in bootstrap_chunk
     assert bootstrap_function_index < loading_note_index
     assert "Loading the lane answer / coverage summary" in source
-    assert "The page opens with one lane answer" in source
+    assert "Wait for the lane cards before opening advanced proof details" in source
+    assert "Real lane cards are still loading" in source
     assert "Raw proof, queues, route maps, and commands stay closed" in source
 
 
@@ -28324,9 +28325,12 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "where to start, and the research-only stop rule" in chunk
     assert "Loading readiness-backed ticker choices" in chunk
     assert "Loading the lane answer / coverage summary" in chunk
+    assert "Wait for the lane cards before opening advanced proof details" in chunk
+    assert "Real lane cards are still loading" in chunk
     assert "Raw proof, queues, route maps, and commands stay closed" in chunk
     assert "Proof History is preparing evidence cards" not in chunk
     assert "Loading evidence cards" in chunk
+    assert "Wait for evidence cards before opening the raw proof ledger" in chunk
     assert "public_loading_preview_html" in chunk
     assert "What appears first" in chunk
     assert "Next safe action" in chunk

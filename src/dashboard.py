@@ -5851,13 +5851,15 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
         title = "Loading evidence cards."
         body = (
             "No data refresh runs here. The page is reading reviewed proof rows so it can show the latest "
-            "outcome before raw ledgers or advanced evidence details."
+            "outcome before raw ledgers or advanced evidence details. "
+            "Wait for evidence cards before opening the raw proof ledger."
         )
     else:
         title = "Loading the lane answer / coverage summary"
         body = (
-            "The page opens with one lane answer: usable now, context only, blocked, skipped or excluded, "
-            "and the next proof boundary. Raw proof, queues, route maps, and commands stay closed."
+            "Real lane cards are still loading. Wait for the lane cards before opening advanced proof details: "
+            "usable now, context only, blocked, skipped or excluded, and the next proof boundary. "
+            "Raw proof, queues, route maps, and commands stay closed."
         )
     placeholder = st.empty()
     with placeholder.container():
@@ -28613,8 +28615,9 @@ def render_data_health(
         with public_loading_placeholder.container():
             render_context_note(
                 "Loading the lane answer / coverage summary",
-                "The page opens with one lane answer: usable now, context only, blocked, skipped or excluded, "
-                "and the next proof boundary. Raw tables, route maps, queues, proof ledgers, and commands stay closed.",
+                "Real lane cards are still loading. Wait for the lane cards before opening advanced proof details: "
+                "usable now, context only, blocked, skipped or excluded, and the next proof boundary. "
+                "Raw tables, route maps, queues, proof ledgers, and commands stay closed.",
                 tone="success",
             )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
