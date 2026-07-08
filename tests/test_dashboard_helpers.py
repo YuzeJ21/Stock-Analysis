@@ -28320,10 +28320,15 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     chunk = source[start_index:end_index]
 
     assert 'mode != PUBLIC_DEMO_MODE' in chunk
-    assert 'selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
+    assert (
+        'selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Single-Stock Report", '
+        '"Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
+    )
     assert "Loading the public start answer" in chunk
     assert "where to start, and the research-only stop rule" in chunk
     assert "Loading readiness-backed ticker choices" in chunk
+    assert "Loading the selected-ticker answer" in chunk
+    assert "selected ticker state, usable sections, blocked inputs, and one next step" in chunk
     assert "Loading the lane answer / coverage summary" in chunk
     assert "Wait for the lane cards before opening advanced proof details" in chunk
     assert "Real lane cards are still loading" in chunk

@@ -5833,7 +5833,7 @@ def header_saved_name_count(final_frame: pd.DataFrame | None, tickers: int) -> i
 def render_public_route_bootstrap(selected_page: str, mode: str):
     if mode != PUBLIC_DEMO_MODE:
         return None
-    if selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Data Health", PROOF_HISTORY_PATH_TITLE}:
+    if selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Single-Stock Report", "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return None
     if selected_page == "Home":
         title = "Loading the public start answer."
@@ -5846,6 +5846,13 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
         body = (
             "No recommendations run here. The page is reading saved readiness rows so you can choose one "
             "reviewable ticker before opening a single-stock report."
+        )
+    elif selected_page == "Single-Stock Report":
+        title = "Loading the selected-ticker answer."
+        body = (
+            "The page opens with selected ticker state, usable sections, blocked inputs, and one next step. "
+            "Advanced evidence stays closed while the saved review evidence loads. "
+            "Stop: do not treat loading, partial, candidate-only, or locked sections as conclusions."
         )
     elif selected_page == PROOF_HISTORY_PATH_TITLE:
         title = "Loading evidence cards."
