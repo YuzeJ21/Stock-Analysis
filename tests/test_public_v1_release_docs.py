@@ -101,6 +101,7 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
 def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     readme = _read("README.md")
     hosted = _read("docs/HOSTED_DEMO_DEPLOYMENT.md")
+    requirements = _read("requirements.txt")
     checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
     walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
     linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
@@ -121,10 +122,17 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in hosted
     assert "Set the hosted app entrypoint to `dashboard.py`" in hosted
     assert "The root `dashboard.py` file is a compatibility wrapper around `src.dashboard`" in hosted
+    assert "Install dependencies from `requirements.txt` or `pyproject.toml`" in hosted
     assert "Keep `make dashboard` as the local verification path" in hosted
     assert "Use the GitHub repository link unless the hosted app exists" in hosted
     assert "stock picks" not in hosted.lower()
     assert "buy/sell" in hosted
+    assert "streamlit>=1.44" in requirements
+    assert "pandas>=2.2" in requirements
+    assert "numpy>=1.26" in requirements
+    assert "PyYAML>=6.0" in requirements
+    assert "yfinance" not in requirements
+    assert "ib-insync" not in requirements
 
 
 def test_public_docs_match_auto_price_ladder_order():

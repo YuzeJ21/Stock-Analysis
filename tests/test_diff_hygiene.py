@@ -42,6 +42,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         ".streamlit/config.toml",
         "README.md",
         "Makefile",
+        "requirements.txt",
         "config/provider_keys.env.example",
         "docs/DIFF_HYGIENE_AUDIT.md",
         "src/dashboard.py",

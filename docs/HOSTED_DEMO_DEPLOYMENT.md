@@ -15,6 +15,8 @@ Streamlit Community Cloud or a similar Python app host can run the public dashbo
 
 Set the hosted app entrypoint to `dashboard.py`. The root `dashboard.py` file is a compatibility wrapper around `src.dashboard`, which keeps hosted platforms on a simple root-level Streamlit file while local operators keep using the source module directly. Keep `make dashboard` as the local verification path before and after deployment-specific changes.
 
+Install dependencies from `requirements.txt` or `pyproject.toml`. The root `requirements.txt` contains only runtime app dependencies; optional research/provider extras and broker-style packages stay out of the hosted baseline unless intentionally configured.
+
 Before sharing a hosted URL:
 
 1. Confirm the app opens directly to public mode or clearly routes visitors there.

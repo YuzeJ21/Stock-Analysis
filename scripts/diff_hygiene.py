@@ -30,6 +30,7 @@ ROOT_PRODUCT_FILES = {
     "READINESS_MODEL.md",
     "DECISION_OUTPUT_MODEL.md",
     "Makefile",
+    "requirements.txt",
     "config.yaml",
     "config/provider_keys.env.example",
     "pyproject.toml",
