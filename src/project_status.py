@@ -503,6 +503,7 @@ def _remaining_public_stage_rows(
     first_setup = _source_operator_first_setup_guidance(source_operator_summary)
     total = int(summary.get("tickers_total") or 0)
     with_prices = int(summary.get("tickers_with_prices") or 0)
+    price_ready = int(summary.get("tickers_price_ready") or with_prices)
     momentum_ready = int(summary.get("tickers_usable_for_momentum") or 0)
     fundamentals_ready = int(summary.get("tickers_fundamentals_ready") or 0)
     dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
@@ -583,7 +584,8 @@ def _remaining_public_stage_rows(
             "Stage": "Coverage depth",
             "State": "ready_with_known_gaps" if price_coverage_complete else "price_gap_remaining",
             "Evidence": (
-                f"Prices {with_prices}/{total}; momentum {momentum_ready}/{total}; fundamentals {fundamentals_ready}/{total}; DCF {dcf_ready}/{total}; peer {peer_ready}/{total}."
+                f"price rows {with_prices}/{total}; setup-ready prices {price_ready}/{total}; momentum {momentum_ready}/{total}; "
+                f"fundamentals {fundamentals_ready}/{total}; DCF {dcf_ready}/{total}; peer {peer_ready}/{total}."
             ),
             "Next Action": "Prioritize provider activation and peer/optional proof; do not rerun broad price coverage unless it regresses.",
             "Completion Gate": "Every lane is ready or truthfully supported, still_blocked, skipped, excluded, or candidate_context_only.",
@@ -700,6 +702,7 @@ def _fast_status_payload_from_outputs(
         "data_gaps": len(gaps),
         "tickers_total": len(readiness),
         "tickers_with_prices": _count_tickers_with_price_rows(data_path, allowed) or readiness_count("price_ready"),
+        "tickers_price_ready": readiness_count("price_ready"),
         "tickers_usable_for_momentum": readiness_count("momentum_ready"),
         "tickers_fundamentals_ready": readiness_count("fundamentals_ready"),
         "tickers_dcf_ready": readiness_count("dcf_ready"),
@@ -1682,6 +1685,7 @@ def build_project_status_payload(
         command_problem_sources = _drop_optional_context_problem_sources(command_problem_sources)
     readiness_fundamentals_ready = None if tickers else _count_readiness_true(data_path, "fundamentals_ready")
     readiness_dcf_ready = None if tickers else _count_readiness_true(data_path, "dcf_ready")
+    readiness_price_ready = None if tickers else _count_readiness_true(data_path, "price_ready")
     purpose_evaluation_rows = [] if tickers else _load_purpose_evaluation_summary(output_path, top_n)
     summary = {
         "data_sources_total": len(sources),
@@ -1691,6 +1695,7 @@ def build_project_status_payload(
         "data_gaps": len(gaps),
         "tickers_total": len(coverage),
         "tickers_with_prices": _count_true(coverage, "has_prices"),
+        "tickers_price_ready": readiness_price_ready if readiness_price_ready is not None else _count_true(coverage, "price_ready"),
         "tickers_usable_for_momentum": _count_true(coverage, "usable_for_momentum"),
         "tickers_fundamentals_ready": (
             readiness_fundamentals_ready
