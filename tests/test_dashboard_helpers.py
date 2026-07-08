@@ -24975,6 +24975,12 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert frame.loc[frame["Dataset"].eq("Earnings"), "First Locked Ticker"].iloc[0] == "NVDA"
     assert frame.loc[frame["Dataset"].eq("Analyst estimates"), "First Locked Ticker"].iloc[0] == "NVDA"
     assert frame.loc[frame["Dataset"].eq("Analyst estimates"), "First Ticker Command"].iloc[0] == "make stock-report-md TICKER=NVDA"
+    assert cards[0]["kicker"] == "OPTIONAL CONTEXT ANSWER"
+    assert cards[0]["title"] == "Partial optional context: 1 ready / 3 locked"
+    assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
+    assert "first locked dataset: analyst estimates" in rendered
+    assert "ready optional rows are context only" in rendered
+    assert "stop: do not infer event timing, consensus, target ranges, upside, downside, or recommendations" in rendered
     assert "1 ready / 3 locked row(s)" in rendered
     assert "empty optional context is intentional until trusted local csv rows pass validation" in rendered
     assert "trusted row gate: locked until trusted local rows pass validation, preview, apply, and optional-context readiness" in rendered
@@ -24987,10 +24993,10 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert "data/staged/analyst_estimates/ or data/imports/analyst_estimates.csv" in rendered
     assert "make import-earnings" in rendered
     assert "make import-analyst-estimates" in rendered
-    assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
+    assert cards[2]["command"] == "make stock-report-md TICKER=NVDA"
     assert "prove optional context before showing it" in rendered
     assert "next proof: use schema-only templates, add trusted optional rows, validate and preview them" in rendered
-    assert cards[2]["command"] == "make templates && make import-analyst-estimates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness && make onboarding TOP_N=10"
+    assert cards[3]["command"] == "make templates && make import-analyst-estimates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make optional-context-readiness && make onboarding TOP_N=10"
     assert "schema-only examples and templates remain workflow aids, not data" in rendered
     assert "optional proof ladder" in rendered
     assert "template -> import -> readiness -> report" in rendered

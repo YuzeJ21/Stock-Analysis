@@ -6576,7 +6576,39 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
     first_ticker_command = format_missing(first.get("First Ticker Command"), "make stock-report-md TICKER=NVDA")
     proof_summary = validation_sequence_summary(first.get("Copy-Only Command"))
     validation_summary = validation_sequence_summary(first.get("Validation Path"))
+    first_dataset = format_missing(first.get("Dataset"), "Optional dataset")
+    first_ticker = format_missing(first.get("First Locked Ticker"), "Not available")
+    if blocked_total == 0 and ready_total > 0:
+        answer_title = f"Optional context ready: {ready_total} ready"
+        answer_body = (
+            "Trusted optional rows are available as context only. "
+            "They can add timing, consensus, and revision context, but they do not create valuation conclusions."
+        )
+        answer_badges = ["trusted rows ready", "context only"]
+    elif ready_total > 0:
+        answer_title = f"Partial optional context: {ready_total} ready / {blocked_total} locked"
+        answer_body = (
+            f"First locked dataset: {first_dataset}; first locked ticker: {first_ticker}. "
+            "Ready optional rows are context only; locked rows stay unavailable until trusted source rows pass validation, preview, apply, and optional-context readiness. "
+            "Stop: do not infer event timing, consensus, target ranges, upside, downside, or recommendations."
+        )
+        answer_badges = ["partial context", "locked rows visible"]
+    else:
+        answer_title = f"Optional context locked: {blocked_total} row(s) need trusted rows"
+        answer_body = (
+            f"First locked dataset: {first_dataset}; first locked ticker: {first_ticker}. "
+            "Optional context remains unavailable until trusted earnings or analyst-estimate rows pass validation, preview, apply, and readiness. "
+            "Stop: do not infer event timing, consensus, target ranges, upside, downside, or recommendations."
+        )
+        answer_badges = ["locked is safe", "trusted rows required"]
     return [
+        {
+            "kicker": "OPTIONAL CONTEXT ANSWER",
+            "title": answer_title,
+            "body": answer_body,
+            "badges": answer_badges,
+            "command": first_ticker_command,
+        },
         {
             "kicker": "OPTIONAL CONTEXT LADDER",
             "title": f"{ready_total} ready / {blocked_total} locked row(s)",
