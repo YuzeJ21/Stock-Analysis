@@ -563,11 +563,11 @@ def test_source_activation_guide_documents_provider_setup_without_real_keys():
     assert "full-universe refresh without caps" in guide
     assert "FMP free tier" in guide and "small batch" in guide
     assert "When all keyed providers are missing, start with FMP" in guide
-    assert "| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | <=250 requests/day; <=25 tickers/run | `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>` | full-universe refresh without caps |" in guide
-    assert "| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | <=25 requests/day; <=5 tickers/run | `make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>` | full-universe refresh without caps |" in guide
-    assert "| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | <=60 requests/day; <=10 tickers/run | `make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>` | full-universe refresh without caps |" in guide
+    assert "| FMP free tier | `FMP_API_KEY` | price, fundamentals, share count fallback | <=250 requests/day; <=25 tickers/run | `make fmp-smoke TICKER=<ticker>` | full-universe refresh without caps |" in guide
+    assert "| Alpha Vantage free tier | `ALPHA_VANTAGE_API_KEY` | price, fundamentals, share count fallback | <=25 requests/day; <=5 tickers/run | `make alpha-vantage-smoke TICKER=<ticker>` | full-universe refresh without caps |" in guide
+    assert "| Finnhub free tier | `FINNHUB_API_KEY` | price, fundamentals, share count fallback | <=60 requests/day; <=10 tickers/run | `make finnhub-smoke TICKER=<ticker>` | full-universe refresh without caps |" in guide
     assert "`make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=1 TOP_N=1 PROVIDER=stooq`" in guide
-    assert "Smoke commands stage or dry-run only" in guide
+    assert "Keyed-provider smoke commands stage one ticker, validate, and preview only; they do not apply rows." in guide
     assert "Alpha Vantage free tier" in guide and "25 requests/day" in guide
     assert "Finnhub free tier" in guide and "60 requests/day" in guide
     assert "not investment advice" in guide
@@ -608,6 +608,24 @@ def test_makefile_exposes_optional_context_source_ladder_targets():
         "--optional-context-dry-run --from-optional-context-queue --top-n $(or $(TOP_N),10)"
     ) in makefile
     assert "make optional-context-source-ladder-queue TOP_N=10" in makefile
+
+
+def test_makefile_exposes_validate_preview_only_provider_smoke_targets():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "provider-smoke:" in makefile
+    assert "fmp-smoke:" in makefile
+    assert "alpha-vantage-smoke:" in makefile
+    assert "finnhub-smoke:" in makefile
+    provider_target = makefile.split("provider-smoke:", 1)[1].split("\nfmp-smoke:", 1)[0]
+    assert "$(MAKE) fmp-stage TICKERS=$(TICKER)" in provider_target
+    assert "$(MAKE) alpha-vantage-stage TICKERS=$(TICKER)" in provider_target
+    assert "$(MAKE) finnhub-stage TICKERS=$(TICKER)" in provider_target
+    assert "$(MAKE) imports-validate IMPORT_TICKERS=$(TICKER)" in provider_target
+    assert "$(MAKE) imports-preview IMPORT_TICKERS=$(TICKER)" in provider_target
+    assert "imports-apply" not in provider_target
+    assert "make provider-smoke PROVIDER=fmp TICKER=NVDA" in makefile
+    assert "Validate/preview one keyed provider ticker without applying rows" in makefile
 
 
 def test_price_refresh_loop_dry_run_reads_local_provider_env_files(tmp_path):

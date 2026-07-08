@@ -346,7 +346,7 @@ def test_public_release_package_stages_product_and_excludes_generated_churn():
     assert "FMP_API_KEY" in report
     assert "Reviewed one-ticker smoke:" in report
     assert "One-ticker smoke:" not in report
-    assert "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in report
+    assert "make fmp-smoke TICKER=<ticker>" in report
     assert "Do not configure all missing providers at once" in report
     assert "source proof, validate, preview" in report
     assert "real Streamlit route review" in report
@@ -456,7 +456,7 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "FMP_API_KEY" in report
     assert "Reviewed one-ticker smoke:" in report
     assert "One-ticker smoke:" not in report
-    assert "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in report
+    assert "make fmp-smoke TICKER=<ticker>" in report
     assert "Do not configure all missing providers at once" in report
     assert "Step 1 - verify before staging" in report
     assert "make public-check" in report

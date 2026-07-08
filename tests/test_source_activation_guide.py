@@ -28,10 +28,7 @@ def test_source_activation_guide_lists_public_sources_without_secrets(monkeypatc
     assert providers["FMP free tier"]["batch_policy"] == "small_batch_only; recommended <=250 requests/day and <=25 tickers/run"
     assert providers["Alpha Vantage free tier"]["batch_policy"] == "small_batch_only; recommended <=25 requests/day and <=5 tickers/run"
     assert providers["Finnhub free tier"]["batch_policy"] == "small_batch_only; recommended <=60 requests/day and <=10 tickers/run"
-    assert providers["FMP free tier"]["post_setup_smoke_command"] == (
-        "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-        "&& make imports-preview IMPORT_TICKERS=<ticker>"
-    )
+    assert providers["FMP free tier"]["post_setup_smoke_command"] == "make fmp-smoke TICKER=<ticker>"
     assert providers["Stooq"]["post_setup_smoke_command"] == (
         "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=1 TOP_N=1 PROVIDER=stooq"
     )
@@ -99,14 +96,8 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         ),
         "setup_prerequisite": "FMP free tier is configured; choose one reviewed ticker before running the reviewed one-ticker smoke command.",
         "ticker_scope_rule": "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list.",
-        "reviewed_one_ticker_smoke": (
-            "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-            "&& make imports-preview IMPORT_TICKERS=<ticker>"
-        ),
-        "one_safe_smoke": (
-            "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-            "&& make imports-preview IMPORT_TICKERS=<ticker>"
-        ),
+        "reviewed_one_ticker_smoke": "make fmp-smoke TICKER=<ticker>",
+        "one_safe_smoke": "make fmp-smoke TICKER=<ticker>",
         "boundary": "Provider setup only makes a source executable; readiness changes still require validate/preview/apply gates.",
     }
     assert rows["FMP free tier"]["setup_state"] == "configured"
@@ -115,10 +106,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert rows["IBKR read-only"]["setup_state"] == "optional_disabled"
     assert rows["FMP free tier"]["unlock_lanes"] == "price, fundamentals, share_count"
     assert rows["FMP free tier"]["safe_next_step"] == "Run make session-source-preflight, then dry-run the matching source ladder."
-    assert rows["FMP free tier"]["post_setup_smoke_command"] == (
-        "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-        "&& make imports-preview IMPORT_TICKERS=<ticker>"
-    )
+    assert rows["FMP free tier"]["post_setup_smoke_command"] == "make fmp-smoke TICKER=<ticker>"
     assert rows["Alpha Vantage free tier"]["safe_next_step"] == (
         "Set ALPHA_VANTAGE_API_KEY in config/provider_keys.env, then rerun make session-source-preflight."
     )
@@ -172,7 +160,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- missing_key: Alpha Vantage free tier, Finnhub free tier" in rendered
     assert "- setup_prerequisite: FMP free tier is configured; choose one reviewed ticker before running the reviewed one-ticker smoke command." in rendered
     assert "- ticker_scope_rule: Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list." in rendered
-    assert "- reviewed_one_ticker_smoke: make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
+    assert "- reviewed_one_ticker_smoke: make fmp-smoke TICKER=<ticker>" in rendered
     assert "one_safe_smoke" not in rendered
     assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
     assert rendered.index("First provider answer:") < rendered.index("Local setup commands:")
@@ -215,7 +203,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "Provider | Setup state | Unlock lanes | Usage | Batch policy | Smoke command | Cannot unlock | Safe next step" in rendered
     assert "SEC submissions | available | metadata | metadata_evidence_only | not_applicable | not_applicable | DCF, valuation, earnings, analyst estimates, or share count unless a filing document has an explicit fact." in rendered
     assert "FMP free tier | configured | price, fundamentals, share_count | keyed_free_tier_fallback | small_batch_only; recommended <=250 requests/day and <=25 tickers/run" in rendered
-    assert "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
+    assert "make fmp-smoke TICKER=<ticker>" in rendered
     assert "Alpha Vantage free tier | needs_key | price, fundamentals, share_count | keyed_free_tier_fallback | small_batch_only; recommended <=25 requests/day and <=5 tickers/run" in rendered
     assert "Finnhub free tier | needs_key | price, fundamentals, share_count | keyed_free_tier_fallback | small_batch_only; recommended <=60 requests/day and <=10 tickers/run" in rendered
     assert "IBKR read-only | optional_disabled | price" in rendered
@@ -360,33 +348,24 @@ def test_provider_setup_checklist_names_one_missing_keyed_provider_to_configure_
             "provider": "FMP free tier",
             "why_first": "Broadest keyed fallback here: price, fundamentals, share count, and the largest stated free-tier daily cap.",
             "setup_env": "FMP_API_KEY",
-            "smoke_command": (
-                "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-                "&& make imports-preview IMPORT_TICKERS=<ticker>"
-            ),
+            "smoke_command": "make fmp-smoke TICKER=<ticker>",
         },
         {
             "provider": "Finnhub free tier",
             "why_first": "Second fallback after FMP; use only if FMP is unavailable or insufficient for the reviewed ticker.",
             "setup_env": "FINNHUB_API_KEY",
-            "smoke_command": (
-                "make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-                "&& make imports-preview IMPORT_TICKERS=<ticker>"
-            ),
+            "smoke_command": "make finnhub-smoke TICKER=<ticker>",
         },
         {
             "provider": "Alpha Vantage free tier",
             "why_first": "Smallest stated free-tier cap; keep as a final small-batch fallback.",
             "setup_env": "ALPHA_VANTAGE_API_KEY",
-            "smoke_command": (
-                "make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-                "&& make imports-preview IMPORT_TICKERS=<ticker>"
-            ),
+            "smoke_command": "make alpha-vantage-smoke TICKER=<ticker>",
         },
     ]
     assert "Configure first: FMP free tier" in rendered
     assert "- setup_prerequisite: Configure FMP free tier with FMP_API_KEY before running its reviewed one-ticker smoke command." in rendered
-    assert "- reviewed_smoke_command: make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in rendered
+    assert "- reviewed_smoke_command: make fmp-smoke TICKER=<ticker>" in rendered
     assert "rerun preflight, run a reviewed one-ticker smoke command, then validate/preview before any apply" in rendered
     assert "- smoke_command:" not in rendered
     assert "Do not configure all missing providers at once" in rendered

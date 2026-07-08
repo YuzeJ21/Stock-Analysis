@@ -208,18 +208,9 @@ def build_source_activation_guide() -> dict[str, Any]:
                 setup=f"Set {env_name} in config/provider_keys.env, then rerun make session-source-preflight.",
                 batch_policy=KEYED_PROVIDER_BATCH_POLICIES[provider],
                 post_setup_smoke_command={
-                    "FMP free tier": (
-                        "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-                        "&& make imports-preview IMPORT_TICKERS=<ticker>"
-                    ),
-                    "Alpha Vantage free tier": (
-                        "make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-                        "&& make imports-preview IMPORT_TICKERS=<ticker>"
-                    ),
-                    "Finnhub free tier": (
-                        "make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-                        "&& make imports-preview IMPORT_TICKERS=<ticker>"
-                    ),
+                    "FMP free tier": "make fmp-smoke TICKER=<ticker>",
+                    "Alpha Vantage free tier": "make alpha-vantage-smoke TICKER=<ticker>",
+                    "Finnhub free tier": "make finnhub-smoke TICKER=<ticker>",
                 }[provider],
             )
         )

@@ -398,24 +398,15 @@ def _source_operator_free_tier_limit_summary(source_operator_summary: dict[str, 
 _KEYED_PROVIDER_OPERATOR_GUIDANCE: dict[str, dict[str, str]] = {
     "fmp": {
         "setup_env": "FMP_API_KEY",
-        "smoke_command": (
-            "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-            "&& make imports-preview IMPORT_TICKERS=<ticker>"
-        ),
+        "smoke_command": "make fmp-smoke TICKER=<ticker>",
     },
     "finnhub": {
         "setup_env": "FINNHUB_API_KEY",
-        "smoke_command": (
-            "make finnhub-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-            "&& make imports-preview IMPORT_TICKERS=<ticker>"
-        ),
+        "smoke_command": "make finnhub-smoke TICKER=<ticker>",
     },
     "alpha_vantage": {
         "setup_env": "ALPHA_VANTAGE_API_KEY",
-        "smoke_command": (
-            "make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> "
-            "&& make imports-preview IMPORT_TICKERS=<ticker>"
-        ),
+        "smoke_command": "make alpha-vantage-smoke TICKER=<ticker>",
     },
 }
 
@@ -545,7 +536,7 @@ def _remaining_public_stage_rows(
             "Next Action": (
                 "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke."
                 if fmp_missing
-                else "Run make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>."
+                else "Run make fmp-smoke TICKER=<ticker>."
             ),
             "Completion Gate": (
                 f"{first_provider} is configured locally; one ticker validates, previews narrowly, has zero rejected rows, and source provenance is present."

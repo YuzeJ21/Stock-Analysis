@@ -524,7 +524,7 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
                     "unlock_lanes": "price, fundamentals, share_count",
                     "usage": "keyed_free_tier_fallback",
                     "safe_next_step": "Run make session-source-preflight, then dry-run the matching source ladder.",
-                    "post_setup_smoke_command": "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>",
+                    "post_setup_smoke_command": "make fmp-smoke TICKER=<ticker>",
                 },
                 {
                     "provider": "Alpha Vantage free tier",
@@ -608,9 +608,9 @@ def test_overview_provider_setup_checklist_cards_show_setup_states():
     assert "ibkr read-only: optional_disabled" in rendered
     assert "real key values are never printed" in rendered
     assert "dry-run the matching source ladder" in rendered
-    assert "reviewed smoke command: make fmp-stage tickers=<ticker>" in rendered
+    assert "reviewed smoke command: make fmp-smoke ticker=<ticker>" in rendered
     assert "smoke test:" not in rendered
-    assert "imports-preview import_tickers=<ticker>" in rendered
+    assert "validate/preview/apply gates" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

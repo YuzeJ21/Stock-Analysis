@@ -566,7 +566,7 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Do not configure all missing providers at once" in body
     assert "| Provider | Setup state | Unlock lanes | Usage | Smoke command | Cannot unlock | Safe next step |" in body
     assert "FMP free tier" in body
-    assert "make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in body
+    assert "make fmp-smoke TICKER=<ticker>" in body
     assert "Alpha Vantage free tier" in body
     assert "Finnhub free tier" in body
     assert "Full-universe refresh without caps" in body
@@ -767,9 +767,9 @@ def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: P
     assert "Second fallback after FMP" in brief
     assert "Do not configure all missing providers at once" in brief
     assert "FMP free tier: configured -> price, fundamentals, share_count" in brief
-    assert "reviewed smoke: `make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`" in brief
+    assert "reviewed smoke: `make fmp-smoke TICKER=<ticker>`" in brief
     assert "Alpha Vantage free tier: needs_key -> price, fundamentals, share_count" in brief
-    assert "reviewed smoke: `make alpha-vantage-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>`" in brief
+    assert "reviewed smoke: `make alpha-vantage-smoke TICKER=<ticker>`" in brief
     assert "Finnhub free tier: needs_key -> price, fundamentals, share_count" in brief
     assert "IBKR read-only: optional_disabled -> price" in brief
     assert "Real key values are never printed" in brief
