@@ -1,11 +1,7 @@
 # Stock Research Command Center
-
 A local, CSV-first research dashboard for screening stocks, reviewing portfolio names, and seeing exactly which data is ready to support analysis.
-
 > Data readiness first, analysis second, research decision last.
-
 ![Dashboard preview](docs/assets/public-demo-home-real.jpg)
-
 ## Pilot In 60 Seconds
 1. Open `http://localhost:8501/?mode=public` after running `make dashboard`.
 2. Follow the public path: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
@@ -14,10 +10,8 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 5. Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs.
 6. Share under the controlled portfolio/demo license, not as open-source or reusable software.
 7. Stop before any trading, broker action, broad refresh, or unsupported data claim.
-
 ## What It Does
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
-
 ```mermaid
 flowchart LR
     Home["Home: workflow start"] --> Selector["Stock Selector: readiness-backed queue"]
@@ -25,13 +19,11 @@ flowchart LR
     Report --> Health["Data Health: missing input"]
     Health --> Proof["Proof History: source-proof trail"]
 ```
-
 ## Two-Minute External Review Path
 - GitHub-only review: start with the preview image, the five-page workflow map, and the `docs/PUBLIC_DEMO_WALKTHROUGH.md` script.
 - Live dashboard review: run `make dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.
 - Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
-
 ## Public Share Readiness
 This repository is ready to share as a GitHub/LinkedIn portfolio demo with manual gates. It is not currently published as a live hosted Streamlit app.
 - GitHub review is ready: README, screenshots, methodology, sample reports, local run commands, and controlled demo license.
@@ -41,18 +33,24 @@ This repository is ready to share as a GitHub/LinkedIn portfolio demo with manua
 - Coverage | Readiness-gated, not complete: ready, partial, blocked, skipped, and excluded states remain visible.
 - LinkedIn Featured title: `Stock Research Command Center | Readiness-First Stock Research Workflow`
 - LinkedIn copy lives in `docs/LINKEDIN_PROJECT_BRIEF.md`; use `docs/assets/linkedin-public-dashboard.png` if LinkedIn crops the GitHub card. Screenshots are product evidence only, not data freshness proof.
-
+## Current Next Stages
+Use this table to decide what to do next without reopening exhausted proof loops or overstating the public demo.
+| Stage | Current state | Next safe move |
+| --- | --- | --- |
+| LinkedIn publish | Ready now | Use GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |
+| Hosted Streamlit demo | External account required | Follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |
+| FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |
+| Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |
+| Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |
+| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |
 ## What You Can Analyze
 When trusted local data is available, the product can produce price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, portfolio purpose checks, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
-
 ## How Analysis Works
 The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed. Price-ready rows can support setup/risk context and benchmark/risk review metrics, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context. Missing fundamentals, peer inputs, earnings, or estimates stay locked; company valuation is excluded for ETF/index/fund monitor rows, not failed.
-
 ## Current Snapshot
 The local sample tracks a broad stock universe, with a smaller subset ready for each analysis feature. Exact universe and ready counts can change after local refresh/import work, so use `make status-check TOP_N=5` or the dashboard Home page for the current snapshot.
 Read the counts in three layers: master universe for broad coverage planning, active universe for the demo/research workflow, and analysis-ready subsets for DCF, peer context, or candidate review. A tracked ticker is not automatically ready for every analysis family; blocked rows stay visibly locked.
 Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, visitor path, and public checks are working. Broad fundamentals, DCF, peers, earnings, and analyst estimates remain visibly blocked by missing trusted data until trusted rows exist, so those gaps should be read as source-proof work rather than broken analysis.
-
 ## External Reviewer Handoff
 Use this as the short GitHub/LinkedIn review path before reading operator detail:
 | Question | Short answer |
