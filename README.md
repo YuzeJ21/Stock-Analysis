@@ -145,7 +145,7 @@ For a share-ready walkthrough, use the [Visitor Workflow Walkthrough](docs/PUBLI
 ## Pilot Share Status
 Share as controlled portfolio/demo evidence under the root `LICENSE`; do not describe the repository as open source or reusable software. Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence. When source-proof queues are exhausted, use `make project-status` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command. No broad coverage batch should run from setup alone.
 
-Hosting status: no public Streamlit URL is configured in this repository. The share-ready path is GitHub plus the local `make dashboard` workflow. Add a hosted link only after a separate deployment account is configured, secrets are stored outside the repo, and `make public-check` still passes.
+Hosting status: no public Streamlit URL is configured in this repository. The share-ready path is GitHub plus the local `make dashboard` workflow. Add a hosted link only after a separate deployment account is configured, secrets are stored outside the repo, `make public-check` still passes, and the [Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md) checklist is satisfied.
 
 ## Local Data Hygiene
 Small example reports are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and report CSVs are local working data by default. Review them before committing; do not publish broad refresh changes unless intentionally selected.

@@ -1906,7 +1906,7 @@ def test_stock_selector_public_copy_uses_plain_plural_labels():
 
 def test_public_action_cards_render_query_routes_as_clickable_links():
     rendered = dashboard.action_card_html(
-        "Open one review",
+        "Open single-stock report",
         "Open the selected ticker review.",
         "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         "neutral",
@@ -1914,8 +1914,8 @@ def test_public_action_cards_render_query_routes_as_clickable_links():
 
     assert "<a " in rendered
     assert "href='?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1'" in rendered
-    assert "aria-label='Open one review'" in rendered
-    assert ">Open one review</a>" in rendered
+    assert "aria-label='Open single-stock report'" in rendered
+    assert ">Open single-stock report</a>" in rendered
     assert "target='_self'" in rendered
     assert "Open ?mode=public" not in rendered
     assert "command-chip" not in rendered

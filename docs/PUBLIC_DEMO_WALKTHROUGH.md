@@ -8,7 +8,7 @@ Use this when sharing the project from GitHub or LinkedIn. The walkthrough is re
 - Use `make status-check TOP_N=5` for current coverage and blocker counts.
 - Share under the controlled portfolio/demo license; do not describe the repository as open source or reusable software.
 - Keep the demo research-only: no investment advice, broker action, order routing, auto-trading, or direct buy/sell instructions.
-- No public hosted Streamlit URL is configured yet; the shareable path is the GitHub project, curated screenshots, and local `make dashboard` instructions.
+- No public hosted Streamlit URL is configured yet; the shareable path is the GitHub project, curated screenshots, and local `make dashboard` instructions. Use `docs/HOSTED_DEMO_DEPLOYMENT.md` only when preparing a verified hosted app link.
 - FMP, Alpha Vantage, and Finnhub are optional provider fallbacks and are not configured by default. Provider setup does not prove coverage until a reviewed source-backed smoke, validation, preview, and readiness rebuild pass.
 - Coverage is intentionally readiness-gated rather than complete. Fundamentals, share count, peer mapping, earnings, and analyst estimates can remain blocked or locked while the product is still useful.
 - Stop before claiming a blocked lane is ready unless source proof, validation, preview, apply, rebuilt readiness, and proof history all support it.

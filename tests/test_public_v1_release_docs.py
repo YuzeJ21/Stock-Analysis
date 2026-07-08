@@ -98,6 +98,32 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
 
 
+def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
+    readme = _read("README.md")
+    hosted = _read("docs/HOSTED_DEMO_DEPLOYMENT.md")
+    checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
+    walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
+    linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
+
+    assert "docs/HOSTED_DEMO_DEPLOYMENT.md" in checklist
+    assert "docs/HOSTED_DEMO_DEPLOYMENT.md" in walkthrough
+    assert "docs/HOSTED_DEMO_DEPLOYMENT.md" in linkedin
+    assert "[Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md)" in readme
+
+    assert "No public hosted Streamlit URL is configured in this repository." in hosted
+    assert "A hosted app is optional" in hosted
+    assert "GitHub is the public link until a deployment account is intentionally configured and verified." in hosted
+    assert "Keep provider keys, account identifiers, tokens, and broker/session files outside the repo." in hosted
+    assert "FMP_API_KEY" in hosted
+    assert "ALPHA_VANTAGE_API_KEY" in hosted
+    assert "FINNHUB_API_KEY" in hosted
+    assert "Provider setup is not proof." in hosted
+    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in hosted
+    assert "Use the GitHub repository link unless the hosted app exists" in hosted
+    assert "stock picks" not in hosted.lower()
+    assert "buy/sell" in hosted
+
+
 def test_public_docs_match_auto_price_ladder_order():
     readme = _read("README.md")
     strategy = _read("docs/DATA_STRATEGY.md")

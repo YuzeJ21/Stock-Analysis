@@ -26438,7 +26438,7 @@ def stock_selector_next_reading_path_cards(
     selected_label = next_ticker or "the selected ticker"
     return [
         (
-            "Open one review",
+            "Open single-stock report",
             (
                 f"Open the selected ticker ({selected_label}) in Single-Stock Report first. "
                 f"{selected_label} is the current top readiness-backed row; use filters below to choose another name."

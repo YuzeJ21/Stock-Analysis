@@ -35,6 +35,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
 - Use `docs/assets/linkedin-public-dashboard.png` as the LinkedIn Featured thumbnail unless you intentionally want an operator-mode screenshot; treat image counts as illustrative and use `make status-check TOP_N=5` for current local counts.
 - Use GitHub as the LinkedIn link target unless a hosted app has been separately deployed and verified. The current public-share package is GitHub plus curated screenshots plus local run instructions.
+- Before replacing the GitHub link with a hosted app link, complete `docs/HOSTED_DEMO_DEPLOYMENT.md` and rerun the public gates.
 - Confirm the LinkedIn Featured description mentions Python + Streamlit, data readiness before analysis, research-only, no broker integration, no auto-trading, and no investment advice.
 - Confirm LinkedIn copy does not imply complete coverage, provider-key activation, public hosted app availability, data freshness proof, or investment recommendations.
 - Run `make browser-qa-evidence` before sharing or replacing public screenshots. It shows the current public-share image recommendation, committed asset checks, current real-app capture status, route expectations, and capture boundaries without refreshing data or writing reports.
