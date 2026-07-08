@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -438,12 +439,54 @@ def _source_operator_first_setup_guidance(source_operator_summary: dict[str, Any
     return {}
 
 
+def _git_status_line(root: Path) -> str:
+    try:
+        result = subprocess.run(
+            ["git", "status", "--short", "--branch", "--untracked-files=no"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except Exception:
+        return ""
+    if result.returncode != 0:
+        return ""
+    return (result.stdout.splitlines() or [""])[0].strip()
+
+
+def _linkedin_stage_from_git_status(git_status_line: str | None) -> dict[str, str]:
+    line = str(git_status_line or "").strip()
+    lowered = line.lower()
+    if "behind" in lowered or "diverged" in lowered:
+        return {
+            "State": "needs_git_sync_review",
+            "Evidence": f"Public share gates may pass, but git status is {line}; sync from origin before sharing.",
+            "Next Action": "Run git status --short --branch, resolve remote sync, then rerun public-check before posting.",
+            "Completion Gate": "GitHub branch is synced and public gates pass.",
+        }
+    if "ahead" in lowered:
+        return {
+            "State": "needs_github_sync",
+            "Evidence": f"Public share gates may pass, but git status is {line}; push reviewed local commits before sharing the GitHub link.",
+            "Next Action": "Run git push origin main after confirming no generated churn is staged, then rerun public-check.",
+            "Completion Gate": "GitHub includes the latest reviewed local commit and public gates pass.",
+        }
+    return {
+        "State": "ready_for_manual_share",
+        "Evidence": "Public share gates pass; GitHub is synced; use GitHub link and curated screenshot.",
+        "Next Action": "Post or update LinkedIn manually using docs/LINKEDIN_PROJECT_BRIEF.md.",
+        "Completion Gate": "LinkedIn profile/card is updated by the account owner.",
+    }
+
+
 def _remaining_public_stage_rows(
     summary: dict[str, Any],
     *,
     source_operator_summary: dict[str, Any] | None = None,
     trusted_data_pilot_has_candidates: bool | None = None,
     price_coverage_complete: bool = False,
+    git_status_line: str | None = None,
 ) -> list[dict[str, str]]:
     """Classify the remaining public/product stages without unlocking data."""
     source_operator_summary = source_operator_summary if isinstance(source_operator_summary, dict) else {}
@@ -471,14 +514,15 @@ def _remaining_public_stage_rows(
     first_provider = first_setup.get("setup_env") or "FMP_API_KEY"
     source_queues_exhausted = trusted_data_pilot_has_candidates is False and price_coverage_complete
     avoid_source_ladder = "fundamentals_share_count_source_ladder" in avoid_repeating
+    linkedin_stage = _linkedin_stage_from_git_status(git_status_line)
 
     rows: list[dict[str, str]] = [
         {
             "Stage": "LinkedIn publish",
-            "State": "ready_for_manual_share",
-            "Evidence": "Public share gates pass; GitHub is synced; use GitHub link and curated screenshot.",
-            "Next Action": "Post or update LinkedIn manually using docs/LINKEDIN_PROJECT_BRIEF.md.",
-            "Completion Gate": "LinkedIn profile/card is updated by the account owner.",
+            "State": linkedin_stage["State"],
+            "Evidence": linkedin_stage["Evidence"],
+            "Next Action": linkedin_stage["Next Action"],
+            "Completion Gate": linkedin_stage["Completion Gate"],
             "Boundary": "Manual LinkedIn action only; repo cannot edit the external profile.",
         },
         {
@@ -742,6 +786,7 @@ def _fast_status_payload_from_outputs(
         source_operator_summary=_load_source_operator_summary(output_path),
         trusted_data_pilot_has_candidates=trusted_data_pilot_has_candidates,
         price_coverage_complete=price_complete,
+        git_status_line=_git_status_line(root),
     )
     return {
         "project_root": str(root),
@@ -1687,6 +1732,7 @@ def build_project_status_payload(
         source_operator_summary=source_operator_summary,
         trusted_data_pilot_has_candidates=trusted_data_pilot_has_candidates,
         price_coverage_complete=_price_coverage_complete(summary),
+        git_status_line=_git_status_line(root),
     )
     return {
         "project_root": str(root),

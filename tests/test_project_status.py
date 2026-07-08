@@ -1199,6 +1199,35 @@ def test_project_status_stage_map_classifies_remaining_public_items(
     assert "source-proof queues: exhausted_do_not_retry" in output
 
 
+def test_project_status_stage_map_does_not_call_github_synced_when_branch_is_ahead():
+    rows = project_status._remaining_public_stage_rows(
+        {
+            "tickers_total": 3541,
+            "tickers_with_prices": 3541,
+            "tickers_usable_for_momentum": 3538,
+            "tickers_fundamentals_ready": 2810,
+            "tickers_dcf_ready": 2693,
+            "tickers_peer_ready": 29,
+            "data_gaps": 207,
+            "data_sources_optional_locked": 3,
+        },
+        source_operator_summary={
+            "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
+            "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+        },
+        trusted_data_pilot_has_candidates=False,
+        price_coverage_complete=True,
+        git_status_line="## main...origin/main [ahead 1]",
+    )
+
+    linkedin_row = rows[0]
+    assert linkedin_row["Stage"] == "LinkedIn publish"
+    assert linkedin_row["State"] == "needs_github_sync"
+    assert "ahead 1" in linkedin_row["Evidence"]
+    assert "git push origin main" in linkedin_row["Next Action"]
+    assert "GitHub is synced" not in linkedin_row["Evidence"]
+
+
 def test_project_status_fast_check_pivots_from_reviewed_non_actionable_peers(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
     pd.DataFrame(
