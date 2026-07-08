@@ -133,6 +133,16 @@ class PeerMappingWriteBackGuard:
     proof_record_boundary: str
 
 
+@dataclass(frozen=True)
+class PeerMappingPacketDecision:
+    status: str
+    answer: str
+    next_safe_action: str
+    candidate_context_state: str
+    trusted_peer_proof_state: str
+    boundary: str
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -245,6 +255,66 @@ def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessS
         validation_command=validation_command,
         apply_boundary=apply_boundary,
         post_apply_proof="make readiness && make peer-mapping-queue TOP_N=25 && make reviewed-batch-compare LANE=peers ...",
+    )
+
+
+def peer_mapping_packet_decision(packet: PeerMappingSourceReviewPacket) -> PeerMappingPacketDecision:
+    if packet.freshness.status in {"missing", "stale"}:
+        return PeerMappingPacketDecision(
+            status="blocked_by_freshness",
+            answer=f"Peer source-review rows are blocked because readiness artifacts are {packet.freshness.status}.",
+            next_safe_action=f"Run {packet.freshness.refresh_command} before reviewing peer rows.",
+            candidate_context_state="not_reviewed",
+            trusted_peer_proof_state="locked",
+            boundary="Do not treat stale or missing readiness artifacts as trusted peer proof.",
+        )
+    if not packet.rows:
+        return PeerMappingPacketDecision(
+            status="still_blocked",
+            answer="No peer source-review rows are available for the selected scope.",
+            next_safe_action="Run make readiness && make peer-mapping-queue TOP_N=25, then rerun make peer-mapping-source-review.",
+            candidate_context_state="not_loaded",
+            trusted_peer_proof_state="locked",
+            boundary="Do not infer peer mappings when the peer source-review packet has no rows.",
+        )
+
+    for row in packet.rows:
+        completion = peer_mapping_source_review_completion(row, packet.freshness)
+        if completion.status == "ready_for_import_row_scaffold":
+            return PeerMappingPacketDecision(
+                status="ready_for_validate_preview",
+                answer=f"{row.ticker} / {row.mapping_slot} has reviewed source fields and can enter write-back guard review.",
+                next_safe_action=f"Run make peer-mapping-writeback-guard for {row.ticker} / {row.mapping_slot}, then validate and preview.",
+                candidate_context_state=str(row.candidate_context_state or "not_loaded"),
+                trusted_peer_proof_state="ready_for_guard",
+                boundary="Trusted peer proof is not supported until write-back guard, validate, preview, apply/skip decision, readiness rebuild, and proof ledger review pass.",
+            )
+
+    candidate_rows = [
+        row for row in packet.rows if str(row.candidate_context_state or "").strip() == "candidate_context_only"
+    ]
+    if candidate_rows:
+        sample = candidate_rows[0]
+        return PeerMappingPacketDecision(
+            status="candidate_context_only",
+            answer=(
+                f"{len(candidate_rows):,} candidate-only peer slot(s) can route source review, "
+                "but no trusted peer row is ready."
+            ),
+            next_safe_action=f"Use candidate context for {sample.ticker} only to find durable peer source proof.",
+            candidate_context_state="candidate_context_only",
+            trusted_peer_proof_state="locked",
+            boundary="Candidate context is not trusted peer proof and must not unlock peer-relative valuation.",
+        )
+
+    sample = packet.rows[0]
+    return PeerMappingPacketDecision(
+        status="needs_source_review_fields",
+        answer="Peer source-review rows exist, but required reviewed fields are still missing.",
+        next_safe_action=f"Fill reviewed peer source-review fields for {sample.ticker} / {sample.mapping_slot}.",
+        candidate_context_state=str(sample.candidate_context_state or "not_loaded"),
+        trusted_peer_proof_state="locked",
+        boundary="Keep peer-relative valuation locked until source-backed peer rows pass the full review gate.",
     )
 
 
@@ -547,6 +617,7 @@ def build_peer_mapping_source_review_packet(
 
 def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPacket) -> str:
     status = "blocked_by_freshness" if packet.freshness.status in {"missing", "stale"} else "ready_for_review"
+    decision = peer_mapping_packet_decision(packet)
     lines = [
         "# Peer Mapping Source Review Packet",
         "",
@@ -559,6 +630,15 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
         f"- Selection source: `{packet.selection_source}`",
         f"- Ticker scope: `{', '.join(packet.tickers) if packet.tickers else 'none'}`",
         f"- Review rows: `{len(packet.rows)}`",
+        "",
+        "## First Peer Readiness Answer",
+        "",
+        f"- First answer status: `{decision.status}`",
+        f"- Answer: {decision.answer}",
+        f"- Next safe action: {decision.next_safe_action}",
+        f"- Candidate context state: `{decision.candidate_context_state}`",
+        f"- Trusted peer proof state: `{decision.trusted_peer_proof_state}`",
+        f"- Boundary: {decision.boundary}",
         "",
         "## Source Proof Contract",
         "",
@@ -629,12 +709,18 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
 
 def render_peer_mapping_source_review_preview(packet: PeerMappingSourceReviewPacket) -> str:
     status = "blocked_by_freshness" if packet.freshness.status in {"missing", "stale"} else "ready_for_review"
+    decision = peer_mapping_packet_decision(packet)
     lines = [
         "Peer mapping source review preview",
         "Research-only: review peer mapping source proof before editing import rows; no broker integration, no auto-trading, and no direct buy/sell instructions.",
         f"status: preview",
         f"packet_status: {status}",
         f"freshness_status: {packet.freshness.status}",
+        f"first_answer_status: {decision.status}",
+        f"first_answer_next_safe_action: {decision.next_safe_action}",
+        f"candidate_context_state: {decision.candidate_context_state}",
+        f"trusted_peer_proof_state: {decision.trusted_peer_proof_state}",
+        f"first_answer_boundary: {decision.boundary}",
         f"selection_source: {packet.selection_source}",
         f"rows: {len(packet.rows)}",
         f"tickers: {','.join(packet.tickers) if packet.tickers else '-'}",

@@ -9,6 +9,7 @@ from src.peer_mapping_source_review import (
     build_peer_mapping_writeback_guard,
     build_peer_mapping_source_review_packet,
     main,
+    peer_mapping_packet_decision,
     peer_mapping_import_csv_header,
     peer_mapping_import_preview,
     peer_mapping_import_row_scaffold,
@@ -19,6 +20,7 @@ from src.peer_mapping_source_review import (
     render_peer_mapping_source_review_preview,
     write_peer_mapping_source_review_packet,
 )
+from src.reviewed_batch import FreshnessStatus
 
 
 def _sample_root(tmp_path: Path) -> Path:
@@ -108,9 +110,17 @@ def _sample_root_with_active_peer_blocker(tmp_path: Path) -> Path:
 def test_peer_mapping_source_review_packet_builds_two_review_slots_per_candidate(tmp_path: Path):
     packet = build_peer_mapping_source_review_packet(_sample_root(tmp_path), top_n=1)
     rendered = render_peer_mapping_source_review_markdown(packet)
+    decision = peer_mapping_packet_decision(packet)
 
     assert packet.tickers == ("AAA",)
     assert len(packet.rows) == 2
+    assert decision.status == "needs_source_review_fields"
+    assert decision.trusted_peer_proof_state == "locked"
+    assert decision.candidate_context_state == "not_loaded"
+    assert decision.next_safe_action == "Fill reviewed peer source-review fields for AAA / peer_1."
+    assert "## First Peer Readiness Answer" in rendered
+    assert "First answer status: `needs_source_review_fields`" in rendered
+    assert "Trusted peer proof state: `locked`" in rendered
     assert "Import schema: `ticker, peer_ticker, peer_group, sector, industry, source, as_of_date`" in rendered
     assert "relationship rationale" in rendered
     assert "memory, popularity, sector/theme similarity alone" in rendered
@@ -135,7 +145,9 @@ def test_peer_mapping_source_review_prioritizes_active_universe_blockers(tmp_pat
 
 def test_peer_mapping_source_review_surfaces_candidate_context_only_layer(tmp_path: Path):
     packet = build_peer_mapping_source_review_packet(_sample_root_with_candidate_context(tmp_path), top_n=1)
+    packet = replace(packet, freshness=FreshnessStatus(status="current", message="readiness artifacts are current"))
     rendered = render_peer_mapping_source_review_markdown(packet)
+    decision = peer_mapping_packet_decision(packet)
 
     assert packet.rows[0].candidate_context_state == "candidate_context_only"
     assert packet.rows[0].candidate_context_source == "source_detail_fallback"
@@ -145,6 +157,10 @@ def test_peer_mapping_source_review_surfaces_candidate_context_only_layer(tmp_pa
     assert "Candidate context source: `source_detail_fallback`" in rendered
     assert "Candidate context peers: `DDD`" in rendered
     assert "not trusted peer proof" in rendered.lower()
+    assert decision.status == "candidate_context_only"
+    assert decision.candidate_context_state == "candidate_context_only"
+    assert "not trusted peer proof" in decision.boundary.lower()
+    assert "First answer status: `candidate_context_only`" in rendered
 
 
 def test_peer_mapping_source_review_respects_explicit_ticker_scope(tmp_path: Path):
@@ -160,6 +176,9 @@ def test_peer_mapping_source_review_preview_is_copy_safe(tmp_path: Path):
     lowered = rendered.lower()
 
     assert "status: preview" in rendered
+    assert "first_answer_status: needs_source_review_fields" in rendered
+    assert "trusted_peer_proof_state: locked" in rendered
+    assert "first_answer_next_safe_action: Fill reviewed peer source-review fields for AAA / peer_1." in rendered
     assert "no Markdown or CSV artifacts were written" in rendered
     assert "top_review_row:" in rendered
     assert "make focus-peers TICKER=AAA" in rendered
@@ -220,6 +239,8 @@ def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(
     )
     completion = peer_mapping_source_review_completion(reviewed_row, packet.freshness)
     preview = peer_mapping_import_preview(reviewed_row, packet.freshness)
+    ready_packet = replace(packet, rows=(reviewed_row,))
+    decision = peer_mapping_packet_decision(ready_packet)
 
     assert peer_mapping_source_review_missing_fields(reviewed_row) == ()
     assert completion.status == "ready_for_import_row_scaffold"
@@ -231,6 +252,9 @@ def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(
     assert preview.validation_command == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
     assert "make imports-apply IMPORT_TICKERS=<ticker> only after imports-preview" in preview.apply_boundary
     assert "make readiness" in preview.post_apply_proof
+    assert decision.status == "ready_for_validate_preview"
+    assert decision.next_safe_action == "Run make peer-mapping-writeback-guard for AAA / peer_1, then validate and preview."
+    assert decision.trusted_peer_proof_state == "ready_for_guard"
 
 
 def test_peer_mapping_writeback_guard_allows_ready_non_duplicate_row(tmp_path: Path):
