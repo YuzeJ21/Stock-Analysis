@@ -36,7 +36,7 @@ Before sharing a hosted URL:
 
 ## Secrets And Provider Keys
 
-Local key setup belongs in ignored local files such as `config/provider_keys.env` or in the hosting platform's encrypted secrets UI. The repo should only contain templates and variable names.
+Local key setup belongs in ignored local files such as `config/provider_keys.env` or in the hosting platform's encrypted secrets UI. The repo should only contain templates and variable names. For hosted Streamlit setup, copy the blank variable names from `.streamlit/secrets.toml.example` into the platform secrets UI; do not commit `.streamlit/secrets.toml`.
 
 Optional provider keys:
 

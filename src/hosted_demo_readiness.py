@@ -18,6 +18,7 @@ class HostedDemoCheck:
 
 REQUIRED_RUNTIME_PACKAGES = ("streamlit", "pandas", "numpy", "PyYAML")
 OPTIONAL_SECRET_NAMES = ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY")
+OPTIONAL_STREAMLIT_SECRET_NAMES = OPTIONAL_SECRET_NAMES + ("IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID")
 
 
 def _read_text(path: Path) -> str:
@@ -40,10 +41,12 @@ def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDe
     dashboard_path = project_root / "dashboard.py"
     requirements_path = project_root / "requirements.txt"
     hosted_doc_path = project_root / "docs" / "HOSTED_DEMO_DEPLOYMENT.md"
+    secrets_template_path = project_root / ".streamlit" / "secrets.toml.example"
 
     dashboard_body = _read_text(dashboard_path)
     requirements_body = _read_text(requirements_path)
     hosted_doc_body = _read_text(hosted_doc_path)
+    secrets_template_body = _read_text(secrets_template_path)
 
     entrypoint_ready = dashboard_path.exists() and "src.dashboard" in dashboard_body
     missing_packages = [
@@ -53,6 +56,10 @@ def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDe
     ]
     requirements_ready = requirements_path.exists() and not missing_packages
     hosted_doc_ready = hosted_doc_path.exists() and "No public hosted Streamlit URL is configured" in hosted_doc_body
+    missing_secret_names = [
+        name for name in OPTIONAL_STREAMLIT_SECRET_NAMES if name not in secrets_template_body
+    ]
+    secrets_template_ready = secrets_template_path.exists() and not missing_secret_names
 
     return [
         HostedDemoCheck(
@@ -87,6 +94,18 @@ def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDe
             ),
             command="open docs/HOSTED_DEMO_DEPLOYMENT.md",
             boundary="Documentation only; it is not proof that a hosted URL exists.",
+        ),
+        HostedDemoCheck(
+            name="Hosted secrets template",
+            status="ready" if secrets_template_ready else "missing",
+            detail=(
+                "Blank .streamlit/secrets.toml.example lists optional hosted secret names only."
+                if secrets_template_ready
+                else "Add .streamlit/secrets.toml.example with blank hosted secret names: "
+                f"{', '.join(missing_secret_names) or 'template file'}"
+            ),
+            command="copy names from .streamlit/secrets.toml.example into the hosting platform secrets UI",
+            boundary="Template only; never commit .streamlit/secrets.toml, real keys, tokens, account IDs, or broker sessions.",
         ),
         HostedDemoCheck(
             name="Hosted URL",

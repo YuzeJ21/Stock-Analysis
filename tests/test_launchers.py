@@ -28,6 +28,7 @@ def test_generated_staging_pathspec_files_are_ignored():
     assert "outputs/staging/" in gitignore
     assert ".env" in gitignore
     assert ".env.local" in gitignore
+    assert ".streamlit/secrets.toml" in gitignore
     assert "config/provider_keys.env" in gitignore
 
 

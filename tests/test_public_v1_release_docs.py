@@ -116,6 +116,7 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     readme = _read("README.md")
     hosted = _read("docs/HOSTED_DEMO_DEPLOYMENT.md")
     requirements = _read("requirements.txt")
+    secrets_template = _read(".streamlit/secrets.toml.example")
     checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
     walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
     linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
@@ -132,6 +133,8 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "FMP_API_KEY" in hosted
     assert "ALPHA_VANTAGE_API_KEY" in hosted
     assert "FINNHUB_API_KEY" in hosted
+    assert ".streamlit/secrets.toml.example" in hosted
+    assert "do not commit `.streamlit/secrets.toml`" in hosted
     assert "Provider setup is not proof." in hosted
     assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in hosted
     assert "Set the hosted app entrypoint to `dashboard.py`" in hosted
@@ -148,6 +151,14 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "PyYAML>=6.0" in requirements
     assert "yfinance" not in requirements
     assert "ib-insync" not in requirements
+
+    assert 'FMP_API_KEY = ""' in secrets_template
+    assert 'ALPHA_VANTAGE_API_KEY = ""' in secrets_template
+    assert 'FINNHUB_API_KEY = ""' in secrets_template
+    assert 'IBKR_HOST = ""' in secrets_template
+    assert 'IBKR_PORT = ""' in secrets_template
+    assert 'IBKR_CLIENT_ID = ""' in secrets_template
+    assert "Do not commit .streamlit/secrets.toml or real provider keys." in secrets_template
 
 
 def test_public_docs_match_auto_price_ladder_order():

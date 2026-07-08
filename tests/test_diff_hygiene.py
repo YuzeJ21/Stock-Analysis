@@ -40,6 +40,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
     for path in (
         ".gitignore",
         ".streamlit/config.toml",
+        ".streamlit/secrets.toml.example",
         "README.md",
         "Makefile",
         "requirements.txt",
@@ -56,6 +57,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "outputs/pilot_readiness_packet.md",
     ):
         assert module.classify_path(path) == "product_candidate"
+    assert module.classify_path(".streamlit/secrets.toml") == "review_manually"
     assert module.classify_path("config/provider_keys.env") == "review_manually"
 
 

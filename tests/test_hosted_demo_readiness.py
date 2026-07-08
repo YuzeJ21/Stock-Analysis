@@ -14,6 +14,16 @@ def test_hosted_demo_readiness_reports_deployable_package_and_external_blocker(t
         "# Hosted Demo Deployment\nNo public hosted Streamlit URL is configured in this repository.\n",
         encoding="utf-8",
     )
+    (tmp_path / ".streamlit").mkdir()
+    (tmp_path / ".streamlit" / "secrets.toml.example").write_text(
+        'FMP_API_KEY = ""\n'
+        'ALPHA_VANTAGE_API_KEY = ""\n'
+        'FINNHUB_API_KEY = ""\n'
+        'IBKR_HOST = ""\n'
+        'IBKR_PORT = ""\n'
+        'IBKR_CLIENT_ID = ""\n',
+        encoding="utf-8",
+    )
 
     checks = build_hosted_demo_readiness(tmp_path)
     by_name = {check.name: check for check in checks}
@@ -21,14 +31,17 @@ def test_hosted_demo_readiness_reports_deployable_package_and_external_blocker(t
 
     assert by_name["Streamlit entrypoint"].status == "ready"
     assert by_name["Runtime dependency manifest"].status == "ready"
+    assert by_name["Hosted secrets template"].status == "ready"
     assert by_name["Hosted URL"].status == "external_account_required"
     assert by_name["Secrets boundary"].status == "manual_gate"
     assert by_name["Public verification"].command == "make public-check && make browser-qa-evidence"
 
     assert "dashboard.py" in rendered
     assert "requirements.txt" in rendered
+    assert ".streamlit/secrets.toml.example" in rendered
     assert "http://localhost:8501/?mode=public" in rendered
     assert "external_account_required" in rendered
+    assert "never commit .streamlit/secrets.toml" in rendered
     assert "screenshots are product evidence only" in rendered.lower()
     assert "not investment advice" in rendered.lower()
     assert "FMP_API_KEY" in rendered

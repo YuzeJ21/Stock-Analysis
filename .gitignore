@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+.streamlit/secrets.toml
 config/provider_keys.env
 .pytest_cache/
 __pycache__/
