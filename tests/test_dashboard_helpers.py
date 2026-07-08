@@ -28327,6 +28327,9 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "Raw proof, queues, route maps, and commands stay closed" in chunk
     assert "Proof History is preparing evidence cards" not in chunk
     assert "Loading evidence cards" in chunk
+    assert "public_loading_preview_html" in chunk
+    assert "What appears first" in chunk
+    assert "Next safe action" in chunk
     assert "public workflow is loading" not in chunk
 
 

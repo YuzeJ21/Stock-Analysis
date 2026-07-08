@@ -4999,6 +4999,33 @@ def render_public_workflow_header(page_title: str) -> None:
     st.markdown(public_workflow_header_html(page_title), unsafe_allow_html=True)
 
 
+def public_loading_preview_html(selected_page: str, first_label: str = "What appears first", next_label: str = "Next safe action") -> str:
+    step = public_workflow_step(selected_page)
+    cards = [
+        (
+            first_label,
+            f"{step['page']}: {step['question']}",
+            "",
+            "neutral",
+        ),
+        (
+            next_label,
+            step["next_action"],
+            "",
+            "neutral",
+        ),
+        (
+            "Stop rule",
+            step["stop_rule"],
+            "",
+            "warning",
+        ),
+    ]
+    return "<div class='public-loading-preview'>" + "".join(
+        action_card_html(title, body, command, tone) for title, body, command, tone in cards
+    ) + "</div>"
+
+
 def public_workflow_skip_link_html() -> str:
     return (
         "<a class='public-skip-link' href='#public-page-answer' "
@@ -5838,6 +5865,14 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
             title,
             body,
             tone="success",
+        )
+        st.markdown(
+            public_loading_preview_html(
+                selected_page,
+                first_label="What appears first",
+                next_label="Next safe action",
+            ),
+            unsafe_allow_html=True,
         )
     return placeholder
 
