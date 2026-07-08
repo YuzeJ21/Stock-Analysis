@@ -31,6 +31,7 @@ PROJECT_STATUS_JSON = "project_status.json"
 PROJECT_STATUS_SUMMARY_CSV = "project_status_summary.csv"
 PROJECT_STATUS_TOP_ACTIONS_CSV = "project_status_top_actions.csv"
 PROJECT_STATUS_NEXT_STEPS_CSV = "project_status_next_steps.csv"
+PROJECT_STATUS_REMAINING_STAGES_CSV = "project_status_remaining_stages.csv"
 TRUSTED_DATA_PILOT_CANDIDATES_COMMAND = "make trusted-data-pilot-candidates TOP_N=10"
 LEGACY_TRUSTED_DATA_PILOT_COMMAND = "make trusted-data-pilot TOP_N=10"
 
@@ -437,6 +438,133 @@ def _source_operator_first_setup_guidance(source_operator_summary: dict[str, Any
     return {}
 
 
+def _remaining_public_stage_rows(
+    summary: dict[str, Any],
+    *,
+    source_operator_summary: dict[str, Any] | None = None,
+    trusted_data_pilot_has_candidates: bool | None = None,
+    price_coverage_complete: bool = False,
+) -> list[dict[str, str]]:
+    """Classify the remaining public/product stages without unlocking data."""
+    source_operator_summary = source_operator_summary if isinstance(source_operator_summary, dict) else {}
+    needs_setup = [
+        str(item).strip().lower()
+        for item in source_operator_summary.get("needs_setup", [])
+        if str(item).strip()
+    ]
+    avoid_repeating = [
+        str(item).strip().lower()
+        for item in source_operator_summary.get("avoid_repeating", [])
+        if str(item).strip()
+    ]
+    first_setup = _source_operator_first_setup_guidance(source_operator_summary)
+    total = int(summary.get("tickers_total") or 0)
+    with_prices = int(summary.get("tickers_with_prices") or 0)
+    momentum_ready = int(summary.get("tickers_usable_for_momentum") or 0)
+    fundamentals_ready = int(summary.get("tickers_fundamentals_ready") or 0)
+    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
+    peer_ready = int(summary.get("tickers_peer_ready") or 0)
+    locked_inputs = int(summary.get("data_gaps") or 0)
+    optional_locked = int(summary.get("data_sources_optional_locked") or 0)
+
+    fmp_missing = "fmp" in needs_setup
+    first_provider = first_setup.get("setup_env") or "FMP_API_KEY"
+    source_queues_exhausted = trusted_data_pilot_has_candidates is False and price_coverage_complete
+    avoid_source_ladder = "fundamentals_share_count_source_ladder" in avoid_repeating
+
+    rows: list[dict[str, str]] = [
+        {
+            "Stage": "LinkedIn publish",
+            "State": "ready_for_manual_share",
+            "Evidence": "Public share gates pass; GitHub is synced; use GitHub link and curated screenshot.",
+            "Next Action": "Post or update LinkedIn manually using docs/LINKEDIN_PROJECT_BRIEF.md.",
+            "Completion Gate": "LinkedIn profile/card is updated by the account owner.",
+            "Boundary": "Manual LinkedIn action only; repo cannot edit the external profile.",
+        },
+        {
+            "Stage": "Hosted Streamlit demo",
+            "State": "external_account_required",
+            "Evidence": "No public hosted Streamlit URL is configured in this repository.",
+            "Next Action": "Deploy only after an external host/account is chosen and docs/HOSTED_DEMO_DEPLOYMENT.md is followed.",
+            "Completion Gate": "Hosted URL opens, public gates pass against that route, and README/LinkedIn wording is updated.",
+            "Boundary": "Do not claim a hosted app exists until the URL is deployed and verified.",
+        },
+        {
+            "Stage": "FMP provider activation",
+            "State": "external_key_required" if fmp_missing else "configured_smoke_required",
+            "Evidence": (
+                "FMP_API_KEY is not configured."
+                if fmp_missing
+                else "FMP_API_KEY appears configured; provider setup still needs a reviewed one-ticker smoke."
+            ),
+            "Next Action": (
+                "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke."
+                if fmp_missing
+                else "Run make fmp-stage TICKERS=<ticker> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>."
+            ),
+            "Completion Gate": (
+                f"{first_provider} is configured locally; one ticker validates, previews narrowly, has zero rejected rows, and source provenance is present."
+            ),
+            "Boundary": "Provider setup is not data proof and must not start a broad batch by itself.",
+        },
+        {
+            "Stage": "Peer readiness upgrade",
+            "State": "source_gated" if peer_ready < max(dcf_ready, 1) else "ready",
+            "Evidence": f"{peer_ready}/{total} peer-ready; source-backed peer mappings remain the biggest analysis-depth gap.",
+            "Next Action": "Use source-backed peer mapping rows only; keep candidate peers as context until reviewed.",
+            "Completion Gate": "Trusted peer rows validate, preview, apply intentionally, rebuild readiness, and update proof history.",
+            "Boundary": "Do not infer trusted peers from sector labels, market cap, price, or model guesses.",
+        },
+        {
+            "Stage": "Optional earnings and estimates",
+            "State": "locked_until_trusted_rows" if optional_locked or locked_inputs else "ready",
+            "Evidence": f"{optional_locked} optional/manual lane(s) locked; {locked_inputs} locked input row(s) visible.",
+            "Next Action": "Use optional-context source ladder or reviewed local rows; date-only or target-only rows stay candidate context.",
+            "Completion Gate": "Supported earnings or estimate fields pass validate, preview, apply, readiness rebuild, and proof recording.",
+            "Boundary": "Do not infer earnings, analyst estimates, targets, or recommendations.",
+        },
+        {
+            "Stage": "Source-proof queues",
+            "State": "exhausted_do_not_retry" if source_queues_exhausted or avoid_source_ladder else "check_project_status",
+            "Evidence": (
+                "Current proof queues have no unreviewed executable company candidates."
+                if source_queues_exhausted or avoid_source_ladder
+                else "Project status decides whether current proof candidates are executable."
+            ),
+            "Next Action": "Use provider setup or changed source-backed rows before reopening broad proof loops.",
+            "Completion Gate": "New provider data, reviewed manual rows, changed blockers, or executable company candidates appear.",
+            "Boundary": "Do not repeat broad fundamentals/share-count loops just because sources are reachable.",
+        },
+        {
+            "Stage": "Coverage depth",
+            "State": "ready_with_known_gaps" if price_coverage_complete else "price_gap_remaining",
+            "Evidence": (
+                f"Prices {with_prices}/{total}; momentum {momentum_ready}/{total}; fundamentals {fundamentals_ready}/{total}; DCF {dcf_ready}/{total}; peer {peer_ready}/{total}."
+            ),
+            "Next Action": "Prioritize provider activation and peer/optional proof; do not rerun broad price coverage unless it regresses.",
+            "Completion Gate": "Every lane is ready or truthfully supported, still_blocked, skipped, excluded, or candidate_context_only.",
+            "Boundary": "Coverage counts are readiness evidence, not investment conclusions.",
+        },
+        {
+            "Stage": "Public UX polish",
+            "State": "ready_for_live_review",
+            "Evidence": "Browser QA evidence is ready; public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.",
+            "Next Action": "Run a live desktop/mobile review and polish first viewport spacing or unclear Data Health wording only.",
+            "Completion Gate": "Five public pages remain clear, mobile-safe, and raw operations stay behind Advanced.",
+            "Boundary": "Do not expand data coverage or add providers during UX polish.",
+        },
+        {
+            "Stage": "Generated artifacts",
+            "State": "excluded_by_default",
+            "Evidence": "Generated CSV/report/sample-report churn is local working data unless individually reviewed.",
+            "Next Action": "Keep broad generated churn unstaged; stage only exact reviewed evidence artifacts.",
+            "Completion Gate": "make diff-hygiene-summary shows product package clean or only intentional reviewed files staged.",
+            "Boundary": "Do not use git add -A for this repo.",
+        },
+    ]
+    return rows
+
+
 def _fast_status_payload_from_outputs(
     project_root: Path | str | None = None,
     *,
@@ -609,6 +737,12 @@ def _fast_status_payload_from_outputs(
         price_coverage_complete=price_complete,
     )
 
+    remaining_stage_rows = _remaining_public_stage_rows(
+        summary,
+        source_operator_summary=_load_source_operator_summary(output_path),
+        trusted_data_pilot_has_candidates=trusted_data_pilot_has_candidates,
+        price_coverage_complete=price_complete,
+    )
     return {
         "project_root": str(root),
         "data_dir": str(data_path),
@@ -620,6 +754,7 @@ def _fast_status_payload_from_outputs(
         "top_onboarding_actions": sorted_actions[:top_n],
         "recommended_next_command_rows": command_rows,
         "recommended_next_commands": [row["Command"] for row in command_rows if row.get("Command")],
+        "remaining_public_stage_rows": remaining_stage_rows,
         "purpose_evaluation_summary": purpose_evaluation_rows,
         "source_operator_summary": _load_source_operator_summary(output_path),
         "warnings": _stale_generated_artifact_warnings(data_path, output_path),
@@ -1546,6 +1681,13 @@ def build_project_status_payload(
         trusted_data_pilot_has_candidates=trusted_data_pilot_has_candidates,
         price_coverage_complete=_price_coverage_complete(summary),
     )
+    source_operator_summary = _load_source_operator_summary(output_path)
+    remaining_stage_rows = _remaining_public_stage_rows(
+        summary,
+        source_operator_summary=source_operator_summary,
+        trusted_data_pilot_has_candidates=trusted_data_pilot_has_candidates,
+        price_coverage_complete=_price_coverage_complete(summary),
+    )
     return {
         "project_root": str(root),
         "data_dir": str(data_path),
@@ -1557,8 +1699,9 @@ def build_project_status_payload(
         "top_onboarding_actions": actions[:top_n],
         "recommended_next_command_rows": command_rows,
         "recommended_next_commands": [row["Command"] for row in command_rows],
+        "remaining_public_stage_rows": remaining_stage_rows,
         "purpose_evaluation_summary": purpose_evaluation_rows,
-        "source_operator_summary": _load_source_operator_summary(output_path),
+        "source_operator_summary": source_operator_summary,
     }
 
 
@@ -1604,12 +1747,14 @@ def write_project_status_output(
     summary_path = output_path / PROJECT_STATUS_SUMMARY_CSV
     top_actions_path = output_path / PROJECT_STATUS_TOP_ACTIONS_CSV
     next_steps_path = output_path / PROJECT_STATUS_NEXT_STEPS_CSV
+    remaining_stages_path = output_path / PROJECT_STATUS_REMAINING_STAGES_CSV
     purpose_summary_path = output_path / PURPOSE_EVALUATION_SUMMARY_CSV
 
     json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     pd.DataFrame([payload["summary"]]).to_csv(summary_path, index=False)
     pd.DataFrame(payload["top_onboarding_actions"]).to_csv(top_actions_path, index=False)
     pd.DataFrame(payload["recommended_next_command_rows"]).to_csv(next_steps_path, index=False)
+    pd.DataFrame(payload["remaining_public_stage_rows"]).to_csv(remaining_stages_path, index=False)
 
     return {
         **payload,
@@ -1618,6 +1763,7 @@ def write_project_status_output(
             "project_status_summary": str(summary_path),
             "project_status_top_actions": str(top_actions_path),
             "project_status_next_steps": str(next_steps_path),
+            "project_status_remaining_stages": str(remaining_stages_path),
             "purpose_evaluation_summary": str(purpose_summary_path),
         },
     }
@@ -1727,6 +1873,19 @@ def _print_human(payload: dict[str, Any]) -> None:
         if avoid_repeating:
             print(f"- Avoid repeating now: {_friendly_cli_guidance(', '.join(avoid_repeating))}.")
     print("- Details below are capped and copy-only.")
+    stage_rows = payload.get("remaining_public_stage_rows") or []
+    if stage_rows:
+        print("Remaining public/product stages:")
+        for row in stage_rows:
+            stage = str(row.get("Stage") or "Next stage").strip()
+            state = str(row.get("State") or "unknown").strip()
+            next_action = str(row.get("Next Action") or "").strip()
+            evidence = str(row.get("Evidence") or "").strip()
+            print(f"- {stage}: {state}")
+            if evidence:
+                print(f"  evidence: {evidence}")
+            if next_action:
+                print(f"  next: {next_action}")
     print("Top locked inputs to review:")
     price_complete = _price_coverage_complete(summary)
     for row in payload["top_onboarding_actions"]:

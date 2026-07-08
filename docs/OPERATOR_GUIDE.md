@@ -30,6 +30,8 @@ make status-check TOP_N=5
 make dashboard-smoke
 ```
 
+`make project-status` also writes `outputs/project_status_remaining_stages.csv`. Use that stage map when deciding what is truly next after the public package is ready: LinkedIn manual share, hosted Streamlit deployment, FMP provider activation, peer readiness upgrade, optional earnings/estimate context, source-proof queue exhaustion, coverage-depth gaps, UX polish, and generated-artifact hygiene. The stage map is read-only; it classifies what is ready, external-account-required, external-key-required, source-gated, locked, or excluded by default.
+
 ## What To Open First
 
 - Open `make dashboard` for the product page.

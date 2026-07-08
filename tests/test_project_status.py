@@ -1147,6 +1147,58 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
     assert "avoid repeating now: fundamentals_share_count_source_ladder" not in output
 
 
+def test_project_status_stage_map_classifies_remaining_public_items(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    monkeypatch.setattr(project_status, "_dcf_source_ladder_has_unreviewed_rows", lambda _root, _data_path: False)
+    monkeypatch.setattr(project_status, "_trusted_data_pilot_has_candidates", lambda _root, top_n=10: False)
+    monkeypatch.setattr(project_status, "_price_coverage_complete", lambda _summary: True)
+    (tmp_path / "outputs" / "session_source_preflight.json").write_text(
+        json.dumps(
+            {
+                "source_activation_console_v2": {
+                    "operator_summary": {
+                        "can_run_now": ["coverage_workflow_evidence"],
+                        "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
+                        "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+    assert payload is not None
+    stage_rows = payload["remaining_public_stage_rows"]
+    stage_names = [row["Stage"] for row in stage_rows]
+
+    assert stage_names[:4] == [
+        "LinkedIn publish",
+        "Hosted Streamlit demo",
+        "FMP provider activation",
+        "Peer readiness upgrade",
+    ]
+    assert stage_rows[0]["State"] == "ready_for_manual_share"
+    assert stage_rows[1]["State"] == "external_account_required"
+    assert stage_rows[2]["State"] == "external_key_required"
+    assert stage_rows[2]["Next Action"] == "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke."
+    assert stage_rows[3]["State"] == "source_gated"
+    assert "29/3541 peer-ready" not in " ".join(str(value) for row in stage_rows for value in row.values())
+    assert any(row["Stage"] == "Source-proof queues" and row["State"] == "exhausted_do_not_retry" for row in stage_rows)
+    assert any(row["Stage"] == "Generated artifacts" and row["State"] == "excluded_by_default" for row in stage_rows)
+
+    project_status._print_human(payload)
+    output = capsys.readouterr().out.lower()
+    assert "remaining public/product stages:" in output
+    assert "hosted streamlit demo: external_account_required" in output
+    assert "fmp provider activation: external_key_required" in output
+    assert "source-proof queues: exhausted_do_not_retry" in output
+
+
 def test_project_status_fast_check_pivots_from_reviewed_non_actionable_peers(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
     pd.DataFrame(
