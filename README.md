@@ -32,6 +32,16 @@ flowchart LR
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.
 - Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
 
+## Public Share Readiness
+This repository is ready to share as a GitHub/LinkedIn portfolio demo with manual gates. It is not currently published as a live hosted Streamlit app.
+- GitHub review is ready: README, screenshots, methodology, sample reports, local run commands, and controlled demo license.
+- Hosted app is not configured: reviewers can run locally with `make dashboard` until a separate deployment is verified.
+- Provider keys are not configured by default: FMP, Alpha Vantage, and Finnhub are optional local fallbacks.
+- Generated data churn stays local unless an exact artifact is reviewed as public evidence.
+- Coverage | Readiness-gated, not complete: ready, partial, blocked, skipped, and excluded states remain visible.
+- LinkedIn Featured title: `Stock Research Command Center | Readiness-First Stock Research Workflow`
+- LinkedIn copy lives in `docs/LINKEDIN_PROJECT_BRIEF.md`; use `docs/assets/linkedin-public-dashboard.png` if LinkedIn crops the GitHub card. Screenshots are product evidence only, not data freshness proof.
+
 ## What You Can Analyze
 When trusted local data is available, the product can produce price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, portfolio purpose checks, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 
@@ -122,13 +132,7 @@ make stock-report-md TICKER=MU    # standalone DCF report with peer valuation st
 make stock-report-md TICKER=CRDO  # fundamentals/DCF proof example
 ```
 
-Optional local proof checks:
-
-```bash
-make project-status && make provider-setup-checklist && make universe-scope TICKERS=NVDA,META TOP_N=10 && make risk-context
-make trusted-data-pilot-candidates TOP_N=10  # only when status shows executable company candidates
-make trusted-data-pilot-packet TICKER=MU && make trusted-data-pilot-packet TICKER=CRDO
-```
+Optional local proof checks: `make project-status && make provider-setup-checklist && make universe-scope TICKERS=NVDA,META TOP_N=10 && make risk-context`; use `make trusted-data-pilot-candidates TOP_N=10` only when status shows executable company candidates, then inspect `make trusted-data-pilot-packet TICKER=MU` or `make trusted-data-pilot-packet TICKER=CRDO`.
 
 The shortest public walkthrough uses NVDA, META, QQQ, MU, and CRDO only as optional state examples. That shows the core idea quickly: filter by readiness, analyze ready data, explain blocked data, exclude methods that do not apply, and show the trusted-data proof path without pretending missing rows exist.
 
@@ -140,6 +144,8 @@ For a share-ready walkthrough, use the [Visitor Workflow Walkthrough](docs/PUBLI
 
 ## Pilot Share Status
 Share as controlled portfolio/demo evidence under the root `LICENSE`; do not describe the repository as open source or reusable software. Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence. When source-proof queues are exhausted, use `make project-status` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command. No broad coverage batch should run from setup alone.
+
+Hosting status: no public Streamlit URL is configured in this repository. The share-ready path is GitHub plus the local `make dashboard` workflow. Add a hosted link only after a separate deployment account is configured, secrets are stored outside the repo, and `make public-check` still passes.
 
 ## Local Data Hygiene
 Small example reports are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and report CSVs are local working data by default. Review them before committing; do not publish broad refresh changes unless intentionally selected.

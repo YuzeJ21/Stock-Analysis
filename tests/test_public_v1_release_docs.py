@@ -81,13 +81,20 @@ def test_public_docs_do_not_reintroduce_old_three_path_navigation():
 def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     readme = _read("README.md")
 
+    assert "## Public Share Readiness" in readme
+    assert "not currently published as a live hosted Streamlit app" in readme
+    assert "FMP, Alpha Vantage, and Finnhub are optional local fallbacks" in readme
+    assert "Coverage | Readiness-gated, not complete" in readme
+    assert "Stock Research Command Center | Readiness-First Stock Research Workflow" in readme
     assert "## Pilot Share Status" in readme
     assert "Share as controlled portfolio/demo evidence under the root `LICENSE`" in readme
     assert "do not describe the repository as open source or reusable software" in readme
     assert "Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence." in readme
     assert "`make project-status` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command" in readme
     assert "No broad coverage batch should run from setup alone." in readme
+    assert "no public Streamlit URL is configured in this repository" in readme
     assert "`make linkedin-share-check` for the final LinkedIn Featured-card checklist" in readme
+    assert readme.index("## Public Share Readiness") < readme.index("## Pilot Share Status")
     assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
 
 
@@ -243,6 +250,11 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
 
     assert PUBLIC_V1_ROUTE in makefile
     assert PUBLIC_V1_ROUTE in brief
+    assert "no public hosted Streamlit URL is configured yet" in brief
+    assert "Coverage boundary" in brief
+    assert "Provider boundary" in brief
+    assert "GitHub demo with real product screenshots and local run instructions" in brief
+    assert "provider-key activation" in brief
     assert "readiness-backed selection comes first" in makefile
     assert "Review one stock, Improve data coverage, and Inspect proof" not in makefile
     assert "Check data coverage:     make readiness-ops-center" in makefile

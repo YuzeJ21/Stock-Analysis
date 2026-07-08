@@ -398,7 +398,9 @@ def test_linkedin_share_check_prints_read_only_final_checklist():
     assert "Stock Research Command Center | Readiness-First Stock Research Workflow" in output
     assert "docs/assets/linkedin-public-dashboard.png" in output
     assert "GitHub's generated OpenGraph card" in output
+    assert "hosted Streamlit app" in output
     assert "screenshots prove current data freshness" in output
+    assert "provider-key activation" in output
     assert "make public-check" in output
 
 

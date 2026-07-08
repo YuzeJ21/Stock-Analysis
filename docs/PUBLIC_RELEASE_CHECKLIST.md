@@ -5,6 +5,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 ## README And Visitor Experience
 
 - Keep the top of `README.md` focused on what the project does, why it matters, and how to run it.
+- Confirm `README.md` includes a `Public Share Readiness` section that says GitHub and screenshots are ready, no public hosted Streamlit URL is configured yet, provider keys are optional/missing by default, generated churn stays excluded, and coverage is readiness-gated rather than complete.
 - Put the best demo commands near the top: `make demo`, `make status-check TOP_N=5`, `make stock-report-md TICKER=NVDA`, and `make dashboard`.
 - Keep `make stock-report TICKER=NVDA` available for optional local report-data inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
@@ -33,6 +34,9 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
 - Use `docs/assets/linkedin-public-dashboard.png` as the LinkedIn Featured thumbnail unless you intentionally want an operator-mode screenshot; treat image counts as illustrative and use `make status-check TOP_N=5` for current local counts.
+- Use GitHub as the LinkedIn link target unless a hosted app has been separately deployed and verified. The current public-share package is GitHub plus curated screenshots plus local run instructions.
+- Confirm the LinkedIn Featured description mentions Python + Streamlit, data readiness before analysis, research-only, no broker integration, no auto-trading, and no investment advice.
+- Confirm LinkedIn copy does not imply complete coverage, provider-key activation, public hosted app availability, data freshness proof, or investment recommendations.
 - Run `make browser-qa-evidence` before sharing or replacing public screenshots. It shows the current public-share image recommendation, committed asset checks, current real-app capture status, route expectations, and capture boundaries without refreshing data or writing reports.
 - Run `make linkedin-share-check` for the final LinkedIn Featured-card checklist. It is read-only: it does not open LinkedIn, upload files, edit your profile, refresh data, stage files, commit, or push.
 - Run `make browser-qa-capture-plan` only when you need the real-screenshot capture sequence for replacing GitHub or LinkedIn visuals.
@@ -87,6 +91,9 @@ Internal build-process notes are not part of the public product surface. Keep pr
 - No direct buy/sell instructions.
 - No options recommendations.
 - No fabricated prices, fundamentals, peer mappings, earnings, analyst estimates, valuation inputs, or recommendations.
+- No claim that FMP, Alpha Vantage, or Finnhub are configured unless local keys exist and a reviewed one-ticker smoke has passed.
+- No claim that the product has a public hosted app link unless a deployment exists and the public share gates pass against that route.
+- No claim that incomplete fundamentals, share-count, peer, earnings, or analyst-estimate lanes are ready.
 
 ## Suggested Final Verification
 

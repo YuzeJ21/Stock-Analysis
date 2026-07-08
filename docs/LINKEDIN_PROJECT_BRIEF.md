@@ -14,8 +14,11 @@ Two-minute external review path:
 
 - GitHub-only review: start with the preview image, the five-page workflow map, and `docs/PUBLIC_DEMO_WALKTHROUGH.md`.
 - Live dashboard review: run `make dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
+- Hosted app status: no public hosted Streamlit URL is configured yet; share the GitHub project, curated screenshots, and local run instructions unless you separately deploy the app.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.
 - Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
+- Coverage boundary: price coverage is broad, but fundamentals, share count, peer mapping, earnings, and analyst estimates still have blocked or locked areas. The product shows those gaps instead of treating them as complete.
+- Provider boundary: FMP, Alpha Vantage, and Finnhub are optional local provider fallbacks and are not configured by default. Do not claim full automated fundamentals, estimates, or provider-backed coverage unless a reviewed source path proves it.
 
 Each public page now opens with one question, one short answer, one primary next action, and one stop rule. The public workflow is checked at desktop and mobile widths. The current-page shortcut is visible so visitors know where they are.
 
@@ -58,7 +61,7 @@ LinkedIn Featured title:
 
 LinkedIn Featured description:
 
-`A Python + Streamlit portfolio project that checks stock data readiness before showing analysis. It separates ready, blocked, partial, and excluded states, keeps source-proof steps visible, and stays research-only with no broker integration, auto-trading, or investment advice.`
+`A Python + Streamlit portfolio project that checks stock data readiness before showing analysis. It separates ready, partial, blocked, and excluded states, keeps source-proof gaps visible, and stays research-only with no broker integration, no auto-trading, and no investment advice.`
 
 GitHub About description:
 
@@ -74,13 +77,15 @@ About-section sentence:
 
 Optional LinkedIn post:
 
-`I have been building a Stock Research Command Center as a portfolio project. The core idea is simple: data readiness first, analysis second, research decision last. The app checks whether stock data is ready before showing analysis, separates ready / partial / blocked / excluded states, and keeps source-proof steps visible when inputs are missing. It is built with Python and Streamlit, and stays research-only: no broker integration, no auto-trading, no order routing, and no investment advice. This project reflects the kind of data-product work I care about: turning messy coverage, quality, and workflow problems into a guided user experience.`
+`I have been building a Stock Research Command Center as a portfolio project. The core idea is simple: data readiness first, analysis second, research decision last. The app checks whether stock data is ready before showing analysis, separates ready / partial / blocked / excluded states, and keeps source-proof gaps visible when inputs are missing. It is built with Python and Streamlit, and stays research-only: no broker integration, no auto-trading, no order routing, and no investment advice. The public share is a GitHub demo with real product screenshots and local run instructions, not a claim that every coverage lane is complete. This project reflects the kind of data-product work I care about: turning messy coverage, quality, and workflow problems into a guided user experience.`
 
 What not to claim:
 
 - Do not call it an investment-advice tool, stock picker, broker integration, execution system, account-action workflow, or data-freshness proof.
 - Do not imply blocked fundamentals, peer valuation, earnings, or analyst-estimate lanes are complete.
 - Do not describe the repository as open source or reusable software under the current controlled demo license.
+- Do not imply there is a public hosted app link until a hosted Streamlit deployment exists and has passed the public share gates.
+- Do not imply FMP, Alpha Vantage, or Finnhub provider fallbacks are configured unless local keys are actually set and a reviewed one-ticker smoke has passed.
 
 Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`. It is a real product screenshot of the public visitor path; use `make status-check TOP_N=5` for current local readiness counts because screenshot counts can become stale after local refresh/import work. Keep `docs/assets/operator-data-health-metrics-real.jpg` only for deeper operator-mode discussion. The plain GitHub URL card can use GitHub's generated OpenGraph image, so use LinkedIn Featured when you want the curated product screenshot.
 
@@ -94,8 +99,9 @@ Use this after GitHub is synced:
 2. Confirm the Featured card description says the project is research-only and mentions no broker integration, auto-trading, or investment advice.
 3. Confirm the Featured image is `docs/assets/linkedin-public-dashboard.png` when you want the curated product screenshot.
 4. If LinkedIn shows a generated GitHub URL card instead, leave it only if you are okay with GitHub's OpenGraph image; otherwise remove and re-add the Featured item with the curated screenshot.
-5. Open the GitHub link from LinkedIn and confirm the README starts with `Pilot In 60 Seconds`.
-6. Stop before claiming screenshots prove current data freshness, coverage completion, or investment advice.
+5. Confirm the link target is GitHub unless you have intentionally deployed a hosted Streamlit app.
+6. Open the GitHub link from LinkedIn and confirm the README starts with `Pilot In 60 Seconds` and includes `Public Share Readiness`.
+7. Stop before claiming screenshots prove current data freshness, coverage completion, provider-key activation, or investment advice.
 
 ## Resume Bullet Options
 
