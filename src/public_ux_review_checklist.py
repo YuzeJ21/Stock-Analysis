@@ -80,6 +80,7 @@ STOP_BEFORE_SHARING = [
 NEXT_SAFE_COMMANDS = [
     "make dashboard",
     "make public-ux-review-checklist-json",
+    "make public-ux-review-notes-check",
     "make project-status-check",
     "make dashboard-smoke",
     "make browser-qa-evidence",
@@ -246,10 +247,120 @@ def write_public_ux_review_notes(output_dir: str | Path | None = None) -> Path:
     return output_path
 
 
+def _default_review_notes_path() -> Path:
+    return Path(REVIEW_NOTE_ARTIFACT["suggested_local_folder"]) / str(REVIEW_NOTE_ARTIFACT["suggested_notes_file"])
+
+
+def _parse_review_note_rows(notes_text: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    in_route_notes = False
+    headers: list[str] = []
+    for raw_line in notes_text.splitlines():
+        line = raw_line.strip()
+        if line == "## Route Notes":
+            in_route_notes = True
+            continue
+        if in_route_notes and line.startswith("## "):
+            break
+        if not in_route_notes or not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if not headers:
+            headers = cells
+            continue
+        if all(set(cell) <= {"-", " "} for cell in cells):
+            continue
+        if len(cells) != len(headers):
+            continue
+        rows.append(dict(zip(headers, cells)))
+    return rows
+
+
+def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[str, object]:
+    path = Path(notes_path) if notes_path is not None else _default_review_notes_path()
+    expected_rows = len(PUBLIC_ROUTES) * 2
+    if not path.exists():
+        return {
+            "status": "notes_missing",
+            "path": str(path),
+            "total_rows": 0,
+            "expected_rows": expected_rows,
+            "pending_rows": expected_rows,
+            "classification_counts": {"pending": expected_rows},
+            "problem_rows": [],
+            "next_safe_command": "make public-ux-review-notes",
+            "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
+        }
+
+    rows = _parse_review_note_rows(path.read_text(encoding="utf-8"))
+    classification_counts: dict[str, int] = {}
+    problem_rows: list[dict[str, str]] = []
+    for row in rows:
+        classification = row.get("Issue classification", "").strip() or "pending"
+        classification_counts[classification] = classification_counts.get(classification, 0) + 1
+        if classification not in {"pending", "resolved"}:
+            problem_rows.append(
+                {
+                    "page": row.get("Page", ""),
+                    "viewport": row.get("Viewport", ""),
+                    "classification": classification,
+                    "notes": row.get("Notes", ""),
+                }
+            )
+
+    pending_rows = classification_counts.get("pending", 0)
+    if pending_rows == expected_rows:
+        status = "not_started"
+    elif pending_rows:
+        status = "review_in_progress"
+    elif problem_rows:
+        status = "review_has_deferred_or_limited_items"
+    else:
+        status = "review_complete"
+
+    return {
+        "status": status,
+        "path": str(path),
+        "total_rows": len(rows),
+        "expected_rows": expected_rows,
+        "pending_rows": pending_rows,
+        "classification_counts": classification_counts,
+        "problem_rows": problem_rows,
+        "next_safe_command": "make public-ux-review-notes",
+        "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
+    }
+
+
+def render_public_ux_review_notes_status(notes_path: str | Path | None = None) -> str:
+    status = public_ux_review_notes_status(notes_path)
+    counts = status["classification_counts"]
+    count_parts = [f"{key}: {value}" for key, value in sorted(counts.items())]  # type: ignore[union-attr]
+    lines = [
+        "Public UX Review Notes Status",
+        "Read-only: this status does not open the browser, refresh data, stage files, commit, or push.",
+        "Research-only: review notes are product QA evidence only, not data freshness proof or trade instruction.",
+        "",
+        f"status: {status['status']}",
+        f"path: {status['path']}",
+        f"rows: {status['total_rows']} recorded / {status['expected_rows']} expected",
+        f"pending_rows: {status['pending_rows']}",
+        f"classification_counts: {', '.join(count_parts) if count_parts else '-'}",
+        f"next_safe_command: {status['next_safe_command']}",
+        f"boundary: {status['boundary']}",
+    ]
+    problem_rows = status["problem_rows"]
+    if problem_rows:
+        lines.extend(["", "Deferred / limited / blocked rows:"])
+        for row in problem_rows:  # type: ignore[assignment]
+            lines.append(f"- {row['page']} | {row['viewport']} | {row['classification']} | {row['notes']}")
+    return "\n".join(lines)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Print the public UX review checklist.")
     parser.add_argument("--json", action="store_true", help="Print the checklist as machine-readable JSON.")
     parser.add_argument("--notes", action="store_true", help="Write a local Markdown notes template for live UX review.")
+    parser.add_argument("--notes-status", action="store_true", help="Summarize the local public UX review notes status.")
     parser.add_argument(
         "--output-dir",
         default=None,
@@ -259,6 +370,8 @@ def main() -> None:
     if args.notes:
         output_path = write_public_ux_review_notes(args.output_dir)
         print(f"Wrote: {output_path}")
+    elif args.notes_status:
+        print(render_public_ux_review_notes_status())
     elif args.json:
         print(json.dumps(public_ux_review_payload(), indent=2))
     else:

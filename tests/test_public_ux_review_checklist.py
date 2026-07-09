@@ -1,8 +1,10 @@
 from src.public_ux_review_checklist import (
     PUBLIC_ROUTES,
     public_ux_review_payload,
+    public_ux_review_notes_status,
     render_public_ux_review_checklist,
     render_public_ux_review_notes,
+    render_public_ux_review_notes_status,
     write_public_ux_review_notes,
 )
 
@@ -85,6 +87,7 @@ def test_public_ux_review_payload_is_machine_readable_for_long_runs():
     assert payload["next_safe_commands"] == [
         "make dashboard",
         "make public-ux-review-checklist-json",
+        "make public-ux-review-notes-check",
         "make project-status-check",
         "make dashboard-smoke",
         "make browser-qa-evidence",
@@ -122,3 +125,54 @@ def test_public_ux_review_notes_template_is_share_safe_and_route_complete(tmp_pa
 
     assert output_path == tmp_path / "public-ux-review-notes.md"
     assert output_path.read_text(encoding="utf-8") == rendered + "\n"
+
+
+def test_public_ux_review_notes_status_reports_missing_template(tmp_path):
+    missing_path = tmp_path / "missing.md"
+
+    status = public_ux_review_notes_status(missing_path)
+    rendered = render_public_ux_review_notes_status(missing_path)
+
+    assert status["status"] == "notes_missing"
+    assert status["path"] == str(missing_path)
+    assert status["pending_rows"] == 10
+    assert status["next_safe_command"] == "make public-ux-review-notes"
+    assert "Public UX Review Notes Status" in rendered
+    assert "notes_missing" in rendered
+    assert "make public-ux-review-notes" in rendered
+
+
+def test_public_ux_review_notes_status_counts_pending_and_reviewed_rows(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+    text = notes_path.read_text(encoding="utf-8")
+    text = text.replace(
+        "| Home | desktop | pending | pending | pending | pending |  |",
+        "| Home | desktop | yes | yes | yes | resolved | Looks clear. |",
+    )
+    text = text.replace(
+        "| Data Health | phone | pending | pending | pending | pending |  |",
+        "| Data Health | phone | no | yes | no | environment_limited | Browser capture timed out; use normal browser. |",
+    )
+    notes_path.write_text(text, encoding="utf-8")
+
+    status = public_ux_review_notes_status(notes_path)
+    rendered = render_public_ux_review_notes_status(notes_path)
+
+    assert status["status"] == "review_in_progress"
+    assert status["total_rows"] == 10
+    assert status["pending_rows"] == 8
+    assert status["classification_counts"]["resolved"] == 1
+    assert status["classification_counts"]["environment_limited"] == 1
+    assert status["classification_counts"]["pending"] == 8
+    assert status["problem_rows"] == [
+        {
+            "page": "Data Health",
+            "viewport": "phone",
+            "classification": "environment_limited",
+            "notes": "Browser capture timed out; use normal browser.",
+        }
+    ]
+    assert "review_in_progress" in rendered
+    assert "pending: 8" in rendered
+    assert "environment_limited: 1" in rendered
+    assert "Data Health | phone | environment_limited" in rendered
