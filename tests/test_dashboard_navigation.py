@@ -92,6 +92,15 @@ def test_public_workflow_steps_answer_one_question_and_next_action_per_page():
     assert nav.public_workflow_step("Universe Manager") == nav.public_workflow_step("Home")
 
 
+def test_public_workflow_position_labels_page_progress():
+    assert nav.public_workflow_position("Home") == "Step 1 of 5"
+    assert nav.public_workflow_position("Stock Selector") == "Step 2 of 5"
+    assert nav.public_workflow_position("Single-Stock Report") == "Step 3 of 5"
+    assert nav.public_workflow_position("Data Health") == "Step 4 of 5"
+    assert nav.public_workflow_position("Proof History") == "Step 5 of 5"
+    assert nav.public_workflow_position("Universe Manager") == "Step 1 of 5"
+
+
 def test_public_workflow_stop_rules_keep_research_only_boundary_visible():
     for page in nav.PUBLIC_PATH_PAGE_TITLES:
         stop_rule = nav.public_workflow_step(page)["stop_rule"].lower()

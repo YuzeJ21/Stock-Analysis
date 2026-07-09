@@ -28192,6 +28192,7 @@ def test_public_pages_use_compact_shell_before_page_content():
     dispatch_index = source.index('if selected_page == "Home":', workflow_header_index)
     assert render_header_index < workflow_header_index < dispatch_index
     assert "You are here" in source
+    assert "Workflow step" in source
     assert "Current question" in source
     assert "Short answer" in source
     assert "Primary next step" in source
@@ -28208,6 +28209,8 @@ def test_public_workflow_header_collapses_guidance_into_two_visual_groups():
     assert html.count("public-workflow-primary") == 1
     assert html.count("public-workflow-supporting") == 1
     assert "You are here" in html
+    assert "Workflow step" in html
+    assert "Step 3 of 5" in html
     assert "Current question" in html
     assert "Short answer" in html
     assert "Primary next step" in html

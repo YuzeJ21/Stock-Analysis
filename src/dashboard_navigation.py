@@ -91,6 +91,16 @@ def public_workflow_step(page_title: str) -> dict[str, str]:
     return dict(PUBLIC_WORKFLOW_STEPS.get(page_title, PUBLIC_WORKFLOW_STEPS["Home"]))
 
 
+def public_workflow_position(page_title: str) -> str:
+    """Return a compact visible progress cue for the public five-page flow."""
+    canonical_page = public_workflow_step(page_title)["page"]
+    try:
+        index = PUBLIC_PATH_PAGE_TITLES.index(canonical_page) + 1
+    except ValueError:
+        index = 1
+    return f"Step {index} of {len(PUBLIC_PATH_PAGE_TITLES)}"
+
+
 def dashboard_page_from_query(value: object, user_page_titles: list[str]) -> str:
     raw = value[0] if isinstance(value, list) and value else value
     slug = dashboard_page_slug(unquote(str(raw or "").strip()))

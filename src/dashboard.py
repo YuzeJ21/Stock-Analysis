@@ -136,6 +136,7 @@ from src.dashboard_navigation import (
     dashboard_page_slug,
     page_title_from_public_path,
     public_path_label,
+    public_workflow_position,
     public_workflow_step,
     route_rail_query_update,
     selected_page_from_route_rail,
@@ -5022,6 +5023,7 @@ def public_workflow_header_html(page_title: str) -> str:
     step = public_workflow_step(page_title)
     primary_cells = [
         ("You are here", step["page"]),
+        ("Workflow step", public_workflow_position(page_title)),
         ("Current question", step["question"]),
     ]
     supporting_cells = [
