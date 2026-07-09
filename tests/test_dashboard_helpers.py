@@ -20090,8 +20090,8 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
     function_index = source.index("def render_data_health(")
     provider_none_index = source.index("if provider is None:", function_index)
     placeholder_index = source.index("public_loading_placeholder = st.empty()", provider_none_index)
-    placeholder_copy_index = source.index('"Loading the lane answer / coverage summary"', placeholder_index)
-    placeholder_answer_index = source.index("Real lane cards are still loading", placeholder_copy_index)
+    placeholder_copy_index = source.index('"Lane answer / coverage summary guide"', placeholder_index)
+    placeholder_answer_index = source.index("Use the lane cards before opening advanced proof details", placeholder_copy_index)
     placeholder_contract_index = source.index(
         "Raw tables, route maps, queues, proof ledgers, and commands stay closed",
         placeholder_answer_index,
@@ -28353,9 +28353,9 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     bootstrap_chunk = source[bootstrap_function_index:end_index]
     assert "public_workflow_header_html" not in bootstrap_chunk
     assert bootstrap_function_index < loading_note_index
-    assert "Loading the lane answer / coverage summary" in source
-    assert "Wait for the lane cards before opening advanced proof details" in source
-    assert "Real lane cards are still loading" in source
+    assert "Lane answer / coverage summary guide" in source
+    assert "Use the lane cards before opening advanced proof details" in source
+    assert "Real lane cards are still loading" not in source
     assert "Raw proof, queues, route maps, and commands stay closed" in source
 
 
@@ -28370,18 +28370,19 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
         'selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Single-Stock Report", '
         '"Data Health", PROOF_HISTORY_PATH_TITLE}' in chunk
     )
-    assert "Loading the public start answer" in chunk
+    assert "Loading " not in chunk
+    assert "Public start guide" in chunk
     assert "where to start, and the research-only stop rule" in chunk
-    assert "Loading readiness-backed ticker choices" in chunk
-    assert "Loading the selected-ticker answer" in chunk
+    assert "Readiness-backed ticker guide" in chunk
+    assert "Selected-ticker guide" in chunk
     assert "selected ticker state, usable sections, blocked inputs, and one next step" in chunk
-    assert "Loading the lane answer / coverage summary" in chunk
-    assert "Wait for the lane cards before opening advanced proof details" in chunk
-    assert "Real lane cards are still loading" in chunk
+    assert "Lane answer / coverage summary guide" in chunk
+    assert "Use the lane cards before opening advanced proof details" in chunk
+    assert "Real lane cards are still loading" not in chunk
     assert "Raw proof, queues, route maps, and commands stay closed" in chunk
     assert "Proof History is preparing evidence cards" not in chunk
-    assert "Loading evidence cards" in chunk
-    assert "Wait for evidence cards before opening the raw proof ledger" in chunk
+    assert "Evidence page guide" in chunk
+    assert "Review evidence cards before opening the raw proof ledger" in chunk
     assert "public_loading_preview_html" in chunk
     assert "What appears first" in chunk
     assert "Next safe action" in chunk
@@ -28409,12 +28410,12 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     render_index = source.index("def render_single_stock_report(")
 
     section_index = source.index('"One-Stock Review"', render_index)
-    placeholder_index = source.index('"Loading the selected-ticker answer."', section_index)
+    placeholder_index = source.index('"Selected-ticker guide."', section_index)
     placeholder_contract_index = source.index(
         "The page opens with selected ticker state",
         placeholder_index,
     )
-    placeholder_stop_index = source.index("do not treat loading, partial, candidate-only, or locked sections as conclusions", placeholder_index)
+    placeholder_stop_index = source.index("do not treat partial, candidate-only, or locked sections as conclusions", placeholder_index)
     provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
     report_button_index = source.index('st.button("Open Review"', contract_cards_index)

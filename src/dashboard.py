@@ -5836,35 +5836,34 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
     if selected_page not in {"Home", STOCK_SELECTOR_PATH_TITLE, "Single-Stock Report", "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return None
     if selected_page == "Home":
-        title = "Loading the public start answer."
+        title = "Public start guide."
         body = (
             "The page opens with what this product is, where to start, and the research-only stop rule. "
             "No analysis appears until source-backed readiness supports it. Next: start with Stock Selector."
         )
     elif selected_page == STOCK_SELECTOR_PATH_TITLE:
-        title = "Loading readiness-backed ticker choices."
+        title = "Readiness-backed ticker guide."
         body = (
             "No recommendations run here. The page is reading saved readiness rows so you can choose one "
             "reviewable ticker before opening a single-stock report."
         )
     elif selected_page == "Single-Stock Report":
-        title = "Loading the selected-ticker answer."
+        title = "Selected-ticker guide."
         body = (
             "The page opens with selected ticker state, usable sections, blocked inputs, and one next step. "
             "Advanced evidence stays closed while the saved review evidence loads. "
-            "Stop: do not treat loading, partial, candidate-only, or locked sections as conclusions."
+            "Stop: do not treat partial, candidate-only, or locked sections as conclusions."
         )
     elif selected_page == PROOF_HISTORY_PATH_TITLE:
-        title = "Loading evidence cards."
+        title = "Evidence page guide."
         body = (
-            "No data refresh runs here. The page is reading reviewed proof rows so it can show the latest "
-            "outcome before raw ledgers or advanced evidence details. "
-            "Wait for evidence cards before opening the raw proof ledger."
+            "No data refresh runs here. Reviewed proof rows show the latest outcome before raw ledgers "
+            "or advanced evidence details. Review evidence cards before opening the raw proof ledger."
         )
     else:
-        title = "Loading the lane answer / coverage summary"
+        title = "Lane answer / coverage summary guide"
         body = (
-            "Real lane cards are still loading. Wait for the lane cards before opening advanced proof details: "
+            "Use the lane cards before opening advanced proof details: "
             "usable now, context only, blocked, skipped or excluded, and the next proof boundary. "
             "Raw proof, queues, route maps, and commands stay closed."
         )
@@ -27548,10 +27547,10 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Loading the selected-ticker answer.",
+                "Selected-ticker guide.",
                 "The page opens with selected ticker state, usable sections, blocked inputs, and one next step. "
                 "Advanced evidence stays closed while the saved review evidence loads. "
-                "Stop: do not treat loading, partial, candidate-only, or locked sections as conclusions.",
+                "Stop: do not treat partial, candidate-only, or locked sections as conclusions.",
                 tone="success",
             )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -28676,8 +28675,8 @@ def render_data_health(
         public_loading_placeholder = st.empty()
         with public_loading_placeholder.container():
             render_context_note(
-                "Loading the lane answer / coverage summary",
-                "Real lane cards are still loading. Wait for the lane cards before opening advanced proof details: "
+                "Lane answer / coverage summary guide",
+                "Use the lane cards before opening advanced proof details: "
                 "usable now, context only, blocked, skipped or excluded, and the next proof boundary. "
                 "Raw tables, route maps, queues, proof ledgers, and commands stay closed.",
                 tone="success",
