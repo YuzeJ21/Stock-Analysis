@@ -1186,6 +1186,9 @@ def test_project_status_stage_map_classifies_remaining_public_items(
     assert stage_rows[3]["State"] == "source_gated"
     assert "29/3541 peer-ready" not in " ".join(str(value) for row in stage_rows for value in row.values())
     assert any(row["Stage"] == "Source-proof queues" and row["State"] == "exhausted_do_not_retry" for row in stage_rows)
+    ux_row = next(row for row in stage_rows if row["Stage"] == "Public UX polish")
+    assert "make public-ux-review-checklist-json" in ux_row["Next Action"]
+    assert "machine-readable" in ux_row["Next Action"]
     assert any(row["Stage"] == "Generated artifacts" and row["State"] == "excluded_by_default" for row in stage_rows)
 
     project_status._print_human(payload)
@@ -1194,6 +1197,7 @@ def test_project_status_stage_map_classifies_remaining_public_items(
     assert "hosted streamlit demo: external_account_required" in output
     assert "fmp provider activation: external_key_required" in output
     assert "source-proof queues: exhausted_do_not_retry" in output
+    assert "make public-ux-review-checklist-json" in output
 
 
 def test_project_status_stage_map_does_not_call_github_synced_when_branch_is_ahead():
