@@ -148,6 +148,18 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "The root `dashboard.py` file is a compatibility wrapper around `src.dashboard`" in hosted
     assert "Install dependencies from `requirements.txt` or `pyproject.toml`" in hosted
     assert "Keep `make dashboard` as the local verification path" in hosted
+    assert "## Hosted Setup Values" in hosted
+    assert "| Repository | `YuzeJ21/Stock-Analysis` | Use the same GitHub repo link that is shared in LinkedIn until the hosted URL is verified. |" in hosted
+    assert "| Branch | `main` | Deploy only reviewed commits that already passed public gates locally. |" in hosted
+    assert "| Main file path | `dashboard.py` | Root compatibility wrapper for `src.dashboard`; do not point hosting at generated reports. |" in hosted
+    assert "| Dependency file | `requirements.txt` | Hosted baseline only; optional providers stay behind secrets and smoke tests. |" in hosted
+    assert "| Public route | `/?mode=public` | First hosted view must start in public visitor mode, not operator mode. |" in hosted
+    assert "| Local health check | `make dashboard-smoke` | Keep local smoke green before debugging hosting-specific behavior. |" in hosted
+    assert "## Post-Deploy Smoke Checklist" in hosted
+    assert "Open the hosted root URL and confirm it lands on `/?mode=public` or visibly offers Public visitor mode first." in hosted
+    assert "Open `/?mode=public&page=single-stock-report&ticker=NVDA&open=1` and confirm the selected-ticker answer appears before detailed report tables." in hosted
+    assert "Open `/?mode=public&page=data-health` and confirm the coverage answer appears before provider setup, commands, or raw proof ledgers." in hosted
+    assert "Open `/?mode=public&page=proof-history` and confirm proof history is evidence-only before raw ledger details." in hosted
     assert "Use the GitHub repository link unless the hosted app exists" in hosted
     assert "## Link Decision Ladder" in hosted
     assert "| No hosted URL | GitHub repository link | `make hosted-demo-readiness` reports `external_account_required`; keep local `make dashboard` instructions. |" in hosted

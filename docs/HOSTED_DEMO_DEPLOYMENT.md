@@ -25,6 +25,19 @@ Set the hosted app entrypoint to `dashboard.py`. The root `dashboard.py` file is
 
 Install dependencies from `requirements.txt` or `pyproject.toml`. The root `requirements.txt` contains only runtime app dependencies; optional research/provider extras and broker-style packages stay out of the hosted baseline unless intentionally configured.
 
+## Hosted Setup Values
+
+Use these values when creating a Streamlit Community Cloud app or a similar Python-hosted app. They are setup values only; they do not prove the hosted app exists or that any data lane is fresh.
+
+| Setting | Value | Boundary |
+| --- | --- | --- |
+| Repository | `YuzeJ21/Stock-Analysis` | Use the same GitHub repo link that is shared in LinkedIn until the hosted URL is verified. |
+| Branch | `main` | Deploy only reviewed commits that already passed public gates locally. |
+| Main file path | `dashboard.py` | Root compatibility wrapper for `src.dashboard`; do not point hosting at generated reports. |
+| Dependency file | `requirements.txt` | Hosted baseline only; optional providers stay behind secrets and smoke tests. |
+| Public route | `/?mode=public` | First hosted view must start in public visitor mode, not operator mode. |
+| Local health check | `make dashboard-smoke` | Keep local smoke green before debugging hosting-specific behavior. |
+
 Before sharing a hosted URL:
 
 1. Confirm the app opens directly to public mode or clearly routes visitors there.
@@ -70,6 +83,17 @@ If the hosted deployment changes app startup, route behavior, or copy, also revi
 Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History
 
 Stop before publishing the hosted link if the first public view shows tracebacks, raw tables before the answer, command-heavy copy, missing research-only boundaries, or unavailable-provider claims.
+
+## Post-Deploy Smoke Checklist
+
+Run this before replacing the GitHub link in README, LinkedIn, or portfolio copy:
+
+1. Open the hosted root URL and confirm it lands on `/?mode=public` or visibly offers Public visitor mode first.
+2. Open `/?mode=public&page=stock-selector` and confirm the selector appears before raw readiness tables.
+3. Open `/?mode=public&page=single-stock-report&ticker=NVDA&open=1` and confirm the selected-ticker answer appears before detailed report tables.
+4. Open `/?mode=public&page=data-health` and confirm the coverage answer appears before provider setup, commands, or raw proof ledgers.
+5. Open `/?mode=public&page=proof-history` and confirm proof history is evidence-only before raw ledger details.
+6. Keep the hosted link private if any route shows a traceback, operator mode by default, stale data-freshness claims, or a missing research-only stop rule.
 
 ## Link Decision Ladder
 
