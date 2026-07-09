@@ -151,6 +151,21 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         stop_rule="Stop if the first view shows raw CSV tables, command-heavy copy, traceback text, or stale generated-thumbnail proof.",
     ),
     BrowserQaRouteCheck(
+        name="Public Stock Selector",
+        route="http://localhost:8501/?mode=public&page=stock-selector",
+        first_view_markers=(
+            "research-loop-strip",
+            "Current question",
+            "Primary next step",
+            "Stop rule",
+            "Stock Selector",
+            "Which stock can I review?",
+        ),
+        details_boundary="Stock Selector starts with filter and selected-ticker state; raw readiness tables, methodology, and operator details stay out of the first public view.",
+        qa_focus="Visitor can choose a reviewable ticker before opening the Single-Stock Report.",
+        stop_rule="Stop if the page hides the selector, starts with raw tables, or skips directly to analysis without a selected ticker path.",
+    ),
+    BrowserQaRouteCheck(
         name="Single-stock workflow fit",
         route="http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         first_view_markers=(

@@ -445,10 +445,15 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
     route_names = {str(row["Route Check"]) for row in rows}
 
+    assert "Public Stock Selector" in route_names
     assert "Single-stock workflow fit" in route_names
     assert "Public Data Health coverage answer" in route_names
     assert "Data Health proof lane progressive load" in route_names
     assert "Data Health queue drawer routing" in route_names
+    stock_selector = next(row for row in rows if row["Route Check"] == "Public Stock Selector")
+    assert "Which stock can I review?" in str(stock_selector["First View Markers"])
+    assert "selected-ticker state" in str(stock_selector["Details Boundary"])
+    assert "choose a reviewable ticker" in str(stock_selector["QA Focus"])
     public_data_health = next(row for row in rows if row["Route Check"] == "Public Data Health coverage answer")
     assert "Coverage Summary / What Can I Use?" in str(public_data_health["First View Markers"])
     assert "one coverage answer per lane" in str(public_data_health["Details Boundary"])
@@ -461,6 +466,8 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "current question" in rendered
     assert "primary next step" in rendered
     assert "stop rule" in rendered
+    assert "stock selector" in rendered
+    assert "which stock can i review?" in rendered
     assert "what can be read now" in rendered
     assert "selected ticker" in rendered
     assert "next step" in rendered
