@@ -150,6 +150,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public",
         first_view_markers=(
             "research-loop-strip",
+            "You are here",
             "Current question",
             "Primary next step",
             "Stop rule",
@@ -166,6 +167,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public&page=stock-selector",
         first_view_markers=(
             "research-loop-strip",
+            "You are here",
             "Current question",
             "Primary next step",
             "Stop rule",
@@ -181,6 +183,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         first_view_markers=(
             "research-loop-strip",
+            "You are here",
             "Current question",
             "Primary next step",
             "Stop rule",
@@ -198,6 +201,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public&page=data-health",
         first_view_markers=(
             "research-loop-strip",
+            "You are here",
             "Current question",
             "Primary next step",
             "Stop rule",
@@ -213,6 +217,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public&page=proof-history",
         first_view_markers=(
             "research-loop-strip",
+            "You are here",
             "Current question",
             "Primary next step",
             "Stop rule",

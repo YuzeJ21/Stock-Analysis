@@ -507,6 +507,13 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Public Data Health coverage answer" in route_names
     assert "Data Health proof lane progressive load" in route_names
     assert "Data Health queue drawer routing" in route_names
+    public_rows = [
+        row
+        for row in rows
+        if str(row["Route"]).startswith("http://localhost:8501/?mode=public")
+    ]
+    assert public_rows
+    assert all("You are here" in str(row["First View Markers"]) for row in public_rows)
     stock_selector = next(row for row in rows if row["Route Check"] == "Public Stock Selector")
     assert "Which stock can I review?" in str(stock_selector["First View Markers"])
     assert "selected-ticker state" in str(stock_selector["Details Boundary"])
