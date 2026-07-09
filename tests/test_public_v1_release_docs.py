@@ -305,6 +305,11 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     assert "Use `make status-check TOP_N=5` for current coverage and blocker counts." in walkthrough
     assert "controlled portfolio/demo license" in walkthrough
     assert PUBLIC_V1_ROUTE in walkthrough
+    assert "Run `make next-stage` when you want the current next-stage ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets." in walkthrough
+    assert "make next-stage                  # print the current next-stage ladder without changing local data" in walkthrough
+    best_path = walkthrough.split("Best visitor path:", 1)[1].split("What each page answers:", 1)[0]
+    assert best_path.index("make demo") < best_path.index("make next-stage")
+    assert best_path.index("make next-stage") < best_path.index("make status-check TOP_N=5")
     assert "Stock Selector" in walkthrough
     assert "Proof History" in walkthrough
     assert "Data Health source-proof lane" not in walkthrough
