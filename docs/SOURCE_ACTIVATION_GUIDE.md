@@ -83,6 +83,18 @@ Reviewed one-ticker smoke sequence:
 3. Run `make imports-preview IMPORT_TICKERS=<ticker>`.
 4. Stop before `make imports-apply` unless validation passes, preview is narrow, rejected rows are zero, and source provenance exists.
 
+## One-Ticker Smoke Handoff
+
+One-ticker smoke handoff is only for a reviewed ticker after the status/proof packet identifies a source-backed path. It is not a broad coverage run and it is not a shortcut around validate/preview/apply gates.
+
+| Step | Command | Inspect | Stop rule |
+| --- | --- | --- | --- |
+| 1. Pick reviewed ticker | `make project-status-check` | Choose one ticker from the current status/proof packet; do not use a broad ticker list. | Stop if no source-proof queue, proof packet, or reviewed ticker scope exists. |
+| 2. Configure one provider | Set `FMP_API_KEY` outside the repo | Use `config/provider_keys.env` or hosting secrets; never commit real keys. | Stop if the key is missing; classify FMP as `external_key_required` and keep GitHub/demo flow unchanged. |
+| 3. Run one smoke | `make fmp-smoke TICKER=<ticker>` | Confirm staged rows have source provenance and belong only to the reviewed ticker. | Stop if no source-backed rows are staged or the provider returns only unsupported fields. |
+| 4. Validate and preview | `make imports-validate IMPORT_TICKERS=<ticker>` then `make imports-preview IMPORT_TICKERS=<ticker>` | Validation must pass, rejected rows must be zero, and preview scope must be narrow and intended. | Stop before apply if validation fails, rejected rows appear, scope widens, or provenance is missing. |
+| 5. Decide apply or classify | `make imports-apply IMPORT_TICKERS=<ticker>` only after gate passes | After apply, rebuild readiness and record proof; otherwise record `still_blocked`, `skipped`, `excluded`, or `candidate_context_only`. | Never use provider setup alone as readiness proof. |
+
 Optional earnings and analyst-estimate rows have an extra boundary. Provider-assisted rows may supply only earnings timing or price-target context. Those rows can be recorded as `candidate_context_only`, but they do not unlock the full optional readiness lane unless the row also contains the required earnings metrics or EPS/revenue estimate fields. Price-target context is research context only and must not be rendered as a recommendation.
 
 ## Non-Retry Rule

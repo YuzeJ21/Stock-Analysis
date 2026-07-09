@@ -70,6 +70,38 @@ WORKFLOW_PIVOT = [
         "boundary": "Universe membership is metadata only; it does not unlock fundamentals, share count, DCF, peers, earnings, estimates, or recommendations.",
     },
 ]
+ONE_TICKER_SMOKE_HANDOFF = [
+    {
+        "step": "1. Pick reviewed ticker",
+        "command": "make project-status-check",
+        "inspect": "Choose one ticker from the current status/proof packet; do not use a broad ticker list.",
+        "stop_rule": "Stop if no source-proof queue, proof packet, or reviewed ticker scope exists.",
+    },
+    {
+        "step": "2. Configure one provider",
+        "command": "set FMP_API_KEY outside the repo",
+        "inspect": "Use config/provider_keys.env or hosting secrets; never commit real keys.",
+        "stop_rule": "Stop if the key is missing; classify FMP as external_key_required and keep GitHub/demo flow unchanged.",
+    },
+    {
+        "step": "3. Run one smoke",
+        "command": "make fmp-smoke TICKER=<ticker>",
+        "inspect": "Confirm staged rows have source provenance and belong only to the reviewed ticker.",
+        "stop_rule": "Stop if no source-backed rows are staged or the provider returns only unsupported fields.",
+    },
+    {
+        "step": "4. Validate and preview",
+        "command": "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>",
+        "inspect": "Validation must pass, rejected rows must be zero, and preview scope must be narrow and intended.",
+        "stop_rule": "Stop before apply if validation fails, rejected rows appear, scope widens, or provenance is missing.",
+    },
+    {
+        "step": "5. Decide apply or classify",
+        "command": "make imports-apply IMPORT_TICKERS=<ticker> only after gate passes",
+        "inspect": "After apply, rebuild readiness and record proof; otherwise record still_blocked, skipped, excluded, or candidate_context_only.",
+        "stop_rule": "Never use provider setup alone as readiness proof.",
+    },
+]
 
 
 def _env_names_from_file(path: Path) -> set[str]:
@@ -287,6 +319,7 @@ def build_source_activation_guide() -> dict[str, Any]:
         ],
         "activation_plan": ACTIVATION_PLAN,
         "providers": providers,
+        "one_ticker_smoke_handoff": ONE_TICKER_SMOKE_HANDOFF,
         "apply_gate": [
             "make imports-validate IMPORT_TICKERS=<ticker>",
             "make imports-preview IMPORT_TICKERS=<ticker>",
@@ -589,6 +622,7 @@ def build_provider_setup_checklist(
         "coverage_unlock_decision": _coverage_unlock_decision(rows, current_gate),
         "credential_file_status": _credential_file_status(root),
         "one_provider_setup_order": _one_provider_setup_order(rows),
+        "one_ticker_smoke_handoff": ONE_TICKER_SMOKE_HANDOFF,
         "workflow_pivot": WORKFLOW_PIVOT,
         "apply_gate": guide["apply_gate"],
         "non_retry_rule": guide["non_retry_rule"],
@@ -753,6 +787,29 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                     "- Do not configure all missing providers at once; configure one, rerun preflight, run a reviewed one-ticker smoke command, then validate/preview before any apply.",
                 ]
             )
+    smoke_handoff = checklist.get("one_ticker_smoke_handoff", [])
+    if isinstance(smoke_handoff, list) and smoke_handoff:
+        lines.extend(
+            [
+                "",
+                "One-ticker smoke handoff:",
+                "Step | Command | Inspect | Stop rule",
+                "--- | --- | --- | ---",
+            ]
+        )
+        for row in smoke_handoff:
+            if not isinstance(row, dict):
+                continue
+            lines.append(
+                " | ".join(
+                    [
+                        str(row.get("step") or ""),
+                        str(row.get("command") or ""),
+                        str(row.get("inspect") or ""),
+                        str(row.get("stop_rule") or ""),
+                    ]
+                )
+            )
     lines.extend(
         [
             "",
@@ -817,6 +874,29 @@ def render_source_activation_guide(guide: dict[str, Any]) -> str:
             lines.append(f"  post_setup_smoke_command: {row['post_setup_smoke_command']}")
         lines.append(f"  cannot_unlock: {row['cannot_unlock']}")
     lines.append("")
+    smoke_handoff = guide.get("one_ticker_smoke_handoff", [])
+    if isinstance(smoke_handoff, list) and smoke_handoff:
+        lines.extend(
+            [
+                "One-ticker smoke handoff:",
+                "Step | Command | Inspect | Stop rule",
+                "--- | --- | --- | ---",
+            ]
+        )
+        for row in smoke_handoff:
+            if not isinstance(row, dict):
+                continue
+            lines.append(
+                " | ".join(
+                    [
+                        str(row.get("step") or ""),
+                        str(row.get("command") or ""),
+                        str(row.get("inspect") or ""),
+                        str(row.get("stop_rule") or ""),
+                    ]
+                )
+            )
+        lines.append("")
     lines.append("Validate / preview / apply gate:")
     lines.extend(f"- {command}" for command in guide["apply_gate"])
     lines.append("")

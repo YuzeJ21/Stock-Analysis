@@ -38,6 +38,12 @@ def test_source_activation_guide_lists_public_sources_without_secrets(monkeypatc
     assert "secret-fmp-key" not in rendered
     assert "No provider key values are printed or stored by this guide." in rendered
     assert "Do not apply data directly from source setup." in rendered
+    assert guide["one_ticker_smoke_handoff"][0]["step"] == "1. Pick reviewed ticker"
+    assert "One-ticker smoke handoff:" in rendered
+    assert "Step | Command | Inspect | Stop rule" in rendered
+    assert "1. Pick reviewed ticker | make project-status-check | Choose one ticker from the current status/proof packet; do not use a broad ticker list." in rendered
+    assert "5. Decide apply or classify | make imports-apply IMPORT_TICKERS=<ticker> only after gate passes" in rendered
+    assert "Never use provider setup alone as readiness proof." in rendered
 
 
 def test_source_activation_guide_prints_exact_next_commands(monkeypatch):
@@ -380,6 +386,60 @@ def test_provider_setup_checklist_names_one_missing_keyed_provider_to_configure_
     assert "- smoke_command:" not in rendered
     assert "Do not configure all missing providers at once" in rendered
     assert rendered.index("Configure first: FMP free tier") < rendered.index("Provider setup and boundaries:")
+
+
+def test_provider_setup_checklist_includes_one_ticker_smoke_handoff(monkeypatch):
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+
+    checklist = build_provider_setup_checklist()
+    rendered = render_provider_setup_checklist(checklist)
+
+    assert checklist["one_ticker_smoke_handoff"] == [
+        {
+            "step": "1. Pick reviewed ticker",
+            "command": "make project-status-check",
+            "inspect": "Choose one ticker from the current status/proof packet; do not use a broad ticker list.",
+            "stop_rule": "Stop if no source-proof queue, proof packet, or reviewed ticker scope exists.",
+        },
+        {
+            "step": "2. Configure one provider",
+            "command": "set FMP_API_KEY outside the repo",
+            "inspect": "Use config/provider_keys.env or hosting secrets; never commit real keys.",
+            "stop_rule": "Stop if the key is missing; classify FMP as external_key_required and keep GitHub/demo flow unchanged.",
+        },
+        {
+            "step": "3. Run one smoke",
+            "command": "make fmp-smoke TICKER=<ticker>",
+            "inspect": "Confirm staged rows have source provenance and belong only to the reviewed ticker.",
+            "stop_rule": "Stop if no source-backed rows are staged or the provider returns only unsupported fields.",
+        },
+        {
+            "step": "4. Validate and preview",
+            "command": "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>",
+            "inspect": "Validation must pass, rejected rows must be zero, and preview scope must be narrow and intended.",
+            "stop_rule": "Stop before apply if validation fails, rejected rows appear, scope widens, or provenance is missing.",
+        },
+        {
+            "step": "5. Decide apply or classify",
+            "command": "make imports-apply IMPORT_TICKERS=<ticker> only after gate passes",
+            "inspect": "After apply, rebuild readiness and record proof; otherwise record still_blocked, skipped, excluded, or candidate_context_only.",
+            "stop_rule": "Never use provider setup alone as readiness proof.",
+        },
+    ]
+    assert "One-ticker smoke handoff:" in rendered
+    assert "Step | Command | Inspect | Stop rule" in rendered
+    assert "1. Pick reviewed ticker | make project-status-check | Choose one ticker from the current status/proof packet; do not use a broad ticker list." in rendered
+    assert "2. Configure one provider | set FMP_API_KEY outside the repo | Use config/provider_keys.env or hosting secrets; never commit real keys." in rendered
+    assert "3. Run one smoke | make fmp-smoke TICKER=<ticker> | Confirm staged rows have source provenance and belong only to the reviewed ticker." in rendered
+    assert "4. Validate and preview | make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> | Validation must pass, rejected rows must be zero, and preview scope must be narrow and intended." in rendered
+    assert "5. Decide apply or classify | make imports-apply IMPORT_TICKERS=<ticker> only after gate passes | After apply, rebuild readiness and record proof; otherwise record still_blocked, skipped, excluded, or candidate_context_only." in rendered
+    assert rendered.index("One-ticker smoke handoff:") < rendered.index("Provider setup and boundaries:")
+    assert "external_key_required" in rendered
+    assert "Never use provider setup alone as readiness proof." in rendered
+    assert "buy recommendation" not in rendered.lower()
+    assert "sell recommendation" not in rendered.lower()
 
 
 def test_provider_setup_checklist_starts_with_coverage_unlock_decision(monkeypatch):

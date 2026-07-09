@@ -595,6 +595,14 @@ def test_source_activation_guide_documents_provider_setup_without_real_keys():
     assert "`needs_setup`" in guide
     assert "`avoid_repeating`" in guide
     assert "`next_step`" in guide
+    assert "## One-Ticker Smoke Handoff" in guide
+    assert "| Step | Command | Inspect | Stop rule |" in guide
+    assert "| 1. Pick reviewed ticker | `make project-status-check` | Choose one ticker from the current status/proof packet; do not use a broad ticker list. | Stop if no source-proof queue, proof packet, or reviewed ticker scope exists. |" in guide
+    assert "| 2. Configure one provider | Set `FMP_API_KEY` outside the repo | Use `config/provider_keys.env` or hosting secrets; never commit real keys. | Stop if the key is missing; classify FMP as `external_key_required` and keep GitHub/demo flow unchanged. |" in guide
+    assert "| 3. Run one smoke | `make fmp-smoke TICKER=<ticker>` | Confirm staged rows have source provenance and belong only to the reviewed ticker. | Stop if no source-backed rows are staged or the provider returns only unsupported fields. |" in guide
+    assert "| 4. Validate and preview | `make imports-validate IMPORT_TICKERS=<ticker>` then `make imports-preview IMPORT_TICKERS=<ticker>` | Validation must pass, rejected rows must be zero, and preview scope must be narrow and intended. | Stop before apply if validation fails, rejected rows appear, scope widens, or provenance is missing. |" in guide
+    assert "| 5. Decide apply or classify | `make imports-apply IMPORT_TICKERS=<ticker>` only after gate passes | After apply, rebuild readiness and record proof; otherwise record `still_blocked`, `skipped`, `excluded`, or `candidate_context_only`. | Never use provider setup alone as readiness proof. |" in guide
+    assert "One-ticker smoke handoff is only for a reviewed ticker after the status/proof packet identifies a source-backed path." in guide
 
 
 def test_provider_setup_checklist_launcher_is_available():
