@@ -246,6 +246,11 @@ def test_pilot_readiness_audit_does_not_overstate_github_sync():
     audit = _read("docs/PILOT_READINESS_AUDIT.md")
     lowered = audit.lower()
 
+    assert "Last repo-truth refresh: 2026-07-09" in audit
+    assert "Current stage: controlled GitHub/LinkedIn pilot-share package with manual gates." in audit
+    assert "Hosted demo remains external-account-required until a public URL is deployed and verified." in audit
+    assert "Provider activation remains external-key-required for FMP, Alpha Vantage, and Finnhub." in audit
+    assert "trusted-data pilot, ready to enter" not in audit
     assert "rerun the live status gate before sharing" in lowered
     assert "local reviewed commits may be ahead of github until pushed" in lowered
     assert "generated csv/report churn" in lowered
