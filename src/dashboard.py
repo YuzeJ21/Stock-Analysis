@@ -2946,6 +2946,12 @@ def apply_dashboard_theme() -> None:
           gap: 0.85rem;
           margin: 0.8rem 0 1rem 0;
         }
+        .public-loading-preview {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.55rem;
+          margin: 0.54rem 0 0.72rem 0;
+        }
         .action-card {
           background: #fffefa;
           border: 1px solid var(--research-border);
@@ -3254,6 +3260,7 @@ def apply_dashboard_theme() -> None:
             width: auto;
           }
           .action-grid,
+          .public-loading-preview,
           .signal-grid,
           .signal-grid.queue-grid,
           .metric-card-grid {

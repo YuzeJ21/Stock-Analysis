@@ -1436,10 +1436,13 @@ def test_mobile_public_cards_collapse_to_one_column_before_details():
     mobile_block = source[
         source.rindex("@media (max-width: 760px)", 0, compact_index) : source.index(".app-hero.compact .hero-subtitle", compact_index)
     ]
+    loading_preview_block = source[source.index(".public-loading-preview {") : source.index(".action-card {")]
 
     assert ".action-grid" in mobile_block
+    assert ".public-loading-preview" in mobile_block
     assert ".signal-grid.queue-grid" in mobile_block
     assert ".metric-card-grid" in mobile_block
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr));" in loading_preview_block
     assert "grid-template-columns: 1fr;" in mobile_block
     assert ".action-card" in mobile_block
     assert ".metric-card" in mobile_block
