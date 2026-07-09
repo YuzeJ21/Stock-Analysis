@@ -311,9 +311,12 @@ def test_dashboard_qa_tracks_v1_replacement_browser_checks():
     assert "proof-history" in qa
     assert "no visible first-viewport raw dataframe" in qa
     assert "`make browser-qa-evidence` is the deterministic share gate" in qa
+    assert "`make public-check` is the current end-to-end public gate" in qa
+    assert "dashboard smoke, browser QA evidence" in qa
     assert "normal-browser desktop/mobile pass" in qa
     assert "Treat in-app browser capture timeouts as environment-limited" in qa
     assert "raw-table-first view" in qa
+    assert "the current in-app browser shows `localhost refused to connect`" not in qa
 
 
 def test_public_demo_and_linkedin_copy_use_v1_route_sequence():

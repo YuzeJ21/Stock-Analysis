@@ -49,6 +49,9 @@ Current live-review handoff:
 
 - `make browser-qa-evidence` is the deterministic share gate for committed
   route markers and screenshot assets.
+- `make public-check` is the current end-to-end public gate; it includes public
+  wording, whitespace, full tests, dashboard smoke, browser QA evidence,
+  license boundary, and visitor-demo checks.
 - The remaining UX task is a normal-browser desktop/mobile pass for
   first-viewport spacing, unclear Data Health wording, and confusing next
   actions.
@@ -136,7 +139,9 @@ Boundary checked:
 
 - The new cards are workflow/navigation guidance only; they do not refresh data, apply imports, record proof rows, stage files, commit, push, or unlock missing fundamentals, peers, earnings, analyst estimates, valuation inputs, or metrics.
 - Commands remain copy-only; missing source inputs remain visibly blocked until trusted source proof, validate, preview, rejected-row review, explicit apply or skip decision, rebuilt readiness, and proof record pass.
-- In the restricted browser environment, the current in-app browser shows `localhost refused to connect`, so new real screenshot capture remains blocked until `make dashboard` is running in a normal local terminal.
+- Historical blocker for this pass: the restricted browser environment showed
+  `localhost refused to connect`, so new real screenshot capture was deferred
+  until `make dashboard` could run in a normal local terminal.
 
 ## 2026-06-19 Browser QA Evidence V2
 
@@ -204,7 +209,7 @@ Review boundary:
 - Raw tables, proof rows, generated-artifact lists, and command-heavy details should stay collapsed until the relevant review route or drawer is opened.
 - Missing source inputs stay blocked; browser evidence does not unlock fundamentals, peers, earnings, analyst estimates, valuation inputs, or metrics.
 
-Capture blocker:
+Historical capture blocker:
 
 - In the restricted local QA environment, `make dashboard` could not bind the local Streamlit socket (`PermissionError: [Errno 1] Operation not permitted`), so new screenshot capture remains environment-limited for this pass.
 - Keep using the existing real committed assets until a normal local browser can recapture the Single-Stock Workflow Fit, proof-lane progressive-load, and queue-drawer-routing screenshots.
