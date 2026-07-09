@@ -387,6 +387,9 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert len(payload["capture_session_plan"]) == 6
     assert len(payload["route_qa_checklist"]) >= 7
     assert "browser qa evidence is product evidence only" in rendered
+    assert "current question" in rendered
+    assert "primary next step" in rendered
+    assert "stop rule" in rendered
     assert "first 30 seconds" in rendered
     assert "data health workspace" in rendered
     assert "selected lane answer" in rendered
@@ -450,6 +453,9 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Next Data-Readiness Action" not in str(fast_view["First View Markers"])
     assert "first 30 seconds" in rendered
     assert "primary workflow" in rendered
+    assert "current question" in rendered
+    assert "primary next step" in rendered
+    assert "stop rule" in rendered
     assert "what can be read now" in rendered
     assert "selected ticker" in rendered
     assert "next step" in rendered
@@ -496,6 +502,9 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "single-stock workflow fit" in output
     assert "data health proof lane progressive load" in output
     assert "data health queue drawer routing" in output
+    assert "current question" in output
+    assert "primary next step" in output
+    assert "stop rule" in output
     assert "first 30 seconds" in output
     assert "what can be read now" in output
     assert "selected ticker" in output
@@ -528,6 +537,9 @@ def test_browser_qa_evidence_cli_json_mode_prints_payload(tmp_path, capsys):
     assert "capture_session_plan" in payload
     assert "route_qa_checklist" in payload
     assert payload["reviewed_asset_stage_command"].startswith("git add -- docs/assets/")
+    assert "current question" in rendered
+    assert "primary next step" in rendered
+    assert "stop rule" in rendered
     assert "operator-data-health-queue-routing-real.jpg" in rendered
     assert "reviewed_asset_stage_command" in rendered
     assert "linkedin-public-dashboard.png" in rendered
