@@ -2,6 +2,8 @@ from src.public_ux_review_checklist import (
     PUBLIC_ROUTES,
     public_ux_review_payload,
     public_ux_review_notes_status,
+    main,
+    record_public_ux_review_note,
     render_public_ux_review_checklist,
     render_public_ux_review_notes,
     render_public_ux_review_notes_status,
@@ -184,3 +186,86 @@ def test_public_ux_review_notes_status_counts_pending_and_reviewed_rows(tmp_path
     assert "environment_limited: 1" in rendered
     assert "next_pending_review: Home | phone | http://localhost:8501/?mode=public" in rendered
     assert "Data Health | phone | environment_limited" in rendered
+
+
+def test_record_public_ux_review_note_updates_one_row_and_advances_queue(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+
+    updated_path = record_public_ux_review_note(
+        notes_path=notes_path,
+        page="Home",
+        viewport="desktop",
+        first_answer_visible="yes",
+        primary_next_action_visible="yes",
+        advanced_details_collapsed="yes",
+        classification="resolved",
+        notes="First viewport is clear.",
+    )
+
+    assert updated_path == notes_path
+    text = notes_path.read_text(encoding="utf-8")
+    assert "| Home | desktop | yes | yes | yes | resolved | First viewport is clear. |" in text
+    assert "| Home | phone | pending | pending | pending | pending |  |" in text
+
+    status = public_ux_review_notes_status(notes_path)
+
+    assert status["pending_rows"] == 9
+    assert status["classification_counts"]["resolved"] == 1
+    assert status["next_pending_review"]["page"] == "Home"
+    assert status["next_pending_review"]["viewport"] == "phone"
+
+
+def test_record_public_ux_review_note_rejects_unknown_page(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+
+    try:
+        record_public_ux_review_note(
+            notes_path=notes_path,
+            page="Unknown",
+            viewport="desktop",
+            first_answer_visible="yes",
+            primary_next_action_visible="yes",
+            advanced_details_collapsed="yes",
+            classification="resolved",
+            notes="No row.",
+        )
+    except ValueError as exc:
+        assert "No public UX review note row matched Unknown / desktop" in str(exc)
+    else:
+        raise AssertionError("Expected unknown page to raise ValueError")
+
+
+def test_record_public_ux_review_note_cli_honors_output_dir(tmp_path, monkeypatch, capsys):
+    notes_path = write_public_ux_review_notes(tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "public_ux_review_checklist",
+            "--record-note",
+            "--page",
+            "Home",
+            "--viewport",
+            "desktop",
+            "--first-answer-visible",
+            "yes",
+            "--primary-next-action-visible",
+            "yes",
+            "--advanced-details-collapsed",
+            "yes",
+            "--classification",
+            "resolved",
+            "--note-text",
+            "CLI output-dir respected.",
+            "--output-dir",
+            str(tmp_path),
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    text = notes_path.read_text(encoding="utf-8")
+
+    assert f"Updated: {notes_path}" in captured.out
+    assert "| Home | desktop | yes | yes | yes | resolved | CLI output-dir respected. |" in text

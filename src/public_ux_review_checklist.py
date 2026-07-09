@@ -298,6 +298,49 @@ def _first_pending_review(rows: list[dict[str, str]] | None = None) -> dict[str,
     return {"page": first_page, "viewport": "desktop", "route": first_route}
 
 
+def _escape_note_cell(value: str) -> str:
+    return value.replace("|", "/").replace("\n", " ").strip()
+
+
+def record_public_ux_review_note(
+    *,
+    page: str,
+    viewport: str,
+    first_answer_visible: str,
+    primary_next_action_visible: str,
+    advanced_details_collapsed: str,
+    classification: str,
+    notes: str,
+    notes_path: str | Path | None = None,
+) -> Path:
+    path = Path(notes_path) if notes_path is not None else _default_review_notes_path()
+    if not path.exists():
+        write_public_ux_review_notes(path.parent)
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    replacement = (
+        f"| {_escape_note_cell(page)} | {_escape_note_cell(viewport)} | "
+        f"{_escape_note_cell(first_answer_visible)} | {_escape_note_cell(primary_next_action_visible)} | "
+        f"{_escape_note_cell(advanced_details_collapsed)} | {_escape_note_cell(classification)} | {_escape_note_cell(notes)} |"
+    )
+    matched = False
+    updated_lines: list[str] = []
+    for line in lines:
+        if line.startswith("|"):
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
+            if len(cells) == 7 and cells[0] == page and cells[1] == viewport:
+                updated_lines.append(replacement)
+                matched = True
+                continue
+        updated_lines.append(line)
+
+    if not matched:
+        raise ValueError(f"No public UX review note row matched {page} / {viewport}.")
+
+    path.write_text("\n".join(updated_lines) + "\n", encoding="utf-8")
+    return path
+
+
 def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[str, object]:
     path = Path(notes_path) if notes_path is not None else _default_review_notes_path()
     expected_rows = len(PUBLIC_ROUTES) * 2
@@ -390,6 +433,14 @@ def main() -> None:
     parser.add_argument("--json", action="store_true", help="Print the checklist as machine-readable JSON.")
     parser.add_argument("--notes", action="store_true", help="Write a local Markdown notes template for live UX review.")
     parser.add_argument("--notes-status", action="store_true", help="Summarize the local public UX review notes status.")
+    parser.add_argument("--record-note", action="store_true", help="Record one local public UX review note row.")
+    parser.add_argument("--page", default=None, help="Page name for --record-note.")
+    parser.add_argument("--viewport", default=None, help="Viewport for --record-note: desktop or phone.")
+    parser.add_argument("--first-answer-visible", default="pending", help="yes/no/pending for --record-note.")
+    parser.add_argument("--primary-next-action-visible", default="pending", help="yes/no/pending for --record-note.")
+    parser.add_argument("--advanced-details-collapsed", default="pending", help="yes/no/pending for --record-note.")
+    parser.add_argument("--classification", default="pending", help="Outcome classification for --record-note.")
+    parser.add_argument("--note-text", default="", help="Freeform note text for --record-note.")
     parser.add_argument(
         "--output-dir",
         default=None,
@@ -399,6 +450,24 @@ def main() -> None:
     if args.notes:
         output_path = write_public_ux_review_notes(args.output_dir)
         print(f"Wrote: {output_path}")
+    elif args.record_note:
+        if not args.page or not args.viewport:
+            raise SystemExit("--record-note requires --page and --viewport.")
+        notes_path = None
+        if args.output_dir:
+            notes_path = Path(args.output_dir) / str(REVIEW_NOTE_ARTIFACT["suggested_notes_file"])
+        output_path = record_public_ux_review_note(
+            page=args.page,
+            viewport=args.viewport,
+            first_answer_visible=args.first_answer_visible,
+            primary_next_action_visible=args.primary_next_action_visible,
+            advanced_details_collapsed=args.advanced_details_collapsed,
+            classification=args.classification,
+            notes=args.note_text,
+            notes_path=notes_path,
+        )
+        print(f"Updated: {output_path}")
+        print(render_public_ux_review_notes_status(output_path))
     elif args.notes_status:
         print(render_public_ux_review_notes_status())
     elif args.json:
