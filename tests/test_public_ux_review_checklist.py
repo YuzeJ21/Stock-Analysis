@@ -137,9 +137,13 @@ def test_public_ux_review_notes_status_reports_missing_template(tmp_path):
     assert status["path"] == str(missing_path)
     assert status["pending_rows"] == 10
     assert status["next_safe_command"] == "make public-ux-review-notes"
+    assert status["next_pending_review"]["page"] == "Home"
+    assert status["next_pending_review"]["viewport"] == "desktop"
+    assert status["next_pending_review"]["route"] == "http://localhost:8501/?mode=public"
     assert "Public UX Review Notes Status" in rendered
     assert "notes_missing" in rendered
     assert "make public-ux-review-notes" in rendered
+    assert "next_pending_review: Home | desktop | http://localhost:8501/?mode=public" in rendered
 
 
 def test_public_ux_review_notes_status_counts_pending_and_reviewed_rows(tmp_path):
@@ -164,6 +168,9 @@ def test_public_ux_review_notes_status_counts_pending_and_reviewed_rows(tmp_path
     assert status["classification_counts"]["resolved"] == 1
     assert status["classification_counts"]["environment_limited"] == 1
     assert status["classification_counts"]["pending"] == 8
+    assert status["next_pending_review"]["page"] == "Home"
+    assert status["next_pending_review"]["viewport"] == "phone"
+    assert status["next_pending_review"]["route"] == "http://localhost:8501/?mode=public"
     assert status["problem_rows"] == [
         {
             "page": "Data Health",
@@ -175,4 +182,5 @@ def test_public_ux_review_notes_status_counts_pending_and_reviewed_rows(tmp_path
     assert "review_in_progress" in rendered
     assert "pending: 8" in rendered
     assert "environment_limited: 1" in rendered
+    assert "next_pending_review: Home | phone | http://localhost:8501/?mode=public" in rendered
     assert "Data Health | phone | environment_limited" in rendered

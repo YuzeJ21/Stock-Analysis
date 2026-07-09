@@ -276,6 +276,28 @@ def _parse_review_note_rows(notes_text: str) -> list[dict[str, str]]:
     return rows
 
 
+def _route_for_page(page: str) -> str:
+    for route_page, route, *_ in PUBLIC_ROUTES:
+        if route_page == page:
+            return route
+    return ""
+
+
+def _first_pending_review(rows: list[dict[str, str]] | None = None) -> dict[str, str]:
+    if rows:
+        for row in rows:
+            classification = row.get("Issue classification", "").strip() or "pending"
+            if classification == "pending":
+                page = row.get("Page", "")
+                return {
+                    "page": page,
+                    "viewport": row.get("Viewport", ""),
+                    "route": _route_for_page(page),
+                }
+    first_page, first_route, *_ = PUBLIC_ROUTES[0]
+    return {"page": first_page, "viewport": "desktop", "route": first_route}
+
+
 def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[str, object]:
     path = Path(notes_path) if notes_path is not None else _default_review_notes_path()
     expected_rows = len(PUBLIC_ROUTES) * 2
@@ -288,6 +310,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
             "pending_rows": expected_rows,
             "classification_counts": {"pending": expected_rows},
             "problem_rows": [],
+            "next_pending_review": _first_pending_review(),
             "next_safe_command": "make public-ux-review-notes",
             "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
         }
@@ -326,6 +349,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
         "pending_rows": pending_rows,
         "classification_counts": classification_counts,
         "problem_rows": problem_rows,
+        "next_pending_review": _first_pending_review(rows) if pending_rows else {},
         "next_safe_command": "make public-ux-review-notes",
         "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
     }
@@ -348,6 +372,11 @@ def render_public_ux_review_notes_status(notes_path: str | Path | None = None) -
         f"next_safe_command: {status['next_safe_command']}",
         f"boundary: {status['boundary']}",
     ]
+    next_pending = status["next_pending_review"]
+    if next_pending:
+        lines.append(
+            "next_pending_review: {page} | {viewport} | {route}".format(**next_pending)  # type: ignore[arg-type]
+        )
     problem_rows = status["problem_rows"]
     if problem_rows:
         lines.extend(["", "Deferred / limited / blocked rows:"])
