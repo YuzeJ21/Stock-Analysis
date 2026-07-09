@@ -160,6 +160,7 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "config/hosted_demo.env.example" in hosted
     assert "HOSTED_DEMO_URL" in hosted
     assert "config/hosted_demo.env" in hosted
+    assert "Hosted platforms can provide `HOSTED_DEMO_URL` directly as an environment variable; local operators can use the ignored `config/hosted_demo.env` marker for the same readiness check." in hosted
     assert "A configured hosted URL is still a manual verification gate" in hosted
     assert "A hosted app is optional" in hosted
     assert "GitHub is the public link until a deployment account is intentionally configured and verified." in hosted

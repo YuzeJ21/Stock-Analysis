@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -57,22 +58,30 @@ def _hosted_public_url(base_url: str) -> str:
     return base if "?" in base else f"{base}/?mode=public"
 
 
+def read_hosted_demo_url(root: Path | str | None = None) -> str:
+    env_value = os.getenv(HOSTED_DEMO_URL_NAME, "").strip()
+    if env_value:
+        return env_value
+    project_root = resolve_project_root(Path(root or "."))
+    hosted_env_path = project_root / HOSTED_DEMO_ENV_FILE
+    hosted_env_body = _read_text(hosted_env_path)
+    return _read_simple_env_value(hosted_env_body, HOSTED_DEMO_URL_NAME)
+
+
 def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDemoCheck]:
     project_root = resolve_project_root(Path(root or "."))
     dashboard_path = project_root / "dashboard.py"
     requirements_path = project_root / "requirements.txt"
     hosted_doc_path = project_root / "docs" / "HOSTED_DEMO_DEPLOYMENT.md"
     secrets_template_path = project_root / ".streamlit" / "secrets.toml.example"
-    hosted_env_path = project_root / HOSTED_DEMO_ENV_FILE
     hosted_env_example_path = project_root / HOSTED_DEMO_EXAMPLE_FILE
 
     dashboard_body = _read_text(dashboard_path)
     requirements_body = _read_text(requirements_path)
     hosted_doc_body = _read_text(hosted_doc_path)
     secrets_template_body = _read_text(secrets_template_path)
-    hosted_env_body = _read_text(hosted_env_path)
     hosted_env_example_body = _read_text(hosted_env_example_path)
-    configured_hosted_url = _read_simple_env_value(hosted_env_body, HOSTED_DEMO_URL_NAME)
+    configured_hosted_url = read_hosted_demo_url(project_root)
 
     entrypoint_ready = dashboard_path.exists() and "src.dashboard" in dashboard_body
     missing_packages = [

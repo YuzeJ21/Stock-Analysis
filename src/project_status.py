@@ -18,7 +18,7 @@ from src.data_sources import build_data_source_payload, write_data_source_output
 from src.action_queue import write_action_queue_output
 from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.dcf_input_proof_queue import _reviewed_non_actionable_tickers as _reviewed_non_actionable_dcf_tickers
-from src.hosted_demo_readiness import HOSTED_DEMO_ENV_FILE, HOSTED_DEMO_URL_NAME, _read_simple_env_value
+from src.hosted_demo_readiness import read_hosted_demo_url
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
 from src.public_ux_review_checklist import public_ux_review_notes_status
@@ -522,12 +522,7 @@ def _public_ux_stage_from_status(status: dict[str, Any] | None) -> dict[str, str
 
 
 def _hosted_demo_url_for_root(root: Path) -> str:
-    path = root / HOSTED_DEMO_ENV_FILE
-    try:
-        body = path.read_text(encoding="utf-8")
-    except OSError:
-        return ""
-    return _read_simple_env_value(body, HOSTED_DEMO_URL_NAME)
+    return read_hosted_demo_url(root)
 
 
 def _remaining_public_stage_rows(

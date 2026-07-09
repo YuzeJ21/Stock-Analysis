@@ -1257,6 +1257,12 @@ def test_project_status_stage_map_uses_hosted_url_marker_as_manual_gate():
     assert "public-check" in hosted_row["Completion Gate"]
 
 
+def test_project_status_hosted_url_reader_accepts_environment_marker(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("HOSTED_DEMO_URL", "https://env-stock-demo.streamlit.app")
+
+    assert project_status._hosted_demo_url_for_root(tmp_path) == "https://env-stock-demo.streamlit.app"
+
+
 def test_project_status_stage_map_separates_price_rows_from_price_ready():
     rows = project_status._remaining_public_stage_rows(
         {

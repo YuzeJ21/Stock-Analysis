@@ -27,6 +27,8 @@ cp config/hosted_demo.env.example config/hosted_demo.env
 make hosted-demo-readiness
 ```
 
+Hosted platforms can provide `HOSTED_DEMO_URL` directly as an environment variable; local operators can use the ignored `config/hosted_demo.env` marker for the same readiness check.
+
 A configured hosted URL is still a manual verification gate. It tells the readiness command which public route to open, but it does not prove the app is live, public-mode-first, source-safe, or share-ready. Do not update README, LinkedIn, or portfolio copy until the hosted URL opens and the five-page public workflow passes the post-deploy smoke checklist below.
 
 ## Safe Hosting Boundary
