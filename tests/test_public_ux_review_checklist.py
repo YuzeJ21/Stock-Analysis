@@ -71,10 +71,29 @@ def test_public_ux_review_payload_is_machine_readable_for_long_runs():
     assert payload["responsive_route_checks"][0]["Phone Viewport"] == "390x844"
     assert "environment_limited" in payload["browser_capture_fallback"][0]
     assert "Do not replace screenshot assets" in payload["browser_capture_fallback"][2]
+    assert payload["review_note_artifact"]["suggested_local_folder"] == "/tmp/stock-command-center-public-ux-review"
+    assert payload["review_note_artifact"]["suggested_notes_file"] == "public-ux-review-notes.md"
+    assert payload["review_note_artifact"]["git_boundary"] == "local audit notes only; do not stage unless intentionally reviewed"
+    assert payload["live_review_protocol"][0] == "Create the suggested local audit folder before opening routes."
+    assert "environment_limited" in payload["live_review_protocol"][-1]
     assert payload["next_safe_commands"] == [
         "make dashboard",
+        "make public-ux-review-checklist-json",
         "make project-status-check",
+        "make dashboard-smoke",
         "make browser-qa-evidence",
         "make public-check",
         "make diff-hygiene-summary",
     ]
+
+
+def test_public_ux_review_checklist_prints_review_note_artifact():
+    rendered = render_public_ux_review_checklist()
+
+    assert "Review note artifact:" in rendered
+    assert "- Suggested local folder: /tmp/stock-command-center-public-ux-review" in rendered
+    assert "- Suggested notes file: public-ux-review-notes.md" in rendered
+    assert "- Git boundary: local audit notes only; do not stage unless intentionally reviewed" in rendered
+    assert "Live review protocol:" in rendered
+    assert "- Record one note row per page/viewport before changing code or screenshots." in rendered
+    assert "- If capture is environment_limited, record that state once and continue with repo-side checks." in rendered

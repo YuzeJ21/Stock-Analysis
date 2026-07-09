@@ -78,10 +78,26 @@ STOP_BEFORE_SHARING = [
 
 NEXT_SAFE_COMMANDS = [
     "make dashboard",
+    "make public-ux-review-checklist-json",
     "make project-status-check",
+    "make dashboard-smoke",
     "make browser-qa-evidence",
     "make public-check",
     "make diff-hygiene-summary",
+]
+
+REVIEW_NOTE_ARTIFACT = {
+    "suggested_local_folder": "/tmp/stock-command-center-public-ux-review",
+    "suggested_notes_file": "public-ux-review-notes.md",
+    "git_boundary": "local audit notes only; do not stage unless intentionally reviewed",
+}
+
+LIVE_REVIEW_PROTOCOL = [
+    "Create the suggested local audit folder before opening routes.",
+    "Record one note row per page/viewport before changing code or screenshots.",
+    "Save screenshots only after confirming they show the real app, the right route, and a stable first viewport.",
+    "Keep raw tables, commands, provider setup, route maps, and proof ledgers collapsed unless the review intentionally opens Advanced.",
+    "If capture is environment_limited, record that state once and continue with repo-side checks.",
 ]
 
 
@@ -105,6 +121,8 @@ def public_ux_review_payload() -> dict[str, object]:
         "responsive_route_checks": browser_qa_responsive_route_rows(),
         "desktop_and_mobile_rules": DESKTOP_AND_MOBILE_RULES,
         "browser_capture_fallback": BROWSER_CAPTURE_FALLBACK,
+        "review_note_artifact": REVIEW_NOTE_ARTIFACT,
+        "live_review_protocol": LIVE_REVIEW_PROTOCOL,
         "review_log_template": [
             "Route reviewed: <route>",
             "Width: desktop or phone",
@@ -155,6 +173,14 @@ def render_public_ux_review_checklist() -> str:
             "",
             "Browser capture fallback:",
             *[f"- {rule}" for rule in BROWSER_CAPTURE_FALLBACK],
+            "",
+            "Review note artifact:",
+            f"- Suggested local folder: {REVIEW_NOTE_ARTIFACT['suggested_local_folder']}",
+            f"- Suggested notes file: {REVIEW_NOTE_ARTIFACT['suggested_notes_file']}",
+            f"- Git boundary: {REVIEW_NOTE_ARTIFACT['git_boundary']}",
+            "",
+            "Live review protocol:",
+            *[f"- {rule}" for rule in LIVE_REVIEW_PROTOCOL],
             "",
             "Review log template:",
             *[f"- {item}" for item in payload["review_log_template"]],  # type: ignore[index]
