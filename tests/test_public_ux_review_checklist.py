@@ -40,6 +40,9 @@ def test_public_ux_review_checklist_keeps_operator_details_and_data_claims_out()
     assert "Stop if mobile hides the selector, shows raw readiness tables first, or forces horizontal scrolling." in rendered
     assert "Stop if provider setup, operator commands, raw tables, or proof ledgers appear before the coverage answer." in rendered
     assert "Confirm screenshots remain product evidence only and do not claim data freshness." in rendered
+    assert "Browser capture fallback:" in rendered
+    assert "If in-app browser capture is unavailable or times out, classify the review as environment_limited" in rendered
+    assert "Do not replace screenshot assets from a timed-out, blank, cropped, or loading capture." in rendered
     assert "Review log template:" in rendered
     assert "Issue classification: resolved, intentionally_deferred, environment_limited, skipped, or blocked_with_evidence" in rendered
     assert "blocked, candidate-only, skipped, or excluded lane appears as analysis-ready" in rendered
