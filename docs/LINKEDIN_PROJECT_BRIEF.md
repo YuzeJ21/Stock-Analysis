@@ -32,6 +32,8 @@ Use the refreshed `docs/assets/linkedin-public-dashboard.png` thumbnail for the 
 
 Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages.
 
+If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets.
+
 | Stage | Answer | Guardrail |
 | --- | --- | --- |
 | Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |
@@ -133,6 +135,7 @@ Use this after GitHub is synced:
 - Open `outputs/stock_reports/meta.md` to show price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
 - Open `outputs/stock_reports/apld.md` or `outputs/stock_reports/crdo.md` to show how the product handles blocked data without inventing valuation conclusions, including the exact copyable local commands for the next proof step and one-company pilot packet.
+- Run `make next-stage` before operator proof queues when someone asks what the current safest next move is.
 - Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted.
 - Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.
 - Keep lane-level operator views, coverage frontier details, reviewed batch packets, and validate / preview / apply guidance as follow-up context after the public workflow is clear.

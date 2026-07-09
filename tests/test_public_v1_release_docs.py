@@ -138,6 +138,8 @@ def test_linkedin_brief_has_now_next_not_yet_share_framing():
     assert "| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Keep this as a follow-up; do not imply a hosted URL or provider-backed automation exists before verification. |" in linkedin
     assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |" in linkedin
     assert "Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages." in linkedin
+    assert "If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets." in linkedin
+    assert linkedin.index("make next-stage") < linkedin.index("Run `make project-status-check` first")
 
 
 def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
