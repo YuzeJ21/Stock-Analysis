@@ -12422,18 +12422,25 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         )
     proof_timeline = data_health_reviewed_proof_timeline_frame()
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
-    render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
     if public_mode:
-        with st.expander("Advanced: proof answer cards", expanded=False):
+        first_answer_frame = proof_history_first_answer_frame(proof_timeline, batch_proof_frame)
+        primary_answer_frame = first_answer_frame.head(1)
+        st.markdown(
+            proof_history_first_answer_cards_html(primary_answer_frame),
+            unsafe_allow_html=True,
+        )
+        with st.expander("Advanced: latest proof evidence", expanded=False):
             st.markdown(
-                proof_history_first_answer_cards_html(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)),
+                proof_history_first_answer_cards_html(first_answer_frame),
                 unsafe_allow_html=True,
             )
+            render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
             st.markdown(
                 proof_history_public_summary_html(proof_timeline, batch_proof_frame),
                 unsafe_allow_html=True,
             )
     else:
+        render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
         st.table(clean_display_frame(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)))
         st.markdown(
             proof_history_public_summary_html(proof_timeline, batch_proof_frame),

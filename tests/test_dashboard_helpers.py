@@ -15336,18 +15336,47 @@ def test_proof_history_public_page_renders_first_answer_frame_before_ledger_deta
     next_function_index = source.index("\ndef ", render_index + 1)
     proof_history_chunk = source[render_index:next_function_index]
     first_answer_index = source.index('"Evidence-only page."', render_index)
-    cards_index = source.index("proof_history_public_detail_cards(proof_timeline, batch_proof_frame)", first_answer_index)
-    answer_cards_index = source.index('st.expander("Advanced: proof answer cards", expanded=False)', cards_index)
-    card_html_index = source.index("proof_history_first_answer_cards_html(", answer_cards_index)
-    frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", card_html_index)
+    frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", first_answer_index)
+    card_html_index = source.index("proof_history_first_answer_cards_html(primary_answer_frame)", frame_index)
+    cards_index = source.index('st.expander("Advanced: latest proof evidence", expanded=False)', frame_index)
     details_index = source.index('st.expander("Advanced: proof ledger details", expanded=False)', frame_index)
 
-    assert first_answer_index < cards_index < answer_cards_index < card_html_index < frame_index < details_index
+    assert first_answer_index < frame_index < card_html_index < cards_index < details_index
+    assert 'st.expander("Advanced: proof answer cards", expanded=False)' not in proof_history_chunk
     assert '"Proof History First Answer"' not in proof_history_chunk
     assert '"Proof History One Answer"' not in proof_history_chunk
 
 
-def test_public_proof_history_answer_drawer_uses_compact_cards_not_table():
+def test_public_proof_history_keeps_latest_proof_cards_under_advanced():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_proof_history(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    proof_history_chunk = source[render_index:next_function_index]
+
+    visible_answer_index = proof_history_chunk.index("proof_history_first_answer_cards_html(")
+    latest_proof_expander_index = proof_history_chunk.index('st.expander("Advanced: latest proof evidence", expanded=False)')
+    detail_cards_index = proof_history_chunk.index("proof_history_public_detail_cards(proof_timeline, batch_proof_frame)")
+    ledger_index = proof_history_chunk.index('st.expander("Advanced: proof ledger details", expanded=False)')
+
+    assert visible_answer_index < latest_proof_expander_index < detail_cards_index < ledger_index
+
+
+def test_public_proof_history_shows_only_primary_answer_before_advanced():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_proof_history(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    proof_history_chunk = source[render_index:next_function_index]
+
+    first_answer_frame_index = proof_history_chunk.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)")
+    primary_answer_index = proof_history_chunk.index("primary_answer_frame", first_answer_frame_index)
+    visible_answer_index = proof_history_chunk.index("proof_history_first_answer_cards_html(primary_answer_frame)")
+    latest_proof_expander_index = proof_history_chunk.index('st.expander("Advanced: latest proof evidence", expanded=False)')
+    full_answer_index = proof_history_chunk.index("proof_history_first_answer_cards_html(first_answer_frame)", latest_proof_expander_index)
+
+    assert first_answer_frame_index < primary_answer_index < visible_answer_index < latest_proof_expander_index < full_answer_index
+
+
+def test_public_proof_history_visible_answer_uses_compact_cards_not_table():
     proof_timeline = pd.DataFrame(
         [
             {
@@ -15374,17 +15403,18 @@ def test_public_proof_history_answer_drawer_uses_compact_cards_not_table():
 
     rendered = dashboard.proof_history_first_answer_cards_html(frame).lower()
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    answer_drawer_index = source.index('st.expander("Advanced: proof answer cards", expanded=False)')
-    operator_else_index = source.index("\n    else:", answer_drawer_index)
-    answer_drawer_chunk = source[answer_drawer_index:operator_else_index]
+    render_index = source.index("def render_proof_history(")
+    visible_answer_index = source.index("proof_history_first_answer_cards_html(", render_index)
+    evidence_drawer_index = source.index('st.expander("Advanced: latest proof evidence", expanded=False)', visible_answer_index)
+    visible_answer_chunk = source[visible_answer_index:evidence_drawer_index]
 
     assert "public-proof-answer-cards" in rendered
     assert "what is proof history for?" in rendered
     assert "evidence review only" in rendered
     assert "leave proof history after the evidence question is answered" in rendered
     assert "<table" not in rendered
-    assert "st.table(" not in answer_drawer_chunk
-    assert "proof_history_first_answer_cards_html(" in answer_drawer_chunk
+    assert "st.table(" not in visible_answer_chunk
+    assert "proof_history_first_answer_cards_html(" in visible_answer_chunk
 
 
 def test_reviewed_batch_execution_checklist_covers_lane_to_ledger_loop():

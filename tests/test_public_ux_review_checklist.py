@@ -36,7 +36,7 @@ def test_public_ux_review_checklist_is_read_only_and_route_complete():
     assert "Why is something blocked and how do I fix it?" in rendered
     assert "What evidence changed a readiness state?" in rendered
     assert "Coverage Summary / What Can I Use?" in rendered
-    assert "Evidence-only page, latest proof outcome, raw ledger details collapsed" in rendered
+    assert "Evidence-only page, one proof answer, latest proof evidence collapsed, raw ledger details collapsed" in rendered
 
 
 def test_public_ux_review_checklist_keeps_operator_details_and_data_claims_out():
