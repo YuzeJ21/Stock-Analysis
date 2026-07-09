@@ -307,6 +307,15 @@ def _next_review_note_command(next_pending: dict[str, str]) -> str:
     )
 
 
+def _next_limited_review_note_command(next_pending: dict[str, str]) -> str:
+    if not next_pending:
+        return "make public-ux-review-notes-check"
+    return (
+        "make public-ux-review-note OUTCOME=environment_limited "
+        "NOTES='Browser or capture unavailable; use normal-browser review.'"
+    )
+
+
 def _escape_note_cell(value: str) -> str:
     return value.replace("|", "/").replace("\n", " ").strip()
 
@@ -376,6 +385,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
             "problem_rows": [],
             "next_pending_review": next_pending,
             "next_safe_command": "make public-ux-review-notes",
+            "next_limited_command": "make public-ux-review-notes",
             "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
         }
 
@@ -416,6 +426,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
         "problem_rows": problem_rows,
         "next_pending_review": next_pending_review,
         "next_safe_command": _next_review_note_command(next_pending_review),
+        "next_limited_command": _next_limited_review_note_command(next_pending_review),
         "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
     }
 
@@ -435,6 +446,7 @@ def render_public_ux_review_notes_status(notes_path: str | Path | None = None) -
         f"pending_rows: {status['pending_rows']}",
         f"classification_counts: {', '.join(count_parts) if count_parts else '-'}",
         f"next_safe_command: {status['next_safe_command']}",
+        f"next_limited_command: {status['next_limited_command']}",
         f"boundary: {status['boundary']}",
     ]
     next_pending = status["next_pending_review"]

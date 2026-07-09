@@ -170,8 +170,13 @@ def test_public_ux_review_notes_status_guides_next_pending_note_command(tmp_path
         "make public-ux-review-note FIRST_ANSWER=yes NEXT_ACTION=yes "
         "ADVANCED_COLLAPSED=yes OUTCOME=resolved NOTES='<review notes>'"
     )
+    assert status["next_limited_command"] == (
+        "make public-ux-review-note OUTCOME=environment_limited "
+        "NOTES='Browser or capture unavailable; use normal-browser review.'"
+    )
     assert "next_safe_command: make public-ux-review-note FIRST_ANSWER=yes" in rendered
     assert "NEXT_ACTION=yes ADVANCED_COLLAPSED=yes OUTCOME=resolved NOTES='<review notes>'" in rendered
+    assert "next_limited_command: make public-ux-review-note OUTCOME=environment_limited" in rendered
 
 
 def test_public_ux_review_notes_status_counts_pending_and_reviewed_rows(tmp_path):
