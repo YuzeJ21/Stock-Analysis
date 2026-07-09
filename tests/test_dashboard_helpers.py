@@ -28446,6 +28446,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     placeholder_stop_index = source.index("do not treat partial, candidate-only, or locked sections as conclusions", placeholder_index)
     provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
+    query_open_pre_report_guard_index = source.index("if not report_payload and not query_open_review:", provider_ticker_load_index)
     report_button_index = source.index('st.button("Open Review"', contract_cards_index)
     coverage_expander_index = source.index('st.expander("Ticker Readiness Evidence"', report_button_index)
     intro_expander_index = source.index('st.expander("Advanced: example report states"', coverage_expander_index)
@@ -28453,6 +28454,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     single_stock_chunk = source[render_index:next_function_index]
 
     assert '"Review Status"' not in single_stock_chunk
+    assert "pre_report_cards[:3]" not in single_stock_chunk
     assert (
             render_index
             < section_index
@@ -28460,6 +28462,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
         < placeholder_contract_index
         < placeholder_stop_index
         < provider_ticker_load_index
+        < query_open_pre_report_guard_index
         < contract_cards_index
         < report_button_index
         < coverage_expander_index
@@ -28473,11 +28476,15 @@ def test_single_stock_public_selector_uses_one_primary_ticker_control():
     next_function_index = source.index("\ndef render_data_health(", render_index)
     chunk = source[render_index:next_function_index]
 
-    public_branch_index = chunk.index("if public_mode:")
-    operator_branch_index = chunk.index("else:", public_branch_index)
+    compact_flag_index = chunk.index("compact_public_open_report = public_mode and query_open_review and bool(query_ticker)")
+    public_branch_index = chunk.index("if public_mode:", compact_flag_index)
+    compact_branch_index = chunk.index("if compact_public_open_report:", public_branch_index)
+    operator_branch_index = chunk.index("else:\n        selection_cols", public_branch_index)
     public_selector_chunk = chunk[public_branch_index:operator_branch_index]
     operator_selector_chunk = chunk[operator_branch_index:]
 
+    assert compact_flag_index < public_branch_index < compact_branch_index
+    assert "selected = query_ticker.strip().upper()" in public_selector_chunk
     assert '"Choose ticker"' in public_selector_chunk
     assert '"Enter ticker"' not in public_selector_chunk
     assert '"Online lookup (off by default)"' not in public_selector_chunk

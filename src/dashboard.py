@@ -27636,6 +27636,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
     query_open_review = single_stock_query_open(st.query_params.get("open"))
+    compact_public_open_report = public_mode and query_open_review and bool(query_ticker)
     ticker_options = ["Custom"] + local_tickers if local_tickers else ["Custom"]
     default_selection_index = preferred_single_stock_default(local_tickers)
     if query_ticker and query_ticker in ticker_options:
@@ -27651,13 +27652,16 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             if query_ticker and query_ticker in public_ticker_options
             else min(max(preferred_single_stock_default(local_tickers) - 1, 0), len(public_ticker_options) - 1)
         )
-        selected = st.selectbox(
-            "Choose ticker",
-            public_ticker_options,
-            index=public_default_index,
-            help="Pick one saved local ticker for a read-only review. Operator mode has manual and online lookup controls.",
-            key="single-stock-public-ticker",
-        )
+        if compact_public_open_report:
+            selected = query_ticker.strip().upper()
+        else:
+            selected = st.selectbox(
+                "Choose ticker",
+                public_ticker_options,
+                index=public_default_index,
+                help="Pick one saved local ticker for a read-only review. Operator mode has manual and online lookup controls.",
+                key="single-stock-public-ticker",
+            )
         manual_ticker = ""
         use_yfinance = False
     else:
@@ -27717,13 +27721,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         )
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
-        if report_payload:
-            render_signal_cards(pre_report_cards[:3], show_commands=False, variant="queue")
-        else:
+        if not report_payload and not query_open_review:
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
     if query_open_review and not report_payload:
-        if public_mode:
+        if public_mode and not compact_public_open_report:
             render_context_note(
                 "Opening saved review evidence.",
                 "The selected ticker state is visible above first; the detailed saved review opens below when ready.",
@@ -27732,10 +27734,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         open_selected_report()
 
     if report_payload:
-        render_context_note(
-            "Review is open.",
-            "The selected ticker review is shown below. It was built from saved local outputs and did not refresh prices, import files, or contact external accounts.",
-        )
+        if not compact_public_open_report:
+            render_context_note(
+                "Review is open.",
+                "The selected ticker review is shown below. It was built from saved local outputs and did not refresh prices, import files, or contact external accounts.",
+            )
         open_review_clicked = False
     else:
         render_context_note(
