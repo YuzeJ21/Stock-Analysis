@@ -20,6 +20,7 @@ from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.dcf_input_proof_queue import _reviewed_non_actionable_tickers as _reviewed_non_actionable_dcf_tickers
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
+from src.public_ux_review_checklist import public_ux_review_notes_status
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
 from src.readiness_ops import build_reviewed_batch_ledger_summaries
 from src.research_health import research_health_outputs_current
@@ -471,6 +472,54 @@ def _linkedin_stage_from_git_status(git_status_line: str | None) -> dict[str, st
     }
 
 
+def _public_ux_review_status_for_root(project_root: Path) -> dict[str, Any] | None:
+    """Read local UX notes only for the active checkout, not temp test fixtures."""
+    try:
+        if project_root.resolve() != Path.cwd().resolve():
+            return None
+        return public_ux_review_notes_status()
+    except Exception:
+        return None
+
+
+def _public_ux_stage_from_status(status: dict[str, Any] | None) -> dict[str, str]:
+    if not isinstance(status, dict):
+        return {
+            "State": "ready_for_live_review",
+            "Evidence": (
+                "Browser QA evidence is ready; public workflow is Home -> Stock Selector -> "
+                "Single-Stock Report -> Data Health -> Proof History."
+            ),
+            "Next Action": (
+                "Run make public-ux-review-checklist-json for the machine-readable five-page contract "
+                "and make public-ux-review-notes-check for pending note rows, then run a live "
+                "desktop/mobile review and polish first viewport spacing or unclear Data Health wording only."
+            ),
+        }
+    gate = str(status.get("share_review_gate") or "").strip()
+    if gate == "share_review_ready":
+        counts = status.get("classification_counts") if isinstance(status.get("classification_counts"), dict) else {}
+        resolved = int(counts.get("resolved") or 0)
+        total = int(status.get("expected_rows") or resolved)
+        return {
+            "State": "share_review_ready",
+            "Evidence": f"{resolved}/{total} public desktop/mobile review rows resolved; public UX notes gate is share_review_ready.",
+            "Next Action": "Rerun make public-ux-review-notes-check after UI copy, layout, or route changes.",
+        }
+    if gate == "review_limited":
+        return {
+            "State": "review_limited",
+            "Evidence": "Public UX review notes have no pending rows, but at least one row is environment-limited or deferred.",
+            "Next Action": str(status.get("next_limited_command") or "make public-ux-review-notes-check"),
+        }
+    pending = int(status.get("pending_rows") or 0)
+    return {
+        "State": "ready_for_live_review",
+        "Evidence": f"Public UX review notes still have {pending} pending desktop/mobile route row(s).",
+        "Next Action": str(status.get("next_safe_command") or "make public-ux-review-notes-check"),
+    }
+
+
 def _remaining_public_stage_rows(
     summary: dict[str, Any],
     *,
@@ -478,6 +527,7 @@ def _remaining_public_stage_rows(
     trusted_data_pilot_has_candidates: bool | None = None,
     price_coverage_complete: bool = False,
     git_status_line: str | None = None,
+    public_ux_review_status: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     """Classify the remaining public/product stages without unlocking data."""
     source_operator_summary = source_operator_summary if isinstance(source_operator_summary, dict) else {}
@@ -507,6 +557,7 @@ def _remaining_public_stage_rows(
     source_queues_exhausted = trusted_data_pilot_has_candidates is False and price_coverage_complete
     avoid_source_ladder = "fundamentals_share_count_source_ladder" in avoid_repeating
     linkedin_stage = _linkedin_stage_from_git_status(git_status_line)
+    public_ux_stage = _public_ux_stage_from_status(public_ux_review_status)
 
     rows: list[dict[str, str]] = [
         {
@@ -584,9 +635,9 @@ def _remaining_public_stage_rows(
         },
         {
             "Stage": "Public UX polish",
-            "State": "ready_for_live_review",
-            "Evidence": "Browser QA evidence is ready; public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.",
-            "Next Action": "Run make public-ux-review-checklist-json for the machine-readable five-page contract and make public-ux-review-notes-check for pending note rows, then run a live desktop/mobile review and polish first viewport spacing or unclear Data Health wording only.",
+            "State": public_ux_stage["State"],
+            "Evidence": public_ux_stage["Evidence"],
+            "Next Action": public_ux_stage["Next Action"],
             "Completion Gate": "Five public pages remain clear, mobile-safe, and raw operations stay behind Advanced.",
             "Boundary": "Do not expand data coverage or add providers during UX polish.",
         },
@@ -781,6 +832,7 @@ def _fast_status_payload_from_outputs(
         trusted_data_pilot_has_candidates=trusted_data_pilot_has_candidates,
         price_coverage_complete=price_complete,
         git_status_line=_git_status_line(root),
+        public_ux_review_status=_public_ux_review_status_for_root(root),
     )
     return {
         "project_root": str(root),
@@ -1729,6 +1781,7 @@ def build_project_status_payload(
         trusted_data_pilot_has_candidates=trusted_data_pilot_has_candidates,
         price_coverage_complete=_price_coverage_complete(summary),
         git_status_line=_git_status_line(root),
+        public_ux_review_status=_public_ux_review_status_for_root(root),
     )
     return {
         "project_root": str(root),

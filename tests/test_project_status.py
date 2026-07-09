@@ -1256,6 +1256,38 @@ def test_project_status_stage_map_separates_price_rows_from_price_ready():
     assert "momentum 3538/3541" in coverage_row["Evidence"]
 
 
+def test_project_status_stage_map_reports_completed_public_ux_review():
+    rows = project_status._remaining_public_stage_rows(
+        {
+            "tickers_total": 3541,
+            "tickers_with_prices": 3541,
+            "tickers_price_ready": 3540,
+            "tickers_usable_for_momentum": 3538,
+            "tickers_fundamentals_ready": 2810,
+            "tickers_dcf_ready": 2693,
+            "tickers_peer_ready": 29,
+            "data_gaps": 207,
+            "data_sources_optional_locked": 3,
+        },
+        source_operator_summary={"needs_setup": ["fmp"]},
+        trusted_data_pilot_has_candidates=False,
+        price_coverage_complete=True,
+        git_status_line="## main...origin/main",
+        public_ux_review_status={
+            "share_review_gate": "share_review_ready",
+            "status": "review_complete",
+            "pending_rows": 0,
+            "classification_counts": {"resolved": 10},
+            "next_safe_command": "make public-ux-review-notes-check",
+        },
+    )
+
+    ux_row = next(row for row in rows if row["Stage"] == "Public UX polish")
+    assert ux_row["State"] == "share_review_ready"
+    assert "10/10 public desktop/mobile review rows resolved" in ux_row["Evidence"]
+    assert "Rerun make public-ux-review-notes-check after UI copy, layout, or route changes" in ux_row["Next Action"]
+
+
 def test_project_status_fast_check_pivots_from_reviewed_non_actionable_peers(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
     pd.DataFrame(
