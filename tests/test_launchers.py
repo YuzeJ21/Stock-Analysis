@@ -1731,10 +1731,9 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "ready data can be analyzed, blocked data is explained",
         "missing rows are treated as the next proof step",
         "At A Glance status, Evaluation Snapshot, Proof Checklist, Best Review Path, method cue, DCF assumptions",
-        "make trusted-data-pilot-candidates TOP_N=10",
-        "make trusted-data-pilot-packet TICKER=CRDO",
-        "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10",
-        "without importing or applying rows",
+        "Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted.",
+        "Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.",
+        "Keep lane-level operator views, coverage frontier details, reviewed batch packets, and validate / preview / apply guidance as follow-up context after the public workflow is clear.",
         "one-company evidence packet",
         "source evidence, and a rebuilt report",
         "leave the rest visibly blocked by missing data until trusted rows exist",
@@ -1762,6 +1761,10 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     assert "price/setup review where valuation remains gated" in brief
     assert "CSV-first staged import workflows" not in brief
     assert "staged import validation" not in brief
+    linkedin_demo_talking_points = brief.split("## Demo Talking Points", 1)[1]
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in linkedin_demo_talking_points
+    assert "make trusted-data-pilot-packet TICKER=CRDO" not in linkedin_demo_talking_points
+    assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" not in linkedin_demo_talking_points
     assert "refusing to present every ticker as complete" in brief
     for guardrail_phrase in (
         "direct buy/sell instructions",
@@ -2302,9 +2305,12 @@ def test_public_docs_do_not_reference_stale_github_or_internal_thread_links():
 
     linkedin_brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
     assert "https://github.com/YuzeJ21/Stock-Analysis" in linkedin_brief
-    assert "Run `make project-status-check` first" in linkedin_brief
-    assert "only run `make trusted-data-pilot-candidates TOP_N=10` when it shows executable company candidates" in linkedin_brief
-    assert "use `make provider-setup-checklist` instead" in linkedin_brief
+    assert "Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted." in linkedin_brief
+    assert "Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates." in linkedin_brief
+    linkedin_demo_talking_points = linkedin_brief.split("## Demo Talking Points", 1)[1]
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in linkedin_demo_talking_points
+    assert "make trusted-data-pilot-packet TICKER=CRDO" not in linkedin_demo_talking_points
+    assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" not in linkedin_demo_talking_points
 
 
 def test_shell_launchers_anchor_to_repo_root():
