@@ -28395,9 +28395,14 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "Proof History is preparing evidence cards" not in chunk
     assert "Evidence page guide" in chunk
     assert "Review evidence cards before opening the raw proof ledger" in chunk
-    assert "public_loading_preview_html" in chunk
-    assert "What appears first" in chunk
-    assert "Next safe action" in chunk
+    assert "public_loading_preview_html(selected_page)" in chunk
+    assert "What appears first" not in chunk
+    assert "Next safe action" not in chunk
+    preview_html = dashboard.public_loading_preview_html("Data Health")
+    assert "Current question" in preview_html
+    assert "Primary next step" in preview_html
+    assert "What appears first" not in preview_html
+    assert "Next safe action" not in preview_html
     assert "public workflow is loading" not in chunk
 
 

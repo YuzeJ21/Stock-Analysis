@@ -5048,7 +5048,7 @@ def render_public_workflow_header(page_title: str) -> None:
     st.markdown(public_workflow_header_html(page_title), unsafe_allow_html=True)
 
 
-def public_loading_preview_html(selected_page: str, first_label: str = "What appears first", next_label: str = "Next safe action") -> str:
+def public_loading_preview_html(selected_page: str, first_label: str = "Current question", next_label: str = "Primary next step") -> str:
     step = public_workflow_step(selected_page)
     cards = [
         (
@@ -5924,11 +5924,7 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
             tone="success",
         )
         st.markdown(
-            public_loading_preview_html(
-                selected_page,
-                first_label="What appears first",
-                next_label="Next safe action",
-            ),
+            public_loading_preview_html(selected_page),
             unsafe_allow_html=True,
         )
     return placeholder
