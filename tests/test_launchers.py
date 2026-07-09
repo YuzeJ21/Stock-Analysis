@@ -2538,6 +2538,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   make stock-report-md TICKER=QQQ   # ETF/index monitor context\"" in makefile
     assert "@echo \"6. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
+    assert "@echo \"7. If you are asking what to do next:\"" in makefile
+    assert "@echo \"   make next-stage\"" in makefile
+    assert "@echo \"   Proves: the current next-stage ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets.\"" in makefile
     assert "@echo \"Advanced source-proof follow-up, only after project-status says it is executable:\"" in makefile
     assert "@echo \"   make project-status-check\"" in makefile
     assert "@echo \"   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted\"" in makefile
