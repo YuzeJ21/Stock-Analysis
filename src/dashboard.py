@@ -9791,6 +9791,35 @@ def data_health_public_proof_map_cards(
     ]
 
 
+def data_health_public_source_boundary_cards(project_status_payload: dict[str, Any] | None) -> list[dict[str, object]]:
+    rows = []
+    if isinstance(project_status_payload, dict):
+        raw_rows = project_status_payload.get("remaining_public_stage_rows", [])
+        rows = raw_rows if isinstance(raw_rows, list) else []
+    state_counts: dict[str, int] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        state = format_missing(row.get("State"), "pending")
+        state_counts[state] = state_counts.get(state, 0) + 1
+    state_summary = ", ".join(f"{state}: {count}" for state, count in sorted(state_counts.items()))
+    state_sentence = f" Current stage states: {state_summary}." if state_summary else ""
+    return [
+        {
+            "kicker": "SOURCE BOUNDARY",
+            "title": "What this page does not unlock",
+            "body": (
+                "Provider setup, screenshots, and source reachability do not unlock blocked inputs. "
+                "They only explain why a lane is usable now, context-only, source-gated, locked, or excluded."
+                f"{state_sentence} "
+                "Readiness changes still require source-backed rows, validate / preview / apply gates, and rebuilt proof."
+            ),
+            "badges": ["source-gated", "not data proof"],
+            "command": "",
+        }
+    ]
+
+
 def _trusted_ready_count(frame: pd.DataFrame | None, column: str) -> int:
     if frame is None or frame.empty or column not in frame.columns:
         return 0
@@ -29068,6 +29097,11 @@ def render_data_health(
             show_commands=False,
             variant="queue",
         )
+        render_section_header(
+            "Source Boundary",
+            "Provider setup, screenshots, and source reachability do not unlock blocked inputs.",
+        )
+        render_signal_cards(data_health_public_source_boundary_cards(project_status_payload), show_commands=False, variant="queue")
         if public_mode and project_status_payload is None:
             with st.expander("Refresh status note", expanded=False):
                 render_notice_card(

@@ -28894,6 +28894,31 @@ def test_data_health_public_proof_map_cards_use_plain_readiness_labels():
     assert "copy-only" not in rendered
 
 
+def test_data_health_public_source_boundary_cards_explain_provider_setup_without_commands():
+    cards = dashboard.data_health_public_source_boundary_cards(
+        {
+            "remaining_public_stage_rows": [
+                {"Stage": "FMP provider activation", "State": "external_key_required"},
+                {"Stage": "Source-proof queues", "State": "exhausted_do_not_retry"},
+                {"Stage": "Generated artifacts", "State": "excluded_by_default"},
+            ]
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["SOURCE BOUNDARY"]
+    assert cards[0]["title"] == "What this page does not unlock"
+    assert "provider setup, screenshots, and source reachability do not unlock blocked inputs" in rendered
+    assert "external_key_required: 1" in rendered
+    assert "exhausted_do_not_retry: 1" in rendered
+    assert "excluded_by_default: 1" in rendered
+    assert "validate / preview / apply" in rendered
+    assert "make " not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer():
     cards = dashboard.data_health_coverage_summary_cards(
         {
@@ -29090,6 +29115,8 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
     coverage_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", public_index)
     proof_map_index = source.index("data_health_public_proof_map_cards(readiness_summary, readiness_freshness)", coverage_index)
+    source_boundary_index = source.index('render_section_header(\n            "Source Boundary"', proof_map_index)
+    source_boundary_cards_index = source.index("data_health_public_source_boundary_cards(project_status_payload)", source_boundary_index)
     guidance_expander_index = source.index('st.expander("Advanced public guidance", expanded=False)', public_index)
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_index)
     visitor_paths_index = source.index('render_section_header("Public path options"', first_30_index)
@@ -29110,6 +29137,8 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
             public_index
             < coverage_index
             < proof_map_index
+            < source_boundary_index
+            < source_boundary_cards_index
             < guidance_expander_index
             < first_30_index
         < visitor_paths_index
@@ -29126,6 +29155,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     assert "switch to Operator mode for runbooks and validate / preview / apply workflow tables." in source
     assert "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode." in source
     assert "Operator details are hidden." in source
+    assert "Provider setup, screenshots, and source reachability do not unlock blocked inputs." in source
     assert "Evidence details stay collapsed by default" in source
     assert "proof details, or research conclusions." in source
     assert "Commands and raw tables stay collapsed by default" not in source
