@@ -182,6 +182,7 @@ def test_public_docs_match_auto_price_ladder_order():
 
 def test_readme_has_external_reviewer_handoff_before_operator_detail():
     readme = _read("README.md")
+    checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
 
     assert "## Two-Minute External Review Path" in readme
     assert "- GitHub-only review: start with the preview image, the five-page workflow map, and the `docs/PUBLIC_DEMO_WALKTHROUGH.md` script." in readme
@@ -195,6 +196,10 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
     assert "| Best next question | Can a reviewer understand what is ready, blocked, excluded, and proof-backed before opening advanced details? |" in readme
     assert readme.index("## Two-Minute External Review Path") < readme.index("## External Reviewer Handoff")
     assert readme.index("## External Reviewer Handoff") < readme.index("## Data Coverage Strategy")
+    assert "Keep the guided product flow near the top" in checklist
+    assert "then `make dashboard`, then the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path" in checklist
+    assert "Keep terminal proof commands secondary" in checklist
+    assert "Put the best demo commands near the top" not in checklist
 
 
 def test_public_docs_share_same_coverage_gate_rule():

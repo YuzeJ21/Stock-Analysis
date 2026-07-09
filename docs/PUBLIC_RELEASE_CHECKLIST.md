@@ -6,7 +6,8 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 
 - Keep the top of `README.md` focused on what the project does, why it matters, and how to run it.
 - Confirm `README.md` includes a `Public Share Readiness` section that says GitHub and screenshots are ready, no public hosted Streamlit URL is configured yet, provider keys are optional/missing by default, generated churn stays excluded, and coverage is readiness-gated rather than complete.
-- Put the best demo commands near the top: `make demo`, `make status-check TOP_N=5`, `make stock-report-md TICKER=NVDA`, and `make dashboard`.
+- Keep the guided product flow near the top: `make demo`, then `make dashboard`, then the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path.
+- Keep terminal proof commands secondary: use `make status-check TOP_N=5` and `make stock-report-md TICKER=NVDA` only after the visitor understands the public workflow.
 - Keep `make stock-report TICKER=NVDA` available for optional local report-data inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
