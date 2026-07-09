@@ -304,8 +304,8 @@ def _escape_note_cell(value: str) -> str:
 
 def record_public_ux_review_note(
     *,
-    page: str,
-    viewport: str,
+    page: str | None,
+    viewport: str | None,
     first_answer_visible: str,
     primary_next_action_visible: str,
     advanced_details_collapsed: str,
@@ -318,6 +318,11 @@ def record_public_ux_review_note(
         write_public_ux_review_notes(path.parent)
 
     lines = path.read_text(encoding="utf-8").splitlines()
+    if not page or not viewport:
+        next_pending = _first_pending_review(_parse_review_note_rows(path.read_text(encoding="utf-8")))
+        page = next_pending["page"]
+        viewport = next_pending["viewport"]
+
     replacement = (
         f"| {_escape_note_cell(page)} | {_escape_note_cell(viewport)} | "
         f"{_escape_note_cell(first_answer_visible)} | {_escape_note_cell(primary_next_action_visible)} | "
@@ -451,8 +456,6 @@ def main() -> None:
         output_path = write_public_ux_review_notes(args.output_dir)
         print(f"Wrote: {output_path}")
     elif args.record_note:
-        if not args.page or not args.viewport:
-            raise SystemExit("--record-note requires --page and --viewport.")
         notes_path = None
         if args.output_dir:
             notes_path = Path(args.output_dir) / str(REVIEW_NOTE_ARTIFACT["suggested_notes_file"])

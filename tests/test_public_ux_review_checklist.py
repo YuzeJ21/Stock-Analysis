@@ -215,6 +215,39 @@ def test_record_public_ux_review_note_updates_one_row_and_advances_queue(tmp_pat
     assert status["next_pending_review"]["viewport"] == "phone"
 
 
+def test_record_public_ux_review_note_defaults_to_next_pending_row(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+    record_public_ux_review_note(
+        notes_path=notes_path,
+        page="Home",
+        viewport="desktop",
+        first_answer_visible="yes",
+        primary_next_action_visible="yes",
+        advanced_details_collapsed="yes",
+        classification="resolved",
+        notes="Desktop reviewed.",
+    )
+
+    record_public_ux_review_note(
+        notes_path=notes_path,
+        page=None,
+        viewport=None,
+        first_answer_visible="yes",
+        primary_next_action_visible="yes",
+        advanced_details_collapsed="yes",
+        classification="resolved",
+        notes="Defaulted to next pending row.",
+    )
+
+    text = notes_path.read_text(encoding="utf-8")
+    status = public_ux_review_notes_status(notes_path)
+
+    assert "| Home | phone | yes | yes | yes | resolved | Defaulted to next pending row. |" in text
+    assert status["pending_rows"] == 8
+    assert status["next_pending_review"]["page"] == "Stock Selector"
+    assert status["next_pending_review"]["viewport"] == "desktop"
+
+
 def test_record_public_ux_review_note_rejects_unknown_page(tmp_path):
     notes_path = write_public_ux_review_notes(tmp_path)
 
@@ -269,3 +302,36 @@ def test_record_public_ux_review_note_cli_honors_output_dir(tmp_path, monkeypatc
 
     assert f"Updated: {notes_path}" in captured.out
     assert "| Home | desktop | yes | yes | yes | resolved | CLI output-dir respected. |" in text
+
+
+def test_record_public_ux_review_note_cli_defaults_to_next_pending_row(tmp_path, monkeypatch, capsys):
+    notes_path = write_public_ux_review_notes(tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "public_ux_review_checklist",
+            "--record-note",
+            "--first-answer-visible",
+            "yes",
+            "--primary-next-action-visible",
+            "yes",
+            "--advanced-details-collapsed",
+            "yes",
+            "--classification",
+            "resolved",
+            "--note-text",
+            "CLI used next pending row.",
+            "--output-dir",
+            str(tmp_path),
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    text = notes_path.read_text(encoding="utf-8")
+
+    assert f"Updated: {notes_path}" in captured.out
+    assert "| Home | desktop | yes | yes | yes | resolved | CLI used next pending row. |" in text
+    assert "next_pending_review: Home | phone | http://localhost:8501/?mode=public" in captured.out
