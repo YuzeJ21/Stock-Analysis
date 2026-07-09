@@ -28455,6 +28455,8 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "What appears first" not in chunk
     assert "Next safe action" not in chunk
     preview_html = dashboard.public_loading_preview_html("Data Health")
+    assert "You are here" in preview_html
+    assert "Data Health" in preview_html
     assert "Current question" in preview_html
     assert "Primary next step" in preview_html
     assert "What appears first" not in preview_html

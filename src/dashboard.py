@@ -5061,6 +5061,12 @@ def public_loading_preview_html(selected_page: str, first_label: str = "Current 
     step = public_workflow_step(selected_page)
     cards = [
         (
+            "You are here",
+            f"{step['page']} - {public_workflow_position(selected_page)}",
+            "",
+            "neutral",
+        ),
+        (
             first_label,
             f"{step['page']}: {step['question']}",
             "",
