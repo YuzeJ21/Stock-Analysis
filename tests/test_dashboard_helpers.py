@@ -28453,15 +28453,12 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     render_index = source.index("def render_single_stock_report(")
 
     section_index = source.index('"One-Stock Review"', render_index)
-    placeholder_index = source.index('"Selected-ticker guide."', section_index)
-    placeholder_contract_index = source.index(
-        "The page opens with selected ticker state",
-        placeholder_index,
-    )
-    placeholder_stop_index = source.index("do not treat partial, candidate-only, or locked sections as conclusions", placeholder_index)
     provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
     query_open_pre_report_guard_index = source.index("if not report_payload and not query_open_review:", provider_ticker_load_index)
+    preparing_note_index = source.index('"Preparing selected report."', query_open_pre_report_guard_index)
+    preparing_boundary_index = source.index("without refreshing prices, importing files, or contacting external accounts", preparing_note_index)
+    open_selected_report_index = source.index("open_selected_report()", preparing_note_index)
     report_button_index = source.index('st.button("Open Review"', contract_cards_index)
     coverage_expander_index = source.index('st.expander("Ticker Readiness Evidence"', report_button_index)
     intro_expander_index = source.index('st.expander("Advanced: example report states"', coverage_expander_index)
@@ -28469,16 +28466,18 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     single_stock_chunk = source[render_index:next_function_index]
 
     assert '"Review Status"' not in single_stock_chunk
+    assert '"Selected-ticker guide."' not in single_stock_chunk
+    assert "The page opens with selected ticker state" not in single_stock_chunk
     assert "pre_report_cards[:3]" not in single_stock_chunk
     assert (
             render_index
             < section_index
-        < placeholder_index
-        < placeholder_contract_index
-        < placeholder_stop_index
         < provider_ticker_load_index
         < query_open_pre_report_guard_index
         < contract_cards_index
+        < preparing_note_index
+        < preparing_boundary_index
+        < open_selected_report_index
         < report_button_index
         < coverage_expander_index
         < intro_expander_index

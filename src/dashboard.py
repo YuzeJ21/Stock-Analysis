@@ -27638,17 +27638,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "One-Stock Review",
         "Choose a ticker to see the current review status, what stays locked, and which proof path comes next.",
     )
-    public_loading_placeholder = None
-    if public_mode:
-        public_loading_placeholder = st.empty()
-        with public_loading_placeholder.container():
-            render_context_note(
-                "Selected-ticker guide.",
-                "The page opens with selected ticker state, usable sections, blocked inputs, and one next step. "
-                "Advanced evidence stays closed while the saved review evidence loads. "
-                "Stop: do not treat partial, candidate-only, or locked sections as conclusions.",
-                tone="success",
-            )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
     query_open_review = single_stock_query_open(st.query_params.get("open"))
@@ -27735,8 +27724,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             peer_summary,
             report_open=bool(report_payload),
         )
-        if public_loading_placeholder is not None:
-            public_loading_placeholder.empty()
         if not report_payload and not query_open_review:
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
@@ -27745,6 +27732,12 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             render_context_note(
                 "Opening saved review evidence.",
                 "The selected ticker state is visible above first; the detailed saved review opens below when ready.",
+                tone="success",
+            )
+        if public_mode and compact_public_open_report:
+            render_context_note(
+                "Preparing selected report.",
+                f"Building the saved {ticker} review from local outputs without refreshing prices, importing files, or contacting external accounts.",
                 tone="success",
             )
         open_selected_report()
