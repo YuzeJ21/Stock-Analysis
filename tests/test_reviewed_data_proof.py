@@ -129,11 +129,21 @@ def test_public_demo_readiness_pack_names_required_shareable_artifacts():
     assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in rendered
     assert "`make dashboard` then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in rendered
     assert "operator evidence; they do not refresh data, unlock blocked inputs, or replace the public workflow" in rendered
-    assert "`make project-status`" in rendered
+    assert "`make project-status-check`" in rendered
+    assert "`make project-status` |" not in rendered
     assert "`make provider-setup-checklist`" in rendered
     assert "when source-proof queues are exhausted" in rendered
+    assert "`make universe-scope TOP_N=10`" in rendered
+    assert "Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before deeper review." in rendered
+    assert "`make risk-context`" in rendered
+    assert "Read-only liquidity, correlation, and proxy-risk context after scope is chosen." in rendered
     assert "`make readiness-ops-center`, `make coverage-frontier TOP_N=10`, or dashboard `Data Health`" in rendered
     assert "`make stock-report-md TICKER=NVDA`" in rendered
     assert "`make stock-report-md TICKER=META`" in rendered
     assert "`make stock-report-md TICKER=QQQ`" in rendered
-    assert "Latest reviewed proof: `RDP-TEST-001`" in rendered
+    assert "Latest reviewed proof: run `make reviewed-data-proof` for the current ledger row." in rendered
+    assert "Latest reviewed proof: `RDP-" not in rendered
+    assert "Use `make reviewed-batch-proof` to show the latest reviewed batch outcomes." in rendered
+    assert "## Source-boundary pivot" in rendered
+    assert "Configure at most one keyed free-tier provider" in rendered
+    assert "source-provenance checks before any apply step" in rendered

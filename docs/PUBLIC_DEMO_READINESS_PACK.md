@@ -17,12 +17,16 @@ Use the table below as evidence after the visitor can already explain what is re
 | Visitor workflow | `make dashboard` then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History | First-screen product path and readiness-first route sequence. |
 | Status gate | `make project-status-check` | Current safest proof path, provider setup boundary, and whether company candidates are executable. |
 | Provider setup | `make provider-setup-checklist` | Source setup steps when source-proof queues are exhausted; no imports or generated data are applied. |
+| Scope selection | `make universe-scope TOP_N=10` | Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before deeper review. |
+| Risk context | `make risk-context` | Read-only liquidity, correlation, and proxy-risk context after scope is chosen. |
 | Data Health lane board | `make readiness-ops-center`, `make coverage-frontier TOP_N=10`, or dashboard `Data Health` | Lane counts, blocker themes, next safe commands, and locked/manual lanes. |
 | Ready report | `make stock-report-md TICKER=NVDA` | Ready company report with local DCF review and source-readiness boundaries. |
 | Blocked report | `make stock-report-md TICKER=META` | Blocked/missing-input report that keeps valuation gated. |
 | Excluded / monitor example | `make stock-report-md TICKER=QQQ` | ETF/index monitor context where operating-company DCF is excluded, not failed. |
 
 ## Current proof timeline
+
+Latest reviewed proof: run `make reviewed-data-proof` for the current ledger row.
 
 Use `make reviewed-data-proof` to show the latest durable lane-level proof rows.
 Use `make reviewed-batch-proof` to show the latest reviewed batch outcomes.

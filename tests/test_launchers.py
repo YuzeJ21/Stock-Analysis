@@ -2161,6 +2161,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Use `make reviewed-data-proof-record` only after the source proof, validation, preview, rejected-row review, apply step, and readiness proof have been reviewed." in data_strategy
     assert "Use `make price-reviewed-run` after a dry-run plan has been reviewed." in data_strategy
     assert "Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.md`" in data_strategy
+    assert "scope selection, risk context, Data Health lane board, one ready report, one blocked report, and one excluded/monitor example" in data_strategy
     assert "Data Health also surfaces the latest reviewed proof timeline" in data_strategy
     assert "Reviewed Batch Execution V1" in data_strategy
     assert "Use `DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10` to preview a frontier lane as a reviewed run packet without writing packet artifacts." in data_strategy

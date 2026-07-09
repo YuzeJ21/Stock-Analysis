@@ -205,7 +205,7 @@ Use `make reviewed-data-proof-record` only after the source proof, validation, p
 
 Use `make price-reviewed-run` after a dry-run plan has been reviewed. It prints the controlled capped price execution workflow: status check, readiness snapshot, dry run, reviewed capped run command, post-run price coverage/readiness/status checks, diff hygiene, and rollback notes. Price coverage remains separate from fundamentals and peers; price rows can improve coverage only, not valuation inputs or conclusions.
 
-Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.md` for the small shareable proof set: Home, Data Health lane board, one ready report, one blocked report, and one excluded/monitor example. Data Health also surfaces the latest reviewed proof timeline from the durable ledger so visitors can see what changed, what stayed blocked, and which command proves it.
+Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.md` for the small shareable proof set: Home, status gate, provider setup, scope selection, risk context, Data Health lane board, one ready report, one blocked report, and one excluded/monitor example. Data Health also surfaces the latest reviewed proof timeline from the durable ledger so visitors can see what changed, what stayed blocked, and which command proves it.
 
 ## Data Readiness Operations Center V1
 
