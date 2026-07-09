@@ -28,6 +28,16 @@ Operator details stay collapsed until someone intentionally leaves the public pa
 
 Use the refreshed `docs/assets/linkedin-public-dashboard.png` thumbnail for the LinkedIn Featured card.
 
+## Now / Next / Not Yet
+
+Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages.
+
+| Stage | Answer | Guardrail |
+| --- | --- | --- |
+| Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |
+| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Keep this as a follow-up; do not imply a hosted URL or provider-backed automation exists before verification. |
+| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |
+
 ## Suggested LinkedIn Post
 
 I built a local Python and Streamlit stock research command center around one principle:

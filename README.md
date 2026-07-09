@@ -33,6 +33,13 @@ This repository is ready to share as a GitHub/LinkedIn portfolio demo with manua
 - Coverage | Readiness-gated, not complete: ready, partial, blocked, skipped, and excluded states remain visible.
 - LinkedIn Featured title: `Stock Research Command Center | Readiness-First Stock Research Workflow`
 - LinkedIn copy lives in `docs/LINKEDIN_PROJECT_BRIEF.md`; use `docs/assets/linkedin-public-dashboard.png` if LinkedIn crops the GitHub card. Screenshots are product evidence only, not data freshness proof.
+## Now / Next / Not Yet
+This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified.
+| Stage | Answer | Guardrail |
+| --- | --- | --- |
+| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, and manual gates. | Use `make public-check` before sharing; keep generated churn excluded. |
+| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Use `make hosted-demo-readiness` or `make provider-setup-checklist`; one ticker only before validate/preview. |
+| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |
 ## Current Next Stages
 Use this table to decide what to do next without reopening exhausted proof loops or overstating the public demo.
 | Stage | Current state | Next safe move |
@@ -63,7 +70,6 @@ Use this as the short GitHub/LinkedIn review path before reading operator detail
 | Skip unless operating locally | Broad CSV/report churn, provider setup, validate/preview/apply commands, and raw proof ledgers. |
 | Do not claim | Screenshots prove data freshness, blocked inputs are ready, the repo is open source, or the product gives buy/sell instructions. |
 | Best next question | Can a reviewer understand what is ready, blocked, excluded, and proof-backed before opening advanced details? |
-
 ## Data Coverage Strategy
 | Data lane | Best next move | Why it matters |
 | --- | --- | --- |
@@ -72,15 +78,10 @@ Use this as the short GitHub/LinkedIn review path before reading operator detail
 | Shares outstanding proof | Use `make share-count-proof-queue TOP_N=10` when DCF is blocked specifically by `shares_outstanding`. | Share count must come from SEC/manual source proof or trusted local rows; the product does not infer it from price, market cap, or peers. |
 | Peers | Use `DRY_RUN=1 make peer-batch-proof TOP_N=10` to preview source-backed peer mappings separately from mapped-peer valuation inputs; use `DRY_RUN=1 make peer-mapping-source-review TOP_N=10` before editing `data/imports/peers.csv`; use `make peer-mapping-writeback-guard ...` to block placeholders, self-peers, and duplicate peer pairs before copy/paste, then dry-run the proof-record scaffold; use the ranked pilot packet first when a peer-input lane leads, such as `make trusted-data-pilot-packet TICKER=MU`. | Peer trend and peer valuation stay separate; guessed peers or file row counts do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
-
 Pilot packaging is read-only first: `make pilot-readiness-check TOP_N=10` checks sync, hygiene, freshness, source-proof queues, proof ledger, screenshot evidence, public-check, and guardrails; `make pilot-share-brief` writes the concise public/demo share brief at `outputs/pilot_share_brief.md`, which does not refresh data or unlock blocked inputs; `make pilot-readiness-packet` writes the fuller reviewer packet; and `make diff-hygiene-summary` keeps broad generated patterns excluded unless a specific artifact is reviewed evidence.
-
 When proof queues are exhausted, use `make project-status-check` and then `make provider-setup-checklist`. Provider setup is only an activation boundary: it can activate a source, but readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence. No broad coverage batch should run from setup alone. Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.
-
 For batch planning after the pilot gate, use `make readiness-ops-center`, `make readiness-queue TOP_N=10`, `make data-coverage-proof-queues TOP_N=10`, `make coverage-frontier TOP_N=10`, and `make data-coverage-planner TOP_N=10`. The readiness queue summarizes fundamentals/DCF, peer mapping, mapped-peer valuation inputs, optional locked lanes, and SPY/QQQ metric-readiness blockers before opening ticker-level proof. The data-coverage proof queue portfolio then puts the DCF input batches, shares-outstanding proof, trusted fundamentals proof, peer mapping proof, and peer valuation-input proof queues side by side with next commands, stop rules, and generated-churn policy.
-
 For reviewed execution planning, use `make coverage-expansion-loop TOP_N=10`, then `make reviewed-batch-preflight LANE=prices TOP_N=100` before any capped execution. When a DCF input family is selected, `make dcf-input-proof-handoff FAMILY=shares_outstanding TOP_N=10` groups the packet, validate, preview, apply boundary, readiness proof, comparison, and proof-record dry run without touching local CSV rows. For another reviewed lane, `DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10` previews the batch packet; remove `DRY_RUN=1` only when the packet artifact itself is intentionally reviewed evidence. Fundamentals/DCF also has the direct operator shortcut `DRY_RUN=1 make fundamentals-batch-proof TOP_N=10`, while share-count-only DCF blockers can use `DRY_RUN=1 make reviewed-batch LANE=share_count TOP_N=10`; both preview proof packets without applying rows.
-
 After a reviewed scope is finished or intentionally skipped, `make reviewed-batch-compare LANE=prices BATCH_ID=<id> REVIEW_DATE=<date>` compares prior/current readiness snapshots, then `DRY_RUN=1 make reviewed-batch-proof-record ... FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded>` previews the exact ledger row before recording the durable batch outcome in `data/reviewed_batch_proofs.csv`. Use `candidate_context_only` when generated or classification-based peer context can route review work but must not be promoted to trusted peer proof.
 
 ## What Works Today
@@ -157,22 +158,17 @@ The tracked `data/holdings.csv` file is a zero-position sample for portfolio-rev
 This repository is shared under a controlled portfolio-demo license. Visitors may review the code, screenshots, docs, and product design for evaluation, but copying, redistribution, sublicensing, hosted reuse, and modified-publication rights are not granted without written permission. This is not an open-source release. Run `make license-status` for the current read-only reuse gate, and see [License Decision Guide](docs/LICENSE_DECISION_GUIDE.md) before changing reuse terms.
 
 ## Analysis Methodology
-
 The stock-analysis method is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter, and configured FMP/Alpha Vantage/Finnhub keys can serve as research-grade fallback sources for price and fundamentals staging. The analysis rules, valuation gates, decision buckets, and research-only guardrails come from project code plus local CSV inputs. Fundamentals-ready means trusted company fields can be reviewed, DCF-ready means scenario math can be reviewed, and peer-ready means source-backed relative context can be reviewed. See [Research Methodology](docs/METHODOLOGY.md) for the calculation flow and [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the method lives.
 
 ## Core Outputs
 The main build creates deterministic research files under `outputs/`, including purpose classification, market direction, momentum leaders, portfolio review, valuation-readiness context, final watchlist, and research decisions. `undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context, not automatic undervalued calls. Readiness and source-health reports live under `data/reports/`.
 
 ## Research-Only Guardrails
-
 This is investment research software, not investment advice and not a trading system. It does not place orders, connect to brokers, route trades, auto-trade, recommend option trades, provide direct buy/sell instructions, or fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations.
-
 That constraint is intentional. The product is useful because it says when data is missing instead of pretending every ticker is ready.
 
 ## Architecture
-
 The app is organized around dashboard, readiness, decision, report, provider, local-data, and test modules. It is CSV-first and deterministic by default. Optional network-backed data stays behind provider interfaces and is labeled as research-grade when used.
 
 ## Roadmap Snapshot
-
 The current public workflow is intentionally guided: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. The next product stage is not another broad refresh loop: keep the GitHub/LinkedIn preview current, rerun live desktop/mobile review only after UI changes, choose a hosted app account only when you want a public URL, and activate trusted provider/source rows only through validation, preview, rejected-row review, rebuilt readiness, and proof history. Fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.

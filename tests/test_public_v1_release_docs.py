@@ -103,6 +103,11 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
 def test_readme_has_compact_current_next_stages_for_external_reviewers():
     readme = _read("README.md")
 
+    assert "## Now / Next / Not Yet" in readme
+    assert "| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, and manual gates. | Use `make public-check` before sharing; keep generated churn excluded. |" in readme
+    assert "| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Use `make hosted-demo-readiness` or `make provider-setup-checklist`; one ticker only before validate/preview. |" in readme
+    assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |" in readme
+    assert "This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified." in readme
     assert "## Current Next Stages" in readme
     assert "| LinkedIn publish | Ready after GitHub sync | If the branch is ahead, push reviewed commits after `make public-check`; if GitHub is synced, use the GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |" in readme
     assert "| Hosted Streamlit demo | External account required | Run `make hosted-demo-readiness`, then follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |" in readme
@@ -116,7 +121,19 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "rerun live desktop/mobile review only after UI changes" in readme
     assert "choose a hosted app account only when you want a public URL" in readme
     assert readme.index("## Public Share Readiness") < readme.index("## Current Next Stages")
+    assert readme.index("## Public Share Readiness") < readme.index("## Now / Next / Not Yet")
+    assert readme.index("## Now / Next / Not Yet") < readme.index("## Current Next Stages")
     assert readme.index("## Current Next Stages") < readme.index("## What You Can Analyze")
+
+
+def test_linkedin_brief_has_now_next_not_yet_share_framing():
+    linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
+
+    assert "## Now / Next / Not Yet" in linkedin
+    assert "| Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |" in linkedin
+    assert "| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Keep this as a follow-up; do not imply a hosted URL or provider-backed automation exists before verification. |" in linkedin
+    assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |" in linkedin
+    assert "Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages." in linkedin
 
 
 def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
