@@ -1436,6 +1436,18 @@ def test_operator_guide_is_command_focused_and_research_only():
     assert "For local import draft workflows" not in guide
     assert "For local import drafts, use preview before apply" not in guide
     assert "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30" not in guide
+    first_run = guide.split("## First Local Run", 1)[1].split("## What To Open First", 1)[0]
+    assert "Open the guided product first" in first_run
+    assert first_run.index("make demo") < first_run.index("make dashboard")
+    assert first_run.index("make dashboard") < first_run.index("make status-check TOP_N=5")
+    assert first_run.index("make status-check TOP_N=5") < first_run.index("make project-status")
+    assert first_run.index("make project-status") < first_run.index("make stock-report-md TICKER=NVDA")
+    assert "Rebuild local outputs only after changing source data, imports, or pipeline code" in first_run
+    rebuild_section = first_run.split(
+        "Rebuild local outputs only after changing source data, imports, or pipeline code:", 1
+    )[1]
+    assert rebuild_section.index("make pipeline") < rebuild_section.index("make readiness")
+    assert rebuild_section.index("make readiness") < rebuild_section.index("make project-status")
 
     for forbidden in (
         "buy recommendation",

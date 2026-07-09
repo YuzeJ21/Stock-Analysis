@@ -13,14 +13,15 @@ The app is research-only. It does not connect to brokers, place orders, auto-tra
 
 ## First Local Run
 
-Run these from the repository root:
+Run these from the repository root. Open the guided product first, then use
+terminal proof commands only when you need local evidence behind the page:
 
 ```bash
-make pipeline
-make readiness
+make demo
+make dashboard
+make status-check TOP_N=5
 make project-status
 make stock-report-md TICKER=NVDA
-make dashboard
 ```
 
 If you only want a fast health check:
@@ -28,6 +29,14 @@ If you only want a fast health check:
 ```bash
 make status-check TOP_N=5
 make dashboard-smoke
+```
+
+Rebuild local outputs only after changing source data, imports, or pipeline code:
+
+```bash
+make pipeline
+make readiness
+make project-status
 ```
 
 `make project-status` also writes `outputs/project_status_remaining_stages.csv`. Use that stage map when deciding what is truly next after the public package is ready: LinkedIn manual share, hosted Streamlit deployment, FMP provider activation, peer readiness upgrade, optional earnings/estimate context, source-proof queue exhaustion, coverage-depth gaps, UX polish, and generated-artifact hygiene. The stage map is read-only; it classifies what is ready, external-account-required, external-key-required, source-gated, locked, or excluded by default.
