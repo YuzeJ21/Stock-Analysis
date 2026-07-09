@@ -3624,6 +3624,8 @@ def test_command_center_header_marks_current_public_shortcut_for_a11y():
     assert "href='?mode=public&page=data-health' target='_self' aria-current='page'" not in home_html
     assert "href='?mode=public&page=data-health' target='_self' aria-current='page'" in data_health_html
     assert "command-home-link' href='?mode=public' target='_self' aria-current='page'" not in data_health_html
+    assert "<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'>Home</a>" in data_health_html
+    assert ">What can I use now?</a>" not in data_health_html
 
 
 def test_chart_panel_title_normalizes_spacing_and_trailing_punctuation():

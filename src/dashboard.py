@@ -5664,11 +5664,12 @@ def command_center_header_html(
     compact_class = " compact" if compact else ""
     home_current_attr = " aria-current='page'" if normalized_current_page == "Home" else ""
     data_health_current_attr = " aria-current='page'" if normalized_current_page == "Data Health" else ""
+    home_link_label = "What can I use now?" if normalized_current_page == "Home" else "Home"
     topbar_html = (
         f"<header class='command-shell{compact_class}'>"
         f"<nav class='command-topbar{compact_class}' aria-label='Public workflow status'>"
         "<div class='command-top-left'>"
-        f"<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'{home_current_attr}>What can I use now?</a>"
+        f"<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'{home_current_attr}>{html.escape(home_link_label)}</a>"
         f"<span class='command-status-item'>Data snapshot: {html.escape(str(latest_price))}</span>"
         "<span class='command-status-item'>Readiness-gated coverage <span class='command-status-dot'></span></span>"
         "<span class='command-status-item command-stop-status'>No account actions</span>"
