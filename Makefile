@@ -333,7 +333,7 @@ demo:
 	@echo ""
 	@echo "7. If you are asking what to do next:"
 	@echo "   make next-stage"
-	@echo "   Proves: the current next-stage ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets."
+	@echo "   Proves: the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets."
 	@echo ""
 	@echo "Advanced source-proof follow-up, only after project-status says it is executable:"
 	@echo "   make project-status-check"

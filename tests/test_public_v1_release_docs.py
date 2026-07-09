@@ -19,7 +19,7 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "It is not currently published as a hosted Streamlit app." in readme
     assert "| What is the live app path? | Run `make dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
     assert "| What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
-    assert "| What should I run when I ask what is next? | Run `make next-stage` for the current decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |" in readme
+    assert "| What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |" in readme
     assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
     assert "First review move: open Stock Selector" in readme
     assert "screenshots are product evidence only" in readme
@@ -138,7 +138,7 @@ def test_linkedin_brief_has_now_next_not_yet_share_framing():
     assert "| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Keep this as a follow-up; do not imply a hosted URL or provider-backed automation exists before verification. |" in linkedin
     assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |" in linkedin
     assert "Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages." in linkedin
-    assert "If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets." in linkedin
+    assert "If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets." in linkedin
     assert linkedin.index("make next-stage") < linkedin.index("Run `make project-status-check` first")
 
 
@@ -307,8 +307,8 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     assert "Use `make status-check TOP_N=5` for current coverage and blocker counts." in walkthrough
     assert "controlled portfolio/demo license" in walkthrough
     assert PUBLIC_V1_ROUTE in walkthrough
-    assert "Run `make next-stage` when you want the current next-stage ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets." in walkthrough
-    assert "make next-stage                  # print the current next-stage ladder without changing local data" in walkthrough
+    assert "Run `make next-stage` when you want the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets." in walkthrough
+    assert "make next-stage                  # print the current package/provider/hosted/source-queue ladder without changing local data" in walkthrough
     best_path = walkthrough.split("Best visitor path:", 1)[1].split("What each page answers:", 1)[0]
     assert best_path.index("make demo") < best_path.index("make next-stage")
     assert best_path.index("make next-stage") < best_path.index("make status-check TOP_N=5")

@@ -32,7 +32,7 @@ Best visitor path:
 3. Run `make dashboard` and open `http://localhost:8501/?mode=public`.
 4. Follow the five public pages: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 5. Use the examples below only to show different readiness states.
-6. Run `make next-stage` when you want the current next-stage ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets.
+6. Run `make next-stage` when you want the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets.
 7. Run `make status-check TOP_N=5` only when you want terminal proof of current coverage and blockers.
 
 What each page answers:
@@ -60,7 +60,7 @@ What each page answers:
 ```bash
 make demo                         # print the visitor path without changing local data
 make dashboard                    # open http://localhost:8501/?mode=public
-make next-stage                  # print the current next-stage ladder without changing local data
+make next-stage                  # print the current package/provider/hosted/source-queue ladder without changing local data
 
 # Optional read-only proof after the app flow is clear:
 make status-check TOP_N=5

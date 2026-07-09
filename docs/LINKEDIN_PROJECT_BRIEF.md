@@ -32,7 +32,7 @@ Use the refreshed `docs/assets/linkedin-public-dashboard.png` thumbnail for the 
 
 Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages.
 
-If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets.
+If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets.
 
 | Stage | Answer | Guardrail |
 | --- | --- | --- |
