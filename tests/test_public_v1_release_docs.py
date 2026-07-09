@@ -108,6 +108,11 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "| Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |" in readme
     assert "| Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |" in readme
     assert "| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |" in readme
+    assert "| Public UX polish | Ready for live review | Browser QA evidence is ready; do a normal-browser desktop/mobile pass only for first-viewport spacing, unclear Data Health wording, or confusing next actions. |" in readme
+    assert "| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |" in readme
+    assert "The next product stage is not another broad refresh loop" in readme
+    assert "run live desktop/mobile review for first-viewport polish" in readme
+    assert "choose a hosted app account only when you want a public URL" in readme
     assert readme.index("## Public Share Readiness") < readme.index("## Current Next Stages")
     assert readme.index("## Current Next Stages") < readme.index("## What You Can Analyze")
 

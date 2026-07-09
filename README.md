@@ -43,6 +43,8 @@ Use this table to decide what to do next without reopening exhausted proof loops
 | Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |
 | Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |
 | Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |
+| Public UX polish | Ready for live review | Browser QA evidence is ready; do a normal-browser desktop/mobile pass only for first-viewport spacing, unclear Data Health wording, or confusing next actions. |
+| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |
 ## What You Can Analyze
 When trusted local data is available, the product can produce price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, portfolio purpose checks, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 ## How Analysis Works
@@ -174,4 +176,4 @@ The app is organized around dashboard, readiness, decision, report, provider, lo
 
 ## Roadmap Snapshot
 
-The current public workflow is intentionally guided: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. The next product stage is tighter pilot polish rather than more indicators: keep the LinkedIn/GitHub preview current, make Data Health lane details easier to expand without opening raw tables first, and activate trusted provider/source rows only through validation, preview, rejected-row review, rebuilt readiness, and proof history. Fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.
+The current public workflow is intentionally guided: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. The next product stage is not another broad refresh loop: keep the GitHub/LinkedIn preview current, run live desktop/mobile review for first-viewport polish, choose a hosted app account only when you want a public URL, and activate trusted provider/source rows only through validation, preview, rejected-row review, rebuilt readiness, and proof history. Fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.
