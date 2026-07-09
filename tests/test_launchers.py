@@ -2486,64 +2486,45 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "yfinance-stage:\nifndef TICKERS\n\t$(error TICKERS is required, for example: make yfinance-stage TICKERS=NVDA)\nendif\n\tpython3 -m src.stock_report --yfinance-stage-fundamentals --tickers $(TICKERS)" in makefile
     assert "sec-filing-share-stage:\nifndef TICKERS\n\t$(error TICKERS is required, for example: make sec-filing-share-stage TICKERS=HOOD)\nendif\n\tpython3 -m src.stock_report --sec-filing-share-stage --tickers $(TICKERS)" in makefile
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert '@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."' in makefile
+    assert '@echo "Read-only guide: this target prints the external reviewer path only. It does not refresh data, import rows, or rewrite reports."' in makefile
+    assert "@echo \"External Reviewer Start Here\"" in makefile
     assert "@echo \"Visitor workflow path:\"" in makefile
     assert "@echo \"   Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History\"" in makefile
     assert "@echo \"   Optional state examples: NVDA ready, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated\"" in makefile
     assert "@echo \"What this proves: readiness-backed selection comes first, ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced.\"" in makefile
     assert "@echo \"Data-confidence note: data confidence describes readiness and review routing, not investment conviction.\"" in makefile
+    assert "@echo \"1. Open the README preview and public walkthrough:\"" in makefile
+    assert "@echo \"   docs/PUBLIC_DEMO_WALKTHROUGH.md\"" in makefile
     assert "@echo \"2. Open the clean dashboard path:\"" in makefile
+    assert "@echo \"   make dashboard\"" in makefile
+    assert "@echo \"3. Follow one ticker in the app before using terminal proof:\"" in makefile
+    assert "@echo \"   Start with Stock Selector, open NVDA or another readiness-backed row, then use Data Health only if an input is blocked.\"" in makefile
+    assert "@echo \"4. Optional current-count proof:\"" in makefile
+    assert "@echo \"   make status-check TOP_N=5\"" in makefile
     assert "@echo \"   Proves: current readiness counts and top blockers without changing local files.\"" in makefile
-    assert "@echo \"   Proves: the product journey starts with Home, Stock Selector, Single-Stock Report, Data Health, and Proof History.\"" in makefile
-    assert "@echo \"3. Generate the minimum proof reports:\"" in makefile
-    assert "@echo \"   Each report shows a data-confidence cue, valuation boundary, next proof step, and stop rule.\"" in makefile
-    assert "@echo \"      Shows: DCF-ready company review with assumptions and source readiness.\"" in makefile
-    assert "@echo \"      Shows: price/setup review where valuation remains gated by trusted fundamentals.\"" in makefile
-    assert "@echo \"      Shows: ETF/index monitor context where operating-company DCF is excluded, not failed.\"" in makefile
-    assert "@echo \"      Shows: fundamentals/DCF proof workflow with a one-company pilot packet.\"" in makefile
-    assert "@echo \"   Optional extra states:\"" in makefile
-    assert "@echo \"      Shows: standalone DCF review with mapped-peer valuation inputs still locked.\"" in makefile
-    assert "@echo \"      Shows: standalone DCF review with peer-relative valuation still locked.\"" not in makefile
-    assert "@echo \"      Shows: another standalone DCF review with peer-relative valuation still locked.\"" in makefile
-    assert "@echo \"      Shows: sector ETF monitor context.\"" in makefile
-    assert "@echo \"      Shows: price/setup review with fundamentals still locked.\"" in makefile
-    assert makefile.index('@echo "   make stock-report-md TICKER=NVDA"') < makefile.index('@echo "   make stock-report-md TICKER=META"')
-    assert makefile.index('@echo "   make stock-report-md TICKER=META"') < makefile.index('@echo "   make stock-report-md TICKER=QQQ"')
-    assert makefile.index('@echo "   make stock-report-md TICKER=QQQ"') < makefile.index('@echo "   make stock-report-md TICKER=MU"')
-    assert makefile.index('@echo "   make stock-report-md TICKER=MU"') < makefile.index('@echo "   make stock-report-md TICKER=CRDO"')
-    assert makefile.index('@echo "   make stock-report-md TICKER=CRDO"') < makefile.index('@echo "   Optional extra states:"')
-    assert makefile.index('@echo "   Optional extra states:"') < makefile.index('@echo "   make stock-report-md TICKER=A"')
-    assert "@echo \"4. Smoke-test the dashboard:\"" in makefile
+    assert "@echo \"5. Optional sample reports after the app flow is clear:\"" in makefile
+    assert "@echo \"   make stock-report-md TICKER=NVDA  # DCF-ready company example\"" in makefile
+    assert "@echo \"   make stock-report-md TICKER=META  # valuation still gated\"" in makefile
+    assert "@echo \"   make stock-report-md TICKER=QQQ   # ETF/index monitor context\"" in makefile
+    assert "@echo \"6. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
-    assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
+    assert "@echo \"Advanced source-proof follow-up, only after project-status says it is executable:\"" in makefile
     assert "@echo \"   make project-status-check\"" in makefile
     assert "@echo \"   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted\"" in makefile
-    assert "@echo \"   make universe-scope TICKERS=NVDA,META TOP_N=10\"" in makefile
-    assert "@echo \"   make risk-context\"" in makefile
-    assert "@echo \"   make data-coverage-proof-queues TOP_N=10\"" in makefile
-    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10  # only if project-status-check shows executable company candidates\"" in makefile
-    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail\"" in makefile
-    assert "@echo \"   make trusted-data-pilot-packet TICKER=CRDO\"" in makefile
-    assert "@echo \"   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10\"" in makefile
-    assert "@echo \"   Proves: coverage improves through source proof, validation, rejected-row review, rebuild proof, and still-blocked evidence, not fake rows.\"" in makefile
+    assert "@echo \"   Do not open broad proof queues unless project-status-check shows executable source-backed candidates.\"" in makefile
     demo_block = makefile.split("\ndemo:\n", 1)[1].split("\nbrowser-qa-evidence:", 1)[0]
-    assert '@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"' in demo_block
     assert '@echo "   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted"' in demo_block
-    assert '@echo "   make risk-context"' in demo_block
-    assert demo_block.index('@echo "   make project-status-check"') < demo_block.index('@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"')
+    assert '@echo "   make trusted-data-pilot-candidates TOP_N=10' not in demo_block
+    assert '@echo "   make data-coverage-proof-queues TOP_N=10"' not in demo_block
+    assert '@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"' not in demo_block
+    assert '@echo "   make risk-context"' not in demo_block
     assert demo_block.index('@echo "   make project-status-check"') < demo_block.index('@echo "   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted"')
-    assert demo_block.index('@echo "   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted"') < demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"')
-    assert demo_block.index('@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"') < demo_block.index('@echo "   make risk-context"')
-    assert demo_block.index('@echo "   make risk-context"') < demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"')
-    assert demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"') < demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status-check shows executable company candidates"')
-    assert demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status-check shows executable company candidates"') < demo_block.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
-    assert demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status-check shows executable company candidates"') < demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"')
-    assert "@echo \"6. Before sharing or committing:\"" in makefile
+    assert "@echo \"Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
-    assert "@echo \"   make diff-hygiene\"" in makefile
-    assert "@echo \"   make diff-hygiene-files  # optional for large dirty trees\"" in makefile
+    assert "@echo \"   make browser-qa-evidence\"" in makefile
+    assert "@echo \"   make diff-hygiene-summary\"" in makefile
     assert "@echo \"   make staged-hygiene-check # after staging, before commit\"" in makefile
-    assert 'This target only prints a visitor path. If you later run stock-report-md commands, they write local Markdown reports under outputs/stock_reports/.' in makefile
+    assert 'This target only prints a visitor path. Optional stock-report-md commands write local Markdown reports under outputs/stock_reports/.' in makefile
     assert "Share-safe story: start with the connected workflow, then use NVDA, META, QQQ, MU, and CRDO only as optional state examples." in makefile
     assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
     assert "data-release-decision:\n\t@python3 scripts/diff_hygiene.py --data-release-decision" in makefile
