@@ -585,12 +585,40 @@ def _coverage_row_present(row: pd.Series | None) -> bool:
     return str(value).strip().lower() in {"true", "1", "yes"}
 
 
+def _report_payload_pre_report_state(report_payload: dict[str, object] | None) -> dict[str, bool]:
+    if not report_payload:
+        return {}
+    readiness = report_payload.get("valuation_readiness", {})
+    readiness = readiness if isinstance(readiness, dict) else {}
+    valuation = report_payload.get("valuation_snapshot", {})
+    valuation = valuation if isinstance(valuation, dict) else {}
+    financial = report_payload.get("financial_summary", {})
+    financial = financial if isinstance(financial, dict) else {}
+    price = report_payload.get("price_snapshot", {})
+    price = price if isinstance(price, dict) else {}
+
+    valuation_status = _format_missing(valuation.get("status"), "").lower()
+    price_ready = bool(readiness.get("price_ready")) or price.get("price") not in {None, "", "nan"}
+    dcf_ready = bool(readiness.get("dcf_ready")) or valuation_status in {"calculated", "ready"}
+    fundamentals_ready = dcf_ready or any(
+        financial.get(key) not in {None, "", "nan"}
+        for key in ("revenue", "free_cash_flow", "eps", "shares_outstanding")
+    )
+    return {
+        "price_ready": bool(price_ready),
+        "fundamentals_ready": bool(fundamentals_ready),
+        "peer_ready": bool(readiness.get("peer_ready")),
+        "dcf_ready": bool(dcf_ready),
+    }
+
+
 def single_stock_pre_report_contract_cards(
     ticker: str,
     coverage: pd.DataFrame,
     peer_summary: dict[str, object],
     *,
     report_open: bool = False,
+    report_payload: dict[str, object] | None = None,
 ) -> list[dict[str, object]]:
     """Return a compact pre-click readiness contract for the selected ticker."""
 
@@ -601,6 +629,11 @@ def single_stock_pre_report_contract_cards(
     price_ready = _coverage_row_present(price_row)
     fundamentals_ready = _coverage_row_present(fundamentals_row)
     peer_ready = _coverage_row_present(peer_row) and bool(peer_summary.get("peer_dataset_present"))
+    report_state = _report_payload_pre_report_state(report_payload) if report_open else {}
+    if report_state:
+        price_ready = report_state["price_ready"]
+        fundamentals_ready = report_state["fundamentals_ready"]
+        peer_ready = report_state["peer_ready"]
     available_datasets = (
         0
         if coverage.empty
@@ -665,9 +698,9 @@ def single_stock_pre_report_contract_cards(
         next_lane = "Data Health peers lane"
         badges = ["core review", "peer gated"]
     else:
-        state_title = "Ready to open the review"
+        state_title = "Ready to read the open review" if report_open else "Ready to open the review"
         review_now = (
-            "Read the supported price, fundamentals, and peer sections in the open review; optional locked sections stay labeled."
+            "Read the supported price, fundamentals, DCF, and peer sections in the open review."
             if report_open
             else "The selected ticker has price, fundamentals, and peer setup context available for the review."
         )
@@ -682,7 +715,8 @@ def single_stock_pre_report_contract_cards(
             "kicker": "SELECTED TICKER",
             "title": f"{ticker_text}: {state_title}",
             "body": (
-                f"{available_datasets} local data source row(s) are present before the review opens. "
+                f"{available_datasets} local data source row(s) are present"
+                f"{' for this open review' if report_open else ' before the review opens'}. "
                 f"Peer mappings: {peer_count}. Start here, then read the supported sections only."
             ),
             "badges": ["selected ticker", "data coverage"],

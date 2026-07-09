@@ -27734,6 +27734,9 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         except (LookupError, FileNotFoundError, ValueError) as exc:
             st.warning(str(exc))
 
+    if query_open_review and not report_payload and compact_public_open_report:
+        open_selected_report()
+
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         peer_summary = provider.get_peer_summary(ticker)
@@ -27742,8 +27745,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             coverage,
             peer_summary,
             report_open=bool(report_payload or query_open_review),
+            report_payload=report_payload if isinstance(report_payload, dict) else None,
         )
         if not report_payload and (compact_public_open_report or not query_open_review):
+            render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
+        elif report_payload and compact_public_open_report:
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
     if query_open_review and not report_payload:
