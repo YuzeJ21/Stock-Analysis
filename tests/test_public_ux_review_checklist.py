@@ -16,20 +16,29 @@ def test_public_ux_review_checklist_is_read_only_and_route_complete():
     assert "http://localhost:8501/?mode=public&page=proof-history" in rendered
     assert "Page question" in rendered
     assert "If it fails" in rendered
+    assert "Responsive route checks:" in rendered
+    assert "Desktop viewport" in rendered
+    assert "Phone viewport" in rendered
+    assert "390x844" in rendered
     assert "What is this product and where do I start?" in rendered
     assert "Which stock can I review?" in rendered
     assert "What can I use for this ticker right now?" in rendered
     assert "Why is something blocked and how do I fix it?" in rendered
     assert "What evidence changed a readiness state?" in rendered
+    assert "Coverage Summary / What Can I Use?" in rendered
+    assert "Evidence-only page, latest proof outcome, raw ledger details collapsed" in rendered
 
 
 def test_public_ux_review_checklist_keeps_operator_details_and_data_claims_out():
     rendered = render_public_ux_review_checklist()
 
     assert "one question, one short answer, one primary next action, and one stop rule" in rendered
+    assert "Desktop and mobile review rules:" in rendered
     assert "Confirm the visible page question matches the route's job in the table above." in rendered
     assert "If the page fails, fix only the matching failure action before adding new sections or routes." in rendered
     assert "raw tables, command blocks, proof ledgers, provider setup, and operator evidence stay behind Advanced or operator mode" in rendered
+    assert "Stop if mobile hides the selector, shows raw readiness tables first, or forces horizontal scrolling." in rendered
+    assert "Stop if provider setup, operator commands, raw tables, or proof ledgers appear before the coverage answer." in rendered
     assert "Confirm screenshots remain product evidence only and do not claim data freshness." in rendered
     assert "Review log template:" in rendered
     assert "Issue classification: resolved, intentionally_deferred, environment_limited, skipped, or blocked_with_evidence" in rendered

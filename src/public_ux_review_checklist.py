@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.browser_qa_evidence import browser_qa_responsive_route_rows
+
 
 PUBLIC_ROUTES = [
     (
@@ -46,6 +48,7 @@ PUBLIC_ROUTES = [
 
 
 def render_public_ux_review_checklist() -> str:
+    responsive_rows = browser_qa_responsive_route_rows()
     lines = [
         "Public UX Review Checklist",
         "Read-only: this checklist does not refresh data, import rows, capture screenshots, stage files, commit, or push.",
@@ -61,7 +64,21 @@ def render_public_ux_review_checklist() -> str:
     lines.extend(
         [
             "",
-            "Desktop and mobile checks:",
+            "Responsive route checks:",
+            "| Page | Route | Desktop viewport | Phone viewport | First view must keep | Mobile risk | Stop rule |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for row in responsive_rows:
+        lines.append(
+            "| {Page} | {Route} | {Desktop Viewport} | {Phone Viewport} | {First View Must Keep} | {Mobile Risk} | {Stop Rule} |".format(
+                **row
+            )
+        )
+    lines.extend(
+        [
+            "",
+            "Desktop and mobile review rules:",
             "- Open each route at a normal desktop width and phone width.",
             "- Confirm the first viewport has one question, one short answer, one primary next action, and one stop rule.",
             "- Confirm the visible page question matches the route's job in the table above.",
