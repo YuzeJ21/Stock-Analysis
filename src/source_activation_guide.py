@@ -37,7 +37,7 @@ KEYED_PROVIDER_SETUP_PRIORITY = [
 ]
 IBKR_ENVS = ["IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"]
 ACTIVATION_PLAN = [
-    "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops.",
+    "Run make project-status-check first; if it says queues are exhausted, do not reopen broad proof loops.",
     "Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight.",
     "Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup.",
     "Continue only through validate, preview, rejected-row review, and source-provenance checks.",
@@ -45,7 +45,7 @@ ACTIVATION_PLAN = [
 ]
 WORKFLOW_PIVOT = [
     {
-        "command": "make project-status",
+        "command": "make project-status-check",
         "purpose": "Confirm whether proof queues have executable company candidates before opening broad proof tables.",
         "boundary": "Read-only status; does not refresh, stage, apply, or unlock blocked inputs.",
     },
@@ -296,7 +296,7 @@ def build_source_activation_guide() -> dict[str, Any]:
         "next_commands": [
             "make session-source-preflight",
             "make coverage-frontier TOP_N=10",
-            "make project-status",
+            "make project-status-check",
         ],
         "non_retry_rule": "Record unavailable source paths once, then pivot to the next executable lane in this session.",
         "no_direct_apply_rule": "Do not apply data directly from source setup.",
@@ -390,7 +390,7 @@ def _provider_source_answer(rows: list[dict[str, Any]]) -> dict[str, str]:
         "optional_broker": _optional_broker_summary(rows),
         "answer": (
             "Use the free/public baseline first; configure at most one keyed free-tier fallback only when "
-            "project-status says source-proof queues are exhausted. Optional broker data remains disabled unless "
+            "project-status-check says source-proof queues are exhausted. Optional broker data remains disabled unless "
             "explicitly configured for read-only daily OHLCV."
         ),
     }
@@ -538,7 +538,7 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
         ),
         "setup_prerequisite": setup_prerequisite,
         "ticker_scope_rule": (
-            "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; "
+            "Choose one reviewed ticker from make project-status-check or a current proof packet before replacing <ticker>; "
             "do not run the reviewed one-ticker smoke command across a broad list."
         ),
         "reviewed_one_ticker_smoke": smoke_command,

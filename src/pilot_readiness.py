@@ -314,12 +314,12 @@ def _source_gate_check(root: Path, *, top_n: int, source_queues: list[object] | 
             title="Source-proof queues reviewed or exhausted",
             detail=(
                 f"{blocked:,} blocked and {partial:,} partial proof item(s) remain visible, but current proof "
-                "queues are already reviewed or non-actionable. Use project-status and provider setup before "
+                "queues are already reviewed or non-actionable. Use project-status-check and provider setup before "
                 "reopening broad proof queues."
             ),
-            command="make project-status",
+            command="make project-status-check",
             stop_rule=(
-                "Do not reopen broad proof queues until project-status shows executable company candidates, "
+                "Do not reopen broad proof queues until project-status-check shows executable company candidates, "
                 "new source-backed rows, keyed providers, reviewed manual rows, or changed blockers."
             ),
         )
@@ -634,8 +634,8 @@ def build_pilot_handoff_summary(
     elif leading_queue is None:
         proof_answer = "Check source-proof gate"
         proof_status = "manual"
-        proof_command = "make project-status"
-        proof_boundary = "Run project-status first; use provider setup when source-proof queues are exhausted before reopening proof tables."
+        proof_command = "make project-status-check"
+        proof_boundary = "Run project-status-check first; use provider setup when source-proof queues are exhausted before reopening proof tables."
     else:
         proof_answer = str(_queue_value(leading_queue, "label", "queue", fallback="Source-proof queue"))
         proof_status = str(_queue_value(leading_queue, "readiness_state", "state", fallback="manual"))
@@ -907,7 +907,7 @@ def _provider_activation_plan_lines() -> list[str]:
     checklist = build_provider_setup_checklist()
     steps = checklist.get("activation_plan", [])
     if not isinstance(steps, list) or not steps:
-        return ["- Run `make project-status` before reopening broad proof loops."]
+        return ["- Run `make project-status-check` before reopening broad proof loops."]
     return [f"- {step}" for step in steps]
 
 

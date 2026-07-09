@@ -150,7 +150,7 @@ def test_data_health_pilot_share_first_answer_frame_summarizes_release_gates():
                 "State": "reviewed",
                 "Blocked": 90,
                 "Top Blockers": "fundamentals_bundle_plus_shares: 90",
-                "Next Safe Command": "make project-status",
+                "Next Safe Command": "make project-status-check",
             }
         ]
     )
@@ -193,7 +193,7 @@ def test_data_health_pilot_share_first_answer_frame_summarizes_release_gates():
             "Question": "What blocks deeper analysis?",
             "Answer": "Trusted Fundamentals Proof Queue: reviewed; fundamentals_bundle_plus_shares: 90.",
             "Share Boundary": "Source-proof blockers remain visible; sharing does not convert them into usable inputs.",
-            "Next Safe Action": "make project-status",
+            "Next Safe Action": "make project-status-check",
         },
         {
             "Question": "What can change coverage next?",
@@ -340,7 +340,7 @@ def test_data_health_pilot_operator_runbook_wraps_share_and_source_gates():
                 "State": "reviewed or exhausted",
                 "Blocked": 90,
                 "Top Blockers": "fundamentals_bundle_plus_shares: 90",
-                "Next Safe Command": "make project-status",
+                "Next Safe Command": "make project-status-check",
                 "Stop Rule": "Use provider setup before reopening proof queues.",
             }
         ]

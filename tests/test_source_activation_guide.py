@@ -49,7 +49,7 @@ def test_source_activation_guide_prints_exact_next_commands(monkeypatch):
 
     assert guide["setup_commands"][0] == "cp config/provider_keys.env.example config/provider_keys.env"
     assert guide["activation_plan"] == [
-        "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops.",
+        "Run make project-status-check first; if it says queues are exhausted, do not reopen broad proof loops.",
         "Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight.",
         "Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup.",
         "Continue only through validate, preview, rejected-row review, and source-provenance checks.",
@@ -82,7 +82,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         "optional_broker": "IBKR read-only (disabled unless explicitly configured)",
         "answer": (
             "Use the free/public baseline first; configure at most one keyed free-tier fallback only when "
-            "project-status says source-proof queues are exhausted. Optional broker data remains disabled unless "
+            "project-status-check says source-proof queues are exhausted. Optional broker data remains disabled unless "
             "explicitly configured for read-only daily OHLCV."
         ),
     }
@@ -95,7 +95,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
             "new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist."
         ),
         "setup_prerequisite": "FMP free tier is configured; choose one reviewed ticker before running the reviewed one-ticker smoke command.",
-        "ticker_scope_rule": "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list.",
+        "ticker_scope_rule": "Choose one reviewed ticker from make project-status-check or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list.",
         "reviewed_one_ticker_smoke": "make fmp-smoke TICKER=<ticker>",
         "one_safe_smoke": "make fmp-smoke TICKER=<ticker>",
         "boundary": "Provider setup only makes a source executable; readiness changes still require validate/preview/apply gates.",
@@ -118,11 +118,11 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         "chmod 600 config/provider_keys.env",
         "edit config/provider_keys.env locally; do not commit real keys",
     ]
-    assert checklist["activation_plan"][0].startswith("Run make project-status first")
+    assert checklist["activation_plan"][0].startswith("Run make project-status-check first")
     assert "Configure at most one missing keyed free-tier provider locally" in checklist["activation_plan"][1]
     assert checklist["workflow_pivot"] == [
         {
-            "command": "make project-status",
+            "command": "make project-status-check",
             "purpose": "Confirm whether proof queues have executable company candidates before opening broad proof tables.",
             "boundary": "Read-only status; does not refresh, stage, apply, or unlock blocked inputs.",
         },
@@ -159,7 +159,7 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- free_source_now: SEC Companyfacts, SEC submissions, SEC filing documents, Stooq, Yahoo/yfinance" in rendered
     assert "- missing_key: Alpha Vantage free tier, Finnhub free tier" in rendered
     assert "- setup_prerequisite: FMP free tier is configured; choose one reviewed ticker before running the reviewed one-ticker smoke command." in rendered
-    assert "- ticker_scope_rule: Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list." in rendered
+    assert "- ticker_scope_rule: Choose one reviewed ticker from make project-status-check or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list." in rendered
     assert "- reviewed_one_ticker_smoke: make fmp-smoke TICKER=<ticker>" in rendered
     assert "one_safe_smoke" not in rendered
     assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
@@ -181,12 +181,12 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- Configure at most one missing keyed free-tier provider locally, then rerun make session-source-preflight." in rendered
     assert "- Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup." in rendered
     assert "Workflow pivot when proof queues are exhausted:" in rendered
-    assert "make project-status | Confirm whether proof queues have executable company candidates before opening broad proof tables." in rendered
+    assert "make project-status-check | Confirm whether proof queues have executable company candidates before opening broad proof tables." in rendered
     assert "make provider-setup-checklist | Review missing keyed providers and reviewed one-ticker smoke commands when proof queues are exhausted." in rendered
     assert "make universe-scope TOP_N=10 | Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before deeper review." in rendered
     assert "make risk-context | Review liquidity, correlation, and proxy-risk readiness after scope is chosen." in rendered
     assert "make universe-preview-summary | Preview capped S&P 500 / SMH universe metadata and source warnings before any row-scope stage or apply step." in rendered
-    assert rendered.index("make project-status | Confirm whether") < rendered.index(
+    assert rendered.index("make project-status-check | Confirm whether") < rendered.index(
         "make provider-setup-checklist | Review missing keyed providers"
     )
     assert rendered.index("make provider-setup-checklist | Review missing keyed providers") < rendered.index(
@@ -385,7 +385,7 @@ def test_provider_setup_checklist_starts_with_coverage_unlock_decision(monkeypat
                 "can_run_now": ["coverage_workflow_evidence"],
                 "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
                 "avoid_repeating": ["fundamentals_share_count_source_ladder"],
-                "next_step": "make project-status",
+                "next_step": "make project-status-check",
                 "next_step_reason": "Current proof queues are exhausted.",
             },
         },
@@ -417,7 +417,7 @@ def test_provider_setup_checklist_starts_with_coverage_unlock_decision(monkeypat
         "Do not retry fundamentals_share_count_source_ladder until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist."
     )
     assert checklist["first_answer"]["ticker_scope_rule"] == (
-        "Choose one reviewed ticker from make project-status or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list."
+        "Choose one reviewed ticker from make project-status-check or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list."
     )
     assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
     assert rendered.index("Coverage unlock decision:") < rendered.index("Local setup commands:")
@@ -430,7 +430,7 @@ def test_provider_setup_checklist_includes_current_gate_without_fetching_sources
             "status": "not_required",
             "reason_code": "workflow_evidence_only",
             "detail": "Sources are reachable, but current blockers already have reviewed non-actionable proof.",
-            "next_action": "Use provider setup evidence after project-status confirms source-proof queues are exhausted.",
+            "next_action": "Use provider setup evidence after project-status-check confirms source-proof queues are exhausted.",
         },
         "source_activation_console_v2": {
             "next_executable_lane": "coverage_workflow_evidence",
@@ -456,7 +456,7 @@ def test_provider_setup_checklist_includes_current_gate_without_fetching_sources
         "next_step_reason": "Review provider setup before repeating the source ladder.",
         "source_activation_reason": "workflow_evidence_only",
         "source_activation_detail": "Sources are reachable, but current blockers already have reviewed non-actionable proof.",
-        "source_activation_next_action": "Use provider setup evidence after project-status confirms source-proof queues are exhausted.",
+        "source_activation_next_action": "Use provider setup evidence after project-status-check confirms source-proof queues are exhausted.",
     }
     assert "Current source gate:" in rendered
     assert "source_activation_reason: workflow evidence only" in rendered

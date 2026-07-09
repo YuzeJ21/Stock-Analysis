@@ -359,8 +359,8 @@ def test_pilot_handoff_summary_uses_source_gate_when_no_queue_loaded():
     rendered = " ".join([proof_item.answer, proof_item.next_safe_command, proof_item.boundary]).lower()
 
     assert proof_item.answer == "Check source-proof gate"
-    assert proof_item.next_safe_command == "make project-status"
-    assert "run project-status first" in rendered
+    assert proof_item.next_safe_command == "make project-status-check"
+    assert "run project-status-check first" in rendered
     assert "provider setup" in rendered
     assert "make data-coverage-proof-queues" not in rendered
     assert "buy" not in rendered
@@ -414,12 +414,12 @@ def test_pilot_readiness_source_gate_pivots_when_queues_are_reviewed_non_actiona
                 },
                 "source_activation_console_v2": {
                     "next_executable_lane": "coverage_workflow_evidence",
-                    "next_executable_command": "make project-status",
+                    "next_executable_command": "make project-status-check",
                     "operator_summary": {
                         "can_run_now": ["coverage_workflow_evidence"],
                         "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
                         "avoid_repeating": ["fundamentals_share_count_source_ladder"],
-                        "next_step": "make project-status",
+                        "next_step": "make project-status-check",
                         "next_step_reason": "Current fundamentals/share-count blockers already have reviewed non-actionable proof.",
                     },
                 },
@@ -444,7 +444,7 @@ def test_pilot_readiness_source_gate_pivots_when_queues_are_reviewed_non_actiona
 
     assert source_check.status == "manual"
     assert source_check.title == "Source-proof queues reviewed or exhausted"
-    assert source_check.command == "make project-status"
+    assert source_check.command == "make project-status-check"
     assert "provider setup" in source_check.detail
     assert "do not reopen broad proof queues" in source_check.stop_rule.lower()
     assert "make data-coverage-proof-queues" not in source_check.command
@@ -452,7 +452,7 @@ def test_pilot_readiness_source_gate_pivots_when_queues_are_reviewed_non_actiona
     handoff = build_pilot_handoff_summary(checks, source_queues=source_queues)
     proof_item = next(item for item in handoff if item.question == "What blocks deeper analysis?")
     assert proof_item.answer == "Check source-proof gate"
-    assert proof_item.next_safe_command == "make project-status"
+    assert proof_item.next_safe_command == "make project-status-check"
     assert "provider setup" in proof_item.boundary.lower()
     assert "make dcf-input-proof-queue" not in proof_item.next_safe_command
 
@@ -557,7 +557,7 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Keyed free-tier fallbacks: configured -; needs key FMP free tier, Alpha Vantage free tier, Finnhub free tier" in body
     assert "Optional broker boundary: IBKR read-only (disabled unless explicitly configured)" in body
     assert "Provider Activation Plan" in body
-    assert "Run make project-status first; if it says queues are exhausted, do not reopen broad proof loops." in body
+    assert "Run make project-status-check first; if it says queues are exhausted, do not reopen broad proof loops." in body
     assert "Run that provider's reviewed one-ticker smoke command only; do not start a broad batch from setup." in body
     assert "Configure first: FMP free tier" in body
     assert "Broadest keyed fallback here: price, fundamentals, share count, and the largest stated free-tier daily cap." in body
@@ -707,7 +707,7 @@ def test_pilot_share_brief_routes_reviewed_source_queues_through_project_status(
     )
 
     assert "Source-proof queues reviewed or exhausted" in brief
-    assert "Next source-proof command: `make project-status`" in brief
+    assert "Next source-proof command: `make project-status-check`" in brief
     assert "make dcf-input-proof-queue TOP_N=10" not in brief
     assert "provider setup" in brief.lower()
     assert "buy" not in brief.lower()
@@ -734,7 +734,7 @@ def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: P
                         "can_run_now": ["coverage_workflow_evidence"],
                         "needs_setup": ["fmp", "alpha_vantage", "finnhub"],
                         "avoid_repeating": ["fundamentals_share_count_source_ladder"],
-                        "next_step": "make project-status",
+                        "next_step": "make project-status-check",
                         "next_step_reason": "Current proof queues are exhausted.",
                     }
                 }

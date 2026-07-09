@@ -228,7 +228,7 @@ def test_data_health_source_activation_setup_cards_use_guide_without_secrets(mon
         "BROKER DATA BOUNDARY",
         "APPLY GATE",
     ]
-    assert "run make project-status first" in rendered
+    assert "run make project-status-check first" in rendered
     assert "reviewed one-ticker smoke command only" in rendered
     assert "sec companyfacts" in rendered
     assert "fmp free tier" in rendered
