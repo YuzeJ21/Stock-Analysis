@@ -3527,6 +3527,55 @@ def apply_dashboard_theme() -> None:
           line-height: 1.32;
           margin-top: 0.24rem;
         }
+        .coverage-lane-strip {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+          gap: 0.42rem;
+          margin: 0.4rem 0 0.64rem 0;
+        }
+        .coverage-lane-chip {
+          min-width: 0;
+          border-radius: 8px;
+          border: 1px solid rgba(15, 118, 110, 0.16);
+          background: rgba(248, 250, 252, 0.94);
+          padding: 0.5rem 0.58rem;
+        }
+        .coverage-lane-chip.ready,
+        .coverage-lane-chip.supported {
+          background: rgba(236, 253, 245, 0.92);
+          border-color: rgba(22, 163, 74, 0.24);
+        }
+        .coverage-lane-chip.partial {
+          background: rgba(255, 251, 235, 0.92);
+          border-color: rgba(217, 119, 6, 0.22);
+        }
+        .coverage-lane-chip.blocked {
+          background: rgba(254, 242, 242, 0.92);
+          border-color: rgba(220, 38, 38, 0.18);
+        }
+        .coverage-lane-chip-label {
+          color: #111827;
+          font-size: 0.76rem;
+          font-weight: 920;
+          line-height: 1.14;
+          overflow-wrap: anywhere;
+        }
+        .coverage-lane-chip-state {
+          color: #475569;
+          font-size: 0.66rem;
+          font-weight: 900;
+          line-height: 1.12;
+          margin-top: 0.24rem;
+          text-transform: uppercase;
+        }
+        .coverage-lane-chip-count {
+          color: #667085;
+          font-size: 0.68rem;
+          font-weight: 760;
+          line-height: 1.18;
+          margin-top: 0.16rem;
+          overflow-wrap: anywhere;
+        }
         .public-workflow-header {
           display: grid;
           grid-template-columns: minmax(15rem, 0.95fr) minmax(22rem, 2.1fr);
@@ -9542,6 +9591,28 @@ def data_health_coverage_summary_cards(
     return cards
 
 
+def data_health_coverage_summary_strip_html(
+    readiness_summary: dict[str, object],
+    peer_readiness_frame: pd.DataFrame | None = None,
+    root: Path | None = None,
+) -> str:
+    frame = data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame, root=root)
+    blocks: list[str] = []
+    for row in frame.to_dict("records"):
+        lane = format_missing(row.get("lane"))
+        state = format_missing(row.get("state"), "blocked").lower()
+        coverage = format_missing(row.get("ready_coverage"))
+        state_class = re.sub(r"[^a-z0-9_-]+", "-", state).strip("-") or "blocked"
+        blocks.append(
+            f"<div class='coverage-lane-chip {html.escape(state_class, quote=True)}'>"
+            f"<div class='coverage-lane-chip-label'>{html.escape(lane)}</div>"
+            f"<div class='coverage-lane-chip-state'>{html.escape(state)}</div>"
+            f"<div class='coverage-lane-chip-count'>{html.escape(coverage)}</div>"
+            "</div>"
+        )
+    return "<div class='coverage-lane-strip' aria-label='Coverage lane states'>" + "".join(blocks) + "</div>"
+
+
 def render_data_health_coverage_summary(
     readiness_summary: dict[str, object],
     peer_readiness_frame: pd.DataFrame | None = None,
@@ -9549,6 +9620,10 @@ def render_data_health_coverage_summary(
     render_section_header(
         "Selected Lane Answer",
         "Coverage Summary / What Can I Use? One clear answer per lane before operations, proof details, or research conclusions.",
+    )
+    st.markdown(
+        data_health_coverage_summary_strip_html(readiness_summary, peer_readiness_frame, root=BASE_DIR),
+        unsafe_allow_html=True,
     )
     render_signal_cards(
         data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame, root=BASE_DIR),

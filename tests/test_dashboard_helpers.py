@@ -28682,6 +28682,50 @@ def test_data_health_coverage_summary_cards_stay_compact_before_details_drawer()
     assert "make " not in rendered
 
 
+def test_data_health_coverage_summary_strip_gives_first_view_lane_states():
+    summary = {
+        "master_universe": 100,
+        "price_ready": 98,
+        "momentum_ready": 96,
+        "liquidity_ready": 95,
+        "fundamentals_ready": 70,
+        "dcf_ready": 60,
+        "peer_ready": 10,
+        "earnings_ready": 0,
+        "analyst_estimates_ready": 0,
+    }
+
+    html = dashboard.data_health_coverage_summary_strip_html(summary, root=None)
+    rendered = html.lower()
+
+    assert "coverage-lane-strip" in rendered
+    assert "metadata / identity" in rendered
+    assert "price / setup" in rendered
+    assert "fundamentals / dcf" in rendered
+    assert "peers" in rendered
+    assert "earnings" in rendered
+    assert "analyst estimates" in rendered
+    assert "ready" in rendered
+    assert "partial" in rendered
+    assert "blocked" in rendered
+    assert "98 / 100" in rendered
+    assert "60 / 100" in rendered
+    assert "0 / 100" in rendered
+    assert "make " not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_coverage_summary_strip_renders_before_full_lane_cards():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    function_index = source.index("def render_data_health_coverage_summary(")
+    strip_index = source.index("data_health_coverage_summary_strip_html(", function_index)
+    cards_index = source.index("data_health_coverage_summary_cards(", function_index)
+    details_index = source.index('st.expander("Advanced: coverage lane details", expanded=False)', function_index)
+
+    assert function_index < strip_index < cards_index < details_index
+
+
 def test_data_health_operator_route_collapses_broad_lane_table_after_snapshot():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     operator_index = source.index("selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
