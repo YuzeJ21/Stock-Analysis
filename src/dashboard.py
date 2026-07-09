@@ -22199,6 +22199,33 @@ def project_status_metric_cards(payload: dict[str, Any] | None) -> list[tuple[st
     ]
 
 
+def project_status_stage_summary_card(payload: dict[str, Any] | None) -> dict[str, object] | None:
+    if not payload:
+        return None
+    rows = payload.get("remaining_public_stage_rows", [])
+    if not isinstance(rows, list):
+        return None
+    states: dict[str, int] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        state = format_missing(row.get("State"), "pending")
+        states[state] = states.get(state, 0) + 1
+    if not states:
+        return None
+    state_summary = ", ".join(f"{state}: {count}" for state, count in sorted(states.items()))
+    total = sum(states.values())
+    return {
+        "kicker": "PILOT STAGE MAP",
+        "title": f"{total} classified stages",
+        "body": (
+            f"{state_summary}. This is a share-readiness map, not data freshness proof and not an analysis unlock."
+        ),
+        "badges": ["classified", "research-only"],
+        "command": "make project-status-check",
+    }
+
+
 def project_status_remaining_stage_cards(payload: dict[str, Any] | None, limit: int = 4) -> list[dict[str, object]]:
     if not payload:
         return []
@@ -27453,11 +27480,14 @@ def render_home_page(
     if public_mode:
         with st.expander("Advanced: learn more", expanded=False):
             pilot_stage_cards = project_status_remaining_stage_cards(project_status_payload)
+            pilot_stage_summary_card = project_status_stage_summary_card(project_status_payload)
             if pilot_stage_cards:
                 render_section_header(
                     "Next Pilot Stages",
                     "What is ready to share, what still needs an external account or key, and what stays source-gated.",
                 )
+                if pilot_stage_summary_card:
+                    render_signal_cards([pilot_stage_summary_card], show_commands=False, variant="queue")
                 render_signal_cards(pilot_stage_cards, show_commands=False, variant="queue")
 
             render_section_header(

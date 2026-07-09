@@ -6437,6 +6437,33 @@ def test_project_status_remaining_stage_cards_summarize_hidden_stage_count():
     assert cards[4]["command"] == "make project-status-check"
 
 
+def test_project_status_stage_summary_card_counts_public_stage_states():
+    payload = {
+        "remaining_public_stage_rows": [
+            {"Stage": "LinkedIn publish", "State": "ready_for_manual_share"},
+            {"Stage": "Hosted Streamlit demo", "State": "external_account_required"},
+            {"Stage": "FMP provider activation", "State": "external_key_required"},
+            {"Stage": "Peer readiness upgrade", "State": "source_gated"},
+            {"Stage": "Optional earnings and estimates", "State": "locked_until_trusted_rows"},
+            {"Stage": "Generated artifacts", "State": "excluded_by_default"},
+        ]
+    }
+
+    card = dashboard.project_status_stage_summary_card(payload)
+
+    assert card["kicker"] == "PILOT STAGE MAP"
+    assert card["title"] == "6 classified stages"
+    assert "ready_for_manual_share: 1" in card["body"]
+    assert "external_account_required: 1" in card["body"]
+    assert "external_key_required: 1" in card["body"]
+    assert "source_gated: 1" in card["body"]
+    assert "locked_until_trusted_rows: 1" in card["body"]
+    assert "excluded_by_default: 1" in card["body"]
+    assert "not data freshness proof" in card["body"]
+    assert card["badges"] == ["classified", "research-only"]
+    assert card["command"] == "make project-status-check"
+
+
 def test_public_home_advanced_learn_more_surfaces_next_pilot_stages():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
