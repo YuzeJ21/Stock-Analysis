@@ -390,6 +390,8 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert "provider-key activation" in brief
     assert "readiness-backed selection comes first" in makefile
     assert "Review one stock, Improve data coverage, and Inspect proof" not in makefile
-    assert "Check data coverage:     make readiness-ops-center" in makefile
+    assert "make next-stage                 Print the current next-stage decision ladder" in makefile
+    assert "make project-status-check       Read current coverage, blockers, and executable next steps" in makefile
+    assert "Check current counts:    make status-check TOP_N=5" in makefile
     assert "make linkedin-share-check" in makefile
     assert "GitHub's generated OpenGraph card" in makefile

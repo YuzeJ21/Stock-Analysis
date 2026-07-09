@@ -1,4 +1,4 @@
-.PHONY: help help-full demo linkedin-share-check public-ux-review-checklist public-ux-review-checklist-json public-ux-review-notes public-ux-review-notes-check public-ux-review-note browser-qa-evidence browser-qa-capture-plan hosted-demo-readiness pilot-readiness-check pilot-readiness-packet pilot-share-brief trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight auto-refresh-plan auto-refresh-daily auto-refresh-weekly auto-refresh-optional auto-refresh-runbook auto-refresh-status auto-apply-gate lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff license-status session-source-preflight source-activation-guide provider-setup-checklist provider-smoke fmp-smoke alpha-vantage-smoke finnhub-smoke universe-scope fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage sec-filing-share-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check risk-context action-queue action-queue-check project-status project-status-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-preview-summary universe-stage universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full next-stage demo linkedin-share-check public-ux-review-checklist public-ux-review-checklist-json public-ux-review-notes public-ux-review-notes-check public-ux-review-note browser-qa-evidence browser-qa-capture-plan hosted-demo-readiness pilot-readiness-check pilot-readiness-packet pilot-share-brief trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight auto-refresh-plan auto-refresh-daily auto-refresh-weekly auto-refresh-optional auto-refresh-runbook auto-refresh-status auto-apply-gate lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff license-status session-source-preflight source-activation-guide provider-setup-checklist provider-smoke fmp-smoke alpha-vantage-smoke finnhub-smoke universe-scope fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage sec-filing-share-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check risk-context action-queue action-queue-check project-status project-status-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-preview-summary universe-stage universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -8,28 +8,36 @@ help:
 	@echo "Stock Research Command Center"
 	@echo ""
 	@echo "Start here:"
+	@echo "  make next-stage                 Print the current next-stage decision ladder"
 	@echo "  make demo                       Print the clean visitor walkthrough"
-	@echo "  make status-check TOP_N=5       Show current readiness and top blockers"
-	@echo "  make stock-report-md TICKER=NVDA Generate the clearest sample stock report"
-	@echo "  make metric-readiness-board TOP_N=10 Print combined SPY/QQQ metric-readiness board"
 	@echo "  make dashboard                  Open the dashboard"
-	@echo "  make trusted-data-pilot-candidates TOP_N=10"
-	@echo "                                  Rank the next source-backed data pilot"
-	@echo "  make reviewed-data-proof        Show durable reviewed proof ledger"
-	@echo "  make reviewed-batch-proof       Show durable reviewed batch proof ledger"
-	@echo "  make reviewed-batch-compare     Compare before/after readiness snapshots for proof rows"
-	@echo "  make reviewed-batch-preflight   Check snapshot/freshness gates before a reviewed batch"
-	@echo "  make data-release-decision      Decide whether local data-output changes stay local or become reviewed evidence"
-	@echo "  make public-demo-readiness-pack Print the shareable demo proof set"
+	@echo "  make project-status-check       Read current coverage, blockers, and executable next steps"
+	@echo "  make provider-setup-checklist   Review optional key setup without exposing secrets"
+	@echo "  make hosted-demo-readiness      Check hosted-app readiness without deploying"
 	@echo "  make public-check / public-release-handoff Verify sharing and terminal steps"
 	@echo ""
 	@echo "Useful next paths:"
 	@echo "  Review one stock:        make stock-report-md TICKER=NVDA"
-	@echo "  Check data coverage:     make readiness-ops-center"
-	@echo "  Auto fundamentals fallback: make fundamentals-source-ladder-queue TOP_N=10"
-	@echo "  Verify public hygiene:   make diff-hygiene && make staged-hygiene-check"
+	@echo "  Check current counts:    make status-check TOP_N=5"
+	@echo "  Share on LinkedIn:       make public-check && make linkedin-share-check"
+	@echo "  Verify public hygiene:   make diff-hygiene-summary && make staged-hygiene-check"
 	@echo ""
 	@echo "For the full local command catalog, run: make help-full"
+
+next-stage:
+	@echo "Stock Research Command Center next-stage ladder"
+	@echo "Read-only: this target prints the current next-stage decision ladder only. It does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets."
+	@echo ""
+	@echo "1. Current truth: make project-status-check"
+	@echo "   Use this before reopening any proof queue or quoting coverage."
+	@echo "2. Public share gate: make public-check"
+	@echo "   Use this before sharing the GitHub link or LinkedIn Featured card."
+	@echo "3. Hosted app gate: make hosted-demo-readiness"
+	@echo "   Hosted demo remains external_account_required until a public URL opens and the five-page public workflow is verified."
+	@echo "4. Provider key gate: make provider-setup-checklist"
+	@echo "   FMP, Alpha Vantage, and Finnhub stay external_key_required until keys are configured outside the repo and one reviewed ticker smoke passes."
+	@echo "5. Stop rule: Do not run broad proof queues unless project-status-check shows executable source-backed candidates."
+	@echo "6. Artifact rule: Generated churn stays excluded unless one exact artifact is reviewed evidence."
 
 help-full:
 	@echo "Stock Research Command Center convenience commands"

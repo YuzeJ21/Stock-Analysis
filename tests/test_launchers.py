@@ -62,6 +62,7 @@ def test_makefile_contains_convenience_targets():
 
     for target in (
         "help",
+        "next-stage",
         "demo",
         "diff-hygiene",
         "trusted-data-pilot-candidates",
@@ -187,12 +188,19 @@ def test_makefile_help_documents_key_workflows():
     for phrase in (
         "help-full:",
         "For the full local command catalog, run: make help-full",
+        "next-stage:",
+        "Stock Research Command Center next-stage ladder",
+        "Read-only: this target prints the current next-stage decision ladder only.",
+        "Current truth: make project-status-check",
+        "Public share gate: make public-check",
+        "Hosted app gate: make hosted-demo-readiness",
+        "Provider key gate: make provider-setup-checklist",
+        "Stop rule: Do not run broad proof queues unless project-status-check shows executable source-backed candidates.",
         "Stock Research Command Center convenience commands",
         "First-time path:",
         "Print the clean visitor walkthrough",
         "make status-check TOP_N=5",
         "make stock-report-md TICKER=NVDA",
-        "make metric-readiness-board TOP_N=10",
         "make dashboard-smoke",
         "make dashboard",
         "make trusted-data-pilot TOP_N=10",
@@ -206,11 +214,11 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-data-proof",
         "Print the durable reviewed data proof ledger",
         "make reviewed-batch-proof",
-        "Show durable reviewed batch proof ledger",
+        "Print durable reviewed batch proof rows",
         "make reviewed-batch-compare",
-        "Compare before/after readiness snapshots for proof rows",
+        "Compare prior/current readiness snapshots for proof-ledger fields",
         "make reviewed-batch-preflight",
-        "Check snapshot/freshness gates before a reviewed batch",
+        "Check snapshot, dry-run, compare, proof, and artifact gates",
         "make lane-outcome-history",
         "Summarize lane outcomes from the durable proof ledger",
         "make price-reviewed-run",
@@ -429,14 +437,35 @@ def test_make_help_output_stays_visitor_friendly():
 
     assert "Stock Research Command Center" in output
     assert "Start here:" in output
+    assert "make next-stage" in output
     assert "make demo" in output
+    assert "make project-status-check" in output
+    assert "make provider-setup-checklist" in output
+    assert "make hosted-demo-readiness" in output
     assert "make stock-report-md TICKER=NVDA" in output
-    assert "make trusted-data-pilot-candidates TOP_N=10" in output
     assert "public-release-handoff" in output
     assert "For the full local command catalog, run: make help-full" in output
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in output
+    assert "fundamentals-source-ladder-queue" not in output
     assert "Data onboarding:" not in output
     assert "Preview-first fundamentals and universe imports:" not in output
     assert len(output.splitlines()) <= 25
+
+
+def test_make_next_stage_prints_current_stage_ladder_without_running_broad_work():
+    result = subprocess.run(["make", "next-stage"], check=True, capture_output=True, text=True)
+    output = result.stdout
+
+    assert "Stock Research Command Center next-stage ladder" in output
+    assert "Read-only: this target prints the current next-stage decision ladder only." in output
+    assert "Current truth: make project-status-check" in output
+    assert "Public share gate: make public-check" in output
+    assert "Hosted app gate: make hosted-demo-readiness" in output
+    assert "Provider key gate: make provider-setup-checklist" in output
+    assert "Do not run broad proof queues unless project-status-check shows executable source-backed candidates." in output
+    assert "Generated churn stays excluded unless one exact artifact is reviewed evidence." in output
+    assert "trusted-data-pilot-candidates" not in output
+    assert "data-coverage-proof-queues" not in output
 
 
 def test_metric_readiness_board_make_target_preserves_comma_default():
