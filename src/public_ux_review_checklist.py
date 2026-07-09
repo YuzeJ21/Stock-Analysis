@@ -44,9 +44,9 @@ PUBLIC_ROUTES = [
         "Proof History",
         "http://localhost:8501/?mode=public&page=proof-history",
         "What evidence changed a readiness state?",
-        "Current question, Primary next step, Stop rule, evidence-only page, latest proof outcome",
+        "Current question, Primary next step, Stop rule, evidence-only page, one proof answer, latest proof evidence collapsed",
         "Visitor can inspect evidence without mistaking it for another command center.",
-        "Keep latest proof outcomes first and raw ledger rows collapsed; remove command-center style next-action duplication.",
+        "Keep one proof answer first; keep latest proof evidence and raw ledger rows collapsed; remove command-center style next-action duplication.",
     ),
 ]
 
