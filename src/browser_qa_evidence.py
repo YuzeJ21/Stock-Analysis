@@ -168,6 +168,21 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         stop_rule="Stop if unavailable DCF, peer, earnings, estimate, or metric outputs are shown as conclusions.",
     ),
     BrowserQaRouteCheck(
+        name="Public Data Health coverage answer",
+        route="http://localhost:8501/?mode=public&page=data-health",
+        first_view_markers=(
+            "research-loop-strip",
+            "Current question",
+            "Primary next step",
+            "Stop rule",
+            "Coverage Summary / What Can I Use?",
+            "Proof Map",
+        ),
+        details_boundary="Public Data Health starts with one coverage answer per lane; queues, route maps, proof ledgers, provider setup, and command blocks stay collapsed or operator-only.",
+        qa_focus="Visitor understands why an input is usable, context-only, blocked, skipped, or excluded before opening proof evidence.",
+        stop_rule="Stop if public Data Health opens with raw tables, provider setup, operator commands, or selected-lane operations before the coverage answer.",
+    ),
+    BrowserQaRouteCheck(
         name="Public proof history evidence view",
         route="http://localhost:8501/?mode=public&page=proof-history",
         first_view_markers=(

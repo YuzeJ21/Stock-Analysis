@@ -446,8 +446,13 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     route_names = {str(row["Route Check"]) for row in rows}
 
     assert "Single-stock workflow fit" in route_names
+    assert "Public Data Health coverage answer" in route_names
     assert "Data Health proof lane progressive load" in route_names
     assert "Data Health queue drawer routing" in route_names
+    public_data_health = next(row for row in rows if row["Route Check"] == "Public Data Health coverage answer")
+    assert "Coverage Summary / What Can I Use?" in str(public_data_health["First View Markers"])
+    assert "one coverage answer per lane" in str(public_data_health["Details Boundary"])
+    assert "provider setup" in str(public_data_health["Stop Rule"])
     fast_view = next(row for row in rows if row["Route Check"] == "Data Health operator fast view")
     assert "READINESS CONTEXT" in str(fast_view["First View Markers"])
     assert "Next Data-Readiness Action" not in str(fast_view["First View Markers"])
@@ -459,6 +464,8 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "what can be read now" in rendered
     assert "selected ticker" in rendered
     assert "next step" in rendered
+    assert "coverage summary / what can i use?" in rendered
+    assert "proof map" in rendered
     assert "selected lane answer" in rendered
     assert "before advanced proof detail" in rendered
     assert "source gate" in rendered
