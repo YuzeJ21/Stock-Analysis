@@ -57,7 +57,10 @@ What each page answers:
 ## Local Commands
 
 ```bash
-make demo
+make demo                         # print the visitor path without changing local data
+make dashboard                    # open http://localhost:8501/?mode=public
+
+# Optional read-only proof after the app flow is clear:
 make status-check TOP_N=5
 make stock-report-md TICKER=NVDA
 make stock-report-md TICKER=MU
@@ -68,7 +71,6 @@ make data-coverage-proof-queues TOP_N=10  # open source-proof queues only when p
 make trusted-data-pilot-candidates TOP_N=10  # only when project-status shows executable company candidates
 make trusted-data-pilot-packet TICKER=MU
 make trusted-data-pilot-packet TICKER=CRDO
-make dashboard
 ```
 
 The dashboard defaults to Public visitor mode. Keep visitors on the five-page path first; switch Public visitor mode off only for Operator context, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.

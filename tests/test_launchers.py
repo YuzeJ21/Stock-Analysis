@@ -796,8 +796,12 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert 'Selector --> Report["Single-Stock Report: one ticker"]' in readme
     assert 'Report --> Health["Data Health: missing input"]' in readme
     assert 'Health --> Proof["Proof History: source-proof trail"]' in readme
-    assert "Run these from the repository root so `make` can find the project targets. This first path is visitor-safe" in readme
-    assert "it does not rebuild broad generated outputs before you have seen the product" in readme
+    assert "Open the product before proof packets or report commands" in readme
+    quick_start = readme[readme.index("## Quick Start") : readme.index("## Try This Visitor Workflow")]
+    assert quick_start.index("make dashboard") < quick_start.index("make status-check TOP_N=5")
+    assert quick_start.index("make dashboard") < quick_start.index("make pilot-readiness-check TOP_N=10")
+    assert quick_start.index("make dashboard") < quick_start.index("make stock-report-md TICKER=NVDA")
+    assert "Optional read-only proof after the app flow is clear" in quick_start
     assert "When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps." in readme
     assert "## What You Can Analyze" in readme
     assert "## How Analysis Works" in readme
@@ -820,6 +824,10 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "The shortest public walkthrough uses NVDA, META, QQQ, MU, and CRDO only as optional state examples." in readme
     assert "[Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" not in readme
+    local_commands = public_demo[public_demo.index("## Local Commands") : public_demo.index("The dashboard defaults")]
+    assert local_commands.index("make dashboard") < local_commands.index("make status-check TOP_N=5")
+    assert local_commands.index("make dashboard") < local_commands.index("make stock-report-md TICKER=NVDA")
+    assert "Optional read-only proof after the app flow is clear" in local_commands
     assert "make project-status" in public_demo
     assert "make data-coverage-proof-queues TOP_N=10" in public_demo
     assert "make trusted-data-pilot-candidates TOP_N=10" in public_demo
@@ -958,9 +966,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     quick_start = readme.split("## Quick Start", 1)[1].split("## Try This Visitor Workflow", 1)[0]
     assert "make pipeline" not in quick_start
     assert "make readiness" not in quick_start
-    assert quick_start.index("make demo") < quick_start.index("make status-check TOP_N=5")
+    assert quick_start.index("make demo") < quick_start.index("make dashboard")
+    assert quick_start.index("make dashboard") < quick_start.index("make status-check TOP_N=5")
     assert quick_start.index("make status-check TOP_N=5") < quick_start.index("make stock-report-md TICKER=NVDA")
-    assert quick_start.index("make stock-report-md TICKER=NVDA") < quick_start.index("make dashboard")
     operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
     for phrase in (
         "make price-history-proof-queue TOP_N=10",

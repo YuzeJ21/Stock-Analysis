@@ -106,16 +106,15 @@ The dashboard starts in public visitor mode at `http://localhost:8501/?mode=publ
 Switch off Public visitor mode only for internal Operator context, detailed boards, local proof commands, and validate / preview / apply guidance. Advanced pages remain secondary, and watchlist-style outputs stay readiness-state output, not an action list.
 
 ## Quick Start
-Run these from the repository root so `make` can find the project targets. This first path is visitor-safe: it does not rebuild broad generated outputs before you have seen the product.
+Run these from the repository root so `make` can find the project targets. Open the product before proof packets or report commands so reviewers see the guided workflow before operator detail.
 
 ```bash
 pip install -e '.[dev]'
-make demo
-make pilot-readiness-check TOP_N=10 && make pilot-readiness-packet
-make status-check TOP_N=5
-make stock-report-md TICKER=NVDA
-make dashboard
+make demo       # print the safe visitor path without changing local data
+make dashboard  # open http://localhost:8501/?mode=public
 ```
+
+Optional read-only proof after the app flow is clear: `make status-check TOP_N=5`, `make pilot-readiness-check TOP_N=10 && make pilot-readiness-packet`, and `make stock-report-md TICKER=NVDA`.
 
 When you want to run a controlled pilot, use the [Pilot Runbook](docs/PILOT_RUNBOOK.md). When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps.
 
