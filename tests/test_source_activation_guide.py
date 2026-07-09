@@ -97,6 +97,11 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
         "setup_prerequisite": "FMP free tier is configured; choose one reviewed ticker before running the reviewed one-ticker smoke command.",
         "ticker_scope_rule": "Choose one reviewed ticker from make project-status-check or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list.",
         "reviewed_one_ticker_smoke": "make fmp-smoke TICKER=<ticker>",
+        "reviewed_smoke_sequence": (
+            "make fmp-smoke TICKER=<ticker> -> make imports-validate IMPORT_TICKERS=<ticker> -> "
+            "make imports-preview IMPORT_TICKERS=<ticker> -> stop before imports-apply unless validation passes, "
+            "preview is narrow, rejected rows are zero, and source provenance exists"
+        ),
         "one_safe_smoke": "make fmp-smoke TICKER=<ticker>",
         "boundary": "Provider setup only makes a source executable; readiness changes still require validate/preview/apply gates.",
     }
@@ -161,6 +166,11 @@ def test_provider_setup_checklist_summarizes_unlocks_without_secrets(monkeypatch
     assert "- setup_prerequisite: FMP free tier is configured; choose one reviewed ticker before running the reviewed one-ticker smoke command." in rendered
     assert "- ticker_scope_rule: Choose one reviewed ticker from make project-status-check or a current proof packet before replacing <ticker>; do not run the reviewed one-ticker smoke command across a broad list." in rendered
     assert "- reviewed_one_ticker_smoke: make fmp-smoke TICKER=<ticker>" in rendered
+    assert (
+        "- reviewed_smoke_sequence: make fmp-smoke TICKER=<ticker> -> "
+        "make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> "
+        "stop before imports-apply unless validation passes, preview is narrow, rejected rows are zero, and source provenance exists"
+    ) in rendered
     assert "one_safe_smoke" not in rendered
     assert rendered.index("First provider answer:") < rendered.index("Coverage unlock decision:")
     assert rendered.index("First provider answer:") < rendered.index("Local setup commands:")

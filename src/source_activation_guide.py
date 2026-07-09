@@ -528,6 +528,11 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
         )
     if not smoke_command:
         smoke_command = "make session-source-preflight"
+    reviewed_smoke_sequence = (
+        f"{smoke_command} -> make imports-validate IMPORT_TICKERS=<ticker> -> "
+        "make imports-preview IMPORT_TICKERS=<ticker> -> stop before imports-apply unless validation passes, "
+        "preview is narrow, rejected rows are zero, and source provenance exists"
+    )
     return {
         "question": "What source can I use next?",
         "free_source_now": source_answer.get("free_public_now", "-"),
@@ -542,6 +547,7 @@ def _first_provider_answer(rows: list[dict[str, Any]], current_gate: dict[str, s
             "do not run the reviewed one-ticker smoke command across a broad list."
         ),
         "reviewed_one_ticker_smoke": smoke_command,
+        "reviewed_smoke_sequence": reviewed_smoke_sequence,
         "one_safe_smoke": smoke_command,
         "boundary": "Provider setup only makes a source executable; readiness changes still require validate/preview/apply gates.",
     }
@@ -609,6 +615,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 f"- setup_prerequisite: {first_answer.get('setup_prerequisite', '-')}",
                 f"- ticker_scope_rule: {first_answer.get('ticker_scope_rule', '-')}",
                 f"- reviewed_one_ticker_smoke: {first_answer.get('reviewed_one_ticker_smoke', first_answer.get('one_safe_smoke', '-'))}",
+                f"- reviewed_smoke_sequence: {first_answer.get('reviewed_smoke_sequence', '-')}",
                 f"- boundary: {first_answer.get('boundary', '-')}",
                 "",
             ]

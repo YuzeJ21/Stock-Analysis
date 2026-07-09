@@ -76,6 +76,13 @@ Free-tier fallbacks are capped by product policy and should be treated as small 
 
 Start with `make session-source-preflight`, then run only the reviewed one-source smoke command before any broad batch. Keyed-provider smoke commands stage one ticker, validate, and preview only; they do not apply rows. They still require rejected-row review, source-provenance review, and an intentional apply decision before data can change readiness.
 
+Reviewed one-ticker smoke sequence:
+
+1. Run `make fmp-smoke TICKER=<ticker>` or the matching configured provider smoke command.
+2. Run `make imports-validate IMPORT_TICKERS=<ticker>`.
+3. Run `make imports-preview IMPORT_TICKERS=<ticker>`.
+4. Stop before `make imports-apply` unless validation passes, preview is narrow, rejected rows are zero, and source provenance exists.
+
 Optional earnings and analyst-estimate rows have an extra boundary. Provider-assisted rows may supply only earnings timing or price-target context. Those rows can be recorded as `candidate_context_only`, but they do not unlock the full optional readiness lane unless the row also contains the required earnings metrics or EPS/revenue estimate fields. Price-target context is research context only and must not be rendered as a recommendation.
 
 ## Non-Retry Rule
