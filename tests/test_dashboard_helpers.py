@@ -28466,6 +28466,42 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "public workflow is loading" not in chunk
 
 
+def test_public_loading_preview_names_usable_and_blocked_states_for_slow_routes():
+    selector_html = dashboard.public_loading_preview_html("Stock Selector")
+    health_html = dashboard.public_loading_preview_html("Data Health")
+
+    assert "What can I use now" in selector_html
+    assert "Readiness-backed ticker rows" in selector_html
+    assert "What is blocked" in selector_html
+    assert "No ticker is a recommendation from this selector" in selector_html
+
+    assert "What can I use now" in health_html
+    assert "saved coverage lane states" in health_html
+    assert "What is blocked" in health_html
+    assert "Proof ledgers, route maps, queues, and commands stay closed" in health_html
+
+
+def test_stock_selector_and_data_health_keep_usable_blocked_cards_after_load():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    selector_index = source.index("def render_stock_selector(")
+    selector_header_index = source.index("render_section_header(", selector_index)
+    selector_cards_index = source.index("public_page_readiness_preview_cards(STOCK_SELECTOR_PATH_TITLE)", selector_header_index)
+    selector_messages_index = source.index("if ticker_readiness_message or decisions_message or final_message:", selector_cards_index)
+
+    health_index = source.index("def render_data_health(")
+    health_public_index = source.index("if public_mode:", health_index)
+    health_clear_index = source.index("public_loading_placeholder.empty()", health_public_index)
+    health_cards_index = source.index("public_page_readiness_preview_cards(\"Data Health\")", health_clear_index)
+    health_coverage_index = source.index(
+        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
+        health_cards_index,
+    )
+
+    assert selector_header_index < selector_cards_index < selector_messages_index
+    assert health_clear_index < health_cards_index < health_coverage_index
+
+
 def test_public_subpages_do_not_insert_home_loop_before_page_content():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     subpage_functions = [

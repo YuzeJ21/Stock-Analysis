@@ -5057,6 +5057,83 @@ def render_public_workflow_header(page_title: str) -> None:
     st.markdown(public_workflow_header_html(page_title), unsafe_allow_html=True)
 
 
+def public_page_readiness_preview_cards(selected_page: str) -> list[tuple[str, str, str, str]]:
+    if selected_page == STOCK_SELECTOR_PATH_TITLE:
+        return [
+            (
+                "What can I use now",
+                "Readiness-backed ticker rows and filters help you choose one review target.",
+                "",
+                "neutral",
+            ),
+            (
+                "What is blocked",
+                "No ticker is a recommendation from this selector; open the report before reading any supported sections.",
+                "",
+                "warning",
+            ),
+        ]
+    if selected_page == "Single-Stock Report":
+        return [
+            (
+                "What can I use now",
+                "Selected ticker state and supported report sections appear before detailed tabs.",
+                "",
+                "neutral",
+            ),
+            (
+                "What is blocked",
+                "Partial, candidate-only, excluded, or locked inputs stay visible before any interpretation.",
+                "",
+                "warning",
+            ),
+        ]
+    if selected_page == "Data Health":
+        return [
+            (
+                "What can I use now",
+                "The saved coverage lane states appear first: usable now, context only, blocked, skipped, and excluded.",
+                "",
+                "neutral",
+            ),
+            (
+                "What is blocked",
+                "Proof ledgers, route maps, queues, and commands stay closed until the lane answer is visible.",
+                "",
+                "warning",
+            ),
+        ]
+    if selected_page == PROOF_HISTORY_PATH_TITLE:
+        return [
+            (
+                "What can I use now",
+                "Reviewed proof outcome cards appear before raw ledger details.",
+                "",
+                "neutral",
+            ),
+            (
+                "What is blocked",
+                "Proof history does not refresh data or unlock missing inputs; it only explains evidence changes.",
+                "",
+                "warning",
+            ),
+        ]
+    return [
+        (
+            "What can I use now",
+            "The public start answer appears before examples, methodology, or advanced details.",
+            "",
+            "neutral",
+        ),
+        (
+            "What is blocked",
+            "No analysis is usable until source-backed readiness says the needed inputs are ready.",
+            "",
+            "warning",
+        ),
+    ]
+
+
 def public_loading_preview_html(selected_page: str, first_label: str = "Current question", next_label: str = "Primary next step") -> str:
     step = public_workflow_step(selected_page)
     cards = [
@@ -5085,6 +5162,7 @@ def public_loading_preview_html(selected_page: str, first_label: str = "Current 
             "warning",
         ),
     ]
+    cards.extend(public_page_readiness_preview_cards(selected_page))
     return "<div class='public-loading-preview'>" + "".join(
         action_card_html(title, body, command, tone) for title, body, command, tone in cards
     ) + "</div>"
@@ -26700,6 +26778,8 @@ def render_stock_selector(
         STOCK_SELECTOR_PATH_TITLE,
         "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
     )
+    if public_mode:
+        render_action_cards(public_page_readiness_preview_cards(STOCK_SELECTOR_PATH_TITLE))
 
     if ticker_readiness_message or decisions_message or final_message:
         render_notice_card(
@@ -28887,6 +28967,7 @@ def render_data_health(
     if public_mode:
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
+        render_action_cards(public_page_readiness_preview_cards("Data Health"))
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
         render_section_header("Proof Map", "Plain-language proof lanes before any operations detail.")
         render_signal_cards(
