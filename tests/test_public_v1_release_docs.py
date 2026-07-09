@@ -19,6 +19,7 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "It is not currently published as a hosted Streamlit app." in readme
     assert "| What is the live app path? | Run `make dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
     assert "| What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
+    assert "| What should I run when I ask what is next? | Run `make next-stage` for the current decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |" in readme
     assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
     assert "First review move: open Stock Selector" in readme
     assert "screenshots are product evidence only" in readme
