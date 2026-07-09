@@ -856,25 +856,20 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert local_commands.index("make dashboard") < local_commands.index("make stock-report-md TICKER=NVDA")
     assert "Optional read-only proof after the app flow is clear" in local_commands
     assert "make project-status-check" in public_demo
-    assert "make data-coverage-proof-queues TOP_N=10" in public_demo
-    assert "make trusted-data-pilot-candidates TOP_N=10" in public_demo
+    assert "make data-coverage-proof-queues TOP_N=10" not in local_commands
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in local_commands
     public_demo_commands = public_demo.split("## Local Commands", 1)[1].split("The dashboard defaults", 1)[0]
     assert public_demo_commands.index("make project-status-check") < public_demo_commands.index(
         "make provider-setup-checklist"
     )
-    assert public_demo_commands.index("make provider-setup-checklist") < public_demo_commands.index(
-        "make data-coverage-proof-queues TOP_N=10"
-    )
-    assert public_demo_commands.index("make data-coverage-proof-queues TOP_N=10") < public_demo_commands.index(
-        "make trusted-data-pilot-candidates TOP_N=10"
-    )
-    assert "only when project-status-check shows executable company candidates" in public_demo_commands
+    assert "Do not open broad proof queues from the public walkthrough" in public_demo
+    assert "Use the operator guide only after project-status-check shows executable source-backed candidates" in public_demo
     assert "use when project-status-check says source-proof queues are exhausted" in public_demo_commands
-    assert "open source-proof queues only when project-status-check shows executable proof candidates" in public_demo
+    assert "open source-proof queues only when project-status-check shows executable proof candidates" not in public_demo
     assert "make project-status && make data-coverage-proof-queues TOP_N=10" not in readme
     assert "make project-status-check && make provider-setup-checklist" in readme
-    assert "make trusted-data-pilot-packet TICKER=MU" in public_demo
-    assert "make trusted-data-pilot-packet TICKER=CRDO" in public_demo
+    assert "make trusted-data-pilot-packet TICKER=MU" not in local_commands
+    assert "make trusted-data-pilot-packet TICKER=CRDO" not in local_commands
     assert "Local file presence, row counts, staged files, and rejected-row reports are inspection cues, not proof" in public_demo
     assert "mapped-peer valuation inputs" in public_demo
     assert "Missing data is not a product failure here" in public_demo

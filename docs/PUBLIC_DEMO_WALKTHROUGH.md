@@ -67,15 +67,13 @@ make stock-report-md TICKER=MU
 make stock-report-md TICKER=QQQ
 make project-status-check
 make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted
-make data-coverage-proof-queues TOP_N=10  # open source-proof queues only when project-status-check shows executable proof candidates
-make trusted-data-pilot-candidates TOP_N=10  # only when project-status-check shows executable company candidates
-make trusted-data-pilot-packet TICKER=MU
-make trusted-data-pilot-packet TICKER=CRDO
 ```
 
 The dashboard defaults to Public visitor mode. Keep visitors on the five-page path first; switch Public visitor mode off only for Operator context, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
 
 Provider setup is an operator-side follow-up, not a demo prerequisite. If `make project-status-check` says source-proof queues are exhausted, run `make provider-setup-checklist` to see which free/public sources are usable now and which optional keyed providers need local keys. Setup alone does not unlock coverage; readiness still requires source proof, validation, preview, rejected-row review, apply/skip decision, rebuilt readiness, and proof history.
+
+Do not open broad proof queues from the public walkthrough. Use the operator guide only after project-status-check shows executable source-backed candidates, new provider data, reviewed manual rows, or changed blockers. Until then, the right public answer is that the product shows the blocked lane and the source boundary instead of inventing a missing input.
 
 ## What To Say About Data Gaps
 
