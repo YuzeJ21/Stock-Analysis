@@ -1,4 +1,4 @@
-.PHONY: help help-full demo linkedin-share-check public-ux-review-checklist browser-qa-evidence browser-qa-capture-plan hosted-demo-readiness pilot-readiness-check pilot-readiness-packet pilot-share-brief trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight auto-refresh-plan auto-refresh-daily auto-refresh-weekly auto-refresh-optional auto-refresh-runbook auto-refresh-status auto-apply-gate lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff license-status session-source-preflight source-activation-guide provider-setup-checklist provider-smoke fmp-smoke alpha-vantage-smoke finnhub-smoke universe-scope fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage sec-filing-share-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check risk-context action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-preview-summary universe-stage universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo linkedin-share-check public-ux-review-checklist browser-qa-evidence browser-qa-capture-plan hosted-demo-readiness pilot-readiness-check pilot-readiness-packet pilot-share-brief trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight auto-refresh-plan auto-refresh-daily auto-refresh-weekly auto-refresh-optional auto-refresh-runbook auto-refresh-status auto-apply-gate lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff license-status session-source-preflight source-activation-guide provider-setup-checklist provider-smoke fmp-smoke alpha-vantage-smoke finnhub-smoke universe-scope fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage sec-filing-share-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check risk-context action-queue action-queue-check project-status project-status-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-preview-summary universe-stage universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -200,6 +200,7 @@ help-full:
 	@echo "  make research-health-check [TICKERS=NVDA,MSFT] [TOP_N=10] Print the current read-only research health summary"
 	@echo "  make risk-context     Print read-only liquidity, correlation, and proxy-risk readiness cards"
 	@echo "  make research-health  Generate data quality, liquidity, and correlation outputs"
+	@echo "  make project-status-check Print project status without writing dashboard snapshot files"
 	@echo "  make project-status   Write the dashboard-ready project status summary"
 	@echo "  make action-queue-check [TICKERS=NVDA,MSFT] [TOP_N=10] Print the current read-only action queue summary"
 	@echo "  make action-queue     Generate prioritized data/research actions"
@@ -336,12 +337,12 @@ demo:
 	@echo "   Proves: the Streamlit app can boot and answer its local health check."
 	@echo ""
 	@echo "5. Optional: see the safe coverage-improvement path:"
-	@echo "   make project-status"
-	@echo "   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted"
+	@echo "   make project-status-check"
+	@echo "   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted"
 	@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"
 	@echo "   make risk-context"
 	@echo "   make data-coverage-proof-queues TOP_N=10"
-	@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"
+	@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status-check shows executable company candidates"
 	@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"
 	@echo "   make trusted-data-pilot-packet TICKER=CRDO"
 	@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"
@@ -402,8 +403,8 @@ trusted-data-pilot:
 	@echo "Suggested company pilot: $(if $(TICKERS),$(TICKERS),NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META)"
 	@echo "ETF/index examples such as QQQ and SMH are monitor-context demos, not operating-company DCF targets."
 	@echo "Ticker-scoped example: make trusted-data-pilot TICKERS=NVDA,AVGO,AMD,MU,CRDO TOP_N=10"
-	@echo "Status gate: make project-status before choosing candidate tickers"
-	@echo "Candidate list: make trusted-data-pilot-candidates TOP_N=10 only when project-status shows executable company candidates"
+	@echo "Status gate: make project-status-check before choosing candidate tickers"
+	@echo "Candidate list: make trusted-data-pilot-candidates TOP_N=10 only when project-status-check shows executable company candidates"
 	@echo "Company-by-company loop: open one report, choose the matching lane, then validate trusted rows before reading any new valuation."
 	@echo "Starter loop example: make stock-report-md TICKER=CRDO -> make trusted-data-pilot-packet TICKER=CRDO -> run the packet's lane-specific review command"
 	@echo "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence."
@@ -414,8 +415,8 @@ trusted-data-pilot:
 	@echo "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview gate, apply boundary, rejected-row check, rebuild proof, and still-blocked evidence row."
 	@echo "One-company packet example:"
 	@echo "   make readiness-snapshot"
-	@echo "   make project-status"
-	@echo "   make trusted-data-pilot-candidates TOP_N=10  # only when project-status shows executable company candidates"
+	@echo "   make project-status-check"
+	@echo "   make trusted-data-pilot-candidates TOP_N=10  # only when project-status-check shows executable company candidates"
 	@echo "   make trusted-data-pilot-packet TICKER=<ticker>"
 	@echo "   make stock-report-md TICKER=<ticker>"
 	@echo "   Run the lane-specific review command printed by the packet:"
@@ -720,6 +721,9 @@ action-queue-check:
 
 project-status:
 	python3 -m src.project_status --write-output
+
+project-status-check:
+	python3 -m src.project_status --check --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),)
 
 license-status:
 	@python3 -m src.license_status --root .

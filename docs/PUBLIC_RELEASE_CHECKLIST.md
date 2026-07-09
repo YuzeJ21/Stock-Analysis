@@ -18,7 +18,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Proof History evidence is the public proof-inspection surface. The `Proof History` page should land there rather than shortcutting visitors into a generic Data Health table.
 - Operator context should stay collapsed by default and be framed as secondary evidence, not the primary visitor workflow.
 - Confirm visitors are not told to manually refresh the full universe every day; the public workflow should explain lane-specific freshness and generated-data hygiene instead.
-- Keep `make trusted-data-pilot-candidates TOP_N=10` visible only after `make project-status` shows executable company candidates for ranking current company blockers before improving 5-10 trusted companies without broad generated data churn. If project-status says current source-proof queues are exhausted, start with `make provider-setup-checklist` instead, then run only the listed reviewed one-ticker smoke command before any broader batch.
+- Keep `make trusted-data-pilot-candidates TOP_N=10` visible only after `make project-status-check` shows executable company candidates for ranking current company blockers before improving 5-10 trusted companies without broad generated data churn. If project-status-check says current source-proof queues are exhausted, start with `make provider-setup-checklist` instead, then run only the listed reviewed one-ticker smoke command before any broader batch.
 - Keep `make readiness-ops-center`, `make coverage-frontier TOP_N=10`, and `make reviewed-batch LANE=prices TOP_N=10` visible as the batch-planning path after the visitor understands the trusted-data pilot. These commands should remain copy-only planning/proof workflows, not automatic refresh/apply steps.
 - Run `make pilot-readiness-check TOP_N=10` before calling a public/demo pilot ready. It should show GitHub sync, generated-artifact hygiene, readiness freshness, source-proof gates, proof-ledger status, Browser QA screenshot evidence, public-check boundary, and research-only guardrails before the operator chooses a lane.
 - Use `make pilot-share-brief` when you want the concise public/demo handoff at `outputs/pilot_share_brief.md`. It does not refresh data or unlock blocked inputs.
@@ -137,7 +137,7 @@ make linkedin-share-check
 make browser-qa-capture-plan
 make public-release-handoff
 make status-check TOP_N=5
-make project-status
+make project-status-check
 make provider-setup-checklist
 make demo
 make trusted-data-pilot-candidates TOP_N=10

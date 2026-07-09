@@ -24,5 +24,6 @@ def test_public_ux_review_checklist_keeps_operator_details_and_data_claims_out()
     assert "Confirm screenshots remain product evidence only and do not claim data freshness." in rendered
     assert "blocked, candidate-only, skipped, or excluded lane appears as analysis-ready" in rendered
     assert "broker trading, order routing, auto-trading, direct buy/sell instructions, or investment advice" in rendered
+    assert "make project-status-check" in rendered
     assert "make public-check" in rendered
     assert "make diff-hygiene-summary" in rendered

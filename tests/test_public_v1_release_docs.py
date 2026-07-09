@@ -90,7 +90,8 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     assert "Share as controlled portfolio/demo evidence under the root `LICENSE`" in readme
     assert "do not describe the repository as open source or reusable software" in readme
     assert "Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence." in readme
-    assert "`make project-status` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command" in readme
+    assert "`make project-status-check` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command" in readme
+    assert "Use `make project-status` only when you intentionally want to refresh the dashboard-ready status snapshot." in readme
     assert "No broad coverage batch should run from setup alone." in readme
     assert "no public Streamlit URL is configured in this repository" in readme
     assert "`make linkedin-share-check` for the final LinkedIn Featured-card checklist" in readme
@@ -323,6 +324,7 @@ def test_dashboard_qa_tracks_v1_replacement_browser_checks():
     assert "`make browser-qa-evidence` is the deterministic share gate" in qa
     assert "`make public-check` is the current end-to-end public gate" in qa
     assert "`make public-ux-review-checklist` is the copy-only normal-browser checklist" in qa
+    assert "`make project-status-check` is the no-write status read for review loops" in qa
     assert "dashboard smoke, browser QA evidence" in qa
     assert "normal-browser desktop/mobile pass" in qa
     assert "Treat in-app browser capture timeouts as environment-limited" in qa

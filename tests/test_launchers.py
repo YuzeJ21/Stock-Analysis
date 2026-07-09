@@ -114,6 +114,7 @@ def test_makefile_contains_convenience_targets():
         "action-queue-check",
         "action-queue",
         "project-status",
+        "project-status-check",
         "verify",
         "validate-all",
         "daily",
@@ -218,6 +219,8 @@ def test_makefile_help_documents_key_workflows():
         "Print the final LinkedIn Featured-card checklist",
         "make public-ux-review-checklist",
         "Print the read-only five-page desktop/mobile UX review checklist",
+        "make project-status-check",
+        "Print project status without writing dashboard snapshot files",
         "make readiness-ops-center",
         "Print the broad lane-level readiness operations center",
         "make coverage-frontier",
@@ -831,11 +834,11 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert local_commands.index("make dashboard") < local_commands.index("make status-check TOP_N=5")
     assert local_commands.index("make dashboard") < local_commands.index("make stock-report-md TICKER=NVDA")
     assert "Optional read-only proof after the app flow is clear" in local_commands
-    assert "make project-status" in public_demo
+    assert "make project-status-check" in public_demo
     assert "make data-coverage-proof-queues TOP_N=10" in public_demo
     assert "make trusted-data-pilot-candidates TOP_N=10" in public_demo
     public_demo_commands = public_demo.split("## Local Commands", 1)[1].split("The dashboard defaults", 1)[0]
-    assert public_demo_commands.index("make project-status") < public_demo_commands.index(
+    assert public_demo_commands.index("make project-status-check") < public_demo_commands.index(
         "make provider-setup-checklist"
     )
     assert public_demo_commands.index("make provider-setup-checklist") < public_demo_commands.index(
@@ -844,11 +847,11 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert public_demo_commands.index("make data-coverage-proof-queues TOP_N=10") < public_demo_commands.index(
         "make trusted-data-pilot-candidates TOP_N=10"
     )
-    assert "only when project-status shows executable company candidates" in public_demo_commands
-    assert "use when project-status says source-proof queues are exhausted" in public_demo_commands
-    assert "open source-proof queues only when project-status shows executable proof candidates" in public_demo
+    assert "only when project-status-check shows executable company candidates" in public_demo_commands
+    assert "use when project-status-check says source-proof queues are exhausted" in public_demo_commands
+    assert "open source-proof queues only when project-status-check shows executable proof candidates" in public_demo
     assert "make project-status && make data-coverage-proof-queues TOP_N=10" not in readme
-    assert "make project-status && make provider-setup-checklist" in readme
+    assert "make project-status-check && make provider-setup-checklist" in readme
     assert "make trusted-data-pilot-packet TICKER=MU" in public_demo
     assert "make trusted-data-pilot-packet TICKER=CRDO" in public_demo
     assert "Local file presence, row counts, staged files, and rejected-row reports are inspection cues, not proof" in public_demo
@@ -867,7 +870,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     main_path = readme.split("## Try This Visitor Workflow", 1)[1].split("Optional local proof checks:", 1)[0]
     proof_checks = readme.split("Optional local proof checks:", 1)[1].split("The shortest public walkthrough", 1)[0]
     assert "make trusted-data-pilot-candidates TOP_N=10" not in main_path
-    assert proof_checks.index("make project-status") < proof_checks.index("make trusted-data-pilot-candidates TOP_N=10")
+    assert proof_checks.index("make project-status-check") < proof_checks.index("make trusted-data-pilot-candidates TOP_N=10")
     assert proof_checks.index("make trusted-data-pilot-candidates TOP_N=10") < proof_checks.index("make trusted-data-pilot-packet TICKER=MU")
     assert proof_checks.index("make trusted-data-pilot-packet TICKER=MU") < proof_checks.index("make trusted-data-pilot-packet TICKER=CRDO")
     assert "## Local Data Hygiene" in readme
@@ -1485,15 +1488,15 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1" in checklist
     assert "make provider-setup-checklist" in checklist
     checklist_commands = checklist.split("make public-release-handoff", 1)[1].split("make stock-report-md TICKER=NVDA", 1)[0]
-    assert checklist_commands.index("make project-status") < checklist_commands.index("make provider-setup-checklist")
+    assert checklist_commands.index("make project-status-check") < checklist_commands.index("make provider-setup-checklist")
     assert checklist_commands.index("make provider-setup-checklist") < checklist_commands.index(
         "make trusted-data-pilot-candidates TOP_N=10"
     )
     assert "default candidate output stays compact for visitors" in checklist
     assert "make trusted-data-pilot-packet TICKER=CRDO" in checklist
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" in checklist
-    assert "only after `make project-status` shows executable company candidates" in checklist
-    assert "If project-status says current source-proof queues are exhausted" in checklist
+    assert "only after `make project-status-check` shows executable company candidates" in checklist
+    assert "If project-status-check says current source-proof queues are exhausted" in checklist
     assert "start with `make provider-setup-checklist` instead" in checklist
     assert "choose 5-10 operating companies only when source proof exists" in checklist
     assert "file presence, row counts, staged-folder counts, or rejected-row report existence are not proof" in checklist
@@ -1777,7 +1780,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "`Stock Selector`, `Single-Stock Report`, `Data Health`, and `Proof History`",
         "detailed pages remain available under `Optional research views`",
         "Automation Boundary table separates repeatable checks from human-reviewed source judgment",
-        "demo walkthrough points visitors to `make project-status` first",
+        "demo walkthrough points visitors to `make project-status-check` first",
         "`make provider-setup-checklist` when source-proof queues are exhausted",
         "candidate list available only when executable company candidates exist",
         "Portfolio Review: confirmed the page renders plain-language capability and limit cards",
@@ -2062,8 +2065,8 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Missing trusted rows are a product signal." in data_strategy
     assert "Do not try to turn the full universe into analysis-ready rows at once" in data_strategy
     assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
-    assert "run `make project-status` first" in data_strategy
-    assert "Only run `make trusted-data-pilot-candidates TOP_N=10` when project-status shows executable company candidates" in data_strategy
+    assert "run `make project-status-check` first" in data_strategy
+    assert "Only run `make trusted-data-pilot-candidates TOP_N=10` when project-status-check shows executable company candidates" in data_strategy
     assert "run `make provider-setup-checklist` instead" in data_strategy
     assert "make universe-scope TICKERS=NVDA,META TOP_N=10" in readme
     assert "make risk-context" in readme
@@ -2282,7 +2285,7 @@ def test_public_docs_do_not_reference_stale_github_or_internal_thread_links():
 
     linkedin_brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
     assert "https://github.com/YuzeJ21/Stock-Analysis" in linkedin_brief
-    assert "Run `make project-status` first" in linkedin_brief
+    assert "Run `make project-status-check` first" in linkedin_brief
     assert "only run `make trusted-data-pilot-candidates TOP_N=10` when it shows executable company candidates" in linkedin_brief
     assert "use `make provider-setup-checklist` instead" in linkedin_brief
 
@@ -2407,8 +2410,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "ETF/index examples such as QQQ and SMH are monitor-context demos, not operating-company DCF targets." in makefile
     assert "Ticker-scoped example: make trusted-data-pilot TICKERS=NVDA,AVGO,AMD,MU,CRDO TOP_N=10" in makefile
     assert "Candidate list: make trusted-data-pilot-candidates TOP_N=10" in makefile
-    assert "Status gate: make project-status before choosing candidate tickers" in makefile
-    assert "Candidate list: make trusted-data-pilot-candidates TOP_N=10 only when project-status shows executable company candidates" in makefile
+    assert "Status gate: make project-status-check before choosing candidate tickers" in makefile
+    assert "Candidate list: make trusted-data-pilot-candidates TOP_N=10 only when project-status-check shows executable company candidates" in makefile
     assert "Company-by-company loop: open one report, choose the matching lane, then validate trusted rows before reading any new valuation." in makefile
     assert "Starter loop example: make stock-report-md TICKER=CRDO -> make trusted-data-pilot-packet TICKER=CRDO -> run the packet's lane-specific review command" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
@@ -2421,7 +2424,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "One-company packet example:" in makefile
     assert "make trusted-data-pilot-candidates TOP_N=10" in makefile
     trusted_pilot_target = makefile.split("trusted-data-pilot:", 1)[1].split("trusted-data-pilot-candidates:", 1)[0]
-    assert trusted_pilot_target.index("make project-status") < trusted_pilot_target.index(
+    assert trusted_pilot_target.index("make project-status-check") < trusted_pilot_target.index(
         "make trusted-data-pilot-candidates TOP_N=10"
     )
     assert "make trusted-data-pilot-packet TICKER=<ticker>" in makefile
@@ -2491,28 +2494,28 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"4. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
-    assert "@echo \"   make project-status\"" in makefile
-    assert "@echo \"   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted\"" in makefile
+    assert "@echo \"   make project-status-check\"" in makefile
+    assert "@echo \"   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted\"" in makefile
     assert "@echo \"   make universe-scope TICKERS=NVDA,META TOP_N=10\"" in makefile
     assert "@echo \"   make risk-context\"" in makefile
     assert "@echo \"   make data-coverage-proof-queues TOP_N=10\"" in makefile
-    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates\"" in makefile
+    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10  # only if project-status-check shows executable company candidates\"" in makefile
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail\"" in makefile
     assert "@echo \"   make trusted-data-pilot-packet TICKER=CRDO\"" in makefile
     assert "@echo \"   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10\"" in makefile
     assert "@echo \"   Proves: coverage improves through source proof, validation, rejected-row review, rebuild proof, and still-blocked evidence, not fake rows.\"" in makefile
     demo_block = makefile.split("\ndemo:\n", 1)[1].split("\nbrowser-qa-evidence:", 1)[0]
     assert '@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"' in demo_block
-    assert '@echo "   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted"' in demo_block
+    assert '@echo "   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted"' in demo_block
     assert '@echo "   make risk-context"' in demo_block
-    assert demo_block.index('@echo "   make project-status"') < demo_block.index('@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"')
-    assert demo_block.index('@echo "   make project-status"') < demo_block.index('@echo "   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted"')
-    assert demo_block.index('@echo "   make provider-setup-checklist  # use when project-status says source-proof queues are exhausted"') < demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"')
+    assert demo_block.index('@echo "   make project-status-check"') < demo_block.index('@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"')
+    assert demo_block.index('@echo "   make project-status-check"') < demo_block.index('@echo "   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted"')
+    assert demo_block.index('@echo "   make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted"') < demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"')
     assert demo_block.index('@echo "   make universe-scope TICKERS=NVDA,META TOP_N=10"') < demo_block.index('@echo "   make risk-context"')
     assert demo_block.index('@echo "   make risk-context"') < demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"')
-    assert demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"') < demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"')
-    assert demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"') < demo_block.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
-    assert demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status shows executable company candidates"') < demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"')
+    assert demo_block.index('@echo "   make data-coverage-proof-queues TOP_N=10"') < demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status-check shows executable company candidates"')
+    assert demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status-check shows executable company candidates"') < demo_block.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
+    assert demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10  # only if project-status-check shows executable company candidates"') < demo_block.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"')
     assert "@echo \"6. Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
     assert "@echo \"   make diff-hygiene\"" in makefile

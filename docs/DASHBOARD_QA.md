@@ -55,6 +55,9 @@ Current live-review handoff:
 - `make public-ux-review-checklist` is the copy-only normal-browser checklist
   for reviewing the five public pages at desktop and phone width before
   replacing screenshots or changing share copy.
+- `make project-status-check` is the no-write status read for review loops;
+  use `make project-status` only when intentionally refreshing the
+  dashboard-ready status snapshot files.
 - The remaining UX task is a normal-browser desktop/mobile pass for
   first-viewport spacing, unclear Data Health wording, and confusing next
   actions.
@@ -310,7 +313,7 @@ Boundary checked:
 
 Checked pages and docs:
 
-- Home: confirmed the demo walkthrough points visitors to `make project-status` first, then `make provider-setup-checklist` when source-proof queues are exhausted, before any ticker-scoped trusted-data pilot checklist.
+- Home: confirmed the demo walkthrough points visitors to `make project-status-check` first, then `make provider-setup-checklist` when source-proof queues are exhausted, before any ticker-scoped trusted-data pilot checklist.
 - Home: confirmed the next-step cards describe the status gate as read-only and keep the candidate list available only when executable company candidates exist.
 - Portfolio Review: confirmed the page renders plain-language capability and limit cards after Streamlit finishes loading, with review-only wording and no portfolio action instruction.
 - Public docs: confirmed the release checklist and LinkedIn brief explain project status first, provider setup when queues are exhausted, then the selected-company evidence loop only when executable candidates exist.

@@ -15,7 +15,7 @@ Use the table below as evidence after the visitor can already explain what is re
 | Slot | Artifact / command | What it proves |
 | --- | --- | --- |
 | Visitor workflow | `make dashboard` then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History | First-screen product path and readiness-first route sequence. |
-| Status gate | `make project-status` | Current safest proof path, provider setup boundary, and whether company candidates are executable. |
+| Status gate | `make project-status-check` | Current safest proof path, provider setup boundary, and whether company candidates are executable. |
 | Provider setup | `make provider-setup-checklist` | Source setup steps when source-proof queues are exhausted; no imports or generated data are applied. |
 | Data Health lane board | `make readiness-ops-center`, `make coverage-frontier TOP_N=10`, or dashboard `Data Health` | Lane counts, blocker themes, next safe commands, and locked/manual lanes. |
 | Ready report | `make stock-report-md TICKER=NVDA` | Ready company report with local DCF review and source-readiness boundaries. |
@@ -32,4 +32,4 @@ This proof review does not refresh data, apply imports, stage files, or unlock b
 
 ## Source-boundary pivot
 
-If `make project-status` says current source-proof queues are exhausted, use `make provider-setup-checklist` before reopening broad proof loops. Configure at most one keyed free-tier provider, run that provider's reviewed one-ticker smoke command, then use validate, preview, rejected-row review, and source-provenance checks before any apply step.
+If `make project-status-check` says current source-proof queues are exhausted, use `make provider-setup-checklist` before reopening broad proof loops. Configure at most one keyed free-tier provider, run that provider's reviewed one-ticker smoke command, then use validate, preview, rejected-row review, and source-provenance checks before any apply step.

@@ -66,6 +66,7 @@ def render_public_ux_review_checklist() -> str:
             "",
             "Next safe commands:",
             "- make dashboard",
+            "- make project-status-check",
             "- make browser-qa-evidence",
             "- make public-check",
             "- make diff-hygiene-summary",
