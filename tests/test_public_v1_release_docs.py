@@ -151,6 +151,10 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "[Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md)" in readme
 
     assert "No public hosted Streamlit URL is configured in this repository." in hosted
+    assert "config/hosted_demo.env.example" in hosted
+    assert "HOSTED_DEMO_URL" in hosted
+    assert "config/hosted_demo.env" in hosted
+    assert "A configured hosted URL is still a manual verification gate" in hosted
     assert "A hosted app is optional" in hosted
     assert "GitHub is the public link until a deployment account is intentionally configured and verified." in hosted
     assert "Keep provider keys, account identifiers, tokens, and broker/session files outside the repo." in hosted

@@ -17,6 +17,18 @@ make hosted-demo-readiness
 
 This command is read-only. It checks the root Streamlit entrypoint, runtime dependency manifest, hosted URL boundary, provider-secret boundary, and public verification commands. It does not deploy, open accounts, print secrets, refresh data, stage files, commit, or push.
 
+## Hosted URL Marker
+
+The repository includes `config/hosted_demo.env.example` as a blank handoff template for a future hosted app URL. Keep the real marker local and untracked:
+
+```bash
+cp config/hosted_demo.env.example config/hosted_demo.env
+# then set HOSTED_DEMO_URL=https://your-verified-app.example
+make hosted-demo-readiness
+```
+
+A configured hosted URL is still a manual verification gate. It tells the readiness command which public route to open, but it does not prove the app is live, public-mode-first, source-safe, or share-ready. Do not update README, LinkedIn, or portfolio copy until the hosted URL opens and the five-page public workflow passes the post-deploy smoke checklist below.
+
 ## Safe Hosting Boundary
 
 Streamlit Community Cloud or a similar Python app host can run the public dashboard if it can install the `pyproject.toml` dependencies and launch the Streamlit entrypoint used by `make dashboard`.

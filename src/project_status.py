@@ -18,6 +18,7 @@ from src.data_sources import build_data_source_payload, write_data_source_output
 from src.action_queue import write_action_queue_output
 from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.dcf_input_proof_queue import _reviewed_non_actionable_tickers as _reviewed_non_actionable_dcf_tickers
+from src.hosted_demo_readiness import HOSTED_DEMO_ENV_FILE, HOSTED_DEMO_URL_NAME, _read_simple_env_value
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
 from src.public_ux_review_checklist import public_ux_review_notes_status
@@ -520,6 +521,15 @@ def _public_ux_stage_from_status(status: dict[str, Any] | None) -> dict[str, str
     }
 
 
+def _hosted_demo_url_for_root(root: Path) -> str:
+    path = root / HOSTED_DEMO_ENV_FILE
+    try:
+        body = path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    return _read_simple_env_value(body, HOSTED_DEMO_URL_NAME)
+
+
 def _remaining_public_stage_rows(
     summary: dict[str, Any],
     *,
@@ -528,6 +538,7 @@ def _remaining_public_stage_rows(
     price_coverage_complete: bool = False,
     git_status_line: str | None = None,
     public_ux_review_status: dict[str, Any] | None = None,
+    hosted_demo_url: str | None = None,
 ) -> list[dict[str, str]]:
     """Classify the remaining public/product stages without unlocking data."""
     source_operator_summary = source_operator_summary if isinstance(source_operator_summary, dict) else {}
@@ -558,6 +569,25 @@ def _remaining_public_stage_rows(
     avoid_source_ladder = "fundamentals_share_count_source_ladder" in avoid_repeating
     linkedin_stage = _linkedin_stage_from_git_status(git_status_line)
     public_ux_stage = _public_ux_stage_from_status(public_ux_review_status)
+    hosted_demo_url = str(hosted_demo_url or "").strip()
+    hosted_stage = {
+        "State": "manual_verify_required" if hosted_demo_url else "external_account_required",
+        "Evidence": (
+            f"Hosted URL marker is configured: {hosted_demo_url}. It still needs live public-flow verification."
+            if hosted_demo_url
+            else "No public hosted Streamlit URL is configured in this repository."
+        ),
+        "Next Action": (
+            "Open the hosted public URL, verify Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History, then rerun public gates."
+            if hosted_demo_url
+            else "Deploy only after an external host/account is chosen and docs/HOSTED_DEMO_DEPLOYMENT.md is followed."
+        ),
+        "Completion Gate": (
+            "Hosted URL opens, public-check and browser QA evidence pass, and README/LinkedIn wording is updated."
+            if hosted_demo_url
+            else "Hosted URL opens, public gates pass against that route, and README/LinkedIn wording is updated."
+        ),
+    }
 
     rows: list[dict[str, str]] = [
         {
@@ -570,10 +600,10 @@ def _remaining_public_stage_rows(
         },
         {
             "Stage": "Hosted Streamlit demo",
-            "State": "external_account_required",
-            "Evidence": "No public hosted Streamlit URL is configured in this repository.",
-            "Next Action": "Deploy only after an external host/account is chosen and docs/HOSTED_DEMO_DEPLOYMENT.md is followed.",
-            "Completion Gate": "Hosted URL opens, public gates pass against that route, and README/LinkedIn wording is updated.",
+            "State": hosted_stage["State"],
+            "Evidence": hosted_stage["Evidence"],
+            "Next Action": hosted_stage["Next Action"],
+            "Completion Gate": hosted_stage["Completion Gate"],
             "Boundary": "Do not claim a hosted app exists until the URL is deployed and verified.",
         },
         {
@@ -833,6 +863,7 @@ def _fast_status_payload_from_outputs(
         price_coverage_complete=price_complete,
         git_status_line=_git_status_line(root),
         public_ux_review_status=_public_ux_review_status_for_root(root),
+        hosted_demo_url=_hosted_demo_url_for_root(root),
     )
     return {
         "project_root": str(root),
@@ -1782,6 +1813,7 @@ def build_project_status_payload(
         price_coverage_complete=_price_coverage_complete(summary),
         git_status_line=_git_status_line(root),
         public_ux_review_status=_public_ux_review_status_for_root(root),
+        hosted_demo_url=_hosted_demo_url_for_root(root),
     )
     return {
         "project_root": str(root),

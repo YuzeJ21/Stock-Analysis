@@ -33,6 +33,7 @@ ROOT_PRODUCT_FILES = {
     "Makefile",
     "requirements.txt",
     "config.yaml",
+    "config/hosted_demo.env.example",
     "config/provider_keys.env.example",
     "pyproject.toml",
     "data/reviewed_data_proofs.csv",

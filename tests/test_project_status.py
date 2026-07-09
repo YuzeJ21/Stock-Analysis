@@ -1231,6 +1231,32 @@ def test_project_status_stage_map_does_not_call_github_synced_when_branch_is_ahe
     assert "GitHub is synced" not in linkedin_row["Evidence"]
 
 
+def test_project_status_stage_map_uses_hosted_url_marker_as_manual_gate():
+    rows = project_status._remaining_public_stage_rows(
+        {
+            "tickers_total": 3541,
+            "tickers_with_prices": 3541,
+            "tickers_usable_for_momentum": 3538,
+            "tickers_fundamentals_ready": 2810,
+            "tickers_dcf_ready": 2693,
+            "tickers_peer_ready": 29,
+            "data_gaps": 207,
+            "data_sources_optional_locked": 3,
+        },
+        source_operator_summary={"needs_setup": ["fmp"]},
+        trusted_data_pilot_has_candidates=False,
+        price_coverage_complete=True,
+        git_status_line="## main...origin/main",
+        hosted_demo_url="https://example-stock-demo.streamlit.app",
+    )
+
+    hosted_row = next(row for row in rows if row["Stage"] == "Hosted Streamlit demo")
+    assert hosted_row["State"] == "manual_verify_required"
+    assert "https://example-stock-demo.streamlit.app" in hosted_row["Evidence"]
+    assert "Open the hosted public URL" in hosted_row["Next Action"]
+    assert "public-check" in hosted_row["Completion Gate"]
+
+
 def test_project_status_stage_map_separates_price_rows_from_price_ready():
     rows = project_status._remaining_public_stage_rows(
         {

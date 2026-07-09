@@ -44,6 +44,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "README.md",
         "Makefile",
         "requirements.txt",
+        "config/hosted_demo.env.example",
         "config/provider_keys.env.example",
         "docs/DIFF_HYGIENE_AUDIT.md",
         "src/dashboard.py",
@@ -58,6 +59,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
     ):
         assert module.classify_path(path) == "product_candidate"
     assert module.classify_path(".streamlit/secrets.toml") == "review_manually"
+    assert module.classify_path("config/hosted_demo.env") == "review_manually"
     assert module.classify_path("config/provider_keys.env") == "review_manually"
 
 

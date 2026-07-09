@@ -19,6 +19,9 @@ class HostedDemoCheck:
 REQUIRED_RUNTIME_PACKAGES = ("streamlit", "pandas", "numpy", "PyYAML")
 OPTIONAL_SECRET_NAMES = ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY")
 OPTIONAL_STREAMLIT_SECRET_NAMES = OPTIONAL_SECRET_NAMES + ("IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID")
+HOSTED_DEMO_ENV_FILE = "config/hosted_demo.env"
+HOSTED_DEMO_EXAMPLE_FILE = "config/hosted_demo.env.example"
+HOSTED_DEMO_URL_NAME = "HOSTED_DEMO_URL"
 
 
 def _read_text(path: Path) -> str:
@@ -36,17 +39,40 @@ def _package_present(requirements: str, package: str) -> bool:
     )
 
 
+def _read_simple_env_value(body: str, name: str) -> str:
+    prefix = f"{name}="
+    for raw_line in body.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or not line.startswith(prefix):
+            continue
+        value = line[len(prefix) :].strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        return value.strip()
+    return ""
+
+
+def _hosted_public_url(base_url: str) -> str:
+    base = base_url.rstrip("/")
+    return base if "?" in base else f"{base}/?mode=public"
+
+
 def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDemoCheck]:
     project_root = resolve_project_root(Path(root or "."))
     dashboard_path = project_root / "dashboard.py"
     requirements_path = project_root / "requirements.txt"
     hosted_doc_path = project_root / "docs" / "HOSTED_DEMO_DEPLOYMENT.md"
     secrets_template_path = project_root / ".streamlit" / "secrets.toml.example"
+    hosted_env_path = project_root / HOSTED_DEMO_ENV_FILE
+    hosted_env_example_path = project_root / HOSTED_DEMO_EXAMPLE_FILE
 
     dashboard_body = _read_text(dashboard_path)
     requirements_body = _read_text(requirements_path)
     hosted_doc_body = _read_text(hosted_doc_path)
     secrets_template_body = _read_text(secrets_template_path)
+    hosted_env_body = _read_text(hosted_env_path)
+    hosted_env_example_body = _read_text(hosted_env_example_path)
+    configured_hosted_url = _read_simple_env_value(hosted_env_body, HOSTED_DEMO_URL_NAME)
 
     entrypoint_ready = dashboard_path.exists() and "src.dashboard" in dashboard_body
     missing_packages = [
@@ -60,6 +86,22 @@ def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDe
         name for name in OPTIONAL_STREAMLIT_SECRET_NAMES if name not in secrets_template_body
     ]
     secrets_template_ready = secrets_template_path.exists() and not missing_secret_names
+    hosted_url_template_ready = (
+        hosted_env_example_path.exists() and HOSTED_DEMO_URL_NAME in hosted_env_example_body
+    )
+    hosted_url_status = "manual_verify_required" if configured_hosted_url else "external_account_required"
+    hosted_url_detail = (
+        "Configured hosted URL still needs the five-page public workflow check before public copy changes: "
+        f"{configured_hosted_url}"
+        if configured_hosted_url
+        else "No public hosted Streamlit URL is configured in this repository; local public mode is "
+        "http://localhost:8501/?mode=public."
+    )
+    hosted_url_command = (
+        f"open {_hosted_public_url(configured_hosted_url)}"
+        if configured_hosted_url
+        else "make dashboard"
+    )
 
     return [
         HostedDemoCheck(
@@ -108,13 +150,23 @@ def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDe
             boundary="Template only; never commit .streamlit/secrets.toml, real keys, tokens, account IDs, or broker sessions.",
         ),
         HostedDemoCheck(
-            name="Hosted URL",
-            status="external_account_required",
+            name="Hosted URL config template",
+            status="ready" if hosted_url_template_ready else "missing",
             detail=(
-                "No public hosted Streamlit URL is configured in this repository; local public mode is "
-                "http://localhost:8501/?mode=public."
+                f"Blank {HOSTED_DEMO_EXAMPLE_FILE} documents {HOSTED_DEMO_URL_NAME} for later deployment handoff."
+                if hosted_url_template_ready
+                else f"Add {HOSTED_DEMO_EXAMPLE_FILE} with blank {HOSTED_DEMO_URL_NAME}."
             ),
-            command="make dashboard",
+            command=f"copy {HOSTED_DEMO_EXAMPLE_FILE} to {HOSTED_DEMO_ENV_FILE} only after a hosted URL exists",
+            boundary=(
+                "Template only; a URL marker is not proof until the hosted app opens and the public workflow is verified."
+            ),
+        ),
+        HostedDemoCheck(
+            name="Hosted URL",
+            status=hosted_url_status,
+            detail=hosted_url_detail,
+            command=hosted_url_command,
             boundary="do not claim hosted availability until a public URL is opened and verified.",
         ),
         HostedDemoCheck(
@@ -167,6 +219,7 @@ def render_hosted_demo_readiness(checks: list[HostedDemoCheck]) -> str:
             "",
             "Hosted link decision ladder:",
             "- No hosted URL: use the GitHub repository link and local make dashboard workflow.",
+            "- Hosted URL configured: open the public route, verify the five-page workflow, then rerun public gates before changing README or LinkedIn copy.",
             "- Hosted URL opens: verify the five-page public workflow, then rerun make public-check and make browser-qa-evidence.",
             "- Provider keys added: run make provider-setup-checklist and one reviewed provider smoke; setup alone does not prove coverage.",
             "- Hosted route changes copy or layout: keep the GitHub link until the public path and research-only gates are rechecked.",
