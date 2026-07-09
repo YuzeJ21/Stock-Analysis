@@ -28359,6 +28359,18 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     assert "Raw proof, queues, route maps, and commands stay closed" in source
 
 
+def test_public_route_bootstrap_clears_before_any_public_page_dispatch():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    workflow_header_index = source.index("render_public_workflow_header(selected_page)")
+    early_clear_index = source.index("if bootstrap_placeholder is not None:", workflow_header_index)
+    dispatch_index = source.index('if selected_page == "Home":', workflow_header_index)
+
+    assert workflow_header_index < early_clear_index < dispatch_index
+    assert "bootstrap_placeholder.empty()" in source[early_clear_index:dispatch_index]
+    assert "bootstrap_placeholder = None" in source[early_clear_index:dispatch_index]
+
+
 def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     start_index = source.index("def render_public_route_bootstrap(")

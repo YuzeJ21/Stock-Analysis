@@ -31362,6 +31362,9 @@ def main() -> None:
     if public_demo_mode:
         render_public_workflow_skip_target()
         render_public_workflow_header(selected_page)
+        if bootstrap_placeholder is not None:
+            bootstrap_placeholder.empty()
+            bootstrap_placeholder = None
 
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
 
