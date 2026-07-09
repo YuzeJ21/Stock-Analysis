@@ -27648,14 +27648,19 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
 
 def render_single_stock_report(provider, show_source_details: bool, *, public_mode: bool = True) -> None:
     show_card_commands = not public_mode
-    render_section_header(
-        "One-Stock Review",
-        "Choose a ticker to see the current review status, what stays locked, and which proof path comes next.",
-    )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
     query_open_review = single_stock_query_open(st.query_params.get("open"))
     compact_public_open_report = public_mode and query_open_review and bool(query_ticker)
+    header_caption = (
+        f"{query_ticker} is selected. Review the selected ticker state first, then use supported sections only."
+        if compact_public_open_report
+        else "Choose a ticker to see the current review status, what stays locked, and which proof path comes next."
+    )
+    render_section_header(
+        "One-Stock Review",
+        header_caption,
+    )
     ticker_options = ["Custom"] + local_tickers if local_tickers else ["Custom"]
     default_selection_index = preferred_single_stock_default(local_tickers)
     if query_ticker and query_ticker in ticker_options:
@@ -27736,9 +27741,9 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             ticker,
             coverage,
             peer_summary,
-            report_open=bool(report_payload),
+            report_open=bool(report_payload or query_open_review),
         )
-        if not report_payload and not query_open_review:
+        if not report_payload and (compact_public_open_report or not query_open_review):
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
     if query_open_review and not report_payload:

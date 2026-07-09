@@ -28486,10 +28486,15 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")
 
-    section_index = source.index('"One-Stock Review"', render_index)
-    provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", section_index)
+    provider_ticker_load_index = source.index("local_tickers = provider.list_local_tickers()", render_index)
+    query_ticker_index = source.index('query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)', provider_ticker_load_index)
+    section_index = source.index('"One-Stock Review"', query_ticker_index)
+    direct_route_header_index = source.index('f"{query_ticker} is selected. Review the selected ticker state first', query_ticker_index)
     contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
-    query_open_pre_report_guard_index = source.index("if not report_payload and not query_open_review:", provider_ticker_load_index)
+    query_open_pre_report_guard_index = source.index(
+        "if not report_payload and (compact_public_open_report or not query_open_review):",
+        provider_ticker_load_index,
+    )
     preparing_note_index = source.index('"Preparing selected report."', query_open_pre_report_guard_index)
     preparing_boundary_index = source.index("without refreshing prices, importing files, or contacting external accounts", preparing_note_index)
     open_selected_report_index = source.index("open_selected_report()", preparing_note_index)
@@ -28505,8 +28510,10 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     assert "pre_report_cards[:3]" not in single_stock_chunk
     assert (
             render_index
-            < section_index
         < provider_ticker_load_index
+        < query_ticker_index
+        < direct_route_header_index
+        < section_index
         < query_open_pre_report_guard_index
         < contract_cards_index
         < preparing_note_index
