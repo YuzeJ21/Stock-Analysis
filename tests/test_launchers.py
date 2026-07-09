@@ -2029,7 +2029,7 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "trend and risk context" in dashboard
     assert "Analysis mode guide." in dashboard
     assert "At A Glance" in dashboard
-    assert "stock_report_at_a_glance_cards(report_payload" in dashboard
+    assert "stock_report_at_a_glance_cards(" in dashboard
     assert "stock_report_mode_guide_cards(report_payload)" in dashboard
     assert "Project calculations in src/indicators.py and src/momentum_engine.py." in dashboard
     assert "Project calculations in src/report_generator.py and dashboard helpers." not in dashboard

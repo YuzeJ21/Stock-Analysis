@@ -2827,8 +2827,8 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
 def test_loaded_single_stock_detail_tables_are_collapsed_after_workflow_fit():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    readable_now_index = source.index('render_section_header(\n        "What Can Be Read Now"')
-    workflow_fit_index = source.index("stock_report_workflow_fit_cards(report_payload", readable_now_index)
+    readable_now_index = source.index('"What Can Be Read Now"')
+    workflow_fit_index = source.index("stock_report_workflow_fit_cards(", readable_now_index)
     advanced_detail_index = source.index(
         'st.expander("Advanced: detailed report sections", expanded=False)',
         workflow_fit_index,
@@ -16831,6 +16831,7 @@ def test_single_stock_page_keeps_full_intro_collapsed_and_uses_open_state():
     review_open_note_index = source.index('"Review is open."', auto_open_index)
     preview_note_index = source.index('"What happens next."', review_open_note_index)
     build_button_index = source.index('st.button("Open Review"', preview_note_index)
+    readable_now_index = source.index('"What Can Be Read Now"', review_open_note_index)
     evidence_index = source.index('st.expander("Ticker Readiness Evidence", expanded=False)', build_button_index)
     loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
     state_expander_index = source.index('st.expander("Advanced: example report states", expanded=False)')
@@ -16842,6 +16843,7 @@ def test_single_stock_page_keeps_full_intro_collapsed_and_uses_open_state():
 
     assert provider_ticker_load_index < contract_cards_index < auto_open_index < opening_note_index
     assert auto_open_index < review_open_note_index < preview_note_index < build_button_index < evidence_index < loop_index < state_expander_index
+    assert review_open_note_index < readable_now_index < evidence_index
     assert state_expander_index < summary_index < note_index < demo_index < expander_index < full_intro_index
     assert 'st.expander("Advanced: example report states", expanded=False)' in source
     assert 'st.expander("Advanced: how single-stock reports work", expanded=False)' in source
@@ -16893,9 +16895,9 @@ def test_single_stock_public_page_uses_product_language_not_engineering_terms():
 def test_single_stock_page_collapses_secondary_interpretation_before_detailed_review():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    report_header_index = source.index('"What Can Be Read Now",\n        "Start here: what is supported')
+    report_header_index = source.index('"What Can Be Read Now"')
     at_glance_index = source.index("stock_report_at_a_glance_cards(", report_header_index)
-    workflow_fit_cards_index = source.index("stock_report_workflow_fit_cards(report_payload", at_glance_index)
+    workflow_fit_cards_index = source.index("stock_report_workflow_fit_cards(", at_glance_index)
     workflow_fit_hidden_commands_index = source.index("show_commands=False", workflow_fit_cards_index)
     summary_cards_index = source.index("stock_report_summary_cards(report_payload)")
     evaluation_cards_index = source.index("stock_report_evaluation_summary_cards(report_payload)")

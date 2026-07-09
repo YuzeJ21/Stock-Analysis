@@ -27743,6 +27743,62 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
         )
         open_review_clicked = st.button("Open Review", key="single-stock-report-button")
+    if report_payload:
+        readiness = report_payload.get("valuation_readiness", {})
+        render_section_header(
+            f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
+            "A readable view of local research inputs. This is context only, not execution guidance.",
+        )
+        render_section_header(
+            "What Can Be Read Now",
+            "Start here: what is supported, what is withheld, and what to read next.",
+        )
+        report_readiness = _stock_report_payload_readiness(report_payload)
+        report_valuation = report_payload.get("valuation_snapshot", {}) or {}
+        report_one_answer_snapshot = {
+            "ticker": report_payload.get("ticker"),
+            "status": "partial" if not report_readiness.get("peer_ready") else "ready",
+            "asset_type": stock_report_inferred_asset_type(report_payload),
+            "price_ready": bool(report_readiness.get("price_ready")),
+            "dcf_status": (
+                "excluded"
+                if stock_report_inferred_asset_type(report_payload) in {"etf", "index_proxy", "fund"}
+                else "ready"
+                if report_readiness.get("dcf_ready")
+                else "blocked"
+            ),
+            "dcf_reason": report_valuation.get("reason") or report_valuation.get("status"),
+            "peer_ready": bool(report_readiness.get("peer_ready")),
+            "earnings_ready": bool(report_readiness.get("earnings_available") or report_readiness.get("earnings_ready")),
+            "analyst_estimates_ready": bool(
+                report_readiness.get("analyst_estimates_available") or report_readiness.get("analyst_estimates_ready")
+            ),
+        }
+        single_answer_frame = single_stock_one_answer_frame(report_one_answer_snapshot)
+        report_answer_frame = stock_report_first_answer_frame(report_payload)
+        if public_mode:
+            render_signal_cards(single_stock_public_answer_cards(single_answer_frame), show_commands=False, variant="queue")
+            render_signal_cards(stock_report_public_answer_cards(report_answer_frame), show_commands=False, variant="queue")
+            with st.expander("Advanced: answer tables", expanded=False):
+                st.dataframe(clean_display_frame(single_answer_frame), width="stretch", hide_index=True)
+                st.dataframe(clean_display_frame(report_answer_frame), width="stretch", hide_index=True)
+        else:
+            st.table(clean_display_frame(single_answer_frame))
+            st.table(clean_display_frame(report_answer_frame))
+        at_a_glance_cards = stock_report_at_a_glance_cards(
+            report_payload,
+            coverage if provider is not None and ticker else None,
+            peer_summary if provider is not None and ticker else None,
+        )
+        render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
+        render_signal_cards(
+            stock_report_workflow_fit_cards(
+                report_payload,
+                coverage if provider is not None and ticker else None,
+                peer_summary if provider is not None and ticker else None,
+            ),
+            show_commands=False,
+        )
     if provider is not None and ticker:
         with st.expander("Ticker Readiness Evidence", expanded=False):
             render_context_note(
@@ -27779,53 +27835,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     if st.session_state.get("single_stock_report_provider") == "yfinance":
         st.info("Using yfinance as an unofficial / research-grade source. Review source readiness notes carefully.")
 
-    readiness = report_payload.get("valuation_readiness", {})
-    render_section_header(
-        f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
-        "A readable view of local research inputs. This is context only, not execution guidance.",
-    )
-    render_section_header(
-        "What Can Be Read Now",
-        "Start here: what is supported, what is withheld, and what to read next.",
-    )
-    report_readiness = _stock_report_payload_readiness(report_payload)
-    report_valuation = report_payload.get("valuation_snapshot", {}) or {}
-    report_one_answer_snapshot = {
-        "ticker": report_payload.get("ticker"),
-        "status": "partial" if not report_readiness.get("peer_ready") else "ready",
-        "asset_type": stock_report_inferred_asset_type(report_payload),
-        "price_ready": bool(report_readiness.get("price_ready")),
-        "dcf_status": (
-            "excluded"
-            if stock_report_inferred_asset_type(report_payload) in {"etf", "index_proxy", "fund"}
-            else "ready"
-            if report_readiness.get("dcf_ready")
-            else "blocked"
-        ),
-        "dcf_reason": report_valuation.get("reason") or report_valuation.get("status"),
-        "peer_ready": bool(report_readiness.get("peer_ready")),
-        "earnings_ready": bool(report_readiness.get("earnings_available") or report_readiness.get("earnings_ready")),
-        "analyst_estimates_ready": bool(
-            report_readiness.get("analyst_estimates_available") or report_readiness.get("analyst_estimates_ready")
-        ),
-    }
-    single_answer_frame = single_stock_one_answer_frame(report_one_answer_snapshot)
-    report_answer_frame = stock_report_first_answer_frame(report_payload)
-    if public_mode:
-        render_signal_cards(single_stock_public_answer_cards(single_answer_frame), show_commands=False, variant="queue")
-        render_signal_cards(stock_report_public_answer_cards(report_answer_frame), show_commands=False, variant="queue")
-        with st.expander("Advanced: answer tables", expanded=False):
-            st.dataframe(clean_display_frame(single_answer_frame), width="stretch", hide_index=True)
-            st.dataframe(clean_display_frame(report_answer_frame), width="stretch", hide_index=True)
-    else:
-        st.table(clean_display_frame(single_answer_frame))
-        st.table(clean_display_frame(report_answer_frame))
-    at_a_glance_cards = stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None)
-    render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
-    render_signal_cards(
-        stock_report_workflow_fit_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None),
-        show_commands=False,
-    )
     with st.expander("Advanced quick-read context", expanded=False):
         render_context_note(
             "Extra context.",
