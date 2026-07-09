@@ -79,6 +79,16 @@ def test_public_workflow_steps_answer_one_question_and_next_action_per_page():
         assert step["next_action"]
         assert step["stop_rule"]
 
+    data_health_step = nav.public_workflow_step("Data Health")
+    assert data_health_step["next_action"] == (
+        "Read why the lane is blocked, then open Proof History before trusting a change."
+    )
+    proof_step = nav.public_workflow_step("Proof History")
+    assert proof_step["short_answer"] == "Review evidence only; proof records do not refresh or unlock data."
+    assert proof_step["next_action"] == (
+        "Check the latest proof record, then return to Stock Selector or the ticker report."
+    )
+
     assert nav.public_workflow_step("Universe Manager") == nav.public_workflow_step("Home")
 
 

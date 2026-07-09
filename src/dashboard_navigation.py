@@ -66,15 +66,15 @@ PUBLIC_WORKFLOW_STEPS = {
         "question": "Why is something blocked and how do I fix it?",
         "short_answer": "Check one lane answer before opening proof, queues, or advanced details.",
         "next_page": PROOF_HISTORY_PATH_TITLE,
-        "next_action": "Read the lane answer, then inspect proof only when evidence changed.",
+        "next_action": "Read why the lane is blocked, then open Proof History before trusting a change.",
         "stop_rule": "Research-only: not advice; stop before changing local data or trusting trade instruction.",
     },
     PROOF_HISTORY_PATH_TITLE: {
         "page": PROOF_HISTORY_PATH_TITLE,
         "question": "What evidence changed a readiness state?",
-        "short_answer": "Review evidence only; this page does not refresh or unlock data.",
+        "short_answer": "Review evidence only; proof records do not refresh or unlock data.",
         "next_page": "Home",
-        "next_action": "Verify the latest outcome, then return to the product path.",
+        "next_action": "Check the latest proof record, then return to Stock Selector or the ticker report.",
         "stop_rule": "Research-only: not advice; stop if evidence is missing, stale, or a trade instruction.",
     },
 }
