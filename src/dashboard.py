@@ -27741,6 +27741,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "One-Stock Review",
         header_caption,
     )
+    if public_mode:
+        render_action_cards(public_page_readiness_preview_cards("Single-Stock Report"))
     ticker_options = ["Custom"] + local_tickers if local_tickers else ["Custom"]
     default_selection_index = preferred_single_stock_default(local_tickers)
     if query_ticker and query_ticker in ticker_options:

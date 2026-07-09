@@ -28502,6 +28502,18 @@ def test_stock_selector_and_data_health_keep_usable_blocked_cards_after_load():
     assert health_clear_index < health_cards_index < health_coverage_index
 
 
+def test_single_stock_keeps_usable_blocked_cards_before_report_load():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_single_stock_report(")
+    header_index = source.index('"One-Stock Review"', render_index)
+    cards_index = source.index('public_page_readiness_preview_cards("Single-Stock Report")', header_index)
+    ticker_options_index = source.index('ticker_options = ["Custom"] + local_tickers', cards_index)
+    open_selected_index = source.index("def open_selected_report()", ticker_options_index)
+
+    assert header_index < cards_index < ticker_options_index < open_selected_index
+
+
 def test_public_subpages_do_not_insert_home_loop_before_page_content():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     subpage_functions = [
