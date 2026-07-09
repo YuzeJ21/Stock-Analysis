@@ -25,19 +25,7 @@ help:
 	@echo "For the full local command catalog, run: make help-full"
 
 next-stage:
-	@echo "Stock Research Command Center next-stage ladder"
-	@echo "Read-only: this target prints the current next-stage decision ladder only. It does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets."
-	@echo ""
-	@echo "1. Current truth: make project-status-check"
-	@echo "   Use this before reopening any proof queue or quoting coverage."
-	@echo "2. Public share gate: make public-check"
-	@echo "   Use this before sharing the GitHub link or LinkedIn Featured card."
-	@echo "3. Hosted app gate: make hosted-demo-readiness"
-	@echo "   Hosted demo remains external_account_required until a public URL opens and the five-page public workflow is verified."
-	@echo "4. Provider key gate: make provider-setup-checklist"
-	@echo "   FMP, Alpha Vantage, and Finnhub stay external_key_required until keys are configured outside the repo and one reviewed ticker smoke passes."
-	@echo "5. Stop rule: Do not run broad proof queues unless project-status-check shows executable source-backed candidates."
-	@echo "6. Artifact rule: Generated churn stays excluded unless one exact artifact is reviewed evidence."
+	@python3 -m src.next_stage
 
 help-full:
 	@echo "Stock Research Command Center convenience commands"

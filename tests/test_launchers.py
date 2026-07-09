@@ -189,13 +189,7 @@ def test_makefile_help_documents_key_workflows():
         "help-full:",
         "For the full local command catalog, run: make help-full",
         "next-stage:",
-        "Stock Research Command Center next-stage ladder",
-        "Read-only: this target prints the current next-stage decision ladder only.",
-        "Current truth: make project-status-check",
-        "Public share gate: make public-check",
-        "Hosted app gate: make hosted-demo-readiness",
-        "Provider key gate: make provider-setup-checklist",
-        "Stop rule: Do not run broad proof queues unless project-status-check shows executable source-backed candidates.",
+        "python3 -m src.next_stage",
         "Stock Research Command Center convenience commands",
         "First-time path:",
         "Print the clean visitor walkthrough",
@@ -458,6 +452,11 @@ def test_make_next_stage_prints_current_stage_ladder_without_running_broad_work(
 
     assert "Stock Research Command Center next-stage ladder" in output
     assert "Read-only: this target prints the current next-stage decision ladder only." in output
+    assert "Current package answer:" in output
+    assert "Next executable repo-side item:" in output
+    assert "Hosted demo status:" in output
+    assert "Provider key status:" in output
+    assert "Source-proof queue status:" in output
     assert "Current truth: make project-status-check" in output
     assert "Public share gate: make public-check" in output
     assert "Hosted app gate: make hosted-demo-readiness" in output
