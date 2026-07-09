@@ -22206,8 +22206,9 @@ def project_status_remaining_stage_cards(payload: dict[str, Any] | None, limit: 
     if not isinstance(rows, list):
         return []
 
+    displayed_rows = rows[:limit]
     cards: list[dict[str, object]] = []
-    for row in rows[:limit]:
+    for row in displayed_rows:
         if not isinstance(row, dict):
             continue
         stage = format_missing(row.get("Stage"), "Pilot stage")
@@ -22230,6 +22231,21 @@ def project_status_remaining_stage_cards(payload: dict[str, Any] | None, limit: 
                 "body": " ".join(body_parts) or "Pilot stage status is recorded in the local project-status snapshot.",
                 "badges": [state, "pilot stage"],
                 "command": next_action_command or "make project-status",
+            }
+        )
+    remaining_rows = [row for row in rows[limit:] if isinstance(row, dict)]
+    if remaining_rows:
+        remaining_states = sorted({format_missing(row.get("State"), "pending") for row in remaining_rows})
+        cards.append(
+            {
+                "kicker": "MORE CLASSIFIED STAGES",
+                "title": f"{len(remaining_rows)} more stages",
+                "body": (
+                    "Additional pilot items are classified in project-status and stay out of the first public view. "
+                    f"States: {', '.join(remaining_states)}."
+                ),
+                "badges": ["project-status", "advanced"],
+                "command": "make project-status-check",
             }
         )
     return cards

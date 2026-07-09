@@ -6407,6 +6407,36 @@ def test_project_status_remaining_stage_cards_surface_pilot_next_steps():
     assert cards[2]["command"] == "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke."
 
 
+def test_project_status_remaining_stage_cards_summarize_hidden_stage_count():
+    payload = {
+        "remaining_public_stage_rows": [
+            {
+                "Stage": f"Pilot stage {index}",
+                "State": "still_blocked" if index % 2 else "ready_for_manual_share",
+                "Evidence": f"Evidence {index}",
+                "Next Action": f"Next action {index}.",
+                "Boundary": f"Boundary {index}.",
+            }
+            for index in range(1, 7)
+        ]
+    }
+
+    cards = dashboard.project_status_remaining_stage_cards(payload, limit=4)
+
+    assert [card["title"] for card in cards[:4]] == [
+        "Pilot stage 1",
+        "Pilot stage 2",
+        "Pilot stage 3",
+        "Pilot stage 4",
+    ]
+    assert cards[4]["kicker"] == "MORE CLASSIFIED STAGES"
+    assert cards[4]["title"] == "2 more stages"
+    assert "still_blocked" in cards[4]["body"]
+    assert "ready_for_manual_share" in cards[4]["body"]
+    assert cards[4]["badges"] == ["project-status", "advanced"]
+    assert cards[4]["command"] == "make project-status-check"
+
+
 def test_public_home_advanced_learn_more_surfaces_next_pilot_stages():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
