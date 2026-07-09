@@ -302,6 +302,10 @@ def _escape_note_cell(value: str) -> str:
     return value.replace("|", "/").replace("\n", " ").strip()
 
 
+def _review_value_or_pending(value: str) -> str:
+    return value.strip() or "pending"
+
+
 def record_public_ux_review_note(
     *,
     page: str | None,
@@ -325,8 +329,10 @@ def record_public_ux_review_note(
 
     replacement = (
         f"| {_escape_note_cell(page)} | {_escape_note_cell(viewport)} | "
-        f"{_escape_note_cell(first_answer_visible)} | {_escape_note_cell(primary_next_action_visible)} | "
-        f"{_escape_note_cell(advanced_details_collapsed)} | {_escape_note_cell(classification)} | {_escape_note_cell(notes)} |"
+        f"{_escape_note_cell(_review_value_or_pending(first_answer_visible))} | "
+        f"{_escape_note_cell(_review_value_or_pending(primary_next_action_visible))} | "
+        f"{_escape_note_cell(_review_value_or_pending(advanced_details_collapsed))} | "
+        f"{_escape_note_cell(_review_value_or_pending(classification))} | {_escape_note_cell(notes)} |"
     )
     matched = False
     updated_lines: list[str] = []

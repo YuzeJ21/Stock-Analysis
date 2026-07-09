@@ -248,6 +248,28 @@ def test_record_public_ux_review_note_defaults_to_next_pending_row(tmp_path):
     assert status["next_pending_review"]["viewport"] == "desktop"
 
 
+def test_record_public_ux_review_note_preserves_pending_for_empty_make_values(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+
+    record_public_ux_review_note(
+        notes_path=notes_path,
+        page="Home",
+        viewport="desktop",
+        first_answer_visible="",
+        primary_next_action_visible="",
+        advanced_details_collapsed="",
+        classification="environment_limited",
+        notes="Browser unavailable; use normal browser.",
+    )
+
+    text = notes_path.read_text(encoding="utf-8")
+
+    assert (
+        "| Home | desktop | pending | pending | pending | environment_limited | "
+        "Browser unavailable; use normal browser. |"
+    ) in text
+
+
 def test_record_public_ux_review_note_rejects_unknown_page(tmp_path):
     notes_path = write_public_ux_review_notes(tmp_path)
 
@@ -335,3 +357,37 @@ def test_record_public_ux_review_note_cli_defaults_to_next_pending_row(tmp_path,
     assert f"Updated: {notes_path}" in captured.out
     assert "| Home | desktop | yes | yes | yes | resolved | CLI used next pending row. |" in text
     assert "next_pending_review: Home | phone | http://localhost:8501/?mode=public" in captured.out
+
+
+def test_record_public_ux_review_note_cli_treats_empty_make_values_as_pending(tmp_path, monkeypatch):
+    notes_path = write_public_ux_review_notes(tmp_path)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "public_ux_review_checklist",
+            "--record-note",
+            "--page",
+            "Home",
+            "--viewport",
+            "desktop",
+            "--first-answer-visible",
+            "",
+            "--primary-next-action-visible",
+            "",
+            "--advanced-details-collapsed",
+            "",
+            "--classification",
+            "environment_limited",
+            "--note-text",
+            "Make passed empty fields.",
+            "--output-dir",
+            str(tmp_path),
+        ],
+    )
+
+    main()
+
+    text = notes_path.read_text(encoding="utf-8")
+
+    assert "| Home | desktop | pending | pending | pending | environment_limited | Make passed empty fields. |" in text
