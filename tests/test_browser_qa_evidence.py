@@ -4,6 +4,7 @@ import json
 from src.browser_qa_evidence import (
     BrowserQaCaptureTarget,
     BrowserQaEvidence,
+    BrowserQaResponsiveRouteCheck,
     BrowserQaRouteCheck,
     browser_qa_capture_checklist_rows,
     browser_qa_capture_session_rows,
@@ -13,6 +14,7 @@ from src.browser_qa_evidence import (
     browser_qa_package_verdict,
     browser_qa_evidence_verdict,
     browser_qa_pending_capture_closeout_rows,
+    browser_qa_responsive_route_rows,
     browser_qa_reviewed_asset_stage_command,
     browser_qa_route_rows,
     browser_qa_share_recommendation_rows,
@@ -386,12 +388,18 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert len(payload["local_capture_checklist"]) == 3
     assert len(payload["capture_session_plan"]) == 6
     assert len(payload["route_qa_checklist"]) >= 7
+    assert len(payload["responsive_route_qa_checklist"]) == 5
     assert "browser qa evidence is product evidence only" in rendered
+    assert "responsive_route_qa_checklist" in rendered
     assert "current question" in rendered
     assert "primary next step" in rendered
     assert "stop rule" in rendered
     assert "first 30 seconds" in rendered
     assert "data health workspace" in rendered
+    assert "phone viewport" in rendered
+    assert "390x844" in rendered
+    assert "single-stock report" in rendered
+    assert "proof history" in rendered
     assert "selected lane answer" in rendered
     assert "single-stock workflow fit screenshot" in rendered
     assert "what can be read now" in rendered
@@ -438,6 +446,54 @@ def test_browser_qa_route_rows_keep_workflow_markers_and_stop_rules_visible():
     assert "investment advice" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_browser_qa_responsive_route_rows_cover_public_flow_without_raw_ops():
+    rows = browser_qa_responsive_route_rows()
+    rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
+    pages = [str(row["Page"]) for row in rows]
+
+    assert pages == ["Home", "Stock Selector", "Single-Stock Report", "Data Health", "Proof History"]
+    assert all(row["Desktop Viewport"] == "1280x720" for row in rows)
+    assert all(row["Phone Viewport"] == "390x844" for row in rows)
+    assert "coverage summary / what can i use?" in rendered
+    assert "which stock can i review?" in rendered
+    assert "one-stock review" in rendered
+    assert "evidence-only page" in rendered
+    assert "advanced collapsed" in rendered
+    assert "raw tables" in rendered
+    assert "horizontal scrolling" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "investment advice" not in rendered
+
+
+def test_browser_qa_responsive_route_rows_accept_custom_checks():
+    rows = browser_qa_responsive_route_rows(
+        (
+            BrowserQaResponsiveRouteCheck(
+                page="Custom",
+                route="http://localhost:8501/?mode=public&page=custom",
+                desktop_viewport="1200x700",
+                phone_viewport="375x812",
+                first_view_must_keep="Current question and one next action",
+                mobile_risk="Cards stack poorly.",
+                stop_rule="Stop if text overlaps.",
+            ),
+        )
+    )
+
+    assert rows == [
+        {
+            "Page": "Custom",
+            "Route": "http://localhost:8501/?mode=public&page=custom",
+            "Desktop Viewport": "1200x700",
+            "Phone Viewport": "375x812",
+            "First View Must Keep": "Current question and one next action",
+            "Mobile Risk": "Cards stack poorly.",
+            "Stop Rule": "Stop if text overlaps.",
+        }
+    ]
 
 
 def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing():

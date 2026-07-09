@@ -30,6 +30,17 @@ class BrowserQaRouteCheck:
 
 
 @dataclass(frozen=True)
+class BrowserQaResponsiveRouteCheck:
+    page: str
+    route: str
+    desktop_viewport: str
+    phone_viewport: str
+    first_view_must_keep: str
+    mobile_risk: str
+    stop_rule: str
+
+
+@dataclass(frozen=True)
 class BrowserQaCaptureTarget:
     name: str
     path: Path
@@ -252,6 +263,55 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         details_boundary="The lane answer and source gate appear before route maps, per-lane drawers, and detailed action tables.",
         qa_focus="Operator can see why a fundamentals lane is blocked before opening advanced route-map evidence.",
         stop_rule="Stop if route links execute commands, expose raw tables first, or imply generated churn belongs in the default staging set.",
+    ),
+)
+
+
+DEFAULT_BROWSER_QA_RESPONSIVE_ROUTE_CHECKS: tuple[BrowserQaResponsiveRouteCheck, ...] = (
+    BrowserQaResponsiveRouteCheck(
+        page="Home",
+        route="http://localhost:8501/?mode=public",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Current question, Primary next step, Stop rule, What can I use now?, First 30 Seconds",
+        mobile_risk="Primary workflow cards or route rail push the start action below the first useful screen.",
+        stop_rule="Stop if mobile opens with raw tables, cropped cards, clipped labels, or missing research-only boundary.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Stock Selector",
+        route="http://localhost:8501/?mode=public&page=stock-selector",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Stock Selector, Which stock can I review?, filter/selection state, one next action",
+        mobile_risk="Filters, selected ticker state, or the next action become separated enough that the user does not know what to open.",
+        stop_rule="Stop if mobile hides the selector, shows raw readiness tables first, or forces horizontal scrolling.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Single-Stock Report",
+        route="http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="One-Stock Review, What Can Be Read Now, selected ticker, blocked inputs, one next action",
+        mobile_risk="Detailed tabs, report tables, or source sections appear before the selected-ticker answer.",
+        stop_rule="Stop if unavailable DCF, peer, earnings, estimate, or metric outputs look like conclusions.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Data Health",
+        route="http://localhost:8501/?mode=public&page=data-health",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Coverage Summary / What Can I Use?, one lane answer, Proof Map, Advanced collapsed",
+        mobile_risk="Coverage lane cards become too dense or proof details appear before the lane answer.",
+        stop_rule="Stop if provider setup, operator commands, raw tables, or proof ledgers appear before the coverage answer.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Proof History",
+        route="http://localhost:8501/?mode=public&page=proof-history",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Evidence-only page, latest proof outcome, raw ledger details collapsed",
+        mobile_risk="Proof History starts to feel like a second command center instead of evidence review.",
+        stop_rule="Stop if raw ledger rows, command blocks, or data-refresh language appear before evidence cards.",
     ),
 )
 
@@ -560,12 +620,30 @@ def browser_qa_route_rows(
     ]
 
 
+def browser_qa_responsive_route_rows(
+    responsive_checks: Iterable[BrowserQaResponsiveRouteCheck] = DEFAULT_BROWSER_QA_RESPONSIVE_ROUTE_CHECKS,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "Page": item.page,
+            "Route": item.route,
+            "Desktop Viewport": item.desktop_viewport,
+            "Phone Viewport": item.phone_viewport,
+            "First View Must Keep": item.first_view_must_keep,
+            "Mobile Risk": item.mobile_risk,
+            "Stop Rule": item.stop_rule,
+        }
+        for item in responsive_checks
+    ]
+
+
 def browser_qa_evidence_payload(root: Path) -> dict[str, object]:
     asset_rows = browser_qa_evidence_rows(root)
     capture_rows = browser_qa_capture_target_rows(root)
     capture_checklist_rows = browser_qa_capture_checklist_rows()
     capture_session_rows = browser_qa_capture_session_rows()
     route_rows = browser_qa_route_rows()
+    responsive_route_rows = browser_qa_responsive_route_rows()
     share_recommendation_rows = browser_qa_share_recommendation_rows(asset_rows, capture_rows)
     pending_capture_closeout_rows = browser_qa_pending_capture_closeout_rows(capture_rows)
     return {
@@ -582,6 +660,7 @@ def browser_qa_evidence_payload(root: Path) -> dict[str, object]:
         "local_capture_checklist": capture_checklist_rows,
         "capture_session_plan": capture_session_rows,
         "route_qa_checklist": route_rows,
+        "responsive_route_qa_checklist": responsive_route_rows,
         "capture_boundary": [
             "Use real Streamlit screenshots from the listed routes; do not use generated thumbnails as product proof.",
             "Keep existing real assets if local browser or socket capture is environment-limited.",
@@ -618,6 +697,7 @@ def main(argv: list[str] | None = None) -> int:
     pending_capture_closeout_rows = list(payload["pending_capture_closeout"])
     capture_session_rows = list(payload["capture_session_plan"])
     route_rows = list(payload["route_qa_checklist"])
+    responsive_route_rows = list(payload["responsive_route_qa_checklist"])
     verdict = browser_qa_package_verdict(rows, capture_rows)
     if args.capture_plan:
         print("Browser QA Capture Session Plan")
@@ -658,6 +738,15 @@ def main(argv: list[str] | None = None) -> int:
     print("Route QA Checklist")
     print("Manual browser review: use these route checks when a normal local browser can open the Streamlit app.")
     print(_markdown_table(route_rows, ["Route Check", "Route", "First View Markers", "Details Boundary", "QA Focus", "Stop Rule"]))
+    print()
+    print("Responsive Public Workflow QA")
+    print("Review the five public pages at desktop and phone width before changing screenshots or LinkedIn copy.")
+    print(
+        _markdown_table(
+            responsive_route_rows,
+            ["Page", "Route", "Desktop Viewport", "Phone Viewport", "First View Must Keep", "Mobile Risk", "Stop Rule"],
+        )
+    )
     print()
     print("Capture boundary:")
     print("- Use real Streamlit screenshots from the routes above; do not use generated thumbnails as product proof.")
