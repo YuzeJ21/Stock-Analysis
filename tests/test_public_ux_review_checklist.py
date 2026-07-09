@@ -35,6 +35,7 @@ def test_public_ux_review_checklist_is_read_only_and_route_complete():
     assert "What can I use for this ticker right now?" in rendered
     assert "Why is something blocked and how do I fix it?" in rendered
     assert "What evidence changed a readiness state?" in rendered
+    assert "You are here, Current question, Primary next step, Stop rule" in rendered
     assert "Coverage Summary / What Can I Use?" in rendered
     assert "Evidence-only page, one proof answer, latest proof evidence collapsed, raw ledger details collapsed" in rendered
     rendered_lower = rendered.lower()
@@ -46,6 +47,7 @@ def test_public_ux_review_checklist_keeps_operator_details_and_data_claims_out()
     rendered = render_public_ux_review_checklist()
 
     assert "one question, one short answer, one primary next action, and one stop rule" in rendered
+    assert "Confirm the first viewport has where the visitor is, one question, one short answer, one primary next action, and one stop rule." in rendered
     assert "Desktop and mobile review rules:" in rendered
     assert "Confirm the visible page question matches the route's job in the table above." in rendered
     assert "If the page fails, fix only the matching failure action before adding new sections or routes." in rendered

@@ -456,6 +456,7 @@ def test_browser_qa_responsive_route_rows_cover_public_flow_without_raw_ops():
     assert pages == ["Home", "Stock Selector", "Single-Stock Report", "Data Health", "Proof History"]
     assert all(row["Desktop Viewport"] == "1280x720" for row in rows)
     assert all(row["Phone Viewport"] == "390x844" for row in rows)
+    assert all("You are here" in str(row["First View Must Keep"]) for row in rows)
     assert "coverage summary / what can i use?" in rendered
     assert "which stock can i review?" in rendered
     assert "one-stock review" in rendered
