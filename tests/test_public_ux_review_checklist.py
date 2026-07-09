@@ -1,4 +1,10 @@
-from src.public_ux_review_checklist import PUBLIC_ROUTES, public_ux_review_payload, render_public_ux_review_checklist
+from src.public_ux_review_checklist import (
+    PUBLIC_ROUTES,
+    public_ux_review_payload,
+    render_public_ux_review_checklist,
+    render_public_ux_review_notes,
+    write_public_ux_review_notes,
+)
 
 
 def test_public_ux_review_checklist_is_read_only_and_route_complete():
@@ -97,3 +103,22 @@ def test_public_ux_review_checklist_prints_review_note_artifact():
     assert "Live review protocol:" in rendered
     assert "- Record one note row per page/viewport before changing code or screenshots." in rendered
     assert "- If capture is environment_limited, record that state once and continue with repo-side checks." in rendered
+
+
+def test_public_ux_review_notes_template_is_share_safe_and_route_complete(tmp_path):
+    rendered = render_public_ux_review_notes()
+
+    assert "# Public UX Review Notes" in rendered
+    assert "Research-only product QA notes; not investment advice, data freshness proof, or trade instruction." in rendered
+    assert "Screenshots remain product evidence only and do not unlock blocked inputs." in rendered
+    assert "| Page | Viewport | First answer visible | Primary next action visible | Advanced/raw details collapsed | Issue classification | Notes |" in rendered
+    for page in ("Home", "Stock Selector", "Single-Stock Report", "Data Health", "Proof History"):
+        assert f"| {page} | desktop |" in rendered
+        assert f"| {page} | phone |" in rendered
+    assert "environment_limited" in rendered
+    assert "Do not stage this file unless it is intentionally reviewed as pilot evidence." in rendered
+
+    output_path = write_public_ux_review_notes(tmp_path)
+
+    assert output_path == tmp_path / "public-ux-review-notes.md"
+    assert output_path.read_text(encoding="utf-8") == rendered + "\n"

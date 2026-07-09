@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 from src.browser_qa_evidence import browser_qa_responsive_route_rows
 
@@ -195,11 +196,70 @@ def render_public_ux_review_checklist() -> str:
     return "\n".join(lines)
 
 
+def render_public_ux_review_notes() -> str:
+    payload = public_ux_review_payload()
+    lines = [
+        "# Public UX Review Notes",
+        "",
+        "Research-only product QA notes; not investment advice, data freshness proof, or trade instruction.",
+        "Screenshots remain product evidence only and do not unlock blocked inputs.",
+        "",
+        "## Review Boundary",
+        "",
+        f"- Suggested local folder: {REVIEW_NOTE_ARTIFACT['suggested_local_folder']}",
+        f"- Git boundary: {REVIEW_NOTE_ARTIFACT['git_boundary']}",
+        "- Do not stage this file unless it is intentionally reviewed as pilot evidence.",
+        "",
+        "## Live Review Protocol",
+        "",
+        *[f"- {rule}" for rule in LIVE_REVIEW_PROTOCOL],
+        "",
+        "## Route Notes",
+        "",
+        "| Page | Viewport | First answer visible | Primary next action visible | Advanced/raw details collapsed | Issue classification | Notes |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for route in payload["route_checks"]:  # type: ignore[index]
+        page = str(route["page"])  # type: ignore[index]
+        for viewport in ("desktop", "phone"):
+            lines.append(f"| {page} | {viewport} | pending | pending | pending | pending |  |")
+    lines.extend(
+        [
+            "",
+            "## Stop Before Sharing If Observed",
+            "",
+            *[f"- {rule}" for rule in STOP_BEFORE_SHARING],
+            "",
+            "## Next Safe Commands",
+            "",
+            *[f"- {command}" for command in NEXT_SAFE_COMMANDS],
+        ]
+    )
+    return "\n".join(lines)
+
+
+def write_public_ux_review_notes(output_dir: str | Path | None = None) -> Path:
+    destination = Path(output_dir or REVIEW_NOTE_ARTIFACT["suggested_local_folder"])
+    destination.mkdir(parents=True, exist_ok=True)
+    output_path = destination / REVIEW_NOTE_ARTIFACT["suggested_notes_file"]
+    output_path.write_text(render_public_ux_review_notes() + "\n", encoding="utf-8")
+    return output_path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Print the public UX review checklist.")
     parser.add_argument("--json", action="store_true", help="Print the checklist as machine-readable JSON.")
+    parser.add_argument("--notes", action="store_true", help="Write a local Markdown notes template for live UX review.")
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Directory for --notes output. Defaults to /tmp/stock-command-center-public-ux-review.",
+    )
     args = parser.parse_args()
-    if args.json:
+    if args.notes:
+        output_path = write_public_ux_review_notes(args.output_dir)
+        print(f"Wrote: {output_path}")
+    elif args.json:
         print(json.dumps(public_ux_review_payload(), indent=2))
     else:
         print(render_public_ux_review_checklist())
