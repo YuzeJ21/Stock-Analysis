@@ -586,7 +586,7 @@ def _remaining_public_stage_rows(
             "Stage": "Public UX polish",
             "State": "ready_for_live_review",
             "Evidence": "Browser QA evidence is ready; public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.",
-            "Next Action": "Run make public-ux-review-checklist-json for the machine-readable five-page contract, then run a live desktop/mobile review and polish first viewport spacing or unclear Data Health wording only.",
+            "Next Action": "Run make public-ux-review-checklist-json for the machine-readable five-page contract and make public-ux-review-notes-check for pending note rows, then run a live desktop/mobile review and polish first viewport spacing or unclear Data Health wording only.",
             "Completion Gate": "Five public pages remain clear, mobile-safe, and raw operations stay behind Advanced.",
             "Boundary": "Do not expand data coverage or add providers during UX polish.",
         },

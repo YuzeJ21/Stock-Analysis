@@ -1188,6 +1188,7 @@ def test_project_status_stage_map_classifies_remaining_public_items(
     assert any(row["Stage"] == "Source-proof queues" and row["State"] == "exhausted_do_not_retry" for row in stage_rows)
     ux_row = next(row for row in stage_rows if row["Stage"] == "Public UX polish")
     assert "make public-ux-review-checklist-json" in ux_row["Next Action"]
+    assert "make public-ux-review-notes-check" in ux_row["Next Action"]
     assert "machine-readable" in ux_row["Next Action"]
     assert any(row["Stage"] == "Generated artifacts" and row["State"] == "excluded_by_default" for row in stage_rows)
 
@@ -1198,6 +1199,7 @@ def test_project_status_stage_map_classifies_remaining_public_items(
     assert "fmp provider activation: external_key_required" in output
     assert "source-proof queues: exhausted_do_not_retry" in output
     assert "make public-ux-review-checklist-json" in output
+    assert "make public-ux-review-notes-check" in output
 
 
 def test_project_status_stage_map_does_not_call_github_synced_when_branch_is_ahead():
