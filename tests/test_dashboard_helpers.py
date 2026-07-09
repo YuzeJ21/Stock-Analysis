@@ -3325,7 +3325,8 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" not in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)" in source
-    assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source
+    assert "render_home_page(\n            catalog," in source
+    assert "project_status_payload=project_status_payload" in source
 
 
 def test_public_home_route_choices_are_collapsed_after_primary_workflow():
@@ -6361,6 +6362,63 @@ def test_overview_landing_cards_fall_back_to_readiness_summary_without_project_s
     assert "9 tickers also have peer-relative context" in rendered
     assert "3273 data gaps remain visible" in rendered
     assert "0/0" not in rendered
+
+
+def test_project_status_remaining_stage_cards_surface_pilot_next_steps():
+    payload = {
+        "remaining_public_stage_rows": [
+            {
+                "Stage": "LinkedIn publish",
+                "State": "ready_for_manual_share",
+                "Evidence": "Public share gates pass; GitHub is synced.",
+                "Next Action": "Post or update LinkedIn manually using docs/LINKEDIN_PROJECT_BRIEF.md.",
+                "Boundary": "Manual LinkedIn action only.",
+            },
+            {
+                "Stage": "Hosted Streamlit demo",
+                "State": "external_account_required",
+                "Evidence": "No public hosted Streamlit URL is configured in this repository.",
+                "Next Action": "Deploy only after an external host/account is chosen.",
+                "Boundary": "Do not claim a hosted app exists until the URL is deployed and verified.",
+            },
+            {
+                "Stage": "FMP provider activation",
+                "State": "external_key_required",
+                "Evidence": "FMP_API_KEY is not configured.",
+                "Next Action": "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke.",
+                "Boundary": "Provider setup is not data proof.",
+            },
+        ]
+    }
+
+    cards = dashboard.project_status_remaining_stage_cards(payload)
+
+    assert [card["title"] for card in cards] == [
+        "LinkedIn publish",
+        "Hosted Streamlit demo",
+        "FMP provider activation",
+    ]
+    assert cards[0]["kicker"] == "READY FOR MANUAL SHARE"
+    assert cards[1]["kicker"] == "EXTERNAL ACCOUNT REQUIRED"
+    assert cards[2]["kicker"] == "EXTERNAL KEY REQUIRED"
+    assert "Public share gates pass" in cards[0]["body"]
+    assert "Next: Deploy only after an external host/account is chosen" in cards[1]["body"]
+    assert "Boundary: Provider setup is not data proof" in cards[2]["body"]
+    assert cards[2]["command"] == "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke."
+
+
+def test_public_home_advanced_learn_more_surfaces_next_pilot_stages():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    signature_index = source.index("def render_home_page(")
+    signature_chunk = source[signature_index : source.index(") -> None:", signature_index)]
+    assert "project_status_payload: dict[str, Any] | None = None" in signature_chunk
+    advanced_index = source.index('with st.expander("Advanced: learn more"', signature_index)
+    stage_cards_index = source.index("project_status_remaining_stage_cards(project_status_payload)", advanced_index)
+    stage_header_index = source.index('"Next Pilot Stages"', stage_cards_index)
+    route_chooser_index = source.index('"Route Chooser"', stage_header_index)
+
+    assert advanced_index < stage_cards_index < stage_header_index < route_chooser_index
 
 
 def test_overview_guardrail_card_falls_back_to_readiness_summary_without_project_status():
@@ -28214,7 +28272,8 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert "Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers." in source
     assert '"Data Health operator."' in source
     assert 'if selected_page == "Single-Stock Report" and not public_demo_mode:' in source
-    assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source
+    assert "render_home_page(\n            catalog," in source
+    assert "project_status_payload=project_status_payload" in source
     assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
     assert "data_health_freshness_status(BASE_DIR)" in source
     assert "dashboard_generated_artifact_stale_warning(BASE_DIR)" in source

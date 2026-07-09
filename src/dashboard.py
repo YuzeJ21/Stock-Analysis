@@ -22199,6 +22199,42 @@ def project_status_metric_cards(payload: dict[str, Any] | None) -> list[tuple[st
     ]
 
 
+def project_status_remaining_stage_cards(payload: dict[str, Any] | None, limit: int = 4) -> list[dict[str, object]]:
+    if not payload:
+        return []
+    rows = payload.get("remaining_public_stage_rows", [])
+    if not isinstance(rows, list):
+        return []
+
+    cards: list[dict[str, object]] = []
+    for row in rows[:limit]:
+        if not isinstance(row, dict):
+            continue
+        stage = format_missing(row.get("Stage"), "Pilot stage")
+        state = format_missing(row.get("State"), "pending")
+        next_action_command = format_missing(row.get("Next Action"), "").strip()
+        evidence = compact_card_fragment(row.get("Evidence"), fallback="", max_sentences=1, max_chars=180)
+        next_action = compact_card_fragment(row.get("Next Action"), fallback="", max_sentences=1, max_chars=180)
+        boundary = compact_card_fragment(row.get("Boundary"), fallback="", max_sentences=1, max_chars=180)
+        body_parts = []
+        if evidence:
+            body_parts.append(evidence)
+        if next_action:
+            body_parts.append(f"Next: {next_action}")
+        if boundary:
+            body_parts.append(f"Boundary: {boundary}")
+        cards.append(
+            {
+                "kicker": state.replace("_", " ").upper(),
+                "title": stage,
+                "body": " ".join(body_parts) or "Pilot stage status is recorded in the local project-status snapshot.",
+                "badges": [state, "pilot stage"],
+                "command": next_action_command or "make project-status",
+            }
+        )
+    return cards
+
+
 def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) -> list[tuple[str, str, str, str]]:
     if not payload:
         return [
@@ -27341,6 +27377,7 @@ def render_home_page(
     *,
     show_details: bool = False,
     public_mode: bool = True,
+    project_status_payload: dict[str, Any] | None = None,
 ) -> None:
     ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
     dcf_readiness_frame, _ = load_dcf_readiness()
@@ -27399,6 +27436,14 @@ def render_home_page(
         )
     if public_mode:
         with st.expander("Advanced: learn more", expanded=False):
+            pilot_stage_cards = project_status_remaining_stage_cards(project_status_payload)
+            if pilot_stage_cards:
+                render_section_header(
+                    "Next Pilot Stages",
+                    "What is ready to share, what still needs an external account or key, and what stays source-gated.",
+                )
+                render_signal_cards(pilot_stage_cards, show_commands=False, variant="queue")
+
             render_section_header(
                 "Route Chooser",
                 "Choose another public path only when the primary workflow does not answer the visitor question.",
@@ -31582,7 +31627,13 @@ def main() -> None:
         universe_summary = summarize_universe_manager(BASE_DIR)
 
     if selected_page == "Home":
-        render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)
+        render_home_page(
+            catalog,
+            output_frames,
+            show_details=show_reason_details,
+            public_mode=public_demo_mode,
+            project_status_payload=project_status_payload,
+        )
     elif selected_page == STOCK_SELECTOR_PATH_TITLE:
         render_stock_selector(output_frames, public_mode=public_demo_mode)
     elif selected_page == "Overview":
