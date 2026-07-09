@@ -25,7 +25,8 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "| Data Health |" in readme
     assert "| Proof History |" in readme
     assert "| Stock Selector | You want to filter readiness-backed candidates" in readme
-    assert "| Proof History | You want to see the proof ledger" in readme
+    assert "| Proof History | You want one evidence answer before opening raw proof ledger details." in readme
+    assert "| Proof History | You want to see the proof ledger" not in readme
     assert "| Proof History |" in readme and "| `Proof History` |" in readme
     assert PUBLIC_V1_ROUTE in readme
     assert "Data Health source-proof lane" not in readme

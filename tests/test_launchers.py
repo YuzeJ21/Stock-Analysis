@@ -837,7 +837,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "| Home | You want the workflow question, next safe action, stop rule, and then readiness context before choosing a route. | `Home` |" in readme
     assert "| Stock Selector | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |" in readme
     assert "| Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
-    assert "| Proof History | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |" in readme
+    assert "| Proof History | You want one evidence answer before opening raw proof ledger details. | `Proof History` |" in readme
+    assert "| Proof History | You want to see the proof ledger" not in readme
     assert "`Home`, then focused review pages" not in readme
     assert "The shortest public walkthrough uses NVDA, META, QQQ, MU, and CRDO only as optional state examples." in readme
     assert "[Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme

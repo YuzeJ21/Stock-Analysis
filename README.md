@@ -95,7 +95,7 @@ Start with the five public paths the dashboard is built around:
 | Stock Selector | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |
 | Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |
 | Data Health | You want to understand what trusted input is missing and which proof path should be reviewed next. | `Data Health` |
-| Proof History | You want to see the proof ledger, recent source-proof actions, and still-blocked fields before trusting changed readiness. | `Proof History` |
+| Proof History | You want one evidence answer before opening raw proof ledger details. | `Proof History` |
 The dashboard starts in public visitor mode at `http://localhost:8501/?mode=public`.
 - Home answers what the product is, where to start, and when to stop.
 - Stock Selector filters readiness-backed candidates without framing the queue as advice.
