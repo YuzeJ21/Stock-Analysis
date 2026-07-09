@@ -108,7 +108,7 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "| Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |" in readme
     assert "| Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |" in readme
     assert "| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |" in readme
-    assert "| Public UX polish | Ready for live review | Browser QA evidence is ready; do a normal-browser desktop/mobile pass only for first-viewport spacing, unclear Data Health wording, or confusing next actions. |" in readme
+    assert "| Public UX polish | Ready for live review | Browser QA evidence is ready; run `make public-ux-review-checklist`, then do a normal-browser desktop/mobile pass only for first-viewport spacing, unclear Data Health wording, or confusing next actions. |" in readme
     assert "| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |" in readme
     assert "The next product stage is not another broad refresh loop" in readme
     assert "run live desktop/mobile review for first-viewport polish" in readme
@@ -322,6 +322,7 @@ def test_dashboard_qa_tracks_v1_replacement_browser_checks():
     assert "no visible first-viewport raw dataframe" in qa
     assert "`make browser-qa-evidence` is the deterministic share gate" in qa
     assert "`make public-check` is the current end-to-end public gate" in qa
+    assert "`make public-ux-review-checklist` is the copy-only normal-browser checklist" in qa
     assert "dashboard smoke, browser QA evidence" in qa
     assert "normal-browser desktop/mobile pass" in qa
     assert "Treat in-app browser capture timeouts as environment-limited" in qa

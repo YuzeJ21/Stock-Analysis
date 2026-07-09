@@ -52,6 +52,9 @@ Current live-review handoff:
 - `make public-check` is the current end-to-end public gate; it includes public
   wording, whitespace, full tests, dashboard smoke, browser QA evidence,
   license boundary, and visitor-demo checks.
+- `make public-ux-review-checklist` is the copy-only normal-browser checklist
+  for reviewing the five public pages at desktop and phone width before
+  replacing screenshots or changing share copy.
 - The remaining UX task is a normal-browser desktop/mobile pass for
   first-viewport spacing, unclear Data Health wording, and confusing next
   actions.
