@@ -20071,7 +20071,8 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     assert public_index < public_coverage_index < guidance_expander_index < first_30_index < visitor_paths_index
     assert public_return_index < operator_coverage_expander_index < operator_coverage_index < ops_index
     assert '"Selected Lane Answer"' in source
-    assert "Coverage Summary / What Can I Use? One clear answer per lane" in source
+    assert '"Coverage Summary / What Can I Use?"' in source
+    assert "One clear answer per lane before selected-lane operations" in source
     assert 'st.expander("Advanced: coverage lane details", expanded=False)' in source
     source_details_index = source.index('st.expander("Advanced: operator source setup details", expanded=False)', ops_index)
     auto_refresh_index = source.index('render_section_header(\n            "Auto Refresh Status"', source_details_index)
@@ -20107,11 +20108,12 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
         clear_placeholder_index,
     )
     coverage_summary_function_index = source.index("def render_data_health_coverage_summary(")
-    selected_lane_answer_index = source.index('"Selected Lane Answer"', coverage_summary_function_index)
+    coverage_summary_title_index = source.index('"Coverage Summary / What Can I Use?"', coverage_summary_function_index)
     coverage_summary_copy_index = source.index(
-        "Coverage Summary / What Can I Use? One clear answer per lane",
-        selected_lane_answer_index,
+        "One clear answer per lane before selected-lane operations",
+        coverage_summary_title_index,
     )
+    selected_lane_answer_index = source.index('"Selected Lane Answer"', coverage_summary_copy_index)
 
     assert (
         provider_none_index
@@ -20122,7 +20124,8 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
         < validation_load_index
     )
     assert validation_load_index < clear_placeholder_index < coverage_summary_index
-    assert coverage_summary_function_index < selected_lane_answer_index < coverage_summary_copy_index
+    assert coverage_summary_function_index < coverage_summary_title_index < coverage_summary_copy_index
+    assert coverage_summary_copy_index < selected_lane_answer_index
 
 
 def test_universe_layer_cards_separate_scope_from_analysis_readiness():

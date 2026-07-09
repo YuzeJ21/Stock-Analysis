@@ -9623,8 +9623,8 @@ def render_data_health_coverage_summary(
     peer_readiness_frame: pd.DataFrame | None = None,
 ) -> None:
     render_section_header(
-        "Selected Lane Answer",
-        "Coverage Summary / What Can I Use? One clear answer per lane before operations, proof details, or research conclusions.",
+        "Coverage Summary / What Can I Use?",
+        "One clear answer per lane before selected-lane operations, proof details, or research conclusions.",
     )
     st.markdown(
         data_health_coverage_summary_strip_html(readiness_summary, peer_readiness_frame, root=BASE_DIR),
