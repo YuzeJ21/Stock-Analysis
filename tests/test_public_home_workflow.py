@@ -147,6 +147,12 @@ def test_public_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "provider setup checklist" in price_gap_cards[5]["body"]
     assert "Inspect one company packet before applying rows" in price_gap_cards[5]["body"]
     assert "keep the ticker visibly blocked" in price_gap_cards[5]["body"]
+    assert price_gap_cards[6]["command"] == "make provider-setup-checklist"
+    assert price_gap_cards[6]["title"] == "Choose provider setup or live UX review"
+    assert "proof queues are exhausted" in price_gap_cards[6]["body"]
+    assert "reviewed one-ticker smoke" in price_gap_cards[6]["body"]
+    assert "normal-browser desktop/mobile UX pass" in price_gap_cards[6]["body"]
+    assert "generated CSV/report churn excluded" in price_gap_cards[6]["body"]
     assert "make trusted-data-pilot-candidates TOP_N=10" not in price_gap_cards[5]["body"]
     assert "make trusted-data-pilot-packet TICKER=CRDO" not in price_gap_cards[5]["body"]
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" not in price_gap_cards[5]["body"]
@@ -163,6 +169,8 @@ def test_public_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "small trusted-data pilot" in rendered
     assert "source proof is missing" in rendered
     assert "move to the next candidate" in rendered
+    assert "do not reopen broad proof loops" in rendered
+    assert "generated churn excluded" in rendered
     assert "use make readiness" not in rendered
     assert "run make readiness" not in rendered
     assert "broker" not in rendered

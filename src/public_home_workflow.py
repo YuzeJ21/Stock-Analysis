@@ -489,4 +489,15 @@ def public_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "badges": ["trusted data", "pilot"],
             "command": "make project-status",
         },
+        {
+            "kicker": "CURRENT PACKAGE STATUS",
+            "title": "Choose provider setup or live UX review",
+            "body": (
+                "When project status says proof queues are exhausted, do not reopen broad proof loops. "
+                "Either configure one keyed fallback such as FMP for a reviewed one-ticker smoke, or run the normal-browser "
+                "desktop/mobile UX pass for first-viewport clarity. Keep generated CSV/report churn excluded unless one exact artifact is reviewed."
+            ),
+            "badges": ["no broad loops", "generated churn excluded"],
+            "command": "make provider-setup-checklist",
+        },
     ]
