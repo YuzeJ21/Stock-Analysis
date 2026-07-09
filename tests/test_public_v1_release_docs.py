@@ -14,10 +14,15 @@ def _read(path: str) -> str:
 def test_readme_product_tour_matches_v1_public_route_model():
     readme = _read("README.md")
 
-    assert "## Pilot In 60 Seconds" in readme
-    assert "Open `http://localhost:8501/?mode=public`" in readme
-    assert "Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs." in readme
-    assert "Use `make status-check TOP_N=5` for current local readiness counts." in readme
+    assert "## External Reviewer Start Here" in readme
+    assert "This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo." in readme
+    assert "It is not currently published as a hosted Streamlit app." in readme
+    assert "| What is the live app path? | Run `make dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
+    assert "| What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
+    assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
+    assert "First review move: open Stock Selector" in readme
+    assert "screenshots are product evidence only" in readme
+    assert "| What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |" in readme
     assert "Start with the five public paths" in readme
     assert "| Home |" in readme
     assert "| Stock Selector |" in readme
@@ -82,11 +87,9 @@ def test_public_docs_do_not_reintroduce_old_three_path_navigation():
 def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     readme = _read("README.md")
 
-    assert "## Public Share Readiness" in readme
-    assert "not currently published as a live hosted Streamlit app" in readme
-    assert "FMP, Alpha Vantage, and Finnhub are optional local fallbacks" in readme
-    assert "Coverage | Readiness-gated, not complete" in readme
-    assert "Stock Research Command Center | Readiness-First Stock Research Workflow" in readme
+    assert "## External Reviewer Start Here" in readme
+    assert "not currently published as a hosted Streamlit app" in readme
+    assert "No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof." in readme
     assert "## Pilot Share Status" in readme
     assert "Share as controlled portfolio/demo evidence under the root `LICENSE`" in readme
     assert "do not describe the repository as open source or reusable software" in readme
@@ -96,7 +99,7 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     assert "No broad coverage batch should run from setup alone." in readme
     assert "no public Streamlit URL is configured in this repository" in readme
     assert "`make linkedin-share-check` for the final LinkedIn Featured-card checklist" in readme
-    assert readme.index("## Public Share Readiness") < readme.index("## Pilot Share Status")
+    assert readme.index("## External Reviewer Start Here") < readme.index("## Pilot Share Status")
     assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
 
 
@@ -120,8 +123,8 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "The next product stage is not another broad refresh loop" in readme
     assert "rerun live desktop/mobile review only after UI changes" in readme
     assert "choose a hosted app account only when you want a public URL" in readme
-    assert readme.index("## Public Share Readiness") < readme.index("## Current Next Stages")
-    assert readme.index("## Public Share Readiness") < readme.index("## Now / Next / Not Yet")
+    assert readme.index("## External Reviewer Start Here") < readme.index("## Current Next Stages")
+    assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Not Yet")
     assert readme.index("## Now / Next / Not Yet") < readme.index("## Current Next Stages")
     assert readme.index("## Current Next Stages") < readme.index("## What You Can Analyze")
 
@@ -224,20 +227,20 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
     readme = _read("README.md")
     checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
 
-    assert "## Two-Minute External Review Path" in readme
-    assert "- GitHub-only review: start with the preview image, the five-page workflow map, and the `docs/PUBLIC_DEMO_WALKTHROUGH.md` script." in readme
-    assert "- Live dashboard review: run `make dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History." in readme
-    assert "- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts." in readme
-    assert "- Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof." in readme
+    assert "## External Reviewer Start Here" in readme
+    assert "| What should I open first? | Start with this README preview, then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the five-page workflow. |" in readme
+    assert "| What is the live app path? | Run `make dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
+    assert "| What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |" in readme
+    assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
     assert "## External Reviewer Handoff" in readme
     assert "| Review first | Dashboard preview, then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
     assert "| Skip unless operating locally | Broad CSV/report churn, provider setup, validate/preview/apply commands, and raw proof ledgers. |" in readme
     assert "| Do not claim | Screenshots prove data freshness, blocked inputs are ready, the repo is open source, or the product gives buy/sell instructions. |" in readme
     assert "| Best next question | Can a reviewer understand what is ready, blocked, excluded, and proof-backed before opening advanced details? |" in readme
-    assert readme.index("## Two-Minute External Review Path") < readme.index("## External Reviewer Handoff")
+    assert readme.index("## External Reviewer Start Here") < readme.index("## External Reviewer Handoff")
     assert readme.index("## External Reviewer Handoff") < readme.index("## Data Coverage Strategy")
-    assert "Keep the guided product flow near the top" in checklist
-    assert "then `make dashboard`, then the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path" in checklist
+    assert "Confirm `README.md` starts with `External Reviewer Start Here`" in checklist
+    assert "then `make dashboard` and the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path" in checklist
     assert "Keep terminal proof commands secondary" in checklist
     assert "Put the best demo commands near the top" not in checklist
 
@@ -313,17 +316,20 @@ def test_external_review_story_is_consistent_across_public_docs():
     walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
     linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
 
-    assert "## Two-Minute External Review Path" in readme
+    assert "## External Reviewer Start Here" in readme
     assert "## Two-Minute External Review Path" in walkthrough
     assert "Two-minute external review path:" in linkedin
-    for doc in (readme, walkthrough, linkedin):
+    assert "What should I open first?" in readme
+    assert "What is the live app path?" in readme
+    for doc in (walkthrough, linkedin):
         assert "GitHub-only review" in doc
         assert "Live dashboard review" in doc
+    for doc in (readme, walkthrough, linkedin):
         assert PUBLIC_V1_ROUTE in doc
-        assert "screenshots show product UI only" in doc
+        assert "screenshots show product UI only" in doc or "screenshots are product evidence only" in doc
         assert "make status-check TOP_N=5" in doc
         assert "controlled portfolio/demo" in doc
-        assert "data-freshness proof" in doc
+        assert "data-freshness proof" in doc or "data freshness proof" in doc
         assert "open-source reuse" in doc
     assert walkthrough.index("## Two-Minute External Review Path") < walkthrough.index("## Demo Examples")
 

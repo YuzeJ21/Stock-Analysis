@@ -397,7 +397,7 @@ linkedin-share-check:
 	@echo "3. Use docs/assets/linkedin-public-dashboard.png when you want the curated product screenshot."
 	@echo "4. If LinkedIn shows GitHub's generated OpenGraph card, keep it only if that card is acceptable; otherwise remove and re-add the Featured item with the curated screenshot."
 	@echo "5. Use the GitHub link unless you have separately deployed and verified a hosted Streamlit app."
-	@echo "6. Open the GitHub link from LinkedIn and confirm the README starts with Pilot In 60 Seconds and includes Public Share Readiness."
+	@echo "6. Open the GitHub link from LinkedIn and confirm the README starts with External Reviewer Start Here and names the GitHub/local-app boundary before deeper operator detail."
 	@echo "7. Stop before claiming screenshots prove current data freshness, coverage completion, provider-key activation, or investment advice."
 	@echo ""
 	@echo "Next safe repo checks:"

@@ -2,14 +2,19 @@
 A local, CSV-first research dashboard for screening stocks, reviewing portfolio names, and seeing exactly which data is ready to support analysis.
 > Data readiness first, analysis second, research decision last.
 ![Dashboard preview](docs/assets/public-demo-home-real.jpg)
-## Pilot In 60 Seconds
-1. Open `http://localhost:8501/?mode=public` after running `make dashboard`.
-2. Follow the public path: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
-3. Start with Stock Selector, then open one ticker such as `NVDA` before inspecting Data Health.
-4. Use `make status-check TOP_N=5` for current local readiness counts.
-5. Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs.
-6. Share under the controlled portfolio/demo license, not as open-source or reusable software.
-7. Stop before any trading, broker action, broad refresh, or unsupported data claim.
+## External Reviewer Start Here
+This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo. It is not currently published as a hosted Streamlit app.
+
+| Question | Short answer |
+| --- | --- |
+| What should I open first? | Start with this README preview, then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the five-page workflow. |
+| What is the live app path? | Run `make dashboard`, then open `http://localhost:8501/?mode=public`. |
+| What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |
+| Which screenshot should I use? | Use `docs/assets/linkedin-public-dashboard.png` for LinkedIn Featured or GitHub preview context. |
+| What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |
+| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |
+
+First review move: open Stock Selector, choose a ticker such as `NVDA`, read the Single-Stock Report answer, then open Data Health only when an input is blocked.
 ## What It Does
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
 ```mermaid
@@ -19,20 +24,6 @@ flowchart LR
     Report --> Health["Data Health: missing input"]
     Health --> Proof["Proof History: source-proof trail"]
 ```
-## Two-Minute External Review Path
-- GitHub-only review: start with the preview image, the five-page workflow map, and the `docs/PUBLIC_DEMO_WALKTHROUGH.md` script.
-- Live dashboard review: run `make dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
-- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.
-- Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
-## Public Share Readiness
-This repository is ready to share as a GitHub/LinkedIn portfolio demo with manual gates. It is not currently published as a live hosted Streamlit app.
-- GitHub review is ready: README, screenshots, methodology, sample reports, local run commands, and controlled demo license.
-- Hosted app is not configured: reviewers can run locally with `make dashboard` until a separate deployment is verified.
-- Provider keys are not configured by default: FMP, Alpha Vantage, and Finnhub are optional local fallbacks.
-- Generated data churn stays local unless an exact artifact is reviewed as public evidence.
-- Coverage | Readiness-gated, not complete: ready, partial, blocked, skipped, and excluded states remain visible.
-- LinkedIn Featured title: `Stock Research Command Center | Readiness-First Stock Research Workflow`
-- LinkedIn copy lives in `docs/LINKEDIN_PROJECT_BRIEF.md`; use `docs/assets/linkedin-public-dashboard.png` if LinkedIn crops the GitHub card. Screenshots are product evidence only, not data freshness proof.
 ## Now / Next / Not Yet
 This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified.
 | Stage | Answer | Guardrail |

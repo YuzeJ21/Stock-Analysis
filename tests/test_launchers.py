@@ -1502,7 +1502,7 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "not told to manually refresh the full universe every day" in checklist
     assert "lane-specific freshness and generated-data hygiene" in checklist
     assert "Keep the guided product flow near the top" in checklist
-    assert "then `make dashboard`, then the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path" in checklist
+    assert "then `make dashboard` and the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path" in checklist
     assert "Keep terminal proof commands secondary" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "make trusted-data-pilot-candidates TOP_N=10" in checklist

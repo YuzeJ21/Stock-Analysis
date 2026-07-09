@@ -110,7 +110,7 @@ Use this after GitHub is synced:
 3. Confirm the Featured image is `docs/assets/linkedin-public-dashboard.png` when you want the curated product screenshot.
 4. If LinkedIn shows a generated GitHub URL card instead, leave it only if you are okay with GitHub's OpenGraph image; otherwise remove and re-add the Featured item with the curated screenshot.
 5. Confirm the link target is GitHub unless you have intentionally deployed a hosted Streamlit app.
-6. Open the GitHub link from LinkedIn and confirm the README starts with `Pilot In 60 Seconds` and includes `Public Share Readiness`.
+6. Open the GitHub link from LinkedIn and confirm the README starts with `External Reviewer Start Here` and names the GitHub/local-app boundary before deeper operator detail.
 7. Stop before claiming screenshots prove current data freshness, coverage completion, provider-key activation, or investment advice.
 
 ## Resume Bullet Options
