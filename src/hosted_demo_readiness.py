@@ -164,6 +164,12 @@ def render_hosted_demo_readiness(checks: list[HostedDemoCheck]) -> str:
             "Next safe hosted-demo step:",
             "- If all repo-side checks are ready, choose an external Streamlit host/account and follow docs/HOSTED_DEMO_DEPLOYMENT.md.",
             "- Keep GitHub as the public link until the hosted URL opens successfully and public gates pass.",
+            "",
+            "Hosted link decision ladder:",
+            "- No hosted URL: use the GitHub repository link and local make dashboard workflow.",
+            "- Hosted URL opens: verify the five-page public workflow, then rerun make public-check and make browser-qa-evidence.",
+            "- Provider keys added: run make provider-setup-checklist and one reviewed provider smoke; setup alone does not prove coverage.",
+            "- Hosted route changes copy or layout: keep the GitHub link until the public path and research-only gates are rechecked.",
         ]
     )
     return "\n".join(lines)

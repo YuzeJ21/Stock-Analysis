@@ -147,6 +147,11 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "Install dependencies from `requirements.txt` or `pyproject.toml`" in hosted
     assert "Keep `make dashboard` as the local verification path" in hosted
     assert "Use the GitHub repository link unless the hosted app exists" in hosted
+    assert "## Link Decision Ladder" in hosted
+    assert "| No hosted URL | GitHub repository link | `make hosted-demo-readiness` reports `external_account_required`; keep local `make dashboard` instructions. |" in hosted
+    assert "| Hosted URL opens | Hosted app link can be considered | Open the public URL, confirm the five-page workflow starts in public mode, then rerun `make public-check` and `make browser-qa-evidence`. |" in hosted
+    assert "| Provider keys added | Hosted app link plus source boundary note | Run `make provider-setup-checklist` and one reviewed provider smoke; setup alone does not prove coverage or unlock blocked inputs. |" in hosted
+    assert "Do not replace the GitHub link with a hosted link until the hosted app opens successfully" in hosted
     assert "make hosted-demo-readiness" in hosted
     assert "stock picks" not in hosted.lower()
     assert "buy/sell" in hosted

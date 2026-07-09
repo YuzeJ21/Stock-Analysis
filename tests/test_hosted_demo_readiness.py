@@ -46,3 +46,8 @@ def test_hosted_demo_readiness_reports_deployable_package_and_external_blocker(t
     assert "not investment advice" in rendered.lower()
     assert "FMP_API_KEY" in rendered
     assert "do not claim hosted availability until a public URL is opened and verified" in rendered
+    assert "Hosted link decision ladder" in rendered
+    assert "No hosted URL: use the GitHub repository link and local make dashboard workflow." in rendered
+    assert "Hosted URL opens: verify the five-page public workflow, then rerun make public-check and make browser-qa-evidence." in rendered
+    assert "Provider keys added: run make provider-setup-checklist and one reviewed provider smoke; setup alone does not prove coverage." in rendered
+    assert "Hosted route changes copy or layout: keep the GitHub link until the public path and research-only gates are rechecked." in rendered

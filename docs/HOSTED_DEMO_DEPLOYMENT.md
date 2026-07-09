@@ -71,6 +71,19 @@ Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History
 
 Stop before publishing the hosted link if the first public view shows tracebacks, raw tables before the answer, command-heavy copy, missing research-only boundaries, or unavailable-provider claims.
 
+## Link Decision Ladder
+
+Use this ladder before changing README, LinkedIn, or portfolio copy:
+
+| State | Public link to use | Required proof before changing copy |
+| --- | --- | --- |
+| No hosted URL | GitHub repository link | `make hosted-demo-readiness` reports `external_account_required`; keep local `make dashboard` instructions. |
+| Hosted URL opens | Hosted app link can be considered | Open the public URL, confirm the five-page workflow starts in public mode, then rerun `make public-check` and `make browser-qa-evidence`. |
+| Provider keys added | Hosted app link plus source boundary note | Run `make provider-setup-checklist` and one reviewed provider smoke; setup alone does not prove coverage or unlock blocked inputs. |
+| Hosted route changes copy or layout | Keep GitHub link until rechecked | Re-review Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History and stop if raw tables, tracebacks, or operator commands appear first. |
+
+Do not replace the GitHub link with a hosted link until the hosted app opens successfully, the public path is verified, and the same research-only share gates pass.
+
 ## LinkedIn Link Rule
 
 Use the GitHub repository link unless the hosted app exists, has been opened successfully, and has passed the same public-share boundaries. After a hosted app is verified, LinkedIn copy can say "hosted demo available"; until then, keep the wording as "GitHub portfolio/demo project with screenshots and local run instructions."
