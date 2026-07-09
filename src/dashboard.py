@@ -5113,11 +5113,17 @@ def action_link_label(title: str) -> str:
     return f"Open {title_text}".strip()
 
 
-def action_card_html(title: str, body: str, command: str = "", tone: str = "neutral") -> str:
+def action_card_html(
+    title: str,
+    body: str,
+    command: str = "",
+    tone: str = "neutral",
+    action_label: str | None = None,
+) -> str:
     tone_class = "warning" if tone == "warning" else "danger" if tone == "danger" else ""
     command_text = str(command or "").strip()
     if command_text.startswith("?") or command_text.startswith("http://") or command_text.startswith("https://"):
-        action_label = action_link_label(title)
+        action_label = str(action_label or "").strip() or action_link_label(title)
         command_html = (
             f"<a class='action-link' href='{html.escape(command_text, quote=True)}' "
             f"aria-label='{html.escape(action_label, quote=True)}' target='_self'>{html.escape(action_label)}</a>"
@@ -5133,10 +5139,18 @@ def action_card_html(title: str, body: str, command: str = "", tone: str = "neut
     )
 
 
-def render_action_cards(cards: list[tuple[str, str, str, str]]) -> None:
+def render_action_cards(cards: list[tuple[str, str, str, str] | tuple[str, str, str, str, str]]) -> None:
+    card_html = []
+    for card in cards:
+        if len(card) == 5:
+            title, body, command, tone, action_label = card
+            card_html.append(action_card_html(title, body, command, tone, action_label))
+        else:
+            title, body, command, tone = card
+            card_html.append(action_card_html(title, body, command, tone))
     st.markdown(
         "<div class='action-grid'>"
-        + "".join(action_card_html(title, body, command, tone) for title, body, command, tone in cards)
+        + "".join(card_html)
         + "</div>",
         unsafe_allow_html=True,
     )
@@ -26614,15 +26628,17 @@ def stock_selector_next_reading_path_cards(
         else "?mode=public&page=data-health&drawer=proof"
     )
     selected_label = next_ticker or "the selected ticker"
+    report_action_label = f"Open {selected_label} report" if next_ticker else "Open selected report"
     return [
         (
-            "Open single-stock report",
+            "Selected ticker",
             (
-                f"Open the selected ticker ({selected_label}) in Single-Stock Report first. "
-                f"{selected_label} is the current top readiness-backed row; use filters below to choose another name."
+                f"{selected_label} is the current top readiness-backed row. "
+                "Use filters below to choose another name, then open the one-stock report."
             ),
             next_review_route,
             "neutral",
+            report_action_label,
         ),
         (
             "Check selected proof",

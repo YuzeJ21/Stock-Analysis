@@ -1926,6 +1926,21 @@ def test_public_action_cards_render_query_routes_as_clickable_links():
     assert "sell" not in rendered.lower()
 
 
+def test_public_action_cards_can_use_specific_link_label():
+    rendered = dashboard.action_card_html(
+        "Selected ticker",
+        "NVDA is the current top readiness-backed row.",
+        "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
+        "neutral",
+        "Open NVDA report",
+    )
+
+    assert "aria-label='Open NVDA report'" in rendered
+    assert ">Open NVDA report</a>" in rendered
+    assert ">Open Selected ticker</a>" not in rendered
+    assert "command-chip" not in rendered
+
+
 def test_public_action_cards_use_specific_visible_labels_for_mobile_clarity():
     start = dashboard.action_card_html(
         "Start with Stock Selector",
@@ -28556,10 +28571,13 @@ def test_stock_selector_next_reading_path_uses_selected_ticker_proof_lane():
     cards = dashboard.stock_selector_next_reading_path_cards(frame, ["MU"])
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
+    assert cards[0][0] == "Selected ticker"
     assert cards[0][2] == "?mode=public&page=single-stock-report&ticker=MU&open=1"
+    assert cards[0][4] == "Open MU report"
     assert cards[1][2] == "?mode=public&page=data-health&ticker=MU&lane=peers&drawer=proof"
     assert "selected ticker" in rendered
     assert "current top readiness-backed row" in rendered
+    assert "open single-stock report" not in rendered
     assert "generic proof" not in rendered
 
 
