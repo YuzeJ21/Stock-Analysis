@@ -31,6 +31,10 @@ data/staged/universe/*.csv
 !data/staged/universe/.gitkeep
 outputs/*stock_report.json
 outputs/*_stock_report.json
+outputs/stock_reports/*.md
+outputs/project_status_remaining_stages.csv
+outputs/session_source_preflight.json
+data/reports/ticker_readiness_report.previous.csv
 outputs/staging/
 outputs/data_source_status.csv
 outputs/data_gap_report.csv
