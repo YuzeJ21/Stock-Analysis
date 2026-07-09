@@ -2,11 +2,19 @@
 
 This pack is research-only. It shows readiness states, blocked inputs, and proof commands; it is not investment advice and it does not connect to brokers or route orders.
 
+Start with the product flow before opening operator proof commands:
+
+```text
+Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History
+```
+
+Use the table below as evidence after the visitor can already explain what is ready, what is blocked, what is excluded, and what proof changed a lane. Status, provider setup, and proof-ledger commands are operator evidence; they do not refresh data, unlock blocked inputs, or replace the public workflow.
+
 ## Shareable Proof Set
 
 | Slot | Artifact / command | What it proves |
 | --- | --- | --- |
-| Home | `make dashboard` then open Home | First-screen coverage snapshot and visitor routes. |
+| Visitor workflow | `make dashboard` then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History | First-screen product path and readiness-first route sequence. |
 | Status gate | `make project-status` | Current safest proof path, provider setup boundary, and whether company candidates are executable. |
 | Provider setup | `make provider-setup-checklist` | Source setup steps when source-proof queues are exhausted; no imports or generated data are applied. |
 | Data Health lane board | `make readiness-ops-center`, `make coverage-frontier TOP_N=10`, or dashboard `Data Health` | Lane counts, blocker themes, next safe commands, and locked/manual lanes. |

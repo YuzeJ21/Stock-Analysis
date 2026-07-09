@@ -2174,6 +2174,10 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
 def test_public_demo_readiness_pack_uses_live_proof_commands_not_stale_snapshot():
     pack = Path("docs/PUBLIC_DEMO_READINESS_PACK.md").read_text(encoding="utf-8")
 
+    assert "Start with the product flow before opening operator proof commands" in pack
+    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in pack
+    assert "Visitor workflow | `make dashboard` then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in pack
+    assert "operator evidence; they do not refresh data, unlock blocked inputs, or replace the public workflow" in pack
     assert "Current proof timeline" in pack
     assert "Use `make reviewed-data-proof`" in pack
     assert "Use `make reviewed-batch-proof`" in pack
