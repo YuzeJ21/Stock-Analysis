@@ -322,6 +322,14 @@ def _next_browser_check(next_pending: dict[str, str]) -> str:
     return "Open {route} at {viewport} width for {page}.".format(**next_pending)
 
 
+def _share_review_gate(pending_rows: int, problem_rows: list[dict[str, str]]) -> str:
+    if pending_rows:
+        return "pending_review"
+    if problem_rows:
+        return "review_limited"
+    return "share_review_ready"
+
+
 def _escape_note_cell(value: str) -> str:
     return value.replace("|", "/").replace("\n", " ").strip()
 
@@ -389,6 +397,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
             "pending_rows": expected_rows,
             "classification_counts": {"pending": expected_rows},
             "problem_rows": [],
+            "share_review_gate": "pending_review",
             "next_pending_review": next_pending,
             "next_browser_check": _next_browser_check(next_pending),
             "next_safe_command": "make public-ux-review-notes",
@@ -431,6 +440,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
         "pending_rows": pending_rows,
         "classification_counts": classification_counts,
         "problem_rows": problem_rows,
+        "share_review_gate": _share_review_gate(pending_rows, problem_rows),
         "next_pending_review": next_pending_review,
         "next_browser_check": _next_browser_check(next_pending_review),
         "next_safe_command": _next_review_note_command(next_pending_review),
@@ -452,6 +462,7 @@ def render_public_ux_review_notes_status(notes_path: str | Path | None = None) -
         f"path: {status['path']}",
         f"rows: {status['total_rows']} recorded / {status['expected_rows']} expected",
         f"pending_rows: {status['pending_rows']}",
+        f"share_review_gate: {status['share_review_gate']}",
         f"classification_counts: {', '.join(count_parts) if count_parts else '-'}",
         f"next_browser_check: {status['next_browser_check']}",
         f"next_safe_command: {status['next_safe_command']}",

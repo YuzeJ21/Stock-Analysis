@@ -136,6 +136,7 @@ def test_public_ux_review_notes_status_reports_missing_template(tmp_path):
     rendered = render_public_ux_review_notes_status(missing_path)
 
     assert status["status"] == "notes_missing"
+    assert status["share_review_gate"] == "pending_review"
     assert status["path"] == str(missing_path)
     assert status["pending_rows"] == 10
     assert status["next_safe_command"] == "make public-ux-review-notes"
@@ -144,6 +145,7 @@ def test_public_ux_review_notes_status_reports_missing_template(tmp_path):
     assert status["next_pending_review"]["route"] == "http://localhost:8501/?mode=public"
     assert "Public UX Review Notes Status" in rendered
     assert "notes_missing" in rendered
+    assert "share_review_gate: pending_review" in rendered
     assert "make public-ux-review-notes" in rendered
     assert "next_pending_review: Home | desktop | http://localhost:8501/?mode=public" in rendered
 
@@ -164,6 +166,7 @@ def test_public_ux_review_notes_status_guides_next_pending_note_command(tmp_path
     status = public_ux_review_notes_status(notes_path)
     rendered = render_public_ux_review_notes_status(notes_path)
 
+    assert status["share_review_gate"] == "pending_review"
     assert status["next_pending_review"]["page"] == "Home"
     assert status["next_pending_review"]["viewport"] == "phone"
     assert status["next_browser_check"] == "Open http://localhost:8501/?mode=public at phone width for Home."
@@ -176,6 +179,7 @@ def test_public_ux_review_notes_status_guides_next_pending_note_command(tmp_path
         "NOTES='Browser or capture unavailable; use normal-browser review.'"
     )
     assert "next_browser_check: Open http://localhost:8501/?mode=public at phone width for Home." in rendered
+    assert "share_review_gate: pending_review" in rendered
     assert "next_safe_command: make public-ux-review-note FIRST_ANSWER=yes" in rendered
     assert "NEXT_ACTION=yes ADVANCED_COLLAPSED=yes OUTCOME=resolved NOTES='<review notes>'" in rendered
     assert "next_limited_command: make public-ux-review-note OUTCOME=environment_limited" in rendered
@@ -198,6 +202,7 @@ def test_public_ux_review_notes_status_counts_pending_and_reviewed_rows(tmp_path
     rendered = render_public_ux_review_notes_status(notes_path)
 
     assert status["status"] == "review_in_progress"
+    assert status["share_review_gate"] == "pending_review"
     assert status["total_rows"] == 10
     assert status["pending_rows"] == 8
     assert status["classification_counts"]["resolved"] == 1
@@ -215,10 +220,62 @@ def test_public_ux_review_notes_status_counts_pending_and_reviewed_rows(tmp_path
         }
     ]
     assert "review_in_progress" in rendered
+    assert "share_review_gate: pending_review" in rendered
     assert "pending: 8" in rendered
     assert "environment_limited: 1" in rendered
     assert "next_pending_review: Home | phone | http://localhost:8501/?mode=public" in rendered
     assert "Data Health | phone | environment_limited" in rendered
+
+
+def test_public_ux_review_notes_status_marks_share_review_ready_when_all_rows_resolved(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+    for page, *_ in PUBLIC_ROUTES:
+        for viewport in ("desktop", "phone"):
+            record_public_ux_review_note(
+                notes_path=notes_path,
+                page=page,
+                viewport=viewport,
+                first_answer_visible="yes",
+                primary_next_action_visible="yes",
+                advanced_details_collapsed="yes",
+                classification="resolved",
+                notes=f"{page} {viewport} reviewed.",
+            )
+
+    status = public_ux_review_notes_status(notes_path)
+    rendered = render_public_ux_review_notes_status(notes_path)
+
+    assert status["status"] == "review_complete"
+    assert status["share_review_gate"] == "share_review_ready"
+    assert status["pending_rows"] == 0
+    assert status["problem_rows"] == []
+    assert "share_review_gate: share_review_ready" in rendered
+
+
+def test_public_ux_review_notes_status_marks_limited_gate_when_problem_rows_remain(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+    for page, *_ in PUBLIC_ROUTES:
+        for viewport in ("desktop", "phone"):
+            classification = "environment_limited" if page == "Data Health" and viewport == "phone" else "resolved"
+            record_public_ux_review_note(
+                notes_path=notes_path,
+                page=page,
+                viewport=viewport,
+                first_answer_visible="yes",
+                primary_next_action_visible="yes",
+                advanced_details_collapsed="yes",
+                classification=classification,
+                notes=f"{page} {viewport} reviewed.",
+            )
+
+    status = public_ux_review_notes_status(notes_path)
+    rendered = render_public_ux_review_notes_status(notes_path)
+
+    assert status["status"] == "review_has_deferred_or_limited_items"
+    assert status["share_review_gate"] == "review_limited"
+    assert status["pending_rows"] == 0
+    assert status["problem_rows"][0]["page"] == "Data Health"
+    assert "share_review_gate: review_limited" in rendered
 
 
 def test_record_public_ux_review_note_updates_one_row_and_advances_queue(tmp_path):
