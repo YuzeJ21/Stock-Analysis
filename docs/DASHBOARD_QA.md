@@ -45,6 +45,17 @@ Boundary checked:
   estimates, valuation inputs, or metrics.
 - The selector is a research queue, not a recommendation list.
 
+Current live-review handoff:
+
+- `make browser-qa-evidence` is the deterministic share gate for committed
+  route markers and screenshot assets.
+- The remaining UX task is a normal-browser desktop/mobile pass for
+  first-viewport spacing, unclear Data Health wording, and confusing next
+  actions.
+- Treat in-app browser capture timeouts as environment-limited; keep existing
+  real screenshots unless a normal browser shows a route mismatch, traceback,
+  raw-table-first view, or missing research-only boundary.
+
 ## 2026-07-06 Mobile And Wide-Desktop Public Flow Pass
 
 Checked by the live local Streamlit app, source-level responsive tests, and

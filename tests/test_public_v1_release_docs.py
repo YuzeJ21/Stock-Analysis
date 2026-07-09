@@ -310,6 +310,10 @@ def test_dashboard_qa_tracks_v1_replacement_browser_checks():
     assert "single-stock-report&ticker=NVDA&open=1" in qa
     assert "proof-history" in qa
     assert "no visible first-viewport raw dataframe" in qa
+    assert "`make browser-qa-evidence` is the deterministic share gate" in qa
+    assert "normal-browser desktop/mobile pass" in qa
+    assert "Treat in-app browser capture timeouts as environment-limited" in qa
+    assert "raw-table-first view" in qa
 
 
 def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
