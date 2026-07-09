@@ -54,7 +54,9 @@ Current live-review handoff:
   license boundary, and visitor-demo checks.
 - `make public-ux-review-checklist` is the copy-only normal-browser checklist
   for reviewing the five public pages at desktop and phone width before
-  replacing screenshots or changing share copy.
+  replacing screenshots or changing share copy. It now names each page
+  question and the matching failure action so reviewers fix the confusing page
+  contract before adding sections or routes.
 - `make project-status-check` is the no-write status read for review loops;
   use `make project-status` only when intentionally refreshing the
   dashboard-ready status snapshot files.
