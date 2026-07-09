@@ -1,4 +1,4 @@
-from src.public_ux_review_checklist import PUBLIC_ROUTES, render_public_ux_review_checklist
+from src.public_ux_review_checklist import PUBLIC_ROUTES, public_ux_review_payload, render_public_ux_review_checklist
 
 
 def test_public_ux_review_checklist_is_read_only_and_route_complete():
@@ -50,3 +50,31 @@ def test_public_ux_review_checklist_keeps_operator_details_and_data_claims_out()
     assert "make project-status-check" in rendered
     assert "make public-check" in rendered
     assert "make diff-hygiene-summary" in rendered
+
+
+def test_public_ux_review_payload_is_machine_readable_for_long_runs():
+    payload = public_ux_review_payload()
+
+    assert payload["title"] == "Public UX Review Checklist"
+    assert payload["mode"] == "read_only_product_qa"
+    assert payload["public_workflow"] == [
+        "Home",
+        "Stock Selector",
+        "Single-Stock Report",
+        "Data Health",
+        "Proof History",
+    ]
+    assert len(payload["route_checks"]) == 5
+    assert payload["route_checks"][0]["page"] == "Home"
+    assert payload["route_checks"][0]["question"] == "What is this product and where do I start?"
+    assert payload["responsive_route_checks"][0]["Desktop Viewport"] == "1280x720"
+    assert payload["responsive_route_checks"][0]["Phone Viewport"] == "390x844"
+    assert "environment_limited" in payload["browser_capture_fallback"][0]
+    assert "Do not replace screenshot assets" in payload["browser_capture_fallback"][2]
+    assert payload["next_safe_commands"] == [
+        "make dashboard",
+        "make project-status-check",
+        "make browser-qa-evidence",
+        "make public-check",
+        "make diff-hygiene-summary",
+    ]

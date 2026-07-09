@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import argparse
+import json
+
 from src.browser_qa_evidence import browser_qa_responsive_route_rows
 
 
@@ -47,12 +50,81 @@ PUBLIC_ROUTES = [
 ]
 
 
+DESKTOP_AND_MOBILE_RULES = [
+    "Open each route at a normal desktop width and phone width.",
+    "Confirm the first viewport has one question, one short answer, one primary next action, and one stop rule.",
+    "Confirm the visible page question matches the route's job in the table above.",
+    "If the page fails, fix only the matching failure action before adding new sections or routes.",
+    "Confirm raw tables, command blocks, proof ledgers, provider setup, and operator evidence stay behind Advanced or operator mode.",
+    "Confirm text does not overflow, overlap, or hide the primary next action.",
+    "Confirm screenshots remain product evidence only and do not claim data freshness.",
+]
+
+
+BROWSER_CAPTURE_FALLBACK = [
+    "If in-app browser capture is unavailable or times out, classify the review as environment_limited and continue with a normal local browser review.",
+    "Keep the existing real screenshot assets unless a normal browser shows a route mismatch, traceback, raw-table-first view, or missing research-only boundary.",
+    "Do not replace screenshot assets from a timed-out, blank, cropped, or loading capture.",
+]
+
+
+STOP_BEFORE_SHARING = [
+    "Any public route shows a traceback, blank page, stale generated thumbnail, or raw table before the answer.",
+    "A blocked, candidate-only, skipped, or excluded lane appears as analysis-ready.",
+    "Any page suggests broker trading, order routing, auto-trading, direct buy/sell instructions, or investment advice.",
+    "A hosted URL or provider key is implied before it is configured and verified.",
+]
+
+
+NEXT_SAFE_COMMANDS = [
+    "make dashboard",
+    "make project-status-check",
+    "make browser-qa-evidence",
+    "make public-check",
+    "make diff-hygiene-summary",
+]
+
+
+def public_ux_review_payload() -> dict[str, object]:
+    return {
+        "title": "Public UX Review Checklist",
+        "mode": "read_only_product_qa",
+        "research_boundary": "product QA, not investment advice, broker integration, data freshness proof, or trade instruction",
+        "public_workflow": [step for step, *_ in PUBLIC_ROUTES],
+        "route_checks": [
+            {
+                "page": step,
+                "route": route,
+                "question": question,
+                "first_viewport_must_show": markers,
+                "pass_condition": pass_condition,
+                "if_it_fails": failure_action,
+            }
+            for step, route, question, markers, pass_condition, failure_action in PUBLIC_ROUTES
+        ],
+        "responsive_route_checks": browser_qa_responsive_route_rows(),
+        "desktop_and_mobile_rules": DESKTOP_AND_MOBILE_RULES,
+        "browser_capture_fallback": BROWSER_CAPTURE_FALLBACK,
+        "review_log_template": [
+            "Route reviewed: <route>",
+            "Width: desktop or phone",
+            "First answer visible: yes/no",
+            "Primary next action visible: yes/no",
+            "Advanced/raw details collapsed: yes/no",
+            "Issue classification: resolved, intentionally_deferred, environment_limited, skipped, or blocked_with_evidence",
+        ],
+        "stop_before_sharing": STOP_BEFORE_SHARING,
+        "next_safe_commands": NEXT_SAFE_COMMANDS,
+    }
+
+
 def render_public_ux_review_checklist() -> str:
-    responsive_rows = browser_qa_responsive_route_rows()
+    payload = public_ux_review_payload()
+    responsive_rows = payload["responsive_route_checks"]
     lines = [
-        "Public UX Review Checklist",
+        str(payload["title"]),
         "Read-only: this checklist does not refresh data, import rows, capture screenshots, stage files, commit, or push.",
-        "Research-only: this is product QA, not investment advice, broker integration, data freshness proof, or trade instruction.",
+        f"Research-only: this is {payload['research_boundary']}.",
         "",
         "Use this before public sharing or after UI copy/layout changes.",
         "",
@@ -69,7 +141,7 @@ def render_public_ux_review_checklist() -> str:
             "| --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
-    for row in responsive_rows:
+    for row in responsive_rows:  # type: ignore[assignment]
         lines.append(
             "| {Page} | {Route} | {Desktop Viewport} | {Phone Viewport} | {First View Must Keep} | {Mobile Risk} | {Stop Rule} |".format(
                 **row
@@ -79,46 +151,32 @@ def render_public_ux_review_checklist() -> str:
         [
             "",
             "Desktop and mobile review rules:",
-            "- Open each route at a normal desktop width and phone width.",
-            "- Confirm the first viewport has one question, one short answer, one primary next action, and one stop rule.",
-            "- Confirm the visible page question matches the route's job in the table above.",
-            "- If the page fails, fix only the matching failure action before adding new sections or routes.",
-            "- Confirm raw tables, command blocks, proof ledgers, provider setup, and operator evidence stay behind Advanced or operator mode.",
-            "- Confirm text does not overflow, overlap, or hide the primary next action.",
-            "- Confirm screenshots remain product evidence only and do not claim data freshness.",
+            *[f"- {rule}" for rule in DESKTOP_AND_MOBILE_RULES],
             "",
             "Browser capture fallback:",
-            "- If in-app browser capture is unavailable or times out, classify the review as environment_limited and continue with a normal local browser review.",
-            "- Keep the existing real screenshot assets unless a normal browser shows a route mismatch, traceback, raw-table-first view, or missing research-only boundary.",
-            "- Do not replace screenshot assets from a timed-out, blank, cropped, or loading capture.",
+            *[f"- {rule}" for rule in BROWSER_CAPTURE_FALLBACK],
             "",
             "Review log template:",
-            "- Route reviewed: <route>",
-            "- Width: desktop or phone",
-            "- First answer visible: yes/no",
-            "- Primary next action visible: yes/no",
-            "- Advanced/raw details collapsed: yes/no",
-            "- Issue classification: resolved, intentionally_deferred, environment_limited, skipped, or blocked_with_evidence",
+            *[f"- {item}" for item in payload["review_log_template"]],  # type: ignore[index]
             "",
             "Stop before sharing if:",
-            "- Any public route shows a traceback, blank page, stale generated thumbnail, or raw table before the answer.",
-            "- A blocked, candidate-only, skipped, or excluded lane appears as analysis-ready.",
-            "- Any page suggests broker trading, order routing, auto-trading, direct buy/sell instructions, or investment advice.",
-            "- A hosted URL or provider key is implied before it is configured and verified.",
+            *[f"- {rule}" for rule in STOP_BEFORE_SHARING],
             "",
             "Next safe commands:",
-            "- make dashboard",
-            "- make project-status-check",
-            "- make browser-qa-evidence",
-            "- make public-check",
-            "- make diff-hygiene-summary",
+            *[f"- {command}" for command in NEXT_SAFE_COMMANDS],
         ]
     )
     return "\n".join(lines)
 
 
 def main() -> None:
-    print(render_public_ux_review_checklist())
+    parser = argparse.ArgumentParser(description="Print the public UX review checklist.")
+    parser.add_argument("--json", action="store_true", help="Print the checklist as machine-readable JSON.")
+    args = parser.parse_args()
+    if args.json:
+        print(json.dumps(public_ux_review_payload(), indent=2))
+    else:
+        print(render_public_ux_review_checklist())
 
 
 if __name__ == "__main__":
