@@ -316,6 +316,12 @@ def _next_limited_review_note_command(next_pending: dict[str, str]) -> str:
     )
 
 
+def _next_browser_check(next_pending: dict[str, str]) -> str:
+    if not next_pending:
+        return "All public UX review note rows are recorded; run make public-ux-review-notes-check."
+    return "Open {route} at {viewport} width for {page}.".format(**next_pending)
+
+
 def _escape_note_cell(value: str) -> str:
     return value.replace("|", "/").replace("\n", " ").strip()
 
@@ -384,6 +390,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
             "classification_counts": {"pending": expected_rows},
             "problem_rows": [],
             "next_pending_review": next_pending,
+            "next_browser_check": _next_browser_check(next_pending),
             "next_safe_command": "make public-ux-review-notes",
             "next_limited_command": "make public-ux-review-notes",
             "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
@@ -425,6 +432,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
         "classification_counts": classification_counts,
         "problem_rows": problem_rows,
         "next_pending_review": next_pending_review,
+        "next_browser_check": _next_browser_check(next_pending_review),
         "next_safe_command": _next_review_note_command(next_pending_review),
         "next_limited_command": _next_limited_review_note_command(next_pending_review),
         "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
@@ -445,6 +453,7 @@ def render_public_ux_review_notes_status(notes_path: str | Path | None = None) -
         f"rows: {status['total_rows']} recorded / {status['expected_rows']} expected",
         f"pending_rows: {status['pending_rows']}",
         f"classification_counts: {', '.join(count_parts) if count_parts else '-'}",
+        f"next_browser_check: {status['next_browser_check']}",
         f"next_safe_command: {status['next_safe_command']}",
         f"next_limited_command: {status['next_limited_command']}",
         f"boundary: {status['boundary']}",
