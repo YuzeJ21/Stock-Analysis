@@ -148,6 +148,32 @@ def test_public_ux_review_notes_status_reports_missing_template(tmp_path):
     assert "next_pending_review: Home | desktop | http://localhost:8501/?mode=public" in rendered
 
 
+def test_public_ux_review_notes_status_guides_next_pending_note_command(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+    record_public_ux_review_note(
+        notes_path=notes_path,
+        page="Home",
+        viewport="desktop",
+        first_answer_visible="yes",
+        primary_next_action_visible="yes",
+        advanced_details_collapsed="yes",
+        classification="resolved",
+        notes="Desktop first view is clear.",
+    )
+
+    status = public_ux_review_notes_status(notes_path)
+    rendered = render_public_ux_review_notes_status(notes_path)
+
+    assert status["next_pending_review"]["page"] == "Home"
+    assert status["next_pending_review"]["viewport"] == "phone"
+    assert status["next_safe_command"] == (
+        "make public-ux-review-note FIRST_ANSWER=yes NEXT_ACTION=yes "
+        "ADVANCED_COLLAPSED=yes OUTCOME=resolved NOTES='<review notes>'"
+    )
+    assert "next_safe_command: make public-ux-review-note FIRST_ANSWER=yes" in rendered
+    assert "NEXT_ACTION=yes ADVANCED_COLLAPSED=yes OUTCOME=resolved NOTES='<review notes>'" in rendered
+
+
 def test_public_ux_review_notes_status_counts_pending_and_reviewed_rows(tmp_path):
     notes_path = write_public_ux_review_notes(tmp_path)
     text = notes_path.read_text(encoding="utf-8")

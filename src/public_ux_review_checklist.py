@@ -298,6 +298,15 @@ def _first_pending_review(rows: list[dict[str, str]] | None = None) -> dict[str,
     return {"page": first_page, "viewport": "desktop", "route": first_route}
 
 
+def _next_review_note_command(next_pending: dict[str, str]) -> str:
+    if not next_pending:
+        return "make public-ux-review-notes-check"
+    return (
+        "make public-ux-review-note FIRST_ANSWER=yes NEXT_ACTION=yes "
+        "ADVANCED_COLLAPSED=yes OUTCOME=resolved NOTES='<review notes>'"
+    )
+
+
 def _escape_note_cell(value: str) -> str:
     return value.replace("|", "/").replace("\n", " ").strip()
 
@@ -356,6 +365,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
     path = Path(notes_path) if notes_path is not None else _default_review_notes_path()
     expected_rows = len(PUBLIC_ROUTES) * 2
     if not path.exists():
+        next_pending = _first_pending_review()
         return {
             "status": "notes_missing",
             "path": str(path),
@@ -364,7 +374,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
             "pending_rows": expected_rows,
             "classification_counts": {"pending": expected_rows},
             "problem_rows": [],
-            "next_pending_review": _first_pending_review(),
+            "next_pending_review": next_pending,
             "next_safe_command": "make public-ux-review-notes",
             "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
         }
@@ -395,6 +405,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
     else:
         status = "review_complete"
 
+    next_pending_review = _first_pending_review(rows) if pending_rows else {}
     return {
         "status": status,
         "path": str(path),
@@ -403,8 +414,8 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
         "pending_rows": pending_rows,
         "classification_counts": classification_counts,
         "problem_rows": problem_rows,
-        "next_pending_review": _first_pending_review(rows) if pending_rows else {},
-        "next_safe_command": "make public-ux-review-notes",
+        "next_pending_review": next_pending_review,
+        "next_safe_command": _next_review_note_command(next_pending_review),
         "boundary": REVIEW_NOTE_ARTIFACT["git_boundary"],
     }
 
