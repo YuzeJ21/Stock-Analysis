@@ -42,6 +42,18 @@ def _hosted_gate_instruction(hosted_status: str) -> str:
     return "   Run hosted-demo-readiness to classify the hosted URL gate before changing public copy."
 
 
+def _hosted_next_action(hosted_status: str) -> str:
+    if hosted_status.startswith("manual_verify_required;"):
+        return (
+            "- If you have a hosted URL: open it, verify the five-page public "
+            "workflow, then rerun public gates before changing public copy."
+        )
+    return (
+        "- If you want a hosted URL: make hosted-demo-readiness, then follow "
+        "docs/HOSTED_DEMO_DEPLOYMENT.md after choosing an external host/account."
+    )
+
+
 def _provider_status(root: Path) -> tuple[str, str, str]:
     checklist = build_provider_setup_checklist(root=root)
     first_answer = checklist.get("first_answer", {})
@@ -81,7 +93,7 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
         "Next executable repo-side item:",
         f"- First safe status read: make project-status-check",
         f"- Public share verification: make public-check",
-        f"- If you want a hosted URL: make hosted-demo-readiness, then follow docs/HOSTED_DEMO_DEPLOYMENT.md after choosing an external host/account.",
+        _hosted_next_action(hosted_status),
         f"- If you want more source-backed coverage: configure at most one missing keyed provider outside the repo, then run one reviewed ticker smoke: {smoke_command}",
         "",
         f"Hosted demo status: {hosted_status}",
