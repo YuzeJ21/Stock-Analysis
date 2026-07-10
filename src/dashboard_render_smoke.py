@@ -47,7 +47,7 @@ PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             ("ticker", "NVDA"),
             ("open", "1"),
         ),
-        required_markers=("One-Stock Review", "SELECTED TICKER", "What Can Be Read Now"),
+        required_markers=("One-Stock Review", "NVDA is selected", "What Can Be Read Now"),
     ),
     DashboardRenderRoute(
         name="Data Health",

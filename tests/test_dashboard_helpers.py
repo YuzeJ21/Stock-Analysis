@@ -2952,6 +2952,34 @@ def test_loaded_single_stock_detail_tables_are_collapsed_after_workflow_fit():
     assert 'st.dataframe(\n            clean_display_frame(stock_report_key_value_frame(financials, financial_fields))' not in source
 
 
+def test_public_single_stock_defers_secondary_rendering_until_detail_toggle():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    next_function_index = source.index("\ndef render_data_health(", render_index)
+    chunk = source[render_index:next_function_index]
+
+    public_answer_index = chunk.index("render_signal_cards(stock_report_provenance_cards(report_payload)")
+    detail_gate_index = chunk.index(
+        "if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):",
+        public_answer_index,
+    )
+    detail_button_index = chunk.index('st.button("Show detailed report sections"', detail_gate_index)
+    readiness_evidence_index = chunk.index('with st.expander("Ticker Readiness Evidence", expanded=False):', detail_button_index)
+    detailed_review_index = chunk.index('st.expander("Advanced: detailed report sections", expanded=False):', readiness_evidence_index)
+
+    assert public_answer_index < detail_gate_index < detail_button_index < readiness_evidence_index < detailed_review_index
+
+
+def test_operator_source_setup_summary_stays_inside_the_source_setup_drawer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    operator_index = source.index("selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
+    source_drawer_index = source.index('with st.expander("Advanced: operator source setup details", expanded=False):', operator_index)
+    source_answer_index = source.index('"Source Setup First Answer"', operator_index)
+    auto_refresh_index = source.index('"Auto Refresh Status"', source_drawer_index)
+
+    assert source_drawer_index < source_answer_index < auto_refresh_index
+
+
 def test_public_dashboard_quality_labels_avoid_internal_audit_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

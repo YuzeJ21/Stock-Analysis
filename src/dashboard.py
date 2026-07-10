@@ -26555,6 +26555,15 @@ def home_saved_report_notice_message(
     return None
 
 
+def single_stock_detail_sections_key(ticker: object) -> str:
+    ticker_label = format_missing(ticker, "selected-ticker").strip().upper()
+    return f"single-stock-detail-sections:{ticker_label}"
+
+
+def single_stock_detail_sections_visible(ticker: object) -> bool:
+    return bool(st.session_state.get(single_stock_detail_sections_key(ticker), False))
+
+
 def stock_selector_queue_frame(
     decisions_frame: pd.DataFrame | None,
     final_frame: pd.DataFrame | None,
@@ -28191,6 +28200,15 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         if not public_mode:
             render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
             render_signal_cards(workflow_fit_cards, show_commands=False)
+    if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):
+        render_context_note(
+            "Detailed report stays closed.",
+            "The selected-ticker answer above is the public review. Open detailed sections only when you need tables, charts, assumptions, or source notes.",
+        )
+        if st.button("Show detailed report sections", key=f"{single_stock_detail_sections_key(ticker)}:open"):
+            st.session_state[single_stock_detail_sections_key(ticker)] = True
+            st.rerun()
+        return
     if provider is not None and ticker:
         with st.expander("Ticker Readiness Evidence", expanded=False):
             render_context_note(
@@ -28209,6 +28227,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             readiness_cols[4].metric("Peer Market Context", peer_summary["peer_market_context_available"])
     if open_review_clicked:
         open_selected_report()
+        if public_mode and st.session_state.get("single_stock_report_payload"):
+            st.rerun()
 
     report_payload = st.session_state.get("single_stock_report_payload")
     if st.session_state.get("single_stock_report_ticker") != ticker:
@@ -29422,12 +29442,12 @@ def render_data_health(
             show_commands=False,
             variant="queue",
         )
-    render_section_header(
-        "Source Setup First Answer",
-        "What can run now, what setup could change the gate, what should not be retried, and the review boundary before provider details.",
-    )
-    st.table(clean_display_frame(data_health_provider_setup_first_answer_frame(BASE_DIR)))
     with st.expander("Advanced: operator source setup details", expanded=False):
+        render_section_header(
+            "Source Setup First Answer",
+            "What can run now, what setup could change the gate, what should not be retried, and the review boundary before provider details.",
+        )
+        st.table(clean_display_frame(data_health_provider_setup_first_answer_frame(BASE_DIR)))
         source_exhaustion_pivot_cards = data_health_source_exhaustion_pivot_cards(project_status_payload)
         if source_exhaustion_pivot_cards:
             render_section_header(
