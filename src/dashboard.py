@@ -3266,9 +3266,6 @@ def apply_dashboard_theme() -> None:
           .command-topbar.compact .command-top-left .command-status-item:not(.primary):not(.command-stop-status) {
             display: none;
           }
-          .command-topbar.compact .command-top-link.command-about {
-            display: none;
-          }
           .command-topbar.compact .command-status-item.primary,
           .command-topbar.compact .command-stop-status,
           .command-topbar.compact .command-top-link {
@@ -5726,28 +5723,25 @@ def command_center_header_html(
         for label, value, note, tone in kpis
     )
     compact_class = " compact" if compact else ""
-    home_current_attr = " aria-current='page'" if normalized_current_page == "Home" else ""
     data_health_current_attr = " aria-current='page'" if normalized_current_page == "Data Health" else ""
-    home_link_label = "What can I use now?" if normalized_current_page == "Home" else "Home"
     topbar_html = (
         f"<header class='command-shell{compact_class}'>"
-        f"<nav class='command-topbar{compact_class}' aria-label='Public workflow status'>"
+        f"<nav class='command-topbar{compact_class}' aria-label='Readiness status'>"
         "<div class='command-top-left'>"
-        f"<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'{home_current_attr}>{html.escape(home_link_label)}</a>"
+        "<span class='command-status-item primary'>Saved readiness</span>"
         f"<span class='command-status-item'>Data snapshot: {html.escape(str(latest_price))}</span>"
         "<span class='command-status-item'>Readiness-gated coverage <span class='command-status-dot'></span></span>"
         "<span class='command-status-item command-stop-status'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
         f"<a class='command-top-link' href='?mode=public&page=data-health' target='_self'{data_health_current_attr}>Blocked inputs? Data Health</a>"
-        "<a class='command-top-link command-about' href='?mode=public' target='_self'>How this works</a>"
         "</div>"
         "</nav>"
     )
     if compact:
         return (
             f"{topbar_html}"
-            f"<div class='command-kpi-proof'>{total:,} tracked names; local readiness snapshot only.</div>"
+            f"<div class='command-kpi-proof'>{total:,} tracked names.</div>"
             "</header>"
         )
     return (
@@ -27998,9 +27992,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         except (LookupError, FileNotFoundError, ValueError) as exc:
             st.warning(str(exc))
 
-    if query_open_review and not report_payload and compact_public_open_report:
-        open_selected_report()
-
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         peer_summary = provider.get_peer_summary(ticker)
@@ -28012,8 +28003,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             report_payload=report_payload if isinstance(report_payload, dict) else None,
         )
         if not report_payload and (compact_public_open_report or not query_open_review):
-            render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
-        elif report_payload and compact_public_open_report:
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
     if query_open_review and not report_payload:
@@ -28030,6 +28019,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 tone="success",
             )
         open_selected_report()
+        if compact_public_open_report and report_payload:
+            st.rerun()
 
     if report_payload:
         if not compact_public_open_report:
@@ -31753,13 +31744,14 @@ def main() -> None:
         compact=public_page_header or (selected_page == "Data Health" and not public_demo_mode),
         current_page=selected_page,
     )
-    st.caption("Local stock research guided workflow. Data readiness first; analysis only when source-backed inputs are ready.")
     if public_demo_mode:
         render_public_workflow_skip_target()
         render_public_workflow_header(selected_page)
         if bootstrap_placeholder is not None:
             bootstrap_placeholder.empty()
             bootstrap_placeholder = None
+    else:
+        st.caption("Local stock research guided workflow. Data readiness first; analysis only when source-backed inputs are ready.")
 
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
 

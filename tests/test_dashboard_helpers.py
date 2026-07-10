@@ -1367,16 +1367,12 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
     assert "command-topbar" in html
     assert "Stock Research Guided Workflow" in html
     assert "About this center" not in html
-    assert "How this works" in html
-    assert "<a class='command-top-link command-about' href='?mode=public' target='_self'>How this works</a>" in html
-    assert "<span class='command-status-item command-about'>How this works</span>" not in html
     assert "Blocked inputs? Data Health" in html
-    assert "What can I use now?" in html
-    assert (
-        "<a class='command-status-item primary command-home-link' href='?mode=public' "
-        "target='_self' aria-current='page'>What can I use now?</a>"
-    ) in html
-    assert "<span class='command-status-item primary'>What can I use now?</span>" not in html
+    assert "Saved readiness" in html
+    assert "aria-label='Readiness status'" in html
+    assert "How this works" not in html
+    assert "What can I use now?" not in html
+    assert "command-home-link" not in html
     assert "Data readiness first" in html
     assert "Readiness-gated coverage" in html
     assert "Research-only" in html
@@ -1391,7 +1387,7 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
     assert "4,102 DCF-ready" in html
     assert "3,043 peer-ready" in html
     assert "88 blocked" in html
-    assert "5,000 tracked names are available for review" in html
+    assert "5,000 tracked names" in html
     assert "47 saved names are available for review" not in html
     assert "98%" not in html
     assert "Prices: ON" not in html
@@ -1425,7 +1421,7 @@ def test_compact_command_header_keeps_mobile_stop_rule_visible():
     assert "command-stop-status" in html
     assert "<span class='command-status-item command-stop-status'>No account actions</span>" in html
     assert ".command-status-item:not(.primary):not(.command-stop-status)" in mobile_block
-    assert ".command-topbar.compact .command-top-link.command-about" in mobile_block
+    assert ".command-topbar.compact .command-top-left .command-status-item:not(.primary):not(.command-stop-status)" in mobile_block
     assert "display: none;" in mobile_block
     assert "min-height: 1.7rem" in mobile_block
 
@@ -3598,10 +3594,10 @@ def test_command_center_header_uses_semantic_product_heading():
     assert "<header" in html
     assert "<h1 class='command-title-v2'>Stock Research Guided Workflow</h1>" in html
     assert "<nav" in html
-    assert "aria-label='Public workflow status'" in html
+    assert "aria-label='Readiness status'" in html
 
 
-def test_command_center_header_marks_current_public_shortcut_for_a11y():
+def test_command_center_header_marks_data_health_handoff_for_a11y():
     home_html = dashboard.command_center_header_html(
         {"master_universe": 100, "price_ready": 20, "dcf_ready": 5, "peer_ready": 2},
         tickers=100,
@@ -3618,15 +3614,11 @@ def test_command_center_header_marks_current_public_shortcut_for_a11y():
         compact=True,
     )
 
-    assert (
-        "<a class='command-status-item primary command-home-link' href='?mode=public' "
-        "target='_self' aria-current='page'>What can I use now?</a>"
-    ) in home_html
+    assert "<span class='command-status-item primary'>Saved readiness</span>" in home_html
     assert "href='?mode=public&page=data-health' target='_self' aria-current='page'" not in home_html
     assert "href='?mode=public&page=data-health' target='_self' aria-current='page'" in data_health_html
-    assert "command-home-link' href='?mode=public' target='_self' aria-current='page'" not in data_health_html
-    assert "<a class='command-status-item primary command-home-link' href='?mode=public' target='_self'>Home</a>" in data_health_html
-    assert ">What can I use now?</a>" not in data_health_html
+    assert "command-home-link" not in data_health_html
+    assert "How this works" not in data_health_html
 
 
 def test_chart_panel_title_normalizes_spacing_and_trailing_punctuation():
@@ -28406,6 +28398,18 @@ def test_public_pages_use_compact_shell_before_page_content():
     assert "public-workflow-supporting" not in source
 
 
+def test_public_shell_keeps_global_product_caption_out_of_each_page_answer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    main_index = source.index("def main()")
+    public_mode_index = source.index("if public_demo_mode:", main_index)
+    caption_index = source.index("st.caption(\"Local stock research guided workflow.", public_mode_index)
+    public_header_index = source.index("render_public_workflow_header(selected_page)", public_mode_index)
+    operator_else_index = source.rfind("else:", public_mode_index, caption_index)
+
+    assert public_mode_index < public_header_index < operator_else_index < caption_index
+
+
 def test_public_workflow_header_uses_one_compact_progress_rail():
     html = dashboard.public_workflow_header_html("Single-Stock Report")
 
@@ -28567,10 +28571,10 @@ def test_public_compact_header_allows_mobile_status_wrap():
     assert "gap: 0.28rem" in mobile_compact_chunk
     assert ".command-topbar.compact .command-top-left .command-status-item:not(.primary)" in mobile_compact_chunk
     assert "display: none" in mobile_compact_chunk
-    assert "command-about" in source
+    assert "command-about" not in source
 
 
-def test_compact_header_keeps_about_link_classed_for_mobile():
+def test_compact_header_keeps_one_contextual_data_health_handoff():
     html = dashboard.command_center_header_html(
         {"master_universe": 100, "price_ready": 20, "dcf_ready": 5, "peer_ready": 2},
         tickers=100,
@@ -28580,10 +28584,11 @@ def test_compact_header_keeps_about_link_classed_for_mobile():
     )
 
     assert "command-topbar compact" in html
-    assert "command-top-link command-about" in html
-    assert "command-home-link" in html
+    assert "command-top-link command-about" not in html
+    assert "command-home-link" not in html
     assert "Blocked inputs? Data Health" in html
-    assert "100 tracked names; local readiness snapshot only." in html
+    assert "100 tracked names" in html
+    assert "local readiness snapshot only" not in html
     assert "tracked names are available for review" not in html
     assert "Stock Research Command Center" not in html
 
@@ -28786,6 +28791,9 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     assert '"Selected-ticker guide."' not in single_stock_chunk
     assert "The page opens with selected ticker state" not in single_stock_chunk
     assert "pre_report_cards[:3]" not in single_stock_chunk
+    assert "if query_open_review and not report_payload and compact_public_open_report:" not in single_stock_chunk
+    assert "elif report_payload and compact_public_open_report:" not in single_stock_chunk
+    assert "if compact_public_open_report and report_payload:\n            st.rerun()" in single_stock_chunk
     assert (
             render_index
         < provider_ticker_load_index
