@@ -23,7 +23,7 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
     "prices": LocalDatasetSchema(
         dataset_name="prices",
         required_columns=("date", "ticker"),
-        optional_columns=("adj_close", "adjusted_close", "close", "open", "high", "low", "volume", "source", "as_of_date", "notes"),
+        optional_columns=("adj_close", "adjusted_close", "close", "open", "high", "low", "volume", "currency", "source", "as_of_date", "notes"),
         numeric_columns=("adj_close", "adjusted_close", "close", "open", "high", "low", "volume"),
         date_columns=("date", "as_of_date"),
     ),
@@ -56,6 +56,7 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
             "market_cap",
             "enterprise_value",
             "debt_to_equity",
+            "currency",
             "source",
             "as_of_date",
             "updated_at",

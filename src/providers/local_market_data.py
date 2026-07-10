@@ -438,7 +438,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             day_high=float(latest["high"]) if pd.notna(latest["high"]) else None,
             day_low=float(latest["low"]) if pd.notna(latest["low"]) else None,
             volume=float(latest["volume"]) if pd.notna(latest["volume"]) else None,
-            currency=None,
+            currency=self._string_value(latest, "currency"),
             market_time=latest["date"].isoformat() if pd.notna(latest["date"]) else None,
             source=source,
         )
@@ -499,7 +499,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             debt=self._float_value(row, "debt", "total_debt"),
             net_debt=self._float_value(row, "net_debt"),
             debt_to_equity=self._float_value(row, "debt_to_equity"),
-            currency=None,
+            currency=self._string_value(row, "currency"),
             as_of_date=self._string_value(row, "as_of_date", "date"),
             reporting_period=self._string_value(row, "period", "fiscal_period"),
             source=source,
