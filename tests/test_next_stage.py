@@ -1,0 +1,24 @@
+from src.next_stage import render_next_stage
+
+
+def test_next_stage_uses_manual_verification_ladder_when_hosted_url_is_configured(
+    monkeypatch,
+):
+    monkeypatch.setenv("HOSTED_DEMO_URL", "https://stock-demo.example.com")
+
+    output = render_next_stage(".", top_n=1)
+
+    assert "Hosted demo status: manual_verify_required" in output
+    assert "https://stock-demo.example.com" in output
+    assert "Hosted app gate: make hosted-demo-readiness" in output
+    assert "Hosted URL is configured but still needs the five-page public workflow check" in output
+    assert "Hosted demo remains external_account_required" not in output
+
+
+def test_next_stage_keeps_external_account_ladder_without_hosted_url(monkeypatch):
+    monkeypatch.delenv("HOSTED_DEMO_URL", raising=False)
+
+    output = render_next_stage(".", top_n=1)
+
+    assert "Hosted demo status: external_account_required" in output
+    assert "Hosted demo remains external_account_required" in output

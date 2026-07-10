@@ -28,6 +28,20 @@ def _hosted_url_status(root: Path) -> str:
     return "unknown; run make hosted-demo-readiness"
 
 
+def _hosted_gate_instruction(hosted_status: str) -> str:
+    if hosted_status.startswith("manual_verify_required;"):
+        return (
+            "   Hosted URL is configured but still needs the five-page public workflow "
+            "check before public copy changes."
+        )
+    if hosted_status.startswith("external_account_required;"):
+        return (
+            "   Hosted demo remains external_account_required until a public URL opens "
+            "and the five-page public workflow is verified."
+        )
+    return "   Run hosted-demo-readiness to classify the hosted URL gate before changing public copy."
+
+
 def _provider_status(root: Path) -> tuple[str, str, str]:
     checklist = build_provider_setup_checklist(root=root)
     first_answer = checklist.get("first_answer", {})
@@ -80,7 +94,7 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
         "2. Public share gate: make public-check",
         "   Use this before sharing the GitHub link or LinkedIn Featured card.",
         "3. Hosted app gate: make hosted-demo-readiness",
-        "   Hosted demo remains external_account_required until a public URL opens and the five-page public workflow is verified.",
+        _hosted_gate_instruction(hosted_status),
         "4. Provider key gate: make provider-setup-checklist",
         "   FMP, Alpha Vantage, and Finnhub stay external_key_required until keys are configured outside the repo and one reviewed ticker smoke passes.",
         "5. Stop rule: Do not run broad proof queues unless project-status-check shows executable source-backed candidates.",
