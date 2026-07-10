@@ -21,6 +21,7 @@ from src.browser_qa_evidence import (
     image_size,
     main,
 )
+from src.browser_qa_evidence import DEFAULT_BROWSER_QA_EVIDENCE, DEFAULT_BROWSER_QA_ROUTE_CHECKS
 
 
 def _write_png(path: Path, width: int = 1200, height: int = 627) -> None:
@@ -54,6 +55,23 @@ def test_image_size_reads_png_and_jpeg_dimensions(tmp_path):
 
     assert image_size(png) == (1200, 627)
     assert image_size(jpg) == (1280, 720)
+
+
+def test_default_public_browser_qa_contract_uses_current_compact_workflow_markers():
+    rendered = " ".join(
+        marker
+        for item in (*DEFAULT_BROWSER_QA_EVIDENCE[:2], *DEFAULT_BROWSER_QA_ROUTE_CHECKS[:5])
+        for marker in (
+            item.expected_markers if isinstance(item, BrowserQaEvidence) else item.first_view_markers
+        )
+    )
+
+    assert "Saved readiness" in rendered
+    assert "Step 1 of 5" in rendered
+    assert "Research-only" in rendered
+    assert "Current question" not in rendered
+    assert "Primary next step" not in rendered
+    assert "research-loop-strip" not in rendered
 
 
 def test_browser_qa_evidence_rows_keep_routes_assets_and_boundaries_visible(tmp_path):
@@ -391,8 +409,8 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert len(payload["responsive_route_qa_checklist"]) == 5
     assert "browser qa evidence is product evidence only" in rendered
     assert "responsive_route_qa_checklist" in rendered
-    assert "current question" in rendered
-    assert "primary next step" in rendered
+    assert "saved readiness" in rendered
+    assert "step 1 of 5" in rendered
     assert "stop rule" in rendered
     assert "first 30 seconds" in rendered
     assert "data health workspace" in rendered
@@ -456,7 +474,7 @@ def test_browser_qa_responsive_route_rows_cover_public_flow_without_raw_ops():
     assert pages == ["Home", "Stock Selector", "Single-Stock Report", "Data Health", "Proof History"]
     assert all(row["Desktop Viewport"] == "1280x720" for row in rows)
     assert all(row["Phone Viewport"] == "390x844" for row in rows)
-    assert all("You are here" in str(row["First View Must Keep"]) for row in rows)
+    assert all("Saved readiness" in str(row["First View Must Keep"]) for row in rows)
     assert "coverage summary / what can i use?" in rendered
     assert "which stock can i review?" in rendered
     assert "one-stock review" in rendered
@@ -513,37 +531,37 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
         if str(row["Route"]).startswith("http://localhost:8501/?mode=public")
     ]
     assert public_rows
-    assert all("You are here" in str(row["First View Markers"]) for row in public_rows)
+    assert all("Saved readiness" in str(row["First View Markers"]) for row in public_rows)
     stock_selector = next(row for row in rows if row["Route Check"] == "Public Stock Selector")
     assert "Which stock can I review?" in str(stock_selector["First View Markers"])
-    assert "What can I use now" in str(stock_selector["First View Markers"])
-    assert "What is blocked" in str(stock_selector["First View Markers"])
+    assert "Selected ticker" in str(stock_selector["First View Markers"])
     assert "selected-ticker state" in str(stock_selector["Details Boundary"])
     assert "choose a reviewable ticker" in str(stock_selector["QA Focus"])
     single_stock = next(row for row in rows if row["Route Check"] == "Single-stock workflow fit")
-    assert "What can I use now" in str(single_stock["First View Markers"])
-    assert "What is blocked" in str(single_stock["First View Markers"])
+    assert "USE NOW" in str(single_stock["First View Markers"])
+    assert "BLOCKED / CONTEXT" in str(single_stock["First View Markers"])
     public_data_health = next(row for row in rows if row["Route Check"] == "Public Data Health coverage answer")
     assert "Coverage Summary / What Can I Use?" in str(public_data_health["First View Markers"])
-    assert "What can I use now" in str(public_data_health["First View Markers"])
-    assert "What is blocked" in str(public_data_health["First View Markers"])
+    assert "Price / setup" in str(public_data_health["First View Markers"])
+    assert "Optional inputs" in str(public_data_health["First View Markers"])
     assert "one coverage answer per lane" in str(public_data_health["Details Boundary"])
     assert "provider setup" in str(public_data_health["Stop Rule"])
     fast_view = next(row for row in rows if row["Route Check"] == "Data Health operator fast view")
     assert "READINESS CONTEXT" in str(fast_view["First View Markers"])
     assert "Next Data-Readiness Action" not in str(fast_view["First View Markers"])
     assert "first 30 seconds" in rendered
-    assert "primary workflow" in rendered
-    assert "current question" in rendered
-    assert "primary next step" in rendered
-    assert "stop rule" in rendered
+    assert "saved readiness" in rendered
+    assert "step 1 of 5" in rendered
+    assert "primary workflow" not in rendered
+    assert "current question" not in rendered
+    assert "primary next step" not in rendered
+    assert "stop rule" not in rendered
     assert "stock selector" in rendered
     assert "which stock can i review?" in rendered
     assert "what can be read now" in rendered
     assert "selected ticker" in rendered
     assert "next step" in rendered
     assert "coverage summary / what can i use?" in rendered
-    assert "proof map" in rendered
     assert "selected lane answer" in rendered
     assert "before advanced proof detail" in rendered
     assert "source gate" in rendered
@@ -587,8 +605,8 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "single-stock workflow fit" in output
     assert "data health proof lane progressive load" in output
     assert "data health queue drawer routing" in output
-    assert "current question" in output
-    assert "primary next step" in output
+    assert "saved readiness" in output
+    assert "step 1 of 5" in output
     assert "stop rule" in output
     assert "first 30 seconds" in output
     assert "what can be read now" in output
@@ -622,8 +640,8 @@ def test_browser_qa_evidence_cli_json_mode_prints_payload(tmp_path, capsys):
     assert "capture_session_plan" in payload
     assert "route_qa_checklist" in payload
     assert payload["reviewed_asset_stage_command"].startswith("git add -- docs/assets/")
-    assert "current question" in rendered
-    assert "primary next step" in rendered
+    assert "saved readiness" in rendered
+    assert "step 1 of 5" in rendered
     assert "stop rule" in rendered
     assert "operator-data-health-queue-routing-real.jpg" in rendered
     assert "reviewed_asset_stage_command" in rendered

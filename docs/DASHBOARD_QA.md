@@ -133,6 +133,30 @@ Capture limitation:
 - Keep the committed real screenshots until a normal local browser can recapture
   and visually review any asset that needs exact current-copy proof.
 
+## 2026-07-10 Compact Public Workflow Evidence Refresh
+
+Checked with fresh real Streamlit captures at desktop and phone widths:
+
+- The public shell now uses a compact `Saved readiness` status strip, a numbered
+  five-step rail, the page's literal question, and the `Research-only` boundary.
+  Sidebar navigation remains the single public route chooser.
+- The Home, Single-Stock Report, Data Health, and Proof History first views no
+  longer repeat a generic current-question / primary-next-step / stop-rule card
+  set. Each page shows its own answer before Advanced details.
+- The completed single-stock route now replaces its preparation contract with
+  the report answer rather than stacking both states. The selected ticker flows
+  directly into `What Can Be Read Now`.
+- Refreshed real captures: `docs/assets/linkedin-public-dashboard.png`,
+  `docs/assets/public-demo-home-real.jpg`, and
+  `docs/assets/single-stock-workflow-fit-real.jpg`.
+
+Boundary checked:
+
+- Screenshots remain product evidence only. They do not prove data freshness,
+  source coverage, import success, or readiness changes.
+- Generated CSV/report/sample-report output remains excluded from the reviewed
+  product package.
+
 ## 2026-06-19 Workflow Continuity And Route Card Pass
 
 Checked by tests and local read-only commands:
