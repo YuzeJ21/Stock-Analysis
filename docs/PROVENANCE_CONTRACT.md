@@ -11,7 +11,7 @@ Every analysis-ready record or report section should expose, directly or through
 | Field | Meaning | Boundary |
 | --- | --- | --- |
 | `readiness_state` | `ready`, `partial`, `blocked`, `excluded`, or an evidence outcome such as `candidate_context_only`. | A state is not a recommendation. |
-| `source` | Named local, SEC, provider, filing, or reviewed source origin. | Source availability alone does not make a value usable. |
+| `source` | Named local, SEC, provider, filing, or reviewed source origin. | Source availability alone does not render a value usable. |
 | `as_of_date` | Financial period, market date, filing date, or source effective date. | It is not the same as retrieval time. |
 | `retrieved_at` | When a provider or local artifact was obtained, where available. | Missing retrieval time lowers freshness certainty; it does not get invented. |
 | `method_version` | Version of the project rule or calculation that produced the section. | Method changes must be documented before public claims change. |
@@ -35,7 +35,7 @@ Every analysis-ready record or report section should expose, directly or through
 Freshness is lane-specific. A price date, a filing date, and a peer review date answer different questions.
 
 - Price context: use the latest available market date and row-history depth; a short history may remain partial.
-- Fundamentals and share count: use filing date and reporting period; quarterly or annual changes do not make an older filing false, but the report should surface its period.
+- Fundamentals and share count: use filing date and reporting period; quarterly or annual changes do not invalidate an older filing, but the report should surface its period.
 - Peer mappings: use source review date; candidate suggestions do not acquire freshness merely because price data refreshed.
 - Earnings and estimates: use provider retrieval and estimate period; unsupported fields remain optional context only.
 - Screenshots and the demo manifest show product/package evidence. They are not data-freshness proof.

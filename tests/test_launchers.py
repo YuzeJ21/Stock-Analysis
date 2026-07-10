@@ -79,8 +79,9 @@ def test_price_mutation_targets_use_the_ignored_local_profile():
 def test_demo_data_check_only_runs_the_manifest_verifier():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
-    target = makefile.split("demo-data-check:", 1)[1].split("\nbrowser-qa-evidence:", 1)[0]
-    assert target.strip() == "@python3 -m src.demo_data_builder --check"
+    match = re.search(r"^demo-data-check:\n(?P<body>(?:\t.*\n)+)", makefile, flags=re.MULTILINE)
+    assert match is not None
+    assert match.group("body").strip() == "@python3 -m src.demo_data_builder --check"
 
 
 def test_dashboard_resolves_default_data_roots_through_the_profile_layer():
@@ -529,7 +530,7 @@ def test_metric_readiness_board_make_target_preserves_comma_default():
 def test_price_refresh_defaults_to_capped_broad_universe_batch():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
-    assert "python3 -m src.data_update --universe-file data/universe.csv --missing-only --max-tickers $(or $(TOP_N),25)" in makefile
+    assert "STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --universe-file data/local/universe.csv --missing-only --max-tickers $(or $(TOP_N),25)" in makefile
 
 
 def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
@@ -1357,40 +1358,30 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         assert phrase in methodology
 
 
-def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2():
+def test_roadmap_keeps_active_plan_separate_from_completed_product_history():
     roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
+    completed = Path("docs/COMPLETED_MILESTONES.md").read_text(encoding="utf-8")
 
     for phrase in (
         "Single-stock report mode with readiness, methodology, source readiness check",
         "Public-facing methodology documentation",
         "Public README/dashboard polish",
-        "### B. Single-Stock Research Mode V2",
         "`make stock-report-md TICKER=...` generates clean Markdown reports for visitor demos",
         "`make stock-report TICKER=...` remains available when optional report data is useful for inspection",
         "Reports show readiness, Evaluation Snapshot, Proof Checklist, Best Review Path, analysis quality, methodology, evaluation function checks",
-        "Reports now open with a visitor scan cue, then `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, and `Best Review Path`",
         "ETF/index/fund reports show operating-company DCF as excluded, not failed",
         "`Blocked by Data - Missing Peer Mapping`",
-        "## 8. Next Public Roadmap Stage",
-        "Scalable price refresh",
-        "`make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto`",
-        "`make readiness-snapshot`",
-        "`make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30`",
-            "`make diff-hygiene`",
-            "Trusted fundamentals",
-            "`make session-source-preflight`",
-            "`make fundamentals-source-ladder-queue TOP_N=25`",
-            "SEC/Yahoo failures pivot to configured FMP, Alpha Vantage, or Finnhub instead of stopping the workflow",
-            "Source-backed peers",
-            "`make peer-mapping-queue TOP_N=25`",
-        "Optional context",
-        "`make optional-context-worklist TOP_N=25`",
-        "Source readiness guidance",
-        "`make public-check`, `make diff-hygiene`",
-        "Data strategy",
-        "Read `docs/DATA_STRATEGY.md`, then use the targeted commands above for a 5-10 company pilot.",
-        "Do not publish broad generated CSV churn unless it is the reviewed artifact for that release",
-        "Do not add workflows that run imports, refreshes, account actions, direct recommendations, fabricated data, or valuation labels without ready inputs",
+    ):
+        assert phrase in completed
+
+    for phrase in (
+        "## Now",
+        "## Next",
+        "## Later",
+        "### P0: Public Hosted Demo Verification",
+        "### P1: FMP One-Ticker Source Smoke",
+        "### P2: 25-50 Company Trusted-Peer Pilot",
+        "keep GitHub as the public link until the hosted route is verified.",
     ):
         assert phrase in roadmap
 
@@ -1411,13 +1402,13 @@ def test_roadmap_routes_exhausted_proof_queues_to_provider_setup_before_candidat
     assert "`make price-refresh-loop BATCHES=... TOP_N=... PROVIDER=auto`" not in roadmap
 
 
-def test_roadmap_records_latest_command_visibility_simplification():
-    roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
+def test_completed_milestones_record_latest_command_visibility_simplification():
+    completed = Path("docs/COMPLETED_MILESTONES.md").read_text(encoding="utf-8")
 
-    assert "Data Health Command Visibility Sweep V1" in roadmap
-    assert "Proof History, Operator context, and Pilot Share Gate detail summaries" in roadmap
-    assert "hide command snippets by default" in roadmap
-    assert "explicit packet command table remains available" in roadmap
+    assert "Data Health Command Visibility Sweep V1" in completed
+    assert "Proof History, Operator context, and Pilot Share Gate detail summaries" in completed
+    assert "hide command snippets by default" in completed
+    assert "explicit packet command table remains available" in completed
 
 
 def test_product_spec_keeps_execution_features_permanently_out_of_scope():

@@ -44,24 +44,31 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "Start with the three paths" not in readme
 
 
-def test_readme_and_roadmap_name_pilot_operator_runbook():
+def test_readme_and_roadmap_keep_active_planning_separate_from_completed_history():
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
+    completed = _read("docs/COMPLETED_MILESTONES.md")
 
     assert "Pilot packaging is read-only first" in readme
     assert "make pilot-share-brief" in readme
     assert "does not refresh data or unlock blocked inputs" in readme
     assert "Provider setup is only an activation boundary" in readme
 
-    assert "Pilot Operator Runbook V1" in roadmap
-    assert "share gate, source gate, provider setup, reviewed one-ticker smoke command, validate/preview, packet, and hygiene" in roadmap
-    assert "without reopening broad proof loops" in roadmap
+    assert "## Now" in roadmap
+    assert "## Next" in roadmap
+    assert "## Later" in roadmap
+    assert "## Dependencies And Manual Gates" in roadmap
+    assert "## Success Gates" in roadmap
+    assert "## Completed Milestones" not in roadmap
+    assert "docs/COMPLETED_MILESTONES.md" in roadmap
+    assert "Pilot Operator Runbook V1" in completed
+    assert "share gate, source gate, provider setup, reviewed one-ticker smoke command, validate/preview, packet, and hygiene" in completed
+    assert "without reopening broad proof loops" in completed
 
 
 def test_roadmap_current_counts_are_live_command_gated():
     roadmap = _read("ROADMAP.md")
 
-    assert "Broad-universe command center visibility for the tracked master universe" in roadmap
     assert "Master universe rows: use `make project-status` or `make status-check TOP_N=5`" in roadmap
     assert "Active research rows: use `make project-status` or the dashboard Home page" in roadmap
     assert "whole tracked universe is analysis-ready" in roadmap
