@@ -9810,12 +9810,13 @@ def render_data_health_coverage_summary(
         show_commands=False,
         variant="queue",
     )
-    with st.expander("Advanced: coverage lane details", expanded=False):
-        st.dataframe(
-            clean_display_frame(data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame, root=BASE_DIR)),
-            width="stretch",
-            hide_index=True,
-        )
+    if not public_mode:
+        with st.expander("Advanced: coverage lane details", expanded=False):
+            st.dataframe(
+                clean_display_frame(data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame, root=BASE_DIR)),
+                width="stretch",
+                hide_index=True,
+            )
 
 
 def data_health_public_proof_map_cards(
@@ -12470,8 +12471,8 @@ def proof_history_first_answer_frame(
                 "Boundary": "Proof History does not change local data, record outcomes, or unlock blocked inputs.",
             },
             {
-                "Question": "Latest reviewed outcome",
-                "Answer": f"{latest_proof_lane}: {latest_proof_outcome}; {latest_proof_change}.",
+                "Question": f"Latest reviewed outcome: {latest_proof_lane}",
+                "Answer": f"{latest_proof_outcome}. {latest_proof_change}.",
                 "Next Safe Destination": "Single-Stock Report for interpretation.",
                 "Boundary": "Evidence only; this does not change local data or unlock blocked inputs.",
             },
@@ -26537,6 +26538,23 @@ def stock_selector_saved_queue_notice_visible(
     return has_saved_queue_message and not has_public_fallback
 
 
+def home_saved_report_notice_message(
+    *,
+    public_mode: bool,
+    ticker_readiness_frame: pd.DataFrame | None,
+    ticker_readiness_message: str | None = None,
+    decisions_message: str | None = None,
+) -> str | None:
+    """Return only visitor-relevant Home refresh warnings."""
+
+    if ticker_readiness_message:
+        return ticker_readiness_message
+    has_readiness_snapshot = ticker_readiness_frame is not None and not ticker_readiness_frame.empty
+    if decisions_message and not (public_mode and has_readiness_snapshot):
+        return decisions_message
+    return None
+
+
 def stock_selector_queue_frame(
     decisions_frame: pd.DataFrame | None,
     final_frame: pd.DataFrame | None,
@@ -26822,7 +26840,7 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
     if len(frame) > len(visible):
         footer = (
             "<div class='selector-result-row'>"
-            f"<div class='selector-result-body'>{len(visible):,} of {len(frame):,} matching rows shown; {total_count:,} saved rows are available before filtering.</div>"
+            f"<div class='selector-result-body'>{len(visible):,} of {len(frame):,} matching rows shown; {total_count:,} readiness-backed rows are available before filtering.</div>"
             "</div>"
         )
     return "<div class='selector-result-table'>" + head + "".join(rows) + footer + "</div>"
@@ -27101,7 +27119,7 @@ def render_stock_selector(
         search=search,
     )
 
-    count_label = f"{len(filtered):,} of {len(selector_frame):,} saved rows"
+    count_label = f"{len(filtered):,} of {len(selector_frame):,} readiness-backed rows"
     render_context_note(
         "Filtered result set.",
         f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
@@ -27747,10 +27765,16 @@ def render_home_page(
         render_section_header("Where To Go", "Choose the page that matches what you want to review.")
         render_action_cards(_plain_home_route_choice_cards(summary))
 
-    if ticker_readiness_message or decisions_message:
+    home_report_notice = home_saved_report_notice_message(
+        public_mode=public_mode,
+        ticker_readiness_frame=ticker_readiness_frame,
+        ticker_readiness_message=ticker_readiness_message,
+        decisions_message=decisions_message,
+    )
+    if home_report_notice:
         render_notice_card(
             "Some reports need refreshing",
-            ticker_readiness_message or decisions_message or "Refresh the local reports before relying on this page.",
+            home_report_notice,
             "",
             tone="warning",
         )
@@ -29231,7 +29255,7 @@ def render_data_health(
                     "make project-status",
                     public=True,
                 )
-        with st.expander("Advanced public guidance", expanded=False):
+        with st.expander("Advanced: how readiness works", expanded=False):
             render_section_header("Proof Map", "Plain-language proof lanes before any operations detail.")
             render_signal_cards(
                 data_health_public_proof_map_cards(readiness_summary, readiness_freshness),

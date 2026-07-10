@@ -1752,6 +1752,29 @@ def test_public_stock_selector_hides_internal_saved_queue_warning_when_readiness
     )
 
 
+def test_public_home_hides_missing_optional_decision_output_when_readiness_is_available():
+    readiness_frame = pd.DataFrame([{"ticker": "NVDA"}])
+
+    assert dashboard.home_saved_report_notice_message(
+        public_mode=True,
+        ticker_readiness_frame=readiness_frame,
+        ticker_readiness_message=None,
+        decisions_message="`research_decisions.csv` is not ready yet.",
+    ) is None
+    assert dashboard.home_saved_report_notice_message(
+        public_mode=False,
+        ticker_readiness_frame=readiness_frame,
+        ticker_readiness_message=None,
+        decisions_message="`research_decisions.csv` is not ready yet.",
+    ) == "`research_decisions.csv` is not ready yet."
+    assert dashboard.home_saved_report_notice_message(
+        public_mode=True,
+        ticker_readiness_frame=None,
+        ticker_readiness_message="Ticker readiness report is unavailable.",
+        decisions_message=None,
+    ) == "Ticker readiness report is unavailable."
+
+
 def test_stock_selector_apply_filters_searches_visible_proof_context():
     frame = pd.DataFrame(
         [
@@ -1952,7 +1975,7 @@ def test_stock_selector_public_copy_uses_plain_plural_labels():
     rendered = dashboard.stock_selector_result_table_html(frame, total_count=120, limit=1)
     source = Path(dashboard.__file__).read_text(encoding="utf-8")
 
-    assert "1 of 2 matching rows shown; 120 saved rows are available before filtering." in rendered
+    assert "1 of 2 matching rows shown; 120 readiness-backed rows are available before filtering." in rendered
     assert "row(s)" not in rendered
     rendered_lower = rendered.lower()
     assert "free cash flow" in rendered_lower
@@ -1961,7 +1984,7 @@ def test_stock_selector_public_copy_uses_plain_plural_labels():
     assert "free_cash_flow" not in rendered
     assert "shares_outstanding" not in rendered
     assert "fcf_margin" not in rendered
-    assert "saved rows" in source
+    assert "readiness-backed rows" in source
     assert "saved row(s)" not in source[
         source.index("def render_stock_selector(") : source.index('with st.expander("Advanced: full filtered selector rows"')
     ]
@@ -15468,8 +15491,8 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
             "Boundary": "Proof History does not change local data, record outcomes, or unlock blocked inputs.",
         },
         {
-            "Question": "Latest reviewed outcome",
-            "Answer": "peer mapping: human reviewed supported; trusted peer rows reviewed.",
+            "Question": "Latest reviewed outcome: peer mapping",
+            "Answer": "human reviewed supported. trusted peer rows reviewed.",
             "Next Safe Destination": "Single-Stock Report for interpretation.",
             "Boundary": "Evidence only; this does not change local data or unlock blocked inputs.",
         },
@@ -20288,7 +20311,7 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
         public_index,
     )
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_coverage_index)
-    guidance_expander_index = source.index('st.expander("Advanced public guidance", expanded=False)', public_coverage_index)
+    guidance_expander_index = source.index('st.expander("Advanced: how readiness works", expanded=False)', public_coverage_index)
     visitor_paths_index = source.index('render_section_header("Public path options"', first_30_index)
     public_lead_in_chunk = source[public_index:guidance_expander_index]
     assert '"Data Quality / Readiness"' not in public_lead_in_chunk
@@ -20321,6 +20344,18 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     assert "show_commands=False" in source[
         source.index("def render_data_health_coverage_summary(") : source.index("def _trusted_ready_count(")
     ]
+
+
+def test_public_data_health_does_not_repeat_lane_cards_as_a_raw_table():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    function_index = source.index("def render_data_health_coverage_summary(")
+    next_function_index = source.index("\ndef data_health_public_proof_map_cards(", function_index)
+    chunk = source[function_index:next_function_index]
+
+    public_guard_index = chunk.index('if not public_mode:\n        with st.expander("Advanced: coverage lane details", expanded=False):')
+    details_index = chunk.index('st.expander("Advanced: coverage lane details", expanded=False)', public_guard_index)
+
+    assert public_guard_index < details_index
 
 
 def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
@@ -20391,7 +20426,7 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
-    guidance_expander_index = source.index('st.expander("Advanced public guidance", expanded=False)', public_index)
+    guidance_expander_index = source.index('st.expander("Advanced: how readiness works", expanded=False)', public_index)
     visitor_paths_index = source.index('render_section_header("Public path options"', guidance_expander_index)
     visitor_cards_index = source.index("render_action_cards(data_health_public_visitor_path_cards(readiness_summary))", visitor_paths_index)
     quick_read_index = source.index('render_section_header("Data Health Quick Read"', visitor_cards_index)
@@ -28552,7 +28587,7 @@ def test_public_data_health_moves_secondary_maps_behind_advanced_guidance():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     public_mode_index = source.index("if public_mode:\n        if public_loading_placeholder is not None:", source.index("def render_data_health("))
     coverage_index = source.index("render_data_health_coverage_summary", public_mode_index)
-    advanced_index = source.index('with st.expander("Advanced public guidance", expanded=False):', coverage_index)
+    advanced_index = source.index('with st.expander("Advanced: how readiness works", expanded=False):', coverage_index)
     proof_map_index = source.index('render_section_header("Proof Map"', advanced_index)
     source_boundary_index = source.index('"Source Boundary"', proof_map_index)
 
@@ -29397,7 +29432,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     proof_map_index = source.index("data_health_public_proof_map_cards(readiness_summary, readiness_freshness)", coverage_index)
     source_boundary_index = source.index('"Source Boundary"', proof_map_index)
     source_boundary_cards_index = source.index("data_health_public_source_boundary_cards(project_status_payload)", source_boundary_index)
-    guidance_expander_index = source.index('st.expander("Advanced public guidance", expanded=False)', public_index)
+    guidance_expander_index = source.index('st.expander("Advanced: how readiness works", expanded=False)', public_index)
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_index)
     visitor_paths_index = source.index('render_section_header("Public path options"', first_30_index)
     drawer_open_state_index = source.index('public_evidence_drawer_expanded = selected_drawer == "proof"', public_index)
