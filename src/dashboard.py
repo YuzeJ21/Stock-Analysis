@@ -28064,15 +28064,14 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             coverage if provider is not None and ticker else None,
             peer_summary if provider is not None and ticker else None,
         )
-        render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
-        render_signal_cards(
-            stock_report_workflow_fit_cards(
-                report_payload,
-                coverage if provider is not None and ticker else None,
-                peer_summary if provider is not None and ticker else None,
-            ),
-            show_commands=False,
+        workflow_fit_cards = stock_report_workflow_fit_cards(
+            report_payload,
+            coverage if provider is not None and ticker else None,
+            peer_summary if provider is not None and ticker else None,
         )
+        if not public_mode:
+            render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
+            render_signal_cards(workflow_fit_cards, show_commands=False)
     if provider is not None and ticker:
         with st.expander("Ticker Readiness Evidence", expanded=False):
             render_context_note(
@@ -28114,6 +28113,9 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             "Extra context.",
             "Open this only when the first answer is not enough. Performance, data-quality, and next-step cards stay secondary to the selected-ticker answer.",
         )
+        if public_mode:
+            render_signal_cards(at_a_glance_cards, show_commands=False)
+            render_signal_cards(workflow_fit_cards, show_commands=False)
         render_signal_cards(stock_report_summary_cards(report_payload), show_commands=show_card_commands)
         render_signal_cards(stock_report_evaluation_summary_cards(report_payload), show_commands=show_card_commands)
         render_signal_cards(

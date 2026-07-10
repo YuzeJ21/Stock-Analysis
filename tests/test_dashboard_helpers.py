@@ -29070,10 +29070,18 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     provenance_index = source.index("stock_report_provenance_cards(report_payload)", public_cards_index)
     advanced_tables_index = source.index('st.expander("Advanced: answer tables", expanded=False)', provenance_index)
     advanced_dataframe_index = source.index("st.dataframe(clean_display_frame(single_answer_frame)", advanced_tables_index)
-    at_a_glance_index = source.index("stock_report_at_a_glance_cards(", first_answer_index)
+    quick_read_index = source.index('with st.expander("Advanced quick-read context", expanded=False)', advanced_dataframe_index)
+    public_quick_read_cards_index = source.index(
+        "if public_mode:\n            render_signal_cards(at_a_glance_cards, show_commands=False)",
+        quick_read_index,
+    )
+    workflow_fit_cards_index = source.index(
+        "render_signal_cards(workflow_fit_cards, show_commands=False)",
+        public_quick_read_cards_index,
+    )
     advanced_detail_index = source.index(
         'st.expander("Advanced: detailed report sections", expanded=False)',
-        at_a_glance_index,
+        quick_read_index,
     )
     detail_index = source.index('"Detailed Review"', advanced_detail_index)
     tabs_index = source.index('["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]', detail_index)
@@ -29087,7 +29095,9 @@ def test_single_stock_public_page_uses_simplified_review_sections():
         < provenance_index
         < advanced_tables_index
         < advanced_dataframe_index
-        < at_a_glance_index
+        < quick_read_index
+        < public_quick_read_cards_index
+        < workflow_fit_cards_index
         < advanced_detail_index
         < detail_index
         < tabs_index
