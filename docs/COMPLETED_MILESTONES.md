@@ -29,8 +29,9 @@ This document is the historical completion log for Stock Research Command Center
 
 ## Provenance And Source Boundaries
 
-- `docs/PROVENANCE_CONTRACT.md` defines readiness state, source, as-of date, retrieved-at date, method version, missing inputs, and confidence boundary.
-- Reports surface `readiness-first-v1` provenance, source records, financial as-of date when present, missing inputs, and a research-only confidence boundary.
+- `docs/PROVENANCE_CONTRACT.md` defines readiness state, source, as-of date, reporting period, currency, retrieved-at date, method version, missing inputs, and confidence boundary.
+- Reports surface `readiness-first-v1` provenance, source records, financial as-of date, reporting period, price/financial currency when present, missing inputs, and a research-only confidence boundary.
+- Public Single-Stock first view shows the selected-ticker answer and compact provenance before advanced performance, valuation, and metric summaries; missing provenance stays visible rather than inferred.
 - SEC Companyfacts, SEC submissions, explicit SEC filing-document shares, Stooq, and Yahoo/yfinance are source-routed through validate/preview/apply gates.
 - FMP, Alpha Vantage, Finnhub, and optional read-only IBKR remain configured only through explicit provider boundaries; setup never bypasses proof gates.
 

@@ -84,18 +84,6 @@ Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optio
 
 **Stop rule:** sector similarity is not trusted-peer proof. Do not target broad-universe peer readiness before the pilot has repeatable evidence.
 
-### P2: Methodology Surface Completion
-
-**Goal:** surface the provenance contract where a reviewer needs it, not merely in documentation.
-
-1. Keep report-level method version, source records, financial as-of date, missing inputs, and confidence boundary visible.
-2. Audit the dashboard’s first-view metric summaries for the same source/as-of/readiness boundary.
-3. Add a method-version change note whenever a gate, normalization rule, or public interpretation changes.
-
-**Dependencies:** no external provider; this is a product/documentation slice.
-
-**Stop rule:** missing or stale inputs suppress dependent conclusions. A visible source label must not upgrade a blocked state.
-
 ## Later
 
 ### P3: Optional Earnings And Analyst Estimates
