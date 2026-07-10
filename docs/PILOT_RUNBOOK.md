@@ -33,6 +33,10 @@ export SEC_USER_AGENT="Your Name your.email@example.com"
 
 If SEC or Yahoo access fails in a session, do not keep retrying the same unavailable path. Use reviewed local rows when present; otherwise mark the affected ticker/lane `still_blocked`, `skipped`, or `excluded` and continue to another executable lane.
 
+## Controlled Reviewer Feedback
+
+After an external reviewer follows the public workflow, use [Controlled Pilot Review Feedback](PILOT_REVIEW_FEEDBACK_TEMPLATE.md) to capture anonymous route, clarity, and reproducibility observations. Feedback checks product understanding only; it is not data proof and does not change readiness.
+
 ## 2. Required Local Data Files
 
 Core tracked/sample data:

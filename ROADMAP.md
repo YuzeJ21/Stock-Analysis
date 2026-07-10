@@ -45,6 +45,8 @@ Repository-side preparation is complete. The remaining deployment work requires 
 3. Record only concrete issues: where they started, what they thought was usable, what looked blocked, and what they expected to do next.
 4. Prioritize reproducible first-viewport, wording, routing, or accessibility defects. Do not use pilot feedback to weaken readiness gates.
 
+Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) to capture anonymous, reproducible workflow observations without collecting personal, portfolio, or investment-opinion data.
+
 **Dependencies:** external reviewers and controlled feedback collection.
 
 **Stop rule:** do not call pilot feedback data proof; it only validates product clarity and workflow reliability.
