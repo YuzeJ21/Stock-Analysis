@@ -1180,12 +1180,15 @@ def test_project_status_stage_map_classifies_remaining_public_items(
         "Peer readiness upgrade",
     ]
     assert stage_rows[0]["State"] == "ready_for_manual_share"
-    assert stage_rows[1]["State"] == "external_account_required"
-    assert stage_rows[2]["State"] == "external_key_required"
+    assert stage_rows[1]["State"] == "awaiting_external_setup"
+    assert stage_rows[1]["Diagnostic State"] == "external_account_required"
+    assert stage_rows[2]["State"] == "awaiting_external_setup"
+    assert stage_rows[2]["Diagnostic State"] == "external_key_required"
     assert stage_rows[2]["Next Action"] == "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke."
-    assert stage_rows[3]["State"] == "source_gated"
+    assert stage_rows[3]["State"] == "awaiting_reviewed_source"
+    assert stage_rows[3]["Diagnostic State"] == "source_gated"
     assert "29/3541 peer-ready" not in " ".join(str(value) for row in stage_rows for value in row.values())
-    assert any(row["Stage"] == "Source-proof queues" and row["State"] == "exhausted_do_not_retry" for row in stage_rows)
+    assert any(row["Stage"] == "Source-proof queues" and row["State"] == "awaiting_source_change" for row in stage_rows)
     ux_row = next(row for row in stage_rows if row["Stage"] == "Public UX polish")
     assert "make public-ux-review-checklist-json" in ux_row["Next Action"]
     assert "make public-ux-review-notes-check" in ux_row["Next Action"]
@@ -1195,9 +1198,11 @@ def test_project_status_stage_map_classifies_remaining_public_items(
     project_status._print_human(payload)
     output = capsys.readouterr().out.lower()
     assert "remaining public/product stages:" in output
-    assert "hosted streamlit demo: external_account_required" in output
-    assert "fmp provider activation: external_key_required" in output
-    assert "source-proof queues: exhausted_do_not_retry" in output
+    assert "hosted streamlit demo: awaiting_external_setup" in output
+    assert "diagnostic: external_account_required" in output
+    assert "fmp provider activation: awaiting_external_setup" in output
+    assert "source-proof queues: awaiting_source_change" in output
+    assert "overall workflow: continue_with_pending_dependencies" in output
     assert "make public-ux-review-checklist-json" in output
     assert "make public-ux-review-notes-check" in output
 

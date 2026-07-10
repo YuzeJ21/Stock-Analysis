@@ -14,7 +14,7 @@ def test_next_stage_uses_manual_verification_ladder_when_hosted_url_is_configure
     assert "after choosing an external host/account" not in output
     assert "Hosted app gate: make hosted-demo-readiness" in output
     assert "Hosted URL is configured but still needs the five-page public workflow check" in output
-    assert "Hosted demo remains external_account_required" not in output
+    assert "Hosted demo is awaiting external setup" not in output
 
 
 def test_next_stage_keeps_external_account_ladder_without_hosted_url(monkeypatch):
@@ -24,4 +24,5 @@ def test_next_stage_keeps_external_account_ladder_without_hosted_url(monkeypatch
 
     assert "Hosted demo status: external_account_required" in output
     assert "- If you want a hosted URL: make hosted-demo-readiness, then follow docs/HOSTED_DEMO_DEPLOYMENT.md after choosing an external host/account." in output
-    assert "Hosted demo remains external_account_required" in output
+    assert "Hosted demo is awaiting external setup (underlying diagnostic: external_account_required)" in output
+    assert "Roadmap continuation: continue_with_pending_dependencies" in output

@@ -36,8 +36,8 @@ def _hosted_gate_instruction(hosted_status: str) -> str:
         )
     if hosted_status.startswith("external_account_required;"):
         return (
-            "   Hosted demo remains external_account_required until a public URL opens "
-            "and the five-page public workflow is verified."
+            "   Hosted demo is awaiting external setup (underlying diagnostic: "
+            "external_account_required). Continue other executable repo work until a public URL opens."
         )
     return "   Run hosted-demo-readiness to classify the hosted URL gate before changing public copy."
 
@@ -79,6 +79,11 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
     coverage_state, coverage_evidence, coverage_next = _stage_state(project_status, "Coverage depth")
     hosted_status = _hosted_url_status(project_root)
     missing_keys, configured_keys, smoke_command = _provider_status(project_root)
+    workflow_continuation = project_status.get("workflow_continuation", {})
+    if not isinstance(workflow_continuation, dict):
+        workflow_continuation = {}
+    continuation_state = str(workflow_continuation.get("State") or "unknown").strip()
+    continuation_evidence = str(workflow_continuation.get("Evidence") or "").strip()
 
     lines = [
         "Stock Research Command Center next-stage ladder",
@@ -88,6 +93,7 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
         f"- Public/GitHub share: {linkedin_state}; {linkedin_evidence or 'run make public-check before sharing'}",
         f"- Coverage depth: {coverage_state}; {coverage_evidence or 'run make project-status-check before quoting counts'}",
         f"- Generated artifacts: {generated_state}; {generated_evidence or 'keep generated churn excluded by default'}",
+        f"- Roadmap continuation: {continuation_state}; {continuation_evidence or 'run make project-status-check'}",
         f"- Current counts: prices {summary['tickers_with_prices']}/{summary['tickers_total']}; fundamentals/input {summary.get('tickers_fundamentals_ready', 0)}/{summary['tickers_total']}; DCF {summary['tickers_dcf_ready']}/{summary['tickers_total']}; peers {summary['tickers_peer_ready']}/{summary['tickers_total']}",
         "",
         "Next executable repo-side item:",
@@ -108,7 +114,7 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
         "3. Hosted app gate: make hosted-demo-readiness",
         _hosted_gate_instruction(hosted_status),
         "4. Provider key gate: make provider-setup-checklist",
-        "   FMP, Alpha Vantage, and Finnhub stay external_key_required until keys are configured outside the repo and one reviewed ticker smoke passes.",
+        "   Missing keyed providers are awaiting external setup; keep working on another executable product/share item until a key is configured outside the repo and one reviewed ticker smoke passes.",
         "5. Stop rule: Do not run broad proof queues unless project-status-check shows executable source-backed candidates.",
         "6. Artifact rule: Generated churn stays excluded unless one exact artifact is reviewed evidence.",
         "",

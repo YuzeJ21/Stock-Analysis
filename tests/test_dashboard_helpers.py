@@ -6376,14 +6376,16 @@ def test_project_status_remaining_stage_cards_surface_pilot_next_steps():
             },
             {
                 "Stage": "Hosted Streamlit demo",
-                "State": "external_account_required",
+                "State": "awaiting_external_setup",
+                "Diagnostic State": "external_account_required",
                 "Evidence": "No public hosted Streamlit URL is configured in this repository.",
                 "Next Action": "Deploy only after an external host/account is chosen.",
                 "Boundary": "Do not claim a hosted app exists until the URL is deployed and verified.",
             },
             {
                 "Stage": "FMP provider activation",
-                "State": "external_key_required",
+                "State": "awaiting_external_setup",
+                "Diagnostic State": "external_key_required",
                 "Evidence": "FMP_API_KEY is not configured.",
                 "Next Action": "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke.",
                 "Boundary": "Provider setup is not data proof.",
@@ -6399,11 +6401,12 @@ def test_project_status_remaining_stage_cards_surface_pilot_next_steps():
         "FMP provider activation",
     ]
     assert cards[0]["kicker"] == "READY FOR MANUAL SHARE"
-    assert cards[1]["kicker"] == "EXTERNAL ACCOUNT REQUIRED"
-    assert cards[2]["kicker"] == "EXTERNAL KEY REQUIRED"
+    assert cards[1]["kicker"] == "AWAITING EXTERNAL SETUP"
+    assert cards[2]["kicker"] == "AWAITING EXTERNAL SETUP"
     assert "Public share gates pass" in cards[0]["body"]
     assert "Next: Deploy only after an external host/account is chosen" in cards[1]["body"]
     assert "Boundary: Provider setup is not data proof" in cards[2]["body"]
+    assert "Diagnostic: external_key_required" in cards[2]["body"]
     assert cards[2]["command"] == "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke."
 
 
@@ -6441,9 +6444,9 @@ def test_project_status_stage_summary_card_counts_public_stage_states():
     payload = {
         "remaining_public_stage_rows": [
             {"Stage": "LinkedIn publish", "State": "ready_for_manual_share"},
-            {"Stage": "Hosted Streamlit demo", "State": "external_account_required"},
-            {"Stage": "FMP provider activation", "State": "external_key_required"},
-            {"Stage": "Peer readiness upgrade", "State": "source_gated"},
+            {"Stage": "Hosted Streamlit demo", "State": "awaiting_external_setup"},
+            {"Stage": "FMP provider activation", "State": "awaiting_external_setup"},
+            {"Stage": "Peer readiness upgrade", "State": "awaiting_reviewed_source"},
             {"Stage": "Optional earnings and estimates", "State": "locked_until_trusted_rows"},
             {"Stage": "Generated artifacts", "State": "excluded_by_default"},
         ]
@@ -6454,9 +6457,8 @@ def test_project_status_stage_summary_card_counts_public_stage_states():
     assert card["kicker"] == "PILOT STAGE MAP"
     assert card["title"] == "6 classified stages"
     assert "ready_for_manual_share: 1" in card["body"]
-    assert "external_account_required: 1" in card["body"]
-    assert "external_key_required: 1" in card["body"]
-    assert "source_gated: 1" in card["body"]
+    assert "awaiting_external_setup: 2" in card["body"]
+    assert "awaiting_reviewed_source: 1" in card["body"]
     assert "locked_until_trusted_rows: 1" in card["body"]
     assert "excluded_by_default: 1" in card["body"]
     assert "not data freshness proof" in card["body"]
@@ -28929,8 +28931,8 @@ def test_data_health_public_source_boundary_cards_explain_provider_setup_without
     cards = dashboard.data_health_public_source_boundary_cards(
         {
             "remaining_public_stage_rows": [
-                {"Stage": "FMP provider activation", "State": "external_key_required"},
-                {"Stage": "Source-proof queues", "State": "exhausted_do_not_retry"},
+                {"Stage": "FMP provider activation", "State": "awaiting_external_setup"},
+                {"Stage": "Source-proof queues", "State": "awaiting_source_change"},
                 {"Stage": "Generated artifacts", "State": "excluded_by_default"},
             ]
         }
@@ -28940,8 +28942,8 @@ def test_data_health_public_source_boundary_cards_explain_provider_setup_without
     assert [card["kicker"] for card in cards] == ["SOURCE BOUNDARY"]
     assert cards[0]["title"] == "What this page does not unlock"
     assert "provider setup, screenshots, and source reachability do not unlock blocked inputs" in rendered
-    assert "external_key_required: 1" in rendered
-    assert "exhausted_do_not_retry: 1" in rendered
+    assert "awaiting_external_setup: 1" in rendered
+    assert "awaiting_source_change: 1" in rendered
     assert "excluded_by_default: 1" in rendered
     assert "validate / preview / apply" in rendered
     assert "make " not in rendered

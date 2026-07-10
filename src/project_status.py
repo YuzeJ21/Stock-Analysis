@@ -525,6 +525,28 @@ def _hosted_demo_url_for_root(root: Path) -> str:
     return read_hosted_demo_url(root)
 
 
+def _workflow_continuation_from_stage_rows(rows: list[dict[str, str]]) -> dict[str, str]:
+    """Keep external dependencies visible without treating the roadmap as terminal."""
+    pending_states = {
+        "awaiting_external_setup",
+        "awaiting_reviewed_source",
+        "awaiting_source_change",
+    }
+    pending_rows = [row for row in rows if str(row.get("State") or "").strip() in pending_states]
+    if pending_rows:
+        stages = ", ".join(str(row.get("Stage") or "Next stage") for row in pending_rows)
+        return {
+            "State": "continue_with_pending_dependencies",
+            "Evidence": f"{len(pending_rows)} dependency-backed stage(s) are pending: {stages}.",
+            "Next Action": "Continue any executable product/share work; resume each pending stage only when its external setup, reviewed source, or source change arrives.",
+        }
+    return {
+        "State": "continue_with_current_stage_map",
+        "Evidence": "Current stages are classified without a pending external setup or source-change dependency.",
+        "Next Action": "Use the first applicable stage action and keep the existing source-proof gates intact.",
+    }
+
+
 def _remaining_public_stage_rows(
     summary: dict[str, Any],
     *,
@@ -566,7 +588,8 @@ def _remaining_public_stage_rows(
     public_ux_stage = _public_ux_stage_from_status(public_ux_review_status)
     hosted_demo_url = str(hosted_demo_url or "").strip()
     hosted_stage = {
-        "State": "manual_verify_required" if hosted_demo_url else "external_account_required",
+        "State": "manual_verify_required" if hosted_demo_url else "awaiting_external_setup",
+        "Diagnostic State": "manual_verify_required" if hosted_demo_url else "external_account_required",
         "Evidence": (
             f"Hosted URL marker is configured: {hosted_demo_url}. It still needs live public-flow verification."
             if hosted_demo_url
@@ -596,6 +619,7 @@ def _remaining_public_stage_rows(
         {
             "Stage": "Hosted Streamlit demo",
             "State": hosted_stage["State"],
+            "Diagnostic State": hosted_stage["Diagnostic State"],
             "Evidence": hosted_stage["Evidence"],
             "Next Action": hosted_stage["Next Action"],
             "Completion Gate": hosted_stage["Completion Gate"],
@@ -603,7 +627,8 @@ def _remaining_public_stage_rows(
         },
         {
             "Stage": "FMP provider activation",
-            "State": "external_key_required" if fmp_missing else "configured_smoke_required",
+            "State": "awaiting_external_setup" if fmp_missing else "configured_smoke_required",
+            "Diagnostic State": "external_key_required" if fmp_missing else "configured_smoke_required",
             "Evidence": (
                 "FMP_API_KEY is not configured."
                 if fmp_missing
@@ -621,7 +646,8 @@ def _remaining_public_stage_rows(
         },
         {
             "Stage": "Peer readiness upgrade",
-            "State": "source_gated" if peer_ready < max(dcf_ready, 1) else "ready",
+            "State": "awaiting_reviewed_source" if peer_ready < max(dcf_ready, 1) else "ready",
+            "Diagnostic State": "source_gated" if peer_ready < max(dcf_ready, 1) else "ready",
             "Evidence": f"{peer_ready}/{total} peer-ready; source-backed peer mappings remain the biggest analysis-depth gap.",
             "Next Action": "Use source-backed peer mapping rows only; keep candidate peers as context until reviewed.",
             "Completion Gate": "Trusted peer rows validate, preview, apply intentionally, rebuild readiness, and update proof history.",
@@ -629,7 +655,8 @@ def _remaining_public_stage_rows(
         },
         {
             "Stage": "Optional earnings and estimates",
-            "State": "locked_until_trusted_rows" if optional_locked or locked_inputs else "ready",
+            "State": "awaiting_reviewed_source" if optional_locked or locked_inputs else "ready",
+            "Diagnostic State": "locked_until_trusted_rows" if optional_locked or locked_inputs else "ready",
             "Evidence": f"{optional_locked} optional/manual lane(s) locked; {locked_inputs} locked input row(s) visible.",
             "Next Action": "Use optional-context source ladder or reviewed local rows; date-only or target-only rows stay candidate context.",
             "Completion Gate": "Supported earnings or estimate fields pass validate, preview, apply, readiness rebuild, and proof recording.",
@@ -637,7 +664,8 @@ def _remaining_public_stage_rows(
         },
         {
             "Stage": "Source-proof queues",
-            "State": "exhausted_do_not_retry" if source_queues_exhausted or avoid_source_ladder else "check_project_status",
+            "State": "awaiting_source_change" if source_queues_exhausted or avoid_source_ladder else "check_project_status",
+            "Diagnostic State": "exhausted_do_not_retry" if source_queues_exhausted or avoid_source_ladder else "check_project_status",
             "Evidence": (
                 "Current proof queues have no unreviewed executable company candidates."
                 if source_queues_exhausted or avoid_source_ladder
@@ -860,6 +888,7 @@ def _fast_status_payload_from_outputs(
         public_ux_review_status=_public_ux_review_status_for_root(root),
         hosted_demo_url=_hosted_demo_url_for_root(root),
     )
+    workflow_continuation = _workflow_continuation_from_stage_rows(remaining_stage_rows)
     return {
         "project_root": str(root),
         "data_dir": str(data_path),
@@ -872,6 +901,7 @@ def _fast_status_payload_from_outputs(
         "recommended_next_command_rows": command_rows,
         "recommended_next_commands": [row["Command"] for row in command_rows if row.get("Command")],
         "remaining_public_stage_rows": remaining_stage_rows,
+        "workflow_continuation": workflow_continuation,
         "purpose_evaluation_summary": purpose_evaluation_rows,
         "source_operator_summary": _load_source_operator_summary(output_path),
         "warnings": _stale_generated_artifact_warnings(data_path, output_path),
@@ -1810,6 +1840,7 @@ def build_project_status_payload(
         public_ux_review_status=_public_ux_review_status_for_root(root),
         hosted_demo_url=_hosted_demo_url_for_root(root),
     )
+    workflow_continuation = _workflow_continuation_from_stage_rows(remaining_stage_rows)
     return {
         "project_root": str(root),
         "data_dir": str(data_path),
@@ -1822,6 +1853,7 @@ def build_project_status_payload(
         "recommended_next_command_rows": command_rows,
         "recommended_next_commands": [row["Command"] for row in command_rows],
         "remaining_public_stage_rows": remaining_stage_rows,
+        "workflow_continuation": workflow_continuation,
         "purpose_evaluation_summary": purpose_evaluation_rows,
         "source_operator_summary": source_operator_summary,
     }
@@ -2001,13 +2033,27 @@ def _print_human(payload: dict[str, Any]) -> None:
         for row in stage_rows:
             stage = str(row.get("Stage") or "Next stage").strip()
             state = str(row.get("State") or "unknown").strip()
+            diagnostic_state = str(row.get("Diagnostic State") or "").strip()
             next_action = str(row.get("Next Action") or "").strip()
             evidence = str(row.get("Evidence") or "").strip()
             print(f"- {stage}: {state}")
+            if diagnostic_state and diagnostic_state != state:
+                print(f"  diagnostic: {diagnostic_state}")
             if evidence:
                 print(f"  evidence: {evidence}")
             if next_action:
                 print(f"  next: {next_action}")
+    workflow_continuation = payload.get("workflow_continuation") or {}
+    if isinstance(workflow_continuation, dict):
+        state = str(workflow_continuation.get("State") or "").strip()
+        evidence = str(workflow_continuation.get("Evidence") or "").strip()
+        next_action = str(workflow_continuation.get("Next Action") or "").strip()
+        if state:
+            print(f"Overall workflow: {state}")
+        if evidence:
+            print(f"  evidence: {evidence}")
+        if next_action:
+            print(f"  next: {next_action}")
     print("Top locked inputs to review:")
     price_complete = _price_coverage_complete(summary)
     for row in payload["top_onboarding_actions"]:
