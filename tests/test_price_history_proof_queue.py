@@ -112,8 +112,9 @@ def test_price_history_proof_queue_renderer_is_research_only_and_read_only(tmp_p
 
     focused = render_price_history_proof_queue(rows[:1], payload).lower()
     assert "focused proof detail" in focused
-    assert "dry-run before refresh" in focused
-    assert "next safest action: make price-refresh-loop dry_run=1" in focused
+    assert "targeted provider history check" in focused
+    assert "next safest action: make price-refresh tickers=amd provider=auto" in focused
+    assert "price-refresh-loop dry_run=1" not in focused
     assert "import gate" in focused
     assert "rebuild proof" in focused
 

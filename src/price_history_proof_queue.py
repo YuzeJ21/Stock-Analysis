@@ -255,16 +255,20 @@ def render_price_history_proof_queue(rows: list[PriceHistoryProofRow], payload: 
     lines.append(f"Rows shown: {len(rows)}; blocked: {blocked}; partial: {partial}.")
     all_reviewed_non_actionable = all("reviewed proof ledger already records" in row.source_note.lower() for row in rows)
     focused_single_ticker = len(rows) == 1
+    price_rows_complete = _price_rows_complete(payload)
+    targeted_history_command = f"make price-refresh TICKERS={rows[0].ticker} PROVIDER=auto"
     if all_reviewed_non_actionable:
         lines.append(
             "Next safest action: No unreviewed executable price-history blockers are shown; "
             "do not repeat these source paths unless new provider data, a verified manual OHLCV file, or changed source behavior appears."
         )
+    elif focused_single_ticker and price_rows_complete:
+        lines.append(f"Next safest action: {targeted_history_command}.")
     elif focused_single_ticker:
         lines.append(f"Next safest action: {rows[0].dry_run_batch_command}.")
     else:
         lines.append(f"Next safest action: {rows[0].next_safe_command}.")
-    if _price_rows_complete(payload):
+    if price_rows_complete:
         lines.append(
             "History source path: price rows are already present for every ticker; use focused review or "
             "verified manual OHLCV history for short-history names, not missing-price refresh."
@@ -276,7 +280,9 @@ def render_price_history_proof_queue(rows: list[PriceHistoryProofRow], payload: 
     lines.append("---: | --- | --- | ---: | --- | ---: | ---")
     for row in rows:
         next_command = row.next_safe_command
-        if focused_single_ticker and next_command.startswith("make focus-price"):
+        if focused_single_ticker and price_rows_complete and next_command.startswith("make focus-price"):
+            next_command = targeted_history_command
+        elif focused_single_ticker and next_command.startswith("make focus-price"):
             next_command = row.dry_run_batch_command
         lines.append(
             " | ".join(
@@ -298,6 +304,11 @@ def render_price_history_proof_queue(rows: list[PriceHistoryProofRow], payload: 
         lines.append(f"- Source note: {row.source_note}")
         if "reviewed proof ledger already records" in row.source_note.lower():
             lines.append(f"- Follow-up: {row.next_safe_command}.")
+        elif price_rows_complete:
+            lines.append(f"- Targeted provider history check: {targeted_history_command} after make readiness-snapshot.")
+            lines.append("- This is not the missing-price batch loop; inspect the source result before relying on added history.")
+            lines.append(f"- Import gate: {row.validate_preview_apply_gate}.")
+            lines.append(f"- Rebuild proof: {row.post_run_proof_command}.")
         else:
             lines.append(f"- Dry-run before refresh: {row.dry_run_batch_command}.")
             lines.append(f"- Import gate: {row.validate_preview_apply_gate}.")
