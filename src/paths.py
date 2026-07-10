@@ -1,9 +1,28 @@
 from __future__ import annotations
 
+import os
+from dataclasses import dataclass
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_PROFILE_ENV = "STOCK_RESEARCH_DATA_PROFILE"
+
+
+@dataclass(frozen=True)
+class DataProfile:
+    """Named data and output roots for an isolated product profile."""
+
+    name: str
+    data_dir: Path
+    outputs_dir: Path
+
+
+_DATA_PROFILE_PATHS: dict[str, tuple[str, str]] = {
+    "default": ("data", "outputs"),
+    "demo": ("data/demo", "outputs/demo"),
+    "local": ("data/local", "outputs/local"),
+}
 
 
 def resolve_project_root(project_root: Path | str | None = None) -> Path:
@@ -13,10 +32,26 @@ def resolve_project_root(project_root: Path | str | None = None) -> Path:
     return Path(project_root).expanduser().resolve()
 
 
+def resolve_data_profile(name: str | None = None, project_root: Path | str | None = None) -> DataProfile:
+    """Resolve the requested data profile without creating or changing files."""
+
+    root = resolve_project_root(project_root)
+    profile_name = (name or os.getenv(DATA_PROFILE_ENV) or "default").strip().lower()
+    if profile_name not in _DATA_PROFILE_PATHS:
+        available = ", ".join(sorted(_DATA_PROFILE_PATHS))
+        raise ValueError(f"Unknown data profile '{profile_name}'. Choose one of: {available}.")
+    data_path, outputs_path = _DATA_PROFILE_PATHS[profile_name]
+    return DataProfile(
+        name=profile_name,
+        data_dir=(root / data_path).resolve(),
+        outputs_dir=(root / outputs_path).resolve(),
+    )
+
+
 def resolve_data_dir(data_dir: Path | str | None = None, project_root: Path | str | None = None) -> Path:
     root = resolve_project_root(project_root)
     if data_dir is None:
-        return root / "data"
+        return resolve_data_profile(project_root=root).data_dir
     path = Path(data_dir).expanduser()
     return path.resolve() if path.is_absolute() else (root / path).resolve()
 
@@ -24,7 +59,7 @@ def resolve_data_dir(data_dir: Path | str | None = None, project_root: Path | st
 def resolve_outputs_dir(output_dir: Path | str | None = None, project_root: Path | str | None = None) -> Path:
     root = resolve_project_root(project_root)
     if output_dir is None:
-        return root / "outputs"
+        return resolve_data_profile(project_root=root).outputs_dir
     path = Path(output_dir).expanduser()
     return path.resolve() if path.is_absolute() else (root / path).resolve()
 

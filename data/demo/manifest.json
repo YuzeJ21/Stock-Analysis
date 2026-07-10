@@ -1,0 +1,295 @@
+{
+  "derived_metadata_tickers": [
+    "SPY"
+  ],
+  "files": {
+    "analyst_estimates.csv": {
+      "maximum_date": null,
+      "minimum_date": null,
+      "path": "data/demo/analyst_estimates.csv",
+      "row_count": 0,
+      "sha256": "488086a9901f969732c966bb820eb6907cdf7624d24ba6587db64b96c3c1c8f7",
+      "source_names": []
+    },
+    "analyst_estimates_readiness.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/analyst_estimates_readiness.csv",
+      "row_count": 11,
+      "sha256": "b58c5420d746b09645bb6b2e5ffa363127150f9ceda2a064a4b706cdfd05cfb5",
+      "source_names": []
+    },
+    "dcf_readiness.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/dcf_readiness.csv",
+      "row_count": 11,
+      "sha256": "9c369f3be467f32e2e7bbdb2188af7b6fc2f3f8d47a54d0695e427d0cb11aef1",
+      "source_names": []
+    },
+    "earnings.csv": {
+      "maximum_date": null,
+      "minimum_date": null,
+      "path": "data/demo/earnings.csv",
+      "row_count": 0,
+      "sha256": "b0adf8f394d6f0b0eaa5a71a6611ec0f5d6f1b64fd637f92dbaae885eef48784",
+      "source_names": []
+    },
+    "earnings_readiness.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/earnings_readiness.csv",
+      "row_count": 11,
+      "sha256": "288597b47ded88bb129d47a96c4e74ab09771a01a11a458c7f9cbb9c57e30404",
+      "source_names": []
+    },
+    "feature_readiness_summary.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "outputs/demo/feature_readiness_summary.csv",
+      "row_count": 11,
+      "sha256": "6ccf57702bcdf58a1b25f3343e3458ebdcf22c518528c913677a3df12e9b3c72",
+      "source_names": []
+    },
+    "fundamentals.csv": {
+      "maximum_date": "2026-02-17",
+      "minimum_date": "2017-12-30",
+      "path": "data/demo/fundamentals.csv",
+      "row_count": 10,
+      "sha256": "7403eb8297630d669b3fed774b533921b7964c874db8e191225efd622f2cbad1",
+      "source_names": [
+        "sec_companyfacts",
+        "sec_companyfacts; sec_filing_document"
+      ]
+    },
+    "holdings.csv": {
+      "maximum_date": null,
+      "minimum_date": null,
+      "path": "data/demo/holdings.csv",
+      "row_count": 0,
+      "sha256": "4ff537865b5979a0b7489c589b960ab83517cd27fc3b4f63d88fd4cb7999a94d",
+      "source_names": []
+    },
+    "peer_unlock_worklist.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "outputs/demo/peer_unlock_worklist.csv",
+      "row_count": 2,
+      "sha256": "99de4e0654ba66e7b7759be317bbe30369ea1a5819dc5b1a6c5c6fb05a8728ee",
+      "source_names": []
+    },
+    "peers.csv": {
+      "maximum_date": "2026-06-24",
+      "minimum_date": "2026-06-04",
+      "path": "data/demo/peers.csv",
+      "row_count": 12,
+      "sha256": "fc90d5bd86fdd94d658f943ac1c22259c4386663105191419aded5620e77a8f5",
+      "source_names": [
+        "https://ir.amd.com/financial-information/sec-filings/content/0001193125-26-129106/0001193125-26-129106.pdf",
+        "https://micron.gcs-web.com/static-files/8791eb80-8263-4c6f-aa74-fdd03fbbb027",
+        "https://techmarketbriefs.com/companies/micron/",
+        "https://www.marketwatch.com/story/micron-and-sandisk-lead-a-sharp-tech-selloff-in-a-gut-check-moment-for-ai-stocks-cd92fa5d",
+        "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000098/finalforfiling-2025xannual.pdf"
+      ]
+    },
+    "price_coverage_report.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/price_coverage_report.csv",
+      "row_count": 11,
+      "sha256": "ae94a8e49e1b903ad60ee87b6e72d4d17e6102afcf5efa1d2f9777ad57d62bcc",
+      "source_names": []
+    },
+    "prices.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2023-12-07",
+      "path": "data/demo/prices.csv",
+      "row_count": 4778,
+      "sha256": "9a27a71a13caa183b247ce078f1999a425a958e2749b6b6a2b221461b62a0db0",
+      "source_names": []
+    },
+    "reports/analyst_estimates_readiness_report.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/analyst_estimates_readiness_report.csv",
+      "row_count": 11,
+      "sha256": "b58c5420d746b09645bb6b2e5ffa363127150f9ceda2a064a4b706cdfd05cfb5",
+      "source_names": []
+    },
+    "reports/data_source_status.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/data_source_status.csv",
+      "row_count": 15,
+      "sha256": "6e3384dd21e696e4817c0cbddfb37a8c39889b83dca6c7a92ea27b309fee96a2",
+      "source_names": []
+    },
+    "reports/dcf_readiness_report.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/dcf_readiness_report.csv",
+      "row_count": 11,
+      "sha256": "8cb33c709a57c3d4364d25cb2b4b7ebbacee674bb18d8e157bfa5e51c1d7e04c",
+      "source_names": []
+    },
+    "reports/earnings_readiness_report.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/earnings_readiness_report.csv",
+      "row_count": 11,
+      "sha256": "288597b47ded88bb129d47a96c4e74ab09771a01a11a458c7f9cbb9c57e30404",
+      "source_names": []
+    },
+    "reports/feature_readiness_summary.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/feature_readiness_summary.csv",
+      "row_count": 11,
+      "sha256": "6ccf57702bcdf58a1b25f3343e3458ebdcf22c518528c913677a3df12e9b3c72",
+      "source_names": []
+    },
+    "reports/fundamentals_coverage_report.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/fundamentals_coverage_report.csv",
+      "row_count": 11,
+      "sha256": "9896f0cc0180b0ff7a2b6380b0d0c916afdaac3fdd0050f4a5f9662b55d151dc",
+      "source_names": [
+        "sec_companyfacts",
+        "sec_companyfacts; sec_filing_document"
+      ]
+    },
+    "reports/peer_readiness_report.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/peer_readiness_report.csv",
+      "row_count": 11,
+      "sha256": "0643432b5eb35de99696660a44608152db22d01375dd727807fa14c2f2920cb8",
+      "source_names": []
+    },
+    "reports/peer_unlock_worklist.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/peer_unlock_worklist.csv",
+      "row_count": 2,
+      "sha256": "99de4e0654ba66e7b7759be317bbe30369ea1a5819dc5b1a6c5c6fb05a8728ee",
+      "source_names": []
+    },
+    "reports/price_coverage_report.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/price_coverage_report.csv",
+      "row_count": 11,
+      "sha256": "ae94a8e49e1b903ad60ee87b6e72d4d17e6102afcf5efa1d2f9777ad57d62bcc",
+      "source_names": []
+    },
+    "reports/ticker_readiness_report.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/ticker_readiness_report.csv",
+      "row_count": 11,
+      "sha256": "6a3fd6586dd44683bf83f40011052ae2418d3b67f7904e5bedaae5709ca9fc15",
+      "source_names": []
+    },
+    "reports/universe_coverage_report.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/reports/universe_coverage_report.csv",
+      "row_count": 11,
+      "sha256": "85db8b9d9d91bd3a5b3fafdef4c3bedc831973fa025fb990a4f80b1549f68b35",
+      "source_names": [
+        "demo_profile_price_history",
+        "legacy_universe_csv",
+        "nasdaq",
+        "sp500, nasdaq"
+      ]
+    },
+    "theme_map.csv": {
+      "maximum_date": null,
+      "minimum_date": null,
+      "path": "data/demo/theme_map.csv",
+      "row_count": 8,
+      "sha256": "e84ddf82560bd6dfd1e766d98d5ce03582d853aa092508b7dc55c0cfcade51ec",
+      "source_names": []
+    },
+    "universe.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/universe.csv",
+      "row_count": 11,
+      "sha256": "4213ea4bda9fbd7551dc3c46b84ba14e435c38abd9c04f3a751f72c23b788657",
+      "source_names": []
+    },
+    "universe_active.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/universe_active.csv",
+      "row_count": 6,
+      "sha256": "39026986925cd6d265212ad87d32f52becf9042ad35f910007e17c27cfbdadd5",
+      "source_names": []
+    },
+    "universe_master.csv": {
+      "maximum_date": "2026-06-30",
+      "minimum_date": "2026-06-30",
+      "path": "data/demo/universe_master.csv",
+      "row_count": 11,
+      "sha256": "436e0385b61ba61c5460b43ea4f2cc11289ca44a1876801513ba0715dfffc825",
+      "source_names": [
+        "demo_profile_price_history",
+        "legacy_universe_csv",
+        "nasdaq",
+        "sp500, nasdaq"
+      ]
+    }
+  },
+  "known_limitations": [
+    "This compact snapshot is product demonstration data, not a claim of current market freshness.",
+    "Readiness states remain source-gated; absent inputs stay blocked or excluded.",
+    "No holdings, credentials, tokens, account data, refresh caches, or provider responses are included."
+  ],
+  "profile": "demo",
+  "scenario_roles": {
+    "dcf_blocked_company": [
+      "AACI",
+      "ACIC"
+    ],
+    "dcf_ready_company": [
+      "AMD",
+      "AVGO",
+      "MU",
+      "NVDA",
+      "SNDK",
+      "WDC"
+    ],
+    "excluded_asset_context": [
+      "QQQ",
+      "SMH",
+      "SPY"
+    ],
+    "fundamentals_blocked_company": [
+      "AACI"
+    ],
+    "peer_ready_company": [
+      "AMD",
+      "AVGO",
+      "MU",
+      "NVDA",
+      "SNDK",
+      "WDC"
+    ]
+  },
+  "snapshot_date": "2026-06-30",
+  "tickers": [
+    "NVDA",
+    "AMD",
+    "AVGO",
+    "MU",
+    "SNDK",
+    "WDC",
+    "ACIC",
+    "AACI",
+    "SPY",
+    "QQQ",
+    "SMH"
+  ]
+}

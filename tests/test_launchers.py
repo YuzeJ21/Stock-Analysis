@@ -30,6 +30,8 @@ def test_generated_staging_pathspec_files_are_ignored():
     assert ".env.local" in gitignore
     assert ".streamlit/secrets.toml" in gitignore
     assert "config/provider_keys.env" in gitignore
+    assert "data/local/" in gitignore
+    assert "outputs/local/" in gitignore
 
 
 def test_streamlit_toolbar_uses_viewer_mode_for_public_dashboard():
@@ -53,7 +55,8 @@ def test_public_check_requires_a_fresh_dashboard_render_smoke():
 
     assert "dashboard-render-smoke:" in makefile
     public_check = makefile.split("public-check:", 1)[1].split("\nstatus:", 1)[0]
-    assert "$(MAKE) --silent dashboard-render-smoke" in public_check
+    assert "$(MAKE) --silent demo-dashboard-render-smoke" in public_check
+    assert "$(MAKE) --silent demo-dashboard-smoke" in public_check
 
 
 def test_dashboard_smoke_uses_an_isolated_fresh_server():
@@ -63,6 +66,23 @@ def test_dashboard_smoke_uses_an_isolated_fresh_server():
     assert 'if [[ "${PORT}" == "0" ]]' in smoke
     assert "Dashboard already healthy" not in smoke
     assert "--server.fileWatcherType none" in smoke
+
+
+def test_demo_data_check_only_runs_the_manifest_verifier():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    target = makefile.split("demo-data-check:", 1)[1].split("\nbrowser-qa-evidence:", 1)[0]
+    assert target.strip() == "@python3 -m src.demo_data_builder --check"
+
+
+def test_dashboard_resolves_default_data_roots_through_the_profile_layer():
+    dashboard = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "resolve_data_dir(project_root=BASE_DIR)" in dashboard
+    assert "resolve_outputs_dir(project_root=BASE_DIR)" in dashboard
+    assert "data_dir=DATA_DIR, output_dir=OUTPUTS_DIR" in dashboard
+    assert "LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)" in dashboard
+    assert 'st.caption(f"Data profile: {data_profile.name}")' in dashboard
 
 
 def test_universe_preview_summary_uses_compact_human_output():
@@ -142,6 +162,11 @@ def test_makefile_contains_convenience_targets():
         "daily",
         "dashboard",
         "dashboard-smoke",
+        "demo-data-build",
+        "demo-data-check",
+        "demo-dashboard",
+        "demo-dashboard-smoke",
+        "demo-dashboard-render-smoke",
         "sec-stage",
         "sec-validate",
         "sec-preview",
@@ -869,9 +894,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert 'Health --> Proof["Proof History: source-proof trail"]' in readme
     assert "Open the product before proof packets or report commands" in readme
     quick_start = readme[readme.index("## Quick Start") : readme.index("## Try This Visitor Workflow")]
-    assert quick_start.index("make dashboard") < quick_start.index("make status-check TOP_N=5")
-    assert quick_start.index("make dashboard") < quick_start.index("make pilot-readiness-check TOP_N=10")
-    assert quick_start.index("make dashboard") < quick_start.index("make stock-report-md TICKER=NVDA")
+    assert quick_start.index("make demo-dashboard") < quick_start.index("make status-check TOP_N=5")
+    assert quick_start.index("make demo-dashboard") < quick_start.index("make pilot-readiness-check TOP_N=10")
+    assert quick_start.index("make demo-dashboard") < quick_start.index("make stock-report-md TICKER=NVDA")
     assert "Optional read-only proof after the app flow is clear" in quick_start
     assert "When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps." in readme
     assert "## What You Can Analyze" in readme
@@ -893,12 +918,12 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "| Proof History | You want one evidence answer before opening raw proof ledger details. | `Proof History` |" in readme
     assert "| Proof History | You want to see the proof ledger" not in readme
     assert "`Home`, then focused review pages" not in readme
-    assert "The shortest public walkthrough uses NVDA, META, QQQ, MU, and CRDO only as optional state examples." in readme
+    assert "The shortest public walkthrough uses NVDA, ACIC, AACI, QQQ, and MU only as optional state examples." in readme
     assert "[Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" not in readme
     local_commands = public_demo[public_demo.index("## Local Commands") : public_demo.index("The dashboard defaults")]
-    assert local_commands.index("make dashboard") < local_commands.index("make status-check TOP_N=5")
-    assert local_commands.index("make dashboard") < local_commands.index("make stock-report-md TICKER=NVDA")
+    assert local_commands.index("make demo-dashboard") < local_commands.index("make status-check TOP_N=5")
+    assert local_commands.index("make demo-dashboard") < local_commands.index("make stock-report-md TICKER=NVDA")
     assert "Optional read-only proof after the app flow is clear" in local_commands
     assert "make project-status-check" in public_demo
     assert "make data-coverage-proof-queues TOP_N=10" not in local_commands
@@ -914,9 +939,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "make project-status && make data-coverage-proof-queues TOP_N=10" not in readme
     assert "make project-status-check && make provider-setup-checklist" in readme
     assert "make trusted-data-pilot-packet TICKER=MU" not in local_commands
-    assert "make trusted-data-pilot-packet TICKER=CRDO" not in local_commands
+    assert "make trusted-data-pilot-packet TICKER=AACI" not in local_commands
     assert "Local file presence, row counts, staged files, and rejected-row reports are inspection cues, not proof" in public_demo
-    assert "mapped-peer valuation inputs" in public_demo
+    assert "Peer context is distinct from optional earnings and estimate lanes" in public_demo
     assert "Missing data is not a product failure here" in public_demo
     assert "snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report" not in readme
     assert "snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report" in public_demo
@@ -926,14 +951,14 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "`Still blocked` means validation failed, rejected rows appeared, or the report stayed locked" in public_demo
     assert "`Skip` means source proof is unavailable, so no placeholder rows are applied" not in readme
     assert "`Skip` means source proof is unavailable, so no placeholder rows are applied" in public_demo
-    assert readme.index("make stock-report-md TICKER=NVDA") < readme.index("make stock-report-md TICKER=META")
-    assert readme.index("make stock-report-md TICKER=META") < readme.index("make stock-report-md TICKER=QQQ")
+    assert readme.index("make stock-report-md TICKER=NVDA") < readme.index("make stock-report-md TICKER=ACIC")
+    assert readme.index("make stock-report-md TICKER=ACIC") < readme.index("make stock-report-md TICKER=QQQ")
     main_path = readme.split("## Try This Visitor Workflow", 1)[1].split("Optional local proof checks:", 1)[0]
     proof_checks = readme.split("Optional local proof checks:", 1)[1].split("The shortest public walkthrough", 1)[0]
     assert "make trusted-data-pilot-candidates TOP_N=10" not in main_path
     assert proof_checks.index("make project-status-check") < proof_checks.index("make trusted-data-pilot-candidates TOP_N=10")
     assert proof_checks.index("make trusted-data-pilot-candidates TOP_N=10") < proof_checks.index("make trusted-data-pilot-packet TICKER=MU")
-    assert proof_checks.index("make trusted-data-pilot-packet TICKER=MU") < proof_checks.index("make trusted-data-pilot-packet TICKER=CRDO")
+    assert proof_checks.index("make trusted-data-pilot-packet TICKER=MU") < proof_checks.index("make trusted-data-pilot-packet TICKER=AACI")
     assert "## Local Data Hygiene" in readme
     assert "## License" in readme
     assert "## Analysis Methodology" in readme
@@ -947,24 +972,22 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make demo",
         "make trusted-data-pilot TOP_N=10",
         "make trusted-data-pilot-packet TICKER=MU",
-        "make trusted-data-pilot-packet TICKER=CRDO",
+        "make trusted-data-pilot-packet TICKER=AACI",
         "make public-check",
         "make stock-report-md TICKER=NVDA",
-        "make stock-report-md TICKER=A",
-        "make stock-report-md TICKER=META",
+        "make stock-report-md TICKER=ACIC",
+        "make stock-report-md TICKER=AACI",
         "make stock-report-md TICKER=QQQ",
         "make stock-report-md TICKER=SMH",
-        "make stock-report-md TICKER=APLD",
-        "price/setup report with valuation still gated",
+        "price context with DCF still gated",
         "make stock-report TICKER=NVDA",
         "make dashboard",
         "make status-check TOP_N=5",
         "not investment advice",
         "review states",
         "Example map",
-        "Operating-company DCF is excluded, not failed",
-        "Price/setup review with valuation still locked",
-        "next trusted fundamentals proof step",
+        "operating-company DCF is excluded, not failed",
+        "fundamentals-blocked company",
         "ranked pilot packet first when a peer-input lane leads",
         "guessed peers or file row counts do not become valuation",
         "The pilot candidate command may rank a peer-input example such as `MU` first and also name a fundamentals/DCF example such as `CRDO`",
@@ -1011,15 +1034,12 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Price/setup review only",
         "Monitor-only context",
         "Data needed before analysis",
-        "Company DCF assumptions and source-backed peer context",
-        "Standalone DCF review where peer-relative valuation is still locked",
-        "Price/setup review where valuation remains gated",
+        "DCF-ready company review with source-backed peer context",
+        "price context with the DCF path still gated",
+        "fundamentals-blocked company",
         "[NVDA](outputs/stock_reports/nvda.md)",
-        "[A](outputs/stock_reports/a.md)",
-        "[META](outputs/stock_reports/meta.md)",
         "[QQQ](outputs/stock_reports/qqq.md)",
         "[SMH](outputs/stock_reports/smh.md)",
-        "[APLD](outputs/stock_reports/apld.md)",
         "Useful with limits",
         "Intentionally locked",
         "Not built to be",
@@ -1033,8 +1053,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     quick_start = readme.split("## Quick Start", 1)[1].split("## Try This Visitor Workflow", 1)[0]
     assert "make pipeline" not in quick_start
     assert "make readiness" not in quick_start
-    assert quick_start.index("make demo") < quick_start.index("make dashboard")
-    assert quick_start.index("make dashboard") < quick_start.index("make status-check TOP_N=5")
+    assert quick_start.index("make demo") < quick_start.index("make demo-dashboard")
+    assert quick_start.index("make demo-dashboard") < quick_start.index("make status-check TOP_N=5")
     assert quick_start.index("make status-check TOP_N=5") < quick_start.index("make stock-report-md TICKER=NVDA")
     operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
     for phrase in (
@@ -2132,7 +2152,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "run `make project-status-check` first" in data_strategy
     assert "Only run `make trusted-data-pilot-candidates TOP_N=10` when project-status-check shows executable company candidates" in data_strategy
     assert "run `make provider-setup-checklist` instead" in data_strategy
-    assert "make universe-scope TICKERS=NVDA,META TOP_N=10" in readme
+    assert "make universe-scope TICKERS=NVDA,ACIC TOP_N=10" in readme
     assert "make risk-context" in readme
     assert "make universe-scope TICKERS=NVDA,META TOP_N=10" in data_strategy
     assert "make risk-context" in data_strategy
@@ -2536,13 +2556,13 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"External Reviewer Start Here\"" in makefile
     assert "@echo \"Visitor workflow path:\"" in makefile
     assert "@echo \"   Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History\"" in makefile
-    assert "@echo \"   Optional state examples: NVDA ready, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated\"" in makefile
+    assert "@echo \"   Optional state examples: NVDA DCF/peer ready, ACIC DCF-gated, AACI fundamentals-blocked, QQQ excluded, MU peer-ready\"" in makefile
     assert "@echo \"What this proves: readiness-backed selection comes first, ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced.\"" in makefile
     assert "@echo \"Data-confidence note: data confidence describes readiness and review routing, not investment conviction.\"" in makefile
     assert "@echo \"1. Open the README preview and public walkthrough:\"" in makefile
     assert "@echo \"   docs/PUBLIC_DEMO_WALKTHROUGH.md\"" in makefile
     assert "@echo \"2. Open the clean dashboard path:\"" in makefile
-    assert "@echo \"   make dashboard\"" in makefile
+    assert "@echo \"   make demo-dashboard\"" in makefile
     assert "@echo \"3. Follow one ticker in the app before using terminal proof:\"" in makefile
     assert "@echo \"   Start with Stock Selector, open NVDA or another readiness-backed row, then use Data Health only if an input is blocked.\"" in makefile
     assert "@echo \"4. Optional current-count proof:\"" in makefile
@@ -2550,7 +2570,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   Proves: current readiness counts and top blockers without changing local files.\"" in makefile
     assert "@echo \"5. Optional sample reports after the app flow is clear:\"" in makefile
     assert "@echo \"   make stock-report-md TICKER=NVDA  # DCF-ready company example\"" in makefile
-    assert "@echo \"   make stock-report-md TICKER=META  # valuation still gated\"" in makefile
+    assert "@echo \"   make stock-report-md TICKER=ACIC  # price context with DCF gated\"" in makefile
     assert "@echo \"   make stock-report-md TICKER=QQQ   # ETF/index monitor context\"" in makefile
     assert "@echo \"6. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
@@ -2574,7 +2594,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   make diff-hygiene-summary\"" in makefile
     assert "@echo \"   make staged-hygiene-check # after staging, before commit\"" in makefile
     assert 'This target only prints a visitor path. Optional stock-report-md commands write local Markdown reports under outputs/stock_reports/.' in makefile
-    assert "Share-safe story: start with the connected workflow, then use NVDA, META, QQQ, MU, and CRDO only as optional state examples." in makefile
+    assert "Share-safe story: start with the connected workflow, then use NVDA, ACIC, AACI, QQQ, and MU only as optional state examples." in makefile
     assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
     assert "data-release-decision:\n\t@python3 scripts/diff_hygiene.py --data-release-decision" in makefile
     assert "public-release-package:\n\t@python3 scripts/diff_hygiene.py --public-release-package" in makefile
@@ -2587,14 +2607,14 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
         'Public share check: staged hygiene',
         'Public share check: whitespace',
         'Public share check: tests',
-        'Public share check: dashboard smoke',
+            'Public share check: demo dashboard smoke',
         'Public share check: browser QA evidence',
         'Public share check: visitor demo',
         "@$(MAKE) --silent diff-hygiene-summary",
         "@$(MAKE) --silent staged-hygiene-check",
         "@git diff --check",
         "@$(MAKE) --silent test",
-        "@$(MAKE) --silent dashboard-smoke",
+            "@$(MAKE) --silent demo-dashboard-smoke",
         "@$(MAKE) --silent browser-qa-evidence",
         "@$(MAKE) --silent demo",
     ):

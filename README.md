@@ -8,14 +8,14 @@ This repository is ready to review as a controlled GitHub/LinkedIn portfolio dem
 | Question | Short answer |
 | --- | --- |
 | What should I open first? | Start with this README preview, then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the five-page workflow. |
-| What is the live app path? | Run `make dashboard`, then open `http://localhost:8501/?mode=public`. |
+| What is the live app path? | Run `make demo-dashboard`, then open `http://localhost:8501/?mode=public`. |
 | What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |
 | What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |
 | Which screenshot should I use? | Use `docs/assets/linkedin-public-dashboard.png` for LinkedIn Featured or GitHub preview context. |
 | What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |
 | What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |
 
-First review move: open Stock Selector, choose a ticker such as `NVDA`, read the Single-Stock Report answer, then open Data Health only when an input is blocked.
+First review move: open Stock Selector, choose a ticker such as `NVDA`, read the Single-Stock Report answer, then open Data Health only when an input is blocked. The tracked [Data Profiles](docs/DATA_PROFILES.md) guide separates this compact public snapshot from the ignored local research workspace.
 ## What It Does
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
 ```mermaid
@@ -104,10 +104,12 @@ Run these from the repository root so `make` can find the project targets. Open 
 ```bash
 pip install -e '.[dev]'
 make demo       # print the safe visitor path without changing local data
-make dashboard  # open http://localhost:8501/?mode=public
+make demo-dashboard  # open the compact tracked profile at http://localhost:8501/?mode=public
 ```
 
 Optional read-only proof after the app flow is clear: `make status-check TOP_N=5`, `make pilot-readiness-check TOP_N=10 && make pilot-readiness-packet`, and `make stock-report-md TICKER=NVDA`.
+
+For the mutable default operator workspace, use `make dashboard`; it is intentionally separate from the public demo profile and can reflect local refresh/import work.
 
 When you want to run a controlled pilot, use the [Pilot Runbook](docs/PILOT_RUNBOOK.md). When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps.
 
@@ -116,19 +118,19 @@ Open the product first and follow the five-page path. Use terminal commands only
 
 ```bash
 make demo                         # print the visitor path without changing local data
-make dashboard                    # open http://localhost:8501/?mode=public
+make demo-dashboard               # open the compact tracked demo profile
 make stock-report-md TICKER=NVDA  # ready company report with DCF assumptions
-make stock-report-md TICKER=META  # price/setup report with valuation still gated
+make stock-report-md TICKER=ACIC  # price context with DCF still gated
 make stock-report-md TICKER=QQQ   # ETF/index report with DCF excluded
-make stock-report-md TICKER=MU    # standalone DCF report with peer valuation still locked
-make stock-report-md TICKER=CRDO  # fundamentals/DCF proof example
+make stock-report-md TICKER=MU    # DCF-ready company with peer context
+make stock-report-md TICKER=AACI  # fundamentals-blocked company example
 ```
 
-Optional local proof checks: `make project-status-check && make provider-setup-checklist && make universe-scope TICKERS=NVDA,META TOP_N=10 && make risk-context`; use `make trusted-data-pilot-candidates TOP_N=10` only when status shows executable company candidates, then inspect `make trusted-data-pilot-packet TICKER=MU` or `make trusted-data-pilot-packet TICKER=CRDO`.
+Optional local proof checks: `make project-status-check && make provider-setup-checklist && make universe-scope TICKERS=NVDA,ACIC TOP_N=10 && make risk-context`; use `make trusted-data-pilot-candidates TOP_N=10` only when status shows executable company candidates, then inspect `make trusted-data-pilot-packet TICKER=MU` or `make trusted-data-pilot-packet TICKER=AACI`.
 
-The shortest public walkthrough uses NVDA, META, QQQ, MU, and CRDO only as optional state examples. That shows the core idea quickly: filter by readiness, analyze ready data, explain blocked data, exclude methods that do not apply, and show the trusted-data proof path without pretending missing rows exist.
+The shortest public walkthrough uses NVDA, ACIC, AACI, QQQ, and MU only as optional state examples. That shows the core idea quickly: filter by readiness, analyze ready data, explain blocked data, exclude methods that do not apply, and show the trusted-data proof path without pretending missing rows exist.
 
-Example map: [NVDA](outputs/stock_reports/nvda.md) shows Company DCF assumptions and source-backed peer context; [A](outputs/stock_reports/a.md) / MU show Standalone DCF review where peer-relative valuation is still locked; [META](outputs/stock_reports/meta.md) shows Price/setup review where valuation remains gated; [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) show ETF/index context where Operating-company DCF is excluded, not failed; [APLD](outputs/stock_reports/apld.md) / CRDO show Price/setup review with valuation still locked and the next trusted fundamentals proof step. Optional reports: `make stock-report-md TICKER=A`, `make stock-report-md TICKER=SMH`, and `make stock-report-md TICKER=APLD`.
+Example map: [NVDA](outputs/stock_reports/nvda.md) and `MU` show DCF-ready company review with source-backed peer context; `ACIC` shows price context with the DCF path still gated; `AACI` shows a fundamentals-blocked company; [QQQ](outputs/stock_reports/qqq.md) and [SMH](outputs/stock_reports/smh.md) show ETF/index context where operating-company DCF is excluded, not failed. Generate the current local examples with `make stock-report-md TICKER=ACIC`, `make stock-report-md TICKER=AACI`, and `make stock-report-md TICKER=SMH`.
 
 In the dashboard, start on `Home`, open `Stock Selector` to narrow the next readiness-backed candidate, then open `Single-Stock Report` for one ticker or `Data Health` when the selected row says analysis is blocked. Check `Proof History` before trusting a changed readiness state. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what trusted input matters next, what evidence proves the current mode, what to read first, and which read-only proof step comes next. They show `Copyable Proof Commands` only when local data gaps block analysis; use `make stock-report TICKER=NVDA` only when you also want optional local report data for inspection.
 
@@ -137,7 +139,7 @@ For a share-ready walkthrough, use the [Visitor Workflow Walkthrough](docs/PUBLI
 ## Pilot Share Status
 Share as controlled portfolio/demo evidence under the root `LICENSE`; do not describe the repository as open source or reusable software. Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence. When source-proof queues are exhausted, use `make project-status-check` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command. Use `make project-status` only when you intentionally want to refresh the dashboard-ready status snapshot. No broad coverage batch should run from setup alone.
 
-Hosting status: no public Streamlit URL is configured in this repository. The share-ready path is GitHub plus the local `make dashboard` workflow. Add a hosted link only after a separate deployment account is configured, secrets are stored outside the repo, `make public-check` still passes, and the [Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md) checklist is satisfied.
+Hosting status: no public Streamlit URL is configured in this repository. The share-ready path is GitHub plus the tracked `make demo-dashboard` workflow. Add a hosted link only after a separate deployment account is configured, secrets are stored outside the repo, `make public-check` still passes, and the [Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md) checklist is satisfied.
 
 ## Local Data Hygiene
 Small example reports are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and report CSVs are local working data by default. Review them before committing; do not publish broad refresh changes unless intentionally selected.

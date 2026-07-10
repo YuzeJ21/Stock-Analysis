@@ -1,0 +1,12 @@
+ticker,asset_type,has_free_cash_flow,has_shares_outstanding,has_revenue,has_fcf_margin,has_price,is_dcf_ready,missing_dcf_fields,reason_not_ready,sec_user_agent_configured,manual_fundamentals_import_available,updated_at
+AACI,company,False,True,False,False,True,False,"free_cash_flow, revenue, fcf_margin","missing free_cash_flow, revenue, fcf_margin",True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+ACIC,company,True,True,True,True,True,True,,,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+AMD,company,True,True,True,True,True,True,,,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+AVGO,company,True,True,True,True,True,True,,,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+MU,company,True,True,True,True,True,True,,,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+NVDA,company,True,True,True,True,True,True,,,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+QQQ,etf,False,False,False,False,True,False,,DCF excluded for etf; use ETF/rotation analysis instead of operating-company DCF.,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+SMH,etf,False,False,False,False,True,False,,DCF excluded for etf; use ETF/rotation analysis instead of operating-company DCF.,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+SNDK,company,True,True,True,True,True,True,,,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+SPY,index_proxy,False,False,False,False,True,False,,DCF excluded for index_proxy; use ETF/rotation analysis instead of operating-company DCF.,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00
+WDC,company,True,True,True,True,True,True,,,True,available: place CSV files in data/staged/fundamentals/ and run make import-fundamentals,2026-06-30T00:00:00+00:00

@@ -258,6 +258,7 @@ from src.review_metrics import build_metric_readiness_summary, configured_risk_f
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
+from src.paths import resolve_data_dir, resolve_data_profile, resolve_outputs_dir
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
@@ -275,8 +276,8 @@ from src.universe_scope_workflow import universe_scope_risk_handoff_cards, unive
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-OUTPUTS_DIR = BASE_DIR / "outputs"
-DATA_DIR = BASE_DIR / "data"
+OUTPUTS_DIR = resolve_outputs_dir(project_root=BASE_DIR)
+DATA_DIR = resolve_data_dir(project_root=BASE_DIR)
 PIPELINE_FILES = {
     "purpose_classification.csv": "Purpose Classification",
     "market_direction.csv": "Market Direction",
@@ -25641,7 +25642,7 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
 
 def get_local_provider():
     try:
-        return build_provider("local", base_dir=BASE_DIR)
+        return build_provider("local", base_dir=BASE_DIR, data_dir=DATA_DIR, output_dir=OUTPUTS_DIR)
     except Exception:  # pragma: no cover - defensive dashboard path
         return None
 
@@ -31571,7 +31572,8 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
 def main() -> None:
     st.set_page_config(page_title="Stock Research Command Center", layout="wide")
     apply_dashboard_theme()
-    catalog = LocalDataCatalog(BASE_DIR)
+    data_profile = resolve_data_profile(project_root=BASE_DIR)
+    catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
     page_query_value = st.query_params.get("page")
     mode_query_value = st.query_params.get("mode")
@@ -31594,6 +31596,7 @@ def main() -> None:
         mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
         if not public_demo_mode:
             st.caption(f"Mode: {dashboard_mode_label(mode)}")
+        st.caption(f"Data profile: {data_profile.name}")
         path_options = sidebar_path_options(initial_page)
         default_path = "Home" if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES else initial_page
         route_signature = f"{mode}:{initial_page}"

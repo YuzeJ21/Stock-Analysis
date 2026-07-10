@@ -65,6 +65,8 @@ REVIEWED_SCREENSHOT_ASSET_PATHS = (
     "docs/assets/operator-data-health-queue-routing-real.jpg",
 )
 
+REVIEWED_DEMO_PROFILE_PREFIXES = ("data/demo/", "outputs/demo/")
+
 LICENSE_DECISION_OPTIONS = (
     "  - Controlled portfolio showcase | Keep the current controlled demo license | Visitors can review the project, but reuse rights are not granted.",
     "  - Let others reuse with attribution | Add MIT or Apache-2.0 | Visitors can reuse under the selected license terms.",
@@ -111,6 +113,8 @@ def is_generated_churn(path: str) -> bool:
 
 
 def classify_path(path: str) -> str:
+    if path.startswith(REVIEWED_DEMO_PROFILE_PREFIXES):
+        return "product_candidate"
     if is_generated_churn(path):
         return "generated_csv_churn"
     if path.startswith("outputs/stock_reports/") and path.endswith(".md"):

@@ -56,6 +56,9 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "outputs/reviewed_batch_packet.md",
         "outputs/reviewed_batch_packet.csv",
         "outputs/pilot_readiness_packet.md",
+        "data/demo/manifest.json",
+        "data/demo/prices.csv",
+        "outputs/demo/feature_readiness_summary.csv",
     ):
         assert module.classify_path(path) == "product_candidate"
     assert module.classify_path(".streamlit/secrets.toml") == "review_manually"

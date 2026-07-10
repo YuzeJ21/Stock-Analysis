@@ -1,6 +1,6 @@
 # Hosted Demo Deployment
 
-Use this only when you want a clickable public app in addition to the GitHub portfolio/demo package. A hosted app is optional; the current public share can remain GitHub plus real screenshots plus local `make dashboard` instructions.
+Use this only when you want a clickable public app in addition to the GitHub portfolio/demo package. A hosted app is optional; the current public share can remain GitHub plus real screenshots plus tracked `make demo-dashboard` instructions.
 
 ## Current Status
 
@@ -33,9 +33,9 @@ A configured hosted URL is still a manual verification gate. It tells the readin
 
 ## Safe Hosting Boundary
 
-Streamlit Community Cloud or a similar Python app host can run the public dashboard if it can install the `pyproject.toml` dependencies and launch the Streamlit entrypoint used by `make dashboard`.
+Streamlit Community Cloud or a similar Python app host can run the public dashboard if it can install the `pyproject.toml` dependencies and launch the Streamlit entrypoint used by `make demo-dashboard` with `STOCK_RESEARCH_DATA_PROFILE=demo`.
 
-Set the hosted app entrypoint to `dashboard.py`. The root `dashboard.py` file is a compatibility wrapper around `src.dashboard`, which keeps hosted platforms on a simple root-level Streamlit file while local operators keep using the source module directly. Keep `make dashboard` as the local verification path before and after deployment-specific changes.
+Set the hosted app entrypoint to `dashboard.py`. The root `dashboard.py` file is a compatibility wrapper around `src.dashboard`, which keeps hosted platforms on a simple root-level Streamlit file while local operators keep using the source module directly. Keep `make demo-dashboard` as the public-profile verification path before and after deployment-specific changes.
 
 Install dependencies from `requirements.txt` or `pyproject.toml`. The root `requirements.txt` contains only runtime app dependencies; optional research/provider extras and broker-style packages stay out of the hosted baseline unless intentionally configured.
 
@@ -50,7 +50,7 @@ Use these values when creating a Streamlit Community Cloud app or a similar Pyth
 | Main file path | `dashboard.py` | Root compatibility wrapper for `src.dashboard`; do not point hosting at generated reports. |
 | Dependency file | `requirements.txt` | Hosted baseline only; optional providers stay behind secrets and smoke tests. |
 | Public route | `/?mode=public` | First hosted view must start in public visitor mode, not operator mode. |
-| Local health check | `make dashboard-smoke` | Keep local smoke green before debugging hosting-specific behavior. |
+| Public-profile health check | `make demo-dashboard-smoke` | Keep the compact public profile green before debugging hosting-specific behavior. |
 
 Before sharing a hosted URL:
 
@@ -115,7 +115,7 @@ Use this ladder before changing README, LinkedIn, or portfolio copy:
 
 | State | Public link to use | Required proof before changing copy |
 | --- | --- | --- |
-| No hosted URL | GitHub repository link | `make hosted-demo-readiness` reports `external_account_required`; keep local `make dashboard` instructions. |
+| No hosted URL | GitHub repository link | `make hosted-demo-readiness` reports `external_account_required`; keep `make demo-dashboard` instructions. |
 | Hosted URL opens | Hosted app link can be considered | Open the public URL, confirm the five-page workflow starts in public mode, then rerun `make public-check` and `make browser-qa-evidence`. |
 | Provider keys added | Hosted app link plus source boundary note | Run `make provider-setup-checklist` and one reviewed provider smoke; setup alone does not prove coverage or unlock blocked inputs. |
 | Hosted route changes copy or layout | Keep GitHub link until rechecked | Re-review Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History and stop if raw tables, tracebacks, or operator commands appear first. |

@@ -1,0 +1,12 @@
+feature,ready_count,partial_count,blocked_count,excluded_count,total_count,top_blocker,sample_ready_tickers,sample_blocked_tickers,next_action,unlock_command,dashboard_section,updated_at
+price,11,0,0,0,11,,"AACI, ACIC, AMD, AVGO, MU",,make price-refresh-loop DRY_RUN=1,make price-refresh-loop DRY_RUN=1,Price Coverage,2026-06-30T00:00:00+00:00
+momentum,11,0,0,0,11,,"AACI, ACIC, AMD, AVGO, MU",,make price-refresh-loop DRY_RUN=1,make price-refresh-loop DRY_RUN=1,Momentum,2026-06-30T00:00:00+00:00
+market_direction,11,0,0,0,11,,"AACI, ACIC, AMD, AVGO, MU",,make price-refresh-loop DRY_RUN=1,make price-refresh-loop DRY_RUN=1,Market Direction,2026-06-30T00:00:00+00:00
+liquidity,9,2,0,0,11,,"AACI, ACIC, AMD, AVGO, MU",,make research-health TOP_N=10,make research-health TOP_N=10,Risk / Liquidity,2026-06-30T00:00:00+00:00
+correlation,9,2,0,0,11,,"AACI, ACIC, AMD, AVGO, MU",,make research-health TOP_N=10,make research-health TOP_N=10,Risk / Correlation,2026-06-30T00:00:00+00:00
+fundamentals,7,1,3,0,11,fundamentals input missing,"ACIC, AMD, AVGO, MU, NVDA","QQQ, SMH, SPY",make fundamentals-source-ladder-queue TOP_N=25,make fundamentals-source-ladder-queue TOP_N=25,Fundamentals,2026-06-30T00:00:00+00:00
+dcf,6,0,0,5,11,dcf excluded where not applicable,"AMD, AVGO, MU, NVDA, SNDK",,make dcf-readiness,make dcf-readiness,Value / Re-rating,2026-06-30T00:00:00+00:00
+peer,6,0,2,3,11,peers: needs at least 2 source-backed peer mappings,"AMD, AVGO, MU, NVDA, SNDK","AACI, ACIC",make peer-mapping-queue TOP_N=25,make peer-mapping-queue TOP_N=25,Peer Readiness,2026-06-30T00:00:00+00:00
+earnings,0,0,11,0,11,earnings: trusted local CSV input,,"AACI, ACIC, AMD, AVGO, MU",make import-earnings,make import-earnings,Optional Context,2026-06-30T00:00:00+00:00
+analyst_estimates,0,0,11,0,11,analyst_estimates: trusted local CSV input,,"AACI, ACIC, AMD, AVGO, MU",make import-analyst-estimates,make import-analyst-estimates,Optional Context,2026-06-30T00:00:00+00:00
+portfolio,0,0,0,11,11,earnings: trusted local CSV input,,,make pipeline,make pipeline,Portfolio Review,2026-06-30T00:00:00+00:00

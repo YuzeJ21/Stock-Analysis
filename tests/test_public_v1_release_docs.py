@@ -17,7 +17,8 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "## External Reviewer Start Here" in readme
     assert "This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo." in readme
     assert "It is not currently published as a hosted Streamlit app." in readme
-    assert "| What is the live app path? | Run `make dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
+    assert "| What is the live app path? | Run `make demo-dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
+    assert "[Data Profiles](docs/DATA_PROFILES.md)" in readme
     assert "| What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
     assert "| What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |" in readme
     assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
@@ -175,14 +176,14 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "Set the hosted app entrypoint to `dashboard.py`" in hosted
     assert "The root `dashboard.py` file is a compatibility wrapper around `src.dashboard`" in hosted
     assert "Install dependencies from `requirements.txt` or `pyproject.toml`" in hosted
-    assert "Keep `make dashboard` as the local verification path" in hosted
+    assert "Keep `make demo-dashboard` as the public-profile verification path" in hosted
     assert "## Hosted Setup Values" in hosted
     assert "| Repository | `YuzeJ21/Stock-Analysis` | Use the same GitHub repo link that is shared in LinkedIn until the hosted URL is verified. |" in hosted
     assert "| Branch | `main` | Deploy only reviewed commits that already passed public gates locally. |" in hosted
     assert "| Main file path | `dashboard.py` | Root compatibility wrapper for `src.dashboard`; do not point hosting at generated reports. |" in hosted
     assert "| Dependency file | `requirements.txt` | Hosted baseline only; optional providers stay behind secrets and smoke tests. |" in hosted
     assert "| Public route | `/?mode=public` | First hosted view must start in public visitor mode, not operator mode. |" in hosted
-    assert "| Local health check | `make dashboard-smoke` | Keep local smoke green before debugging hosting-specific behavior. |" in hosted
+    assert "| Public-profile health check | `make demo-dashboard-smoke` | Keep the compact public profile green before debugging hosting-specific behavior. |" in hosted
     assert "## Post-Deploy Smoke Checklist" in hosted
     assert "Open the hosted root URL and confirm it lands on `/?mode=public` or visibly offers Public visitor mode first." in hosted
     assert "Open `/?mode=public&page=single-stock-report&ticker=NVDA&open=1` and confirm the selected-ticker answer appears before detailed report tables." in hosted
@@ -190,7 +191,7 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "Open `/?mode=public&page=proof-history` and confirm proof history is evidence-only before raw ledger details." in hosted
     assert "Use the GitHub repository link unless the hosted app exists" in hosted
     assert "## Link Decision Ladder" in hosted
-    assert "| No hosted URL | GitHub repository link | `make hosted-demo-readiness` reports `external_account_required`; keep local `make dashboard` instructions. |" in hosted
+    assert "| No hosted URL | GitHub repository link | `make hosted-demo-readiness` reports `external_account_required`; keep `make demo-dashboard` instructions. |" in hosted
     assert "| Hosted URL opens | Hosted app link can be considered | Open the public URL, confirm the five-page workflow starts in public mode, then rerun `make public-check` and `make browser-qa-evidence`. |" in hosted
     assert "| Provider keys added | Hosted app link plus source boundary note | Run `make provider-setup-checklist` and one reviewed provider smoke; setup alone does not prove coverage or unlock blocked inputs. |" in hosted
     assert "Do not replace the GitHub link with a hosted link until the hosted app opens successfully" in hosted
@@ -233,7 +234,7 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
 
     assert "## External Reviewer Start Here" in readme
     assert "| What should I open first? | Start with this README preview, then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the five-page workflow. |" in readme
-    assert "| What is the live app path? | Run `make dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
+    assert "| What is the live app path? | Run `make demo-dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
     assert "| What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |" in readme
     assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
     assert "## External Reviewer Handoff" in readme

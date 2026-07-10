@@ -1,0 +1,13 @@
+ticker,peer_ticker,peer_group,sector,industry,source,as_of_date
+AMD,NVDA,AI accelerators and data center semiconductors,Semiconductors,AI accelerators,https://ir.amd.com/financial-information/sec-filings/content/0001193125-26-129106/0001193125-26-129106.pdf,2026-06-04
+AMD,AVGO,AI accelerators and data center semiconductors,Semiconductors,AI accelerators and ASICs,https://ir.amd.com/financial-information/sec-filings/content/0001193125-26-129106/0001193125-26-129106.pdf,2026-06-04
+AVGO,AMD,AI accelerators and data center semiconductors,Semiconductors,AI accelerators and ASICs,https://ir.amd.com/financial-information/sec-filings/content/0001193125-26-129106/0001193125-26-129106.pdf,2026-06-04
+AVGO,NVDA,AI accelerators and data center semiconductors,Semiconductors,AI accelerators and networking,https://www.sec.gov/Archives/edgar/data/1045810/000104581025000098/finalforfiling-2025xannual.pdf,2026-06-04
+MU,SNDK,Memory and storage semiconductors,Semiconductors,Memory and storage,https://micron.gcs-web.com/static-files/8791eb80-8263-4c6f-aa74-fdd03fbbb027,2026-06-04
+MU,WDC,Memory and storage semiconductors,Semiconductors,Memory and storage,https://techmarketbriefs.com/companies/micron/,2026-06-04
+NVDA,AMD,AI accelerators and data center semiconductors,Semiconductors,AI accelerators,https://www.sec.gov/Archives/edgar/data/1045810/000104581025000098/finalforfiling-2025xannual.pdf,2026-06-04
+NVDA,AVGO,AI accelerators and data center semiconductors,Semiconductors,AI accelerators and networking,https://www.sec.gov/Archives/edgar/data/1045810/000104581025000098/finalforfiling-2025xannual.pdf,2026-06-04
+SNDK,MU,Memory and storage semiconductors,Information Technology,Memory chips and storage,https://www.marketwatch.com/story/micron-and-sandisk-lead-a-sharp-tech-selloff-in-a-gut-check-moment-for-ai-stocks-cd92fa5d,2026-06-24
+SNDK,WDC,Memory and storage hardware,Information Technology,Data storage and flash memory,https://www.marketwatch.com/story/micron-and-sandisk-lead-a-sharp-tech-selloff-in-a-gut-check-moment-for-ai-stocks-cd92fa5d,2026-06-24
+WDC,SNDK,Data storage and flash memory,Information Technology,Data storage and flash memory,https://www.marketwatch.com/story/micron-and-sandisk-lead-a-sharp-tech-selloff-in-a-gut-check-moment-for-ai-stocks-cd92fa5d,2026-06-24
+WDC,MU,Memory and storage semiconductors,Information Technology,Memory chips and storage,https://www.marketwatch.com/story/micron-and-sandisk-lead-a-sharp-tech-selloff-in-a-gut-check-moment-for-ai-stocks-cd92fa5d,2026-06-24

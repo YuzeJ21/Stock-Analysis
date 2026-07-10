@@ -1,4 +1,4 @@
-.PHONY: help help-full next-stage demo linkedin-share-check public-ux-review-checklist public-ux-review-checklist-json public-ux-review-notes public-ux-review-notes-check public-ux-review-note browser-qa-evidence browser-qa-capture-plan hosted-demo-readiness pilot-readiness-check pilot-readiness-packet pilot-share-brief trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight auto-refresh-plan auto-refresh-daily auto-refresh-weekly auto-refresh-optional auto-refresh-runbook auto-refresh-status auto-apply-gate lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff license-status session-source-preflight source-activation-guide provider-setup-checklist provider-smoke fmp-smoke alpha-vantage-smoke finnhub-smoke universe-scope fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage sec-filing-share-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check risk-context action-queue action-queue-check project-status project-status-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-preview-summary universe-stage universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full next-stage demo demo-data-build demo-data-check demo-dashboard demo-dashboard-smoke demo-dashboard-render-smoke linkedin-share-check public-ux-review-checklist public-ux-review-checklist-json public-ux-review-notes public-ux-review-notes-check public-ux-review-note browser-qa-evidence browser-qa-capture-plan hosted-demo-readiness pilot-readiness-check pilot-readiness-packet pilot-share-brief trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight auto-refresh-plan auto-refresh-daily auto-refresh-weekly auto-refresh-optional auto-refresh-runbook auto-refresh-status auto-apply-gate lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff license-status session-source-preflight source-activation-guide provider-setup-checklist provider-smoke fmp-smoke alpha-vantage-smoke finnhub-smoke universe-scope fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage sec-filing-share-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check risk-context action-queue action-queue-check project-status project-status-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-preview-summary universe-stage universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -307,7 +307,7 @@ demo:
 	@echo ""
 	@echo "Visitor workflow path:"
 	@echo "   Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History"
-	@echo "   Optional state examples: NVDA ready, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated"
+	@echo "   Optional state examples: NVDA DCF/peer ready, ACIC DCF-gated, AACI fundamentals-blocked, QQQ excluded, MU peer-ready"
 	@echo "What this proves: readiness-backed selection comes first, ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced."
 	@echo "Data-confidence note: data confidence describes readiness and review routing, not investment conviction."
 	@echo ""
@@ -315,7 +315,7 @@ demo:
 	@echo "   docs/PUBLIC_DEMO_WALKTHROUGH.md"
 	@echo ""
 	@echo "2. Open the clean dashboard path:"
-	@echo "   make dashboard"
+	@echo "   make demo-dashboard"
 	@echo ""
 	@echo "3. Follow one ticker in the app before using terminal proof:"
 	@echo "   Start with Stock Selector, open NVDA or another readiness-backed row, then use Data Health only if an input is blocked."
@@ -326,8 +326,9 @@ demo:
 	@echo ""
 	@echo "5. Optional sample reports after the app flow is clear:"
 	@echo "   make stock-report-md TICKER=NVDA  # DCF-ready company example"
-	@echo "   make stock-report-md TICKER=META  # valuation still gated"
+	@echo "   make stock-report-md TICKER=ACIC  # price context with DCF gated"
 	@echo "   make stock-report-md TICKER=QQQ   # ETF/index monitor context"
+
 	@echo ""
 	@echo "6. Smoke-test the dashboard:"
 	@echo "   make dashboard-smoke"
@@ -349,7 +350,13 @@ demo:
 	@echo "   make staged-hygiene-check # after staging, before commit"
 	@echo ""
 	@echo "This target only prints a visitor path. Optional stock-report-md commands write local Markdown reports under outputs/stock_reports/."
-	@echo "Share-safe story: start with the connected workflow, then use NVDA, META, QQQ, MU, and CRDO only as optional state examples."
+	@echo "Share-safe story: start with the connected workflow, then use NVDA, ACIC, AACI, QQQ, and MU only as optional state examples."
+
+demo-data-build:
+	@python3 -m src.demo_data_builder --overwrite
+
+demo-data-check:
+	@python3 -m src.demo_data_builder --check
 
 browser-qa-evidence:
 	@python3 -m src.browser_qa_evidence --strict
@@ -645,10 +652,10 @@ public-check:
 	@git diff --check
 	@echo "Public share check: tests"
 	@$(MAKE) --silent test
-	@echo "Public share check: dashboard smoke"
-	@$(MAKE) --silent dashboard-smoke
-	@echo "Public share check: dashboard render smoke"
-	@$(MAKE) --silent dashboard-render-smoke
+	@echo "Public share check: demo dashboard smoke"
+	@$(MAKE) --silent demo-dashboard-smoke
+	@echo "Public share check: demo dashboard render smoke"
+	@$(MAKE) --silent demo-dashboard-render-smoke
 	@echo "Public share check: browser QA evidence"
 	@$(MAKE) --silent browser-qa-evidence
 	@echo "Public share check: LinkedIn visual checklist"
@@ -943,11 +950,20 @@ daily:
 dashboard:
 	streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
 
+demo-dashboard:
+	STOCK_RESEARCH_DATA_PROFILE=demo streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
+
 dashboard-smoke:
 	scripts/smoke_dashboard.sh
 
+demo-dashboard-smoke:
+	STOCK_RESEARCH_DATA_PROFILE=demo scripts/smoke_dashboard.sh
+
 dashboard-render-smoke:
 	@python3 -m src.dashboard_render_smoke
+
+demo-dashboard-render-smoke:
+	@STOCK_RESEARCH_DATA_PROFILE=demo python3 -m src.dashboard_render_smoke
 
 session-source-preflight:
 	@python3 -m src.session_source_preflight --root . --write-output $(if $(SEC_USER_AGENT),--sec-user-agent "$(SEC_USER_AGENT)",)

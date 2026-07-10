@@ -28342,7 +28342,7 @@ def test_public_pages_use_compact_shell_before_page_content():
 
     assert "def dashboard_output_frames_for_page(" in source
     assert "output_frames = dashboard_output_frames_for_page(selected_page)" in source
-    initial_catalog_index = source.index("catalog = LocalDataCatalog(BASE_DIR)")
+    initial_catalog_index = source.index("catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)")
     selected_page_index = source.index("selected_page = selected_page_from_route_rail(")
     output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(selected_page)")
     assert initial_catalog_index < selected_page_index < output_frames_index
