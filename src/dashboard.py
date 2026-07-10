@@ -22302,6 +22302,7 @@ def project_status_remaining_stage_cards(payload: dict[str, Any] | None, limit: 
         evidence = compact_card_fragment(row.get("Evidence"), fallback="", max_sentences=1, max_chars=180)
         next_action = compact_card_fragment(row.get("Next Action"), fallback="", max_sentences=1, max_chars=180)
         boundary = compact_card_fragment(row.get("Boundary"), fallback="", max_sentences=1, max_chars=180)
+        diagnostic_state = format_missing(row.get("Diagnostic State"), "").strip()
         body_parts = []
         if evidence:
             body_parts.append(evidence)
@@ -22309,6 +22310,8 @@ def project_status_remaining_stage_cards(payload: dict[str, Any] | None, limit: 
             body_parts.append(f"Next: {next_action}")
         if boundary:
             body_parts.append(f"Boundary: {boundary}")
+        if diagnostic_state and diagnostic_state != state:
+            body_parts.append(f"Diagnostic: {diagnostic_state}")
         cards.append(
             {
                 "kicker": state.replace("_", " ").upper(),
