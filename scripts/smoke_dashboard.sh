@@ -3,7 +3,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-PORT="${PORT:-8501}"
+PORT="${PORT:-0}"
+if [[ "${PORT}" == "0" ]]; then
+  PORT="$(python3 - <<'PY'
+import socket
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+    sock.bind(("127.0.0.1", 0))
+    print(sock.getsockname()[1])
+PY
+)"
+fi
 HEALTH_URL="http://127.0.0.1:${PORT}/_stcore/health"
 LOG_FILE="${TMPDIR:-/tmp}/stock-research-dashboard-smoke-${PORT}.log"
 CURL_LOG="${TMPDIR:-/tmp}/stock-research-dashboard-smoke-${PORT}-curl.log"
@@ -11,13 +21,8 @@ CURL_LOG="${TMPDIR:-/tmp}/stock-research-dashboard-smoke-${PORT}-curl.log"
 echo "Repo root: ${REPO_ROOT}"
 cd "${REPO_ROOT}"
 
-if curl -sSf "${HEALTH_URL}" >/dev/null 2>&1; then
-  echo "Dashboard already healthy at ${HEALTH_URL}"
-  exit 0
-fi
-
-echo "Starting Streamlit dashboard smoke check on port ${PORT}"
-streamlit run src/dashboard.py --server.headless true --server.port "${PORT}" >"${LOG_FILE}" 2>&1 &
+echo "Starting fresh Streamlit dashboard smoke check on isolated port ${PORT}"
+streamlit run src/dashboard.py --server.headless true --server.fileWatcherType none --server.port "${PORT}" >"${LOG_FILE}" 2>&1 &
 SERVER_PID="$!"
 
 cleanup() {

@@ -48,6 +48,23 @@ def test_dashboard_launchers_force_viewer_mode_for_public_demo():
     assert "--server.headless true" in launcher
 
 
+def test_public_check_requires_a_fresh_dashboard_render_smoke():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "dashboard-render-smoke:" in makefile
+    public_check = makefile.split("public-check:", 1)[1].split("\nstatus:", 1)[0]
+    assert "$(MAKE) --silent dashboard-render-smoke" in public_check
+
+
+def test_dashboard_smoke_uses_an_isolated_fresh_server():
+    smoke = Path("scripts/smoke_dashboard.sh").read_text(encoding="utf-8")
+
+    assert 'PORT="${PORT:-0}"' in smoke
+    assert 'if [[ "${PORT}" == "0" ]]' in smoke
+    assert "Dashboard already healthy" not in smoke
+    assert "--server.fileWatcherType none" in smoke
+
+
 def test_universe_preview_summary_uses_compact_human_output():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 

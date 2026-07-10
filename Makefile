@@ -24,6 +24,8 @@ help:
 	@echo ""
 	@echo "For the full local command catalog, run: make help-full"
 
+.PHONY: dashboard-render-smoke
+
 next-stage:
 	@python3 -m src.next_stage
 
@@ -645,6 +647,8 @@ public-check:
 	@$(MAKE) --silent test
 	@echo "Public share check: dashboard smoke"
 	@$(MAKE) --silent dashboard-smoke
+	@echo "Public share check: dashboard render smoke"
+	@$(MAKE) --silent dashboard-render-smoke
 	@echo "Public share check: browser QA evidence"
 	@$(MAKE) --silent browser-qa-evidence
 	@echo "Public share check: LinkedIn visual checklist"
@@ -941,6 +945,9 @@ dashboard:
 
 dashboard-smoke:
 	scripts/smoke_dashboard.sh
+
+dashboard-render-smoke:
+	@python3 -m src.dashboard_render_smoke
 
 session-source-preflight:
 	@python3 -m src.session_source_preflight --root . --write-output $(if $(SEC_USER_AGENT),--sec-user-agent "$(SEC_USER_AGENT)",)
