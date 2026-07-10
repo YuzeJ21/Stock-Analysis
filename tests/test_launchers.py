@@ -68,6 +68,14 @@ def test_dashboard_smoke_uses_an_isolated_fresh_server():
     assert "--server.fileWatcherType none" in smoke
 
 
+def test_price_mutation_targets_use_the_ignored_local_profile():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    for target in ("price-validate", "price-preview", "price-apply", "price-refresh"):
+        block = makefile.split(f"{target}:", 1)[1].split("\n\n", 1)[0]
+        assert "STOCK_RESEARCH_DATA_PROFILE=local" in block
+
+
 def test_demo_data_check_only_runs_the_manifest_verifier():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
@@ -167,6 +175,7 @@ def test_makefile_contains_convenience_targets():
         "demo-dashboard",
         "demo-dashboard-smoke",
         "demo-dashboard-render-smoke",
+        "local-profile-seed",
         "sec-stage",
         "sec-validate",
         "sec-preview",

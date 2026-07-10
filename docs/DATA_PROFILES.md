@@ -27,3 +27,5 @@ The demo profile is product evidence. It is not a data-freshness claim, does not
 ## Profile Selection
 
 Set `STOCK_RESEARCH_DATA_PROFILE` to `demo`, `default`, or `local`. Explicit `data_dir` and `output_dir` arguments always override the profile. Public and hosted checks use `demo` so a green gate proves the compact shareable package, not an arbitrary local refresh.
+
+Seed the ignored `local` profile from the current canonical workspace with `make local-profile-seed`. It copies the runtime CSVs, imports, readiness reports, and operational outputs, but never copies caches, backups, demo data, or generated stock reports. Price validate, preview, apply, and refresh targets use this local profile by default.
