@@ -63,10 +63,10 @@ PUBLIC_WORKFLOW_STEPS = {
     },
     "Data Health": {
         "page": "Data Health",
-        "question": "Why is something blocked and how do I fix it?",
+        "question": "What can I use and what stays unavailable?",
         "short_answer": "Check one lane answer before opening proof, queues, or advanced details.",
         "next_page": PROOF_HISTORY_PATH_TITLE,
-        "next_action": "Read why the lane is blocked, then open Proof History before trusting a change.",
+        "next_action": "Use the lane answer to understand what is available, then open Proof History only when evidence needs review.",
         "stop_rule": "Research-only: not advice; stop before changing local data or trusting trade instruction.",
     },
     PROOF_HISTORY_PATH_TITLE: {

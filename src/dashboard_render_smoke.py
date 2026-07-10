@@ -52,12 +52,12 @@ PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Data Health",
         query_params=(("mode", "public"), ("page", "data-health")),
-        required_markers=("Coverage Summary / What Can I Use?", "Use now", "Limited by", "Next proof"),
+        required_markers=("Coverage Summary / What Can I Use?", "Use now", "Unavailable until"),
     ),
     DashboardRenderRoute(
         name="Proof History",
         query_params=(("mode", "public"), ("page", "proof-history")),
-        required_markers=("Evidence-only page", "What is Proof History for?"),
+        required_markers=("Evidence-only page", "Latest reviewed outcome"),
     ),
 )
 

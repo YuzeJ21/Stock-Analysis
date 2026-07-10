@@ -35,7 +35,7 @@ PUBLIC_ROUTES = [
     (
         "Data Health",
         "http://localhost:8501/?mode=public&page=data-health",
-        "Why is something blocked and how do I fix it?",
+        "What can I use and what stays unavailable?",
         "You are here, Current question, Primary next step, Stop rule, one lane answer, blocked/candidate/excluded states",
         "Visitor sees why a lane is blocked before raw proof, queues, or route maps.",
         "Show one lane answer first; keep provider setup, route maps, proof ledgers, and raw tables under Advanced/operator mode.",
@@ -44,9 +44,9 @@ PUBLIC_ROUTES = [
         "Proof History",
         "http://localhost:8501/?mode=public&page=proof-history",
         "What evidence changed a readiness state?",
-        "You are here, Current question, Primary next step, Stop rule, evidence-only page, one proof answer, latest proof evidence collapsed",
+        "You are here, Current question, Primary next step, Stop rule, evidence-only page, one proof answer, latest reviewed outcome, raw ledger details collapsed",
         "Visitor can inspect evidence without mistaking it for another command center.",
-        "Keep one proof answer first; keep latest proof evidence and raw ledger rows collapsed; remove command-center style next-action duplication.",
+        "Keep the latest reviewed outcome first; keep raw ledger rows collapsed; remove command-center style next-action duplication.",
     ),
 ]
 

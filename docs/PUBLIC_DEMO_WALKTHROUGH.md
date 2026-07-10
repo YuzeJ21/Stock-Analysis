@@ -42,7 +42,7 @@ What each page answers:
 | Home | What is this product and where do I start? | Readiness-first workflow, next safe action, stop rule. |
 | Stock Selector | Which stock can I review? | Readiness-backed queue before one-ticker analysis. |
 | Single-Stock Report | What can I use for this ticker right now? | Selected ticker state, usable sections, blocked inputs. |
-| Data Health | Why is something blocked and how do I fix it? | One lane answer before proof drawers or raw tables. |
+| Data Health | What can I use and what stays unavailable? | One lane answer before proof drawers or raw tables. |
 | Proof History | What evidence changed a readiness state? | Evidence-only trail before trusting a changed state. |
 
 ## Demo Examples

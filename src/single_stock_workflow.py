@@ -411,7 +411,7 @@ def single_stock_one_answer_frame(snapshot: dict[str, object]) -> pd.DataFrame:
         use_now = "Core company review is available from trusted price, fundamentals, DCF, and peer inputs."
         blocked = "Earnings and analyst-estimate context stays optional and locked until trusted local rows exist."
         context = "Optional context is context only, never a recommendation."
-        next_action = "Use optional-context worklists only if trusted local source rows exist."
+        next_action = "Optional inputs remain unavailable; open Data Health only when you need to review the evidence."
     else:
         use_now = "Supported single-stock review is available from current trusted local inputs."
         blocked = "No core lock is detected, but source readiness and methodology notes still need review."
@@ -610,6 +610,23 @@ def _report_payload_pre_report_state(report_payload: dict[str, object] | None) -
         "peer_ready": bool(readiness.get("peer_ready")),
         "dcf_ready": bool(dcf_ready),
     }
+
+
+def single_stock_loading_contract_cards(ticker: object) -> list[dict[str, object]]:
+    """Keep a deep-linked public report truthful while its saved payload loads."""
+
+    ticker_label = _format_missing(ticker, "Selected ticker").upper()
+    return [
+        {
+            "kicker": "SELECTED TICKER",
+            "title": f"{ticker_label}: preparing saved review",
+            "body": (
+                "Loading the saved local review. This temporary state does not state that any analysis section "
+                "is ready or blocked."
+            ),
+            "badges": ["selected ticker", "saved review"],
+        }
+    ]
 
 
 def single_stock_pre_report_contract_cards(

@@ -264,6 +264,7 @@ from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 from src.single_stock_workflow import (
     single_stock_data_health_handoff_cards,
+    single_stock_loading_contract_cards,
     single_stock_one_answer_frame,
     single_stock_report_data_health_route,
     single_stock_next_command,
@@ -2185,6 +2186,9 @@ def apply_dashboard_theme() -> None:
           flex-wrap: wrap;
           min-width: 0;
         }
+        .command-product-name {
+          display: none;
+        }
         .command-status-item {
           color: #111827;
           font-size: 0.74rem;
@@ -3258,6 +3262,14 @@ def apply_dashboard_theme() -> None:
             align-items: flex-start;
             justify-content: flex-start;
             gap: 0.28rem;
+          }
+          .command-topbar.compact .command-product-name {
+            display: block;
+            width: 100%;
+            color: #111827;
+            font-size: 0.72rem;
+            font-weight: 950;
+            line-height: 1.15;
           }
           .command-topbar.compact .command-status-item,
           .command-topbar.compact .command-top-link {
@@ -5215,8 +5227,8 @@ def sidebar_nav_header_html() -> str:
     return """
     <div class="sidebar-nav-header">
       <div class="sidebar-nav-kicker">READINESS-FIRST</div>
-      <div class="sidebar-nav-title">Research paths</div>
-      <div class="sidebar-nav-copy">Choose one path; open proof only when locked.</div>
+      <div class="sidebar-nav-title">Stock Research Command Center</div>
+      <div class="sidebar-nav-copy">Research paths. Choose one path; open proof only when locked.</div>
     </div>
     """
 
@@ -5728,6 +5740,7 @@ def command_center_header_html(
         f"<header class='command-shell{compact_class}'>"
         f"<nav class='command-topbar{compact_class}' aria-label='Readiness status'>"
         "<div class='command-top-left'>"
+        "<span class='command-product-name'>Stock Research Command Center</span>"
         "<span class='command-status-item primary'>Saved readiness</span>"
         f"<span class='command-status-item'>Data snapshot: {html.escape(str(latest_price))}</span>"
         "<span class='command-status-item'>Readiness-gated coverage <span class='command-status-dot'></span></span>"
@@ -9700,18 +9713,21 @@ def data_health_public_coverage_cards(
             use_now = use_now[4:]
         if use_now:
             use_now = use_now[0].upper() + use_now[1:]
-        limitation = compact_card_fragment(row.get("blocked_or_limited"), max_chars=105)
-        next_proof = compact_card_fragment(row.get("proof_to_unlock"), max_chars=120)
+        limitation = compact_card_fragment(row.get("why_blocked_or_limited"), max_chars=120)
         if lane == "Peers":
-            limitation = "Candidate peers remain context until trusted mapping and valuation proof exist"
+            limitation = "Candidate peers remain context until trusted mappings and required inputs exist"
+        availability = (
+            "Available across this demo scope."
+            if state == "ready"
+            else f"Unavailable until: {limitation}"
+        )
         primary_cards.append(
             {
                 "kicker": state.upper(),
                 "title": lane,
                 "body": (
                     f"{card_sentence('Use now', use_now)}\n"
-                    f"{card_sentence('Limited by', limitation)}\n"
-                    f"{card_sentence('Next proof', next_proof)}"
+                    f"{availability}"
                 ),
                 "badges": [state, format_missing(row.get("ready_coverage"))],
             }
@@ -9726,8 +9742,7 @@ def data_health_public_coverage_cards(
             "title": "Optional inputs",
             "body": (
                 "Use now: no earnings or analyst-estimate input is used in the public review.\n"
-                f"Limited by: trusted optional rows are missing ({_coverage_summary_fraction(optional_ready, master)} ready).\n"
-                "Next proof: source-backed local earnings and estimate rows; never infer from dates or target prices."
+                "Unavailable until: trusted source-backed earnings and estimate rows exist."
             ),
             "badges": ["context only", "not analysis-ready"],
         }
@@ -12455,7 +12470,7 @@ def proof_history_first_answer_frame(
                 "Boundary": "Proof History does not change local data, record outcomes, or unlock blocked inputs.",
             },
             {
-                "Question": "What was supported?",
+                "Question": "Latest reviewed outcome",
                 "Answer": f"{latest_proof_lane}: {latest_proof_outcome}; {latest_proof_change}.",
                 "Next Safe Destination": "Single-Stock Report for interpretation.",
                 "Boundary": "Evidence only; this does not change local data or unlock blocked inputs.",
@@ -12599,17 +12614,11 @@ def render_proof_history(*, public_mode: bool = True) -> None:
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
     if public_mode:
         first_answer_frame = proof_history_first_answer_frame(proof_timeline, batch_proof_frame)
-        primary_answer_frame = first_answer_frame.head(1)
+        primary_answer_frame = first_answer_frame.iloc[[1]]
         st.markdown(
             proof_history_first_answer_cards_html(primary_answer_frame),
             unsafe_allow_html=True,
         )
-        with st.expander("Advanced: latest proof evidence", expanded=False):
-            render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
-            st.markdown(
-                proof_history_public_summary_html(proof_timeline, batch_proof_frame),
-                unsafe_allow_html=True,
-            )
     else:
         render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
         st.table(clean_display_frame(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)))
@@ -26474,6 +26483,60 @@ def _stock_selector_sorted_source_frame(frame: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def stock_selector_readiness_fallback_frame(ticker_readiness_frame: pd.DataFrame | None) -> pd.DataFrame:
+    """Build a public review queue from existing ready company rows when saved queues are absent."""
+
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return pd.DataFrame()
+    ticker_col = _selector_column(ticker_readiness_frame, "ticker", "Ticker")
+    if not ticker_col:
+        return pd.DataFrame()
+
+    candidates = ticker_readiness_frame.copy()
+    if "in_active_universe" in candidates.columns:
+        candidates = candidates.loc[bool_series(candidates, "in_active_universe")].copy()
+    if "asset_type" in candidates.columns:
+        candidates = candidates.loc[
+            candidates["asset_type"].fillna("").astype(str).str.strip().str.lower().eq("company")
+        ].copy()
+    for readiness_column in ("price_ready", "fundamentals_ready", "dcf_ready", "peer_ready"):
+        if readiness_column not in candidates.columns:
+            return pd.DataFrame()
+        candidates = candidates.loc[bool_series(candidates, readiness_column)].copy()
+    if candidates.empty:
+        return candidates
+
+    candidates["decision_bucket"] = "Research Now"
+    candidates["decision_subtype"] = "DCF and peer review available"
+    candidates["review_priority_reason"] = (
+        "Source-backed price, fundamentals, DCF, and peer inputs are ready for review."
+    )
+    candidates["supported_analysis"] = candidates.get("ready_features", "")
+    candidates["primary_blocker"] = candidates.get("missing_data", "")
+    candidates["next_best_action"] = (
+        "Open the report; optional context remains unavailable until trusted source rows exist."
+    )
+    candidates["source_freshness_summary"] = candidates.get("updated_at", "")
+    return candidates
+
+
+def stock_selector_saved_queue_notice_visible(
+    *,
+    public_mode: bool,
+    selector_frame: pd.DataFrame | None,
+    ticker_readiness_message: str | None = None,
+    decisions_message: str | None = None,
+    final_message: str | None = None,
+) -> bool:
+    """Keep internal saved-output warnings out of a working public fallback path."""
+
+    has_saved_queue_message = bool(
+        str(ticker_readiness_message or decisions_message or final_message or "").strip()
+    )
+    has_public_fallback = public_mode and selector_frame is not None and not selector_frame.empty
+    return has_saved_queue_message and not has_public_fallback
+
+
 def stock_selector_queue_frame(
     decisions_frame: pd.DataFrame | None,
     final_frame: pd.DataFrame | None,
@@ -26482,6 +26545,8 @@ def stock_selector_queue_frame(
     limit: int = 80,
 ) -> pd.DataFrame:
     source = decisions_frame if decisions_frame is not None and not decisions_frame.empty else final_frame
+    if source is None or source.empty:
+        source = stock_selector_readiness_fallback_frame(ticker_readiness_frame)
     if source is None or source.empty:
         return pd.DataFrame()
     frame = _stock_selector_sorted_source_frame(source.copy()).head(max(limit, 1))
@@ -26893,7 +26958,7 @@ def stock_selector_next_reading_path_cards(
         (
             "Selected ticker",
             (
-                f"{selected_label} is the current top readiness-backed row. "
+                f"{selected_label} is the first visible source-backed row. "
                 "Use filters below to choose another name, then open the one-stock report."
             ),
             next_review_route,
@@ -26946,7 +27011,13 @@ def render_stock_selector(
         STOCK_SELECTOR_PATH_TITLE,
         "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
     )
-    if ticker_readiness_message or decisions_message or final_message:
+    if stock_selector_saved_queue_notice_visible(
+        public_mode=public_mode,
+        selector_frame=selector_frame,
+        ticker_readiness_message=ticker_readiness_message,
+        decisions_message=decisions_message,
+        final_message=final_message,
+    ):
         render_notice_card(
             "Saved selector data may need refresh",
             ticker_readiness_message or decisions_message or final_message or "Refresh readiness before relying on exact counts.",
@@ -26974,50 +27045,52 @@ def render_stock_selector(
     if public_mode:
         selector_path_cards = stock_selector_next_reading_path_cards(selector_action_frame, initial_shortlist)
         render_action_cards(selector_path_cards[:1])
-    preset_label = st.selectbox(
-        "Saved filter",
-        [preset["label"] for preset in saved_presets],
-        index=0,
-        help="Fast product presets for common review paths. They only adjust filters; they do not create conclusions.",
-        key="stock-selector-saved-filter",
-    )
-    selected_preset = next((preset for preset in saved_presets if preset["label"] == preset_label), saved_presets[0])
-    with st.form("stock-selector-filter-form"):
-        filter_cols = st.columns([1.05, 1.05, 1.15, 1.2, 1.65])
-        state_options = _stock_selector_filter_options(selector_frame, "Research State")
-        readiness_options = _stock_selector_filter_options(selector_frame, "Readiness")
-        detail_options = _stock_selector_filter_options(selector_frame, "Review Detail")
-        theme_options = _stock_selector_filter_options(selector_frame, "Sector / Theme")
-        state_filter = filter_cols[0].selectbox(
-            "Research state",
-            state_options,
-            index=_selector_option_index(state_options, selected_preset["state"]),
-            key="stock-selector-state",
+    filter_container = st.expander("Refine the list", expanded=False) if public_mode else st.container()
+    with filter_container:
+        preset_label = st.selectbox(
+            "Saved filter",
+            [preset["label"] for preset in saved_presets],
+            index=0,
+            help="Fast product presets for common review paths. They only adjust filters; they do not create conclusions.",
+            key="stock-selector-saved-filter",
         )
-        readiness_filter = filter_cols[1].selectbox(
-            "Readiness",
-            readiness_options,
-            index=_selector_option_index(readiness_options, selected_preset["readiness"]),
-            key="stock-selector-readiness",
-        )
-        detail_filter = filter_cols[2].selectbox(
-            "Review detail",
-            detail_options,
-            index=_selector_option_index(detail_options, selected_preset["detail"]),
-            key="stock-selector-detail",
-        )
-        theme_filter = filter_cols[3].selectbox(
-            "Sector / theme",
-            theme_options,
-            index=_selector_option_index(theme_options, selected_preset["theme"]),
-            key="stock-selector-theme",
-        )
-        search = filter_cols[4].text_input(
-            "Search ticker, theme, blocker, or proof step",
-            value=selected_preset["search"],
-            key="stock-selector-search",
-        ).strip()
-        st.form_submit_button("Apply filters")
+        selected_preset = next((preset for preset in saved_presets if preset["label"] == preset_label), saved_presets[0])
+        with st.form("stock-selector-filter-form"):
+            filter_cols = st.columns([1.05, 1.05, 1.15, 1.2, 1.65])
+            state_options = _stock_selector_filter_options(selector_frame, "Research State")
+            readiness_options = _stock_selector_filter_options(selector_frame, "Readiness")
+            detail_options = _stock_selector_filter_options(selector_frame, "Review Detail")
+            theme_options = _stock_selector_filter_options(selector_frame, "Sector / Theme")
+            state_filter = filter_cols[0].selectbox(
+                "Research state",
+                state_options,
+                index=_selector_option_index(state_options, selected_preset["state"]),
+                key="stock-selector-state",
+            )
+            readiness_filter = filter_cols[1].selectbox(
+                "Readiness",
+                readiness_options,
+                index=_selector_option_index(readiness_options, selected_preset["readiness"]),
+                key="stock-selector-readiness",
+            )
+            detail_filter = filter_cols[2].selectbox(
+                "Review detail",
+                detail_options,
+                index=_selector_option_index(detail_options, selected_preset["detail"]),
+                key="stock-selector-detail",
+            )
+            theme_filter = filter_cols[3].selectbox(
+                "Sector / theme",
+                theme_options,
+                index=_selector_option_index(theme_options, selected_preset["theme"]),
+                key="stock-selector-theme",
+            )
+            search = filter_cols[4].text_input(
+                "Search ticker, theme, blocker, or proof step",
+                value=selected_preset["search"],
+                key="stock-selector-search",
+            ).strip()
+            st.form_submit_button("Apply filters")
 
     filtered = stock_selector_apply_filters(
         selector_frame,
@@ -27048,18 +27121,19 @@ def render_stock_selector(
             "This page helps choose what to review next. It keeps blockers, excluded states, and proof freshness visible before deeper analysis.",
             tone="success",
         )
-    selected_shortlist = st.multiselect(
-        "Selected tickers for review",
-        shortlist_options,
-        default=default_shortlist,
-        max_selections=5,
-        help="Optional selected-ticker tray for readiness, blockers, and proof steps. It does not create conclusions or account actions.",
-        key="stock-selector-shortlist",
-    )
-    st.markdown(
-        stock_selector_shortlist_html(stock_selector_shortlist_frame(filtered, selected_shortlist)),
-        unsafe_allow_html=True,
-    )
+    if not public_mode:
+        selected_shortlist = st.multiselect(
+            "Selected tickers for review",
+            shortlist_options,
+            default=default_shortlist,
+            max_selections=5,
+            help="Optional selected-ticker tray for readiness, blockers, and proof steps. It does not create conclusions or account actions.",
+            key="stock-selector-shortlist",
+        )
+        st.markdown(
+            stock_selector_shortlist_html(stock_selector_shortlist_frame(filtered, selected_shortlist)),
+            unsafe_allow_html=True,
+        )
     st.markdown(
         stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=30),
         unsafe_allow_html=True,
@@ -28002,7 +28076,9 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             report_open=bool(report_payload or query_open_review),
             report_payload=report_payload if isinstance(report_payload, dict) else None,
         )
-        if not report_payload and (compact_public_open_report or not query_open_review):
+        if not report_payload and compact_public_open_report:
+            render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")
+        elif not report_payload and not query_open_review:
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
     if query_open_review and not report_payload:

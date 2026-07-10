@@ -1,5 +1,6 @@
 from src.single_stock_workflow import (
     single_stock_data_health_handoff_cards,
+    single_stock_loading_contract_cards,
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
     single_stock_report_data_health_route,
@@ -13,6 +14,17 @@ import pandas as pd
 
 def _render(cards: list[dict[str, object]]) -> str:
     return " ".join(str(value) for card in cards for value in card.values()).lower()
+
+
+def test_single_stock_loading_contract_stays_neutral_until_the_saved_report_is_available():
+    cards = single_stock_loading_contract_cards("nvda")
+    rendered = _render(cards)
+
+    assert [card["kicker"] for card in cards] == ["SELECTED TICKER"]
+    assert cards[0]["title"] == "NVDA: preparing saved review"
+    assert "does not state that any analysis section is ready or blocked" in rendered
+    assert "price proof comes first" not in rendered
+    assert "make " not in rendered
 
 
 def test_single_stock_workflow_fit_cards_connect_review_scope_handoff_and_stop_rule():

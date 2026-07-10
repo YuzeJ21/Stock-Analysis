@@ -1688,6 +1688,70 @@ def test_stock_selector_queue_sorts_ready_research_candidates_before_alphabetica
     assert frame.loc[0, "Sector / Theme"] == "SMH / AI Semiconductors"
 
 
+def test_stock_selector_queue_uses_active_readiness_rows_when_saved_queue_is_absent():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "asset_type": "company",
+                "in_active_universe": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": True,
+                "price_ready": True,
+                "sector": "SMH",
+                "theme": "AI Semiconductors",
+                "ready_features": "price, fundamentals, dcf, peer",
+                "missing_data": "earnings: trusted local CSV input",
+                "next_action": "Optional context remains unavailable without trusted local rows.",
+                "updated_at": "2026-06-30T00:00:00+00:00",
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "in_active_universe": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "price_ready": True,
+            },
+            {
+                "ticker": "AACI",
+                "asset_type": "company",
+                "in_active_universe": False,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "price_ready": True,
+            },
+        ]
+    )
+
+    frame = dashboard.stock_selector_queue_frame(pd.DataFrame(), pd.DataFrame(), readiness)
+
+    assert frame["Ticker"].tolist() == ["NVDA"]
+    assert frame.loc[0, "Research State"] == "Research Now"
+    assert frame.loc[0, "Review Detail"] == "DCF and peer review available"
+    assert frame.loc[0, "Supported Now"] == "price, fundamentals, dcf, peer"
+
+
+def test_public_stock_selector_hides_internal_saved_queue_warning_when_readiness_fallback_is_available():
+    fallback_frame = pd.DataFrame([{"Ticker": "NVDA"}])
+
+    assert not dashboard.stock_selector_saved_queue_notice_visible(
+        public_mode=True,
+        selector_frame=fallback_frame,
+        decisions_message="`research_decisions.csv` is not ready yet.",
+        final_message=None,
+    )
+    assert dashboard.stock_selector_saved_queue_notice_visible(
+        public_mode=False,
+        selector_frame=fallback_frame,
+        decisions_message="`research_decisions.csv` is not ready yet.",
+        final_message=None,
+    )
+
+
 def test_stock_selector_apply_filters_searches_visible_proof_context():
     frame = pd.DataFrame(
         [
@@ -2671,6 +2735,7 @@ def test_sidebar_nav_header_is_readiness_first_and_not_command_first():
 
     assert "sidebar-nav-header" in rendered
     assert "READINESS-FIRST" in rendered
+    assert "Stock Research Command Center" in rendered
     assert "Research paths" in rendered
     assert "readiness-first" in lowered
     assert "research paths" in lowered
@@ -15403,7 +15468,7 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
             "Boundary": "Proof History does not change local data, record outcomes, or unlock blocked inputs.",
         },
         {
-            "Question": "What was supported?",
+            "Question": "Latest reviewed outcome",
             "Answer": "peer mapping: human reviewed supported; trusted peer rows reviewed.",
             "Next Safe Destination": "Single-Stock Report for interpretation.",
             "Boundary": "Evidence only; this does not change local data or unlock blocked inputs.",
@@ -15449,27 +15514,26 @@ def test_proof_history_public_page_renders_first_answer_frame_before_ledger_deta
     first_answer_index = source.index('"Evidence-only page."', render_index)
     frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", first_answer_index)
     card_html_index = source.index("proof_history_first_answer_cards_html(primary_answer_frame)", frame_index)
-    cards_index = source.index('st.expander("Advanced: latest proof evidence", expanded=False)', frame_index)
     details_index = source.index('st.expander("Advanced: proof ledger details", expanded=False)', frame_index)
 
-    assert first_answer_index < frame_index < card_html_index < cards_index < details_index
+    assert first_answer_index < frame_index < card_html_index < details_index
+    assert 'st.expander("Advanced: latest proof evidence", expanded=False)' not in proof_history_chunk
     assert 'st.expander("Advanced: proof answer cards", expanded=False)' not in proof_history_chunk
     assert '"Proof History First Answer"' not in proof_history_chunk
     assert '"Proof History One Answer"' not in proof_history_chunk
 
 
-def test_public_proof_history_keeps_latest_proof_cards_under_advanced():
+def test_public_proof_history_keeps_only_the_proof_ledger_under_advanced():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
     next_function_index = source.index("\ndef ", render_index + 1)
     proof_history_chunk = source[render_index:next_function_index]
 
     visible_answer_index = proof_history_chunk.index("proof_history_first_answer_cards_html(")
-    latest_proof_expander_index = proof_history_chunk.index('st.expander("Advanced: latest proof evidence", expanded=False)')
-    detail_cards_index = proof_history_chunk.index("proof_history_public_detail_cards(proof_timeline, batch_proof_frame)")
     ledger_index = proof_history_chunk.index('st.expander("Advanced: proof ledger details", expanded=False)')
 
-    assert visible_answer_index < latest_proof_expander_index < detail_cards_index < ledger_index
+    assert visible_answer_index < ledger_index
+    assert 'st.expander("Advanced: latest proof evidence", expanded=False)' not in proof_history_chunk
 
 
 def test_public_proof_history_shows_only_primary_answer_before_advanced():
@@ -15481,11 +15545,23 @@ def test_public_proof_history_shows_only_primary_answer_before_advanced():
     first_answer_frame_index = proof_history_chunk.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)")
     primary_answer_index = proof_history_chunk.index("primary_answer_frame", first_answer_frame_index)
     visible_answer_index = proof_history_chunk.index("proof_history_first_answer_cards_html(primary_answer_frame)")
-    latest_proof_expander_index = proof_history_chunk.index('st.expander("Advanced: latest proof evidence", expanded=False)')
-    detail_cards_index = proof_history_chunk.index("proof_history_public_detail_cards(proof_timeline, batch_proof_frame)", latest_proof_expander_index)
+    ledger_index = proof_history_chunk.index('st.expander("Advanced: proof ledger details", expanded=False)')
 
-    assert first_answer_frame_index < primary_answer_index < visible_answer_index < latest_proof_expander_index < detail_cards_index
+    assert first_answer_frame_index < primary_answer_index < visible_answer_index < ledger_index
     assert "proof_history_first_answer_cards_html(first_answer_frame)" not in proof_history_chunk
+
+
+def test_public_proof_history_leads_with_the_latest_reviewed_outcome():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_proof_history(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    proof_history_chunk = source[render_index:next_function_index]
+
+    first_answer_frame_index = proof_history_chunk.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)")
+    primary_answer_index = proof_history_chunk.index("primary_answer_frame = first_answer_frame.iloc[[1]]", first_answer_frame_index)
+    visible_answer_index = proof_history_chunk.index("proof_history_first_answer_cards_html(primary_answer_frame)", primary_answer_index)
+
+    assert first_answer_frame_index < primary_answer_index < visible_answer_index
 
 
 def test_public_proof_history_visible_answer_uses_compact_cards_not_table():
@@ -15517,8 +15593,8 @@ def test_public_proof_history_visible_answer_uses_compact_cards_not_table():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
     visible_answer_index = source.index("proof_history_first_answer_cards_html(", render_index)
-    evidence_drawer_index = source.index('st.expander("Advanced: latest proof evidence", expanded=False)', visible_answer_index)
-    visible_answer_chunk = source[visible_answer_index:evidence_drawer_index]
+    public_else_index = source.index("    else:\n        render_signal_cards", visible_answer_index)
+    visible_answer_chunk = source[visible_answer_index:public_else_index]
 
     assert "public-proof-answer-cards" in rendered
     assert "what is proof history for?" in rendered
@@ -25678,6 +25754,26 @@ def test_single_stock_public_answer_cards_make_one_answer_mobile_safe():
     assert "sell" not in rendered
 
 
+def test_public_single_stock_optional_context_uses_a_visitor_boundary_not_an_operator_worklist():
+    frame = dashboard.single_stock_one_answer_frame(
+        {
+            "ticker": "NVDA",
+            "asset_type": "company",
+            "price_ready": True,
+            "dcf_status": "ready",
+            "peer_ready": True,
+            "earnings_ready": False,
+            "analyst_estimates_ready": False,
+        }
+    )
+
+    next_action = str(frame.iloc[0]["Next Safe Action"])
+
+    assert next_action == "Optional inputs remain unavailable; open Data Health only when you need to review the evidence."
+    assert "worklist" not in next_action.lower()
+    assert "make " not in next_action.lower()
+
+
 def test_stock_report_public_answer_cards_hide_report_answer_table_commands():
     frame = pd.DataFrame(
         [
@@ -28492,8 +28588,8 @@ def test_public_data_health_keeps_only_actionable_lane_summaries():
     assert "no earnings or analyst-estimate input is used" in rendered
     assert "scan:" not in rendered
     assert "stop:" not in rendered
-    assert "limited by:" in rendered
-    assert "next proof:" in rendered
+    assert "unavailable until:" in rendered
+    assert "next proof:" not in rendered
 
 
 def test_public_data_health_loading_cards_keep_the_four_lane_structure_visible():
@@ -28574,7 +28670,7 @@ def test_public_compact_header_allows_mobile_status_wrap():
     mobile_compact_index = source.index(".command-topbar.compact", mobile_index)
 
     compact_status_chunk = source[compact_status_index : compact_status_index + 260]
-    mobile_compact_chunk = source[mobile_compact_index : mobile_compact_index + 700]
+    mobile_compact_chunk = source[mobile_compact_index : mobile_compact_index + 1100]
     assert "white-space: normal" in compact_status_chunk
     assert "overflow-wrap: anywhere" in compact_status_chunk
     assert ".command-shell.compact .command-kpi-proof" in source
@@ -28602,7 +28698,8 @@ def test_compact_header_keeps_one_contextual_data_health_handoff():
     assert "100 tracked names" in html
     assert "local readiness snapshot only" not in html
     assert "tracked names are available for review" not in html
-    assert "Stock Research Command Center" not in html
+    assert "command-product-name" in html
+    assert "Stock Research Command Center" in html
 
 
 def test_public_header_current_shortcut_has_visible_state():
@@ -28735,7 +28832,7 @@ def test_stock_selector_and_data_health_keep_usable_blocked_cards_after_load():
     selector_index = source.index("def render_stock_selector(")
     selector_header_index = source.index("render_section_header(", selector_index)
     selector_cards_index = source.index("stock_selector_next_reading_path_cards", selector_header_index)
-    selector_messages_index = source.index("if ticker_readiness_message or decisions_message or final_message:", selector_header_index)
+    selector_messages_index = source.index("if stock_selector_saved_queue_notice_visible(", selector_header_index)
 
     health_index = source.index("def render_data_health(")
     health_public_index = source.index("if public_mode:", health_index)
@@ -28795,11 +28892,12 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     query_ticker_index = source.index('query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)', provider_ticker_load_index)
     section_index = source.index('"One-Stock Review"', query_ticker_index)
     direct_route_header_index = source.index('f"{query_ticker} is selected. Review the selected ticker state first', query_ticker_index)
-    contract_cards_index = source.index("render_signal_cards(pre_report_cards", provider_ticker_load_index)
+    loading_contract_index = source.index("render_signal_cards(single_stock_loading_contract_cards(ticker)", provider_ticker_load_index)
     query_open_pre_report_guard_index = source.index(
-        "if not report_payload and (compact_public_open_report or not query_open_review):",
+        "if not report_payload and compact_public_open_report:",
         provider_ticker_load_index,
     )
+    contract_cards_index = source.index("render_signal_cards(pre_report_cards", query_open_pre_report_guard_index)
     preparing_note_index = source.index('"Preparing selected report."', query_open_pre_report_guard_index)
     preparing_boundary_index = source.index("without refreshing prices, importing files, or contacting external accounts", preparing_note_index)
     open_selected_report_index = source.index("open_selected_report()", preparing_note_index)
@@ -28813,6 +28911,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     assert '"Selected-ticker guide."' not in single_stock_chunk
     assert "The page opens with selected ticker state" not in single_stock_chunk
     assert "pre_report_cards[:3]" not in single_stock_chunk
+    assert "single_stock_loading_contract_cards(ticker)" in single_stock_chunk
     assert "if query_open_review and not report_payload and compact_public_open_report:" not in single_stock_chunk
     assert "elif report_payload and compact_public_open_report:" not in single_stock_chunk
     assert "if compact_public_open_report and report_payload:\n            st.rerun()" in single_stock_chunk
@@ -28823,6 +28922,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
         < direct_route_header_index
         < section_index
         < query_open_pre_report_guard_index
+        < loading_contract_index
         < contract_cards_index
         < preparing_note_index
         < preparing_boundary_index
@@ -28924,7 +29024,7 @@ def test_stock_selector_next_reading_path_uses_selected_ticker_proof_lane():
     assert cards[0][4] == "Open MU report"
     assert cards[1][2] == "?mode=public&page=data-health&ticker=MU&lane=peers&drawer=proof"
     assert "selected ticker" in rendered
-    assert "current top readiness-backed row" in rendered
+    assert "first visible source-backed row" in rendered
     assert "open single-stock report" not in rendered
     assert "generic proof" not in rendered
 
@@ -29007,6 +29107,32 @@ def test_stock_selector_public_page_shows_one_ticker_handoff_before_filters_on_m
         < secondary_paths_index
         < result_table_index
     )
+
+
+def test_public_stock_selector_keeps_refinement_controls_collapsed_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    next_function_index = source.index("\ndef price_refresh_operator_plan_cards(", render_index)
+    chunk = source[render_index:next_function_index]
+
+    primary_handoff_index = chunk.index("render_action_cards(selector_path_cards[:1])")
+    refine_drawer_index = chunk.index('st.expander("Refine the list", expanded=False)')
+    preset_index = chunk.index('preset_label = st.selectbox(', refine_drawer_index)
+
+    assert primary_handoff_index < refine_drawer_index < preset_index
+
+
+def test_public_stock_selector_keeps_multi_ticker_tray_out_of_the_default_flow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    next_function_index = source.index("\ndef price_refresh_operator_plan_cards(", render_index)
+    chunk = source[render_index:next_function_index]
+
+    operator_guard_index = chunk.index("if not public_mode:")
+    shortlist_index = chunk.index('selected_shortlist = st.multiselect(', operator_guard_index)
+    result_table_index = chunk.index("stock_selector_result_table_html(filtered", shortlist_index)
+
+    assert operator_guard_index < shortlist_index < result_table_index
 
 
 def test_data_health_public_proof_map_cards_use_plain_readiness_labels():

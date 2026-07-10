@@ -66,7 +66,7 @@ def test_public_workflow_steps_answer_one_question_and_next_action_per_page():
         "Home": ("What is this product and where do I start?", "Stock Selector"),
         "Stock Selector": ("Which stock can I review?", "Single-Stock Report"),
         "Single-Stock Report": ("What can I use for this ticker right now?", "Data Health"),
-        "Data Health": ("Why is something blocked and how do I fix it?", "Proof History"),
+        "Data Health": ("What can I use and what stays unavailable?", "Proof History"),
         "Proof History": ("What evidence changed a readiness state?", "Home"),
     }
 
@@ -81,7 +81,7 @@ def test_public_workflow_steps_answer_one_question_and_next_action_per_page():
 
     data_health_step = nav.public_workflow_step("Data Health")
     assert data_health_step["next_action"] == (
-        "Read why the lane is blocked, then open Proof History before trusting a change."
+        "Use the lane answer to understand what is available, then open Proof History only when evidence needs review."
     )
     proof_step = nav.public_workflow_step("Proof History")
     assert proof_step["short_answer"] == "Review evidence only; proof records do not refresh or unlock data."
