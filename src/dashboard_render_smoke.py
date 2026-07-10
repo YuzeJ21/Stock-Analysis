@@ -37,7 +37,7 @@ PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Stock Selector",
         query_params=(("mode", "public"), ("page", "stock-selector")),
-        required_markers=("Stock Selector", "Which stock can I review?", "Choose one ticker first"),
+        required_markers=("Stock Selector", "Which stock can I review?", "Research-only"),
     ),
     DashboardRenderRoute(
         name="Single-Stock Report",
