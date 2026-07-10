@@ -21366,9 +21366,9 @@ def data_health_operator_snapshot_cards(
     dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
     peer_ready = int(readiness_summary.get("peer_ready") or 0)
     blocked = int(readiness_summary.get("blocked_by_data") or readiness_summary.get("blocked") or 0)
-    top_lane = "No lane selected"
+    top_lane = "No coverage frontier loaded"
     top_impact = "0"
-    top_move = "Run coverage frontier after readiness artifacts exist."
+    top_move = "Open coverage frontier details only when a reviewed queue is needed."
     if frontier_frame is not None and not frontier_frame.empty:
         top = frontier_frame.iloc[0]
         top_lane = format_missing(top.get("Lane"), "Coverage frontier")

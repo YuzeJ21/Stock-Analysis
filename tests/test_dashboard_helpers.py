@@ -26750,6 +26750,18 @@ def test_data_health_operator_snapshot_routes_reviewed_frontier_to_source_gate()
     assert "broker" not in rendered
 
 
+def test_data_health_operator_snapshot_labels_deferred_frontier_without_losing_lane_context():
+    cards = dashboard.data_health_operator_snapshot_cards(
+        {"price_ready": 10, "dcf_ready": 4, "peer_ready": 1, "blocked_by_data": 6},
+        pd.DataFrame(),
+        pd.DataFrame(),
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+    )
+
+    assert cards[1]["title"] == "No coverage frontier loaded"
+    assert "No lane selected" not in " ".join(str(value) for card in cards for value in card.values())
+
+
 def test_data_health_current_mode_strip_uses_metric_proof_and_stale_modes():
     current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
