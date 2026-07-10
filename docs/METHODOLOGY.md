@@ -11,7 +11,7 @@ The methodology is intentionally conservative. Missing prices, fundamentals, pee
 
 ## Methodology Status
 
-Current public method version: **Methodology v1 - readiness-first deterministic gates**.
+Current public method version: **Methodology v1 - readiness-first deterministic gates**. The field-level evidence boundary is defined in [Provenance Contract](PROVENANCE_CONTRACT.md).
 
 This method is useful for a controlled research/demo product because it makes the data gate visible before analysis. It is not a complete valuation terminal, not investment advice, and not a recommendation engine.
 

@@ -1,0 +1,58 @@
+# Provenance Contract
+
+This contract defines the minimum evidence boundary for Stock Research Command Center. It applies to the dashboard, reports, imported rows, and public demo package.
+
+The product principle remains: data readiness first, analysis second, research decision last. A displayed calculation is not an investment recommendation, and an unavailable input remains unavailable.
+
+## Record Contract
+
+Every analysis-ready record or report section should expose, directly or through its source/readiness detail:
+
+| Field | Meaning | Boundary |
+| --- | --- | --- |
+| `readiness_state` | `ready`, `partial`, `blocked`, `excluded`, or an evidence outcome such as `candidate_context_only`. | A state is not a recommendation. |
+| `source` | Named local, SEC, provider, filing, or reviewed source origin. | Source availability alone does not make a value usable. |
+| `as_of_date` | Financial period, market date, filing date, or source effective date. | It is not the same as retrieval time. |
+| `retrieved_at` | When a provider or local artifact was obtained, where available. | Missing retrieval time lowers freshness certainty; it does not get invented. |
+| `method_version` | Version of the project rule or calculation that produced the section. | Method changes must be documented before public claims change. |
+| `missing_inputs` | Required fields that are absent, stale, malformed, or unproven. | Missing inputs suppress the dependent conclusion. |
+| `confidence_boundary` | Plain-language limit on how the section can be used. | It must never override a blocked or excluded state. |
+
+## Lane Requirements
+
+| Lane | Minimum source evidence | What stays withheld without it |
+| --- | --- | --- |
+| Price and risk context | Valid OHLCV rows with date and provider/source context. | Trend, momentum, and risk claims beyond the available history. |
+| Fundamentals | Source-backed financial fields plus reporting period/as-of information. | Quality, leverage, margin, or growth interpretation for absent fields. |
+| Share count | Explicit filing or trusted source fact with date/context. | Per-share DCF math; shares are never inferred from price or market cap. |
+| DCF | Price, revenue, free cash flow or FCF margin, shares, method assumptions, and company eligibility. | Fair-value scenario math and valuation interpretation. |
+| Candidate peers | Industry, SIC, product, or other contextual suggestion. | Candidate context must not satisfy trusted-peer readiness. |
+| Trusted peers | Source-backed relationship, review rationale, source/as-of date, and required peer inputs. | Peer-relative valuation and comparative conclusions. |
+| Earnings and estimates | Trusted provider/import fields, fiscal period, source, and retrieval/as-of context. | Optional readiness or consensus interpretation from date-only or target-only rows. |
+
+## Freshness Rules
+
+Freshness is lane-specific. A price date, a filing date, and a peer review date answer different questions.
+
+- Price context: use the latest available market date and row-history depth; a short history may remain partial.
+- Fundamentals and share count: use filing date and reporting period; quarterly or annual changes do not make an older filing false, but the report should surface its period.
+- Peer mappings: use source review date; candidate suggestions do not acquire freshness merely because price data refreshed.
+- Earnings and estimates: use provider retrieval and estimate period; unsupported fields remain optional context only.
+- Screenshots and the demo manifest show product/package evidence. They are not data-freshness proof.
+
+## Method Versioning
+
+The current public methodology is **v1 readiness-first deterministic gates**. A change to a gate, valuation formula, eligibility rule, assumption cap, source normalization, or public interpretation must:
+
+1. Update `docs/METHODOLOGY.md` and this contract.
+2. Add or update regression tests for the changed rule.
+3. Preserve prior readiness truth until source rows are rebuilt and reviewed.
+4. Surface the new `method_version` in the affected report or data artifact when that output is regenerated.
+
+## Demo Boundary
+
+The `demo` profile is a compact tracked snapshot with a manifest, checksums, selected tickers, and known limitations. It proves that the product workflow can render and explain readiness states. It is not data-freshness proof and does not unlock blocked inputs.
+
+The `local` profile is an ignored mutable workspace for refreshed research data. It may contain newer local rows, but those rows need the same validate, preview, apply, rebuild, and proof gates before they change a readiness claim.
+
+Both profiles remain research-only: no broker execution, order routing, auto-trading, direct buy/sell instructions, or fabricated values.
