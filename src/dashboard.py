@@ -5622,6 +5622,34 @@ def stock_report_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, obje
     return cards
 
 
+def stock_report_provenance_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    """Summarize report provenance without repeating the public answer stack."""
+
+    provenance = report_payload.get("provenance", {}) or {}
+    source_records = provenance.get("source_records", []) or []
+    source_names = sorted(
+        {
+            format_missing(record.get("provider"), "")
+            for record in source_records
+            if isinstance(record, dict) and format_missing(record.get("provider"), "")
+        }
+    )
+    missing_inputs = provenance.get("missing_inputs", report_payload.get("missing_data_warnings", [])) or []
+    missing_count = len(missing_inputs) if isinstance(missing_inputs, list) else 0
+    method_version = format_missing(provenance.get("method_version"), "readiness-first-v1")
+    as_of_date = format_missing(provenance.get("financial_as_of_date"), "Not available")
+    source_text = ", ".join(source_names) if source_names else "Not available"
+    missing_text = f"{missing_count} missing input{'s' if missing_count != 1 else ''} remain visible"
+    return [
+        {
+            "kicker": "PROVENANCE",
+            "title": f"Method {method_version}; financial as-of {as_of_date}",
+            "body": f"Sources: {source_text}. {missing_text}. Source labels describe review evidence, not advice.",
+            "badges": ["source visible", "as-of visible", "research-only"],
+        }
+    ]
+
+
 def render_operator_queue_preview(cards: list[dict[str, object]], *, limit: int = 4) -> None:
     render_signal_cards(cards[: max(limit, 0)], show_commands=False, variant="queue")
 
@@ -28018,7 +28046,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         report_answer_frame = stock_report_first_answer_frame(report_payload)
         if public_mode:
             render_signal_cards(single_stock_public_answer_cards(single_answer_frame), show_commands=False, variant="queue")
-            render_signal_cards(stock_report_public_answer_cards(report_answer_frame), show_commands=False, variant="queue")
+            render_signal_cards(stock_report_provenance_cards(report_payload), show_commands=False, variant="queue")
             with st.expander("Advanced: answer tables", expanded=False):
                 st.dataframe(clean_display_frame(single_answer_frame), width="stretch", hide_index=True)
                 st.dataframe(clean_display_frame(report_answer_frame), width="stretch", hide_index=True)

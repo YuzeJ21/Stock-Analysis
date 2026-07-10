@@ -25709,6 +25709,37 @@ def test_stock_report_public_answer_cards_hide_report_answer_table_commands():
     assert "sell" not in rendered
 
 
+def test_stock_report_provenance_cards_summarize_visible_method_and_source_boundary():
+    cards = dashboard.stock_report_provenance_cards(
+        {
+            "provenance": {
+                "method_version": "readiness-first-v1",
+                "financial_as_of_date": "2025-04-30",
+                "source_records": [{"provider": "sec_companyfacts"}, {"provider": "local_prices"}],
+                "missing_inputs": ["Peer valuation inputs"],
+            }
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["PROVENANCE"]
+    assert "readiness-first-v1" in rendered
+    assert "2025-04-30" in rendered
+    assert "sec_companyfacts" in rendered
+    assert "1 missing input" in rendered
+    assert "make " not in rendered
+
+
+def test_single_stock_public_report_renders_one_answer_stack_before_provenance():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    public_answer_index = source.index("render_signal_cards(single_stock_public_answer_cards(single_answer_frame)")
+    provenance_index = source.index("render_signal_cards(stock_report_provenance_cards(report_payload)", public_answer_index)
+    advanced_index = source.index('st.expander("Advanced: answer tables", expanded=False)', provenance_index)
+
+    assert public_answer_index < provenance_index < advanced_index
+    assert "render_signal_cards(stock_report_public_answer_cards(report_answer_frame)" not in source
+
+
 def test_single_stock_data_health_handoff_cards_connect_report_to_lane_route():
     snapshot = {
         "ticker": "MU",
@@ -29028,8 +29059,8 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     one_answer_index = source.index("single_stock_one_answer_frame(report_one_answer_snapshot)", readable_now_index)
     first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", one_answer_index)
     public_cards_index = source.index("single_stock_public_answer_cards(single_answer_frame)", first_answer_index)
-    report_cards_index = source.index("stock_report_public_answer_cards(report_answer_frame)", public_cards_index)
-    advanced_tables_index = source.index('st.expander("Advanced: answer tables", expanded=False)', report_cards_index)
+    provenance_index = source.index("stock_report_provenance_cards(report_payload)", public_cards_index)
+    advanced_tables_index = source.index('st.expander("Advanced: answer tables", expanded=False)', provenance_index)
     advanced_dataframe_index = source.index("st.dataframe(clean_display_frame(single_answer_frame)", advanced_tables_index)
     at_a_glance_index = source.index("stock_report_at_a_glance_cards(", first_answer_index)
     advanced_detail_index = source.index(
@@ -29045,7 +29076,7 @@ def test_single_stock_public_page_uses_simplified_review_sections():
         < one_answer_index
         < first_answer_index
         < public_cards_index
-        < report_cards_index
+        < provenance_index
         < advanced_tables_index
         < advanced_dataframe_index
         < at_a_glance_index
