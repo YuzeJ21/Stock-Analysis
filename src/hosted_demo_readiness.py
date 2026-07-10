@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -75,6 +76,7 @@ def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDe
     hosted_doc_path = project_root / "docs" / "HOSTED_DEMO_DEPLOYMENT.md"
     secrets_template_path = project_root / ".streamlit" / "secrets.toml.example"
     hosted_env_example_path = project_root / HOSTED_DEMO_EXAMPLE_FILE
+    demo_manifest_path = project_root / "data" / "demo" / "manifest.json"
 
     dashboard_body = _read_text(dashboard_path)
     requirements_body = _read_text(requirements_path)
@@ -82,6 +84,12 @@ def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDe
     secrets_template_body = _read_text(secrets_template_path)
     hosted_env_example_body = _read_text(hosted_env_example_path)
     configured_hosted_url = read_hosted_demo_url(project_root)
+
+    try:
+        demo_manifest = json.loads(_read_text(demo_manifest_path))
+    except json.JSONDecodeError:
+        demo_manifest = {}
+    demo_profile_ready = demo_manifest_path.exists() and isinstance(demo_manifest, dict) and demo_manifest.get("profile") == "demo"
 
     entrypoint_ready = dashboard_path.exists() and "src.dashboard" in dashboard_body
     missing_packages = [
@@ -109,7 +117,7 @@ def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDe
     hosted_url_command = (
         f"open {_hosted_public_url(configured_hosted_url)}"
         if configured_hosted_url
-        else "make dashboard"
+        else "make demo-dashboard"
     )
 
     return [
@@ -134,6 +142,17 @@ def build_hosted_demo_readiness(root: Path | str | None = None) -> list[HostedDe
             ),
             command="pip install -r requirements.txt",
             boundary="Provider extras and broker-style packages stay out of the hosted baseline.",
+        ),
+        HostedDemoCheck(
+            name="Hosted demo data profile",
+            status="ready" if demo_profile_ready else "missing",
+            detail=(
+                "data/demo/manifest.json declares the compact tracked demo profile for hosted public mode."
+                if demo_profile_ready
+                else "Build and review data/demo/manifest.json before deploying the public profile."
+            ),
+            command="STOCK_RESEARCH_DATA_PROFILE=demo streamlit run dashboard.py --server.headless true",
+            boundary="Hosted public mode uses the compact demo snapshot; it does not expose the ignored local workspace.",
         ),
         HostedDemoCheck(
             name="Deployment guide",
@@ -227,7 +246,7 @@ def render_hosted_demo_readiness(checks: list[HostedDemoCheck]) -> str:
             "- Keep GitHub as the public link until the hosted URL opens successfully and public gates pass.",
             "",
             "Hosted link decision ladder:",
-            "- No hosted URL: use the GitHub repository link and local make dashboard workflow.",
+            "- No hosted URL: use the GitHub repository link and make demo-dashboard workflow.",
             "- Hosted URL configured: open the public route, verify the five-page workflow, then rerun public gates before changing README or LinkedIn copy.",
             "- Hosted URL opens: verify the five-page public workflow, then rerun make public-check and make browser-qa-evidence.",
             "- Provider keys added: run make provider-setup-checklist and one reviewed provider smoke; setup alone does not prove coverage.",

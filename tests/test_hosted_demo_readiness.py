@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 from src.hosted_demo_readiness import build_hosted_demo_readiness, render_hosted_demo_readiness
 
@@ -47,7 +48,7 @@ def test_hosted_demo_readiness_reports_deployable_package_and_external_blocker(t
     assert "FMP_API_KEY" in rendered
     assert "do not claim hosted availability until a public URL is opened and verified" in rendered
     assert "Hosted link decision ladder" in rendered
-    assert "No hosted URL: use the GitHub repository link and local make dashboard workflow." in rendered
+    assert "No hosted URL: use the GitHub repository link and make demo-dashboard workflow." in rendered
     assert "Hosted URL opens: verify the five-page public workflow, then rerun make public-check and make browser-qa-evidence." in rendered
     assert "Provider keys added: run make provider-setup-checklist and one reviewed provider smoke; setup alone does not prove coverage." in rendered
     assert "Hosted route changes copy or layout: keep the GitHub link until the public path and research-only gates are rechecked." in rendered
@@ -127,3 +128,25 @@ def test_hosted_demo_readiness_accepts_hosted_url_from_environment(
     assert by_name["Hosted URL"].status == "manual_verify_required"
     assert "https://env-stock-demo.streamlit.app" in by_name["Hosted URL"].detail
     assert by_name["Hosted URL"].command == "open https://env-stock-demo.streamlit.app/?mode=public"
+
+
+def test_hosted_demo_readiness_requires_a_manifest_backed_demo_profile(tmp_path: Path):
+    (tmp_path / "dashboard.py").write_text("from src.dashboard import main\n", encoding="utf-8")
+    (tmp_path / "requirements.txt").write_text("streamlit\npandas\nnumpy\nPyYAML\n", encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "HOSTED_DEMO_DEPLOYMENT.md").write_text(
+        "No public hosted Streamlit URL is configured in this repository.\n", encoding="utf-8"
+    )
+    (tmp_path / ".streamlit").mkdir()
+    (tmp_path / ".streamlit" / "secrets.toml.example").write_text("", encoding="utf-8")
+
+    missing = {check.name: check for check in build_hosted_demo_readiness(tmp_path)}
+    assert missing["Hosted demo data profile"].status == "missing"
+
+    manifest_path = tmp_path / "data" / "demo" / "manifest.json"
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(json.dumps({"profile": "demo", "files": {}}), encoding="utf-8")
+
+    ready = {check.name: check for check in build_hosted_demo_readiness(tmp_path)}
+    assert ready["Hosted demo data profile"].status == "ready"
+    assert "STOCK_RESEARCH_DATA_PROFILE=demo" in ready["Hosted demo data profile"].command
