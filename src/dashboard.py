@@ -28037,10 +28037,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         open_review_clicked = st.button("Open Review", key="single-stock-report-button")
     if report_payload:
         readiness = report_payload.get("valuation_readiness", {})
-        render_section_header(
-            f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
-            "A readable view of local research inputs. This is context only, not execution guidance.",
-        )
+        if not public_mode:
+            render_section_header(
+                f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
+                "A readable view of local research inputs. This is context only, not execution guidance.",
+            )
         render_section_header(
             "What Can Be Read Now",
             "Start here: what is supported, what is withheld, and what to read next.",

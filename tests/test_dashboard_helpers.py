@@ -28761,6 +28761,16 @@ def test_single_stock_keeps_usable_blocked_cards_before_report_load():
     assert header_index < ticker_options_index < open_selected_index
 
 
+def test_public_single_stock_uses_one_selected_ticker_heading_before_the_answer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    report_header_index = source.index('f"{format_missing(report_payload.get(\'ticker\'), \'Selected ticker\')} Report"', render_index)
+    public_guard_index = source.rfind("if not public_mode:", render_index, report_header_index)
+    readable_now_index = source.index('"What Can Be Read Now"', report_header_index)
+
+    assert render_index < public_guard_index < report_header_index < readable_now_index
+
+
 def test_public_subpages_do_not_insert_home_loop_before_page_content():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     subpage_functions = [
