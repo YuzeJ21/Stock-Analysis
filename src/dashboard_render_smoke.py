@@ -32,12 +32,12 @@ PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Home",
         query_params=(("mode", "public"),),
-        required_markers=("Current question", "Primary next step", "First 30 Seconds", "Stock Selector"),
+        required_markers=("What is this product and where do I start?", "Research-only", "First 30 Seconds", "Stock Selector"),
     ),
     DashboardRenderRoute(
         name="Stock Selector",
         query_params=(("mode", "public"), ("page", "stock-selector")),
-        required_markers=("Stock Selector", "Which stock can I review?", "What is blocked"),
+        required_markers=("Stock Selector", "Which stock can I review?", "Choose one ticker first"),
     ),
     DashboardRenderRoute(
         name="Single-Stock Report",
@@ -52,7 +52,7 @@ PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Data Health",
         query_params=(("mode", "public"), ("page", "data-health")),
-        required_markers=("Coverage Summary / What Can I Use?", "What can I use now", "What is blocked"),
+        required_markers=("Coverage Summary / What Can I Use?", "Use now", "Limited by", "Next proof"),
     ),
     DashboardRenderRoute(
         name="Proof History",

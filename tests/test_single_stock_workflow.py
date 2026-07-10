@@ -477,6 +477,7 @@ def test_single_stock_pre_report_contract_cards_use_open_report_copy_when_report
     rendered = _render(cards)
 
     assert cards[1]["title"] == "What can be read in the open review"
+    assert cards[3]["title"] == "Read supported sections"
     assert "read the supported price, fundamentals, dcf, and peer sections in the open review" in rendered
     assert "what can be reviewed before opening details" not in rendered
     assert "before price history is trusted" not in rendered
@@ -509,4 +510,4 @@ def test_single_stock_pre_report_contract_cards_use_loaded_report_readiness_when
     assert cards[1]["body"] == "Read the supported price, fundamentals, DCF, and peer sections in the open review."
     assert "price proof comes first" not in rendered
     assert "price rows are missing" not in rendered
-    assert "single-stock report" in rendered
+    assert "read supported sections" in rendered

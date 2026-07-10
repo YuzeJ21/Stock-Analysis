@@ -707,7 +707,7 @@ def single_stock_pre_report_contract_cards(
         blocked = "Optional earnings, analyst estimates, or metric families may still be locked inside the report."
         stop_rule = "Stop if readiness changed after a local import, refresh, or proof update; rebuild the report first."
         next_command = _stock_report_md_command(ticker_text)
-        next_lane = "Single-Stock Report"
+        next_lane = "Read supported sections" if report_open else "Single-Stock Report"
         badges = ["open report", "proof first"]
 
     return [

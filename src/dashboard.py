@@ -2949,10 +2949,28 @@ def apply_dashboard_theme() -> None:
           margin: 0.8rem 0 1rem 0;
         }
         .public-loading-preview {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 0.55rem;
+          display: block;
           margin: 0.54rem 0 0.72rem 0;
+        }
+        .public-loading-note {
+          color: #526071;
+          font-size: 0.82rem;
+          line-height: 1.32;
+          margin: 0.28rem 0 0.5rem;
+        }
+        .public-loading-lanes {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.45rem;
+        }
+        .public-loading-lane {
+          border: 1px solid rgba(15, 118, 110, 0.14);
+          border-radius: 7px;
+          background: rgba(255, 255, 255, 0.76);
+          color: #526071;
+          font-size: 0.74rem;
+          font-weight: 760;
+          padding: 0.48rem 0.54rem;
         }
         .action-card {
           background: #fffefa;
@@ -3586,84 +3604,54 @@ def apply_dashboard_theme() -> None:
           overflow-wrap: anywhere;
         }
         .public-workflow-header {
-          display: grid;
-          grid-template-columns: minmax(15rem, 0.95fr) minmax(22rem, 2.1fr);
-          gap: 0.55rem;
-          align-items: stretch;
-          margin: 0.56rem 0 0.74rem 0;
+          margin: 0.42rem 0 0.62rem 0;
         }
-        .public-workflow-primary,
-        .public-workflow-supporting {
+        .public-workflow-rail {
+          display: grid;
+          grid-template-columns: auto minmax(12rem, 1fr) auto;
+          gap: 0.7rem;
+          align-items: center;
           border-radius: 8px;
           border: 1px solid rgba(15, 118, 110, 0.16);
           background: rgba(255, 255, 255, 0.94);
-          padding: 0.62rem 0.72rem;
-          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+          padding: 0.5rem 0.68rem;
+          box-shadow: 0 5px 12px rgba(15, 23, 42, 0.03);
         }
-        .public-workflow-primary {
-          display: grid;
-          gap: 0.4rem;
-        }
-        .public-workflow-supporting {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 0.54rem;
-        }
-        .public-workflow-item {
-          min-width: 0;
-        }
-        .public-workflow-label {
+        .public-workflow-step,
+        .public-workflow-boundary {
           color: #526071;
-          font-size: 0.68rem;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0;
-          margin-bottom: 0.24rem;
+          font-size: 0.72rem;
+          font-weight: 820;
+          white-space: nowrap;
         }
-        .public-workflow-value {
+        .public-workflow-question {
+          min-width: 0;
           color: #111827;
-          font-size: 0.9rem;
-          line-height: 1.32;
-          font-weight: 760;
+          font-size: 0.82rem;
+          line-height: 1.24;
+          font-weight: 720;
           overflow-wrap: anywhere;
-        }
-        @media (max-width: 960px) {
-          .public-workflow-header {
-            grid-template-columns: 1fr;
-          }
-          .public-workflow-supporting {
-            grid-template-columns: 1fr;
-          }
         }
         @media (max-width: 640px) {
           .public-workflow-header {
-            grid-template-columns: 1fr;
-            gap: 0.42rem;
             margin: 0.42rem 0 0.58rem 0;
           }
-          .public-workflow-primary,
-          .public-workflow-supporting {
+          .public-workflow-rail {
+            grid-template-columns: 1fr;
+            gap: 0.18rem;
             padding: 0.5rem 0.58rem;
             box-shadow: none;
           }
-          .public-workflow-primary,
-          .public-workflow-supporting {
-            gap: 0.34rem;
-          }
-          .public-workflow-item {
-            display: grid;
-            grid-template-columns: 1fr;
-            row-gap: 0.12rem;
-            align-items: start;
-          }
-          .public-workflow-label {
-            font-size: 0.58rem;
-            line-height: 1.15;
-            margin-bottom: 0;
-          }
-          .public-workflow-value {
+          .public-workflow-question {
             font-size: 0.78rem;
             line-height: 1.18;
+          }
+          .public-workflow-boundary,
+          .public-workflow-step {
+            font-size: 0.66rem;
+          }
+          .public-loading-lanes {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
         .subtle-panel {
@@ -5022,34 +5010,13 @@ def render_public_proof_strip(items: list[tuple[str, str, str]]) -> None:
 
 def public_workflow_header_html(page_title: str) -> str:
     step = public_workflow_step(page_title)
-    primary_cells = [
-        ("You are here", step["page"]),
-        ("Workflow step", public_workflow_position(page_title)),
-        ("Current question", step["question"]),
-    ]
-    supporting_cells = [
-        ("Short answer", step["short_answer"]),
-        ("Primary next step", step["next_action"]),
-        ("Stop rule", step["stop_rule"]),
-    ]
-    primary_html = "".join(
-        "<div class='public-workflow-item'>"
-        f"<div class='public-workflow-label'>{html.escape(label)}</div>"
-        f"<div class='public-workflow-value'>{html.escape(value)}</div>"
-        "</div>"
-        for label, value in primary_cells
-    )
-    supporting_html = "".join(
-        "<div class='public-workflow-item'>"
-        f"<div class='public-workflow-label'>{html.escape(label)}</div>"
-        f"<div class='public-workflow-value'>{html.escape(value)}</div>"
-        "</div>"
-        for label, value in supporting_cells
-    )
     return (
         "<div class='public-workflow-header'>"
-        f"<div class='public-workflow-primary'>{primary_html}</div>"
-        f"<div class='public-workflow-supporting'>{supporting_html}</div>"
+        "<div class='public-workflow-rail'>"
+        f"<div class='public-workflow-step'>{html.escape(public_workflow_position(page_title))} · {html.escape(step['page'])}</div>"
+        f"<div class='public-workflow-question'>{html.escape(step['question'])}</div>"
+        "<div class='public-workflow-boundary'>Research-only</div>"
+        "</div>"
         "</div>"
     )
 
@@ -5136,37 +5103,24 @@ def public_page_readiness_preview_cards(selected_page: str) -> list[tuple[str, s
 
 
 def public_loading_preview_html(selected_page: str, first_label: str = "Current question", next_label: str = "Primary next step") -> str:
-    step = public_workflow_step(selected_page)
-    cards = [
-        (
-            "You are here",
-            f"{step['page']} - {public_workflow_position(selected_page)}",
-            "",
-            "neutral",
-        ),
-        (
-            first_label,
-            f"{step['page']}: {step['question']}",
-            "",
-            "neutral",
-        ),
-        (
-            next_label,
-            step["next_action"],
-            "",
-            "neutral",
-        ),
-        (
-            "Stop rule",
-            step["stop_rule"],
-            "",
-            "warning",
-        ),
-    ]
-    cards.extend(public_page_readiness_preview_cards(selected_page))
-    return "<div class='public-loading-preview'>" + "".join(
-        action_card_html(title, body, command, tone) for title, body, command, tone in cards
-    ) + "</div>"
+    del first_label, next_label
+    loading_lanes = ""
+    if selected_page == "Data Health":
+        loading_lanes = (
+            "<div class='public-loading-lanes'>"
+            + "".join(
+                f"<div class='public-loading-lane'>{html.escape(lane)}</div>"
+                for lane in ("Price / setup", "Fundamentals / DCF", "Peers", "Optional inputs")
+            )
+            + "</div>"
+        )
+    return (
+        "<div class='public-loading-preview'>"
+        f"{public_workflow_header_html(selected_page)}"
+        "<div class='public-loading-note'>Loading saved readiness. No data is being refreshed or changed.</div>"
+        f"{loading_lanes}"
+        "</div>"
+    )
 
 
 def public_workflow_skip_link_html() -> str:
@@ -9727,6 +9681,80 @@ def data_health_coverage_summary_cards(
     return cards
 
 
+def data_health_public_coverage_cards(
+    readiness_summary: dict[str, object],
+    peer_readiness_frame: pd.DataFrame | None = None,
+    root: Path | None = None,
+) -> list[dict[str, object]]:
+    """Keep the public first view focused on the four analysis decisions."""
+
+    frame = data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame, root=root)
+    rows_by_lane = {str(row.get("lane")): row for row in frame.to_dict("records")}
+    primary_cards: list[dict[str, object]] = []
+    for lane in ("Price / setup", "Fundamentals / DCF", "Peers"):
+        row = rows_by_lane.get(lane)
+        if row is None:
+            continue
+        state = format_missing(row.get("state"), "blocked")
+        use_now = compact_card_fragment(row.get("one_clear_answer"), max_chars=125)
+        use_now_lower = use_now.lower()
+        if use_now_lower.startswith("use now to "):
+            use_now = use_now[11:]
+        elif use_now_lower.startswith("use now for "):
+            use_now = use_now[12:]
+        elif use_now_lower.startswith("use "):
+            use_now = use_now[4:]
+        if use_now:
+            use_now = use_now[0].upper() + use_now[1:]
+        limitation = compact_card_fragment(row.get("blocked_or_limited"), max_chars=105)
+        next_proof = compact_card_fragment(row.get("proof_to_unlock"), max_chars=120)
+        if lane == "Peers":
+            limitation = "Candidate peers remain context until trusted mapping and valuation proof exist"
+        primary_cards.append(
+            {
+                "kicker": state.upper(),
+                "title": lane,
+                "body": (
+                    f"{card_sentence('Use now', use_now)}\n"
+                    f"{card_sentence('Limited by', limitation)}\n"
+                    f"{card_sentence('Next proof', next_proof)}"
+                ),
+                "badges": [state, format_missing(row.get("ready_coverage"))],
+            }
+        )
+    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    optional_ready = min(earnings_ready, estimates_ready)
+    primary_cards.append(
+        {
+            "kicker": "OPTIONAL / LOCKED" if optional_ready <= 0 else "OPTIONAL CONTEXT",
+            "title": "Optional inputs",
+            "body": (
+                "Use now: no earnings or analyst-estimate input is used in the public review.\n"
+                f"Limited by: trusted optional rows are missing ({_coverage_summary_fraction(optional_ready, master)} ready).\n"
+                "Next proof: source-backed local earnings and estimate rows; never infer from dates or target prices."
+            ),
+            "badges": ["context only", "not analysis-ready"],
+        }
+    )
+    return primary_cards
+
+
+def data_health_public_loading_cards() -> list[dict[str, object]]:
+    """Keep Data Health's decision structure visible while saved rows load."""
+
+    return [
+        {
+            "kicker": "LOADING",
+            "title": lane,
+            "body": "Loading the saved readiness answer for this lane. No data is being refreshed or changed.",
+            "badges": ["saved readiness", "read-only"],
+        }
+        for lane in ("Price / setup", "Fundamentals / DCF", "Peers", "Optional inputs")
+    ]
+
+
 def data_health_coverage_summary_strip_html(
     readiness_summary: dict[str, object],
     peer_readiness_frame: pd.DataFrame | None = None,
@@ -9752,17 +9780,24 @@ def data_health_coverage_summary_strip_html(
 def render_data_health_coverage_summary(
     readiness_summary: dict[str, object],
     peer_readiness_frame: pd.DataFrame | None = None,
+    *,
+    public_mode: bool = False,
 ) -> None:
     render_section_header(
         "Coverage Summary / What Can I Use?",
         "One clear answer per lane before selected-lane operations, proof details, or research conclusions.",
     )
-    st.markdown(
-        data_health_coverage_summary_strip_html(readiness_summary, peer_readiness_frame, root=BASE_DIR),
-        unsafe_allow_html=True,
-    )
+    if not public_mode:
+        st.markdown(
+            data_health_coverage_summary_strip_html(readiness_summary, peer_readiness_frame, root=BASE_DIR),
+            unsafe_allow_html=True,
+        )
     render_signal_cards(
-        data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame, root=BASE_DIR),
+        (
+            data_health_public_coverage_cards(readiness_summary, peer_readiness_frame, root=BASE_DIR)
+            if public_mode
+            else data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame, root=BASE_DIR)
+        ),
         show_commands=False,
         variant="queue",
     )
@@ -12576,10 +12611,6 @@ def render_proof_history(*, public_mode: bool = True) -> None:
             unsafe_allow_html=True,
         )
         with st.expander("Advanced: latest proof evidence", expanded=False):
-            st.markdown(
-                proof_history_first_answer_cards_html(first_answer_frame),
-                unsafe_allow_html=True,
-            )
             render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
             st.markdown(
                 proof_history_public_summary_html(proof_timeline, batch_proof_frame),
@@ -26921,9 +26952,6 @@ def render_stock_selector(
         STOCK_SELECTOR_PATH_TITLE,
         "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
     )
-    if public_mode:
-        render_action_cards(public_page_readiness_preview_cards(STOCK_SELECTOR_PATH_TITLE))
-
     if ticker_readiness_message or decisions_message or final_message:
         render_notice_card(
             "Saved selector data may need refresh",
@@ -27520,11 +27548,6 @@ def render_home_page(
             "What the product does, how to read it, and when to stop before looking at examples.",
         )
         render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)
-        render_section_header(
-            "Primary Workflow",
-            "One path: choose a ticker, read supported sections, route blockers to Data Health, and check Proof History only for evidence.",
-        )
-        render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")
     if generated_stale_warning:
         render_notice_card(
             "Generated status may be stale",
@@ -27543,6 +27566,12 @@ def render_home_page(
         )
     if public_mode:
         with st.expander("Advanced: learn more", expanded=False):
+            render_section_header(
+                "Primary Workflow",
+                "One path: choose a ticker, read supported sections, route blockers to Data Health, and check Proof History only for evidence.",
+            )
+            render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")
+
             pilot_stage_cards = project_status_remaining_stage_cards(project_status_payload)
             pilot_stage_summary_card = project_status_stage_summary_card(project_status_payload)
             if pilot_stage_cards:
@@ -27896,8 +27925,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         "One-Stock Review",
         header_caption,
     )
-    if public_mode:
-        render_action_cards(public_page_readiness_preview_cards("Single-Stock Report"))
     ticker_options = ["Custom"] + local_tickers if local_tickers else ["Custom"]
     default_selection_index = preferred_single_stock_default(local_tickers)
     if query_ticker and query_ticker in ticker_options:
@@ -29046,6 +29073,7 @@ def render_data_health(
                 "Raw tables, route maps, queues, proof ledgers, and commands stay closed.",
                 tone="success",
             )
+            render_signal_cards(data_health_public_loading_cards(), show_commands=False, variant="queue")
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
     action_queue_frame, action_queue_message = load_action_queue()
     health_tables = load_research_health_tables()
@@ -29126,19 +29154,7 @@ def render_data_health(
     if public_mode:
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
-        render_action_cards(public_page_readiness_preview_cards("Data Health"))
-        render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
-        render_section_header("Proof Map", "Plain-language proof lanes before any operations detail.")
-        render_signal_cards(
-            data_health_public_proof_map_cards(readiness_summary, readiness_freshness),
-            show_commands=False,
-            variant="queue",
-        )
-        render_section_header(
-            "Source Boundary",
-            "Provider setup, screenshots, and source reachability do not unlock blocked inputs.",
-        )
-        render_signal_cards(data_health_public_source_boundary_cards(project_status_payload), show_commands=False, variant="queue")
+        render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)
         if public_mode and project_status_payload is None:
             with st.expander("Refresh status note", expanded=False):
                 render_notice_card(
@@ -29147,12 +29163,18 @@ def render_data_health(
                     "make project-status",
                     public=True,
                 )
-        render_context_note(
-            "Public Data Health summary.",
-            "Use this page only when a selected ticker or lane is blocked. Open evidence details only when you need proof; switch to Operator mode for runbooks and validate / preview / apply workflow tables.",
-            tone="success",
-        )
         with st.expander("Advanced public guidance", expanded=False):
+            render_section_header("Proof Map", "Plain-language proof lanes before any operations detail.")
+            render_signal_cards(
+                data_health_public_proof_map_cards(readiness_summary, readiness_freshness),
+                show_commands=False,
+                variant="queue",
+            )
+            render_section_header(
+                "Source Boundary",
+                "Provider setup, screenshots, and source reachability do not unlock blocked inputs.",
+            )
+            render_signal_cards(data_health_public_source_boundary_cards(project_status_payload), show_commands=False, variant="queue")
             render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
             render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
             render_research_loop_strip(
