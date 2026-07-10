@@ -25718,6 +25718,8 @@ def test_stock_report_provenance_cards_summarize_visible_method_and_source_bound
                 "method_version": "readiness-first-v1",
                 "financial_as_of_date": "2025-04-30",
                 "financial_reporting_period": "FY2025",
+                "financial_currency": "USD",
+                "price_currency": "USD",
                 "source_records": [{"provider": "sec_companyfacts"}, {"provider": "local_prices"}],
                 "missing_inputs": ["Peer valuation inputs"],
             }
@@ -25729,6 +25731,8 @@ def test_stock_report_provenance_cards_summarize_visible_method_and_source_bound
     assert "readiness-first-v1" in rendered
     assert "2025-04-30" in rendered
     assert "fy2025" in rendered
+    assert "financial currency: usd" in rendered
+    assert "price currency: usd" in rendered
     assert "sec_companyfacts" in rendered
     assert "1 missing input" in rendered
     assert "make " not in rendered

@@ -14,6 +14,7 @@ Every analysis-ready record or report section should expose, directly or through
 | `source` | Named local, SEC, provider, filing, or reviewed source origin. | Source availability alone does not render a value usable. |
 | `as_of_date` | Financial period, market date, filing date, or source effective date. | It is not the same as retrieval time. |
 | `reporting_period` | Fiscal period attached to a financial, earnings, or estimate record, where supplied. | A reporting period is not inferred from the retrieval date or a market price date. |
+| `currency` | Source-supplied price or financial currency, where available. | The product does not infer currency, perform cross-currency conversion, or treat absent currency as a common unit. |
 | `retrieved_at` | When a provider or local artifact was obtained, where available. | Missing retrieval time lowers freshness certainty; it does not get invented. |
 | `method_version` | Version of the project rule or calculation that produced the section. | Method changes must be documented before public claims change. |
 | `missing_inputs` | Required fields that are absent, stale, malformed, or unproven. | Missing inputs suppress the dependent conclusion. |

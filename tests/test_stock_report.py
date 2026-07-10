@@ -429,6 +429,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
                 free_cash_flow=90_000_000_000,
                 fcf_margin=0.36,
                 reporting_period="FY2025",
+                currency="USD",
                 cash=90_000_000_000,
                 debt=40_000_000_000,
                     market_cap=2_700_000_000_000,
@@ -485,6 +486,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert report_dict["method_version"] == "readiness-first-v1"
     assert report_dict["provenance"]["financial_as_of_date"] == "2025-04-30"
     assert report_dict["provenance"]["financial_reporting_period"] == "FY2025"
+    assert report_dict["provenance"]["financial_currency"] == "USD"
+    assert report_dict["provenance"]["price_currency"] == "USD"
     assert report_dict["provenance"]["source_records"] == report_dict["data_freshness"]
     assert "research-only" in report_dict["provenance"]["confidence_boundary"].lower()
     assert "missing_data_warnings" in report_dict
@@ -497,6 +500,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Method version: `readiness-first-v1`" in markdown
     assert "- Financial as-of date: 2025-04-30" in markdown
     assert "- Financial reporting period: FY2025" in markdown
+    assert "- Financial currency: USD" in markdown
+    assert "- Price currency: USD" in markdown
     assert "- Confidence boundary: Research-only" in markdown
     assert "Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third" in markdown
     assert "Standalone DCF review: company DCF assumptions can be reviewed" in markdown

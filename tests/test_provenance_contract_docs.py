@@ -17,6 +17,7 @@ def test_provenance_contract_defines_required_metric_and_profile_boundaries():
         "source",
         "as_of_date",
         "reporting_period",
+        "currency",
         "retrieved_at",
         "method_version",
         "missing_inputs",
