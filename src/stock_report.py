@@ -42,6 +42,12 @@ from src.session_source_preflight import load_session_source_preflight
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
 
 
+REPORT_METHOD_VERSION = "readiness-first-v1"
+REPORT_CONFIDENCE_BOUNDARY = (
+    "Research-only: readiness and source provenance describe what can be reviewed, not investment conviction or advice."
+)
+
+
 @dataclass
 class PerformanceSummary:
     one_month: float | None
@@ -85,6 +91,14 @@ class StockReport:
     screener_context: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        source_records = [note.to_dict() for note in self.data_freshness]
+        provenance = {
+            "method_version": REPORT_METHOD_VERSION,
+            "financial_as_of_date": self.financial_summary.get("as_of_date"),
+            "source_records": source_records,
+            "missing_inputs": list(self.missing_data_warnings),
+            "confidence_boundary": REPORT_CONFIDENCE_BOUNDARY,
+        }
         return {
             "ticker": self.ticker,
             "generated_at": self.generated_at,
@@ -97,7 +111,9 @@ class StockReport:
             "analyst_estimate_summary": self.analyst_estimate_summary,
             "key_risks": self.key_risks,
             "missing_data_warnings": self.missing_data_warnings,
-            "data_freshness": [note.to_dict() for note in self.data_freshness],
+            "data_freshness": source_records,
+            "method_version": REPORT_METHOD_VERSION,
+            "provenance": provenance,
             "valuation_readiness": self.valuation_readiness,
             "review_metrics": self.review_metrics,
             "dataset_coverage": self.dataset_coverage,
@@ -2671,6 +2687,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     estimates = local_context.get("analyst_estimates", {})
     valuation_readiness = payload.get("valuation_readiness", {})
     freshness = payload.get("data_freshness", [])
+    provenance = payload.get("provenance", {})
     source_lines = []
     for item in freshness:
         provider = _display_value(item.get("provider"))
@@ -2680,6 +2697,15 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         source_lines.append(f"- {provider}: {official}; {freshness_summary}" + (f"; {notes}" if notes else ""))
     if not source_lines:
         source_lines.append("- Not available")
+    provenance_sources = provenance.get("source_records", freshness)
+    provenance_source_names = sorted(
+        {
+            str(item.get("provider")).strip()
+            for item in provenance_sources
+            if isinstance(item, dict) and str(item.get("provider") or "").strip()
+        }
+    )
+    provenance_missing_inputs = provenance.get("missing_inputs", payload.get("missing_data_warnings", []))
 
     valuation_status = _display_value(payload.get("valuation_snapshot", {}).get("status")).lower()
     if "price_ready" not in readiness:
@@ -2712,6 +2738,12 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     dcf_status_text = "excluded" if "dcf" in str(readiness.get("excluded_features", "")).lower() or asset_type.lower() in {"etf", "index_proxy", "fund"} else "ready" if dcf_ready else "blocked"
     optional_locked = not earnings_ready or not estimates_ready
     monitor_context = _stock_report_is_monitor_context(readiness=readiness, decision=decision, dcf_status_text=dcf_status_text)
+    if monitor_context:
+        provenance_missing_inputs = [
+            item
+            for item in provenance_missing_inputs
+            if not str(item).lower().startswith("valuation missing field:")
+        ]
     missing_lines = _stock_report_missing_data_lines(
         payload,
         monitor_context=monitor_context,
@@ -3122,6 +3154,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Analyst estimates ready: {_display_report_status(estimates_ready)}",
         f"- Blocked features: {_display_report_list(readiness.get('blocked_features'), 'none')}",
         f"- Excluded features: {_display_report_list(readiness.get('excluded_features'), 'none')}",
+        "",
+        "## Provenance Boundary",
+        f"- Method version: `{_display_value(provenance.get('method_version'), REPORT_METHOD_VERSION)}`",
+        f"- Financial as-of date: {_display_value(provenance.get('financial_as_of_date'))}",
+        f"- Source records: {_display_report_list(provenance_source_names, 'not available')}",
+        f"- Missing inputs: {_display_report_list(provenance_missing_inputs, 'none recorded')}",
+        f"- Confidence boundary: {_display_value(provenance.get('confidence_boundary'), REPORT_CONFIDENCE_BOUNDARY)}",
         "",
         "## Price Coverage",
         f"- Price rows: {_display_value(coverage.get('price_rows'))}",

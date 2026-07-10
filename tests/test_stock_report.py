@@ -430,9 +430,10 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
                 fcf_margin=0.36,
                 cash=90_000_000_000,
                 debt=40_000_000_000,
-                market_cap=2_700_000_000_000,
-                shares_outstanding=7_400_000_000,
-                source=source,
+                    market_cap=2_700_000_000_000,
+                    shares_outstanding=7_400_000_000,
+                    as_of_date="2025-04-30",
+                    source=source,
             )
         },
         earnings={
@@ -480,12 +481,20 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert report_dict["valuation_snapshot"]["dcf_result"]["fair_value_per_share"] is not None
     assert report_dict["earnings_summary"]["next_earnings_date"] == "2026-07-24"
     assert report_dict["analyst_estimate_summary"]["target_mean_price"] == 390.0
+    assert report_dict["method_version"] == "readiness-first-v1"
+    assert report_dict["provenance"]["financial_as_of_date"] == "2025-04-30"
+    assert report_dict["provenance"]["source_records"] == report_dict["data_freshness"]
+    assert "research-only" in report_dict["provenance"]["confidence_boundary"].lower()
     assert "missing_data_warnings" in report_dict
     assert report_dict["valuation_readiness"]["dcf_ready"] is True
     assert report_dict["local_data_validation"] == []
     assert len(report_dict["data_freshness"]) >= 3
     assert any("research-grade" in " ".join(note["notes"]).lower() for note in report_dict["data_freshness"])
     assert "## How To Read This Report" in markdown
+    assert "## Provenance Boundary" in markdown
+    assert "- Method version: `readiness-first-v1`" in markdown
+    assert "- Financial as-of date: 2025-04-30" in markdown
+    assert "- Confidence boundary: Research-only" in markdown
     assert "Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third" in markdown
     assert "Standalone DCF review: company DCF assumptions can be reviewed" in markdown
     assert "project code implements readiness gates and report wording" in markdown
