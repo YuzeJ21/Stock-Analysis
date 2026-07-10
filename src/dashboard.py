@@ -5638,13 +5638,14 @@ def stock_report_provenance_cards(report_payload: dict[str, object]) -> list[dic
     missing_count = len(missing_inputs) if isinstance(missing_inputs, list) else 0
     method_version = format_missing(provenance.get("method_version"), "readiness-first-v1")
     as_of_date = format_missing(provenance.get("financial_as_of_date"), "Not available")
+    reporting_period = format_missing(provenance.get("financial_reporting_period"), "Not recorded")
     source_text = ", ".join(source_names) if source_names else "Not available"
     missing_text = f"{missing_count} missing input{'s' if missing_count != 1 else ''} remain visible"
     return [
         {
             "kicker": "PROVENANCE",
             "title": f"Method {method_version}; financial as-of {as_of_date}",
-            "body": f"Sources: {source_text}. {missing_text}. Source labels describe review evidence, not advice.",
+            "body": f"Reporting period: {reporting_period}. Sources: {source_text}. {missing_text}. Source labels describe review evidence, not advice.",
             "badges": ["source visible", "as-of visible", "research-only"],
         }
     ]

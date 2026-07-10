@@ -501,6 +501,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             debt_to_equity=self._float_value(row, "debt_to_equity"),
             currency=None,
             as_of_date=self._string_value(row, "as_of_date", "date"),
+            reporting_period=self._string_value(row, "period", "fiscal_period"),
             source=source,
         )
 

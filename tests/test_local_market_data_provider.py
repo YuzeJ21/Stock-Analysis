@@ -325,6 +325,7 @@ def test_local_provider_preserves_source_and_as_of_date_from_rich_fixture(tmp_pa
     estimates = provider.get_analyst_estimates("ALFA")
 
     assert financials.as_of_date == "2026-05-01"
+    assert financials.reporting_period == "FY2026"
     assert "fixture_fundamentals" in " ".join(financials.source.notes)
     assert earnings.fiscal_period == "Q2-2026"
     assert "fixture_earnings" in " ".join(earnings.source.notes)

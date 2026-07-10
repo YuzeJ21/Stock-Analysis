@@ -95,6 +95,7 @@ class StockReport:
         provenance = {
             "method_version": REPORT_METHOD_VERSION,
             "financial_as_of_date": self.financial_summary.get("as_of_date"),
+            "financial_reporting_period": self.financial_summary.get("reporting_period"),
             "source_records": source_records,
             "missing_inputs": list(self.missing_data_warnings),
             "confidence_boundary": REPORT_CONFIDENCE_BOUNDARY,
@@ -383,6 +384,7 @@ def _financial_summary_dict(financials: FinancialSnapshot) -> dict[str, Any]:
         "debt_to_equity": financials.debt_to_equity,
         "currency": financials.currency,
         "as_of_date": financials.as_of_date,
+        "reporting_period": financials.reporting_period,
         "source": financials.source.to_dict() if financials.source else None,
     }
 
@@ -3158,6 +3160,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Provenance Boundary",
         f"- Method version: `{_display_value(provenance.get('method_version'), REPORT_METHOD_VERSION)}`",
         f"- Financial as-of date: {_display_value(provenance.get('financial_as_of_date'))}",
+        f"- Financial reporting period: {_display_value(provenance.get('financial_reporting_period'))}",
         f"- Source records: {_display_report_list(provenance_source_names, 'not available')}",
         f"- Missing inputs: {_display_report_list(provenance_missing_inputs, 'none recorded')}",
         f"- Confidence boundary: {_display_value(provenance.get('confidence_boundary'), REPORT_CONFIDENCE_BOUNDARY)}",

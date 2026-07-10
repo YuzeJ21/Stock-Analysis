@@ -63,6 +63,7 @@ class FinancialSnapshot:
     debt_to_equity: float | None = None
     currency: str | None = None
     as_of_date: str | None = None
+    reporting_period: str | None = None
     source: SourceMetadata | None = None
 
     def to_dict(self) -> dict[str, Any]:
