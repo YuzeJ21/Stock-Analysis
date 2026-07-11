@@ -11,7 +11,7 @@ This repository is ready to review as a controlled GitHub/LinkedIn portfolio dem
 | What is the live app path? | Run `make demo-dashboard`, then open `http://localhost:8501/?mode=public`. |
 | What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |
 | What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |
-| How should I collect pilot feedback? | Run `make pilot-review-feedback`, then use `docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md` and `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` for anonymous workflow-clarity notes only. |
+| How should I collect pilot feedback? | Run `make pilot-review-feedback`, then use `docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md` and `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` for anonymous workflow-clarity notes only; use `make pilot-feedback-closeout` before turning notes into fixes or deferrals. |
 | Which screenshot should I use? | Use `docs/assets/linkedin-public-dashboard.png` for LinkedIn Featured or GitHub preview context. |
 | What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |
 | What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |
@@ -114,7 +114,7 @@ For the mutable default operator workspace, use `make dashboard`; it is intentio
 
 When you want to run a controlled pilot, use the [Pilot Runbook](docs/PILOT_RUNBOOK.md). When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps.
 
-For 5-10 external reviewer sessions, run `make pilot-review-feedback` and use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) plus the structured [feedback log template](docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv). Capture route clarity and reproducible UX issues only; keep the working log outside Git until it is anonymized and intentionally reviewed; feedback does not prove data freshness, source readiness, investment conclusions, or coverage completion.
+For 5-10 external reviewer sessions, run `make pilot-review-feedback` and use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) plus the structured [feedback log template](docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv). Then run `make pilot-feedback-closeout` and follow the [Pilot Feedback Closeout Checklist](docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md) to classify each row as `clear`, `reproducible_ui_issue`, `documentation_gap`, `environment_limited`, or `intentionally_deferred`. Capture route clarity and reproducible UX issues only; keep the working log outside Git until it is anonymized and intentionally reviewed; feedback does not prove data freshness, source readiness, investment conclusions, or coverage completion.
 
 ## Try This Visitor Workflow
 Open the product first and follow the five-page path. Use terminal commands only when you want to inspect the same proof artifacts locally.

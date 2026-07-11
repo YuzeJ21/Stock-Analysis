@@ -30,7 +30,9 @@ def test_pilot_review_feedback_make_target_is_read_only_and_discoverable():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
     assert "pilot-review-feedback:" in makefile
+    assert "pilot-feedback-closeout:" in makefile
     target = makefile.split("pilot-review-feedback:", 1)[1].split("\n\n", 1)[0]
+    closeout_target = makefile.split("pilot-feedback-closeout:", 1)[1].split("\n\n", 1)[0]
 
     assert "docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md" in target
     assert "docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv" in target
@@ -39,6 +41,11 @@ def test_pilot_review_feedback_make_target_is_read_only_and_discoverable():
     assert "not data proof" in target.lower()
     assert "does not refresh data, import rows, stage files, commit, push, or deploy" in target
     assert "Commit a feedback log only after removing personal information" in target
+    assert "docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md" in closeout_target
+    assert "reproducible_ui_issue" in closeout_target
+    assert "environment_limited" in closeout_target
+    assert "intentionally_deferred" in closeout_target
+    assert "does not refresh data, import rows, stage files, commit, push, deploy, or publish feedback" in closeout_target
 
 
 def test_pilot_review_feedback_log_template_is_anonymous_and_comparable():
@@ -68,3 +75,26 @@ def test_pilot_review_feedback_log_template_is_anonymous_and_comparable():
     assert "No names account details investment opinions price targets trade decisions or portfolio information" in body
     assert "buy" not in body.lower()
     assert "sell" not in body.lower()
+
+
+def test_pilot_feedback_closeout_checklist_keeps_feedback_out_of_data_gates():
+    body = Path("docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md").read_text(encoding="utf-8")
+    readme = Path("README.md").read_text(encoding="utf-8")
+    runbook = Path("docs/PILOT_RUNBOOK.md").read_text(encoding="utf-8")
+
+    for outcome in (
+        "clear",
+        "reproducible_ui_issue",
+        "documentation_gap",
+        "environment_limited",
+        "intentionally_deferred",
+    ):
+        assert outcome in body
+        assert outcome in runbook
+
+    assert "not data proof" in body.lower()
+    assert "Do not expand coverage, add providers, or apply imports from reviewer feedback alone." in body
+    assert "make pilot-feedback-closeout" in readme
+    assert "docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md" in readme
+    assert "make pilot-feedback-closeout" in runbook
+    assert "make public-check" in body

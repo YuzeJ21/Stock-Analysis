@@ -35,7 +35,7 @@ If SEC or Yahoo access fails in a session, do not keep retrying the same unavail
 
 ## Controlled Reviewer Feedback
 
-After an external reviewer follows the public workflow, use [Controlled Pilot Review Feedback](PILOT_REVIEW_FEEDBACK_TEMPLATE.md) to capture anonymous route, clarity, and reproducibility observations. Feedback checks product understanding only; it is not data proof and does not change readiness.
+After an external reviewer follows the public workflow, use [Controlled Pilot Review Feedback](PILOT_REVIEW_FEEDBACK_TEMPLATE.md) to capture anonymous route, clarity, and reproducibility observations. Then use [Pilot Feedback Closeout Checklist](PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md) or `make pilot-feedback-closeout` to classify each row as `clear`, `reproducible_ui_issue`, `documentation_gap`, `environment_limited`, or `intentionally_deferred` before creating fixes. Feedback checks product understanding only; it is not data proof and does not change readiness.
 
 ## 2. Required Local Data Files
 
@@ -300,3 +300,18 @@ Exit the controlled pilot when:
 - Operators can complete the workflow from dashboard, runbook, and CLI commands without guessing the next gate.
 - Public/release checks pass in the target environment.
 - Remaining blockers are external/manual source-coverage items, not product-code or documentation gaps.
+
+Before calling reviewer feedback resolved, run:
+
+```bash
+make pilot-feedback-closeout
+make public-ux-review-notes-check
+make dashboard-smoke
+make browser-qa-evidence
+make public-wording-check
+make public-check
+make diff-hygiene-summary
+git diff --check
+```
+
+Keep feedback logs private unless every row is anonymized and intentionally reviewed as pilot evidence.
