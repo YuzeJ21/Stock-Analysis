@@ -21,7 +21,7 @@ Do not coach the answers. The purpose is to see whether the public workflow is s
 
 ## Capture Sheet
 
-Record one row per review session outside the repository unless the note contains no personal information.
+Record one row per review session outside the repository unless the note contains no personal information. Use `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` as the copy/paste header when you want comparable rows across 5-10 reviewers; keep the working copy outside Git unless it is intentionally anonymized review evidence.
 
 | Field | Record |
 | --- | --- |
@@ -37,6 +37,16 @@ Record one row per review session outside the repository unless the note contain
 | Outcome | `clear`, `unclear`, or `environment_limited`. |
 
 Do not record names, account details, or investment opinions. Do not ask reviewers for a stock recommendation, price target, trade decision, or personal portfolio information.
+
+## Structured Log Template
+
+Use this local-only copy step when running several reviews:
+
+```bash
+cp docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv /tmp/stock-command-center-pilot-feedback.csv
+```
+
+Keep the `/tmp` copy or another private working copy outside the repository while collecting feedback. Commit a feedback log only after removing personal information and only when the rows are intentionally reviewed pilot evidence. The template is for product workflow clarity, not data freshness, source proof, or investment conclusions.
 
 ## Reproducible Issue Format
 
