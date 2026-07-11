@@ -178,6 +178,23 @@ def test_price_history_proof_queue_deprioritizes_reviewed_non_actionable_tickers
     assert "Next safest action: make focus-price TICKER=NVDA." in rendered
 
 
+def test_price_history_proof_queue_treats_price_history_lane_as_reviewed_non_actionable(tmp_path: Path):
+    _write_fixture(tmp_path)
+    proofs = tmp_path / "data" / "reviewed_batch_proofs.csv"
+    proofs.write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-PRICE-HISTORY-AMD,price_history,AMD,still_blocked,none,"
+        "\"AMD short-history path already tried; do not retry without a new verified OHLCV source.\"\n",
+        encoding="utf-8",
+    )
+
+    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10)
+
+    amd = next(row for row in rows if row.ticker == "AMD")
+    assert "reviewed proof ledger already records" in amd.source_note.lower()
+    assert amd.next_safe_command == "wait for new verified OHLCV source or changed provider behavior"
+
+
 def test_price_history_proof_queue_renderer_pivots_when_every_row_is_reviewed_non_actionable(tmp_path: Path):
     _write_fixture(tmp_path)
     proofs = tmp_path / "data" / "reviewed_batch_proofs.csv"

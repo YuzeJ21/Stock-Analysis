@@ -92,7 +92,7 @@ def _reviewed_non_actionable_price_tickers(root: Path, possible_tickers: set[str
         return set()
 
     reviewed: set[str] = set()
-    price_lanes = {"prices", "price_coverage"}
+    price_lanes = {"prices", "price_coverage", "price_history"}
     non_actionable_outcomes = {"still_blocked", "skipped", "excluded"}
     with path.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
