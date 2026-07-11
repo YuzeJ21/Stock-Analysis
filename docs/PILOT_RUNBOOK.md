@@ -191,6 +191,8 @@ make imports-preview IMPORT_TICKERS=<ticker>
 
 For a 25-50 company peer pilot, keep the working source-review sheet outside Git until rows are reviewed. The template is a collection aid only: candidate/context rows stay `candidate_context_only`, and only source-backed relationships that pass `peer-mapping-writeback-guard`, validation, preview, rejected-row review, rebuilt readiness, and proof recording can become trusted peer mappings.
 
+Use the extra template fields (`source_type`, `source_title`, `source_accessed_date`, and `source_evidence_note`) to keep reviewer evidence defensible before copy/paste into the import guard. They are review-only fields, not import columns. The guard still accepts only the trusted peer mapping fields needed for `data/imports/peers.csv`; do not bypass it by pasting the full review sheet into the import file.
+
 Earnings and analyst estimates:
 
 ```bash
