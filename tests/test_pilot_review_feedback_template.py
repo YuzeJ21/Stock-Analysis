@@ -64,7 +64,8 @@ def test_pilot_review_feedback_log_template_is_anonymous_and_comparable():
         "next_expected_action",
         "time_to_first_answer_minutes",
         "confusion_point",
-        "outcome",
+        "reviewer_signal",
+        "closeout_outcome",
         "reproducible_issue_route",
         "reproducible_issue_viewport",
         "evidence_pointer",
@@ -72,6 +73,14 @@ def test_pilot_review_feedback_log_template_is_anonymous_and_comparable():
         assert column in header
 
     body = path.read_text(encoding="utf-8")
+    for outcome in (
+        "clear",
+        "reproducible_ui_issue",
+        "documentation_gap",
+        "environment_limited",
+        "intentionally_deferred",
+    ):
+        assert outcome in body
     assert "No names account details investment opinions price targets trade decisions or portfolio information" in body
     assert "buy" not in body.lower()
     assert "sell" not in body.lower()

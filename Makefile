@@ -410,6 +410,7 @@ pilot-review-feedback:
 	@echo "   4. What would you do next?"
 	@echo ""
 	@echo "Capture only anonymous route, clarity, time-to-first-answer, and reproducible issue notes."
+	@echo "Closeout outcomes: clear, reproducible_ui_issue, documentation_gap, environment_limited, intentionally_deferred."
 	@echo "Do not capture names, account details, investment opinions, price targets, trade decisions, or portfolio information."
 	@echo "Commit a feedback log only after removing personal information and only when it is intentionally reviewed pilot evidence."
 	@echo ""

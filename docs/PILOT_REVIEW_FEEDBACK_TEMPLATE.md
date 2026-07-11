@@ -34,7 +34,8 @@ Record one row per review session outside the repository unless the note contain
 | What would you do next? | Their next expected page or action. |
 | Time to first answer | Approximate minutes to explain the product state. |
 | Confusion point | Exact page, label, or route that caused confusion, if any. |
-| Outcome | `clear`, `unclear`, or `environment_limited`. |
+| Reviewer signal | `clear`, `confused`, `blocked_by_environment`, or `suggestion_only`. |
+| Closeout outcome | `clear`, `reproducible_ui_issue`, `documentation_gap`, `environment_limited`, or `intentionally_deferred`. |
 
 Do not record names, account details, or investment opinions. Do not ask reviewers for a stock recommendation, price target, trade decision, or personal portfolio information.
 
@@ -50,7 +51,15 @@ Keep the `/tmp` copy or another private working copy outside the repository whil
 
 ## Reproducible Issue Format
 
-Turn only reproducible product issues into backlog items:
+Turn only reproducible product issues into backlog items. Use the closeout
+outcome field to keep every row actionable without turning all confusion into
+product work:
+
+- `clear`: reviewer understood the public workflow.
+- `reproducible_ui_issue`: same route, viewport, or wording issue can be reproduced.
+- `documentation_gap`: the product worked, but README/walkthrough/share wording was unclear.
+- `environment_limited`: browser, local setup, or hosted access prevented review.
+- `intentionally_deferred`: valid suggestion, but outside controlled pilot scope.
 
 ```text
 Route: <public route or document>
@@ -70,7 +79,9 @@ Pilot feedback is not data proof, source proof, or data freshness proof. It cann
 Keep outcomes distinct:
 
 - `clear`: the workflow was understandable; it does not prove analysis correctness.
-- `unclear`: create a reproducible UX issue only when the route and observation are recorded.
+- `reproducible_ui_issue`: create a product fix only when the route and observation are recorded.
+- `documentation_gap`: fix docs or share copy without changing readiness gates.
 - `environment_limited`: the local demo or browser could not be reviewed; do not treat it as a product defect without reproduction evidence.
+- `intentionally_deferred`: keep useful suggestions visible without expanding the pilot scope.
 
 After a UI change, rerun `make public-ux-review-notes-check`, `make dashboard-smoke`, `make browser-qa-evidence`, and `make public-check` before updating public screenshots or LinkedIn/GitHub wording.
