@@ -1,0 +1,2 @@
+ticker,peer_ticker,peer_group,sector,industry,source,as_of_date,relationship_rationale,reviewer,review_date,source_proof_status,import_row_ready,notes
+TICKER,PEER,Comparable operating-company peer group,Source-backed sector,Source-backed industry,https://source.example/path,YYYY-MM-DD,Short reason the source supports this peer relationship,reviewer-id,YYYY-MM-DD,source_backed / candidate_context_only,false,Template row only; do not import until source proof is reviewed and writeback guard passes

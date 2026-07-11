@@ -183,10 +183,13 @@ Peers:
 ```bash
 make peer-mapping-queue TOP_N=25
 DRY_RUN=1 make peer-mapping-source-review TOP_N=10
+cp docs/TRUSTED_PEER_PILOT_SOURCE_TEMPLATE.csv /tmp/stock-command-center-trusted-peer-pilot.csv
 make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> PEER_GROUP=<group> SOURCE=<source> AS_OF_DATE=<yyyy-mm-dd> REVIEWER=<name> REVIEW_DATE=<yyyy-mm-dd>
 make imports-validate IMPORT_TICKERS=<ticker>
 make imports-preview IMPORT_TICKERS=<ticker>
 ```
+
+For a 25-50 company peer pilot, keep the working source-review sheet outside Git until rows are reviewed. The template is a collection aid only: candidate/context rows stay `candidate_context_only`, and only source-backed relationships that pass `peer-mapping-writeback-guard`, validation, preview, rejected-row review, rebuilt readiness, and proof recording can become trusted peer mappings.
 
 Earnings and analyst estimates:
 
