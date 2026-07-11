@@ -28,6 +28,7 @@ help:
 	@echo "For the full local command catalog, run: make help-full"
 
 .PHONY: dashboard-render-smoke
+.PHONY: price-history-batch-closeout
 
 next-stage:
 	@python3 -m src.next_stage
@@ -66,6 +67,8 @@ help-full:
 	@echo "                        Show DCF blockers that specifically need shares-outstanding proof"
 	@echo "  make price-history-proof-queue"
 	@echo "                        Show short local price-history proof blockers after broad price coverage"
+	@echo "  make price-history-batch-closeout"
+	@echo "                        Print a read-only grouped still-blocked proof-record scaffold"
 	@echo "  make lane-outcome-history"
 	@echo "                        Summarize lane outcomes from the durable proof ledger"
 	@echo "  make price-reviewed-run"
@@ -165,7 +168,8 @@ help-full:
 	@echo "  make auto-apply-gate         Evaluate deterministic auto-apply gate fields for one staged slice"
 	@echo "  make fundamentals-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the SEC/manual fundamentals proof packet with validate, preview, rejected-row, compare, and proof-record gates"
 	@echo "  make share-count-proof-queue [TOP_N=10] [TICKERS=HOOD,ABNB] Show read-only DCF share-count proof blockers without applying data"
-	@echo "  make price-history-proof-queue [TOP_N=10] [TICKERS=AIAI,AMAN] Show read-only short price-history proof blockers without refreshing or applying data"
+	@echo "  make price-history-proof-queue [TOP_N=10] [TICKERS=AIAI,AMAN] [INCLUDE_REVIEWED=1] Show unreviewed executable blockers by default, or reviewed wait-only rows in audit mode"
+	@echo "  make price-history-batch-closeout [TOP_N=10] [TICKERS=AIAI,AMAN] Print a read-only grouped still-blocked proof-record scaffold"
 	@echo "  make peer-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the peer mapping and mapped-peer valuation-input proof packet without inferring peers"
 	@echo "  make peer-mapping-source-review [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write a fillable source-review packet before editing data/imports/peers.csv"
 	@echo "  make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> PEER_GROUP=<group> SOURCE=<url> AS_OF_DATE=<yyyy-mm-dd> REVIEWER=<name> REVIEW_DATE=<yyyy-mm-dd> Preview one reviewed peer import row; blocks duplicates, self-peers, placeholders, and stale readiness"
@@ -984,7 +988,10 @@ share-count-proof-queue:
 	python3 -m src.share_count_proof_queue --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),) $(if $(OUTPUT),--output "$(OUTPUT)",)
 
 price-history-proof-queue:
-	python3 -m src.price_history_proof_queue --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.price_history_proof_queue --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),) $(if $(filter 1,$(INCLUDE_REVIEWED)),--include-reviewed,)
+
+price-history-batch-closeout:
+	python3 -m src.price_history_batch_closeout --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),)
 
 peer-mapping-queue:
 	python3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)

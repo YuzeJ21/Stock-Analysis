@@ -70,7 +70,16 @@ Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) t
 
 ### P1: Price History Maintenance
 
-Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optional IBKR read-only when explicitly configured, then keyed FMP, Alpha Vantage, and Finnhub fallbacks. The remaining short-history case is a depth boundary, not a reason to rerun broad refreshes while coverage remains otherwise complete.
+Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optional IBKR read-only when explicitly configured, then keyed FMP, Alpha Vantage, and Finnhub fallbacks. This maintenance lane is finite and read-only until a separately reviewed source-backed change is eligible for the import gate.
+
+1. Run the default executable queue: `make price-history-proof-queue TOP_N=25`.
+   - `momentum-not-ready` rows describe a readiness state, not a refresh instruction.
+   - `unreviewed preferred-history candidates` are the only default queue rows eligible for a narrow reviewed investigation.
+   - `reviewed source-limited items` are excluded from the default queue because they remain wait-only.
+2. Use audit mode only to inspect reviewed source-limited items: `INCLUDE_REVIEWED=1 make price-history-proof-queue TOP_N=25`.
+3. When compatible reviewed evidence exists, use `make price-history-batch-closeout TOP_N=25` to produce the read-only grouped closeout scaffold. It does not record proof rows, stage files, commit, or push.
+
+**Stop rules:** stop on no readiness movement in reviewed scope; no identical source-limit retry unless source behavior or verified OHLCV changes; batch compatible proof evidence intentionally; never commit or push one proof row per ticker by default; pivot to the next roadmap item when no executable candidates.
 
 ### P2: 25-50 Company Trusted-Peer Pilot
 

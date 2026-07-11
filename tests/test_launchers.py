@@ -225,6 +225,7 @@ def test_makefile_contains_convenience_targets():
         "optional-context-source-ladder-queue",
         "sec-stage-queue",
         "peer-mapping-queue",
+        "price-history-batch-closeout",
         "price-validate",
         "price-preview",
         "price-apply",
@@ -233,6 +234,38 @@ def test_makefile_contains_convenience_targets():
         "price-normalize",
     ):
         assert f"{target}:" in makefile
+
+
+def test_price_history_batch_closeout_launcher_is_read_only_and_scoped():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    target = makefile.split("price-history-batch-closeout:", 1)[1].split("\n\n", 1)[0]
+    assert "python3 -m src.price_history_batch_closeout" in target
+    assert "--top-n $(or $(TOP_N),10)" in target
+    assert "$(if $(TICKERS),--tickers $(TICKERS),)" in target
+    assert "make price-history-batch-closeout [TOP_N=10] [TICKERS=AIAI,AMAN]" in makefile
+
+
+def test_price_history_proof_queue_launcher_forwards_include_reviewed_only_when_requested():
+    base_environment = {**os.environ, "TOP_N": "1"}
+    default = subprocess.run(
+        ["make", "--dry-run", "price-history-proof-queue"],
+        check=True,
+        capture_output=True,
+        env=base_environment,
+        text=True,
+    )
+    included = subprocess.run(
+        ["make", "--dry-run", "price-history-proof-queue", "INCLUDE_REVIEWED=1"],
+        check=True,
+        capture_output=True,
+        env=base_environment,
+        text=True,
+    )
+
+    assert "--include-reviewed" not in default.stdout
+    assert "--include-reviewed" in included.stdout
+    assert "make price-history-proof-queue [TOP_N=10] [TICKERS=AIAI,AMAN] [INCLUDE_REVIEWED=1] Show unreviewed executable blockers by default, or reviewed wait-only rows in audit mode" in Path("Makefile").read_text(encoding="utf-8")
 
 
 def test_makefile_help_documents_key_workflows():

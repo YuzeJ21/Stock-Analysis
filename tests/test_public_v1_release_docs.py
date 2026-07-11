@@ -412,3 +412,30 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert "Check current counts:    make status-check TOP_N=5" in makefile
     assert "make linkedin-share-check" in makefile
     assert "GitHub's generated OpenGraph card" in makefile
+
+
+def test_active_roadmap_and_price_history_maintenance_are_finite_and_read_only():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    continuity = _read("docs/COVERAGE_CONTINUITY_GOAL_PROMPT.md")
+
+    assert "The active roadmap is ROADMAP.md" in next_stage
+    assert "The active roadmap is ROADMAP.md" in continuity
+    assert "make project-status-check" in next_stage
+    assert "make readiness-ops-center" in next_stage
+    assert "make price-history-proof-queue TOP_N=25" in next_stage
+    assert "make price-history-batch-closeout TOP_N=25" in next_stage
+    assert "momentum-not-ready" in roadmap
+    assert "unreviewed preferred-history candidates" in roadmap
+    assert "reviewed source-limited items" in roadmap
+    assert "INCLUDE_REVIEWED=1" in roadmap
+    assert "make price-history-batch-closeout TOP_N=25" in roadmap
+    assert "stop on no readiness movement in reviewed scope" in roadmap
+    assert "no identical source-limit retry unless source behavior or verified OHLCV changes" in roadmap
+    assert "batch compatible proof evidence intentionally" in roadmap
+    assert "never commit or push one proof row per ticker by default" in roadmap
+    assert "pivot to the next roadmap item when no executable candidates" in roadmap
+    assert "make price-history-proof-queue TOP_N=25" in readme
+    assert "make price-history-batch-closeout TOP_N=25" in readme
+    assert "read-only batch closeout" in readme

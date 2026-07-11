@@ -1,9 +1,12 @@
 from pathlib import Path
+import subprocess
+import sys
 
 import pandas as pd
 
 from src.data_onboarding import build_onboarding_payload
 from src.price_history_proof_queue import (
+    build_price_history_proof_summary_from_payload,
     build_price_history_proof_queue_from_files,
     build_price_history_proof_queue_from_payload,
     render_price_history_proof_queue,
@@ -129,8 +132,8 @@ def test_price_history_proof_queue_focus_detail_suppresses_retry_for_reviewed_no
         encoding="utf-8",
     )
 
-    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10, tickers=["AMD"])
-    rendered = render_price_history_proof_queue(rows, build_onboarding_payload(tmp_path))
+    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10, tickers=["AMD"], include_reviewed=True)
+    rendered = render_price_history_proof_queue(rows, build_onboarding_payload(tmp_path), audit_mode=True)
 
     assert "Follow-up: wait for new verified OHLCV source or changed provider behavior." in rendered
     assert "Dry-run before refresh" not in rendered
@@ -159,7 +162,27 @@ def test_price_history_proof_queue_empty_scope_explains_no_blockers(tmp_path: Pa
     assert "No short price-history blockers found" in render_price_history_proof_queue(rows, payload)
 
 
-def test_price_history_proof_queue_deprioritizes_reviewed_non_actionable_tickers(tmp_path: Path):
+def test_price_history_proof_queue_audit_mode_keeps_only_reviewed_rows(tmp_path: Path):
+    _write_fixture(tmp_path)
+    proofs = tmp_path / "data" / "reviewed_batch_proofs.csv"
+    proofs.write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-PRICE-AMD,prices,AMD,still_blocked,none,"
+        "\"AMD public provider path already tried; do not retry without a new verified OHLCV source.\"\n",
+        encoding="utf-8",
+    )
+
+    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10, include_reviewed=True)
+
+    assert [row.ticker for row in rows] == ["AMD"]
+    assert "reviewed proof ledger already records" in rows[0].source_note.lower()
+    assert rows[0].next_safe_command == "wait for new verified OHLCV source or changed provider behavior"
+    rendered = render_price_history_proof_queue(rows, build_onboarding_payload(tmp_path), audit_mode=True)
+    assert "Audit mode: reviewed source-limited rows only; all rows are wait-only and non-executable." in rendered
+    assert "Audit boundary: do not run provider refresh, import, validate, preview, or apply commands from this mode." in rendered
+
+
+def test_price_history_proof_queue_excludes_reviewed_rows_by_default(tmp_path: Path):
     _write_fixture(tmp_path)
     proofs = tmp_path / "data" / "reviewed_batch_proofs.csv"
     proofs.write_text(
@@ -171,11 +194,23 @@ def test_price_history_proof_queue_deprioritizes_reviewed_non_actionable_tickers
 
     rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10)
 
-    assert [row.ticker for row in rows[:2]] == ["NVDA", "AMD"]
-    amd = next(row for row in rows if row.ticker == "AMD")
-    assert "reviewed proof ledger already records" in amd.source_note.lower()
-    rendered = render_price_history_proof_queue(rows, build_onboarding_payload(tmp_path))
-    assert "Next safest action: make focus-price TICKER=NVDA." in rendered
+    assert [row.ticker for row in rows] == ["NVDA"]
+
+
+def test_price_history_proof_queue_audit_mode_caps_reviewed_only_rows(tmp_path: Path):
+    _write_fixture(tmp_path)
+    proofs = tmp_path / "data" / "reviewed_batch_proofs.csv"
+    proofs.write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-PRICE-AMD,prices,AMD,still_blocked,none,"
+        "\"AMD public provider path already tried; do not retry without a new verified OHLCV source.\"\n",
+        encoding="utf-8",
+    )
+
+    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=1, include_reviewed=True)
+
+    assert [row.ticker for row in rows] == ["AMD"]
+    assert rows[0].next_safe_command.startswith("wait for")
 
 
 def test_price_history_proof_queue_treats_price_history_lane_as_reviewed_non_actionable(tmp_path: Path):
@@ -188,7 +223,7 @@ def test_price_history_proof_queue_treats_price_history_lane_as_reviewed_non_act
         encoding="utf-8",
     )
 
-    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10)
+    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10, include_reviewed=True)
 
     amd = next(row for row in rows if row.ticker == "AMD")
     assert "reviewed proof ledger already records" in amd.source_note.lower()
@@ -205,9 +240,60 @@ def test_price_history_proof_queue_renderer_pivots_when_every_row_is_reviewed_no
         encoding="utf-8",
     )
 
-    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10)
+    rows = build_price_history_proof_queue_from_files(tmp_path, top_n=10, include_reviewed=True)
     rendered = render_price_history_proof_queue(rows, build_onboarding_payload(tmp_path))
 
     assert "Next safest action: No unreviewed executable price-history blockers are shown" in rendered
     assert "do not repeat these source paths unless new provider data" in rendered
     assert "not missing-price refresh" in rendered.lower()
+
+
+def test_price_history_proof_summary_counts_separate_current_queue_states(tmp_path: Path):
+    _write_fixture(tmp_path)
+    payload = build_onboarding_payload(tmp_path)
+
+    summary = build_price_history_proof_summary_from_payload(
+        payload,
+        reviewed_non_actionable_tickers={"AMD"},
+    )
+
+    assert summary.momentum_not_ready_count == 1
+    assert summary.unreviewed_preferred_history_count == 1
+    assert summary.reviewed_source_limited_count == 1
+
+
+def test_price_history_proof_queue_cli_top_n_one_separates_executable_and_audit_rows(tmp_path: Path):
+    _write_fixture(tmp_path)
+    proofs = tmp_path / "data" / "reviewed_batch_proofs.csv"
+    proofs.write_text(
+        "batch_id,lane,tickers,final_outcome,changed_tickers,notes\n"
+        "RB-PRICE-AMD,prices,AMD,still_blocked,none,"
+        "\"AMD public provider path already tried; do not retry without a new verified OHLCV source.\"\n",
+        encoding="utf-8",
+    )
+    command = [
+        sys.executable,
+        "-m",
+        "src.price_history_proof_queue",
+        "--project-root",
+        str(tmp_path),
+        "--top-n",
+        "1",
+    ]
+
+    default_run = subprocess.run(command, capture_output=True, text=True, check=True)
+    audit_run = subprocess.run([*command, "--include-reviewed"], capture_output=True, text=True, check=True)
+
+    summary_line = (
+        "Summary: momentum-not-ready: 1; unreviewed preferred-history candidates: 1; "
+        "reviewed source-limited: 1."
+    )
+    assert summary_line in default_run.stdout
+    assert "1 | NVDA | partial" in default_run.stdout
+    assert "make price-refresh TICKERS=NVDA PROVIDER=auto" in default_run.stdout
+    assert "wait for new verified OHLCV source or changed provider behavior" not in default_run.stdout
+    assert summary_line in audit_run.stdout
+    assert "1 | AMD | partial" in audit_run.stdout
+    assert "wait for new verified OHLCV source or changed provider behavior" in audit_run.stdout
+    assert "make price-refresh" not in audit_run.stdout
+    assert "Audit mode: reviewed source-limited rows only; all rows are wait-only and non-executable." in audit_run.stdout
