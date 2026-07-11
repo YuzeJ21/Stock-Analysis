@@ -119,9 +119,12 @@ make auto-refresh-weekly
 make auto-refresh-optional
 make auto-refresh-runbook
 make auto-refresh-status
+make scheduler-activation-checklist
 ```
 
 The auto-refresh plan is scheduler-ready but still gate-first. Use `make auto-refresh-status SCHEDULE=daily` when you want the current source activation state, setup gaps, avoid-repeat lane, next executable command, and runbook pointer in one read-only summary. Scheduler logs can call `python3 -m src.auto_refresh_orchestrator --root . --schedule daily --status --json` for the same fields as structured JSON. Use `make auto-refresh-runbook SCHEDULE=daily`, `SCHEDULE=weekly`, or `SCHEDULE=optional` when you want a compact unattended checklist instead of the full policy dump; the runbook also prints the current source gate before the lane loop, so provider setup or `make project-status` can stop repeated broad proof loops before any dry-run/apply sequence starts. `auto_supported` means the deterministic gate passed validation, preview, rejected-row, source-provenance, scope, and no-fabrication checks. `human_reviewed_supported` means a person reviewed the evidence. `candidate_context_only` can route research, especially peer candidates, but it is not trusted proof. Rows that fail a source path should be recorded as `still_blocked`, `skipped`, or `excluded` and the workflow should pivot instead of retrying the same unavailable provider.
+
+Use `make scheduler-activation-checklist` before turning any command into a recurring job. The default scheduler posture is status-only monitoring until a one-ticker provider smoke or reviewed source slice proves source availability, validation, intended preview scope, zero rejected rows, provenance, no fabricated values, and proof recording. Provider setup alone is never scheduling proof.
 
 Use `make auto-apply-gate` before any unattended apply step. The gate must see valid validation/preview results, zero rejected rows, source provenance, no fabricated values, expected scope, and a batch size within the lane policy. If any condition fails, it returns `still_blocked` and exits nonzero by default so an unsafe `&& make imports-apply` chain stops before applying. Scheduler/report loops that only need to record the blocked outcome and pivot can use `ALLOW_BLOCKED_GATE=1 make auto-apply-gate ...`; do not use that option in the same shell chain as `imports-apply`.
 
