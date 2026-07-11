@@ -13,6 +13,7 @@ Best first click: open the dashboard preview, then follow Home -> Stock Selector
 Two-minute external review path:
 
 - GitHub-only review: start with the preview image, the five-page workflow map, and `docs/PUBLIC_DEMO_WALKTHROUGH.md`.
+- Controlled reviewer handoff: send `docs/PILOT_REVIEW_INVITATION.md` for one under-three-minute workflow review before sharing the detailed feedback template.
 - Live dashboard review: run `make dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Hosted app status: no public hosted Streamlit URL is configured yet; share the GitHub project, curated screenshots, and local run instructions unless you separately deploy the app and complete `docs/HOSTED_DEMO_DEPLOYMENT.md`.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.

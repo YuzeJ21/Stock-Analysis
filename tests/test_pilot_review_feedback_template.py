@@ -107,3 +107,22 @@ def test_pilot_feedback_closeout_checklist_keeps_feedback_out_of_data_gates():
     assert "docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md" in readme
     assert "make pilot-feedback-closeout" in runbook
     assert "make public-check" in body
+
+
+def test_pilot_review_invitation_is_a_short_privacy_safe_entry_point():
+    invitation = Path("docs/PILOT_REVIEW_INVITATION.md").read_text(encoding="utf-8")
+    readme = Path("README.md").read_text(encoding="utf-8")
+    linkedin_brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
+
+    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in invitation
+    assert "under three minutes" in invitation
+    assert "Where did you start?" in invitation
+    assert "What could you use now?" in invitation
+    assert "What was blocked or excluded?" in invitation
+    assert "What would you do next?" in invitation
+    assert "Do not send names, account details, investment opinions, price targets, trade decisions, or portfolio information." in invitation
+    assert "docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md" in invitation
+    assert "docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md" in invitation
+    assert "not data proof" in invitation.lower()
+    assert "docs/PILOT_REVIEW_INVITATION.md" in readme
+    assert "docs/PILOT_REVIEW_INVITATION.md" in linkedin_brief

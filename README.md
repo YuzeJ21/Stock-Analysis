@@ -12,7 +12,7 @@ This repository is ready to review as a controlled GitHub/LinkedIn portfolio dem
 | What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |
 | What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |
 | What is the current roadmap? | Read `ROADMAP.md` for the sole active priority order, dependencies, and stop rules. |
-| How should I collect pilot feedback? | Run `make pilot-review-feedback`, then use `docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md` and `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` for anonymous workflow-clarity notes only; use `make pilot-feedback-closeout` before turning notes into fixes or deferrals. |
+| How should I collect pilot feedback? | Send [Pilot Review Invitation](docs/PILOT_REVIEW_INVITATION.md), then use `make pilot-review-feedback`, `docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md`, and `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` for anonymous workflow-clarity notes only; use `make pilot-feedback-closeout` before turning notes into fixes or deferrals. |
 | Which screenshot should I use? | Use `docs/assets/linkedin-public-dashboard.png` for LinkedIn Featured or GitHub preview context. |
 | What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |
 | What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |
