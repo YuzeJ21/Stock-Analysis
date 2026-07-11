@@ -18,14 +18,17 @@ documentation, QA, or packaging improvement.
 
 Current stage to verify:
 - Controlled external pilot is allowed only with manual gates.
-- Price coverage is almost complete, but one short-history/partial item may remain.
+- Price rows are complete for the tracked universe, but a small set of
+  short-history depth items may remain partial because public providers only
+  return post-listing history.
 - Fundamentals/DCF, share count, peer mapping, earnings, and analyst-estimate
   lanes remain proof-gated.
 - Current source-proof queues may already be reviewed/exhausted. Do not repeat
   stale loops unless new provider data, keyed sources, reviewed manual rows, new
   tickers, or changed blockers appear.
-- The repo may be ahead of GitHub and may contain broad generated CSV/report
-  churn. Keep generated churn excluded unless it is intentionally reviewed.
+- The repo may be synced or ahead of GitHub; verify before pushing. It may also
+  contain broad generated CSV/report churn. Keep generated churn excluded unless
+  it is intentionally reviewed.
 
 Product principle:
 Data readiness first. Analysis second. Research decision last.
@@ -112,6 +115,10 @@ Work priority:
      candidate_context_only
 5. If no coverage slice is executable, continue with tested product/docs/QA
    improvements that reduce operator confusion and pilot risk.
+6. For short price-history depth work, inspect one ticker at a time, record a
+   reviewed `still_blocked` outcome when Stooq/Yahoo cannot verify enough real
+   OHLCV history, and move to the next ticker without retrying the same source
+   path.
 
 Verification after every code/docs/product slice:
 - python3 -m pytest tests -q
