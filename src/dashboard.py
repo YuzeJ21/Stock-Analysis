@@ -28842,6 +28842,16 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     report_payload = st.session_state.get("single_stock_report_payload")
     if st.session_state.get("single_stock_report_ticker") != ticker:
         report_payload = None
+    single_stock_loading_placeholder = None
+    if public_mode and compact_public_open_report and not report_payload:
+        single_stock_loading_placeholder = st.empty()
+        with single_stock_loading_placeholder.container():
+            render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")
+            render_context_note(
+                "Preparing selected report.",
+                f"Building the saved {ticker} review from local outputs without refreshing prices, importing files, or contacting external accounts.",
+                tone="success",
+            )
 
     def open_selected_report() -> None:
         nonlocal report_payload
@@ -28873,7 +28883,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             report_open=bool(report_payload or query_open_review),
             report_payload=report_payload if isinstance(report_payload, dict) else None,
         )
-        if not report_payload and compact_public_open_report:
+        if not report_payload and compact_public_open_report and single_stock_loading_placeholder is None:
             render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")
         elif not report_payload and not query_open_review:
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
@@ -28886,15 +28896,12 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 tone="success",
             )
         if public_mode and compact_public_open_report:
-            render_context_note(
-                "Preparing selected report.",
-                f"Building the saved {ticker} review from local outputs without refreshing prices, importing files, or contacting external accounts.",
-                tone="success",
-            )
             with st.spinner("Preparing saved review from local outputs..."):
                 open_selected_report()
         else:
             open_selected_report()
+        if single_stock_loading_placeholder is not None:
+            single_stock_loading_placeholder.empty()
         if compact_public_open_report and report_payload:
             st.rerun()
 

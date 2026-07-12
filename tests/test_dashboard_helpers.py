@@ -29602,13 +29602,10 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     query_ticker_index = source.index('query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)', provider_ticker_load_index)
     section_index = source.index('"One-Stock Review"', query_ticker_index)
     direct_route_header_index = source.index('f"{query_ticker} is selected. Review the selected ticker state first', query_ticker_index)
-    loading_contract_index = source.index("render_signal_cards(single_stock_loading_contract_cards(ticker)", provider_ticker_load_index)
-    query_open_pre_report_guard_index = source.index(
-        "if not report_payload and compact_public_open_report:",
-        provider_ticker_load_index,
-    )
-    contract_cards_index = source.index("render_signal_cards(pre_report_cards", query_open_pre_report_guard_index)
-    preparing_note_index = source.index('"Preparing selected report."', query_open_pre_report_guard_index)
+    loading_placeholder_index = source.index("single_stock_loading_placeholder = st.empty()", provider_ticker_load_index)
+    loading_contract_index = source.index("render_signal_cards(single_stock_loading_contract_cards(ticker)", loading_placeholder_index)
+    contract_cards_index = source.index("render_signal_cards(pre_report_cards", loading_contract_index)
+    preparing_note_index = source.index('"Preparing selected report."', loading_placeholder_index)
     preparing_boundary_index = source.index("without refreshing prices, importing files, or contacting external accounts", preparing_note_index)
     open_selected_report_index = source.index("open_selected_report()", preparing_note_index)
     report_button_index = source.index('st.button("Open Review"', contract_cards_index)
@@ -29631,12 +29628,12 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
         < query_ticker_index
         < direct_route_header_index
         < section_index
-        < query_open_pre_report_guard_index
+        < loading_placeholder_index
         < loading_contract_index
-        < contract_cards_index
         < preparing_note_index
         < preparing_boundary_index
         < open_selected_report_index
+        < contract_cards_index
         < report_button_index
         < coverage_expander_index
         < intro_expander_index
@@ -29654,6 +29651,20 @@ def test_direct_public_single_stock_route_shows_a_visible_loading_state_while_sa
     open_report_index = report_chunk.index("open_selected_report()", spinner_index)
 
     assert compact_route_index < spinner_index < open_report_index
+
+
+def test_direct_public_single_stock_route_renders_loading_contract_before_provider_coverage_lookups():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_single_stock_report(")
+    next_function_index = source.index("\ndef render_data_health(", render_index)
+    report_chunk = source[render_index:next_function_index]
+    loading_placeholder_index = report_chunk.index("single_stock_loading_placeholder = st.empty()")
+    loading_contract_index = report_chunk.index("render_signal_cards(single_stock_loading_contract_cards(ticker)", loading_placeholder_index)
+    coverage_lookup_index = report_chunk.index("coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))")
+    clear_loading_index = report_chunk.index("single_stock_loading_placeholder.empty()")
+
+    assert loading_placeholder_index < loading_contract_index < coverage_lookup_index < clear_loading_index
 
 
 def test_single_stock_public_selector_uses_one_primary_ticker_control():
