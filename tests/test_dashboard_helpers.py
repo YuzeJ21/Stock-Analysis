@@ -20271,18 +20271,18 @@ def test_dashboard_uses_readable_universe_import_review_details():
 
     workflow_index = source.index('render_section_header("Universe Review Flow"')
     action_index = source.index('render_section_header("Universe Action Paths"')
-    coverage_expander_index = source.index('st.expander("Universe coverage and source details"')
-    table_expander_index = source.index('st.expander("Current universe list"')
-    import_expander_index = source.index('st.expander("Universe preview checks and copyable commands"')
+    coverage_index = source.index('render_section_header("Universe Coverage and Sources"')
+    table_index = source.index('render_section_header("Current Universe List"')
+    preview_index = source.index('render_section_header("Universe Preview Checks"')
 
-    assert workflow_index < action_index < coverage_expander_index < table_expander_index < import_expander_index
-    assert 'st.expander("Universe coverage and source details", expanded=False)' in source
-    assert 'st.expander("Current universe list", expanded=False)' in source
-    assert 'st.expander("Universe preview checks and copyable commands", expanded=False)' in source
+    assert workflow_index < action_index < coverage_index < table_index < preview_index
+    assert 'st.expander("Universe coverage and source details", expanded=False)' not in source
+    assert 'st.expander("Current universe list", expanded=False)' not in source
+    assert 'st.expander("Universe preview checks and copyable commands", expanded=False)' not in source
     assert "universe_primary_cards = universe_action_paths[:1]" in source
     assert "render_signal_cards(universe_primary_cards, show_commands=False, variant=\"queue\")" in source
     assert "render_signal_cards(universe_action_paths[1:], show_commands=False)" in source
-    assert 'st.expander("Advanced: universe readiness and action details", expanded=False)' in source
+    assert 'st.expander("Advanced: universe details", expanded=False)' in source
     assert 'st.expander("Universe import checks and copyable commands", expanded=False)' not in source
     assert "Universe preview details" in source
     assert "Universe import details" not in source
@@ -29542,13 +29542,31 @@ def test_universe_manager_keeps_only_the_current_preview_path_in_its_default_vie
     next_function_index = source.index("\ndef ", render_index + 1)
     universe_chunk = source[render_index:next_function_index]
     primary_cards_index = universe_chunk.index("universe_primary_cards")
-    detail_drawer_index = universe_chunk.index('with st.expander("Advanced: universe readiness and action details", expanded=False):')
-    coverage_drawer_index = universe_chunk.index('with st.expander("Universe coverage and source details", expanded=False):')
+    detail_drawer_index = universe_chunk.index('with st.expander("Advanced: universe details", expanded=False):')
+    coverage_index = universe_chunk.index('render_section_header("Universe Coverage and Sources"', detail_drawer_index)
 
-    assert primary_cards_index < detail_drawer_index < coverage_drawer_index
-    assert 'render_section_header("Universe Review Flow"' in universe_chunk[detail_drawer_index:coverage_drawer_index]
-    assert 'render_section_header("Universe Action Paths"' in universe_chunk[detail_drawer_index:coverage_drawer_index]
+    assert primary_cards_index < detail_drawer_index < coverage_index
+    assert 'render_section_header("Universe Review Flow"' in universe_chunk[detail_drawer_index:coverage_index]
+    assert 'render_section_header("Universe Action Paths"' in universe_chunk[detail_drawer_index:coverage_index]
     assert 'render_section_header("Universe Review Flow"' not in universe_chunk[:detail_drawer_index]
+
+
+def test_universe_manager_groups_secondary_details_under_one_advanced_drawer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_universe_manager(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    universe_chunk = source[render_index:next_function_index]
+
+    details_drawer_index = universe_chunk.index('with st.expander("Advanced: universe details", expanded=False):')
+    review_flow_index = universe_chunk.index('render_section_header("Universe Review Flow"', details_drawer_index)
+    coverage_index = universe_chunk.index('render_section_header("Universe Coverage and Sources"', review_flow_index)
+    current_list_index = universe_chunk.index('render_section_header("Current Universe List"', coverage_index)
+    preview_index = universe_chunk.index('render_section_header("Universe Preview Checks"', current_list_index)
+
+    assert details_drawer_index < review_flow_index < coverage_index < current_list_index < preview_index
+    assert 'with st.expander("Universe coverage and source details", expanded=False):' not in universe_chunk
+    assert 'with st.expander("Current universe list", expanded=False):' not in universe_chunk
+    assert 'with st.expander("Universe preview checks and copyable commands", expanded=False):' not in universe_chunk
 
 
 def test_operator_overview_keeps_secondary_status_and_route_cards_behind_advanced_details():

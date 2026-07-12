@@ -32447,13 +32447,13 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     universe_action_paths = universe_action_path_cards(universe_summary)
     universe_primary_cards = universe_action_paths[:1]
     render_signal_cards(universe_primary_cards, show_commands=False, variant="queue")
-    with st.expander("Advanced: universe readiness and action details", expanded=False):
+    with st.expander("Advanced: universe details", expanded=False):
         render_section_header("Universe Review Flow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
         render_action_cards(universe_workflow)
         render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, preview-file state, and safer apply flow.")
         render_signal_cards(universe_action_paths[1:], show_commands=False)
 
-    with st.expander("Universe coverage and source details", expanded=False):
+        render_section_header("Universe Coverage and Sources", "Current coverage, source membership, and the available preview presets.")
         render_signal_cards(universe_manager_summary_cards(current, staged))
 
         metric_cols = st.columns(4)
@@ -32478,7 +32478,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
         with st.expander("Preset source list", expanded=False):
             st.dataframe(pd.DataFrame(preset_rows), width="stretch", hide_index=True)
 
-    with st.expander("Current universe list", expanded=False):
+        render_section_header("Current Universe List", "Search the active local list only when a row-level review is necessary.")
         current_frame = pd.DataFrame(current["rows"])
         if not current_frame.empty:
             search = st.text_input("Search current universe", key="universe-manager-search")
@@ -32495,13 +32495,12 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
                 tone="warning",
             )
 
-    with st.expander("Universe preview checks and copyable commands", expanded=False):
-        st.markdown("### Universe Preview Checks")
+        render_section_header("Universe Preview Checks", "Read the staged-preview state before copying a command or considering an apply step.")
         st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
         with st.expander("Universe preview details", expanded=False):
             st.dataframe(staged_universe_detail_frame(staged), width="stretch", hide_index=True)
 
-        st.markdown("### Copyable Commands")
+        st.markdown("#### Copyable Commands")
         st.code(
             "\n".join(
                 [
