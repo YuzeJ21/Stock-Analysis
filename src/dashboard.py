@@ -26669,46 +26669,63 @@ def render_overview(
         analyst_readiness_frame,
         ticker_readiness_frame,
     )
-    render_section_header(
-        "What Changed Recently",
-        "Current readiness counts, latest refresh timestamp, and prior/current deltas when a prior snapshot exists.",
-    )
+    render_section_header("Current operator focus", "One supported local path before opening secondary status and route details.")
     render_signal_cards(
-        readiness_recent_progress_cards(
-            ticker_readiness_frame,
-            prior_ticker_readiness_frame,
-            feature_summary_frame,
-            previous_snapshot_label=prior_ticker_readiness_message,
-        ),
-        show_commands=False,
-    )
-    render_signal_cards(
-        overview_landing_cards(
-            project_status_payload,
-            queue_summary,
-            latest_price,
-            watchlist_count,
-            monthly_count,
-            overview_readiness_summary,
-        ),
-        show_commands=False,
-    )
-    render_signal_cards(
-        [overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary, overview_readiness_summary)],
-        show_commands=False,
-    )
-    render_section_header("Current Best Paths", "A one-row daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next page.")
-    render_signal_cards(
-        overview_current_top_surfaces_cards(
+        overview_best_local_research_path_cards(
             coverage_frame,
             holdings,
-            sec_stage_queue_frame,
-            peer_mapping_queue_frame,
             project_status_payload,
             action_queue_frame,
-        ),
+        )[:1],
         show_commands=False,
     )
+    render_context_note(
+        "Readiness boundary.",
+        "Use this route only with the local inputs shown as ready. Missing, stale, and excluded inputs remain visible instead of becoming weaker conclusions.",
+    )
+    with st.expander("Today's status and routes", expanded=False):
+        render_section_header(
+            "What Changed Recently",
+            "Current readiness counts, latest refresh timestamp, and prior/current deltas when a prior snapshot exists.",
+        )
+        render_signal_cards(
+            readiness_recent_progress_cards(
+                ticker_readiness_frame,
+                prior_ticker_readiness_frame,
+                feature_summary_frame,
+                previous_snapshot_label=prior_ticker_readiness_message,
+            ),
+            show_commands=False,
+        )
+        render_signal_cards(
+            overview_landing_cards(
+                project_status_payload,
+                queue_summary,
+                latest_price,
+                watchlist_count,
+                monthly_count,
+                overview_readiness_summary,
+            ),
+            show_commands=False,
+        )
+        render_signal_cards(
+            [overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary, overview_readiness_summary)],
+            show_commands=False,
+        )
+        render_section_header("Current Best Paths", "A daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next page.")
+        render_signal_cards(
+            overview_current_top_surfaces_cards(
+                coverage_frame,
+                holdings,
+                sec_stage_queue_frame,
+                peer_mapping_queue_frame,
+                project_status_payload,
+                action_queue_frame,
+            ),
+            show_commands=False,
+        )
+        render_section_header("Next Deeper Tabs", "Open one deeper route only after the high-level operator focus is clear.")
+        render_signal_cards(overview_handoff_cards(), show_commands=False)
     with st.expander("Readiness and data-quality details", expanded=False):
         render_section_header("Data Quality / Readiness", "Use these readiness details before interpreting rankings or research conclusions.")
         render_signal_cards(readiness_panel_cards(overview_readiness_summary))
@@ -26739,17 +26756,6 @@ def render_overview(
         )
         render_section_header("Current Review Queue", "Which currently usable names are easiest to review next with the local data already available.")
         render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
-
-    render_section_header("Today's Best Local Research Path", "One compact review path: the strongest locally usable name, the next project command, and the next page to open after that.")
-    render_signal_cards(
-        overview_best_local_research_path_cards(
-            coverage_frame,
-            holdings,
-            project_status_payload,
-            action_queue_frame,
-        ),
-        show_commands=False,
-    )
 
     with st.expander("More readiness and routing detail", expanded=False):
         render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need proof work first.")
@@ -26821,9 +26827,6 @@ def render_overview(
                 ("Urgent Proof Steps", queue_summary["critical"], "Highest-priority data fixes"),
             ]
         )
-
-    render_section_header("Next Deeper Tabs", "Where to go next after the high-level workflow read, depending on whether you need blocker triage, single-name depth, or broader candidate comparison.")
-    render_signal_cards(overview_handoff_cards())
 
     with st.expander("More status, proof worklists, and local files", expanded=False):
         st.markdown(
@@ -28588,8 +28591,18 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     )
     monthly_quality_cards = monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n)
     monthly_primary_cards = [monthly_next_step_cards[0], monthly_quality_cards[0]]
+    monthly_primary_metrics = [
+        ("Candidates", f"{candidate_count} of {top_n}", "Conservative filters may return fewer"),
+        ("Current Month", "Not ready yet" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"), "Built from local monthly context"),
+        ("Latest Price", latest_price, "Latest local price date"),
+    ]
+    monthly_secondary_metrics = [
+        ("Benchmark", "SPY", "For local track-record comparison"),
+        ("Universe", universe_count, "Current local universe size"),
+    ]
     render_signal_cards(monthly_primary_cards, show_commands=False, variant="queue")
     with st.expander("Advanced: monthly method and guidance", expanded=False):
+        render_metric_cards(monthly_secondary_metrics)
         render_signal_cards(monthly_landing_cards, show_commands=False)
         render_signal_cards(monthly_next_step_cards[1:], show_commands=False)
         render_signal_cards(monthly_quality_cards[1:], show_commands=False)
@@ -28598,15 +28611,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         render_section_header("How To Read Monthly Picks", "Candidate quality, limits, and method provenance before reading any ranked names.")
         render_signal_cards(monthly_picks_function_quality_cards())
 
-    render_metric_cards(
-        [
-            ("Candidates", f"{candidate_count} of {top_n}", "Conservative filters may return fewer"),
-            ("Current Month", "Not ready yet" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"), "Built from local monthly context"),
-            ("Benchmark", "SPY", "For local track-record comparison"),
-            ("Universe", universe_count, "Current local universe size"),
-            ("Latest Price", latest_price, "Latest local price date"),
-        ]
-    )
+    render_metric_cards(monthly_primary_metrics)
     blocker_command = monthly_picks_next_step_cards(
         pd.DataFrame() if picks_frame is not None and picks_frame.empty else picks_frame,
         track_frame,

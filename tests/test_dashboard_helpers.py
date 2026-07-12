@@ -3234,37 +3234,42 @@ def test_dashboard_first_read_copy_avoids_engineering_queue_language():
 
 def test_overview_default_view_keeps_best_path_before_detailed_queues():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_overview(")
+    next_function_index = source.index("\ndef _plain_home_readiness_cards(", render_index)
+    overview_chunk = source[render_index:next_function_index]
 
-    overview_index = source.index('render_section_header(\n        "Overview"')
-    changed_index = source.index('render_section_header(\n        "What Changed Recently"')
-    best_paths_index = source.index('render_section_header("Current Best Paths"')
-    readiness_expander_index = source.index('st.expander("Readiness and data-quality details"')
-    readiness_index = source.index('render_section_header("Data Quality / Readiness"', readiness_expander_index)
-    overview_queue_index = source.index('st.expander("More overview worklists"')
-    local_path_index = source.index('render_section_header("Today\'s Best Local Research Path"')
-    next_tabs_index = source.index('render_section_header("Next Deeper Tabs"')
-    status_unlock_index = source.index('st.expander("More status, proof worklists, and local files"')
-    project_status_index = source.index('render_section_header(\n                "Project Status"', status_unlock_index)
-    next_data_unlocks_index = source.index('render_section_header("Next Data Proof Steps"', status_unlock_index)
+    overview_index = overview_chunk.index('render_section_header(\n        "Overview"')
+    focus_index = overview_chunk.index('render_section_header("Current operator focus"')
+    focus_path_index = overview_chunk.index("overview_best_local_research_path_cards(", focus_index)
+    summary_expander_index = overview_chunk.index('st.expander("Today\'s status and routes", expanded=False)')
+    changed_index = overview_chunk.index('render_section_header(\n            "What Changed Recently"')
+    best_paths_index = overview_chunk.index('render_section_header("Current Best Paths"')
+    readiness_expander_index = overview_chunk.index('st.expander("Readiness and data-quality details"')
+    readiness_index = overview_chunk.index('render_section_header("Data Quality / Readiness"', readiness_expander_index)
+    overview_queue_index = overview_chunk.index('st.expander("More overview worklists"')
+    next_tabs_index = overview_chunk.index('render_section_header("Next Deeper Tabs"', summary_expander_index)
+    status_unlock_index = overview_chunk.index('st.expander("More status, proof worklists, and local files"')
+    project_status_index = overview_chunk.index('render_section_header(\n                "Project Status"', status_unlock_index)
+    next_data_unlocks_index = overview_chunk.index('render_section_header("Next Data Proof Steps"', status_unlock_index)
 
-    assert overview_index < changed_index < best_paths_index < readiness_expander_index < overview_queue_index < local_path_index
-    assert local_path_index < next_tabs_index < status_unlock_index
+    assert overview_index < focus_index < focus_path_index < summary_expander_index < changed_index < best_paths_index < next_tabs_index
+    assert summary_expander_index < readiness_expander_index < overview_queue_index < status_unlock_index
     assert readiness_expander_index < readiness_index < overview_queue_index
     assert status_unlock_index < project_status_index < next_data_unlocks_index
-    assert "readiness_recent_progress_cards(\n            ticker_readiness_frame," in source
-    assert "overview_current_top_surfaces_cards(\n            coverage_frame," in source
-    assert "overview_best_local_research_path_cards(\n            coverage_frame," in source
-    assert source.count("show_commands=False") >= 8
-    assert 'st.expander("Readiness and data-quality details", expanded=False)' in source
-    assert 'st.expander("More overview worklists", expanded=False)' in source
-    assert 'st.expander("More status, proof worklists, and local files", expanded=False)' in source
-    assert 'st.expander("More overview queues"' not in source
-    assert 'st.expander("More status, unlock queues, and generated outputs"' not in source
-    assert "if project_status_payload:\n        st.markdown(project_status_cockpit_html" in source
+    assert "readiness_recent_progress_cards(\n                ticker_readiness_frame," in overview_chunk
+    assert "overview_current_top_surfaces_cards(\n                coverage_frame," in overview_chunk
+    assert "overview_best_local_research_path_cards(\n            coverage_frame," in overview_chunk
+    assert overview_chunk.count("show_commands=False") >= 6
+    assert 'st.expander("Readiness and data-quality details", expanded=False)' in overview_chunk
+    assert 'st.expander("More overview worklists", expanded=False)' in overview_chunk
+    assert 'st.expander("More status, proof worklists, and local files", expanded=False)' in overview_chunk
+    assert 'st.expander("More overview queues"' not in overview_chunk
+    assert 'st.expander("More status, unlock queues, and generated outputs"' not in overview_chunk
+    assert "if project_status_payload:\n        st.markdown(project_status_cockpit_html" in overview_chunk
     assert status_unlock_index < next_data_unlocks_index
-    assert 'st.expander("More readiness and routing detail", expanded=False)' in source
-    assert 'st.expander("More company-data context", expanded=False)' in source
-    assert 'st.expander("More market and review context", expanded=False)' in source
+    assert 'st.expander("More readiness and routing detail", expanded=False)' in overview_chunk
+    assert 'st.expander("More company-data context", expanded=False)' in overview_chunk
+    assert 'st.expander("More market and review context", expanded=False)' in overview_chunk
     assert 'if selected_page == "Overview":\n        project_status_payload = build_project_status_payload' not in source
 
 
@@ -29386,9 +29391,23 @@ def test_monthly_picks_collapses_repeated_method_and_quality_cards_after_the_fir
     metrics_index = monthly_chunk.index("render_metric_cards(", guidance_drawer_index)
 
     assert primary_cards_index < guidance_drawer_index < metrics_index
-    assert 'render_section_header("Candidate Review Guide"' in monthly_chunk[guidance_drawer_index:metrics_index]
-    assert 'render_section_header("How To Read Monthly Picks"' in monthly_chunk[guidance_drawer_index:metrics_index]
+    assert 'render_section_header("Candidate Review Guide"' in monthly_chunk[guidance_drawer_index:]
+    assert 'render_section_header("How To Read Monthly Picks"' in monthly_chunk[guidance_drawer_index:]
     assert 'render_section_header("Candidate Review Guide"' not in monthly_chunk[:guidance_drawer_index]
+
+
+def test_monthly_picks_keeps_secondary_benchmark_and_universe_metrics_in_advanced_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_monthly_picks(")
+    next_function_index = source.index("\ndef render_advanced_page_shell(", render_index)
+    monthly_chunk = source[render_index:next_function_index]
+    guidance_drawer_index = monthly_chunk.index('with st.expander("Advanced: monthly method and guidance", expanded=False):')
+    primary_metrics_index = monthly_chunk.index("monthly_primary_metrics")
+    secondary_metrics_index = monthly_chunk.index("render_metric_cards(monthly_secondary_metrics)")
+    primary_metrics_call_index = monthly_chunk.index("render_metric_cards(monthly_primary_metrics)")
+
+    assert primary_metrics_index < guidance_drawer_index < secondary_metrics_index < primary_metrics_call_index
 
 
 def test_universe_manager_keeps_only_the_current_preview_path_in_its_default_view():
@@ -29404,6 +29423,23 @@ def test_universe_manager_keeps_only_the_current_preview_path_in_its_default_vie
     assert 'render_section_header("Universe Review Flow"' in universe_chunk[detail_drawer_index:coverage_drawer_index]
     assert 'render_section_header("Universe Action Paths"' in universe_chunk[detail_drawer_index:coverage_drawer_index]
     assert 'render_section_header("Universe Review Flow"' not in universe_chunk[:detail_drawer_index]
+
+
+def test_operator_overview_keeps_secondary_status_and_route_cards_behind_advanced_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_overview(")
+    next_function_index = source.index("\ndef _plain_home_readiness_cards(", render_index)
+    overview_chunk = source[render_index:next_function_index]
+    summary_drawer_index = overview_chunk.index('with st.expander("Today\'s status and routes", expanded=False):')
+    path_index = overview_chunk.index("overview_best_local_research_path_cards(")
+    recent_progress_index = overview_chunk.index("readiness_recent_progress_cards(")
+    landing_cards_index = overview_chunk.index("overview_landing_cards(")
+    guardrail_index = overview_chunk.index("overview_interpretation_guardrail_card(")
+    routes_index = overview_chunk.index("overview_handoff_cards()")
+
+    assert path_index < summary_drawer_index
+    assert summary_drawer_index < recent_progress_index < landing_cards_index < guardrail_index < routes_index
 
 
 def test_public_mobile_selector_override_wins_over_the_desktop_grid_rule():
