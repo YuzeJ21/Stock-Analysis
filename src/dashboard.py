@@ -9437,6 +9437,17 @@ def stock_report_workflow_fit_cards(
     route = route_decision["route"]
     route_label = route_decision["route_label"]
     stop_rule = route_decision["stop_rule"]
+    handoff_title = f"{route_label}: {next_title}"
+    handoff_body = (
+        f"{next_review} Continue through {route_label} only if the locked fields matter for this ticker. "
+        f"The route is a manual proof path in the detailed controls. Stop rule: {stop_rule}"
+    )
+    if route_label == "Optional context lane":
+        handoff_title = "Optional context lane: Keep locked until source proof"
+        handoff_body = (
+            f"{withheld} Open Data Health only if optional context is necessary for this review. "
+            f"Stop rule: {stop_rule}"
+        )
 
     return [
         {
@@ -9473,11 +9484,8 @@ def stock_report_workflow_fit_cards(
         },
         {
             "kicker": "DATA HEALTH HANDOFF",
-            "title": f"{route_label}: {next_title}",
-            "body": (
-                f"{next_review} Continue through {route_label} only if the locked fields matter for this ticker. "
-                f"The route is a manual proof path in the detailed controls. Stop rule: {stop_rule}"
-            ),
+            "title": handoff_title,
+            "body": handoff_body,
             "badges": ["manual proof", "research-only"],
             "command": next_command,
         },
@@ -28901,13 +28909,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         readiness = report_payload.get("valuation_readiness", {})
         if not public_mode:
             render_section_header(
-                f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
-                "A readable view of local research inputs. This is context only, not execution guidance.",
-            )
-        if not public_mode:
-            render_section_header(
-                "What Can Be Read Now",
-                "Start here: what is supported, what is withheld, and what to read next.",
+                f"{format_missing(report_payload.get('ticker'), 'Selected ticker')}: What can be read now",
+                "Start with the current supported, withheld, and next-step answers; detailed evidence stays closed below.",
             )
         report_readiness = _stock_report_payload_readiness(report_payload)
         report_valuation = report_payload.get("valuation_snapshot", {}) or {}

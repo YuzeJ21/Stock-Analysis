@@ -2734,7 +2734,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "One-ticker research review" not in source
     assert "One-ticker research workflow" not in source
     assert "Structured research workflow for one ticker" not in source
-    assert "A readable view of local research inputs" in source
+    assert "Start with the current supported, withheld, and next-step answers" in source
     assert "A structured view of local research inputs" not in source
     assert "Download Evidence JSON" in source
     assert "Download Structured Report" not in source
@@ -3148,7 +3148,7 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
 def test_loaded_single_stock_detail_tables_are_collapsed_after_workflow_fit():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    readable_now_index = source.index('"What Can Be Read Now"')
+    readable_now_index = source.index("What can be read now")
     workflow_fit_index = source.index("stock_report_workflow_fit_cards(", readable_now_index)
     advanced_detail_index = source.index(
         'st.expander("Advanced: detailed report sections", expanded=False)',
@@ -11583,6 +11583,23 @@ def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_hando
     assert "sell" not in rendered
 
 
+def test_stock_report_workflow_fit_cards_make_optional_context_handoff_explicit():
+    cards = dashboard.stock_report_workflow_fit_cards(
+        {
+            "ticker": "NVDA",
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": True},
+            "missing_data_warnings": ["Earnings and analyst estimates unavailable"],
+        }
+    )
+    handoff = next(card for card in cards if card["kicker"] == "DATA HEALTH HANDOFF")
+
+    assert handoff["title"] == "Optional context lane: Keep locked until source proof"
+    assert "open data health only if optional context is necessary" in handoff["body"].lower()
+    assert "review full report" not in handoff["title"].lower()
+
+
 def test_operator_single_stock_workflow_cards_hide_redundant_research_loop_card():
     cards = [
         {"kicker": "RESEARCH LOOP", "title": "Repeated workflow"},
@@ -17432,7 +17449,7 @@ def test_single_stock_page_keeps_full_intro_collapsed_and_uses_open_state():
     review_open_note_index = source.index('"Review is open."', auto_open_index)
     preview_note_index = source.index('"What happens next."', review_open_note_index)
     build_button_index = source.index('st.button("Open Review"', preview_note_index)
-    readable_now_index = source.index('"What Can Be Read Now"', review_open_note_index)
+    readable_now_index = source.index("What can be read now", review_open_note_index)
     evidence_index = source.index('st.expander("Ticker Readiness Evidence", expanded=False)', build_button_index)
     loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
     state_expander_index = source.index('st.expander("Advanced: example report states", expanded=False)')
@@ -17496,7 +17513,7 @@ def test_single_stock_public_page_uses_product_language_not_engineering_terms():
 def test_single_stock_page_collapses_secondary_interpretation_before_detailed_review():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    report_header_index = source.index('"What Can Be Read Now"')
+    report_header_index = source.index("What can be read now")
     at_glance_index = source.index("stock_report_at_a_glance_cards(", report_header_index)
     workflow_fit_cards_index = source.index("stock_report_workflow_fit_cards(", at_glance_index)
     workflow_fit_hidden_commands_index = source.index("show_commands=False", workflow_fit_cards_index)
@@ -17564,6 +17581,19 @@ def test_operator_single_stock_keeps_raw_answer_tables_inside_review_summary_det
 
     assert summary_frame_index < workflow_cards_index < review_drawer_index
     assert review_drawer_index < single_answer_table_index < report_answer_table_index < at_a_glance_render_index
+
+
+def test_operator_single_stock_uses_one_ticker_specific_decision_heading_before_answer_cards():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_single_stock_report(")
+    next_function_index = source.index("\ndef render_data_health(", render_index)
+    report_chunk = source[render_index:next_function_index]
+    heading_index = report_chunk.index('f"{format_missing(report_payload.get(\'ticker\'), \'Selected ticker\')}: What can be read now"')
+    answer_cards_index = report_chunk.index("render_signal_cards(operator_single_stock_workflow_cards(workflow_fit_cards), show_commands=False)")
+
+    assert heading_index < answer_cards_index
+    assert 'f"{format_missing(report_payload.get(\'ticker\'), \'Selected ticker\')} Report"' not in report_chunk
 
 
 def test_operator_single_stock_keeps_repeated_research_loop_under_advanced_workflow_detail():
@@ -29479,11 +29509,10 @@ def test_single_stock_keeps_usable_blocked_cards_before_report_load():
 def test_public_single_stock_uses_one_selected_ticker_heading_before_the_answer():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")
-    report_header_index = source.index('f"{format_missing(report_payload.get(\'ticker\'), \'Selected ticker\')} Report"', render_index)
+    report_header_index = source.index('f"{format_missing(report_payload.get(\'ticker\'), \'Selected ticker\')}: What can be read now"', render_index)
     public_guard_index = source.rfind("if not public_mode:", render_index, report_header_index)
-    readable_now_index = source.index('"What Can Be Read Now"', report_header_index)
 
-    assert render_index < public_guard_index < report_header_index < readable_now_index
+    assert render_index < public_guard_index < report_header_index
 
 
 def test_public_subpages_do_not_insert_home_loop_before_page_content():
@@ -29916,7 +29945,7 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     render_index = source.index("def render_single_stock_report(")
 
     review_intro_index = source.index('"One-Stock Review"', render_index)
-    readable_now_index = source.index('"What Can Be Read Now"', review_intro_index)
+    readable_now_index = source.index("What can be read now", review_intro_index)
     one_answer_index = source.index("single_stock_one_answer_frame(report_one_answer_snapshot)", readable_now_index)
     first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", one_answer_index)
     public_cards_index = source.index("single_stock_public_summary_html(single_answer_frame)", first_answer_index)
