@@ -1462,6 +1462,7 @@ def test_shared_dashboard_surfaces_use_flat_institutional_treatment():
     assert "box-shadow: 0 1px 2px" in signal_card_block
     assert "linear-gradient" not in context_note_block
     assert "linear-gradient" not in theme_block
+    assert not re.search(r"border-radius: (10|12|13|14)px", theme_block)
 
 
 def test_command_center_loop_and_workbench_follow_reference_structure():

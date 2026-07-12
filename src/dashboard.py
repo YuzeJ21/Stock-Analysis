@@ -3563,7 +3563,7 @@ def apply_dashboard_theme() -> None:
           margin: 0.65rem 0 1rem 0;
         }
         .public-proof-item {
-          border-radius: 12px;
+          border-radius: 8px;
           border: 1px solid rgba(15, 118, 110, 0.16);
           background: rgba(255, 255, 255, 0.92);
           padding: 0.78rem 0.85rem;
@@ -3692,7 +3692,7 @@ def apply_dashboard_theme() -> None:
         .subtle-panel {
           border: 1px solid var(--research-border);
           background: #ffffff;
-          border-radius: 12px;
+          border-radius: 8px;
           padding: 0.95rem 1rem;
           margin: 0.85rem 0 1rem 0;
         }
@@ -3703,7 +3703,7 @@ def apply_dashboard_theme() -> None:
           display: block;
           margin: 0.48rem 0 0.82rem 0;
           padding: 0.64rem 0.75rem;
-          border-radius: 10px;
+          border-radius: 8px;
           border: 1px solid #dce5dc;
           background: #ffffff;
           color: #526071;
@@ -3791,7 +3791,7 @@ def apply_dashboard_theme() -> None:
           margin: 0.35rem 0 0.8rem 0;
         }
         .sidebar-route-item {
-          border-radius: 13px;
+          border-radius: 8px;
           border: 1px solid #dce5dc;
           background: rgba(255, 254, 250, 0.76);
           padding: 0.6rem 0.66rem;
@@ -3860,7 +3860,7 @@ def apply_dashboard_theme() -> None:
           gap: 0.75rem;
         }
         .cockpit-lane {
-          border-radius: 12px;
+          border-radius: 8px;
           padding: 0.95rem 1rem;
           background: rgba(255, 254, 250, 0.94);
           border: 1px solid var(--research-border);
@@ -3917,7 +3917,7 @@ def apply_dashboard_theme() -> None:
         [data-testid="stMetric"] {
           background: rgba(255, 253, 248, 0.86);
           border: 1px solid var(--research-border);
-          border-radius: 14px;
+          border-radius: 8px;
           padding: 0.8rem 0.9rem;
           box-shadow: 0 1px 2px rgba(23,32,51,0.06);
         }
@@ -3955,7 +3955,7 @@ def apply_dashboard_theme() -> None:
           color: #ffffff !important;
         }
         div[data-testid="stAlert"] {
-          border-radius: 12px;
+          border-radius: 8px;
           border: 1px solid #93c5fd;
           background-color: #eef7ff;
         }
