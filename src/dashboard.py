@@ -26239,15 +26239,16 @@ def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
     return filtered
 
 
-def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> None:
+def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool, *, show_focus_cards: bool = True) -> None:
     filtered = filter_frame(reorder_columns(frame), key)
     display_frame = reorder_columns(display_with_summaries(filtered))
     compact_columns = compact_table_columns(display_frame)
-    render_signal_cards(table_focus_cards(filtered))
-    render_context_note(
-        "Default view.",
-        "Showing the most useful columns first. Open the detail panels below for reasons, data gaps, and next-step context.",
-    )
+    if show_focus_cards:
+        render_signal_cards(table_focus_cards(filtered))
+        render_context_note(
+            "Default view.",
+            "Showing the most useful columns first. Open the detail panels below for reasons, data gaps, and next-step context.",
+        )
     st.dataframe(style_frame(presentation_frame(display_frame[compact_columns])), width="stretch", hide_index=True)
 
     page_label = table_page_label(key)
@@ -28752,8 +28753,10 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
         render_notice_card(f"{title} output note", message, "make verify")
     if frame is None:
         return
-    render_signal_cards(output_tab_summary_cards(title, frame))
-    render_signal_cards(output_tab_function_quality_cards(title))
+    render_signal_cards(output_tab_summary_cards(title, frame)[:3])
+    with st.expander("Advanced: interpretation and data limits", expanded=False):
+        render_signal_cards(output_tab_summary_cards(title, frame)[3:])
+        render_signal_cards(output_tab_function_quality_cards(title))
     if title == "Momentum Leaders":
         render_momentum_readiness_tab(frame, show_reason_details)
         return
@@ -28765,7 +28768,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
         return
     for section_title, description, chart_frame, chart_kind in output_tab_chart_sections(title, frame):
         render_chart_panel(section_title, description, chart_frame, chart_kind=chart_kind)
-    render_table(frame, title.lower().replace(" ", "-"), show_reason_details)
+    render_table(frame, title.lower().replace(" ", "-"), show_reason_details, show_focus_cards=False)
 
 
 def render_single_stock_report(provider, show_source_details: bool, *, public_mode: bool = True) -> None:

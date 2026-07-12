@@ -29424,6 +29424,21 @@ def test_advanced_pages_use_one_readiness_boundary_instead_of_a_repeated_generic
     assert "def advanced_page_shell_cards(" not in source
 
 
+def test_generic_operator_research_pages_keep_only_primary_summary_cards_before_the_chart_and_table():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_output_tab(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    output_chunk = source[render_index:next_function_index]
+    primary_summary_index = output_chunk.index("render_signal_cards(output_tab_summary_cards(title, frame)[:3])")
+    details_drawer_index = output_chunk.index('with st.expander("Advanced: interpretation and data limits", expanded=False):')
+    secondary_summary_index = output_chunk.index("render_signal_cards(output_tab_summary_cards(title, frame)[3:])", details_drawer_index)
+    function_cards_index = output_chunk.index("render_signal_cards(output_tab_function_quality_cards(title))", details_drawer_index)
+    table_index = output_chunk.index("render_table(frame, title.lower().replace(\" \", \"-\"), show_reason_details, show_focus_cards=False)")
+
+    assert primary_summary_index < details_drawer_index < secondary_summary_index < function_cards_index < table_index
+
+
 def test_monthly_picks_collapses_repeated_method_and_quality_cards_after_the_first_answer():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_monthly_picks(")
