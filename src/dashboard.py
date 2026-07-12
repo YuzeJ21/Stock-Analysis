@@ -25837,7 +25837,7 @@ def presentation_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def display_with_summaries(frame: pd.DataFrame) -> pd.DataFrame:
-    display = clean_display_frame(frame)
+    display = frame.copy()
     if "Reason" in frame.columns:
         display["ReasonSummary"] = frame["Reason"].map(compact_reason)
     if "RankReason" in frame.columns:
@@ -26512,10 +26512,14 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
     decisions, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
     if decisions is not None and not decisions.empty:
         render_section_header("Decision Quality", "How to interpret Research Now, Monitor, and Blocked by Data before reading the table.")
-        render_signal_cards(decision_interpretation_ladder_cards(), show_commands=False)
-        with st.expander("Decision interpretation ladder", expanded=False):
-            st.dataframe(clean_display_frame(decision_interpretation_ladder_frame()), width="stretch", hide_index=True)
+        render_context_note(
+            "Readiness boundary.",
+            "Research Now, Monitor, and Blocked by Data are review states. Read the blocker before the score, and treat every next action as a local research handoff, not a recommendation.",
+        )
         render_signal_cards(final_decision_quality_cards(decisions), show_commands=False)
+        with st.expander("Decision interpretation ladder", expanded=False):
+            render_signal_cards(decision_interpretation_ladder_cards(), show_commands=False)
+            st.dataframe(clean_display_frame(decision_interpretation_ladder_frame()), width="stretch", hide_index=True)
         with st.expander("More decision detail: review states, proof queue, and table guide", expanded=False):
             render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in missing-data states.")
             render_signal_cards(decision_workflow_summary_cards(decisions))

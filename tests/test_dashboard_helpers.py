@@ -4076,6 +4076,27 @@ def test_compact_table_columns_prefers_summaries_over_raw_reason():
     assert "Reason" not in columns
 
 
+def test_display_with_summaries_keeps_schema_names_until_compact_ordering_runs():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["NVDA"],
+            "PrimaryPurpose": ["Momentum Leader"],
+            "SetupStatus": ["Setup Forming"],
+            "ReviewState": ["Review Thesis"],
+            "Reason": ["A long local explanation that should be summarized in the compact table."],
+        }
+    )
+
+    display = dashboard.display_with_summaries(frame)
+    columns = dashboard.compact_table_columns(display)
+
+    assert "PrimaryPurpose" in display.columns
+    assert "ReasonSummary" in display.columns
+    assert columns[:4] == ["Ticker", "PrimaryPurpose", "SetupStatus", "ReviewState"]
+    assert "ReasonSummary" in columns
+    assert "Reason" not in columns
+
+
 def test_compact_table_columns_prioritize_rank_purpose_and_hide_noise():
     frame = pd.DataFrame(
         {
@@ -29449,6 +29470,20 @@ def test_specialized_operator_pages_use_their_dedicated_readiness_answer_before_
     generic_summary_index = output_chunk.index("render_signal_cards(output_tab_summary_cards(title, frame)[:3])")
 
     assert special_case_index < generic_summary_index
+
+
+def test_final_watchlist_keeps_the_decision_reading_ladder_in_advanced_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_final_decision_tab(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    output_chunk = source[render_index:next_function_index]
+    context_note_index = output_chunk.index('render_context_note(\n            "Readiness boundary."')
+    quality_cards_index = output_chunk.index("render_signal_cards(final_decision_quality_cards(decisions), show_commands=False)")
+    details_drawer_index = output_chunk.index('with st.expander("Decision interpretation ladder", expanded=False):')
+    ladder_cards_index = output_chunk.index("render_signal_cards(decision_interpretation_ladder_cards(), show_commands=False)", details_drawer_index)
+
+    assert context_note_index < quality_cards_index < details_drawer_index < ladder_cards_index
 
 
 def test_monthly_picks_collapses_repeated_method_and_quality_cards_after_the_first_answer():
