@@ -2463,7 +2463,7 @@ def test_data_health_operator_shell_renders_before_heavy_proof_sections():
 def test_major_dashboard_pages_avoid_duplicate_reader_guides():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Home"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Home"))' not in source
     assert 'render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))' not in source
     assert 'render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))' not in source
     assert source.count("render_signal_cards(dashboard_page_reader_summary_cards(title))") == 0
@@ -2750,7 +2750,7 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "render_proof_history(public_mode=public_demo_mode)" in source
     assert "render_public_shell_mode_styles()" in source
     assert "render_public_app_shell(selected_page)" in source
-    assert "compact=selected_page == \"Data Health\"" in source
+    assert "compact=True," in source
     assert "command_center_header_html(" in source
     assert "_header_readiness_summary()" in source
     assert 'if public_demo_mode or selected_page != "Data Health":' in source
@@ -3373,16 +3373,35 @@ def test_home_page_keeps_duplicate_coverage_snapshot_out_of_first_view():
     assert '"Visitor Path"' not in source
     assert 'render_signal_cards(public_home_visitor_path_cards(summary), show_commands=False, variant="queue")' not in source
     assert 'st.expander("Optional: workflow and next-step details", expanded=False)' not in source
-    assert "One connected loop: readiness snapshot, selector queue, one-ticker report, Data Health lane answer, then Proof History evidence before trusting changed states." in source
+    assert 'st.expander("Advanced: operator workflow", expanded=False)' in source
     assert "Data Health source-proof lane" not in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
-    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" not in source
-    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" not in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)" in source
     assert "render_public_home_overview(summary)" in source
     assert 'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")' in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
+
+
+def test_operator_home_keeps_readiness_on_default_and_hides_repeated_workflow_guidance():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    home_index = source.index("def render_home_page(")
+    public_index = source.index("    if public_mode:", home_index)
+    operator_default = source[home_index:public_index]
+    operator_advanced_index = source.index('st.expander("Advanced: operator workflow", expanded=False)', public_index)
+    operator_advanced = source[operator_advanced_index:source.index("\n\n    home_report_notice", operator_advanced_index)]
+
+    assert 'render_section_header(\n            "Home",' in operator_default
+    assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in operator_default
+    assert "dashboard_page_reader_summary_cards" not in operator_default
+    assert "Research Workflow" not in operator_default
+    assert "What To Do Next" not in operator_default
+    assert "Where To Go" not in operator_default
+    assert "Research Workflow" in operator_advanced
+    assert "What To Do Next" in operator_advanced
+    assert "Where To Go" in operator_advanced
     assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4], show_commands=False)" not in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)" in source
     assert "render_public_proof_strip(_public_home_snapshot_items(summary))" not in source
@@ -3505,8 +3524,8 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert 'st.expander("Optional: example reports", expanded=False)' not in source
     assert 'st.expander("Optional: methodology, roadmap, and transparency", expanded=False)' not in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
-    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" not in source
-    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" not in source
+    assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)" in source
     assert "render_home_page(\n            catalog," in source
     assert "project_status_payload=project_status_payload" in source
@@ -28677,16 +28696,17 @@ def test_public_pages_use_compact_shell_before_page_content():
     assert "public-workflow-supporting" not in source
 
 
-def test_public_shell_keeps_global_product_caption_out_of_each_page_answer():
+def test_operator_shell_uses_the_compact_header_without_a_second_product_caption():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     main_index = source.index("def main()")
     public_mode_index = source.index("if public_demo_mode:", main_index)
-    caption_index = source.index("st.caption(\"Local stock research guided workflow.", public_mode_index)
     public_header_index = source.index("render_public_app_shell(selected_page)", public_mode_index)
-    operator_else_index = source.rfind("else:", public_mode_index, caption_index)
+    operator_else_index = source.index("else:", public_header_index)
+    operator_header_index = source.index("render_app_header(", operator_else_index)
 
-    assert public_mode_index < public_header_index < operator_else_index < caption_index
+    assert public_mode_index < public_header_index < operator_else_index < operator_header_index
+    assert "st.caption(\"Local stock research guided workflow." not in source
 
 
 def test_public_workflow_header_uses_one_compact_progress_rail():

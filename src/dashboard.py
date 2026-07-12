@@ -28373,9 +28373,8 @@ def render_home_page(
     if not public_mode:
         render_section_header(
             "Home",
-            "A readiness-first research cockpit for choosing what to review next.",
+            "Current local readiness for the next research review.",
         )
-        render_signal_cards(dashboard_page_reader_summary_cards("Home"))
         render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
 
     if public_mode:
@@ -28500,16 +28499,17 @@ def render_home_page(
                 )
                 st.caption("Broad refresh changes should be inspected before they are committed or shared publicly.")
     else:
-        render_section_header(
-            "Research Workflow",
-            "One connected loop: readiness snapshot, selector queue, one-ticker report, Data Health lane answer, then Proof History evidence before trusting changed states.",
-        )
-        render_research_loop_strip(**home_research_loop_context(summary, display_freshness))
-        render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)
-        render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
-        render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)
-        render_section_header("Where To Go", "Choose the page that matches what you want to review.")
-        render_action_cards(_plain_home_route_choice_cards(summary))
+        with st.expander("Advanced: operator workflow", expanded=False):
+            render_section_header(
+                "Research Workflow",
+                "One connected loop: readiness snapshot, selector queue, one-ticker report, Data Health lane answer, then Proof History evidence before trusting changed states.",
+            )
+            render_research_loop_strip(**home_research_loop_context(summary, display_freshness))
+            render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)
+            render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
+            render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)
+            render_section_header("Where To Go", "Choose the page that matches what you want to review.")
+            render_action_cards(_plain_home_route_choice_cards(summary))
 
     home_report_notice = home_saved_report_notice_message(
         public_mode=public_mode,
@@ -32607,10 +32607,9 @@ def main() -> None:
         render_app_header(
             catalog,
             output_frames,
-            compact=selected_page == "Data Health",
+            compact=True,
             current_page=selected_page,
         )
-        st.caption("Local stock research guided workflow. Data readiness first; analysis only when source-backed inputs are ready.")
 
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
 

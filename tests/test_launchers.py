@@ -2144,7 +2144,7 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "Developer detail: raw report JSON" not in dashboard
     assert "Show advanced report data (JSON)" not in dashboard
     assert "Use optional online data" not in dashboard
-    assert "Local stock research guided workflow" in dashboard
+    assert "Current local readiness for the next research review." in dashboard
     assert "Local stock research dashboard" not in dashboard
     assert "names checked" in dashboard
     assert "CSV-first research cockpit" not in dashboard
