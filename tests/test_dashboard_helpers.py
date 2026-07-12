@@ -1445,6 +1445,23 @@ def test_mobile_public_cards_collapse_to_one_column_before_details():
     assert "box-shadow: none;" in mobile_block
 
 
+def test_shared_dashboard_surfaces_use_flat_institutional_treatment():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    sidebar_block = source[source.index('[data-testid="stSidebar"] [data-testid="stSidebarContent"] {') : source.index('[data-testid="stSidebar"] * {')]
+    active_nav_block = source[source.index('[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {') : source.index('[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p,')]
+    signal_card_block = source[source.index(".signal-card {") : source.index(".signal-grid.queue-grid .signal-card {")]
+    context_note_block = source[source.index(".context-note {") : source.index(".context-note.warning {")]
+
+    assert "linear-gradient" not in sidebar_block
+    assert "linear-gradient" not in active_nav_block
+    assert "background: #0f172a" in sidebar_block
+    assert "background: #146c5a" in active_nav_block
+    assert "background: #ffffff" in signal_card_block
+    assert "box-shadow: 0 1px 2px" in signal_card_block
+    assert "linear-gradient" not in context_note_block
+
+
 def test_command_center_loop_and_workbench_follow_reference_structure():
     rendered = dashboard.command_center_overview_html(
         {"master_universe": 5000, "price_ready": 4912, "dcf_ready": 4102, "peer_ready": 3043},

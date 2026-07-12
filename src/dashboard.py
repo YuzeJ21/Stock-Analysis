@@ -1880,7 +1880,7 @@ def apply_dashboard_theme() -> None:
         """
         <style>
         :root {
-          --research-bg: #f7f8f5;
+          --research-bg: #f8fafc;
           --research-panel: #ffffff;
           --research-ink: #111827;
           --research-text: #1f2937;
@@ -1896,11 +1896,11 @@ def apply_dashboard_theme() -> None:
           --research-radius-sm: 7px;
           --research-radius: 8px;
           --research-radius-lg: 12px;
-          --research-shadow-soft: 0 12px 32px rgba(15, 23, 42, 0.055);
-          --research-shadow-panel: 0 18px 44px rgba(15, 23, 42, 0.075);
+          --research-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.05);
+          --research-shadow-panel: 0 4px 12px rgba(15, 23, 42, 0.07);
         }
         .stApp {
-          background: #f5f7f4;
+          background: #f8fafc;
           color: var(--research-text) !important;
           font-family: "Avenir Next", "SF Pro Display", "Segoe UI", sans-serif;
         }
@@ -2012,7 +2012,7 @@ def apply_dashboard_theme() -> None:
           overflow-x: hidden !important;
         }
         [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
-          background: linear-gradient(180deg, #070d16 0%, #0a1724 100%) !important;
+          background: #0f172a !important;
           padding: 0.85rem 0.62rem !important;
           overflow-x: hidden !important;
         }
@@ -2129,7 +2129,7 @@ def apply_dashboard_theme() -> None:
           border-color: rgba(255,255,255,0.08);
         }
         [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
-          background: linear-gradient(180deg, #0f7a3f 0%, #0d5f34 100%);
+          background: #146c5a;
           border-color: rgba(34,197,94,0.55);
           box-shadow: inset 4px 0 0 #22c55e, 0 10px 24px rgba(0,0,0,0.20);
         }
@@ -2445,12 +2445,12 @@ def apply_dashboard_theme() -> None:
           gap: 0.85rem;
           border: 1px solid rgba(15, 118, 110, 0.20);
           border-radius: 8px;
-          background: linear-gradient(90deg, #f0fdf4, #ffffff);
+          background: #f0fdf4;
           padding: 0.95rem 1rem;
         }
         .command-action-block.stop {
           border-color: rgba(217, 119, 6, 0.24);
-          background: linear-gradient(90deg, #fff7ed, #ffffff);
+          background: #fff7ed;
         }
         .command-action-icon {
           width: 3rem;
@@ -2500,7 +2500,7 @@ def apply_dashboard_theme() -> None:
           background: #ffffff;
           padding: 0.95rem 1rem;
           min-height: 14.5rem;
-          box-shadow: 0 12px 30px rgba(15,23,42,0.045);
+          box-shadow: 0 1px 2px rgba(15,23,42,0.05);
         }
         .command-workbench-title {
           color: #111827;
@@ -2542,14 +2542,14 @@ def apply_dashboard_theme() -> None:
           border-radius: 8px;
           background: rgba(255,255,255,0.84);
           padding: 0.68rem 0.78rem 0.18rem 0.78rem;
-          box-shadow: 0 12px 28px rgba(15,23,42,0.045);
+          box-shadow: 0 1px 2px rgba(15,23,42,0.05);
         }
         .selector-result-table {
           border: 1px solid rgba(15, 23, 42, 0.12);
           border-radius: 8px;
           overflow: hidden;
           background: #ffffff;
-          box-shadow: 0 14px 34px rgba(15,23,42,0.055);
+          box-shadow: 0 1px 2px rgba(15,23,42,0.05);
           margin: 0.58rem 0 0.88rem 0;
         }
         .selector-result-head,
@@ -2665,7 +2665,7 @@ def apply_dashboard_theme() -> None:
         .selector-shortlist {
           border: 1px solid rgba(15, 118, 110, 0.18);
           border-radius: 8px;
-          background: linear-gradient(180deg, #f8fffc 0%, #ffffff 100%);
+          background: #f8fffc;
           padding: 0.78rem 0.86rem;
           margin: 0.58rem 0 0.88rem 0;
           box-shadow: 0 10px 26px rgba(15, 23, 42, 0.045);
@@ -3059,18 +3059,18 @@ def apply_dashboard_theme() -> None:
           border-radius: 8px;
           border: 1px solid #bfdbfe;
           border-left: 6px solid #2563eb;
-          background: linear-gradient(180deg, #eff6ff, #ffffff);
-          box-shadow: 0 10px 26px rgba(37, 99, 235, 0.08);
+          background: #eff6ff;
+          box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
         }
         .notice-card.warning {
           border-color: #fed7aa;
           border-left-color: #d97706;
-          background: linear-gradient(180deg, #fff7ed, #ffffff);
+          background: #fff7ed;
         }
         .notice-card.success {
           border-color: #bbf7d0;
           border-left-color: #16a34a;
-          background: linear-gradient(180deg, #f0fdf4, #ffffff);
+          background: #f0fdf4;
         }
         .notice-title {
           color: #111827;
@@ -3095,17 +3095,17 @@ def apply_dashboard_theme() -> None:
           margin: 0.52rem 0 0.72rem 0;
         }
         .signal-card {
-          background: rgba(255,255,255,0.96);
+          background: #ffffff;
           border: 1px solid rgba(148, 163, 184, 0.22);
           border-radius: 8px;
           padding: 0.68rem 0.72rem;
-          box-shadow: none;
+          box-shadow: 0 1px 2px rgba(15,23,42,0.05);
         }
         .signal-grid.queue-grid .signal-card {
-          background: rgba(255, 255, 255, 0.92);
+          background: #ffffff;
           border-radius: 8px;
           padding: 0.58rem 0.64rem;
-          box-shadow: none;
+          box-shadow: 0 1px 2px rgba(15,23,42,0.05);
           border-color: rgba(148, 163, 184, 0.24);
         }
         .signal-grid.queue-grid .signal-card:first-child {
@@ -3691,7 +3691,7 @@ def apply_dashboard_theme() -> None:
         }
         .subtle-panel {
           border: 1px solid var(--research-border);
-          background: rgba(255, 254, 250, 0.78);
+          background: #ffffff;
           border-radius: 12px;
           padding: 0.95rem 1rem;
           margin: 0.85rem 0 1rem 0;
@@ -3705,7 +3705,7 @@ def apply_dashboard_theme() -> None:
           padding: 0.64rem 0.75rem;
           border-radius: 10px;
           border: 1px solid #dce5dc;
-          background: rgba(255, 254, 250, 0.82);
+          background: #ffffff;
           color: #526071;
           font-size: 0.86rem;
           line-height: 1.44;
