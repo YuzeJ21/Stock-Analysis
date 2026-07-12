@@ -5322,36 +5322,14 @@ def render_public_shell_mode_styles() -> None:
         }
         .selector-result-head { display: none; }
         .selector-result-row {
-          grid-template-columns: minmax(5.5rem, 0.42fr) minmax(12rem, 0.9fr) minmax(16rem, 1.2fr) auto;
+          grid-template-columns: minmax(7rem, 0.42fr) minmax(15rem, 1fr) auto;
           gap: 1rem;
-          align-items: start;
-          padding: 0.95rem 1rem;
+          align-items: center;
+          padding: 0.82rem 1rem;
         }
         .selector-result-identity,
-        .selector-result-summary,
-        .selector-result-evidence {
+        .selector-result-summary {
           min-width: 0;
-        }
-        .selector-result-summary .selector-result-title {
-          margin-top: 0.46rem;
-          font-size: 0.9rem;
-          font-weight: 720;
-        }
-        .selector-result-evidence {
-          display: grid;
-          gap: 0.3rem;
-          color: #53616f;
-          font-size: 0.8rem;
-          line-height: 1.35;
-        }
-        .selector-result-evidence span {
-          display: block;
-          margin-bottom: 0.12rem;
-          color: #667085;
-          font-size: 0.68rem;
-          font-weight: 800;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
         }
         .selector-actions {
           justify-content: flex-end;
@@ -5361,6 +5339,9 @@ def render_public_shell_mode_styles() -> None:
           min-height: 2.25rem;
           border-radius: 6px;
           box-shadow: none;
+          border-color: #0f766e;
+          background: #0f766e;
+          color: #ffffff !important;
         }
         .selector-result-footer {
           padding: 0.7rem 1rem;
@@ -5605,13 +5586,11 @@ def render_public_shell_mode_styles() -> None:
             gap: 0.7rem;
             padding: 0.9rem;
           }
-          .selector-result-summary,
-          .selector-result-evidence { grid-column: 1 / -1; }
+          .selector-result-summary { grid-column: 1 / -1; }
           .selector-actions {
             grid-column: 2;
             grid-row: 1;
           }
-          .selector-result-evidence span { min-width: 4.8rem; }
           .public-lane-row {
             grid-template-columns: 1fr;
             gap: 0.5rem;
@@ -13420,17 +13399,23 @@ def render_proof_history(*, public_mode: bool = True) -> None:
             unsafe_allow_html=True,
         )
     else:
-        render_signal_cards(proof_history_public_detail_cards(proof_timeline, batch_proof_frame), show_commands=False, variant="queue")
-        st.table(clean_display_frame(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)))
-        st.markdown(
-            proof_history_public_summary_html(proof_timeline, batch_proof_frame),
-            unsafe_allow_html=True,
-        )
+        proof_cards = [
+            card
+            for card in proof_history_public_detail_cards(proof_timeline, batch_proof_frame)
+            if str(card.get("kicker", "")) != "PROOF HISTORY"
+        ]
+        render_signal_cards(proof_cards, show_commands=False, variant="queue")
         render_context_note(
-            "Evidence only.",
-            "Proof History records data-readiness evidence. It is not performance reporting, investment advice, or an account-action surface.",
+            "Evidence boundary.",
+            "Review the latest lane or batch outcome here. Use Data Health only when a remaining blocker needs investigation; Proof History never changes readiness.",
             tone="success",
         )
+        with st.expander("Advanced: evidence summary", expanded=False):
+            st.table(clean_display_frame(proof_history_first_answer_frame(proof_timeline, batch_proof_frame)))
+            st.markdown(
+                proof_history_public_summary_html(proof_timeline, batch_proof_frame),
+                unsafe_allow_html=True,
+            )
     with st.expander("Advanced: proof ledger details", expanded=False):
         render_section_header("Reviewed Data Proof Ledger", "Durable lane proof rows, not generated CSV churn.")
         if proof_timeline.empty:
@@ -27474,6 +27459,10 @@ def stock_selector_queue_frame(
 
 def _selector_readiness_class(value: object) -> str:
     text = str(value or "").strip().lower()
+    if "with limits" in text or "monitor" in text:
+        return "partial"
+    if "proof needed" in text or "not applicable" in text:
+        return "blocked"
     if "ready" in text and "not" not in text and "blocked" not in text:
         return "ready"
     if "research now" in text:
@@ -27491,6 +27480,24 @@ def _selector_public_fragment(value: object, *, max_chars: int) -> str:
     """Return compact selector copy with internal field tokens translated."""
 
     return compact_card_fragment(operator_queue_preview_copy(value), max_chars=max_chars)
+
+
+def stock_selector_public_state_label(row: pd.Series | dict[str, object]) -> str:
+    """Return one neutral public state without exposing internal queue labels."""
+
+    readiness = str(row.get("Readiness", "") if hasattr(row, "get") else "").strip().lower()
+    state = str(row.get("Research State", "") if hasattr(row, "get") else "").strip().lower()
+    if "excluded" in readiness or "excluded" in state:
+        return "Not applicable"
+    if any(token in readiness or token in state for token in ("blocked", "missing", "needs")):
+        return "Proof needed"
+    if "monitor" in readiness or "monitor" in state:
+        return "Monitor context"
+    if "partial" in readiness:
+        return "Review-ready with limits"
+    if "ready" in readiness or "research now" in state:
+        return "Review-ready"
+    return "Check readiness"
 
 
 def stock_selector_proof_lane(row: pd.Series | dict[str, object]) -> str:
@@ -27579,7 +27586,7 @@ def stock_selector_shortlist_html(frame: pd.DataFrame) -> str:
 
 
 def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, limit: int = 30) -> str:
-    """Render public selector rows as compact review choices instead of a raw dataframe."""
+    """Render selector rows as a compact public review queue."""
 
     if frame is None or frame.empty:
         return (
@@ -27594,39 +27601,28 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
     rows: list[str] = []
     for _, row in visible.iterrows():
         ticker = str(row.get("Ticker", "")).strip().upper() or "TICKER"
-        readiness = str(row.get("Readiness", "Needs readiness check")).strip() or "Needs readiness check"
-        state = str(row.get("Research State", "Research state unavailable")).strip() or "Research state unavailable"
-        detail = _selector_public_fragment(row.get("Review Detail", "Review detail unavailable"), max_chars=98)
         theme = _selector_public_fragment(row.get("Sector / Theme", "Not available"), max_chars=76)
+        if theme.strip().lower() in {"", "not available", "unclassified"}:
+            theme = ""
         supported = _selector_public_fragment(row.get("Supported Now", "Supported analysis not listed."), max_chars=110)
-        blocked = _selector_public_fragment(row.get("Blocked / Missing", "No missing input listed."), max_chars=120)
-        proof_step = _selector_public_fragment(row.get("Next Proof Step", "Run readiness before deeper review."), max_chars=118)
-        freshness = _selector_public_fragment(row.get("Proof Freshness", "Use Data Health freshness before relying on exact state."), max_chars=82)
         report_href = html.escape(f"?mode=public&page=single-stock-report&ticker={ticker}&open=1")
-        proof_href = html.escape(stock_selector_proof_href(ticker, row))
-        readiness_class = _selector_readiness_class(readiness)
-        rows.append(
-            "<div class='selector-result-row'>"
+        state_label = stock_selector_public_state_label(row)
+        readiness_class = _selector_readiness_class(state_label)
+        identity_html = (
             "<div class='selector-result-identity'>"
             f"<div class='selector-result-ticker'>{html.escape(ticker)}</div>"
-            f"<div class='selector-result-state'>{html.escape(state)}</div>"
-            "</div>"
-            "<div class='selector-result-summary'>"
-            f"<span class='selector-readiness-pill {html.escape(readiness_class)}'>{html.escape(readiness)}</span>"
-            f"<div class='selector-result-title'>{html.escape(detail)}</div>"
-            f"<div class='selector-result-body'>{html.escape(theme)}</div>"
-            "</div>"
-            "<div class='selector-result-evidence'>"
-            "<div><span>Supported now</span>"
-            f"{html.escape(supported)}</div>"
-            "<div><span>Blocked</span>"
-            f"{html.escape(blocked)}</div>"
-            "<div><span>Proof</span>"
-            f"{html.escape(proof_step)} · {html.escape(freshness)}</div>"
+            + (f"<div class='selector-result-state'>{html.escape(theme)}</div>" if theme else "")
+            + "</div>"
+        )
+        rows.append(
+            "<div class='selector-result-row'>"
+            + identity_html
+            + "<div class='selector-result-summary'>"
+            f"<span class='selector-readiness-pill {html.escape(readiness_class)}'>{html.escape(state_label)}</span>"
+            f"<div class='selector-result-body'>{html.escape(supported)}</div>"
             "</div>"
             "<div class='selector-actions'>"
             f"<a class='selector-action-link' href='{report_href}' target='_self'>Open review</a>"
-            f"<a class='selector-action-link secondary' href='{proof_href}' target='_self'>Check proof</a>"
             "</div>"
             "</div>"
         )
@@ -32593,9 +32589,6 @@ def main() -> None:
         render_public_workflow_skip_link()
         render_public_workflow_skip_target()
         render_public_app_shell(selected_page)
-        if bootstrap_placeholder is not None:
-            bootstrap_placeholder.empty()
-            bootstrap_placeholder = None
     else:
         render_app_header(
             catalog,

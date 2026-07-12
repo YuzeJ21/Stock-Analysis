@@ -1826,7 +1826,7 @@ def test_stock_selector_filters_have_explicit_apply_action():
     assert form_index < apply_index < filter_index
 
 
-def test_stock_selector_public_rows_render_actions_without_raw_table_first():
+def test_stock_selector_public_rows_render_one_action_without_raw_table_first():
     frame = pd.DataFrame(
         [
             {
@@ -1852,16 +1852,17 @@ def test_stock_selector_public_rows_render_actions_without_raw_table_first():
     assert "NVDA" in rendered
     assert "Open review" in rendered
     assert "?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1" in rendered
-    assert "Check proof" in rendered
-    assert "?mode=public&amp;page=data-health&amp;ticker=NVDA&amp;lane=peers&amp;drawer=proof" in rendered
-    assert rendered.count("target='_self'") >= 2
+    assert "Review-ready with limits" in rendered
+    assert "Check proof" not in rendered
+    assert "data-health" not in rendered
+    assert rendered.count("target='_self'") == 1
     assert "<table" not in lowered
     assert "buy" not in lowered
     assert "sell" not in lowered
     assert "broker" not in lowered
 
 
-def test_stock_selector_result_rows_are_compact_scan_rows_without_legacy_column_headings():
+def test_stock_selector_result_rows_keep_only_the_compact_review_summary():
     frame = pd.DataFrame(
         [
             {
@@ -1880,10 +1881,13 @@ def test_stock_selector_result_rows_are_compact_scan_rows_without_legacy_column_
     rendered = dashboard.stock_selector_result_table_html(frame, total_count=1)
 
     assert "selector-result-summary" in rendered
-    assert "selector-result-evidence" in rendered
+    assert "selector-result-evidence" not in rendered
     assert "selector-result-head" not in rendered
-    assert "Supported now" in rendered
-    assert "Blocked" in rendered
+    assert "Review-ready with limits" in rendered
+    assert "Price and DCF review" in rendered
+    assert "Supported now" not in rendered
+    assert "Blocked" not in rendered
+    assert "Review peer proof" not in rendered
 
 
 def test_public_selector_uses_queue_search_without_an_arbitrary_starting_ticker():
@@ -1951,7 +1955,7 @@ def test_public_single_stock_uses_one_detail_gate_before_report_sections():
     assert '"Show detailed report sections"' in source
 
 
-def test_stock_selector_public_rows_deep_link_to_ticker_specific_proof_lane():
+def test_stock_selector_proof_helper_keeps_ticker_specific_proof_routing_available():
     frame = pd.DataFrame(
         [
             {
@@ -1981,11 +1985,61 @@ def test_stock_selector_public_rows_deep_link_to_ticker_specific_proof_lane():
         ]
     )
 
-    rendered = dashboard.stock_selector_result_table_html(frame, total_count=120)
+    nvda_href = dashboard.stock_selector_proof_href("NVDA", frame.iloc[0])
+    aapl_href = dashboard.stock_selector_proof_href("AAPL", frame.iloc[1])
 
-    assert "?mode=public&amp;page=data-health&amp;ticker=NVDA&amp;lane=peers&amp;drawer=proof" in rendered
-    assert "?mode=public&amp;page=data-health&amp;ticker=AAPL&amp;lane=fundamentals&amp;drawer=proof" in rendered
-    assert "?mode=public&amp;page=data-health&amp;drawer=proof" not in rendered
+    assert nvda_href == "?mode=public&page=data-health&ticker=NVDA&lane=peers&drawer=proof"
+    assert aapl_href == "?mode=public&page=data-health&ticker=AAPL&lane=fundamentals&drawer=proof"
+
+
+def test_public_selector_rows_keep_one_neutral_state_and_one_primary_action():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Research State": "Research Now",
+                "Readiness": "partial",
+                "Review Detail": "Research Candidate - Optional Context Locked",
+                "Sector / Theme": "SMH / AI Semiconductors",
+                "Supported Now": "price history, setup, momentum, and DCF inputs",
+                "Blocked / Missing": "earnings and analyst estimates",
+                "Next Proof Step": "Open optional-context proof.",
+                "Proof Freshness": "Current snapshot",
+            }
+        ]
+    )
+
+    rendered = dashboard.stock_selector_result_table_html(frame, total_count=1)
+
+    assert "Review-ready" in rendered
+    assert "Research Now" not in rendered
+    assert "Research Candidate" not in rendered
+    assert "Supported now" not in rendered
+    assert "Blocked" not in rendered
+    assert "Proof" not in rendered
+    assert rendered.count("Open review") == 1
+    assert "Check proof" not in rendered
+    assert "data-health" not in rendered
+
+
+def test_public_selector_hides_unclassified_theme_fallbacks():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "A",
+                "Research State": "Research Now",
+                "Readiness": "partial",
+                "Sector / Theme": "Unclassified",
+                "Supported Now": "price history and market context",
+            }
+        ]
+    )
+
+    rendered = dashboard.stock_selector_result_table_html(frame, total_count=1)
+
+    assert "Unclassified" not in rendered
+    assert "A" in rendered
+    assert "Review-ready with limits" in rendered
 
 
 def test_stock_selector_shortlist_supports_compare_without_recommendation_language():
@@ -2068,9 +2122,10 @@ def test_stock_selector_public_copy_uses_plain_plural_labels():
     assert "1 of 2 matching rows shown; 120 readiness-backed rows are available before filtering." in rendered
     assert "row(s)" not in rendered
     rendered_lower = rendered.lower()
-    assert "free cash flow" in rendered_lower
-    assert "shares outstanding" in rendered_lower
-    assert "fcf margin" in rendered_lower
+    assert "price history" in rendered_lower
+    assert "free cash flow" not in rendered_lower
+    assert "shares outstanding" not in rendered_lower
+    assert "fcf margin" not in rendered_lower
     assert "free_cash_flow" not in rendered
     assert "shares_outstanding" not in rendered
     assert "fcf_margin" not in rendered
@@ -15717,6 +15772,29 @@ def test_public_proof_history_keeps_only_the_proof_ledger_under_advanced():
     assert 'st.expander("Advanced: latest proof evidence", expanded=False)' not in proof_history_chunk
 
 
+def test_operator_proof_history_keeps_the_long_answer_table_and_summary_under_advanced():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_proof_history(")
+    next_function_index = source.index("\ndef data_health_latest_reviewed_batch_packet_frame", render_index)
+    proof_source = source[render_index:next_function_index]
+    operator_branch_index = proof_source.index("    else:\n        proof_cards =")
+    summary_drawer_index = proof_source.index('st.expander("Advanced: evidence summary", expanded=False)', operator_branch_index)
+    answer_table_index = proof_source.index("st.table(clean_display_frame(proof_history_first_answer_frame", operator_branch_index)
+    summary_html_index = proof_source.index("proof_history_public_summary_html(proof_timeline, batch_proof_frame)", operator_branch_index)
+    ledger_drawer_index = proof_source.index('st.expander("Advanced: proof ledger details", expanded=False)', operator_branch_index)
+
+    operator_default = proof_source[operator_branch_index:summary_drawer_index]
+    summary_drawer = proof_source[summary_drawer_index:ledger_drawer_index]
+
+    assert "proof_cards = [" in operator_default
+    assert "for card in proof_history_public_detail_cards" in operator_default
+    assert "PROOF HISTORY" in operator_default
+    assert "st.table(" not in operator_default
+    assert answer_table_index > summary_drawer_index
+    assert summary_html_index > answer_table_index
+    assert "st.table(" in summary_drawer
+
+
 def test_public_proof_history_shows_only_primary_answer_before_advanced():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
@@ -15770,7 +15848,7 @@ def test_public_proof_history_visible_answer_uses_compact_cards_not_table():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
     visible_answer_index = source.index("proof_history_public_timeline_html(", render_index)
-    public_else_index = source.index("    else:\n        render_signal_cards", visible_answer_index)
+    public_else_index = source.index("    else:\n        proof_cards =", visible_answer_index)
     visible_answer_chunk = source[visible_answer_index:public_else_index]
 
     assert "public-proof-answer-cards" in rendered
@@ -29028,16 +29106,16 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     assert "Raw proof, queues, route maps, and commands stay closed" in source
 
 
-def test_public_route_bootstrap_clears_before_any_public_page_dispatch():
+def test_public_route_bootstrap_stays_visible_through_home_and_selector_dispatch():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     shell_index = source.index("render_public_app_shell(selected_page)")
-    early_clear_index = source.index("if bootstrap_placeholder is not None:", shell_index)
     dispatch_index = source.index('if selected_page == "Home":', shell_index)
+    final_clear_index = source.rindex("if bootstrap_placeholder is not None:")
 
-    assert shell_index < early_clear_index < dispatch_index
-    assert "bootstrap_placeholder.empty()" in source[early_clear_index:dispatch_index]
-    assert "bootstrap_placeholder = None" in source[early_clear_index:dispatch_index]
+    assert shell_index < dispatch_index < final_clear_index
+    assert "bootstrap_placeholder.empty()" not in source[shell_index:dispatch_index]
+    assert "bootstrap_placeholder.empty()" in source[final_clear_index:]
 
 
 def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy():
