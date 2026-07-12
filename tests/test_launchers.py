@@ -2149,8 +2149,8 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "names checked" in dashboard
     assert "CSV-first research cockpit" not in dashboard
     assert "stocks checked" not in dashboard
-    assert "Today's Best Local Research Path" in dashboard
-    assert "One compact review path" in dashboard
+    assert "Current operator focus" in dashboard
+    assert "One supported local path before opening secondary status and route details." in dashboard
     assert "operator path" not in dashboard
     assert "Local file checklist" in dashboard
     assert "Local generated file checklist" not in dashboard
