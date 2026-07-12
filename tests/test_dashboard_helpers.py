@@ -2925,6 +2925,15 @@ def test_operator_sidebar_keeps_advanced_drawers_quiet_until_opened():
     assert "color: rgba(255,255,255,0.84) !important" in sidebar_style_chunk
 
 
+def test_operator_sidebar_reserves_readable_width_for_navigation_and_tool_labels():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    sidebar_rule_index = source.index('[data-testid="stSidebar"] {')
+    sidebar_rule = source[sidebar_rule_index : source.index("}", sidebar_rule_index)]
+
+    assert "width: 12.5rem !important" in sidebar_rule
+    assert "min-width: 12.5rem !important" in sidebar_rule
+
+
 def test_operator_sidebar_groups_secondary_controls_into_one_advanced_drawer():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     main_index = source.index("def main() -> None:")

@@ -2007,8 +2007,8 @@ def apply_dashboard_theme() -> None:
         [data-testid="stSidebar"] {
           background: #07111d !important;
           border-right: 1px solid rgba(255,255,255,0.08);
-          width: 10.5rem !important;
-          min-width: 10.5rem !important;
+          width: 12.5rem !important;
+          min-width: 12.5rem !important;
           overflow-x: hidden !important;
         }
         [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
