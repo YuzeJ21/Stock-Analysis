@@ -9455,6 +9455,12 @@ def stock_report_workflow_fit_cards(
     ]
 
 
+def operator_single_stock_workflow_cards(cards: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Keep the operator's first report view focused on the ticker decision boundary."""
+
+    return [card for card in cards if format_missing(card.get("kicker"), "") != "RESEARCH LOOP"]
+
+
 def stock_report_price_chart_frame(history: pd.DataFrame | None) -> pd.DataFrame:
     if history is None or history.empty or "date" not in history.columns or "close" not in history.columns:
         return pd.DataFrame(columns=["Close"])
@@ -10020,7 +10026,9 @@ def data_health_public_visitor_path_cards(readiness_summary: dict[str, object]) 
 def _coverage_summary_fraction(ready: int, total: int) -> str:
     if total <= 0:
         return "Not available"
-    return f"{ready:,} / {total:,} ({ready / total * 100:.1f}%)"
+    percentage = ready / total * 100
+    precision = 2 if 0 < ready < total and round(percentage, 1) >= 100 else 1
+    return f"{ready:,} / {total:,} ({percentage:.{precision}f}%)"
 
 
 def _coverage_lane_state(ready: int, total: int, *, locked_when_empty: bool = False) -> str:
@@ -28906,11 +28914,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         }
         single_answer_frame = single_stock_one_answer_frame(report_one_answer_snapshot)
         report_answer_frame = stock_report_first_answer_frame(report_payload)
-        if public_mode:
-            st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
-        else:
-            st.table(clean_display_frame(single_answer_frame))
-            st.table(clean_display_frame(report_answer_frame))
         at_a_glance_cards = stock_report_at_a_glance_cards(
             report_payload,
             coverage if provider is not None and ticker else None,
@@ -28921,9 +28924,14 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             coverage if provider is not None and ticker else None,
             peer_summary if provider is not None and ticker else None,
         )
-        if not public_mode:
-            render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
-            render_signal_cards(workflow_fit_cards, show_commands=False)
+        if public_mode:
+            st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
+        else:
+            render_signal_cards(operator_single_stock_workflow_cards(workflow_fit_cards), show_commands=False)
+            with st.expander("Advanced: review summary details", expanded=False):
+                st.table(clean_display_frame(single_answer_frame))
+                st.table(clean_display_frame(report_answer_frame))
+                render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
     if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):
         render_context_note(
             "Detailed report stays closed.",
@@ -28957,7 +28965,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
     report_payload = st.session_state.get("single_stock_report_payload")
     if st.session_state.get("single_stock_report_ticker") != ticker:
         report_payload = None
-    render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))
+    with st.expander("Advanced: review workflow", expanded=False):
+        render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))
     with st.expander("Advanced: example report states", expanded=False):
         render_signal_cards(single_stock_report_intro_summary_cards(), show_commands=show_card_commands)
         demo_note_title, demo_note_body = single_stock_demo_picker_note()
@@ -29992,6 +30001,16 @@ def render_data_health(
     if public_mode:
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
+        if public_focus_ticker:
+            render_context_note(
+                "Ticker proof focus.",
+                f"You arrived from {public_focus_ticker}'s report. Review its readiness boundary here, then return to the report for supported analysis.",
+                tone="success",
+            )
+            st.link_button(
+                f"Return to {public_focus_ticker} report",
+                f"?mode=public&page=single-stock-report&ticker={public_focus_ticker}&open=1",
+            )
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)
         if public_mode and project_status_payload is None:
             with st.expander("Refresh status note", expanded=False):
@@ -30026,12 +30045,6 @@ def render_data_health(
             render_section_header("Public path options", "Use these only when the lane answer does not resolve the current question.")
             render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
         public_evidence_drawer_expanded = selected_drawer == "proof"
-        if public_focus_ticker:
-            render_context_note(
-                "Ticker proof focus.",
-                f"Proof links are focused on {public_focus_ticker}. Use the evidence drawer to check the selected lane before reopening the report.",
-                tone="success",
-            )
         with st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded):
             render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
             render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
@@ -30110,45 +30123,43 @@ def render_data_health(
         variant="queue",
     )
     source_gate_next_action = data_health_source_gate_next_action(project_status_payload)
-    with st.expander("Advanced: operator coverage summary details", expanded=False):
+    with st.expander("Advanced: coverage and workflow details", expanded=False):
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
         render_data_health_operator_hero(operator_snapshot_cards)
-    with st.expander("Advanced: all lane answers table", expanded=False):
         render_section_header(
             "One Answer Per Lane",
             "One row per lane: usable now, blocked, context-only, excluded, and boundary before detailed operations.",
         )
         st.table(clean_display_frame(overview_console.lane_answer_frame(ops_center)))
-    with st.expander("Advanced: operator lane navigation details", expanded=False):
         render_data_health_operator_queue_header()
         render_data_health_operator_lane_nav(selected_lane_key)
-    render_research_loop_strip(
-        **data_health_research_loop_context(
-            selected_lane_key=selected_lane_key,
-            readiness_freshness=readiness_freshness,
-            next_action=data_health_current_mode_next_action(
-                selected_lane_key,
-                batch_details_requested=batch_details_requested,
-                metric_detail_status=metric_detail_status,
-                proof_details_requested=proof_details_requested,
+        render_research_loop_strip(
+            **data_health_research_loop_context(
+                selected_lane_key=selected_lane_key,
                 readiness_freshness=readiness_freshness,
-                batch_preflight=batch_preflight,
-                source_gate_next_action=source_gate_next_action,
-            ),
-            public_mode=False,
+                next_action=data_health_current_mode_next_action(
+                    selected_lane_key,
+                    batch_details_requested=batch_details_requested,
+                    metric_detail_status=metric_detail_status,
+                    proof_details_requested=proof_details_requested,
+                    readiness_freshness=readiness_freshness,
+                    batch_preflight=batch_preflight,
+                    source_gate_next_action=source_gate_next_action,
+                ),
+                public_mode=False,
+            )
         )
-    )
-    render_data_health_current_mode_strip(
-        selected_lane_key=selected_lane_key,
-        queue_details_requested=queue_details_loaded,
-        batch_details_requested=batch_details_requested,
-        metric_details_requested=metric_details_requested,
-        proof_details_requested=proof_details_requested,
-        readiness_freshness=readiness_freshness,
-        batch_preflight=batch_preflight,
-        metric_detail_status=metric_detail_status,
-        source_gate_next_action=source_gate_next_action,
-    )
+        render_data_health_current_mode_strip(
+            selected_lane_key=selected_lane_key,
+            queue_details_requested=queue_details_loaded,
+            batch_details_requested=batch_details_requested,
+            metric_details_requested=metric_details_requested,
+            proof_details_requested=proof_details_requested,
+            readiness_freshness=readiness_freshness,
+            batch_preflight=batch_preflight,
+            metric_detail_status=metric_detail_status,
+            source_gate_next_action=source_gate_next_action,
+        )
     with st.expander("Advanced: operator scope and risk context", expanded=False):
         render_section_header(
             "Scope Before Risk Context",

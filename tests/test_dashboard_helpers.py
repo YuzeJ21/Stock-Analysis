@@ -2509,7 +2509,7 @@ def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages(
     single_stock_button_index = source.index('open_review_clicked = st.button("Open Review"')
     single_stock_loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
     data_health_nav_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
-    data_health_loop_index = source.index("render_research_loop_strip(\n        **data_health_research_loop_context(", data_health_nav_index)
+    data_health_loop_index = source.index("render_research_loop_strip(", data_health_nav_index)
     data_health_mode_index = source.index("render_data_health_current_mode_strip(", data_health_nav_index)
 
     home_public_block = source[render_home_index:home_workflow_index]
@@ -2961,8 +2961,9 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     console_source = Path("src/data_health_console.py").read_text(encoding="utf-8")
 
-    hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)")
-    lane_nav_drawer_index = source.index('st.expander("Advanced: operator lane navigation details", expanded=False)', hero_index)
+    selected_lane_answer_index = source.index('"Selected Lane Answer"')
+    lane_nav_drawer_index = source.index('st.expander("Advanced: coverage and workflow details", expanded=False)', selected_lane_answer_index)
+    hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", lane_nav_drawer_index)
     queue_index = source.index("render_data_health_operator_queue_header()", lane_nav_drawer_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
     price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', lane_selector_index)
@@ -2976,7 +2977,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     legacy_tables_drawer_index = source.index('with st.expander("Advanced operator evidence details", expanded=False):', hidden_tables_note_index)
     tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])', legacy_tables_drawer_index)
 
-    assert hero_index < lane_nav_drawer_index < queue_index < lane_selector_index < price_drawer_index < details_drawer_index
+    assert selected_lane_answer_index < lane_nav_drawer_index < hero_index < queue_index < lane_selector_index < price_drawer_index < details_drawer_index
     assert details_drawer_index < next_proof_index < market_details_gate_index < market_expander_index < hidden_tables_note_index < legacy_tables_drawer_index < tabs_index
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Use only after the selected lane answer, lane evidence drawer, and last-resort diagnostic context do not answer the reviewer question." in source
@@ -11488,6 +11489,25 @@ def test_stock_report_workflow_fit_cards_show_ticker_state_and_data_health_hando
     assert "sell" not in rendered
 
 
+def test_operator_single_stock_workflow_cards_hide_redundant_research_loop_card():
+    cards = [
+        {"kicker": "RESEARCH LOOP", "title": "Repeated workflow"},
+        {"kicker": "SELECTED TICKER", "title": "NVDA: partial"},
+        {"kicker": "REVIEW NOW", "title": "What can be reviewed"},
+        {"kicker": "STILL BLOCKED", "title": "What stays locked"},
+        {"kicker": "DATA HEALTH HANDOFF", "title": "Open Data Health"},
+    ]
+
+    visible_cards = dashboard.operator_single_stock_workflow_cards(cards)
+
+    assert [card["kicker"] for card in visible_cards] == [
+        "SELECTED TICKER",
+        "REVIEW NOW",
+        "STILL BLOCKED",
+        "DATA HEALTH HANDOFF",
+    ]
+
+
 def test_single_stock_pre_report_contract_cards_show_readiness_before_clicking_report():
     coverage = pd.DataFrame(
         [
@@ -16676,9 +16696,9 @@ def test_data_health_operator_renders_structured_lane_answer_before_detail_drawe
 
     selected_lane_index = source.index('"Selected Lane Answer"')
     lane_answer_index = source.index("lane_answer_frame(ops_center)", selected_lane_index)
-    queue_details_index = source.index('"Advanced: operator lane navigation details"', selected_lane_index)
+    queue_details_index = source.index('"Advanced: coverage and workflow details"', selected_lane_index)
 
-    assert selected_lane_index < lane_answer_index < queue_details_index
+    assert selected_lane_index < queue_details_index < lane_answer_index
     assert '"One Answer Per Lane"' in source
 
 
@@ -17433,6 +17453,34 @@ def test_single_stock_page_collapses_secondary_interpretation_before_detailed_re
     assert "stock_report_evaluation_summary_cards(report_payload), show_commands=show_card_commands" in source
     assert "stock_report_analysis_quality_cards(report_payload), show_commands=show_card_commands" in source
     assert "stock_report_technical_context_cards(report_payload), show_commands=show_card_commands" in source
+
+
+def test_operator_single_stock_keeps_raw_answer_tables_inside_review_summary_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    summary_frame_index = source.index("single_answer_frame = single_stock_one_answer_frame", render_index)
+    workflow_cards_index = source.index(
+        "render_signal_cards(operator_single_stock_workflow_cards(workflow_fit_cards), show_commands=False)",
+        summary_frame_index,
+    )
+    review_drawer_index = source.index('with st.expander("Advanced: review summary details", expanded=False):', workflow_cards_index)
+    single_answer_table_index = source.index("st.table(clean_display_frame(single_answer_frame))", review_drawer_index)
+    report_answer_table_index = source.index("st.table(clean_display_frame(report_answer_frame))", single_answer_table_index)
+    at_a_glance_render_index = source.index("render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)", report_answer_table_index)
+
+    assert summary_frame_index < workflow_cards_index < review_drawer_index
+    assert review_drawer_index < single_answer_table_index < report_answer_table_index < at_a_glance_render_index
+
+
+def test_operator_single_stock_keeps_repeated_research_loop_under_advanced_workflow_detail():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    readiness_evidence_index = source.index('with st.expander("Ticker Readiness Evidence", expanded=False):', render_index)
+    workflow_drawer_index = source.index('with st.expander("Advanced: review workflow", expanded=False):', readiness_evidence_index)
+    workflow_strip_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))", workflow_drawer_index)
+    state_examples_index = source.index('with st.expander("Advanced: example report states", expanded=False):', workflow_strip_index)
+
+    assert readiness_evidence_index < workflow_drawer_index < workflow_strip_index < state_examples_index
 
 
 def test_stock_report_source_frame_hides_raw_missing_values():
@@ -20397,6 +20445,11 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
     assert "order routing" not in rendered
 
 
+def test_coverage_summary_fraction_never_rounds_partial_coverage_to_complete():
+    assert dashboard._coverage_summary_fraction(3540, 3541) == "3,540 / 3,541 (99.97%)"
+    assert dashboard._coverage_summary_fraction(100, 100) == "100 / 100 (100.0%)"
+
+
 def test_data_health_coverage_summary_cards_do_not_show_broken_ellipsis_fragments():
     cards = dashboard.data_health_coverage_summary_cards(
         {
@@ -20552,7 +20605,7 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
         public_return_index,
     )
     operator_coverage_expander_index = source.index(
-        'st.expander("Advanced: operator coverage summary details", expanded=False)',
+        'st.expander("Advanced: coverage and workflow details", expanded=False)',
         public_return_index,
     )
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", operator_coverage_index)
@@ -29204,6 +29257,21 @@ def test_stock_selector_search_and_data_health_keep_public_answers_before_advanc
     assert health_clear_index < health_cards_index < health_coverage_index
 
 
+def test_public_data_health_places_selected_ticker_context_before_universe_lane_coverage():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    health_index = source.index("def render_data_health(")
+    public_index = source.index("if public_mode:", health_index)
+    focus_guard_index = source.index("if public_focus_ticker:", public_index)
+    focus_note_index = source.index('"Ticker proof focus."', focus_guard_index)
+    return_link_index = source.index('f"Return to {public_focus_ticker} report"', focus_guard_index)
+    coverage_index = source.index(
+        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)",
+        public_index,
+    )
+
+    assert public_index < focus_guard_index < focus_note_index < return_link_index < coverage_index
+
+
 def test_single_stock_keeps_usable_blocked_cards_before_report_load():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -29590,21 +29658,20 @@ def test_data_health_operator_route_collapses_broad_lane_table_after_snapshot():
     operator_index = source.index("selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
     selected_answer_header_index = source.index('"Selected Lane Answer"', operator_index)
     selected_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", selected_answer_header_index)
-    coverage_summary_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", operator_index)
+    detail_drawer_index = source.index('st.expander("Advanced: coverage and workflow details", expanded=False)', selected_answer_cards_index)
+    coverage_summary_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)", detail_drawer_index)
     operator_hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", coverage_summary_index)
-    lane_table_drawer_index = source.index('st.expander("Advanced: all lane answers table", expanded=False)', operator_hero_index)
-    one_answer_header_index = source.index('"One Answer Per Lane"', lane_table_drawer_index)
+    one_answer_header_index = source.index('"One Answer Per Lane"', operator_hero_index)
     one_answer_caption_index = source.index(
         "One row per lane: usable now, blocked, context-only, excluded, and boundary before detailed operations.",
         one_answer_header_index,
     )
-    lane_nav_drawer_index = source.index('st.expander("Advanced: operator lane navigation details", expanded=False)', operator_hero_index)
-    queue_header_index = source.index("render_data_health_operator_queue_header()", lane_nav_drawer_index)
+    queue_header_index = source.index("render_data_health_operator_queue_header()", one_answer_caption_index)
 
-    assert operator_index < selected_answer_header_index < selected_answer_cards_index < coverage_summary_index
-    assert coverage_summary_index < operator_hero_index < lane_table_drawer_index
-    assert lane_table_drawer_index < one_answer_header_index < one_answer_caption_index < lane_nav_drawer_index
-    assert lane_nav_drawer_index < queue_header_index
+    assert operator_index < selected_answer_header_index < selected_answer_cards_index < detail_drawer_index
+    assert detail_drawer_index < coverage_summary_index < operator_hero_index < one_answer_header_index < one_answer_caption_index < queue_header_index
+    assert 'st.expander("Advanced: all lane answers table", expanded=False)' not in source[operator_index:queue_header_index]
+    assert 'st.expander("Advanced: operator lane navigation details", expanded=False)' not in source[operator_index:queue_header_index]
     assert "Compact lane states before queue drawers, route maps, raw tables, proof ledgers, or command-heavy operator details." not in source
 
 
@@ -29612,7 +29679,7 @@ def test_operator_data_health_keeps_aggregate_snapshot_inside_coverage_details()
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     operator_index = source.index("selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
     coverage_drawer_index = source.index(
-        'with st.expander("Advanced: operator coverage summary details", expanded=False):',
+        'with st.expander("Advanced: coverage and workflow details", expanded=False):',
         operator_index,
     )
     coverage_index = source.index(
@@ -29620,10 +29687,22 @@ def test_operator_data_health_keeps_aggregate_snapshot_inside_coverage_details()
         coverage_drawer_index,
     )
     hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", coverage_index)
-    next_drawer_index = source.index('with st.expander("Advanced: all lane answers table", expanded=False):', hero_index)
+    workflow_strip_index = source.index("render_research_loop_strip(", hero_index)
 
-    assert coverage_drawer_index < coverage_index < hero_index < next_drawer_index
-    assert "        render_data_health_operator_hero(operator_snapshot_cards)" in source[coverage_index:next_drawer_index]
+    assert coverage_drawer_index < coverage_index < hero_index < workflow_strip_index
+    assert "        render_data_health_operator_hero(operator_snapshot_cards)" in source[coverage_index:workflow_strip_index]
+
+
+def test_operator_data_health_keeps_repeated_workflow_strip_under_advanced_detail():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    operator_index = source.index("selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
+    selected_answer_cards_index = source.index("data_health_selected_lane_answer_cards(", operator_index)
+    workflow_drawer_index = source.index('with st.expander("Advanced: coverage and workflow details", expanded=False):', selected_answer_cards_index)
+    workflow_strip_index = source.index("render_research_loop_strip(", workflow_drawer_index)
+    current_mode_index = source.index("render_data_health_current_mode_strip(", workflow_strip_index)
+    scope_drawer_index = source.index('with st.expander("Advanced: operator scope and risk context", expanded=False):', current_mode_index)
+
+    assert selected_answer_cards_index < workflow_drawer_index < workflow_strip_index < current_mode_index < scope_drawer_index
 
 
 def test_single_stock_public_page_uses_simplified_review_sections():
