@@ -28753,10 +28753,6 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
         render_notice_card(f"{title} output note", message, "make verify")
     if frame is None:
         return
-    render_signal_cards(output_tab_summary_cards(title, frame)[:3])
-    with st.expander("Advanced: interpretation and data limits", expanded=False):
-        render_signal_cards(output_tab_summary_cards(title, frame)[3:])
-        render_signal_cards(output_tab_function_quality_cards(title))
     if title == "Momentum Leaders":
         render_momentum_readiness_tab(frame, show_reason_details)
         return
@@ -28766,6 +28762,10 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     if title == "Final Watchlist":
         render_final_decision_tab(frame, show_reason_details)
         return
+    render_signal_cards(output_tab_summary_cards(title, frame)[:3])
+    with st.expander("Advanced: interpretation and data limits", expanded=False):
+        render_signal_cards(output_tab_summary_cards(title, frame)[3:])
+        render_signal_cards(output_tab_function_quality_cards(title))
     for section_title, description, chart_frame, chart_kind in output_tab_chart_sections(title, frame):
         render_chart_panel(section_title, description, chart_frame, chart_kind=chart_kind)
     render_table(frame, title.lower().replace(" ", "-"), show_reason_details, show_focus_cards=False)

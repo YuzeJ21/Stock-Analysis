@@ -29439,6 +29439,18 @@ def test_generic_operator_research_pages_keep_only_primary_summary_cards_before_
     assert primary_summary_index < details_drawer_index < secondary_summary_index < function_cards_index < table_index
 
 
+def test_specialized_operator_pages_use_their_dedicated_readiness_answer_before_generic_summary_cards():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_output_tab(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    output_chunk = source[render_index:next_function_index]
+    special_case_index = output_chunk.index('if title == "Momentum Leaders":')
+    generic_summary_index = output_chunk.index("render_signal_cards(output_tab_summary_cards(title, frame)[:3])")
+
+    assert special_case_index < generic_summary_index
+
+
 def test_monthly_picks_collapses_repeated_method_and_quality_cards_after_the_first_answer():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_monthly_picks(")
