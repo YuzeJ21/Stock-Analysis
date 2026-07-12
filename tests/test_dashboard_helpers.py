@@ -10680,7 +10680,7 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
     picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": "Return3M"}] * 4)
     cards = dashboard.monthly_picks_next_step_cards(picks, None, None, 5, queue)
     assert cards[0]["title"] == "Improve candidate coverage"
-    assert "use the command area to improve local price or fundamentals coverage" in cards[0]["body"].lower()
+    assert "open data health to review missing price or fundamentals coverage" in cards[0]["body"].lower()
     assert "make price-worklist" not in cards[0]["body"]
 
     full_picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": ""}] * 5)
@@ -10695,6 +10695,19 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
     assert cards[0]["command"] == "make dashboard-smoke"
     assert "confirm the dashboard is healthy" in cards[0]["body"].lower()
     assert "dashboard-smoke" not in cards[0]["body"]
+
+
+def test_monthly_picks_gap_cards_route_visible_next_steps_to_data_health_not_hidden_command_area():
+    partial_picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": "Return3M"}] * 2)
+    full_picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": ""}] * 5)
+
+    coverage_card = dashboard.monthly_picks_next_step_cards(partial_picks, None, None, 5, None)[0]
+    history_card = dashboard.monthly_picks_next_step_cards(full_picks, None, None, 5, None)[0]
+
+    assert "open data health" in coverage_card["body"].lower()
+    assert "open data health" in history_card["body"].lower()
+    assert "command area" not in coverage_card["body"].lower()
+    assert "command area" not in history_card["body"].lower()
 
 
 def test_monthly_picks_page_copy_uses_context_and_proof_language():
@@ -10736,7 +10749,7 @@ def test_monthly_picks_track_record_gap_points_to_blocker_command():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "improve track-record coverage" in rendered
-    assert "use the command area to refresh or improve" in rendered
+    assert "open data health to review the local history gap" in rendered
     assert cards[0]["command"] == "make price-worklist"
 
 
@@ -10748,7 +10761,7 @@ def test_monthly_picks_track_record_gap_uses_track_record_front_door_without_blo
 
     assert cards[0]["title"] == "Improve track-record coverage"
     assert cards[0]["command"] == "make track-record"
-    assert "use the command area to refresh or improve" in rendered
+    assert "open data health to review the local history gap" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -10761,7 +10774,7 @@ def test_monthly_picks_coverage_gap_uses_data_wizard_without_blocker_queue():
 
     assert cards[0]["title"] == "Improve candidate coverage"
     assert cards[0]["command"] == "make data-wizard TOP_N=10"
-    assert "use the command area to improve local price or fundamentals coverage" in rendered
+    assert "open data health to review missing price or fundamentals coverage" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -10787,7 +10800,7 @@ def test_monthly_picks_empty_candidates_use_dry_run_loop_not_random_ticker():
     assert cards[0]["title"] == "Improve candidate coverage"
     assert cards[0]["command"] == "make price-refresh-loop DRY_RUN=1"
     assert "make price-refresh-loop DRY_RUN=1" not in cards[0]["body"]
-    assert "preview a capped broad coverage plan" in cards[0]["body"]
+    assert "open data health to review a capped source path" in cards[0]["body"].lower()
     assert "make focus-price TICKER=AIAI" not in rendered
 
 

@@ -25431,7 +25431,7 @@ def monthly_picks_next_step_cards(
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
             "body": (
-                "Current local filters did not support any monthly candidates. Use the command area to preview a capped broad coverage plan "
+                "Current local filters did not support any monthly candidates. Open Data Health to review a capped source path "
                 "instead of repeating small worklists or forcing weaker names into the list."
             ),
             "badges": ["coverage first", "no forced fills"],
@@ -25442,7 +25442,7 @@ def monthly_picks_next_step_cards(
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
             "body": (
-                f"Only {candidate_count} of {top_n} conservative slots are filled. Use the command area to improve local price or fundamentals coverage "
+                f"Only {candidate_count} of {top_n} conservative slots are filled. Open Data Health to review missing price or fundamentals coverage "
                 "before forcing weaker names into the list."
             ),
             "badges": ["coverage first", "no forced fills"],
@@ -25456,8 +25456,8 @@ def monthly_picks_next_step_cards(
             "kicker": "NEXT STEP",
             "title": "Improve track-record coverage",
             "body": (
-                "Candidates exist, but local history is still too short for a fuller benchmark comparison. Use the command area to refresh or improve "
-                "track-record coverage before treating performance context as complete."
+                "Candidates exist, but local history is still too short for a fuller benchmark comparison. Open Data Health to review the local history gap "
+                "before treating performance context as complete."
             ),
             "badges": ["history needed", "sp y benchmark".replace(" ", "")],
             "command": track_record_command,
