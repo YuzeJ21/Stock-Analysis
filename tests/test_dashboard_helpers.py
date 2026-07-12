@@ -1948,6 +1948,33 @@ def test_public_proof_timeline_deduplicates_identical_events():
     assert rendered.count("Yahoo returned only available post-listing history after Stooq 404") == 1
 
 
+def test_public_proof_timeline_orders_lane_and_batch_evidence_by_review_date():
+    proof_timeline = pd.DataFrame(
+        [
+            {
+                "Proof Date": "2026-06-12",
+                "Lane": "Peer valuation inputs",
+                "Final Outcome": "still_blocked",
+                "What Changed": "Older lane evidence.",
+            }
+        ]
+    )
+    batch_proof_frame = pd.DataFrame(
+        [
+            {
+                "Review Date": "2026-07-11",
+                "Lane": "price history",
+                "Final Outcome": "still_blocked",
+                "Notes": "Newer batch evidence.",
+            }
+        ]
+    )
+
+    rendered = dashboard.proof_history_public_timeline_html(proof_timeline, batch_proof_frame)
+
+    assert rendered.index("2026-07-11") < rendered.index("2026-06-12")
+
+
 def test_public_single_stock_uses_one_detail_gate_before_report_sections():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -2756,7 +2783,8 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "Turn on reader tips only when you want more review context" in source
     assert "Turn on page tips only when you want extra review context" not in source
     assert "Turn on guided help only when you want extra review routes" not in source
-    assert 'st.expander("Workflow guide", expanded=False)' in source
+    assert 'st.expander("Advanced: operator tools", expanded=initial_page in ADVANCED_PAGE_TITLES)' in source
+    assert 'st.expander("Workflow guide", expanded=False)' not in source
     assert 'st.expander("Best beginner path"' not in source
     assert '"Start simple."' in source
     assert 'render_context_note(\n            "Recommended route."' not in source
@@ -2766,7 +2794,7 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
     assert "render_sidebar_product_intro()" in source
-    assert 'st.expander("Operator run commands"' in source
+    assert 'st.expander("Operator run commands"' not in source
     assert 'st.expander("Local commands to copy"' not in source
     assert 'st.expander("Quick reading guide"' not in source
     assert 'st.expander("Need help?"' not in source
@@ -2791,8 +2819,8 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert '"Choose your path"' in source
     assert 'label_visibility="collapsed"' in source
     assert '"Choose a page"' not in source
-    assert 'st.expander("Research view switcher"' in source
-    assert 'if not public_demo_mode and selected_page != "Data Health":\n            with st.expander("Research view switcher"' in source
+    assert 'st.expander("Research view switcher"' not in source
+    assert 'if show_sidebar_operator_guides:\n            with st.expander("Advanced: operator tools"' in source
     assert 'st.expander("More pages"' not in source
     assert 'st.expander("Advanced pages"' not in source
     assert '"Open a research view"' in source
@@ -2895,6 +2923,21 @@ def test_operator_sidebar_keeps_advanced_drawers_quiet_until_opened():
     assert '[data-testid="stSidebar"] [data-testid="stExpander"] summary' in sidebar_style_chunk
     assert "rgba(255,255,255,0.05)" in sidebar_style_chunk
     assert "color: rgba(255,255,255,0.84) !important" in sidebar_style_chunk
+
+
+def test_operator_sidebar_groups_secondary_controls_into_one_advanced_drawer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    main_index = source.index("def main() -> None:")
+    tools_drawer_index = source.index('with st.expander("Advanced: operator tools"', main_index)
+    select_index = source.index('"Open a research view"', tools_drawer_index)
+    workflow_index = source.index('"Start simple."', select_index)
+    commands_index = source.index('"Operator commands."', workflow_index)
+
+    assert source.count('with st.expander("Advanced: operator tools"') == 1
+    assert 'with st.expander("Research view switcher"' not in source[main_index:tools_drawer_index + 2500]
+    assert 'with st.expander("Workflow guide"' not in source[main_index:tools_drawer_index + 2500]
+    assert 'with st.expander("Operator run commands"' not in source[main_index:tools_drawer_index + 2500]
+    assert tools_drawer_index < select_index < workflow_index < commands_index
 
 
 def test_sidebar_product_intro_is_portfolio_safe_and_not_command_first():
@@ -28817,9 +28860,9 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert "route_signature = f\"{mode}:{initial_page}\"" in source
     assert "show_reason_details = False" in source
     assert 'if not public_demo_mode and selected_page != "Data Health":' in source
-    assert 'st.expander("Research view switcher"' in source
-    assert 'if not public_demo_mode and selected_page != "Data Health":\n            with st.expander("Research view switcher"' in source
-    assert 'st.expander("Operator run commands"' in source
+    assert 'st.expander("Research view switcher"' not in source
+    assert 'st.expander("Operator run commands"' not in source
+    assert 'if show_sidebar_operator_guides:\n            with st.expander("Advanced: operator tools"' in source
     assert 'show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"' in source
     assert "Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers." in source
     assert '"Data Health operator."' in source

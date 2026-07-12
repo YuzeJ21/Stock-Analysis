@@ -13334,6 +13334,10 @@ def proof_history_public_timeline_html(
             continue
         distinct_events.append((event[0], event[1], event[2], display_note, event[4]))
         seen_events.add(fingerprint)
+    distinct_events.sort(
+        key=lambda event: pd.to_datetime(event[0], errors="coerce"),
+        reverse=True,
+    )
 
     rendered = []
     for date, lane, outcome, note, source_label in distinct_events[:3]:
@@ -32564,8 +32568,8 @@ def main() -> None:
         show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"
         if public_demo_mode or selected_page != "Data Health":
             render_sidebar_product_intro()
-        if not public_demo_mode and selected_page != "Data Health":
-            with st.expander("Research view switcher", expanded=initial_page in ADVANCED_PAGE_TITLES):
+        if show_sidebar_operator_guides:
+            with st.expander("Advanced: operator tools", expanded=initial_page in ADVANCED_PAGE_TITLES):
                 advanced_page = st.selectbox(
                     "Open a research view",
                     ["Keep current path"] + ADVANCED_PAGE_TITLES,
@@ -32576,6 +32580,21 @@ def main() -> None:
                 )
                 if advanced_page != "Keep current path":
                     selected_page = advanced_page
+                st.divider()
+                render_context_note(
+                    "Start simple.",
+                    "Home -> Stock Selector -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
+                )
+                render_sidebar_route_steps(dashboard_navigation_cards())
+                st.divider()
+                render_context_note(
+                    "Operator commands.",
+                    " ".join(sidebar_quick_help_lines()),
+                )
+                st.code(
+                    "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
+                    language="bash",
+                )
         show_reason_details = False
         if not public_demo_mode and selected_page != "Data Health":
             show_reason_details = st.checkbox(
@@ -32600,28 +32619,11 @@ def main() -> None:
         else:
             note_title, note_body = sidebar_navigation_note(selected_page)
             render_context_note(note_title, note_body, tone="success")
-        if show_sidebar_operator_guides:
-            with st.expander("Workflow guide", expanded=False):
-                render_context_note(
-                    "Start simple.",
-                    "Home -> Stock Selector -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
-                )
-                render_sidebar_route_steps(dashboard_navigation_cards())
-        elif public_demo_mode:
+        if public_demo_mode:
             render_context_note(
                 "Clean visitor workflow.",
                 "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
             )
-        if show_sidebar_operator_guides:
-            with st.expander("Operator run commands", expanded=False):
-                render_context_note(
-                    "Operator commands.",
-                    " ".join(sidebar_quick_help_lines()),
-                )
-                st.code(
-                    "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
-                    language="bash",
-                )
 
     output_frames = dashboard_output_frames_for_page(selected_page)
     if public_demo_mode:
