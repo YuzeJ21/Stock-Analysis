@@ -29538,6 +29538,19 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     )
 
 
+def test_direct_public_single_stock_route_shows_a_visible_loading_state_while_saved_report_builds():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_single_stock_report(")
+    next_function_index = source.index("\ndef render_data_health(", render_index)
+    report_chunk = source[render_index:next_function_index]
+    compact_route_index = report_chunk.index("if query_open_review and not report_payload:")
+    spinner_index = report_chunk.index('with st.spinner("Preparing saved review from local outputs..."):', compact_route_index)
+    open_report_index = report_chunk.index("open_selected_report()", spinner_index)
+
+    assert compact_route_index < spinner_index < open_report_index
+
+
 def test_single_stock_public_selector_uses_one_primary_ticker_control():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")

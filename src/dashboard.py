@@ -28877,7 +28877,10 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 f"Building the saved {ticker} review from local outputs without refreshing prices, importing files, or contacting external accounts.",
                 tone="success",
             )
-        open_selected_report()
+            with st.spinner("Preparing saved review from local outputs..."):
+                open_selected_report()
+        else:
+            open_selected_report()
         if compact_public_open_report and report_payload:
             st.rerun()
 
