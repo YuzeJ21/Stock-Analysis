@@ -5611,7 +5611,7 @@ def render_public_shell_mode_styles() -> None:
           }
           .public-selector-start p { flex-basis: 100%; }
           .selector-result-row {
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: minmax(0, 1fr) auto !important;
             gap: 0.7rem;
             padding: 0.9rem;
           }

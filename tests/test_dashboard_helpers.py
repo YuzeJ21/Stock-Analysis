@@ -29396,6 +29396,16 @@ def test_universe_manager_keeps_only_the_current_preview_path_in_its_default_vie
     assert 'render_section_header("Universe Review Flow"' not in universe_chunk[:detail_drawer_index]
 
 
+def test_public_mobile_selector_override_wins_over_the_desktop_grid_rule():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    mobile_style_index = source.index("@media (max-width: 640px)", source.index(".public-ticker-empty"))
+    selector_rule_index = source.index(".selector-result-row {", mobile_style_index)
+    selector_rule = source[selector_rule_index : source.index("}", selector_rule_index)]
+
+    assert "grid-template-columns: minmax(0, 1fr) auto !important" in selector_rule
+    assert "grid-column: 1 / -1" in source[selector_rule_index : selector_rule_index + 700]
+
+
 def test_single_stock_keeps_usable_blocked_cards_before_report_load():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
