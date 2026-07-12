@@ -27867,7 +27867,7 @@ def render_stock_selector(
         help="Search readiness-backed rows before opening one saved report.",
         key="stock-selector-search",
     ).strip()
-    filter_container = st.expander("Advanced: refine filters", expanded=False)
+    filter_container = st.expander("Advanced: filters and selection guidance", expanded=False)
     with filter_container:
         preset_label = st.selectbox(
             "Saved filter",
@@ -27908,6 +27908,12 @@ def render_stock_selector(
                 key="stock-selector-theme",
             )
             st.form_submit_button("Apply filters")
+        render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
+        render_context_note(
+            "Research-only selector.",
+            "This page helps choose what to review next. It keeps blockers, excluded states, and proof freshness visible before deeper analysis.",
+            tone="success",
+        )
 
     filtered = stock_selector_apply_filters(
         selector_frame,
@@ -27927,13 +27933,6 @@ def render_stock_selector(
             f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
         )
     shortlist_options = filtered["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
-    with st.expander("Advanced: selection guidance", expanded=False):
-        render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
-        render_context_note(
-            "Research-only selector.",
-            "This page helps choose what to review next. It keeps blockers, excluded states, and proof freshness visible before deeper analysis.",
-            tone="success",
-        )
     if not public_mode:
         with st.expander("Advanced: selected review tray", expanded=False):
             selected_shortlist = st.multiselect(

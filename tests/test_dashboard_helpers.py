@@ -1906,14 +1906,15 @@ def test_stock_selector_keeps_search_first_and_hides_operator_filters_and_compar
     selector_source = source[render_index:next_function_index]
 
     search_index = selector_source.index('"Search this review queue"')
-    filters_index = selector_source.index('st.expander("Advanced: refine filters", expanded=False)')
+    filters_index = selector_source.index('st.expander("Advanced: filters and selection guidance", expanded=False)')
     tray_index = selector_source.index('st.expander("Advanced: selected review tray", expanded=False)')
     result_index = selector_source.index("stock_selector_result_table_html(filtered")
 
     assert search_index < filters_index < result_index
     assert "default=[]," in selector_source
     assert "How this selector works" not in selector_source
-    assert "Advanced: selection guidance" in selector_source
+    assert "Advanced: filters and selection guidance" in selector_source
+    assert "Advanced: selection guidance" not in selector_source
     assert filters_index < tray_index < result_index
     assert "limit=10 if public_mode else 15" in selector_source
 
@@ -29764,7 +29765,7 @@ def test_stock_selector_search_precedes_advanced_filters():
     preset_setup_index = source.index("saved_presets = stock_selector_saved_filter_presets()", section_index)
     current_filter_index = source.index("current_filter_values = stock_selector_current_filter_values", preset_setup_index)
     search_index = source.index('"Search this review queue"', current_filter_index)
-    refine_drawer_index = source.index('st.expander("Advanced: refine filters", expanded=False)', search_index)
+    refine_drawer_index = source.index('st.expander("Advanced: filters and selection guidance", expanded=False)', search_index)
     preset_control_index = source.index("preset_label = st.selectbox(", refine_drawer_index)
 
     assert preset_setup_index < current_filter_index < search_index < refine_drawer_index < preset_control_index
@@ -29776,7 +29777,7 @@ def test_stock_selector_public_page_shows_search_before_filters_on_mobile():
     section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
     search_index = source.index('"Search this review queue"', section_index)
     preset_index = source.index("preset_label = st.selectbox(", search_index)
-    cockpit_drawer_index = source.index('st.expander("Advanced: selection guidance", expanded=False)', search_index)
+    cockpit_drawer_index = source.index('st.expander("Advanced: filters and selection guidance", expanded=False)', search_index)
     cockpit_cards_index = source.index("stock_selector_cockpit_cards(summary)", cockpit_drawer_index)
     result_table_index = source.index("stock_selector_result_table_html(filtered", cockpit_cards_index)
 
@@ -29787,8 +29788,8 @@ def test_stock_selector_public_page_shows_search_before_filters_on_mobile():
     assert (
         section_index
         < search_index
-        < preset_index
         < cockpit_drawer_index
+        < preset_index
         < result_table_index
     )
 
@@ -29800,10 +29801,25 @@ def test_public_stock_selector_keeps_refinement_controls_collapsed_by_default():
     chunk = source[render_index:next_function_index]
 
     search_index = chunk.index('"Search this review queue"')
-    refine_drawer_index = chunk.index('st.expander("Advanced: refine filters", expanded=False)')
+    refine_drawer_index = chunk.index('st.expander("Advanced: filters and selection guidance", expanded=False)')
     preset_index = chunk.index('preset_label = st.selectbox(', refine_drawer_index)
 
     assert search_index < refine_drawer_index < preset_index
+
+
+def test_public_stock_selector_combines_filter_and_guidance_details_in_one_drawer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    next_function_index = source.index("\ndef price_refresh_operator_plan_cards(", render_index)
+    chunk = source[render_index:next_function_index]
+
+    details_drawer_index = chunk.index('st.expander("Advanced: filters and selection guidance", expanded=False)')
+    preset_index = chunk.index('preset_label = st.selectbox(', details_drawer_index)
+    guidance_index = chunk.index('render_signal_cards(stock_selector_cockpit_cards(summary)', details_drawer_index)
+    result_table_index = chunk.index("stock_selector_result_table_html(filtered", guidance_index)
+
+    assert details_drawer_index < preset_index < guidance_index < result_table_index
+    assert 'st.expander("Advanced: selection guidance", expanded=False)' not in chunk
 
 
 def test_public_stock_selector_keeps_multi_ticker_tray_out_of_the_default_flow():
