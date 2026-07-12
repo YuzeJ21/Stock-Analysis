@@ -10691,9 +10691,11 @@ def test_monthly_picks_page_copy_uses_context_and_proof_language():
     assert "Built from local monthly context" in source
     assert "Track-record proof is still unavailable" in source
     assert "Track-record proof is calculated only from local historical price data" in source
-    assert "render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n), show_commands=False)" in source
+    assert "monthly_quality_cards = monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n)" in source
+    assert "monthly_primary_cards = [monthly_next_step_cards[0], monthly_quality_cards[0]]" in source
+    assert 'with st.expander("Advanced: monthly method and guidance", expanded=False):' in source
     assert "monthly_picks_reader_guide_cards(picks_frame, top_n, action_queue_frame)" in source
-    assert "show_commands=False,\n    )\n    render_signal_cards(\n        monthly_picks_next_step_cards" in source
+    assert "render_signal_cards(monthly_next_step_cards[1:], show_commands=False)" in source
     assert "Monthly candidate outputs are unavailable right now" not in source
     assert "Generated from local outputs" not in source
     assert "Track-record files are still unavailable" not in source
@@ -29350,6 +29352,32 @@ def test_public_data_health_places_selected_ticker_context_before_universe_lane_
     assert public_index < focus_guard_index < focus_note_index < return_link_index < coverage_index
 
 
+def test_advanced_pages_use_one_readiness_boundary_instead_of_a_repeated_generic_card_grid():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    shell_index = source.index("def render_advanced_page_shell(")
+    next_function_index = source.index("\ndef ", shell_index + 1)
+    shell_chunk = source[shell_index:next_function_index]
+
+    assert '"Readiness boundary."' in shell_chunk
+    assert "render_signal_cards(advanced_page_shell_cards" not in shell_chunk
+    assert "def advanced_page_shell_cards(" not in source
+
+
+def test_monthly_picks_collapses_repeated_method_and_quality_cards_after_the_first_answer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_monthly_picks(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    monthly_chunk = source[render_index:next_function_index]
+    primary_cards_index = monthly_chunk.index("monthly_primary_cards")
+    guidance_drawer_index = monthly_chunk.index('with st.expander("Advanced: monthly method and guidance", expanded=False):')
+    metrics_index = monthly_chunk.index("render_metric_cards(", guidance_drawer_index)
+
+    assert primary_cards_index < guidance_drawer_index < metrics_index
+    assert 'render_section_header("Candidate Review Guide"' in monthly_chunk[guidance_drawer_index:metrics_index]
+    assert 'render_section_header("How To Read Monthly Picks"' in monthly_chunk[guidance_drawer_index:metrics_index]
+    assert 'render_section_header("Candidate Review Guide"' not in monthly_chunk[:guidance_drawer_index]
+
+
 def test_single_stock_keeps_usable_blocked_cards_before_report_load():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -29849,9 +29877,9 @@ def test_advanced_pages_share_command_center_shell_before_raw_tables():
     assert 'render_advanced_page_shell(\n        "Monthly Picks"' in source
     assert "render_advanced_page_shell(title" in source
     assert 'render_advanced_page_shell(\n        "Universe Manager"' in source
-    assert "What can be used now" in source
-    assert "What stays locked" in source
-    assert "Detail area" in source
+    assert '"Readiness boundary."' in source
+    assert "Use the supported rows below" in source
+    assert "def advanced_page_shell_cards(" not in source
 
 
 def test_single_stock_query_ticker_prefills_known_or_custom_ticker():

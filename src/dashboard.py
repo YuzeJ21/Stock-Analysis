@@ -28571,32 +28571,32 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     universe_count = 0 if universe is None or universe.empty else len(universe)
     candidate_count = 0 if picks_frame is None else len(picks_frame)
     action_queue_frame, _ = load_action_queue()
-    render_signal_cards(
-        monthly_picks_landing_cards(
-            picks_frame,
-            track_frame,
-            equity_frame,
-            top_n,
-            latest_price,
-            universe_count,
-        ),
-        show_commands=False,
+    monthly_landing_cards = monthly_picks_landing_cards(
+        picks_frame,
+        track_frame,
+        equity_frame,
+        top_n,
+        latest_price,
+        universe_count,
     )
-    render_signal_cards(
-        monthly_picks_next_step_cards(
-            picks_frame,
-            track_frame,
-            equity_frame,
-            top_n,
-            action_queue_frame,
-        ),
-        show_commands=False,
+    monthly_next_step_cards = monthly_picks_next_step_cards(
+        picks_frame,
+        track_frame,
+        equity_frame,
+        top_n,
+        action_queue_frame,
     )
-    render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n), show_commands=False)
-    render_section_header("Candidate Review Guide", "How to use candidate cards before opening deeper evidence.")
-    render_signal_cards(monthly_picks_reader_guide_cards(picks_frame, top_n, action_queue_frame), show_commands=False)
-    render_section_header("How To Read Monthly Picks", "Candidate quality, limits, and method provenance before reading any ranked names.")
-    render_signal_cards(monthly_picks_function_quality_cards())
+    monthly_quality_cards = monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n)
+    monthly_primary_cards = [monthly_next_step_cards[0], monthly_quality_cards[0]]
+    render_signal_cards(monthly_primary_cards, show_commands=False, variant="queue")
+    with st.expander("Advanced: monthly method and guidance", expanded=False):
+        render_signal_cards(monthly_landing_cards, show_commands=False)
+        render_signal_cards(monthly_next_step_cards[1:], show_commands=False)
+        render_signal_cards(monthly_quality_cards[1:], show_commands=False)
+        render_section_header("Candidate Review Guide", "How to use candidate cards before opening deeper evidence.")
+        render_signal_cards(monthly_picks_reader_guide_cards(picks_frame, top_n, action_queue_frame), show_commands=False)
+        render_section_header("How To Read Monthly Picks", "Candidate quality, limits, and method provenance before reading any ranked names.")
+        render_signal_cards(monthly_picks_function_quality_cards())
 
     render_metric_cards(
         [
@@ -28716,35 +28716,12 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         st.write("Track-record proof is calculated only from local historical price data; insufficient history is shown explicitly.")
 
 
-def advanced_page_shell_cards(title: str) -> list[dict[str, object]]:
-    return [
-        {
-            "kicker": "WHAT CAN BE USED NOW",
-            "title": "What can be used now",
-            "body": f"Start with the supported {title} rows and summary cards before opening detail views.",
-            "badges": ["first read", "readiness-gated"],
-            "command": "",
-        },
-        {
-            "kicker": "WHAT STAYS LOCKED",
-            "title": "What stays locked",
-            "body": "Missing inputs, stale proof, and excluded states stay visible instead of being treated as weak conclusions.",
-            "badges": ["blocked stays visible", "no inference"],
-            "command": "",
-        },
-        {
-            "kicker": "DETAIL AREA",
-            "title": "Detail area",
-            "body": "Use charts, tabs, and tables after the page explains what the current data can support.",
-            "badges": ["details after context", "source-backed"],
-            "command": "",
-        },
-    ]
-
-
 def render_advanced_page_shell(title: str, caption: str) -> None:
     render_section_header(title, caption)
-    render_signal_cards(advanced_page_shell_cards(title), show_commands=False, variant="queue")
+    render_context_note(
+        "Readiness boundary.",
+        "Use the supported rows below; missing, stale, and excluded inputs remain visible rather than becoming weak conclusions.",
+    )
 
 
 def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
