@@ -2098,6 +2098,32 @@ def apply_dashboard_theme() -> None:
           padding: 0.46rem 0.52rem;
           box-shadow: none;
         }
+        [data-testid="stSidebar"] [data-testid="stExpander"] {
+          border: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stExpander"] details {
+          border: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stExpander"] summary {
+          min-height: 2.35rem;
+          border: 1px solid rgba(255,255,255,0.10) !important;
+          border-radius: 6px;
+          background: rgba(255,255,255,0.05) !important;
+          color: rgba(255,255,255,0.84) !important;
+          padding: 0.35rem 0.46rem !important;
+          box-shadow: none !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
+          color: rgba(255,255,255,0.84) !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+          background: rgba(255,255,255,0.09) !important;
+          border-color: rgba(134,239,172,0.34) !important;
+        }
         [data-testid="stSidebar"] [role="radiogroup"] label:hover {
           background: rgba(255,255,255,0.06);
           border-color: rgba(255,255,255,0.08);
@@ -5322,7 +5348,9 @@ def render_public_shell_mode_styles() -> None:
         }
         .selector-result-head { display: none; }
         .selector-result-row {
-          grid-template-columns: minmax(7rem, 0.42fr) minmax(15rem, 1fr) auto;
+          width: 100%;
+          box-sizing: border-box;
+          grid-template-columns: 7rem minmax(0, 1fr) auto !important;
           gap: 1rem;
           align-items: center;
           padding: 0.82rem 1rem;
@@ -5332,6 +5360,7 @@ def render_public_shell_mode_styles() -> None:
           min-width: 0;
         }
         .selector-actions {
+          justify-self: end;
           justify-content: flex-end;
           gap: 0.35rem;
         }
@@ -32596,6 +32625,9 @@ def main() -> None:
 
     output_frames = dashboard_output_frames_for_page(selected_page)
     if public_demo_mode:
+        if bootstrap_placeholder is not None:
+            bootstrap_placeholder.empty()
+            bootstrap_placeholder = None
         render_public_shell_mode_styles()
         render_public_workflow_skip_link()
         render_public_workflow_skip_target()
@@ -32633,14 +32665,8 @@ def main() -> None:
     elif selected_page == "Single-Stock Report":
         render_single_stock_report(provider, show_source_details, public_mode=public_demo_mode)
     elif selected_page == "Data Health":
-        if bootstrap_placeholder is not None:
-            bootstrap_placeholder.empty()
-            bootstrap_placeholder = None
         render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)
     elif selected_page == PROOF_HISTORY_PATH_TITLE:
-        if bootstrap_placeholder is not None:
-            bootstrap_placeholder.empty()
-            bootstrap_placeholder = None
         render_proof_history(public_mode=public_demo_mode)
     elif selected_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))

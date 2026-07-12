@@ -2885,6 +2885,18 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert '"workflow label", "not advice"' not in source
 
 
+def test_operator_sidebar_keeps_advanced_drawers_quiet_until_opened():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    sidebar_style_index = source.index('[data-testid="stSidebar"] [data-testid="stExpander"]')
+    sidebar_style_chunk = source[sidebar_style_index : sidebar_style_index + 1200]
+
+    assert "background: transparent !important" in sidebar_style_chunk
+    assert "box-shadow: none !important" in sidebar_style_chunk
+    assert '[data-testid="stSidebar"] [data-testid="stExpander"] summary' in sidebar_style_chunk
+    assert "rgba(255,255,255,0.05)" in sidebar_style_chunk
+    assert "color: rgba(255,255,255,0.84) !important" in sidebar_style_chunk
+
+
 def test_sidebar_product_intro_is_portfolio_safe_and_not_command_first():
     rendered = dashboard.sidebar_product_intro_html()
     lowered = rendered.lower()
@@ -29130,23 +29142,23 @@ def test_header_saved_name_count_falls_back_to_universe_when_outputs_are_deferre
     assert dashboard.header_saved_name_count(None, tickers=100) == 100
 
 
-def test_public_data_health_bootstrap_clears_before_data_health_body():
+def test_public_data_health_bootstrap_clears_before_the_shared_public_shell():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "def render_public_route_bootstrap(" in source
     assert "bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)" in source
     bootstrap_index = source.index("bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)")
     sidebar_index = source.index("with st.sidebar:", bootstrap_index)
-    data_health_branch_index = source.index('elif selected_page == "Data Health":', sidebar_index)
-    clear_index = source.index("if bootstrap_placeholder is not None:", data_health_branch_index)
+    public_mode_index = source.index("if public_demo_mode:", sidebar_index)
+    clear_index = source.index("if bootstrap_placeholder is not None:", public_mode_index)
+    shell_index = source.index("render_public_app_shell(selected_page)", clear_index)
+    data_health_branch_index = source.index('elif selected_page == "Data Health":', shell_index)
     data_health_render_index = source.index("render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)")
-    assert bootstrap_index < sidebar_index < data_health_branch_index < clear_index < data_health_render_index
-    assert "bootstrap_placeholder = None" in source[clear_index:data_health_render_index]
     proof_history_branch_index = source.index("elif selected_page == PROOF_HISTORY_PATH_TITLE:", data_health_render_index)
-    proof_clear_index = source.index("if bootstrap_placeholder is not None:", proof_history_branch_index)
     proof_render_index = source.index("render_proof_history(public_mode=public_demo_mode)", proof_history_branch_index)
-    assert data_health_render_index < proof_history_branch_index < proof_clear_index < proof_render_index
-    assert "bootstrap_placeholder = None" in source[proof_clear_index:proof_render_index]
+    assert bootstrap_index < sidebar_index < public_mode_index < clear_index < shell_index < data_health_branch_index < data_health_render_index
+    assert "bootstrap_placeholder = None" in source[clear_index:shell_index]
+    assert data_health_render_index < proof_history_branch_index < proof_render_index
     bootstrap_function_index = source.index("def render_public_route_bootstrap(")
     loading_note_index = source.index("render_context_note(", bootstrap_function_index)
     end_index = source.index("def _translated_missing_item(", bootstrap_function_index)
@@ -29159,16 +29171,17 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
     assert "Raw proof, queues, route maps, and commands stay closed" in source
 
 
-def test_public_route_bootstrap_stays_visible_through_home_and_selector_dispatch():
+def test_public_route_bootstrap_clears_before_the_actual_shell_to_avoid_duplicate_public_chrome():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    shell_index = source.index("render_public_app_shell(selected_page)")
+    public_mode_index = source.index("if public_demo_mode:", source.index("output_frames = dashboard_output_frames_for_page(selected_page)"))
+    clear_index = source.index("if bootstrap_placeholder is not None:", public_mode_index)
+    shell_index = source.index("render_public_app_shell(selected_page)", clear_index)
     dispatch_index = source.index('if selected_page == "Home":', shell_index)
-    final_clear_index = source.rindex("if bootstrap_placeholder is not None:")
 
-    assert shell_index < dispatch_index < final_clear_index
-    assert "bootstrap_placeholder.empty()" not in source[shell_index:dispatch_index]
-    assert "bootstrap_placeholder.empty()" in source[final_clear_index:]
+    assert public_mode_index < clear_index < shell_index < dispatch_index
+    assert "bootstrap_placeholder.empty()" in source[clear_index:shell_index]
+    assert "bootstrap_placeholder = None" in source[clear_index:shell_index]
 
 
 def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy():
@@ -29255,6 +29268,19 @@ def test_stock_selector_search_and_data_health_keep_public_answers_before_advanc
 
     assert selector_header_index < selector_messages_index < selector_search_index < selector_result_index
     assert health_clear_index < health_cards_index < health_coverage_index
+
+
+def test_public_selector_rows_use_the_available_width_for_one_scannable_action():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    public_style_index = source.index(".public-selector-result-summary")
+    row_rule_index = source.index(".selector-result-row {", public_style_index)
+    row_rule = source[row_rule_index : source.index("}", row_rule_index)]
+    action_rule_index = source.index(".selector-actions {", row_rule_index)
+    action_rule = source[action_rule_index : source.index("}", action_rule_index)]
+
+    assert "grid-template-columns: 7rem minmax(0, 1fr) auto !important" in row_rule
+    assert "width: 100%" in row_rule
+    assert "justify-self: end" in action_rule
 
 
 def test_public_data_health_places_selected_ticker_context_before_universe_lane_coverage():
