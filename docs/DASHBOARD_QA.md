@@ -2,6 +2,26 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-07-11 Public Workflow Modernization
+
+The current public first-view contract is intentionally simpler than older
+captures and historical notes below:
+
+- Home: one readiness-first answer, `Start with Stock Selector`, and the
+  `No data, no conclusion` boundary.
+- Stock Selector: a `Start with this ticker` handoff before filters and compact
+  review rows.
+- Single-Stock Report: selected ticker, `Use now`, `Still withheld`, and one
+  `Open Data Health` handoff before detailed sections.
+- Data Health: four comparison rows that state usable scope, coverage, and one
+  blocker per lane before Advanced details.
+- Proof History: latest evidence first; the raw proof ledger remains under
+  Advanced.
+
+Real screenshots remain product evidence only. Existing assets may show older
+copy; recapture in a normal local browser before using an image as proof of
+exact current wording.
+
 ## Current Screenshot Evidence Status
 
 | Evidence | Status | Use |

@@ -412,7 +412,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "saved readiness" in rendered
     assert "step 1 of 5" in rendered
     assert "stop rule" in rendered
-    assert "first 30 seconds" in rendered
+    assert "no data, no conclusion" in rendered
     assert "data health workspace" in rendered
     assert "phone viewport" in rendered
     assert "390x844" in rendered
@@ -420,7 +420,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "proof history" in rendered
     assert "selected lane answer" in rendered
     assert "single-stock workflow fit screenshot" in rendered
-    assert "what can be read now" in rendered
+    assert "still withheld" in rendered
     assert "selected ticker" in rendered
     assert "next step" in rendered
     assert "operator-data-health-proof-real.jpg" in rendered
@@ -475,10 +475,10 @@ def test_browser_qa_responsive_route_rows_cover_public_flow_without_raw_ops():
     assert all(row["Desktop Viewport"] == "1280x720" for row in rows)
     assert all(row["Phone Viewport"] == "390x844" for row in rows)
     assert all("Saved readiness" in str(row["First View Must Keep"]) for row in rows)
-    assert "coverage summary / what can i use?" in rendered
+    assert "lane coverage summary" in rendered
     assert "which stock can i review?" in rendered
-    assert "one-stock review" in rendered
-    assert "evidence-only page" in rendered
+    assert "one data health handoff" in rendered
+    assert "latest evidence" in rendered
     assert "advanced collapsed" in rendered
     assert "raw tables" in rendered
     assert "horizontal scrolling" in rendered
@@ -534,27 +534,27 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert all("Saved readiness" in str(row["First View Markers"]) for row in public_rows)
     stock_selector = next(row for row in rows if row["Route Check"] == "Public Stock Selector")
     assert "Which stock can I review?" in str(stock_selector["First View Markers"])
-    assert "Selected ticker" in str(stock_selector["First View Markers"])
-    assert "selected-ticker state" in str(stock_selector["Details Boundary"])
+    assert "Start with this ticker" in str(stock_selector["First View Markers"])
+    assert "starting-ticker handoff" in str(stock_selector["Details Boundary"])
     assert "choose a reviewable ticker" in str(stock_selector["QA Focus"])
     single_stock = next(row for row in rows if row["Route Check"] == "Single-stock workflow fit")
     assert "USE NOW" in str(single_stock["First View Markers"])
-    assert "BLOCKED / CONTEXT" in str(single_stock["First View Markers"])
+    assert "STILL WITHHELD" in str(single_stock["First View Markers"])
     public_data_health = next(row for row in rows if row["Route Check"] == "Public Data Health coverage answer")
     assert "What can I use and what stays unavailable?" in str(public_data_health["First View Markers"])
-    assert "Coverage Summary / What Can I Use?" in str(public_data_health["First View Markers"])
+    assert "Lane answer / coverage summary guide" in str(public_data_health["First View Markers"])
     assert "Price / setup" in str(public_data_health["First View Markers"])
     assert "Optional inputs" in str(public_data_health["First View Markers"])
     assert "one coverage answer per lane" in str(public_data_health["Details Boundary"])
     assert "provider setup" in str(public_data_health["Stop Rule"])
     proof_history = next(row for row in rows if row["Route Check"] == "Public proof history evidence view")
-    assert "Latest reviewed outcome" in str(proof_history["First View Markers"])
+    assert "Latest evidence" in str(proof_history["First View Markers"])
     assert "Advanced: proof ledger details" in str(proof_history["First View Markers"])
     assert "latest proof evidence" not in str(proof_history["First View Markers"]).lower()
     fast_view = next(row for row in rows if row["Route Check"] == "Data Health operator fast view")
     assert "READINESS CONTEXT" in str(fast_view["First View Markers"])
     assert "Next Data-Readiness Action" not in str(fast_view["First View Markers"])
-    assert "first 30 seconds" in rendered
+    assert "no data, no conclusion" in rendered
     assert "saved readiness" in rendered
     assert "step 1 of 5" in rendered
     assert "primary workflow" not in rendered
@@ -563,10 +563,10 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "stop rule" not in rendered
     assert "stock selector" in rendered
     assert "which stock can i review?" in rendered
-    assert "what can be read now" in rendered
-    assert "selected ticker" in rendered
-    assert "next step" in rendered
-    assert "coverage summary / what can i use?" in rendered
+    assert "still withheld" in rendered
+    assert "start with this ticker" in rendered
+    assert "open data health" in rendered
+    assert "lane answer / coverage summary guide" in rendered
     assert "selected lane answer" in rendered
     assert "before advanced proof detail" in rendered
     assert "source gate" in rendered
@@ -613,10 +613,10 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "saved readiness" in output
     assert "step 1 of 5" in output
     assert "stop rule" in output
-    assert "first 30 seconds" in output
-    assert "what can be read now" in output
-    assert "selected ticker" in output
-    assert "next step" in output
+    assert "no data, no conclusion" in output
+    assert "still withheld" in output
+    assert "start with this ticker" in output
+    assert "open data health" in output
     assert "readiness context" in output
     assert "next data-readiness action" not in output
     assert "does not unlock fundamentals" in output

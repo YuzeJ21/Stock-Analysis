@@ -5017,6 +5017,630 @@ def render_public_proof_strip(items: list[tuple[str, str, str]]) -> None:
     st.markdown(public_proof_strip_html(items), unsafe_allow_html=True)
 
 
+def public_page_href(page_title: str) -> str:
+    """Return a stable public route for the compact public navigation."""
+
+    if page_title == "Home":
+        return "?mode=public"
+    return f"?mode=public&page={dashboard_page_slug(page_title)}"
+
+
+def public_app_shell_html(page_title: str) -> str:
+    """Render the public app chrome without exposing the operator sidebar."""
+
+    step = public_workflow_step(page_title)
+    navigation = []
+    for title in PUBLIC_PATH_PAGE_TITLES:
+        current = " aria-current='page'" if title == step["page"] else ""
+        navigation.append(
+            f"<a href='{html.escape(public_page_href(title), quote=True)}'{current}>"
+            f"{html.escape(title)}</a>"
+        )
+    return (
+        "<header class='public-app-shell'>"
+        "<div class='public-app-topline'>"
+        "<a class='public-app-brand' href='?mode=public'>"
+        "<span class='public-app-brand-kicker'>Readiness-first</span>"
+        "<span class='public-app-brand-name'>Stock Research Command Center</span>"
+        "</a>"
+        "<div class='public-app-status' aria-label='Product boundaries'>"
+        "<span>Saved readiness</span><span>Research-only</span><span>No account actions</span>"
+        "</div>"
+        "</div>"
+        "<nav class='public-app-nav' aria-label='Public workflow'>"
+        + "".join(navigation)
+        + "</nav>"
+        "<div class='public-page-intro'>"
+        "<div>"
+        f"<div class='public-page-step'>{html.escape(public_workflow_position(page_title))}</div>"
+        f"<h1>{html.escape(step['question'])}</h1>"
+        f"<p>{html.escape(step['short_answer'])}</p>"
+        "</div>"
+        "<div class='public-page-boundary'>"
+        "<span>Research-only</span>"
+        "<span>Blocked inputs stay unavailable</span>"
+        "</div>"
+        "</div>"
+        "</header>"
+    )
+
+
+def render_public_app_shell(page_title: str) -> None:
+    st.markdown(public_app_shell_html(page_title), unsafe_allow_html=True)
+
+
+def public_home_overview_html(summary: dict[str, object]) -> str:
+    """Return Home's public first-read as one decision surface instead of stacked cards."""
+
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    selector_href = html.escape(public_page_href(STOCK_SELECTOR_PATH_TITLE), quote=True)
+    return (
+        "<section class='public-home-overview' aria-label='Start your research review'>"
+        "<div class='public-home-primary'>"
+        "<div class='public-home-eyebrow'>Start here</div>"
+        "<h2>Choose one ticker before reading any analysis.</h2>"
+        "<p>Start with a readiness-backed name. The report will show what is usable, what stays withheld, and where evidence belongs.</p>"
+        f"<a class='public-primary-action' href='{selector_href}'>Start with Stock Selector</a>"
+        "</div>"
+        "<dl class='public-home-metrics'>"
+        f"<div><dt>Tracked names</dt><dd>{master:,}</dd></div>"
+        f"<div><dt>Price-ready</dt><dd>{price_ready:,}</dd></div>"
+        f"<div><dt>DCF-ready</dt><dd>{dcf_ready:,}</dd></div>"
+        f"<div><dt>Trusted peers</dt><dd>{peer_ready:,}</dd></div>"
+        "</dl>"
+        "<div class='public-home-stop'><strong>No data, no conclusion.</strong> Missing inputs stay blocked instead of being inferred.</div>"
+        "</section>"
+    )
+
+
+def render_public_home_overview(summary: dict[str, object]) -> None:
+    st.markdown(public_home_overview_html(summary), unsafe_allow_html=True)
+
+
+def render_public_shell_mode_styles() -> None:
+    """Hide operator-only Streamlit chrome after the public route is selected."""
+
+    st.markdown(
+        """
+        <style>
+        [data-testid="stSidebar"] {
+          display: none !important;
+        }
+        [data-testid="stMain"] {
+          margin-left: 0 !important;
+        }
+        [data-testid="stMainBlockContainer"] {
+          max-width: 1240px !important;
+          padding: 0.9rem 1.25rem 3rem !important;
+        }
+        .public-app-shell {
+          margin: 0 0 1rem;
+        }
+        .public-app-topline {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+          padding: 0 0 0.72rem;
+          border-bottom: 1px solid #d9e0dc;
+        }
+        .public-app-brand {
+          display: grid;
+          gap: 0.12rem;
+          color: #102a43 !important;
+          text-decoration: none !important;
+        }
+        .public-app-brand-kicker,
+        .public-page-step {
+          color: #0f766e;
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .public-app-brand-name {
+          font-size: 1.05rem;
+          font-weight: 780;
+          letter-spacing: 0;
+        }
+        .public-app-status,
+        .public-page-boundary {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 0.42rem;
+          color: #53616f;
+          font-size: 0.74rem;
+          line-height: 1.3;
+        }
+        .public-app-status span,
+        .public-page-boundary span {
+          padding: 0.24rem 0.44rem;
+          border: 1px solid #d9e0dc;
+          border-radius: 999px;
+          background: #ffffff;
+        }
+        .public-app-nav {
+          display: flex;
+          gap: 0.1rem;
+          overflow-x: auto;
+          padding: 0.42rem 0 0;
+          border-bottom: 1px solid #d9e0dc;
+          scrollbar-width: none;
+        }
+        .public-app-nav::-webkit-scrollbar { display: none; }
+        .public-app-nav a {
+          flex: 0 0 auto;
+          padding: 0.42rem 0.56rem 0.5rem;
+          border-bottom: 2px solid transparent;
+          color: #53616f !important;
+          font-size: 0.78rem;
+          font-weight: 700;
+          text-decoration: none !important;
+        }
+        .public-app-nav a[aria-current="page"] {
+          border-bottom-color: #0f766e;
+          color: #0b3b36 !important;
+        }
+        .public-page-intro {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 1rem;
+          align-items: end;
+          padding: 1rem 0 0.3rem;
+        }
+        .public-page-intro h1 {
+          margin: 0.18rem 0 0;
+          color: #102a43;
+          font-size: 1.52rem;
+          font-weight: 760;
+          letter-spacing: 0;
+          line-height: 1.14;
+        }
+        .public-page-intro p {
+          max-width: 46rem;
+          margin: 0.42rem 0 0;
+          color: #53616f;
+          font-size: 0.92rem;
+          line-height: 1.45;
+        }
+        .public-home-overview {
+          display: grid;
+          grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr);
+          gap: 1rem 1.25rem;
+          align-items: start;
+          margin-top: 0.7rem;
+          padding: 1.25rem 0 0.2rem;
+          border-top: 1px solid #d9e0dc;
+        }
+        .public-home-primary h2 {
+          margin: 0.2rem 0 0;
+          color: #102a43;
+          font-size: 1.22rem;
+          line-height: 1.24;
+        }
+        .public-home-primary p {
+          max-width: 38rem;
+          margin: 0.45rem 0 0.85rem;
+          color: #53616f;
+          font-size: 0.94rem;
+          line-height: 1.5;
+        }
+        .public-home-eyebrow {
+          color: #0f766e;
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .public-primary-action {
+          display: inline-flex;
+          align-items: center;
+          min-height: 2.5rem;
+          padding: 0.55rem 0.8rem;
+          border-radius: 6px;
+          background: #0f766e;
+          color: #ffffff !important;
+          font-size: 0.86rem;
+          font-weight: 760;
+          text-decoration: none !important;
+        }
+        .public-primary-action:hover { background: #0b5f59; }
+        .public-home-metrics {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0;
+          margin: 0;
+          border: 1px solid #d9e0dc;
+          border-radius: 8px;
+          background: #ffffff;
+        }
+        .public-home-metrics div {
+          min-height: 5rem;
+          padding: 0.8rem;
+          border-right: 1px solid #e6ebe8;
+          border-bottom: 1px solid #e6ebe8;
+        }
+        .public-home-metrics div:nth-child(2n) { border-right: 0; }
+        .public-home-metrics div:nth-last-child(-n + 2) { border-bottom: 0; }
+        .public-home-metrics dt {
+          color: #667085;
+          font-size: 0.72rem;
+          font-weight: 700;
+        }
+        .public-home-metrics dd {
+          margin: 0.24rem 0 0;
+          color: #102a43;
+          font-size: 1.28rem;
+          font-weight: 760;
+        }
+        .public-home-stop {
+          grid-column: 1 / -1;
+          padding: 0.75rem 0;
+          border-top: 1px solid #d9e0dc;
+          color: #53616f;
+          font-size: 0.84rem;
+          line-height: 1.45;
+        }
+        .public-home-stop strong { color: #8a4b08; }
+        .public-selector-start {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.6rem 1rem;
+          margin: 0.75rem 0 0;
+          padding: 0.9rem 0;
+          border-top: 1px solid #d9e0dc;
+          border-bottom: 1px solid #d9e0dc;
+        }
+        .public-selector-start-label {
+          color: #102a43;
+          font-size: 0.9rem;
+          font-weight: 760;
+        }
+        .public-selector-start p {
+          flex: 1 1 24rem;
+          margin: 0;
+          color: #53616f;
+          font-size: 0.86rem;
+          line-height: 1.4;
+        }
+        .public-selector-result-summary {
+          margin: 0.9rem 0 0;
+          color: #53616f;
+          font-size: 0.82rem;
+        }
+        .public-selector-result-summary strong { color: #102a43; }
+        .selector-result-table {
+          margin-top: 0.8rem;
+          border: 1px solid #d9e0dc;
+          border-radius: 8px;
+          background: #ffffff;
+          box-shadow: none;
+        }
+        .selector-result-head { display: none; }
+        .selector-result-row {
+          grid-template-columns: minmax(5.5rem, 0.42fr) minmax(12rem, 0.9fr) minmax(16rem, 1.2fr) auto;
+          gap: 1rem;
+          align-items: start;
+          padding: 0.95rem 1rem;
+        }
+        .selector-result-identity,
+        .selector-result-summary,
+        .selector-result-evidence {
+          min-width: 0;
+        }
+        .selector-result-summary .selector-result-title {
+          margin-top: 0.46rem;
+          font-size: 0.9rem;
+          font-weight: 720;
+        }
+        .selector-result-evidence {
+          display: grid;
+          gap: 0.3rem;
+          color: #53616f;
+          font-size: 0.8rem;
+          line-height: 1.35;
+        }
+        .selector-result-evidence span {
+          display: block;
+          margin-bottom: 0.12rem;
+          color: #667085;
+          font-size: 0.68rem;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .selector-actions {
+          justify-content: flex-end;
+          gap: 0.35rem;
+        }
+        .selector-action-link {
+          min-height: 2.25rem;
+          border-radius: 6px;
+          box-shadow: none;
+        }
+        .selector-result-footer {
+          padding: 0.7rem 1rem;
+          border-top: 1px solid #e6ebe8;
+          color: #667085;
+          font-size: 0.78rem;
+        }
+        .public-lane-list {
+          margin-top: 0.78rem;
+          border-top: 1px solid #d9e0dc;
+        }
+        .public-lane-row {
+          display: grid;
+          grid-template-columns: 8.5rem minmax(12rem, 1fr) minmax(8.5rem, 0.45fr) minmax(15rem, 1fr);
+          gap: 1rem;
+          align-items: start;
+          padding: 1rem 0;
+          border-bottom: 1px solid #e3e8e5;
+        }
+        .public-lane-state {
+          width: fit-content;
+          padding: 0.28rem 0.46rem;
+          border: 1px solid #d9e0dc;
+          border-radius: 999px;
+          color: #53616f;
+          background: #f8faf9;
+          font-size: 0.68rem;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .public-lane-state.ready { color: #0f766e; background: #ecfdf5; border-color: #b7e5d0; }
+        .public-lane-state.partial { color: #9a5a10; background: #fff8eb; border-color: #efd5a8; }
+        .public-lane-state.optional-locked,
+        .public-lane-state.optional-context { color: #53616f; background: #f3f4f6; }
+        .public-lane-name h2 {
+          margin: 0;
+          color: #102a43;
+          font-size: 0.94rem;
+          line-height: 1.3;
+        }
+        .public-lane-name p,
+        .public-lane-blocker p {
+          margin: 0.28rem 0 0;
+          color: #53616f;
+          font-size: 0.82rem;
+          line-height: 1.42;
+        }
+        .public-lane-count {
+          color: #102a43;
+          font-size: 0.78rem;
+          font-weight: 720;
+        }
+        .public-lane-progress {
+          height: 0.36rem;
+          margin-top: 0.48rem;
+          overflow: hidden;
+          border-radius: 999px;
+          background: #e7eeea;
+        }
+        .public-lane-progress span {
+          display: block;
+          height: 100%;
+          border-radius: inherit;
+          background: #0f766e;
+        }
+        .public-lane-blocker span {
+          color: #9a5a10;
+          font-size: 0.68rem;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .public-proof-timeline {
+          margin-top: 0.78rem;
+          border-top: 1px solid #d9e0dc;
+        }
+        .public-proof-timeline-heading {
+          padding: 0.85rem 0 0.5rem;
+          color: #102a43;
+          font-size: 0.9rem;
+          font-weight: 760;
+        }
+        .public-proof-event {
+          display: grid;
+          grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+          gap: 1rem;
+          align-items: start;
+          padding: 0.9rem 0;
+          border-top: 1px solid #e3e8e5;
+        }
+        .public-proof-event-date,
+        .public-proof-event-outcome small {
+          color: #667085;
+          font-size: 0.72rem;
+          font-weight: 700;
+        }
+        .public-proof-event-lane {
+          color: #102a43;
+          font-size: 0.9rem;
+          font-weight: 740;
+        }
+        .public-proof-event-main p {
+          margin: 0.25rem 0 0;
+          color: #53616f;
+          font-size: 0.82rem;
+          line-height: 1.42;
+        }
+        .public-proof-event-outcome {
+          display: grid;
+          justify-items: end;
+          gap: 0.28rem;
+        }
+        .public-proof-outcome {
+          padding: 0.26rem 0.46rem;
+          border: 1px solid #d9e0dc;
+          border-radius: 999px;
+          color: #53616f;
+          background: #f8faf9;
+          font-size: 0.7rem;
+          font-weight: 800;
+          text-transform: capitalize;
+        }
+        .public-proof-outcome.supported,
+        .public-proof-outcome.auto-supported,
+        .public-proof-outcome.human-reviewed-supported { color: #0f766e; background: #ecfdf5; border-color: #b7e5d0; }
+        .public-proof-outcome.still-blocked { color: #9a5a10; background: #fff8eb; border-color: #efd5a8; }
+        .public-proof-timeline-empty {
+          padding: 1rem 0;
+          color: #53616f;
+          font-size: 0.88rem;
+          line-height: 1.45;
+        }
+        .public-ticker-summary {
+          display: grid;
+          grid-template-columns: 8rem minmax(0, 1fr) minmax(0, 1fr) minmax(12rem, 0.8fr);
+          gap: 1rem;
+          align-items: start;
+          margin-top: 0.78rem;
+          padding: 1rem 0;
+          border-top: 1px solid #d9e0dc;
+          border-bottom: 1px solid #d9e0dc;
+        }
+        .public-ticker-name {
+          display: grid;
+          gap: 0.28rem;
+        }
+        .public-ticker-name span,
+        .public-ticker-answer span {
+          color: #667085;
+          font-size: 0.68rem;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+        }
+        .public-ticker-name strong {
+          color: #102a43;
+          font-size: 1.45rem;
+          line-height: 1;
+        }
+        .public-ticker-answer {
+          min-width: 0;
+        }
+        .public-ticker-answer.use-now { border-left: 3px solid #0f766e; padding-left: 0.75rem; }
+        .public-ticker-answer.blocked { border-left: 3px solid #c27c1b; padding-left: 0.75rem; }
+        .public-ticker-answer p,
+        .public-ticker-action p {
+          margin: 0.35rem 0 0;
+          color: #253746;
+          font-size: 0.86rem;
+          line-height: 1.45;
+        }
+        .public-ticker-answer small,
+        .public-ticker-action small {
+          display: block;
+          margin-top: 0.42rem;
+          color: #667085;
+          font-size: 0.74rem;
+          line-height: 1.35;
+        }
+        .public-ticker-action {
+          display: grid;
+          justify-items: start;
+          gap: 0.55rem;
+        }
+        .public-ticker-action p { margin: 0; }
+        .public-ticker-empty {
+          padding: 1rem 0;
+          color: #53616f;
+          font-size: 0.9rem;
+        }
+        @media (max-width: 640px) {
+          [data-testid="stMainBlockContainer"] {
+            padding: 0.72rem 1rem 2.2rem !important;
+          }
+          .public-app-topline,
+          .public-page-intro {
+            grid-template-columns: 1fr;
+            display: grid;
+            gap: 0.7rem;
+          }
+          .public-app-status,
+          .public-page-boundary {
+            justify-content: flex-start;
+          }
+          .public-app-status span:nth-child(3) {
+            display: none;
+          }
+          .public-app-nav a {
+            font-size: 0.74rem;
+          }
+          .public-app-nav {
+            flex-wrap: wrap;
+            overflow-x: visible;
+            row-gap: 0.12rem;
+          }
+          .public-app-nav a {
+            padding: 0.34rem 0.42rem 0.4rem;
+            font-size: 0.7rem;
+          }
+          .public-page-intro h1 {
+            font-size: 1.24rem;
+          }
+          .public-page-intro p {
+            font-size: 0.88rem;
+          }
+          .public-home-overview {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            padding-top: 1rem;
+          }
+          .public-home-primary h2 { font-size: 1.1rem; }
+          .public-home-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .public-home-stop { grid-column: auto; }
+          .public-selector-start {
+            align-items: flex-start;
+            padding: 0.8rem 0;
+          }
+          .public-selector-start p { flex-basis: 100%; }
+          .selector-result-row {
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.7rem;
+            padding: 0.9rem;
+          }
+          .selector-result-summary,
+          .selector-result-evidence { grid-column: 1 / -1; }
+          .selector-actions {
+            grid-column: 2;
+            grid-row: 1;
+          }
+          .selector-result-evidence span { min-width: 4.8rem; }
+          .public-lane-row {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+            padding: 0.9rem 0;
+          }
+          .public-lane-coverage { max-width: 12rem; }
+          .public-proof-event {
+            grid-template-columns: 1fr auto;
+            gap: 0.45rem 0.75rem;
+          }
+          .public-proof-event-main { grid-column: 1 / -1; }
+          .public-proof-event-outcome {
+            grid-column: 2;
+            grid-row: 1;
+          }
+          .public-ticker-summary {
+            grid-template-columns: 1fr;
+            gap: 0.85rem;
+            padding: 0.9rem 0;
+          }
+          .public-ticker-name strong { font-size: 1.3rem; }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def public_workflow_header_html(page_title: str) -> str:
     step = public_workflow_step(page_title)
     return (
@@ -5562,6 +6186,47 @@ def single_stock_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, obje
             "badges": ["one next action", "research-only"],
         },
     ]
+
+
+def single_stock_public_summary_html(frame: pd.DataFrame) -> str:
+    """Return one public ticker answer with a visible evidence handoff."""
+
+    if frame is None or frame.empty:
+        return (
+            "<section class='public-ticker-summary'>"
+            "<div class='public-ticker-empty'>No selected ticker answer is available yet.</div>"
+            "</section>"
+        )
+    row = frame.iloc[0].to_dict()
+    ticker = format_missing(row.get("Ticker"), "Selected ticker").upper()
+    use_now = format_missing(row.get("Use Now"), "No supported section is available yet.")
+    blocked = format_missing(row.get("Still Blocked"), "No blocker reported.")
+    context = format_missing(row.get("Context Only"), "No context-only note reported.")
+    next_action = public_safe_next_action_text(row.get("Next Safe Action"))
+    boundary = format_missing(row.get("Review Boundary"), "Keep the review research-only.")
+    href = html.escape(f"?mode=public&page=data-health&ticker={ticker}", quote=True)
+    return (
+        "<section class='public-ticker-summary' aria-label='Selected ticker answer'>"
+        "<div class='public-ticker-name'>"
+        "<span>Selected ticker</span>"
+        f"<strong>{html.escape(ticker)}</strong>"
+        "</div>"
+        "<div class='public-ticker-answer use-now'>"
+        "<span>Use now</span>"
+        f"<p>{html.escape(use_now)}</p>"
+        "</div>"
+        "<div class='public-ticker-answer blocked'>"
+        "<span>Still withheld</span>"
+        f"<p>{html.escape(blocked)}</p>"
+        f"<small>{html.escape(context)}</small>"
+        "</div>"
+        "<div class='public-ticker-action'>"
+        f"<p>{html.escape(next_action)}</p>"
+        f"<a class='public-primary-action' href='{href}'>Open Data Health</a>"
+        f"<small>{html.escape(boundary)}</small>"
+        "</div>"
+        "</section>"
+    )
 
 
 def stock_report_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
@@ -9750,6 +10415,80 @@ def data_health_public_coverage_cards(
     return primary_cards
 
 
+def data_health_public_lane_list_html(
+    readiness_summary: dict[str, object],
+    peer_readiness_frame: pd.DataFrame | None = None,
+    root: Path | None = None,
+) -> str:
+    """Render four public readiness lanes as a comparable decision list."""
+
+    frame = data_health_coverage_summary_frame(readiness_summary, peer_readiness_frame, root=root)
+    rows_by_lane = {str(row.get("lane")): row for row in frame.to_dict("records")}
+    lane_rows: list[dict[str, object]] = []
+    for lane in ("Price / setup", "Fundamentals / DCF", "Peers"):
+        row = rows_by_lane.get(lane)
+        if row is not None:
+            lane_rows.append(row)
+    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
+    optional_ready = min(
+        int(readiness_summary.get("earnings_ready") or 0),
+        int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0),
+    )
+    lane_rows.append(
+        {
+            "lane": "Optional inputs",
+            "state": "optional / locked" if optional_ready <= 0 else "optional context",
+            "one_clear_answer": "No earnings or analyst-estimate input is used in the public review.",
+            "ready_coverage": "Not analysis-ready",
+            "why_blocked_or_limited": "Trusted source-backed earnings and estimate rows are still required.",
+            "ready_count": optional_ready,
+            "total_count": master,
+        }
+    )
+    rendered_rows: list[str] = []
+    for row in lane_rows:
+        lane = format_missing(row.get("lane"), "Readiness lane")
+        state = format_missing(row.get("state"), "blocked")
+        state_class = re.sub(r"[^a-z0-9]+", "-", state.lower()).strip("-") or "blocked"
+        coverage = format_missing(row.get("ready_coverage"), "Not recorded")
+        answer = compact_card_fragment(row.get("one_clear_answer"), max_chars=128)
+        blocker = compact_card_fragment(row.get("why_blocked_or_limited"), max_chars=130)
+        if lane == "Peers":
+            blocker = "Candidate peers remain context until trusted mappings and required inputs exist."
+        match = re.search(r"\((\d+(?:\.\d+)?)%\)", coverage)
+        progress = max(0.0, min(float(match.group(1)) if match else 0.0, 100.0))
+        rendered_rows.append(
+            "<article class='public-lane-row'>"
+            f"<div class='public-lane-state {html.escape(state_class, quote=True)}'>{html.escape(state)}</div>"
+            "<div class='public-lane-name'>"
+            f"<h2>{html.escape(lane)}</h2>"
+            f"<p>{html.escape(answer)}</p>"
+            "</div>"
+            "<div class='public-lane-coverage'>"
+            f"<div class='public-lane-count'>{html.escape(coverage)}</div>"
+            "<div class='public-lane-progress' aria-hidden='true'>"
+            f"<span style='width:{progress:.1f}%'></span>"
+            "</div>"
+            "</div>"
+            "<div class='public-lane-blocker'>"
+            "<span>Blocked by</span>"
+            f"<p>{html.escape(blocker)}</p>"
+            "</div>"
+            "</article>"
+        )
+    return "<section class='public-lane-list' aria-label='Coverage by analysis lane'>" + "".join(rendered_rows) + "</section>"
+
+
+def render_data_health_public_lane_list(
+    readiness_summary: dict[str, object],
+    peer_readiness_frame: pd.DataFrame | None = None,
+) -> None:
+    st.markdown(
+        data_health_public_lane_list_html(readiness_summary, peer_readiness_frame, root=BASE_DIR),
+        unsafe_allow_html=True,
+    )
+
+
 def data_health_public_loading_cards() -> list[dict[str, object]]:
     """Keep Data Health's decision structure visible while saved rows load."""
 
@@ -9792,6 +10531,9 @@ def render_data_health_coverage_summary(
     *,
     public_mode: bool = False,
 ) -> None:
+    if public_mode:
+        render_data_health_public_lane_list(readiness_summary, peer_readiness_frame)
+        return
     render_section_header(
         "Coverage Summary / What Can I Use?",
         "One clear answer per lane before selected-lane operations, proof details, or research conclusions.",
@@ -9802,11 +10544,7 @@ def render_data_health_coverage_summary(
             unsafe_allow_html=True,
         )
     render_signal_cards(
-        (
-            data_health_public_coverage_cards(readiness_summary, peer_readiness_frame, root=BASE_DIR)
-            if public_mode
-            else data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame, root=BASE_DIR)
-        ),
+        data_health_coverage_summary_cards(readiness_summary, peer_readiness_frame, root=BASE_DIR),
         show_commands=False,
         variant="queue",
     )
@@ -12534,6 +13272,69 @@ def proof_history_first_answer_cards_html(frame: pd.DataFrame | None) -> str:
     return "<div class='public-proof-answer-cards'>" + "".join(rows) + "</div>"
 
 
+def proof_history_public_timeline_html(
+    proof_timeline: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None,
+) -> str:
+    """Return a compact public evidence timeline without exposing raw ledger rows."""
+
+    events: list[tuple[str, str, str, str, str]] = []
+    for frame, source_label, date_columns, note_columns in (
+        (
+            proof_timeline,
+            "Lane proof",
+            ("Proof Date", "Review Date"),
+            ("What Changed", "Still Blocked", "Notes"),
+        ),
+        (
+            batch_proof_frame,
+            "Batch proof",
+            ("Review Date", "Proof Date"),
+            ("What Changed", "Notes", "Still Blocked"),
+        ),
+    ):
+        if frame is None or frame.empty:
+            continue
+        for _, row in frame.head(2).iterrows():
+            date = _proof_history_public_text(_proof_history_first_text(pd.DataFrame([row]), *date_columns, fallback="No date recorded"))
+            lane = _proof_history_public_text(_proof_history_first_text(pd.DataFrame([row]), "Lane", fallback="Proof lane"))
+            outcome = _proof_history_public_text(
+                _proof_history_first_text(pd.DataFrame([row]), "Final Outcome", "Reviewer Outcome", fallback="not recorded")
+            )
+            note = _proof_history_public_text(_proof_history_first_text(pd.DataFrame([row]), *note_columns, fallback="No change note recorded."))
+            events.append((date, lane, outcome, note, source_label))
+    if not events:
+        return (
+            "<section class='public-proof-timeline' aria-label='Latest evidence'>"
+            "<div class='public-proof-timeline-empty'>No reviewed proof event is available yet. "
+            "Blocked inputs remain unavailable until a reviewed source path changes.</div>"
+            "</section>"
+        )
+    rendered = []
+    for date, lane, outcome, note, source_label in events[:3]:
+        outcome_label = outcome.replace("_", " ")
+        outcome_class = re.sub(r"[^a-z0-9]+", "-", outcome_label.lower()).strip("-") or "not-recorded"
+        rendered.append(
+            "<article class='public-proof-event'>"
+            f"<div class='public-proof-event-date'>{html.escape(date)}</div>"
+            "<div class='public-proof-event-main'>"
+            f"<div class='public-proof-event-lane'>{html.escape(lane)}</div>"
+            f"<p>{html.escape(compact_card_fragment(note, max_chars=180))}</p>"
+            "</div>"
+            "<div class='public-proof-event-outcome'>"
+            f"<span class='public-proof-outcome {html.escape(outcome_class, quote=True)}'>{html.escape(outcome_label)}</span>"
+            f"<small>{html.escape(source_label)}</small>"
+            "</div>"
+            "</article>"
+        )
+    return (
+        "<section class='public-proof-timeline' aria-label='Latest evidence'>"
+        "<div class='public-proof-timeline-heading'>Latest evidence</div>"
+        + "".join(rendered)
+        + "</section>"
+    )
+
+
 def proof_history_public_detail_cards(
     proof_timeline: pd.DataFrame | None,
     batch_proof_frame: pd.DataFrame | None,
@@ -12597,16 +13398,7 @@ def proof_history_public_detail_cards(
 
 
 def render_proof_history(*, public_mode: bool = True) -> None:
-    if public_mode:
-        render_context_note(
-            "Evidence-only page.",
-            (
-                "Use this after Data Health to verify reviewed outcomes; it is not a second dashboard "
-                "and does not change local data or unlock blocked inputs."
-            ),
-            tone="success",
-        )
-    else:
+    if not public_mode:
         render_section_header(
             PROOF_HISTORY_PATH_TITLE,
             "Review source-proof trail and durable batch proof before trusting changed readiness states.",
@@ -12614,10 +13406,8 @@ def render_proof_history(*, public_mode: bool = True) -> None:
     proof_timeline = data_health_reviewed_proof_timeline_frame()
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
     if public_mode:
-        first_answer_frame = proof_history_first_answer_frame(proof_timeline, batch_proof_frame)
-        primary_answer_frame = first_answer_frame.iloc[[1]]
         st.markdown(
-            proof_history_first_answer_cards_html(primary_answer_frame),
+            proof_history_public_timeline_html(proof_timeline, batch_proof_frame),
             unsafe_allow_html=True,
         )
     else:
@@ -26780,28 +27570,18 @@ def stock_selector_shortlist_html(frame: pd.DataFrame) -> str:
 
 
 def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, limit: int = 30) -> str:
-    """Render public selector rows as product UI instead of a raw dataframe."""
+    """Render public selector rows as compact review choices instead of a raw dataframe."""
 
     if frame is None or frame.empty:
         return (
             "<div class='selector-result-table'>"
             "<div class='selector-result-row'>"
-            "<div class='selector-result-title'>No selector rows match the current filters.</div>"
+            "<div class='selector-result-summary'>No selector rows match the current filters.</div>"
             "<div class='selector-result-body'>Change filters or use Data Health to check blocked readiness inputs.</div>"
             "</div>"
             "</div>"
         )
     visible = frame.head(max(limit, 1))
-    head = (
-        "<div class='selector-result-head'>"
-        "<div>Ticker</div>"
-        "<div>Readiness</div>"
-        "<div>Review detail</div>"
-        "<div>Why included</div>"
-        "<div>Proof step</div>"
-        "<div>Actions</div>"
-        "</div>"
-    )
     rows: list[str] = []
     for _, row in visible.iterrows():
         ticker = str(row.get("Ticker", "")).strip().upper() or "TICKER"
@@ -26809,7 +27589,6 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
         state = str(row.get("Research State", "Research state unavailable")).strip() or "Research state unavailable"
         detail = _selector_public_fragment(row.get("Review Detail", "Review detail unavailable"), max_chars=98)
         theme = _selector_public_fragment(row.get("Sector / Theme", "Not available"), max_chars=76)
-        why = _selector_public_fragment(row.get("Why Included", "Saved research output includes this row."), max_chars=170)
         supported = _selector_public_fragment(row.get("Supported Now", "Supported analysis not listed."), max_chars=110)
         blocked = _selector_public_fragment(row.get("Blocked / Missing", "No missing input listed."), max_chars=120)
         proof_step = _selector_public_fragment(row.get("Next Proof Step", "Run readiness before deeper review."), max_chars=118)
@@ -26819,25 +27598,22 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
         readiness_class = _selector_readiness_class(readiness)
         rows.append(
             "<div class='selector-result-row'>"
-            "<div>"
+            "<div class='selector-result-identity'>"
             f"<div class='selector-result-ticker'>{html.escape(ticker)}</div>"
             f"<div class='selector-result-state'>{html.escape(state)}</div>"
             "</div>"
-            "<div>"
+            "<div class='selector-result-summary'>"
             f"<span class='selector-readiness-pill {html.escape(readiness_class)}'>{html.escape(readiness)}</span>"
+            f"<div class='selector-result-title'>{html.escape(detail)}</div>"
             f"<div class='selector-result-body'>{html.escape(theme)}</div>"
             "</div>"
-            "<div>"
-            f"<div class='selector-result-title'>{html.escape(detail)}</div>"
-            f"<div class='selector-result-body'>{html.escape(supported)}</div>"
-            "</div>"
-            "<div>"
-            f"<div class='selector-result-title'>{html.escape(why)}</div>"
-            f"<div class='selector-result-body'>{html.escape(blocked)}</div>"
-            "</div>"
-            "<div>"
-            f"<div class='selector-result-title'>{html.escape(proof_step)}</div>"
-            f"<div class='selector-result-body'>{html.escape(freshness)}</div>"
+            "<div class='selector-result-evidence'>"
+            "<div><span>Supported now</span>"
+            f"{html.escape(supported)}</div>"
+            "<div><span>Blocked</span>"
+            f"{html.escape(blocked)}</div>"
+            "<div><span>Proof</span>"
+            f"{html.escape(proof_step)} · {html.escape(freshness)}</div>"
             "</div>"
             "<div class='selector-actions'>"
             f"<a class='selector-action-link' href='{report_href}' target='_self'>Open review</a>"
@@ -26848,11 +27624,11 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
     footer = ""
     if len(frame) > len(visible):
         footer = (
-            "<div class='selector-result-row'>"
-            f"<div class='selector-result-body'>{len(visible):,} of {len(frame):,} matching rows shown; {total_count:,} readiness-backed rows are available before filtering.</div>"
+            "<div class='selector-result-footer'>"
+            f"{len(visible):,} of {len(frame):,} matching rows shown; {total_count:,} readiness-backed rows are available before filtering."
             "</div>"
         )
-    return "<div class='selector-result-table'>" + head + "".join(rows) + footer + "</div>"
+    return "<div class='selector-result-table'>" + "".join(rows) + footer + "</div>"
 
 
 def _stock_selector_filter_options(frame: pd.DataFrame, column: str, limit: int = 24) -> list[str]:
@@ -26983,10 +27759,10 @@ def stock_selector_next_reading_path_cards(
     report_action_label = f"Open {selected_label} report" if next_ticker else "Open selected report"
     return [
         (
-            "Selected ticker",
+            "Start with this ticker",
             (
-                f"{selected_label} is the first visible source-backed row. "
-                "Use filters below to choose another name, then open the one-stock report."
+                f"{selected_label} is the first visible readiness-backed row. "
+                "Use filters below to choose another name, then open its one-stock report."
             ),
             next_review_route,
             "neutral",
@@ -27005,6 +27781,30 @@ def stock_selector_next_reading_path_cards(
             "neutral",
         ),
     ]
+
+
+def stock_selector_public_start_html(action: tuple[str, ...]) -> str:
+    """Render the selector's chosen ticker as a compact public handoff."""
+
+    title = action[0] if len(action) > 0 else "Selected ticker"
+    body = action[1] if len(action) > 1 else "Choose a ticker to open its saved review."
+    href = action[2] if len(action) > 2 else public_page_href("Single-Stock Report")
+    label = action[4] if len(action) > 4 else action_link_label(title)
+    return (
+        "<section class='public-selector-start' aria-label='Start with this ticker'>"
+        f"<div class='public-selector-start-label'>{html.escape(title)}</div>"
+        f"<p>{html.escape(body)}</p>"
+        f"<a class='public-primary-action' href='{html.escape(href, quote=True)}'>{html.escape(label)}</a>"
+        "</section>"
+    )
+
+
+def public_selector_result_summary_html(filtered_count: int, total_count: int) -> str:
+    return (
+        "<div class='public-selector-result-summary'>"
+        f"<strong>{filtered_count:,}</strong> of {total_count:,} readiness-backed rows match the current filters."
+        "</div>"
+    )
 
 
 def _selector_option_index(options: list[str], preferred: str) -> int:
@@ -27034,10 +27834,11 @@ def render_stock_selector(
     )
     selector_frame = stock_selector_queue_frame(decisions_frame, final_frame, ticker_readiness_frame, limit=120)
 
-    render_section_header(
-        STOCK_SELECTOR_PATH_TITLE,
-        "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
-    )
+    if not public_mode:
+        render_section_header(
+            STOCK_SELECTOR_PATH_TITLE,
+            "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
+        )
     if stock_selector_saved_queue_notice_visible(
         public_mode=public_mode,
         selector_frame=selector_frame,
@@ -27071,7 +27872,7 @@ def render_stock_selector(
     selector_path_cards: list[tuple[str, str, str, str]] = []
     if public_mode:
         selector_path_cards = stock_selector_next_reading_path_cards(selector_action_frame, initial_shortlist)
-        render_action_cards(selector_path_cards[:1])
+        st.markdown(stock_selector_public_start_html(selector_path_cards[0]), unsafe_allow_html=True)
     filter_container = st.expander("Refine the list", expanded=False) if public_mode else st.container()
     with filter_container:
         preset_label = st.selectbox(
@@ -27128,14 +27929,17 @@ def render_stock_selector(
         search=search,
     )
 
-    count_label = f"{len(filtered):,} of {len(selector_frame):,} readiness-backed rows"
-    render_context_note(
-        "Filtered result set.",
-        f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
-    )
+    if public_mode:
+        st.markdown(public_selector_result_summary_html(len(filtered), len(selector_frame)), unsafe_allow_html=True)
+    else:
+        count_label = f"{len(filtered):,} of {len(selector_frame):,} readiness-backed rows"
+        render_context_note(
+            "Filtered result set.",
+            f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
+        )
     shortlist_options = filtered["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
     default_shortlist = shortlist_options[: min(3, len(shortlist_options))]
-    with st.expander("How this selector works", expanded=False):
+    with st.expander("Advanced: selector details" if public_mode else "How this selector works", expanded=False):
         render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
         if public_mode and len(selector_path_cards) > 1:
             render_context_note(
@@ -27637,12 +28441,7 @@ def render_home_page(
         render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
 
     if public_mode:
-        render_action_cards(_plain_home_primary_start_action_cards())
-        render_section_header(
-            "First 30 Seconds",
-            "What the product does, how to read it, and when to stop before looking at examples.",
-        )
-        render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)
+        render_public_home_overview(summary)
     if generated_stale_warning:
         render_notice_card(
             "Generated status may be stale",
@@ -28022,10 +28821,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         if compact_public_open_report
         else "Choose a ticker to see the current review status, what stays locked, and which proof path comes next."
     )
-    render_section_header(
-        "One-Stock Review",
-        header_caption,
-    )
+    if not public_mode:
+        render_section_header(
+            "One-Stock Review",
+            header_caption,
+        )
     ticker_options = ["Custom"] + local_tickers if local_tickers else ["Custom"]
     default_selection_index = preferred_single_stock_default(local_tickers)
     if query_ticker and query_ticker in ticker_options:
@@ -28151,10 +28951,11 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
                 "A readable view of local research inputs. This is context only, not execution guidance.",
             )
-        render_section_header(
-            "What Can Be Read Now",
-            "Start here: what is supported, what is withheld, and what to read next.",
-        )
+        if not public_mode:
+            render_section_header(
+                "What Can Be Read Now",
+                "Start here: what is supported, what is withheld, and what to read next.",
+            )
         report_readiness = _stock_report_payload_readiness(report_payload)
         report_valuation = report_payload.get("valuation_snapshot", {}) or {}
         report_one_answer_snapshot = {
@@ -28179,8 +28980,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         single_answer_frame = single_stock_one_answer_frame(report_one_answer_snapshot)
         report_answer_frame = stock_report_first_answer_frame(report_payload)
         if public_mode:
-            render_signal_cards(single_stock_public_answer_cards(single_answer_frame), show_commands=False, variant="queue")
-            render_signal_cards(stock_report_provenance_cards(report_payload), show_commands=False, variant="queue")
+            st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
             with st.expander("Advanced: answer tables", expanded=False):
                 st.dataframe(clean_display_frame(single_answer_frame), width="stretch", hide_index=True)
                 st.dataframe(clean_display_frame(report_answer_frame), width="stretch", hide_index=True)
@@ -31753,7 +32553,6 @@ def main() -> None:
 
     with st.sidebar:
         render_sidebar_nav_header()
-        render_public_workflow_skip_link()
         has_explicit_page_query = dashboard_query_value_present(page_query_value)
         has_explicit_mode_query = dashboard_query_value_present(mode_query_value)
         public_demo_mode = st.toggle(
@@ -31764,6 +32563,8 @@ def main() -> None:
         if has_explicit_mode_query:
             public_demo_mode = initial_mode == PUBLIC_DEMO_MODE
         mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
+        if not public_demo_mode:
+            render_public_workflow_skip_link()
         if not public_demo_mode:
             st.caption(f"Mode: {dashboard_mode_label(mode)}")
         st.caption(f"Data profile: {data_profile.name}")
@@ -31857,21 +32658,21 @@ def main() -> None:
                 )
 
     output_frames = dashboard_output_frames_for_page(selected_page)
-    public_page_header = public_demo_mode
-    # Compatibility marker for older source-contract tests: render_app_header(catalog, output_frames, compact=selected_page == "Data Health" and not public_demo_mode)
-    render_app_header(
-        catalog,
-        output_frames,
-        compact=public_page_header or (selected_page == "Data Health" and not public_demo_mode),
-        current_page=selected_page,
-    )
     if public_demo_mode:
+        render_public_shell_mode_styles()
+        render_public_workflow_skip_link()
         render_public_workflow_skip_target()
-        render_public_workflow_header(selected_page)
+        render_public_app_shell(selected_page)
         if bootstrap_placeholder is not None:
             bootstrap_placeholder.empty()
             bootstrap_placeholder = None
     else:
+        render_app_header(
+            catalog,
+            output_frames,
+            compact=selected_page == "Data Health",
+            current_page=selected_page,
+        )
         st.caption("Local stock research guided workflow. Data readiness first; analysis only when source-backed inputs are ready.")
 
     project_status_payload = load_saved_project_status_payload(BASE_DIR)

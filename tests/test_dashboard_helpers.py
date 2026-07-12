@@ -1861,6 +1861,49 @@ def test_stock_selector_public_rows_render_actions_without_raw_table_first():
     assert "broker" not in lowered
 
 
+def test_stock_selector_result_rows_are_compact_scan_rows_without_legacy_column_headings():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Research State": "Research Now",
+                "Readiness": "partial",
+                "Review Detail": "DCF-ready with peer context blocked",
+                "Sector / Theme": "Technology / AI infrastructure",
+                "Supported Now": "Price and DCF review",
+                "Blocked / Missing": "Peer evidence remains unavailable",
+                "Next Proof Step": "Review peer proof",
+            }
+        ]
+    )
+
+    rendered = dashboard.stock_selector_result_table_html(frame, total_count=1)
+
+    assert "selector-result-summary" in rendered
+    assert "selector-result-evidence" in rendered
+    assert "selector-result-head" not in rendered
+    assert "Supported now" in rendered
+    assert "Blocked" in rendered
+
+
+def test_public_selector_start_surfaces_a_clear_starting_ticker_without_a_signal_card():
+    rendered = dashboard.stock_selector_public_start_html(
+        (
+            "Start with this ticker",
+            "NVDA is ready for a saved review.",
+            "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
+            "neutral",
+            "Open NVDA report",
+        )
+    )
+
+    assert "public-selector-start" in rendered
+    assert "NVDA is ready for a saved review" in rendered
+    assert "Open NVDA report" in rendered
+    assert "?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1" in rendered
+    assert "signal-card" not in rendered
+
+
 def test_stock_selector_public_rows_deep_link_to_ticker_specific_proof_lane():
     frame = pd.DataFrame(
         [
@@ -2359,7 +2402,7 @@ def test_research_loop_strip_renders_on_home_single_stock_and_data_health_pages(
     assert "render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))" in source
     assert source.count("data_health_research_loop_context(") >= 2
     render_home_index = source.index("def render_home_page(")
-    public_first_scan_index = source.index('render_section_header(\n            "First 30 Seconds"', render_home_index)
+    public_first_scan_index = source.index("render_public_home_overview(summary)", render_home_index)
     home_workflow_index = source.index('"Primary Workflow"', public_first_scan_index)
     single_stock_button_index = source.index('open_review_clicked = st.button("Open Review"')
     single_stock_loop_index = source.index("render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))")
@@ -2677,7 +2720,9 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert 'elif path_selection == PROOF_HISTORY_PATH_TITLE:\n            selected_page = "Data Health"' not in source
     assert "elif selected_page == PROOF_HISTORY_PATH_TITLE:" in source
     assert "render_proof_history(public_mode=public_demo_mode)" in source
-    assert "render_app_header(catalog, output_frames, compact=selected_page == \"Data Health\" and not public_demo_mode)" in source
+    assert "render_public_shell_mode_styles()" in source
+    assert "render_public_app_shell(selected_page)" in source
+    assert "compact=selected_page == \"Data Health\"" in source
     assert "command_center_header_html(" in source
     assert "_header_readiness_summary()" in source
     assert 'if public_demo_mode or selected_page != "Data Health":' in source
@@ -2958,7 +3003,7 @@ def test_public_single_stock_defers_secondary_rendering_until_detail_toggle():
     next_function_index = source.index("\ndef render_data_health(", render_index)
     chunk = source[render_index:next_function_index]
 
-    public_answer_index = chunk.index("render_signal_cards(stock_report_provenance_cards(report_payload)")
+    public_answer_index = chunk.index("st.markdown(single_stock_public_summary_html(single_answer_frame)")
     detail_gate_index = chunk.index(
         "if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):",
         public_answer_index,
@@ -3276,10 +3321,8 @@ def test_home_page_keeps_duplicate_coverage_snapshot_out_of_first_view():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     render_home_index = source.index("def render_home_page(")
-    primary_start_index = source.index("render_action_cards(_plain_home_primary_start_action_cards())", render_home_index)
-    first_30_index = source.index('render_section_header(\n            "First 30 Seconds"', primary_start_index)
-    first_30_cards_index = source.index("render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)", first_30_index)
-    learn_more_index = source.index('st.expander("Advanced: learn more", expanded=False)', first_30_cards_index)
+    primary_start_index = source.index("render_public_home_overview(summary)", render_home_index)
+    learn_more_index = source.index('st.expander("Advanced: learn more", expanded=False)', primary_start_index)
     primary_workflow_index = source.index('"Primary Workflow"', learn_more_index)
     review_map_cards_index = source.index(
         'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")',
@@ -3295,7 +3338,7 @@ def test_home_page_keeps_duplicate_coverage_snapshot_out_of_first_view():
     home_first_view_chunk = source[render_home_index:learn_more_index]
 
     assert "render_public_proof_strip(_public_home_snapshot_items(summary))" not in home_first_view_chunk
-    assert primary_start_index < first_30_index < first_30_cards_index < learn_more_index < primary_workflow_index < review_map_cards_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_index
+    assert primary_start_index < learn_more_index < primary_workflow_index < review_map_cards_index < route_header_index < route_cards_index < example_state_index < details_gate_index < coverage_index
     assert coverage_index < workflow_index
     assert "One path: choose a ticker, read supported sections, route blockers to Data Health, and check Proof History only for evidence." in source
     assert '"Connected Workflow"' not in source
@@ -3308,7 +3351,7 @@ def test_home_page_keeps_duplicate_coverage_snapshot_out_of_first_view():
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=False)" not in source
     assert "render_signal_cards(_plain_home_real_workflow_cards(summary), show_commands=True)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=False)" in source
-    assert "render_signal_cards(public_home_first_30_second_cards(summary), show_commands=False)" in source
+    assert "render_public_home_overview(summary)" in source
     assert 'render_signal_cards(public_home_review_map_cards(summary), show_commands=False, variant="queue")' in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
@@ -15557,21 +15600,42 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
     assert "command center" not in rendered
 
 
-def test_proof_history_public_page_renders_first_answer_frame_before_ledger_details():
+def test_proof_history_public_page_renders_timeline_before_ledger_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
     next_function_index = source.index("\ndef ", render_index + 1)
     proof_history_chunk = source[render_index:next_function_index]
-    first_answer_index = source.index('"Evidence-only page."', render_index)
-    frame_index = source.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)", first_answer_index)
-    card_html_index = source.index("proof_history_first_answer_cards_html(primary_answer_frame)", frame_index)
-    details_index = source.index('st.expander("Advanced: proof ledger details", expanded=False)', frame_index)
+    timeline_index = source.index("proof_history_public_timeline_html(proof_timeline, batch_proof_frame)", render_index)
+    details_index = source.index('st.expander("Advanced: proof ledger details", expanded=False)', timeline_index)
 
-    assert first_answer_index < frame_index < card_html_index < details_index
+    assert timeline_index < details_index
     assert 'st.expander("Advanced: latest proof evidence", expanded=False)' not in proof_history_chunk
     assert 'st.expander("Advanced: proof answer cards", expanded=False)' not in proof_history_chunk
     assert '"Proof History First Answer"' not in proof_history_chunk
     assert '"Proof History One Answer"' not in proof_history_chunk
+
+
+def test_public_proof_timeline_shows_latest_evidence_without_exposing_ledger_rows():
+    proof_timeline = pd.DataFrame(
+        [
+            {
+                "Proof Date": "2026-07-11",
+                "Lane": "Peer mapping",
+                "Final Outcome": "still_blocked",
+                "What Changed": "Candidate peers remain context only.",
+                "Still Blocked": "Trusted mappings are unavailable.",
+            }
+        ]
+    )
+
+    rendered = dashboard.proof_history_public_timeline_html(proof_timeline, pd.DataFrame())
+
+    assert "public-proof-timeline" in rendered
+    assert "public-proof-event" in rendered
+    assert "Peer mapping" in rendered
+    assert "still blocked" in rendered.lower()
+    assert "Candidate peers remain context only" in rendered
+    assert "<table" not in rendered.lower()
 
 
 def test_public_proof_history_keeps_only_the_proof_ledger_under_advanced():
@@ -15580,7 +15644,7 @@ def test_public_proof_history_keeps_only_the_proof_ledger_under_advanced():
     next_function_index = source.index("\ndef ", render_index + 1)
     proof_history_chunk = source[render_index:next_function_index]
 
-    visible_answer_index = proof_history_chunk.index("proof_history_first_answer_cards_html(")
+    visible_answer_index = proof_history_chunk.index("proof_history_public_timeline_html(")
     ledger_index = proof_history_chunk.index('st.expander("Advanced: proof ledger details", expanded=False)')
 
     assert visible_answer_index < ledger_index
@@ -15593,13 +15657,11 @@ def test_public_proof_history_shows_only_primary_answer_before_advanced():
     next_function_index = source.index("\ndef ", render_index + 1)
     proof_history_chunk = source[render_index:next_function_index]
 
-    first_answer_frame_index = proof_history_chunk.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)")
-    primary_answer_index = proof_history_chunk.index("primary_answer_frame", first_answer_frame_index)
-    visible_answer_index = proof_history_chunk.index("proof_history_first_answer_cards_html(primary_answer_frame)")
+    visible_answer_index = proof_history_chunk.index("proof_history_public_timeline_html(proof_timeline, batch_proof_frame)")
     ledger_index = proof_history_chunk.index('st.expander("Advanced: proof ledger details", expanded=False)')
 
-    assert first_answer_frame_index < primary_answer_index < visible_answer_index < ledger_index
-    assert "proof_history_first_answer_cards_html(first_answer_frame)" not in proof_history_chunk
+    assert visible_answer_index < ledger_index
+    assert "proof_history_first_answer_cards_html(" not in proof_history_chunk
 
 
 def test_public_proof_history_leads_with_the_latest_reviewed_outcome():
@@ -15608,11 +15670,9 @@ def test_public_proof_history_leads_with_the_latest_reviewed_outcome():
     next_function_index = source.index("\ndef ", render_index + 1)
     proof_history_chunk = source[render_index:next_function_index]
 
-    first_answer_frame_index = proof_history_chunk.index("proof_history_first_answer_frame(proof_timeline, batch_proof_frame)")
-    primary_answer_index = proof_history_chunk.index("primary_answer_frame = first_answer_frame.iloc[[1]]", first_answer_frame_index)
-    visible_answer_index = proof_history_chunk.index("proof_history_first_answer_cards_html(primary_answer_frame)", primary_answer_index)
+    visible_answer_index = proof_history_chunk.index("proof_history_public_timeline_html(proof_timeline, batch_proof_frame)")
 
-    assert first_answer_frame_index < primary_answer_index < visible_answer_index
+    assert visible_answer_index < proof_history_chunk.index('st.expander("Advanced: proof ledger details", expanded=False)')
 
 
 def test_public_proof_history_visible_answer_uses_compact_cards_not_table():
@@ -15643,7 +15703,7 @@ def test_public_proof_history_visible_answer_uses_compact_cards_not_table():
     rendered = dashboard.proof_history_first_answer_cards_html(frame).lower()
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
-    visible_answer_index = source.index("proof_history_first_answer_cards_html(", render_index)
+    visible_answer_index = source.index("proof_history_public_timeline_html(", render_index)
     public_else_index = source.index("    else:\n        render_signal_cards", visible_answer_index)
     visible_answer_chunk = source[visible_answer_index:public_else_index]
 
@@ -15653,7 +15713,7 @@ def test_public_proof_history_visible_answer_uses_compact_cards_not_table():
     assert "leave proof history after the evidence question is answered" in rendered
     assert "<table" not in rendered
     assert "st.table(" not in visible_answer_chunk
-    assert "proof_history_first_answer_cards_html(" in visible_answer_chunk
+    assert "proof_history_public_timeline_html(" in visible_answer_chunk
 
 
 def test_reviewed_batch_execution_checklist_covers_lane_to_ledger_loop():
@@ -16508,12 +16568,11 @@ def test_proof_history_public_page_paints_first_answer_before_ledger_reads():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_proof_history(")
 
-    first_answer_index = source.index('"Evidence-only page."', render_index)
-    first_boundary_index = source.index("not a second dashboard", first_answer_index)
-    proof_timeline_index = source.index("proof_timeline = data_health_reviewed_proof_timeline_frame()", first_boundary_index)
+    proof_timeline_index = source.index("proof_timeline = data_health_reviewed_proof_timeline_frame()", render_index)
     batch_frame_index = source.index("batch_proof_frame = data_health_reviewed_batch_proof_frame()", proof_timeline_index)
+    first_answer_index = source.index("proof_history_public_timeline_html(proof_timeline, batch_proof_frame)", batch_frame_index)
 
-    assert render_index < first_answer_index < first_boundary_index < proof_timeline_index < batch_frame_index
+    assert render_index < proof_timeline_index < batch_frame_index < first_answer_index
 
 
 def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
@@ -25817,6 +25876,31 @@ def test_single_stock_public_answer_cards_make_one_answer_mobile_safe():
     assert "sell" not in rendered
 
 
+def test_single_stock_public_summary_keeps_the_data_health_handoff_visible():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Use Now": "Standalone DCF assumptions are supported.",
+                "Still Blocked": "Peer-relative valuation remains locked.",
+                "Context Only": "Optional context is not a recommendation.",
+                "Next Safe Action": "Open Data Health peer lane.",
+                "Review Boundary": "Stop if peer proof is missing.",
+            }
+        ]
+    )
+
+    rendered = dashboard.single_stock_public_summary_html(frame)
+
+    assert "public-ticker-summary" in rendered
+    assert "NVDA" in rendered
+    assert "Standalone DCF assumptions are supported" in rendered
+    assert "Peer-relative valuation remains locked" in rendered
+    assert "Open Data Health" in rendered
+    assert "?mode=public&amp;page=data-health&amp;ticker=NVDA" in rendered
+    assert "Stop if peer proof is missing" in rendered
+
+
 def test_public_single_stock_optional_context_uses_a_visitor_boundary_not_an_operator_worklist():
     frame = dashboard.single_stock_one_answer_frame(
         {
@@ -25890,13 +25974,12 @@ def test_stock_report_provenance_cards_summarize_visible_method_and_source_bound
     assert "make " not in rendered
 
 
-def test_single_stock_public_report_renders_one_answer_stack_before_provenance():
+def test_single_stock_public_report_renders_one_answer_summary_before_advanced_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    public_answer_index = source.index("render_signal_cards(single_stock_public_answer_cards(single_answer_frame)")
-    provenance_index = source.index("render_signal_cards(stock_report_provenance_cards(report_payload)", public_answer_index)
-    advanced_index = source.index('st.expander("Advanced: answer tables", expanded=False)', provenance_index)
+    public_answer_index = source.index("st.markdown(single_stock_public_summary_html(single_answer_frame)")
+    advanced_index = source.index('st.expander("Advanced: answer tables", expanded=False)', public_answer_index)
 
-    assert public_answer_index < provenance_index < advanced_index
+    assert public_answer_index < advanced_index
     assert "render_signal_cards(stock_report_public_answer_cards(report_answer_frame)" not in source
 
 
@@ -28552,17 +28635,14 @@ def test_public_pages_use_compact_shell_before_page_content():
     assert "if selected_page in {\"Data Health\", PROOF_HISTORY_PATH_TITLE}:" in source
     assert "return {}" in source[source.index("def dashboard_output_frames_for_page(") : output_frames_index]
 
-    assert "public_page_header = public_demo_mode" in source
-    assert (
-        'compact=public_page_header or (selected_page == "Data Health" and not public_demo_mode)'
-        in source
-    )
-    assert "render_app_header(\n        catalog,\n        output_frames," in source
-    render_header_index = source.index("render_app_header(\n        catalog,\n        output_frames,")
-    workflow_header_index = source.index("render_public_workflow_header(selected_page)", render_header_index)
-    dispatch_index = source.index('if selected_page == "Home":', workflow_header_index)
-    assert render_header_index < workflow_header_index < dispatch_index
-    assert "public-workflow-rail" in source
+    shell_style_index = source.index("render_public_shell_mode_styles()")
+    shell_index = source.index("render_public_app_shell(selected_page)", shell_style_index)
+    dispatch_index = source.index('if selected_page == "Home":', shell_index)
+    operator_header_index = source.index("render_app_header(\n            catalog,\n            output_frames,", shell_index)
+    assert shell_style_index < shell_index < operator_header_index < dispatch_index
+    assert "public-app-shell" in source
+    assert "public-app-nav" in source
+    assert "<h1>" in source
     assert "Workflow step" not in source
     assert "public-workflow-primary" not in source
     assert "public-workflow-primary" not in source
@@ -28575,7 +28655,7 @@ def test_public_shell_keeps_global_product_caption_out_of_each_page_answer():
     main_index = source.index("def main()")
     public_mode_index = source.index("if public_demo_mode:", main_index)
     caption_index = source.index("st.caption(\"Local stock research guided workflow.", public_mode_index)
-    public_header_index = source.index("render_public_workflow_header(selected_page)", public_mode_index)
+    public_header_index = source.index("render_public_app_shell(selected_page)", public_mode_index)
     operator_else_index = source.rfind("else:", public_mode_index, caption_index)
 
     assert public_mode_index < public_header_index < operator_else_index < caption_index
@@ -28593,16 +28673,53 @@ def test_public_workflow_header_uses_one_compact_progress_rail():
     assert "Research-only" in html
 
 
-def test_public_workflow_header_has_compact_mobile_rules():
+def test_public_app_shell_has_a_semantic_page_title_and_visible_path_navigation():
+    html = dashboard.public_app_shell_html("Single-Stock Report")
+
+    assert "public-app-shell" in html
+    assert "<nav" in html
+    assert "Home" in html
+    assert "Stock Selector" in html
+    assert "Single-Stock Report" in html
+    assert "Data Health" in html
+    assert "Proof History" in html
+    assert "<h1" in html
+    assert "What can I use for this ticker right now?" in html
+    assert "Research-only" in html
+    assert "Step 3 of 5" in html
+
+
+def test_public_home_overview_keeps_one_start_action_and_compact_readiness_snapshot():
+    html = dashboard.public_home_overview_html(
+        {
+            "master_universe": 3541,
+            "price_ready": 3540,
+            "dcf_ready": 2693,
+            "peer_ready": 29,
+        }
+    )
+
+    assert "public-home-overview" in html
+    assert "Start with Stock Selector" in html
+    assert "?mode=public&amp;page=stock-selector" in html
+    assert "3,540" in html
+    assert "2,693" in html
+    assert "29" in html
+    assert "No data, no conclusion" in html
+
+
+def test_public_app_shell_has_compact_mobile_rules():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    mobile_index = source.index("@media (max-width: 640px)")
+    mobile_index = source.index("@media (max-width: 640px)", source.index("def render_public_shell_mode_styles"))
     mobile_chunk = source[mobile_index : mobile_index + 1200]
 
-    assert ".public-workflow-rail" in mobile_chunk
-    assert "grid-template-columns: 1fr" in mobile_chunk
-    assert ".public-workflow-question" in mobile_chunk
-    assert ".public-workflow-boundary" in mobile_chunk
+    assert ".public-app-topline" in mobile_chunk
+    assert ".public-page-intro" in mobile_chunk
+    assert ".public-app-nav a" in mobile_chunk
+    assert "font-size: 1.24rem" in mobile_chunk
+    assert ".public-page-boundary" in mobile_chunk
+    assert "flex-wrap: wrap" in mobile_chunk
 
 
 def test_public_task_pages_do_not_render_duplicate_readiness_preview_cards():
@@ -28655,6 +28772,30 @@ def test_public_data_health_keeps_only_actionable_lane_summaries():
     assert "next proof:" not in rendered
 
 
+def test_public_data_health_lane_list_prioritizes_coverage_and_one_blocker_per_lane():
+    html = dashboard.data_health_public_lane_list_html(
+        {
+            "master_universe": 100,
+            "price_ready": 99,
+            "dcf_ready": 65,
+            "fundamentals_ready": 70,
+            "peer_ready": 4,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+
+    assert "public-lane-list" in html
+    assert html.count("public-lane-row") == 4
+    assert "Price / setup" in html
+    assert "Fundamentals / DCF" in html
+    assert "Peers" in html
+    assert "Optional inputs" in html
+    assert "public-lane-progress" in html
+    assert "Candidate peers remain context" in html
+    assert "proof_to_unlock" not in html
+
+
 def test_public_data_health_loading_cards_keep_the_four_lane_structure_visible():
     cards = dashboard.data_health_public_loading_cards()
 
@@ -28671,7 +28812,7 @@ def test_public_data_health_loading_cards_keep_the_four_lane_structure_visible()
 def test_public_home_keeps_the_primary_workflow_map_inside_advanced_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     home_index = source.index("def render_home_page(")
-    first_read_index = source.index('"First 30 Seconds"', home_index)
+    first_read_index = source.index("render_public_home_overview(summary)", home_index)
     advanced_index = source.index('with st.expander("Advanced: learn more", expanded=False):', first_read_index)
     workflow_index = source.index('"Primary Workflow"', advanced_index)
 
@@ -28703,16 +28844,15 @@ def test_public_workflow_adds_keyboard_skip_link_before_sidebar_controls():
     assert "id='public-page-answer'" in source
     assert "tabindex='-1'" in source
 
-    sidebar_index = source.index("with st.sidebar:")
+    main_index = source.index("def main()")
+    sidebar_index = source.index("with st.sidebar:", main_index)
     nav_header_index = source.index("render_sidebar_nav_header()", sidebar_index)
-    skip_link_index = source.index("render_public_workflow_skip_link()", nav_header_index)
-    toggle_index = source.index("public_demo_mode = st.toggle(", skip_link_index)
-    assert nav_header_index < skip_link_index < toggle_index
-
-    render_header_index = source.index("render_app_header(\n        catalog,\n        output_frames,")
-    skip_target_index = source.index("render_public_workflow_skip_target()", render_header_index)
-    workflow_header_index = source.index("render_public_workflow_header(selected_page)", skip_target_index)
-    assert render_header_index < skip_target_index < workflow_header_index
+    toggle_index = source.index("public_demo_mode = st.toggle(", nav_header_index)
+    public_shell_style_index = source.index("render_public_shell_mode_styles()", toggle_index)
+    skip_link_index = source.index("render_public_workflow_skip_link()", public_shell_style_index)
+    skip_target_index = source.index("render_public_workflow_skip_target()", skip_link_index)
+    shell_index = source.index("render_public_app_shell(selected_page)", skip_target_index)
+    assert nav_header_index < toggle_index < public_shell_style_index < skip_link_index < skip_target_index < shell_index
 
     html = dashboard.public_workflow_skip_link_html()
     assert "Skip to page answer" in html
@@ -28816,11 +28956,11 @@ def test_public_data_health_bootstrap_clears_before_data_health_body():
 def test_public_route_bootstrap_clears_before_any_public_page_dispatch():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    workflow_header_index = source.index("render_public_workflow_header(selected_page)")
-    early_clear_index = source.index("if bootstrap_placeholder is not None:", workflow_header_index)
-    dispatch_index = source.index('if selected_page == "Home":', workflow_header_index)
+    shell_index = source.index("render_public_app_shell(selected_page)")
+    early_clear_index = source.index("if bootstrap_placeholder is not None:", shell_index)
+    dispatch_index = source.index('if selected_page == "Home":', shell_index)
 
-    assert workflow_header_index < early_clear_index < dispatch_index
+    assert shell_index < early_clear_index < dispatch_index
     assert "bootstrap_placeholder.empty()" in source[early_clear_index:dispatch_index]
     assert "bootstrap_placeholder = None" in source[early_clear_index:dispatch_index]
 
@@ -29082,12 +29222,12 @@ def test_stock_selector_next_reading_path_uses_selected_ticker_proof_lane():
     cards = dashboard.stock_selector_next_reading_path_cards(frame, ["MU"])
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
-    assert cards[0][0] == "Selected ticker"
+    assert cards[0][0] == "Start with this ticker"
     assert cards[0][2] == "?mode=public&page=single-stock-report&ticker=MU&open=1"
     assert cards[0][4] == "Open MU report"
     assert cards[1][2] == "?mode=public&page=data-health&ticker=MU&lane=peers&drawer=proof"
-    assert "selected ticker" in rendered
-    assert "first visible source-backed row" in rendered
+    assert "start with this ticker" in rendered
+    assert "first visible readiness-backed row" in rendered
     assert "open single-stock report" not in rendered
     assert "generic proof" not in rendered
 
@@ -29138,7 +29278,7 @@ def test_stock_selector_primary_handoff_uses_current_filters_before_filter_contr
     current_filter_index = source.index("current_filter_values = stock_selector_current_filter_values", preset_setup_index)
     filtered_action_index = source.index("selector_action_frame = stock_selector_apply_filters", current_filter_index)
     handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_action_frame", filtered_action_index)
-    primary_handoff_index = source.index("render_action_cards(selector_path_cards[:1])", handoff_helper_index)
+    primary_handoff_index = source.index("st.markdown(stock_selector_public_start_html(selector_path_cards[0])", handoff_helper_index)
     preset_control_index = source.index("preset_label = st.selectbox(", primary_handoff_index)
 
     assert preset_setup_index < current_filter_index < filtered_action_index < handoff_helper_index
@@ -29150,9 +29290,9 @@ def test_stock_selector_public_page_shows_one_ticker_handoff_before_filters_on_m
     render_index = source.index("def render_stock_selector(")
     section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
     handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_action_frame", section_index)
-    primary_handoff_index = source.index("render_action_cards(selector_path_cards[:1])", handoff_helper_index)
+    primary_handoff_index = source.index("st.markdown(stock_selector_public_start_html(selector_path_cards[0])", handoff_helper_index)
     preset_index = source.index("preset_label = st.selectbox(", primary_handoff_index)
-    cockpit_drawer_index = source.index('st.expander("How this selector works"', primary_handoff_index)
+    cockpit_drawer_index = source.index('st.expander("Advanced: selector details" if public_mode else "How this selector works"', primary_handoff_index)
     secondary_paths_index = source.index("render_action_cards(selector_path_cards[1:])", cockpit_drawer_index)
     cockpit_cards_index = source.index("stock_selector_cockpit_cards(summary)", cockpit_drawer_index)
     result_table_index = source.index("stock_selector_result_table_html(filtered", cockpit_cards_index)
@@ -29178,7 +29318,7 @@ def test_public_stock_selector_keeps_refinement_controls_collapsed_by_default():
     next_function_index = source.index("\ndef price_refresh_operator_plan_cards(", render_index)
     chunk = source[render_index:next_function_index]
 
-    primary_handoff_index = chunk.index("render_action_cards(selector_path_cards[:1])")
+    primary_handoff_index = chunk.index("st.markdown(stock_selector_public_start_html(selector_path_cards[0])")
     refine_drawer_index = chunk.index('st.expander("Refine the list", expanded=False)')
     preset_index = chunk.index('preset_label = st.selectbox(', refine_drawer_index)
 
@@ -29360,9 +29500,8 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     readable_now_index = source.index('"What Can Be Read Now"', review_intro_index)
     one_answer_index = source.index("single_stock_one_answer_frame(report_one_answer_snapshot)", readable_now_index)
     first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", one_answer_index)
-    public_cards_index = source.index("single_stock_public_answer_cards(single_answer_frame)", first_answer_index)
-    provenance_index = source.index("stock_report_provenance_cards(report_payload)", public_cards_index)
-    advanced_tables_index = source.index('st.expander("Advanced: answer tables", expanded=False)', provenance_index)
+    public_cards_index = source.index("single_stock_public_summary_html(single_answer_frame)", first_answer_index)
+    advanced_tables_index = source.index('st.expander("Advanced: answer tables", expanded=False)', public_cards_index)
     advanced_dataframe_index = source.index("st.dataframe(clean_display_frame(single_answer_frame)", advanced_tables_index)
     quick_read_index = source.index('with st.expander("Advanced quick-read context", expanded=False)', advanced_dataframe_index)
     public_quick_read_cards_index = source.index(
@@ -29386,7 +29525,6 @@ def test_single_stock_public_page_uses_simplified_review_sections():
         < one_answer_index
         < first_answer_index
         < public_cards_index
-        < provenance_index
         < advanced_tables_index
         < advanced_dataframe_index
         < quick_read_index

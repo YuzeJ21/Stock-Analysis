@@ -32,7 +32,7 @@ PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Home",
         query_params=(("mode", "public"),),
-        required_markers=("What is this product and where do I start?", "Research-only", "First 30 Seconds", "Stock Selector"),
+        required_markers=("What is this product and where do I start?", "Research-only", "No data, no conclusion", "Start with Stock Selector"),
     ),
     DashboardRenderRoute(
         name="Stock Selector",
@@ -47,17 +47,17 @@ PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             ("ticker", "NVDA"),
             ("open", "1"),
         ),
-        required_markers=("One-Stock Review", "NVDA is selected", "What Can Be Read Now"),
+        required_markers=("What can I use for this ticker right now?", "NVDA", "Open Data Health"),
     ),
     DashboardRenderRoute(
         name="Data Health",
         query_params=(("mode", "public"), ("page", "data-health")),
-        required_markers=("Coverage Summary / What Can I Use?", "Use now", "Unavailable until"),
+        required_markers=("Price / setup", "Fundamentals / DCF", "Peers", "Optional inputs"),
     ),
     DashboardRenderRoute(
         name="Proof History",
         query_params=(("mode", "public"), ("page", "proof-history")),
-        required_markers=("Evidence-only page", "Latest reviewed outcome"),
+        required_markers=("Latest evidence",),
     ),
 )
 

@@ -35,11 +35,11 @@ def test_public_ux_review_checklist_is_read_only_and_route_complete():
     assert "What can I use for this ticker right now?" in rendered
     assert "What can I use and what stays unavailable?" in rendered
     assert "What evidence changed a readiness state?" in rendered
-    assert "You are here, Current question, Primary next step, Stop rule" in rendered
-    assert "Coverage Summary / What Can I Use?" in rendered
-    assert "evidence-only page, one proof answer, latest reviewed outcome, raw ledger details collapsed" in rendered
+    assert "Readiness-first header, current question" in rendered
+    assert "one lane answer" in rendered
+    assert "latest evidence, one proof answer, raw ledger details collapsed" in rendered
     rendered_lower = rendered.lower()
-    assert "evidence-only page, one proof answer, latest reviewed outcome" in rendered_lower
+    assert "latest evidence, one proof answer, raw ledger details collapsed" in rendered_lower
 
 
 def test_public_ux_review_checklist_keeps_operator_details_and_data_claims_out():
