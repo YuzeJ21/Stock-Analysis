@@ -5044,7 +5044,7 @@ def public_app_shell_html(page_title: str) -> str:
         "<span class='public-app-brand-name'>Stock Research Command Center</span>"
         "</a>"
         "<div class='public-app-status' aria-label='Product boundaries'>"
-        "<span>Saved readiness</span><span>Research-only</span><span>No account actions</span>"
+        "<span>Saved readiness</span>"
         "</div>"
         "</div>"
         "<nav class='public-app-nav' aria-label='Public workflow'>"
@@ -5057,8 +5057,7 @@ def public_app_shell_html(page_title: str) -> str:
         f"<p>{html.escape(step['short_answer'])}</p>"
         "</div>"
         "<div class='public-page-boundary'>"
-        "<span>Research-only</span>"
-        "<span>Blocked inputs stay unavailable</span>"
+        "<span>Research-only: blocked inputs stay unavailable</span>"
         "</div>"
         "</div>"
         "</header>"
@@ -13310,8 +13309,18 @@ def proof_history_public_timeline_html(
             "Blocked inputs remain unavailable until a reviewed source path changes.</div>"
             "</section>"
         )
+    distinct_events: list[tuple[str, str, str, str, str]] = []
+    seen_events: set[tuple[str, str, str, str]] = set()
+    for event in events:
+        display_note = compact_card_fragment(event[3], max_chars=180)
+        fingerprint = (event[0], event[1], event[2], display_note)
+        if fingerprint in seen_events:
+            continue
+        distinct_events.append((event[0], event[1], event[2], display_note, event[4]))
+        seen_events.add(fingerprint)
+
     rendered = []
-    for date, lane, outcome, note, source_label in events[:3]:
+    for date, lane, outcome, note, source_label in distinct_events[:3]:
         outcome_label = outcome.replace("_", " ")
         outcome_class = re.sub(r"[^a-z0-9]+", "-", outcome_label.lower()).strip("-") or "not-recorded"
         rendered.append(
@@ -27576,8 +27585,8 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
         return (
             "<div class='selector-result-table'>"
             "<div class='selector-result-row'>"
-            "<div class='selector-result-summary'>No selector rows match the current filters.</div>"
-            "<div class='selector-result-body'>Change filters or use Data Health to check blocked readiness inputs.</div>"
+            "<div class='selector-result-summary'>No review-queue rows match the current filters.</div>"
+            "<div class='selector-result-body'>Clear the search or refine the filters. Use Data Health only when the blocker is the question.</div>"
             "</div>"
             "</div>"
         )
@@ -27731,74 +27740,6 @@ def stock_selector_current_filter_values(
     }
 
 
-def stock_selector_next_reading_path_cards(
-    frame: pd.DataFrame,
-    selected_tickers: list[str] | tuple[str, ...],
-) -> list[tuple[str, str, str, str]]:
-    """Return the selected ticker handoff from selector to report and proof lane."""
-
-    candidate_frame = stock_selector_shortlist_frame(frame, selected_tickers)
-    if candidate_frame.empty and frame is not None and not frame.empty:
-        candidate_frame = frame.head(1).copy()
-    next_ticker = ""
-    selected_row: pd.Series | dict[str, object] = {}
-    if not candidate_frame.empty:
-        selected_row = candidate_frame.iloc[0]
-        next_ticker = str(selected_row.get("Ticker", "")).upper().strip()
-    next_review_route = (
-        f"?mode=public&page=single-stock-report&ticker={quote(next_ticker)}&open=1"
-        if next_ticker
-        else "?mode=public&page=single-stock-report"
-    )
-    proof_route = (
-        stock_selector_proof_href(next_ticker, selected_row)
-        if next_ticker
-        else "?mode=public&page=data-health&drawer=proof"
-    )
-    selected_label = next_ticker or "the selected ticker"
-    report_action_label = f"Open {selected_label} report" if next_ticker else "Open selected report"
-    return [
-        (
-            "Start with this ticker",
-            (
-                f"{selected_label} is the first visible readiness-backed row. "
-                "Use filters below to choose another name, then open its one-stock report."
-            ),
-            next_review_route,
-            "neutral",
-            report_action_label,
-        ),
-        (
-            "Check selected proof",
-            "Use Data Health only for the selected ticker's blocker lane before deeper interpretation.",
-            proof_route,
-            "neutral",
-        ),
-        (
-            "Proof History",
-            "Review durable proof rows before trusting changed readiness states.",
-            "?mode=public&page=proof-history",
-            "neutral",
-        ),
-    ]
-
-
-def stock_selector_public_start_html(action: tuple[str, ...]) -> str:
-    """Render the selector's chosen ticker as a compact public handoff."""
-
-    title = action[0] if len(action) > 0 else "Selected ticker"
-    body = action[1] if len(action) > 1 else "Choose a ticker to open its saved review."
-    href = action[2] if len(action) > 2 else public_page_href("Single-Stock Report")
-    label = action[4] if len(action) > 4 else action_link_label(title)
-    return (
-        "<section class='public-selector-start' aria-label='Start with this ticker'>"
-        f"<div class='public-selector-start-label'>{html.escape(title)}</div>"
-        f"<p>{html.escape(body)}</p>"
-        f"<a class='public-primary-action' href='{html.escape(href, quote=True)}'>{html.escape(label)}</a>"
-        "</section>"
-    )
-
-
 def public_selector_result_summary_html(filtered_count: int, total_count: int) -> str:
     return (
         "<div class='public-selector-result-summary'>"
@@ -27866,14 +27807,16 @@ def render_stock_selector(
 
     saved_presets = stock_selector_saved_filter_presets()
     current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
-    selector_action_frame = stock_selector_apply_filters(selector_frame, **current_filter_values)
-    initial_shortlist_options = selector_action_frame["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
-    initial_shortlist = initial_shortlist_options[: min(3, len(initial_shortlist_options))]
-    selector_path_cards: list[tuple[str, str, str, str]] = []
+    search = ""
     if public_mode:
-        selector_path_cards = stock_selector_next_reading_path_cards(selector_action_frame, initial_shortlist)
-        st.markdown(stock_selector_public_start_html(selector_path_cards[0]), unsafe_allow_html=True)
-    filter_container = st.expander("Refine the list", expanded=False) if public_mode else st.container()
+        search = st.text_input(
+            "Search this review queue",
+            value=str(current_filter_values.get("search") or ""),
+            placeholder="Search ticker, theme, blocker, or proof step",
+            help="Search readiness-backed rows before opening one saved report.",
+            key="stock-selector-search",
+        ).strip()
+    filter_container = st.expander("Advanced: refine filters", expanded=False) if public_mode else st.container()
     with filter_container:
         preset_label = st.selectbox(
             "Saved filter",
@@ -27884,7 +27827,7 @@ def render_stock_selector(
         )
         selected_preset = next((preset for preset in saved_presets if preset["label"] == preset_label), saved_presets[0])
         with st.form("stock-selector-filter-form"):
-            filter_cols = st.columns([1.05, 1.05, 1.15, 1.2, 1.65])
+            filter_cols = st.columns([1.05, 1.05, 1.15, 1.2] if public_mode else [1.05, 1.05, 1.15, 1.2, 1.65])
             state_options = _stock_selector_filter_options(selector_frame, "Research State")
             readiness_options = _stock_selector_filter_options(selector_frame, "Readiness")
             detail_options = _stock_selector_filter_options(selector_frame, "Review Detail")
@@ -27913,11 +27856,12 @@ def render_stock_selector(
                 index=_selector_option_index(theme_options, selected_preset["theme"]),
                 key="stock-selector-theme",
             )
-            search = filter_cols[4].text_input(
-                "Search ticker, theme, blocker, or proof step",
-                value=selected_preset["search"],
-                key="stock-selector-search",
-            ).strip()
+            if not public_mode:
+                search = filter_cols[4].text_input(
+                    "Search ticker, theme, blocker, or proof step",
+                    value=selected_preset["search"],
+                    key="stock-selector-search",
+                ).strip()
             st.form_submit_button("Apply filters")
 
     filtered = stock_selector_apply_filters(
@@ -27941,12 +27885,6 @@ def render_stock_selector(
     default_shortlist = shortlist_options[: min(3, len(shortlist_options))]
     with st.expander("Advanced: selector details" if public_mode else "How this selector works", expanded=False):
         render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
-        if public_mode and len(selector_path_cards) > 1:
-            render_context_note(
-                "Secondary paths.",
-                "Use these only after a ticker is selected or when proof freshness is the main question.",
-            )
-            render_action_cards(selector_path_cards[1:])
         render_context_note(
             "Research-only selector.",
             "This page helps choose what to review next. It keeps blockers, excluded states, and proof freshness visible before deeper analysis.",
@@ -27966,7 +27904,7 @@ def render_stock_selector(
             unsafe_allow_html=True,
         )
     st.markdown(
-        stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=30),
+        stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=10 if public_mode else 30),
         unsafe_allow_html=True,
     )
     with st.expander("Advanced: full filtered selector rows", expanded=False):
@@ -28981,9 +28919,6 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         report_answer_frame = stock_report_first_answer_frame(report_payload)
         if public_mode:
             st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
-            with st.expander("Advanced: answer tables", expanded=False):
-                st.dataframe(clean_display_frame(single_answer_frame), width="stretch", hide_index=True)
-                st.dataframe(clean_display_frame(report_answer_frame), width="stretch", hide_index=True)
         else:
             st.table(clean_display_frame(single_answer_frame))
             st.table(clean_display_frame(report_answer_frame))
@@ -29115,6 +29050,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
 
     if public_mode:
         with st.expander("Advanced: detailed report sections", expanded=False):
+            st.dataframe(clean_display_frame(single_answer_frame), width="stretch", hide_index=True)
+            st.dataframe(clean_display_frame(report_answer_frame), width="stretch", hide_index=True)
             render_section_header(
                 "Detailed Review",
                 "Use these tabs after the review-status and readable-now sections clarify the readiness boundaries.",
@@ -30186,7 +30123,7 @@ def render_data_health(
     source_gate_next_action = data_health_source_gate_next_action(project_status_payload)
     with st.expander("Advanced: operator coverage summary details", expanded=False):
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)
-    render_data_health_operator_hero(operator_snapshot_cards)
+        render_data_health_operator_hero(operator_snapshot_cards)
     with st.expander("Advanced: all lane answers table", expanded=False):
         render_section_header(
             "One Answer Per Lane",

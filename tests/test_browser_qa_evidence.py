@@ -534,8 +534,8 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert all("Saved readiness" in str(row["First View Markers"]) for row in public_rows)
     stock_selector = next(row for row in rows if row["Route Check"] == "Public Stock Selector")
     assert "Which stock can I review?" in str(stock_selector["First View Markers"])
-    assert "Start with this ticker" in str(stock_selector["First View Markers"])
-    assert "starting-ticker handoff" in str(stock_selector["Details Boundary"])
+    assert "Search this review queue" in str(stock_selector["First View Markers"])
+    assert "direct review-queue search" in str(stock_selector["Details Boundary"])
     assert "choose a reviewable ticker" in str(stock_selector["QA Focus"])
     single_stock = next(row for row in rows if row["Route Check"] == "Single-stock workflow fit")
     assert "USE NOW" in str(single_stock["First View Markers"])
@@ -564,7 +564,7 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "stock selector" in rendered
     assert "which stock can i review?" in rendered
     assert "still withheld" in rendered
-    assert "start with this ticker" in rendered
+    assert "search this review queue" in rendered
     assert "open data health" in rendered
     assert "lane answer / coverage summary guide" in rendered
     assert "selected lane answer" in rendered
@@ -615,7 +615,7 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "stop rule" in output
     assert "no data, no conclusion" in output
     assert "still withheld" in output
-    assert "start with this ticker" in output
+    assert "search this review queue" in output
     assert "open data health" in output
     assert "readiness context" in output
     assert "next data-readiness action" not in output

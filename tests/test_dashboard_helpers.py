@@ -1886,22 +1886,50 @@ def test_stock_selector_result_rows_are_compact_scan_rows_without_legacy_column_
     assert "Blocked" in rendered
 
 
-def test_public_selector_start_surfaces_a_clear_starting_ticker_without_a_signal_card():
-    rendered = dashboard.stock_selector_public_start_html(
-        (
-            "Start with this ticker",
-            "NVDA is ready for a saved review.",
-            "?mode=public&page=single-stock-report&ticker=NVDA&open=1",
-            "neutral",
-            "Open NVDA report",
-        )
+def test_public_selector_uses_queue_search_without_an_arbitrary_starting_ticker():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    public_render_source = source[render_index:]
+
+    assert '"Search this review queue"' in public_render_source
+    assert "def stock_selector_public_start_html" not in public_render_source
+
+
+def test_selector_empty_result_explains_that_the_review_queue_can_be_cleared_or_refined():
+    rendered = dashboard.stock_selector_result_table_html(pd.DataFrame(), total_count=120)
+
+    assert "No review-queue rows match the current filters." in rendered
+    assert "Clear the search or refine the filters" in rendered
+
+
+def test_public_proof_timeline_deduplicates_identical_events():
+    batch_proof_frame = pd.DataFrame(
+        [
+            {
+                "Review Date": "2026-07-11",
+                "Lane": "price history",
+                "Final Outcome": "still_blocked",
+                "Notes": "Yahoo returned only available post-listing history after Stooq 404. ZTG remains below preferred history depth.",
+            },
+            {
+                "Review Date": "2026-07-11",
+                "Lane": "price history",
+                "Final Outcome": "still_blocked",
+                "Notes": "Yahoo returned only available post-listing history after Stooq 404. YDES remains below preferred history depth.",
+            },
+        ]
     )
 
-    assert "public-selector-start" in rendered
-    assert "NVDA is ready for a saved review" in rendered
-    assert "Open NVDA report" in rendered
-    assert "?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1" in rendered
-    assert "signal-card" not in rendered
+    rendered = dashboard.proof_history_public_timeline_html(pd.DataFrame(), batch_proof_frame)
+
+    assert rendered.count("Yahoo returned only available post-listing history after Stooq 404") == 1
+
+
+def test_public_single_stock_uses_one_detail_gate_before_report_sections():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert source.count('"Advanced: answer tables"') == 0
+    assert '"Show detailed report sections"' in source
 
 
 def test_stock_selector_public_rows_deep_link_to_ticker_specific_proof_lane():
@@ -25977,7 +26005,7 @@ def test_stock_report_provenance_cards_summarize_visible_method_and_source_bound
 def test_single_stock_public_report_renders_one_answer_summary_before_advanced_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     public_answer_index = source.index("st.markdown(single_stock_public_summary_html(single_answer_frame)")
-    advanced_index = source.index('st.expander("Advanced: answer tables", expanded=False)', public_answer_index)
+    advanced_index = source.index('st.expander("Advanced: detailed report sections", expanded=False)', public_answer_index)
 
     assert public_answer_index < advanced_index
     assert "render_signal_cards(stock_report_public_answer_cards(report_answer_frame)" not in source
@@ -28689,6 +28717,14 @@ def test_public_app_shell_has_a_semantic_page_title_and_visible_path_navigation(
     assert "Step 3 of 5" in html
 
 
+def test_public_app_shell_uses_one_global_status_and_one_page_boundary():
+    html = dashboard.public_app_shell_html("Home")
+
+    assert html.count("Saved readiness") == 1
+    assert "No account actions" not in html
+    assert html.count("Research-only: blocked inputs stay unavailable") == 1
+
+
 def test_public_home_overview_keeps_one_start_action_and_compact_readiness_snapshot():
     html = dashboard.public_home_overview_html(
         {
@@ -29029,13 +29065,14 @@ def test_public_loading_preview_stacks_the_compact_rail_above_its_note():
     assert "Optional inputs" in health_html
 
 
-def test_stock_selector_and_data_health_keep_usable_blocked_cards_after_load():
+def test_stock_selector_search_and_data_health_keep_public_answers_before_advanced_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     selector_index = source.index("def render_stock_selector(")
     selector_header_index = source.index("render_section_header(", selector_index)
-    selector_cards_index = source.index("stock_selector_next_reading_path_cards", selector_header_index)
     selector_messages_index = source.index("if stock_selector_saved_queue_notice_visible(", selector_header_index)
+    selector_search_index = source.index('"Search this review queue"', selector_messages_index)
+    selector_result_index = source.index("stock_selector_result_table_html(filtered", selector_search_index)
 
     health_index = source.index("def render_data_health(")
     health_public_index = source.index("if public_mode:", health_index)
@@ -29046,7 +29083,7 @@ def test_stock_selector_and_data_health_keep_usable_blocked_cards_after_load():
         health_cards_index,
     )
 
-    assert selector_header_index < selector_messages_index < selector_cards_index
+    assert selector_header_index < selector_messages_index < selector_search_index < selector_result_index
     assert health_clear_index < health_cards_index < health_coverage_index
 
 
@@ -29201,48 +29238,16 @@ def test_stock_selector_saved_filter_and_compare_controls_are_product_surface():
     assert proof_href == "?mode=public&page=data-health&ticker=NVDA&lane=peers&drawer=proof"
 
 
-def test_stock_selector_next_reading_path_uses_selected_ticker_proof_lane():
-    frame = pd.DataFrame(
-        [
-            {
-                "Ticker": "MU",
-                "Research State": "Research Now",
-                "Readiness": "partial",
-                "Review Detail": "Standalone DCF ready; peers gated",
-                "Sector / Theme": "Semiconductors",
-                "Why Included": "DCF is ready, but peer-relative context is limited.",
-                "Supported Now": "standalone DCF",
-                "Blocked / Missing": "peer mapping needs proof",
-                "Next Proof Step": "Review peer mapping proof.",
-                "Proof Freshness": "Current snapshot",
-            }
-        ]
-    )
-
-    cards = dashboard.stock_selector_next_reading_path_cards(frame, ["MU"])
-    rendered = " ".join(str(value) for card in cards for value in card).lower()
-
-    assert cards[0][0] == "Start with this ticker"
-    assert cards[0][2] == "?mode=public&page=single-stock-report&ticker=MU&open=1"
-    assert cards[0][4] == "Open MU report"
-    assert cards[1][2] == "?mode=public&page=data-health&ticker=MU&lane=peers&drawer=proof"
-    assert "start with this ticker" in rendered
-    assert "first visible readiness-backed row" in rendered
-    assert "open single-stock report" not in rendered
-    assert "generic proof" not in rendered
-
-
-def test_stock_selector_next_reading_path_uses_selected_ticker_not_fixed_demo_name():
+def test_stock_selector_renderer_uses_user_search_without_fixed_demo_ticker():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
-    initial_shortlist_index = source.index("initial_shortlist = initial_shortlist_options[: min(3, len(initial_shortlist_options))]", render_index)
-    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_action_frame, initial_shortlist)", initial_shortlist_index)
-    shortlist_index = source.index("selected_shortlist = st.multiselect(", handoff_helper_index)
-    result_table_index = source.index("stock_selector_result_table_html(filtered", handoff_helper_index)
+    search_index = source.index('"Search this review queue"', render_index)
+    shortlist_index = source.index("selected_shortlist = st.multiselect(", search_index)
+    result_table_index = source.index("stock_selector_result_table_html(filtered", search_index)
     data_health_index = source.index("def price_refresh_operator_plan_cards(", result_table_index)
     selector_source = source[render_index:data_health_index]
 
-    assert initial_shortlist_index < handoff_helper_index < shortlist_index < result_table_index
+    assert search_index < shortlist_index < result_table_index
     assert '?mode=public&page=single-stock-report&ticker=NVDA&open=1' not in selector_source
     assert '"?mode=public&page=data-health&drawer=proof"' not in selector_source
 
@@ -29270,30 +29275,26 @@ def test_stock_selector_current_filter_values_use_saved_session_state_for_primar
     }
 
 
-def test_stock_selector_primary_handoff_uses_current_filters_before_filter_controls():
+def test_stock_selector_search_precedes_advanced_filters():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
     section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
     preset_setup_index = source.index("saved_presets = stock_selector_saved_filter_presets()", section_index)
     current_filter_index = source.index("current_filter_values = stock_selector_current_filter_values", preset_setup_index)
-    filtered_action_index = source.index("selector_action_frame = stock_selector_apply_filters", current_filter_index)
-    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_action_frame", filtered_action_index)
-    primary_handoff_index = source.index("st.markdown(stock_selector_public_start_html(selector_path_cards[0])", handoff_helper_index)
-    preset_control_index = source.index("preset_label = st.selectbox(", primary_handoff_index)
+    search_index = source.index('"Search this review queue"', current_filter_index)
+    refine_drawer_index = source.index('st.expander("Advanced: refine filters", expanded=False)', search_index)
+    preset_control_index = source.index("preset_label = st.selectbox(", refine_drawer_index)
 
-    assert preset_setup_index < current_filter_index < filtered_action_index < handoff_helper_index
-    assert handoff_helper_index < primary_handoff_index < preset_control_index
+    assert preset_setup_index < current_filter_index < search_index < refine_drawer_index < preset_control_index
 
 
-def test_stock_selector_public_page_shows_one_ticker_handoff_before_filters_on_mobile():
+def test_stock_selector_public_page_shows_search_before_filters_on_mobile():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
     section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
-    handoff_helper_index = source.index("stock_selector_next_reading_path_cards(selector_action_frame", section_index)
-    primary_handoff_index = source.index("st.markdown(stock_selector_public_start_html(selector_path_cards[0])", handoff_helper_index)
-    preset_index = source.index("preset_label = st.selectbox(", primary_handoff_index)
-    cockpit_drawer_index = source.index('st.expander("Advanced: selector details" if public_mode else "How this selector works"', primary_handoff_index)
-    secondary_paths_index = source.index("render_action_cards(selector_path_cards[1:])", cockpit_drawer_index)
+    search_index = source.index('"Search this review queue"', section_index)
+    preset_index = source.index("preset_label = st.selectbox(", search_index)
+    cockpit_drawer_index = source.index('st.expander("Advanced: selector details" if public_mode else "How this selector works"', search_index)
     cockpit_cards_index = source.index("stock_selector_cockpit_cards(summary)", cockpit_drawer_index)
     result_table_index = source.index("stock_selector_result_table_html(filtered", cockpit_cards_index)
 
@@ -29303,11 +29304,9 @@ def test_stock_selector_public_page_shows_one_ticker_handoff_before_filters_on_m
     assert 'render_section_header("Choose One Ticker"' not in selector_source
     assert (
         section_index
-        < handoff_helper_index
-        < primary_handoff_index
+        < search_index
         < preset_index
         < cockpit_drawer_index
-        < secondary_paths_index
         < result_table_index
     )
 
@@ -29318,11 +29317,11 @@ def test_public_stock_selector_keeps_refinement_controls_collapsed_by_default():
     next_function_index = source.index("\ndef price_refresh_operator_plan_cards(", render_index)
     chunk = source[render_index:next_function_index]
 
-    primary_handoff_index = chunk.index("st.markdown(stock_selector_public_start_html(selector_path_cards[0])")
-    refine_drawer_index = chunk.index('st.expander("Refine the list", expanded=False)')
+    search_index = chunk.index('"Search this review queue"')
+    refine_drawer_index = chunk.index('st.expander("Advanced: refine filters", expanded=False)')
     preset_index = chunk.index('preset_label = st.selectbox(', refine_drawer_index)
 
-    assert primary_handoff_index < refine_drawer_index < preset_index
+    assert search_index < refine_drawer_index < preset_index
 
 
 def test_public_stock_selector_keeps_multi_ticker_tray_out_of_the_default_flow():
@@ -29492,6 +29491,24 @@ def test_data_health_operator_route_collapses_broad_lane_table_after_snapshot():
     assert "Compact lane states before queue drawers, route maps, raw tables, proof ledgers, or command-heavy operator details." not in source
 
 
+def test_operator_data_health_keeps_aggregate_snapshot_inside_coverage_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    operator_index = source.index("selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]")
+    coverage_drawer_index = source.index(
+        'with st.expander("Advanced: operator coverage summary details", expanded=False):',
+        operator_index,
+    )
+    coverage_index = source.index(
+        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
+        coverage_drawer_index,
+    )
+    hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", coverage_index)
+    next_drawer_index = source.index('with st.expander("Advanced: all lane answers table", expanded=False):', hero_index)
+
+    assert coverage_drawer_index < coverage_index < hero_index < next_drawer_index
+    assert "        render_data_health_operator_hero(operator_snapshot_cards)" in source[coverage_index:next_drawer_index]
+
+
 def test_single_stock_public_page_uses_simplified_review_sections():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")
@@ -29501,9 +29518,7 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     one_answer_index = source.index("single_stock_one_answer_frame(report_one_answer_snapshot)", readable_now_index)
     first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", one_answer_index)
     public_cards_index = source.index("single_stock_public_summary_html(single_answer_frame)", first_answer_index)
-    advanced_tables_index = source.index('st.expander("Advanced: answer tables", expanded=False)', public_cards_index)
-    advanced_dataframe_index = source.index("st.dataframe(clean_display_frame(single_answer_frame)", advanced_tables_index)
-    quick_read_index = source.index('with st.expander("Advanced quick-read context", expanded=False)', advanced_dataframe_index)
+    quick_read_index = source.index('with st.expander("Advanced quick-read context", expanded=False)', public_cards_index)
     public_quick_read_cards_index = source.index(
         "if public_mode:\n            render_signal_cards(at_a_glance_cards, show_commands=False)",
         quick_read_index,
@@ -29516,6 +29531,7 @@ def test_single_stock_public_page_uses_simplified_review_sections():
         'st.expander("Advanced: detailed report sections", expanded=False)',
         quick_read_index,
     )
+    advanced_dataframe_index = source.index("st.dataframe(clean_display_frame(single_answer_frame)", advanced_detail_index)
     detail_index = source.index('"Detailed Review"', advanced_detail_index)
     tabs_index = source.index('["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]', detail_index)
 
@@ -29525,12 +29541,11 @@ def test_single_stock_public_page_uses_simplified_review_sections():
         < one_answer_index
         < first_answer_index
         < public_cards_index
-        < advanced_tables_index
-        < advanced_dataframe_index
         < quick_read_index
         < public_quick_read_cards_index
         < workflow_fit_cards_index
         < advanced_detail_index
+        < advanced_dataframe_index
         < detail_index
         < tabs_index
     )

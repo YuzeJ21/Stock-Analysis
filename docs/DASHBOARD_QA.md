@@ -9,8 +9,8 @@ captures and historical notes below:
 
 - Home: one readiness-first answer, `Start with Stock Selector`, and the
   `No data, no conclusion` boundary.
-- Stock Selector: a `Start with this ticker` handoff before filters and compact
-  review rows.
+- Stock Selector: a direct `Search this review queue` control before optional
+  filters and compact review rows.
 - Single-Stock Report: selected ticker, `Use now`, `Still withheld`, and one
   `Open Data Health` handoff before detailed sections.
 - Data Health: four comparison rows that state usable scope, coverage, and one

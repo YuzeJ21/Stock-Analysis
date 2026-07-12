@@ -20,7 +20,7 @@ PUBLIC_ROUTES = [
         "Stock Selector",
         "http://localhost:8501/?mode=public&page=stock-selector",
         "Which stock can I review?",
-        "Readiness-first header, current question, starting-ticker handoff, one next action, readiness-backed rows",
+        "Readiness-first header, current question, direct review-queue search, compact readiness-backed rows",
         "Visitor can choose one ticker without treating the queue as advice.",
         "Move filters/raw rows below the selected-ticker handoff; keep the queue language readiness-backed, not recommendation-like.",
     ),
