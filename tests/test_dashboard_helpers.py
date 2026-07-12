@@ -1447,6 +1447,7 @@ def test_mobile_public_cards_collapse_to_one_column_before_details():
 
 def test_shared_dashboard_surfaces_use_flat_institutional_treatment():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    theme_block = source[source.index("<style>") : source.index("</style>")]
 
     sidebar_block = source[source.index('[data-testid="stSidebar"] [data-testid="stSidebarContent"] {') : source.index('[data-testid="stSidebar"] * {')]
     active_nav_block = source[source.index('[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {') : source.index('[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p,')]
@@ -1460,6 +1461,7 @@ def test_shared_dashboard_surfaces_use_flat_institutional_treatment():
     assert "background: #ffffff" in signal_card_block
     assert "box-shadow: 0 1px 2px" in signal_card_block
     assert "linear-gradient" not in context_note_block
+    assert "linear-gradient" not in theme_block
 
 
 def test_command_center_loop_and_workbench_follow_reference_structure():

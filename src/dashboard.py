@@ -3028,7 +3028,7 @@ def apply_dashboard_theme() -> None:
           margin-top: 0.45rem;
           padding: 0.26rem 0.56rem;
           border-radius: 999px;
-          background: linear-gradient(180deg, #eef9f5, #dff3ea);
+          background: #e7f5f0;
           border: 1px solid rgba(15, 118, 110, 0.18);
           color: #0b3b36;
           font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -3385,18 +3385,18 @@ def apply_dashboard_theme() -> None:
         .pick-card {
           position: relative;
           overflow: hidden;
-          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,248,239,0.96));
+          background: #ffffff;
           border: 1px solid var(--research-border);
-          border-radius: 12px;
+          border-radius: 8px;
           padding: 1rem 1.05rem;
-          box-shadow: 0 16px 38px rgba(17, 24, 39, 0.08);
+          box-shadow: 0 2px 6px rgba(17, 24, 39, 0.06);
         }
         .pick-card::before {
           content: "";
           position: absolute;
           inset: 0 auto 0 0;
           width: 7px;
-          background: linear-gradient(180deg, #0f766e, #99f6e4);
+          background: #0f766e;
         }
         .pick-head {
           display: flex;
@@ -3428,7 +3428,7 @@ def apply_dashboard_theme() -> None:
         .pick-score {
           min-width: 74px;
           text-align: center;
-          border-radius: 12px;
+          border-radius: 8px;
           padding: 0.55rem 0.6rem;
           background: #0b3b36;
           color: #ecfdf5;
@@ -3474,11 +3474,11 @@ def apply_dashboard_theme() -> None:
           margin: 0.85rem 0 1.05rem 0;
         }
         .report-brief-main {
-          border-radius: 12px;
+          border-radius: 8px;
           padding: 1rem 1.05rem;
-          background: linear-gradient(145deg, #172033, #0f766e);
+          background: #123f3a;
           border: 1px solid rgba(255,255,255,0.22);
-          box-shadow: 0 16px 38px rgba(17, 24, 39, 0.14);
+          box-shadow: 0 2px 6px rgba(17, 24, 39, 0.12);
         }
         .report-brief-kicker {
           color: #99f6e4;
@@ -3507,7 +3507,7 @@ def apply_dashboard_theme() -> None:
           gap: 0.7rem;
         }
         .report-brief-card {
-          border-radius: 12px;
+          border-radius: 8px;
           padding: 0.85rem 0.9rem;
           background: rgba(255, 254, 250, 0.95);
           border: 1px solid var(--research-border);
@@ -3715,11 +3715,11 @@ def apply_dashboard_theme() -> None:
           font-weight: 900;
         }
         .context-note.warning {
-          background: linear-gradient(180deg, #fff8ee, rgba(255,255,255,0.92));
+          background: #fff8ee;
           border-color: #f4c78a;
         }
         .context-note.success {
-          background: linear-gradient(180deg, #f2fbf7, rgba(255,255,255,0.92));
+          background: #f2fbf7;
           border-color: #b9e5cf;
         }
         .sidebar-guide-stack {
@@ -3729,11 +3729,11 @@ def apply_dashboard_theme() -> None:
         }
         .sidebar-product-card {
           border: 1px solid rgba(15, 118, 110, 0.18);
-          border-radius: 10px;
+          border-radius: 8px;
           padding: 0.82rem 0.85rem;
           margin: 0.2rem 0 0.9rem 0;
-          background: linear-gradient(180deg, #ffffff 0%, #f0faf6 100%);
-          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+          background: #ffffff;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
         }
         .sidebar-product-label {
           color: #0f766e;
@@ -3757,7 +3757,7 @@ def apply_dashboard_theme() -> None:
         }
         .sidebar-guide-card {
           position: relative;
-          border-radius: 14px;
+          border-radius: 8px;
           border: 1px solid #dce5dc;
           background: rgba(255, 254, 250, 0.9);
           border-left: 4px solid #0f766e;
@@ -3827,10 +3827,10 @@ def apply_dashboard_theme() -> None:
           margin: 0.8rem 0 1.05rem 0;
         }
         .cockpit-summary {
-          border-radius: 14px;
+          border-radius: 8px;
           padding: 1.15rem 1.2rem;
-          background: linear-gradient(145deg, #102f2c, #0f766e);
-          box-shadow: 0 18px 38px rgba(15, 59, 54, 0.18);
+          background: #123f3a;
+          box-shadow: 0 2px 6px rgba(15, 59, 54, 0.14);
           border: 1px solid rgba(255, 255, 255, 0.22);
         }
         .cockpit-kicker {
@@ -4318,7 +4318,7 @@ def apply_dashboard_theme() -> None:
         }
         .metric-console-main {
           padding: 0.86rem 0.9rem;
-          background: linear-gradient(180deg, #ffffff 0%, #f7fbfa 100%);
+          background: #ffffff;
         }
         .metric-console-kicker {
           color: #0f766e;
