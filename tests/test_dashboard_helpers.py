@@ -1895,6 +1895,25 @@ def test_public_selector_uses_queue_search_without_an_arbitrary_starting_ticker(
     assert "def stock_selector_public_start_html" not in public_render_source
 
 
+def test_stock_selector_keeps_search_first_and_hides_operator_filters_and_comparison_tray():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    next_function_index = source.index("\ndef price_refresh_operator_plan_cards", render_index)
+    selector_source = source[render_index:next_function_index]
+
+    search_index = selector_source.index('"Search this review queue"')
+    filters_index = selector_source.index('st.expander("Advanced: refine filters", expanded=False)')
+    tray_index = selector_source.index('st.expander("Advanced: selected review tray", expanded=False)')
+    result_index = selector_source.index("stock_selector_result_table_html(filtered")
+
+    assert search_index < filters_index < result_index
+    assert "default=[]," in selector_source
+    assert "How this selector works" not in selector_source
+    assert "Advanced: selection guidance" in selector_source
+    assert filters_index < tray_index < result_index
+    assert "limit=10 if public_mode else 15" in selector_source
+
+
 def test_selector_empty_result_explains_that_the_review_queue_can_be_cleared_or_refined():
     rendered = dashboard.stock_selector_result_table_html(pd.DataFrame(), total_count=120)
 
@@ -29314,7 +29333,7 @@ def test_stock_selector_public_page_shows_search_before_filters_on_mobile():
     section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
     search_index = source.index('"Search this review queue"', section_index)
     preset_index = source.index("preset_label = st.selectbox(", search_index)
-    cockpit_drawer_index = source.index('st.expander("Advanced: selector details" if public_mode else "How this selector works"', search_index)
+    cockpit_drawer_index = source.index('st.expander("Advanced: selection guidance", expanded=False)', search_index)
     cockpit_cards_index = source.index("stock_selector_cockpit_cards(summary)", cockpit_drawer_index)
     result_table_index = source.index("stock_selector_result_table_html(filtered", cockpit_cards_index)
 

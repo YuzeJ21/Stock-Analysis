@@ -27807,16 +27807,14 @@ def render_stock_selector(
 
     saved_presets = stock_selector_saved_filter_presets()
     current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
-    search = ""
-    if public_mode:
-        search = st.text_input(
-            "Search this review queue",
-            value=str(current_filter_values.get("search") or ""),
-            placeholder="Search ticker, theme, blocker, or proof step",
-            help="Search readiness-backed rows before opening one saved report.",
-            key="stock-selector-search",
-        ).strip()
-    filter_container = st.expander("Advanced: refine filters", expanded=False) if public_mode else st.container()
+    search = st.text_input(
+        "Search this review queue",
+        value=str(current_filter_values.get("search") or ""),
+        placeholder="Search ticker, theme, blocker, or proof step",
+        help="Search readiness-backed rows before opening one saved report.",
+        key="stock-selector-search",
+    ).strip()
+    filter_container = st.expander("Advanced: refine filters", expanded=False)
     with filter_container:
         preset_label = st.selectbox(
             "Saved filter",
@@ -27827,7 +27825,7 @@ def render_stock_selector(
         )
         selected_preset = next((preset for preset in saved_presets if preset["label"] == preset_label), saved_presets[0])
         with st.form("stock-selector-filter-form"):
-            filter_cols = st.columns([1.05, 1.05, 1.15, 1.2] if public_mode else [1.05, 1.05, 1.15, 1.2, 1.65])
+            filter_cols = st.columns([1.05, 1.05, 1.15, 1.2])
             state_options = _stock_selector_filter_options(selector_frame, "Research State")
             readiness_options = _stock_selector_filter_options(selector_frame, "Readiness")
             detail_options = _stock_selector_filter_options(selector_frame, "Review Detail")
@@ -27856,12 +27854,6 @@ def render_stock_selector(
                 index=_selector_option_index(theme_options, selected_preset["theme"]),
                 key="stock-selector-theme",
             )
-            if not public_mode:
-                search = filter_cols[4].text_input(
-                    "Search ticker, theme, blocker, or proof step",
-                    value=selected_preset["search"],
-                    key="stock-selector-search",
-                ).strip()
             st.form_submit_button("Apply filters")
 
     filtered = stock_selector_apply_filters(
@@ -27882,8 +27874,7 @@ def render_stock_selector(
             f"{count_label} match the current filters. Open Single-Stock Report for one ticker, or Data Health if the blocker is the main question.",
         )
     shortlist_options = filtered["Ticker"].astype(str).str.upper().drop_duplicates().head(30).tolist()
-    default_shortlist = shortlist_options[: min(3, len(shortlist_options))]
-    with st.expander("Advanced: selector details" if public_mode else "How this selector works", expanded=False):
+    with st.expander("Advanced: selection guidance", expanded=False):
         render_signal_cards(stock_selector_cockpit_cards(summary), show_commands=False, variant="queue")
         render_context_note(
             "Research-only selector.",
@@ -27891,20 +27882,22 @@ def render_stock_selector(
             tone="success",
         )
     if not public_mode:
-        selected_shortlist = st.multiselect(
-            "Selected tickers for review",
-            shortlist_options,
-            default=default_shortlist,
-            max_selections=5,
-            help="Optional selected-ticker tray for readiness, blockers, and proof steps. It does not create conclusions or account actions.",
-            key="stock-selector-shortlist",
-        )
-        st.markdown(
-            stock_selector_shortlist_html(stock_selector_shortlist_frame(filtered, selected_shortlist)),
-            unsafe_allow_html=True,
-        )
+        with st.expander("Advanced: selected review tray", expanded=False):
+            selected_shortlist = st.multiselect(
+                "Selected tickers for review",
+                shortlist_options,
+                default=[],
+                max_selections=5,
+                help="Optional selected-ticker tray for readiness, blockers, and proof steps. It does not create conclusions or account actions.",
+                key="stock-selector-shortlist",
+            )
+            if selected_shortlist:
+                st.markdown(
+                    stock_selector_shortlist_html(stock_selector_shortlist_frame(filtered, selected_shortlist)),
+                    unsafe_allow_html=True,
+                )
     st.markdown(
-        stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=10 if public_mode else 30),
+        stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=10 if public_mode else 15),
         unsafe_allow_html=True,
     )
     with st.expander("Advanced: full filtered selector rows", expanded=False):
