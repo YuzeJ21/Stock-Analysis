@@ -32550,7 +32550,7 @@ def main() -> None:
         if public_demo_mode or selected_page != "Data Health":
             render_sidebar_product_intro()
         if show_sidebar_operator_guides:
-            with st.expander("Advanced: operator tools", expanded=initial_page in ADVANCED_PAGE_TITLES):
+            with st.expander("Advanced: operator tools", expanded=False):
                 advanced_page = st.selectbox(
                     "Open a research view",
                     ["Keep current path"] + ADVANCED_PAGE_TITLES,

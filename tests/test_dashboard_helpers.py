@@ -2783,7 +2783,7 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "Turn on reader tips only when you want more review context" in source
     assert "Turn on page tips only when you want extra review context" not in source
     assert "Turn on guided help only when you want extra review routes" not in source
-    assert 'st.expander("Advanced: operator tools", expanded=initial_page in ADVANCED_PAGE_TITLES)' in source
+    assert 'st.expander("Advanced: operator tools", expanded=False)' in source
     assert 'st.expander("Workflow guide", expanded=False)' not in source
     assert 'st.expander("Best beginner path"' not in source
     assert '"Start simple."' in source
@@ -2947,6 +2947,16 @@ def test_operator_sidebar_groups_secondary_controls_into_one_advanced_drawer():
     assert 'with st.expander("Workflow guide"' not in source[main_index:tools_drawer_index + 2500]
     assert 'with st.expander("Operator run commands"' not in source[main_index:tools_drawer_index + 2500]
     assert tools_drawer_index < select_index < workflow_index < commands_index
+
+
+def test_operator_tools_stay_collapsed_even_when_an_advanced_page_is_opened_directly():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    main_index = source.index("def main() -> None:")
+    tools_drawer_index = source.index('with st.expander("Advanced: operator tools"', main_index)
+    tools_drawer = source[tools_drawer_index : source.index("):", tools_drawer_index) + 2]
+
+    assert 'expanded=False' in tools_drawer
+    assert "expanded=initial_page in ADVANCED_PAGE_TITLES" not in tools_drawer
 
 
 def test_sidebar_product_intro_is_portfolio_safe_and_not_command_first():
