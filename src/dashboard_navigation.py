@@ -169,9 +169,9 @@ def dashboard_mode_label(mode: str) -> str:
 
 
 def sidebar_path_options(initial_page: str, advanced_titles: list[str]) -> list[str]:
-    """Return visitor path choices without pretending detailed pages are Home."""
+    """Return visitor paths plus the active advanced route when one is open."""
     if initial_page in advanced_titles:
-        return PUBLIC_PATH_PAGE_TITLES + [DETAILED_PAGE_PATH_TITLE]
+        return PUBLIC_PATH_PAGE_TITLES + [initial_page]
     return PUBLIC_PATH_PAGE_TITLES
 
 

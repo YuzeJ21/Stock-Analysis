@@ -28746,7 +28746,7 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
         "Single-Stock Report",
         "Data Health",
         "Proof History",
-        "More research views",
+        "Value / Re-rating",
     ]
     assert dashboard.sidebar_path_index("Value / Re-rating", dashboard.sidebar_path_options("Value / Re-rating")) == 5
     assert dashboard.sidebar_path_index("Stock Selector", dashboard.sidebar_path_options("Stock Selector")) == 1

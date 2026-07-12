@@ -45,20 +45,25 @@ def test_dashboard_navigation_sidebar_options_keep_advanced_pages_secondary():
     advanced = ["Overview", "Monthly Picks", "Universe Manager"]
 
     assert nav.sidebar_path_options("Home", advanced) == nav.PUBLIC_PATH_PAGE_TITLES
-    assert nav.sidebar_path_options("Overview", advanced) == nav.PUBLIC_PATH_PAGE_TITLES + [
-        nav.DETAILED_PAGE_PATH_TITLE
-    ]
+    assert nav.sidebar_path_options("Overview", advanced) == nav.PUBLIC_PATH_PAGE_TITLES + ["Overview"]
     assert nav.sidebar_path_index("Stock Selector", nav.PUBLIC_PATH_PAGE_TITLES, advanced) == 1
     assert nav.sidebar_path_index("Single-Stock Report", nav.PUBLIC_PATH_PAGE_TITLES, advanced) == 2
     assert nav.sidebar_path_index("Data Health", nav.PUBLIC_PATH_PAGE_TITLES, advanced) == 3
     assert (
         nav.sidebar_path_index(
             "Universe Manager",
-            nav.PUBLIC_PATH_PAGE_TITLES + [nav.DETAILED_PAGE_PATH_TITLE],
+            nav.PUBLIC_PATH_PAGE_TITLES + ["Universe Manager"],
             advanced,
         )
         == 5
     )
+
+
+def test_dashboard_navigation_shows_the_current_advanced_page_name_in_the_route_rail():
+    advanced = ["Overview", "Monthly Picks", "Universe Manager"]
+
+    assert nav.sidebar_path_options("Monthly Picks", advanced) == nav.PUBLIC_PATH_PAGE_TITLES + ["Monthly Picks"]
+    assert nav.sidebar_path_index("Monthly Picks", nav.sidebar_path_options("Monthly Picks", advanced), advanced) == 5
 
 
 def test_public_workflow_steps_answer_one_question_and_next_action_per_page():
