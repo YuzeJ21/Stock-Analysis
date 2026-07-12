@@ -32419,11 +32419,15 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     )
     current = universe_summary["current_universe"]
     staged = universe_summary["staged_universe"]
-
-    render_section_header("Universe Review Flow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
-    render_action_cards(universe_workflow_cards(universe_summary))
-    render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, preview-file state, and safer apply flow.")
-    render_signal_cards(universe_action_path_cards(universe_summary), show_commands=False)
+    universe_workflow = universe_workflow_cards(universe_summary)
+    universe_action_paths = universe_action_path_cards(universe_summary)
+    universe_primary_cards = universe_action_paths[:1]
+    render_signal_cards(universe_primary_cards, show_commands=False, variant="queue")
+    with st.expander("Advanced: universe readiness and action details", expanded=False):
+        render_section_header("Universe Review Flow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
+        render_action_cards(universe_workflow)
+        render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, preview-file state, and safer apply flow.")
+        render_signal_cards(universe_action_paths[1:], show_commands=False)
 
     with st.expander("Universe coverage and source details", expanded=False):
         render_signal_cards(universe_manager_summary_cards(current, staged))

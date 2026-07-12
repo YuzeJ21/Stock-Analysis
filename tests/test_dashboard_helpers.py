@@ -20179,7 +20179,10 @@ def test_dashboard_uses_readable_universe_import_review_details():
     assert 'st.expander("Universe coverage and source details", expanded=False)' in source
     assert 'st.expander("Current universe list", expanded=False)' in source
     assert 'st.expander("Universe preview checks and copyable commands", expanded=False)' in source
-    assert "render_signal_cards(universe_action_path_cards(universe_summary), show_commands=False)" in source
+    assert "universe_primary_cards = universe_action_paths[:1]" in source
+    assert "render_signal_cards(universe_primary_cards, show_commands=False, variant=\"queue\")" in source
+    assert "render_signal_cards(universe_action_paths[1:], show_commands=False)" in source
+    assert 'st.expander("Advanced: universe readiness and action details", expanded=False)' in source
     assert 'st.expander("Universe import checks and copyable commands", expanded=False)' not in source
     assert "Universe preview details" in source
     assert "Universe import details" not in source
@@ -29376,6 +29379,21 @@ def test_monthly_picks_collapses_repeated_method_and_quality_cards_after_the_fir
     assert 'render_section_header("Candidate Review Guide"' in monthly_chunk[guidance_drawer_index:metrics_index]
     assert 'render_section_header("How To Read Monthly Picks"' in monthly_chunk[guidance_drawer_index:metrics_index]
     assert 'render_section_header("Candidate Review Guide"' not in monthly_chunk[:guidance_drawer_index]
+
+
+def test_universe_manager_keeps_only_the_current_preview_path_in_its_default_view():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_universe_manager(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    universe_chunk = source[render_index:next_function_index]
+    primary_cards_index = universe_chunk.index("universe_primary_cards")
+    detail_drawer_index = universe_chunk.index('with st.expander("Advanced: universe readiness and action details", expanded=False):')
+    coverage_drawer_index = universe_chunk.index('with st.expander("Universe coverage and source details", expanded=False):')
+
+    assert primary_cards_index < detail_drawer_index < coverage_drawer_index
+    assert 'render_section_header("Universe Review Flow"' in universe_chunk[detail_drawer_index:coverage_drawer_index]
+    assert 'render_section_header("Universe Action Paths"' in universe_chunk[detail_drawer_index:coverage_drawer_index]
+    assert 'render_section_header("Universe Review Flow"' not in universe_chunk[:detail_drawer_index]
 
 
 def test_single_stock_keeps_usable_blocked_cards_before_report_load():
