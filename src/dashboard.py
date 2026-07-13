@@ -19987,6 +19987,29 @@ def single_stock_readiness_snapshot(
     return snapshot
 
 
+def single_stock_fast_readiness_snapshot(ticker: str) -> dict[str, object]:
+    """Build the public deep-link answer from saved readiness outputs only."""
+
+    ticker_readiness_frame, _ = load_ticker_readiness_report()
+    coverage_frame, _ = load_output(OUTPUTS_DIR / "ticker_data_coverage.csv")
+    decisions_frame, _ = load_output(OUTPUTS_DIR / "research_decisions.csv")
+    dcf_readiness_frame, _ = load_dcf_readiness()
+    peer_readiness_frame, _ = load_peer_readiness_report()
+    optional_tables = load_optional_context_readiness()
+    earnings_readiness_frame, _ = optional_tables["earnings_readiness"]
+    analyst_readiness_frame, _ = optional_tables["analyst_estimates_readiness"]
+    return single_stock_readiness_snapshot(
+        ticker,
+        ticker_readiness_frame,
+        coverage_frame=coverage_frame,
+        decisions_frame=decisions_frame,
+        dcf_readiness_frame=dcf_readiness_frame,
+        peer_readiness_frame=peer_readiness_frame,
+        earnings_readiness_frame=earnings_readiness_frame,
+        analyst_readiness_frame=analyst_readiness_frame,
+    )
+
+
 def single_stock_operator_summary(
     *,
     symbol: str,
@@ -28844,6 +28867,8 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         report_payload = None
     single_stock_loading_placeholder = None
     if public_mode and compact_public_open_report and not report_payload:
+        fast_snapshot = single_stock_fast_readiness_snapshot(ticker)
+        render_signal_cards(single_stock_quick_read_cards(fast_snapshot)[:3], show_commands=False, variant="queue")
         single_stock_loading_placeholder = st.empty()
         with single_stock_loading_placeholder.container():
             render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")

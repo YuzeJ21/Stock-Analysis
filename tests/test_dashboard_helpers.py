@@ -29705,6 +29705,20 @@ def test_direct_public_single_stock_route_renders_loading_contract_before_provid
     assert loading_placeholder_index < loading_contract_index < coverage_lookup_index < clear_loading_index
 
 
+def test_direct_public_single_stock_route_renders_fast_saved_answer_before_report_build():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    render_index = source.index("def render_single_stock_report(")
+    next_function_index = source.index("\ndef render_data_health(", render_index)
+    report_chunk = source[render_index:next_function_index]
+    fast_snapshot_index = report_chunk.index("fast_snapshot = single_stock_fast_readiness_snapshot(ticker)")
+    fast_cards_index = report_chunk.index("render_signal_cards(single_stock_quick_read_cards(fast_snapshot)", fast_snapshot_index)
+    loading_placeholder_index = report_chunk.index("single_stock_loading_placeholder = st.empty()", fast_cards_index)
+    open_report_index = report_chunk.index("open_selected_report()", loading_placeholder_index)
+
+    assert fast_snapshot_index < fast_cards_index < loading_placeholder_index < open_report_index
+
+
 def test_single_stock_public_selector_uses_one_primary_ticker_control():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")
