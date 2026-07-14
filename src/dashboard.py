@@ -2647,7 +2647,7 @@ def apply_dashboard_theme() -> None:
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-height: 1.9rem;
+          min-height: 2.75rem;
           border-radius: 8px;
           border: 1px solid rgba(15, 118, 110, 0.24);
           background: #f0fdf4;
@@ -5198,7 +5198,11 @@ def render_public_shell_mode_styles() -> None:
         }
         .public-app-nav::-webkit-scrollbar { display: none; }
         .public-app-nav a {
+          display: inline-flex;
+          align-items: center;
           flex: 0 0 auto;
+          min-height: 2.75rem;
+          box-sizing: border-box;
           padding: 0.42rem 0.56rem 0.5rem;
           border-bottom: 2px solid transparent;
           color: #53616f !important;
@@ -5264,7 +5268,7 @@ def render_public_shell_mode_styles() -> None:
         .public-primary-action {
           display: inline-flex;
           align-items: center;
-          min-height: 2.5rem;
+          min-height: 2.75rem;
           padding: 0.55rem 0.8rem;
           border-radius: 6px;
           background: #0f766e;
@@ -5365,7 +5369,7 @@ def render_public_shell_mode_styles() -> None:
           gap: 0.35rem;
         }
         .selector-action-link {
-          min-height: 2.25rem;
+          min-height: 2.75rem;
           border-radius: 6px;
           box-shadow: none;
           border-color: #0f766e;
@@ -5755,7 +5759,7 @@ def public_loading_preview_html(selected_page: str, first_label: str = "Current 
             + "</div>"
         )
     return (
-        "<div class='public-loading-preview'>"
+        "<div class='public-loading-preview' role='status' aria-live='polite' aria-busy='true'>"
         f"{public_workflow_header_html(selected_page)}"
         "<div class='public-loading-note'>Loading saved readiness. No data is being refreshed or changed.</div>"
         f"{loading_lanes}"
@@ -5763,19 +5767,61 @@ def public_loading_preview_html(selected_page: str, first_label: str = "Current 
     )
 
 
-def public_workflow_skip_link_html() -> str:
+def public_workflow_skip_href(
+    page_title: str,
+    query_params: object | None = None,
+    *,
+    mode: str = PUBLIC_DEMO_MODE,
+) -> str:
+    skip_mode = OPERATOR_DEMO_MODE if mode == OPERATOR_DEMO_MODE else PUBLIC_DEMO_MODE
+    params: list[tuple[str, str]] = [("mode", skip_mode)]
+    if page_title != "Home":
+        params.append(("page", dashboard_page_slug(page_title)))
+
+    getter = getattr(query_params, "get", None)
+    if callable(getter):
+        for key in (
+            "ticker",
+            "open",
+            "lane",
+            "drawer",
+            "queue_details",
+            "batch_details",
+            "metric_details",
+            "proof_details",
+        ):
+            value = getter(key)
+            if isinstance(value, (list, tuple)):
+                value = value[-1] if value else ""
+            text = str(value or "").strip()
+            if text:
+                params.append((key, text))
+    return "?" + urlencode(params) + "#public-page-answer"
+
+
+def public_workflow_skip_link_html(skip_href: str = "#public-page-answer") -> str:
     return (
-        "<a class='public-skip-link' href='#public-page-answer' "
+        f"<a class='public-skip-link' href='{html.escape(skip_href, quote=True)}' "
         "aria-label='Skip to page answer'>Skip to page answer</a>"
     )
 
 
-def render_public_workflow_skip_link() -> None:
-    st.markdown(public_workflow_skip_link_html(), unsafe_allow_html=True)
+def render_public_workflow_skip_link(
+    page_title: str | None = None,
+    query_params: object | None = None,
+    *,
+    mode: str = PUBLIC_DEMO_MODE,
+) -> None:
+    skip_href = public_workflow_skip_href(page_title, query_params, mode=mode) if page_title else "#public-page-answer"
+    st.markdown(public_workflow_skip_link_html(skip_href), unsafe_allow_html=True)
 
 
 def public_workflow_skip_target_html() -> str:
-    return "<div id='public-page-answer' class='public-workflow-skip-target' tabindex='-1'></div>"
+    return (
+        "<div id='public-page-answer' class='public-workflow-skip-target' tabindex='-1'>"
+        "Page answer begins"
+        "</div>"
+    )
 
 
 def render_public_workflow_skip_target() -> None:
@@ -32563,7 +32609,7 @@ def main() -> None:
             public_demo_mode = initial_mode == PUBLIC_DEMO_MODE
         mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
         if not public_demo_mode:
-            render_public_workflow_skip_link()
+            render_public_workflow_skip_link(initial_page, st.query_params, mode=OPERATOR_DEMO_MODE)
         if not public_demo_mode:
             st.caption(f"Mode: {dashboard_mode_label(mode)}")
         st.caption(f"Data profile: {data_profile.name}")
@@ -32660,9 +32706,9 @@ def main() -> None:
             bootstrap_placeholder.empty()
             bootstrap_placeholder = None
         render_public_shell_mode_styles()
-        render_public_workflow_skip_link()
-        render_public_workflow_skip_target()
+        render_public_workflow_skip_link(selected_page, st.query_params)
         render_public_app_shell(selected_page)
+        render_public_workflow_skip_target()
     else:
         render_app_header(
             catalog,
@@ -32670,6 +32716,7 @@ def main() -> None:
             compact=True,
             current_page=selected_page,
         )
+        render_public_workflow_skip_target()
 
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
 

@@ -29097,6 +29097,29 @@ def test_public_app_shell_has_compact_mobile_rules():
     assert "flex-wrap: wrap" in mobile_chunk
 
 
+def test_public_workflow_controls_reserve_accessible_touch_targets():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    base_selector_start = source.index(".selector-action-link {")
+    base_selector_end = source.index("}", base_selector_start)
+    base_selector_rule = source[base_selector_start:base_selector_end]
+    assert "min-height: 2.75rem" in base_selector_rule
+
+    public_shell_start = source.index("def render_public_shell_mode_styles")
+    public_shell_end = source.index("def public_workflow_header_html", public_shell_start)
+    public_shell_css = source[public_shell_start:public_shell_end]
+
+    for selector in (
+        ".public-app-nav a {",
+        ".public-primary-action {",
+        ".selector-action-link {",
+    ):
+        rule_start = public_shell_css.index(selector)
+        rule_end = public_shell_css.index("}", rule_start)
+        rule = public_shell_css[rule_start:rule_end]
+        assert "min-height: 2.75rem" in rule
+
+
 def test_public_task_pages_do_not_render_duplicate_readiness_preview_cards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -29206,37 +29229,69 @@ def test_dashboard_theme_removes_framework_heading_links_from_keyboard_flow():
     assert "outline: 3px solid #0f766e !important;" in source
 
 
-def test_public_workflow_adds_keyboard_skip_link_before_sidebar_controls():
+def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    assert "def public_workflow_skip_href(" in source
     assert "def public_workflow_skip_link_html(" in source
     assert "def public_workflow_skip_target_html(" in source
     assert ".public-skip-link" in source
     assert "clip-path: inset(50%)" in source
     assert ".public-skip-link:focus" in source
     assert "clip-path: none" in source
-    assert "href='#public-page-answer'" in source
+    assert 'return "?" + urlencode(params) + "#public-page-answer"' in source
     assert "id='public-page-answer'" in source
     assert "tabindex='-1'" in source
 
-    main_index = source.index("def main()")
-    sidebar_index = source.index("with st.sidebar:", main_index)
-    nav_header_index = source.index("render_sidebar_nav_header()", sidebar_index)
-    toggle_index = source.index("public_demo_mode = st.toggle(", nav_header_index)
-    public_shell_style_index = source.index("render_public_shell_mode_styles()", toggle_index)
-    skip_link_index = source.index("render_public_workflow_skip_link()", public_shell_style_index)
-    skip_target_index = source.index("render_public_workflow_skip_target()", skip_link_index)
-    shell_index = source.index("render_public_app_shell(selected_page)", skip_target_index)
-    assert nav_header_index < toggle_index < public_shell_style_index < skip_link_index < skip_target_index < shell_index
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(selected_page)")
+    public_mode_index = source.index("if public_demo_mode:", output_frames_index)
+    public_shell_style_index = source.index("render_public_shell_mode_styles()", public_mode_index)
+    skip_link_index = source.index("render_public_workflow_skip_link(selected_page, st.query_params)", public_shell_style_index)
+    shell_index = source.index("render_public_app_shell(selected_page)", skip_link_index)
+    skip_target_index = source.index("render_public_workflow_skip_target()", shell_index)
+    dispatch_index = source.index('if selected_page == "Home":', skip_target_index)
+    assert public_mode_index < public_shell_style_index < skip_link_index < shell_index < skip_target_index < dispatch_index
 
-    html = dashboard.public_workflow_skip_link_html()
+    skip_href = dashboard.public_workflow_skip_href(
+        "Single-Stock Report",
+        {"mode": "public", "page": "single-stock-report", "ticker": "NVDA", "open": "1"},
+    )
+    assert skip_href == "?mode=public&page=single-stock-report&ticker=NVDA&open=1#public-page-answer"
+
+    html = dashboard.public_workflow_skip_link_html(skip_href)
     assert "Skip to page answer" in html
-    assert "href='#public-page-answer'" in html
+    assert "href='?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1#public-page-answer'" in html
     assert "aria-label='Skip to page answer'" in html
 
     target_html = dashboard.public_workflow_skip_target_html()
     assert "id='public-page-answer'" in target_html
     assert "tabindex='-1'" in target_html
+    assert "Page answer begins" in target_html
+
+
+def test_operator_workflow_skip_link_has_a_main_content_target():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    operator_href = dashboard.public_workflow_skip_href(
+        "Data Health",
+        {"mode": "operator", "page": "data-health", "lane": "fundamentals", "drawer": "queue"},
+        mode="operator",
+    )
+    assert operator_href == "?mode=operator&page=data-health&lane=fundamentals&drawer=queue#public-page-answer"
+
+    main_index = source.index("def main()")
+    sidebar_index = source.index("with st.sidebar:", main_index)
+    operator_link_index = source.index(
+        "render_public_workflow_skip_link(initial_page, st.query_params, mode=OPERATOR_DEMO_MODE)",
+        sidebar_index,
+    )
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(selected_page)", operator_link_index)
+    operator_branch_index = source.index("else:", output_frames_index)
+    app_header_index = source.index("render_app_header(", operator_branch_index)
+    skip_target_index = source.index("render_public_workflow_skip_target()", app_header_index)
+    dispatch_index = source.index('if selected_page == "Home":', skip_target_index)
+
+    assert sidebar_index < operator_link_index < output_frames_index < operator_branch_index < app_header_index < skip_target_index < dispatch_index
 
 
 def test_public_compact_header_allows_mobile_status_wrap():
@@ -29387,6 +29442,14 @@ def test_public_loading_preview_names_usable_and_blocked_states_for_slow_routes(
     assert "Loading saved readiness" in health_html
     assert "What can I use now" not in selector_html
     assert "What is blocked" not in health_html
+
+
+def test_public_loading_preview_announces_saved_readiness_progress():
+    preview_html = dashboard.public_loading_preview_html("Data Health")
+
+    assert "role='status'" in preview_html
+    assert "aria-live='polite'" in preview_html
+    assert "aria-busy='true'" in preview_html
 
 
 def test_public_loading_preview_stacks_the_compact_rail_above_its_note():
