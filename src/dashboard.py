@@ -196,6 +196,7 @@ from src.decision_proof_queue import (
 from src.coverage_expansion_loop import CoverageExpansionLoop, build_coverage_expansion_loop
 from src.dcf_input_proof_queue import build_dcf_input_proof_handoff, build_dcf_input_proof_queue_from_files
 from src.dcf_input_proof_queue import build_dcf_input_source_review_rows
+from src.earnings_nowcast_ui import nowcast_data_health_card, nowcast_summary_cards
 from src.monthly_picks import build_monthly_research_picks
 from src.monthly_picks import MonthlyPickConfig
 from src.providers.local_data_catalog import LocalDataCatalog
@@ -29031,6 +29032,7 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
         )
         if public_mode:
             st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
+            render_signal_cards(nowcast_summary_cards(None, ticker=ticker), show_commands=False, variant="queue")
         else:
             render_signal_cards(operator_single_stock_workflow_cards(workflow_fit_cards), show_commands=False)
             with st.expander("Advanced: review summary details", expanded=False):
@@ -30117,6 +30119,7 @@ def render_data_health(
                 f"?mode=public&page=single-stock-report&ticker={public_focus_ticker}&open=1",
             )
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)
+        render_signal_cards([nowcast_data_health_card(None, ticker=public_focus_ticker or "Selected ticker")], show_commands=False, variant="queue")
         if public_mode and project_status_payload is None:
             with st.expander("Refresh status note", expanded=False):
                 render_notice_card(

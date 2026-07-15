@@ -9,6 +9,15 @@ from src.public_home_workflow import public_home_current_data_coverage_cards, pu
 import pandas as pd
 
 
+def test_dashboard_exposes_readiness_gated_nowcast_view_models():
+    cards = dashboard.nowcast_summary_cards(None, ticker="NVDA")
+    lane = dashboard.nowcast_data_health_card(None, ticker="NVDA")
+
+    assert cards[0]["state"] == "blocked"
+    assert lane["title"] == "Earnings Nowcast"
+    assert cards[0]["advanced_default_open"] is False
+
+
 def test_dashboard_format_helpers_hide_raw_missing_values():
     assert dashboard.format_missing(None) == "Not available"
     assert dashboard.format_missing(float("nan")) == "Not available"
