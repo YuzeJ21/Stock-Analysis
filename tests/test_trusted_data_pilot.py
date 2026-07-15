@@ -1,10 +1,12 @@
 import json
+import sys
 
 from src.trusted_data_pilot import (
     build_trusted_data_pilot_evidence_rows,
     build_trusted_data_pilot_candidates,
     load_trusted_data_pilot_candidates,
     load_trusted_data_pilot_evidence_candidates,
+    main as trusted_data_pilot_main,
     normalize_pilot_lane,
     pilot_evidence_row_template,
     pilot_lane_label,
@@ -1831,3 +1833,159 @@ def test_pilot_lane_summary_rows_include_locked_and_price_lanes():
     assert "earnings and analyst estimates remain locked" in by_lane["optional_context_locked"]["blocker_theme"]
     assert by_lane["price_coverage"]["status"] == "safe_to_batch_dry_run"
     assert by_lane["price_coverage"]["next_safe_command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
+
+
+def test_load_trusted_data_pilot_candidates_uses_selected_local_profile(tmp_path, monkeypatch):
+    _write_text(
+        tmp_path / "outputs" / "peer_unlock_worklist.csv",
+        "ticker,priority,peer_blocker_type,missing_peer_reason,focus_command\n"
+        "MU,2,missing_peer_mapping,needs source-backed peer mappings,make focus-peers TICKER=MU\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "fundamentals_peer_worklist.csv",
+        "ticker,priority,dcf_ready,missing_required_for_dcf,focus_command\n",
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        "ticker,asset_type,in_active_universe,peer_ready\nMU,company,True,False\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "local" / "peer_unlock_worklist.csv",
+        "ticker,priority,peer_blocker_type,missing_peer_reason,focus_command\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "local" / "fundamentals_peer_worklist.csv",
+        "ticker,priority,dcf_ready,missing_required_for_dcf,focus_command\n",
+    )
+    _write_text(
+        tmp_path / "data" / "local" / "reports" / "ticker_readiness_report.csv",
+        "ticker,asset_type,in_active_universe,peer_ready\nMU,company,True,True\n",
+    )
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+
+    candidates = load_trusted_data_pilot_candidates(root=tmp_path, top_n=10)
+
+    assert "MU" not in {candidate.ticker for candidate in candidates}
+
+
+def test_trusted_data_pilot_cli_prints_selected_profile_paths(tmp_path, monkeypatch, capsys):
+    _write_text(
+        tmp_path / "outputs" / "local" / "peer_unlock_worklist.csv",
+        "ticker,priority,peer_blocker_type,missing_peer_reason,focus_command\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "local" / "fundamentals_peer_worklist.csv",
+        "ticker,priority,dcf_ready,missing_required_for_dcf,focus_command\n",
+    )
+    _write_text(
+        tmp_path / "data" / "local" / "reports" / "ticker_readiness_report.csv",
+        "ticker,asset_type,in_active_universe,peer_ready\nMU,company,True,True\n",
+    )
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["trusted_data_pilot", "--top-n", "10"])
+
+    trusted_data_pilot_main()
+
+    rendered = capsys.readouterr().out
+    assert f"Project root: {tmp_path}" in rendered
+    assert f"Data dir: {tmp_path / 'data' / 'local'}" in rendered
+    assert f"Outputs dir: {tmp_path / 'outputs' / 'local'}" in rendered
+
+
+def test_pilot_local_file_status_does_not_mix_default_imports_into_local_profile(tmp_path, monkeypatch):
+    candidate = build_trusted_data_pilot_candidates(
+        [],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs source-backed peer mappings",
+            }
+        ],
+        [{"ticker": "MU", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=1,
+    )[0]
+    _write_text(tmp_path / "data" / "imports" / "peers.csv", "ticker,peer_ticker\nMU,WDC\n")
+    _write_text(
+        tmp_path / "data" / "local" / "imports" / "peers.csv",
+        "ticker,peer_ticker\nMU,SNDK\nMU,000660.KS\n",
+    )
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+
+    status = pilot_local_file_status(candidate, root=tmp_path)
+
+    assert "peer import 2 data row(s)" in status
+    assert "peer import 1 data row(s)" not in status
+
+
+def test_evidence_rows_use_selected_profile_readiness_and_report(tmp_path, monkeypatch):
+    candidate = build_trusted_data_pilot_candidates(
+        [],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_valuation_inputs",
+                "missing_peer_reason": "needs peer valuation inputs",
+            }
+        ],
+        [{"ticker": "MU", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=1,
+    )[0]
+    readiness_header = "ticker,asset_type,dcf_ready,peer_ready,missing_data\n"
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        readiness_header + "MU,company,True,False,peers blocked\n",
+    )
+    _write_text(
+        tmp_path / "data" / "local" / "reports" / "ticker_readiness_report.previous.csv",
+        readiness_header + "MU,company,True,False,peers blocked\n",
+    )
+    _write_text(
+        tmp_path / "data" / "local" / "reports" / "ticker_readiness_report.csv",
+        readiness_header + "MU,company,True,True,\n",
+    )
+    _write_text(
+        tmp_path / "data" / "local" / "reports" / "peer_readiness_report.csv",
+        "ticker,peer_valuation_ready,sample_peers\nMU,True,SNDK|000660.KS\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "local" / "stock_reports" / "mu.md",
+        "# MU\n\n- Mode: DCF-ready review.\n",
+    )
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+
+    rows = build_trusted_data_pilot_evidence_rows([candidate], root=tmp_path)
+
+    assert rows[0]["outcome_state"] == "supported"
+    assert rows[0]["after_mode"] == "DCF-ready review"
+
+
+def test_packet_does_not_fall_back_to_default_sec_cache_for_local_profile(tmp_path, monkeypatch):
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=1,
+    )[0]
+    _write_sec_submission_cache(tmp_path)
+    _write_text(
+        tmp_path / "data" / "local" / "fundamentals.csv",
+        "ticker,sec_cik,sec_entity_name\nCRDO,1045810,CREDO TECHNOLOGY GROUP HOLDING LTD\n",
+    )
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+
+    rendered = render_trusted_data_pilot_packet(candidate, requested_ticker="CRDO", root=tmp_path)
+
+    assert "SEC submissions metadata packet:" in rendered
+    assert "Status: unavailable (cached_submission_missing)" in rendered
+    assert "0000950170-26-000123" not in rendered

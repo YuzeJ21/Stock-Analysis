@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir
 from src.providers.sec_submissions import build_sec_filing_share_count_evidence, build_sec_submission_metadata_packet
 from src.session_source_preflight import load_session_source_preflight
 
@@ -88,8 +89,16 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return [dict(row) for row in csv.DictReader(handle)]
 
 
+def _data_root(root: Path) -> Path:
+    return resolve_data_dir(project_root=root)
+
+
+def _outputs_root(root: Path) -> Path:
+    return resolve_outputs_dir(project_root=root)
+
+
 def _cached_sec_ticker_map(root: Path) -> dict[str, dict[str, object]]:
-    path = root / "data" / "cache" / "sec" / "company_tickers.json"
+    path = _data_root(root) / "cache" / "sec" / "company_tickers.json"
     if not path.exists():
         return {}
     try:
@@ -121,7 +130,8 @@ def _cached_sec_ticker_map(root: Path) -> dict[str, dict[str, object]]:
 
 def _local_sec_cik_ticker_map(root: Path) -> dict[str, dict[str, object]]:
     ticker_map: dict[str, dict[str, object]] = {}
-    for path in (root / "data" / "fundamentals.csv", root / "data" / "imports" / "fundamentals.csv"):
+    data_root = _data_root(root)
+    for path in (data_root / "fundamentals.csv", data_root / "imports" / "fundamentals.csv"):
         for row in _read_csv(path):
             ticker = str(row.get("ticker") or "").upper().strip()
             cik_value = row.get("sec_cik")
@@ -159,7 +169,7 @@ def sec_submissions_metadata_packet_lines(ticker: str, *, root: Path) -> list[st
     packet = build_sec_submission_metadata_packet(
         ticker,
         ticker_map=_sec_submissions_ticker_map(root),
-        cache_dir=root / "data" / "cache" / "sec",
+        cache_dir=_data_root(root) / "cache" / "sec",
         allow_network=False,
     )
     if packet.get("status") != "available":
@@ -234,7 +244,7 @@ def sec_filing_share_count_packet_lines(ticker: str, *, root: Path) -> list[str]
     evidence = build_sec_filing_share_count_evidence(
         ticker,
         ticker_map=_sec_submissions_ticker_map(root),
-        cache_dir=root / "data" / "cache" / "sec",
+        cache_dir=_data_root(root) / "cache" / "sec",
         allow_network=False,
     )
     if evidence.get("status") != "available":
@@ -269,7 +279,7 @@ def _int_value(value: object, fallback: int = 99) -> int:
 
 
 def _report_mode(root: Path, ticker: str) -> str:
-    path = root / "outputs" / "stock_reports" / f"{ticker.lower()}.md"
+    path = _outputs_root(root) / "stock_reports" / f"{ticker.lower()}.md"
     if not path.exists():
         return "before report missing; run make stock-report-md first"
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -282,7 +292,7 @@ def _report_mode(root: Path, ticker: str) -> str:
 
 def _readiness_row(root: Path, ticker: str, *, previous: bool = False) -> dict[str, str] | None:
     filename = "ticker_readiness_report.previous.csv" if previous else "ticker_readiness_report.csv"
-    rows = _read_csv(root / "data" / "reports" / filename)
+    rows = _read_csv(_data_root(root) / "reports" / filename)
     lookup = _readiness_lookup(rows)
     return lookup.get(ticker.strip().upper())
 
@@ -320,7 +330,7 @@ def _prior_peer_missing_input(row: dict[str, str] | None) -> str:
 
 
 def _completed_peer_input(root: Path, ticker: str, fallback: str) -> str:
-    peer_rows = _read_csv(root / "data" / "reports" / "peer_readiness_report.csv")
+    peer_rows = _read_csv(_data_root(root) / "reports" / "peer_readiness_report.csv")
     peer_lookup = _readiness_lookup(peer_rows)
     peer_row = peer_lookup.get(ticker.strip().upper())
     sample_peers = _clean((peer_row or {}).get("sample_peers"), "")
@@ -345,7 +355,7 @@ def _readiness_lookup(rows: Iterable[dict[str, str]]) -> dict[str, dict[str, str
 
 
 def _reviewed_non_actionable_pilot_tickers(root: Path) -> set[str]:
-    rows = _read_csv(root / "data" / "reviewed_batch_proofs.csv")
+    rows = _read_csv(_data_root(root) / "reviewed_batch_proofs.csv")
     relevant_lanes = {"fundamentals", "fundamentals_dcf", "share_count"}
     non_actionable = {"candidate_context_only", "still_blocked", "skipped", "excluded"}
     tickers: set[str] = set()
@@ -362,7 +372,7 @@ def _reviewed_non_actionable_pilot_tickers(root: Path) -> set[str]:
 
 
 def _reviewed_non_actionable_pilot_summary(root: Path) -> str:
-    rows = _read_csv(root / "data" / "reviewed_batch_proofs.csv")
+    rows = _read_csv(_data_root(root) / "reviewed_batch_proofs.csv")
     relevant_lanes = {"fundamentals", "fundamentals_dcf", "share_count"}
     non_actionable = {"candidate_context_only", "still_blocked", "skipped", "excluded"}
     reviewed_rows = [
@@ -392,15 +402,17 @@ def _csv_ticker_set(path: Path) -> set[str]:
 
 
 def _local_fundamentals_ticker_set(root: Path) -> set[str]:
-    return _csv_ticker_set(root / "data" / "fundamentals.csv") | _csv_ticker_set(root / "data" / "imports" / "fundamentals.csv")
+    data_root = _data_root(root)
+    return _csv_ticker_set(data_root / "fundamentals.csv") | _csv_ticker_set(data_root / "imports" / "fundamentals.csv")
 
 
 def _local_optional_ticker_set(root: Path) -> set[str]:
+    data_root = _data_root(root)
     return (
-        _csv_ticker_set(root / "data" / "earnings.csv")
-        | _csv_ticker_set(root / "data" / "imports" / "earnings.csv")
-        | _csv_ticker_set(root / "data" / "analyst_estimates.csv")
-        | _csv_ticker_set(root / "data" / "imports" / "analyst_estimates.csv")
+        _csv_ticker_set(data_root / "earnings.csv")
+        | _csv_ticker_set(data_root / "imports" / "earnings.csv")
+        | _csv_ticker_set(data_root / "analyst_estimates.csv")
+        | _csv_ticker_set(data_root / "imports" / "analyst_estimates.csv")
     )
 
 
@@ -673,10 +685,11 @@ def _staged_file_count(path: Path) -> int | None:
 def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
     """Return read-only local file state for the lane without validating rows."""
 
+    data_root = _data_root(root)
     if candidate.lane == "fundamentals_dcf":
-        import_rows = _csv_data_row_count(root / "data" / "imports" / "fundamentals.csv")
-        staged_files = _staged_file_count(root / "data" / "staged" / "fundamentals")
-        rejected_exists = (root / "data" / "rejected" / "fundamentals_import_rejected.csv").exists()
+        import_rows = _csv_data_row_count(data_root / "imports" / "fundamentals.csv")
+        staged_files = _staged_file_count(data_root / "staged" / "fundamentals")
+        rejected_exists = (data_root / "rejected" / "fundamentals_import_rejected.csv").exists()
         return (
             "Local file status: fundamentals import "
             f"{'missing' if import_rows is None else f'{import_rows} data row(s)'}; "
@@ -685,8 +698,8 @@ def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
             "File presence is not proof. Rows still require source review, validate, preview, apply, and readiness proof."
         )
     if candidate.lane == "peer_mapping":
-        import_rows = _csv_data_row_count(root / "data" / "imports" / "peers.csv")
-        rejected_exists = (root / "data" / "rejected" / "peers_import_rejected.csv").exists()
+        import_rows = _csv_data_row_count(data_root / "imports" / "peers.csv")
+        rejected_exists = (data_root / "rejected" / "peers_import_rejected.csv").exists()
         return (
             "Local file status: peer import "
             f"{'missing' if import_rows is None else f'{import_rows} data row(s)'}; "
@@ -694,10 +707,10 @@ def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
             "File presence is not proof. Peer rows still require source-backed relationship review and readiness proof."
         )
     if candidate.lane == "peer_valuation_inputs":
-        peer_rows = _csv_data_row_count(root / "data" / "imports" / "peers.csv")
-        fundamentals_rows = _csv_data_row_count(root / "data" / "imports" / "fundamentals.csv")
-        fundamentals_rejected = (root / "data" / "rejected" / "fundamentals_import_rejected.csv").exists()
-        price_rejected = (root / "data" / "rejected" / "price_import_rejected.csv").exists()
+        peer_rows = _csv_data_row_count(data_root / "imports" / "peers.csv")
+        fundamentals_rows = _csv_data_row_count(data_root / "imports" / "fundamentals.csv")
+        fundamentals_rejected = (data_root / "rejected" / "fundamentals_import_rejected.csv").exists()
+        price_rejected = (data_root / "rejected" / "price_import_rejected.csv").exists()
         return (
             "Local file status: peer mapping import "
             f"{'missing' if peer_rows is None else f'{peer_rows} data row(s)'}; "
@@ -709,10 +722,10 @@ def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
             "File presence is not proof. Mapped peers still require trusted fundamentals or verified price-history proof before peer valuation appears."
         )
     if candidate.lane == "optional_context_locked":
-        earnings_rows = _csv_data_row_count(root / "data" / "imports" / "earnings.csv")
-        estimate_rows = _csv_data_row_count(root / "data" / "imports" / "analyst_estimates.csv")
-        staged_earnings = _staged_file_count(root / "data" / "staged" / "earnings")
-        staged_estimates = _staged_file_count(root / "data" / "staged" / "analyst_estimates")
+        earnings_rows = _csv_data_row_count(data_root / "imports" / "earnings.csv")
+        estimate_rows = _csv_data_row_count(data_root / "imports" / "analyst_estimates.csv")
+        staged_earnings = _staged_file_count(data_root / "staged" / "earnings")
+        staged_estimates = _staged_file_count(data_root / "staged" / "analyst_estimates")
         staged_total = (0 if staged_earnings is None else staged_earnings) + (0 if staged_estimates is None else staged_estimates)
         return (
             "Local file status: earnings import "
@@ -1197,10 +1210,12 @@ def load_trusted_data_pilot_candidates(
     top_n: int = DEFAULT_TOP_N,
 ) -> list[PilotCandidate]:
     candidate_pool_size = max(top_n * 25, top_n + 100, DEFAULT_TOP_N)
+    data_root = _data_root(root)
+    outputs_root = _outputs_root(root)
     candidates = build_trusted_data_pilot_candidates(
-        _read_csv(root / "outputs" / "fundamentals_peer_worklist.csv"),
-        _read_csv(root / "outputs" / "peer_unlock_worklist.csv"),
-        _read_csv(root / "data" / "reports" / "ticker_readiness_report.csv"),
+        _read_csv(outputs_root / "fundamentals_peer_worklist.csv"),
+        _read_csv(outputs_root / "peer_unlock_worklist.csv"),
+        _read_csv(data_root / "reports" / "ticker_readiness_report.csv"),
         tickers=tickers,
         top_n=candidate_pool_size,
     )
@@ -1223,8 +1238,9 @@ def load_trusted_data_pilot_evidence_candidates(
     if selected is None:
         return current_candidates
 
-    current_readiness = _readiness_lookup(_read_csv(root / "data" / "reports" / "ticker_readiness_report.csv"))
-    prior_readiness = _readiness_lookup(_read_csv(root / "data" / "reports" / "ticker_readiness_report.previous.csv"))
+    data_root = _data_root(root)
+    current_readiness = _readiness_lookup(_read_csv(data_root / "reports" / "ticker_readiness_report.csv"))
+    prior_readiness = _readiness_lookup(_read_csv(data_root / "reports" / "ticker_readiness_report.previous.csv"))
     by_ticker = {candidate.ticker: candidate for candidate in current_candidates}
 
     for ticker in sorted(selected):
@@ -1507,7 +1523,7 @@ def build_trusted_data_pilot_evidence_rows(
     """Build a read-only pilot evidence ledger from current local artifacts."""
 
     rows: list[dict[str, str]] = []
-    peer_readiness_lookup = _readiness_lookup(_read_csv(root / "data" / "reports" / "peer_readiness_report.csv"))
+    peer_readiness_lookup = _readiness_lookup(_read_csv(_data_root(root) / "reports" / "peer_readiness_report.csv"))
     for candidate in candidates:
         prior_readiness = _readiness_row(root, candidate.ticker, previous=True)
         current_readiness = _readiness_row(root, candidate.ticker)
@@ -1940,34 +1956,36 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    root = Path.cwd()
+    print(format_path_context(project_root=root))
     if args.packet:
         ticker = args.packet.strip().upper()
-        candidates = load_trusted_data_pilot_candidates(root=Path.cwd(), tickers=ticker, top_n=1)
-        print(render_trusted_data_pilot_packet(candidates[0] if candidates else None, requested_ticker=ticker, root=Path.cwd()))
+        candidates = load_trusted_data_pilot_candidates(root=root, tickers=ticker, top_n=1)
+        print(render_trusted_data_pilot_packet(candidates[0] if candidates else None, requested_ticker=ticker, root=root))
         return
     if args.lane:
         try:
             normalize_pilot_lane(args.lane)
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
-        candidates = load_trusted_data_pilot_evidence_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
-        print(render_trusted_data_pilot_lane(args.lane, candidates, root=Path.cwd()))
+        candidates = load_trusted_data_pilot_evidence_candidates(root=root, tickers=args.tickers, top_n=args.top_n)
+        print(render_trusted_data_pilot_lane(args.lane, candidates, root=root))
         return
     if args.write_evidence:
-        candidates = load_trusted_data_pilot_evidence_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
+        candidates = load_trusted_data_pilot_evidence_candidates(root=root, tickers=args.tickers, top_n=args.top_n)
         output_path = Path(args.write_evidence)
-        written = write_trusted_data_pilot_evidence(candidates, root=Path.cwd(), output_path=output_path)
+        written = write_trusted_data_pilot_evidence(candidates, root=root, output_path=output_path)
         print("Trusted Data Pilot Evidence Ledger")
         print("Read-only: wrote pilot evidence rows from current reports and readiness snapshots; no source rows or readiness outputs were changed.")
         print(f"Rows: {len(candidates)}")
         print(f"Wrote: {written}")
         return
     if args.board:
-        candidates = load_trusted_data_pilot_evidence_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
-        print(render_trusted_data_pilot_board(candidates, root=Path.cwd()))
+        candidates = load_trusted_data_pilot_evidence_candidates(root=root, tickers=args.tickers, top_n=args.top_n)
+        print(render_trusted_data_pilot_board(candidates, root=root))
         return
-    candidates = load_trusted_data_pilot_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
-    print(render_trusted_data_pilot_candidates(candidates, top_n=args.top_n, root=Path.cwd(), verbose=args.verbose))
+    candidates = load_trusted_data_pilot_candidates(root=root, tickers=args.tickers, top_n=args.top_n)
+    print(render_trusted_data_pilot_candidates(candidates, top_n=args.top_n, root=root, verbose=args.verbose))
 
 
 if __name__ == "__main__":
