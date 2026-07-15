@@ -60,3 +60,4 @@ outputs/project_status_summary.csv
 outputs/project_status_top_actions.csv
 outputs/project_status_next_steps.csv
 local_artifacts_backup/
+.worktrees/
