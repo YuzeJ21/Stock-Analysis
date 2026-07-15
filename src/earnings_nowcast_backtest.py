@@ -36,7 +36,10 @@ class BacktestEvent:
 class BacktestReport:
     verdict: str
     event_count: int
+    valid_event_count: int
     excluded_count: int
+    exclusion_reasons: Mapping[str, int]
+    excluded_events: tuple[str, ...]
     revenue_mae: float | None
     revenue_median_absolute_error: float | None
     revenue_wape: float | None
@@ -85,7 +88,19 @@ class CalibrationStatus:
     brier_score: float | None
     benchmark_brier_score: float | None
     calibration_error: float | None
+    calibration_bins: tuple["CalibrationBin", ...]
     failed_gates: tuple[str, ...]
+    failed_gate_details: Mapping[str, str]
+
+
+@dataclass(frozen=True)
+class CalibrationBin:
+    lower_bound: float
+    upper_bound: float
+    event_count: int
+    mean_probability: float
+    outcome_rate: float
+    meets_minimum_size: bool
 
 
 def _mean(values: Sequence[float]) -> float | None:
@@ -121,6 +136,14 @@ def walk_forward_backtest(
     failures: list[str] = []
     leakage_failures: list[str] = []
     excluded_count = 0
+    exclusion_reasons: dict[str, int] = {}
+    excluded_events: list[str] = []
+
+    def exclude(reason: str, detail: str) -> None:
+        nonlocal excluded_count
+        excluded_count += 1
+        exclusion_reasons[reason] = exclusion_reasons.get(reason, 0) + 1
+        excluded_events.append(detail)
 
     targets = sorted(actuals, key=lambda row: (row.reported_at, row.ticker, row.fiscal_period))
     for target in targets:
@@ -132,6 +155,10 @@ def walk_forward_backtest(
             and parse_utc_timestamp(row.snapshot_at) < parse_utc_timestamp(target.reported_at)
         ]
         if not eligible_snapshots:
+            exclude(
+                "no_pre_report_consensus_snapshot",
+                f"{target.ticker} {target.fiscal_period}: no consensus snapshot before reported_at",
+            )
             continue
         snapshot = max(eligible_snapshots, key=lambda row: parse_utc_timestamp(row.snapshot_at))
         cutoff = snapshot.snapshot_at
@@ -145,7 +172,10 @@ def walk_forward_backtest(
         try:
             forecast = build_baseline_nowcast(history, snapshot, cutoff, config)
         except ValueError as exc:
-            excluded_count += 1
+            exclude(
+                "model_input_validation_failed",
+                f"{target.ticker} {target.fiscal_period}: {exc}",
+            )
             failures.append(f"{target.ticker} {target.fiscal_period}: {exc}")
             continue
 
@@ -217,7 +247,10 @@ def walk_forward_backtest(
     return BacktestReport(
         verdict=verdict,
         event_count=len(events),
+        valid_event_count=len(events),
         excluded_count=excluded_count,
+        exclusion_reasons=exclusion_reasons,
+        excluded_events=tuple(excluded_events),
         revenue_mae=_mean(revenue_errors),
         revenue_median_absolute_error=_median(revenue_errors),
         revenue_wape=(sum(revenue_errors) / revenue_actual_total if revenue_errors and revenue_actual_total else None),
@@ -245,7 +278,12 @@ def assess_probability_calibration(
             brier_score=None,
             benchmark_brier_score=None,
             calibration_error=None,
+            calibration_bins=(),
             failed_gates=("no_probability_evidence", "minimum_100_events"),
+            failed_gate_details={
+                "no_probability_evidence": "No valid out-of-sample probability observations are available.",
+                "minimum_100_events": f"0 valid events; at least {policy.minimum_events} are required.",
+            },
         )
 
     probabilities = [row.probability for row in observations]
@@ -258,6 +296,17 @@ def assess_probability_calibration(
         index = min(int(probability * 10), 9)
         bins.setdefault(index, []).append((probability, outcome))
     bin_sizes_valid = all(len(rows) >= policy.minimum_bin_size for rows in bins.values())
+    calibration_bins = tuple(
+        CalibrationBin(
+            lower_bound=index / 10,
+            upper_bound=(index + 1) / 10,
+            event_count=len(rows),
+            mean_probability=sum(probability for probability, _ in rows) / len(rows),
+            outcome_rate=sum(outcome for _, outcome in rows) / len(rows),
+            meets_minimum_size=len(rows) >= policy.minimum_bin_size,
+        )
+        for index, rows in sorted(bins.items())
+    )
     calibration_error = sum(
         len(rows) / len(observations)
         * abs(sum(probability for probability, _ in rows) / len(rows) - sum(outcome for _, outcome in rows) / len(rows))
@@ -273,6 +322,12 @@ def assess_probability_calibration(
         failed.append("minimum_calibration_bin_size")
     if brier >= benchmark:
         failed.append("must_improve_constant_rate_benchmark")
+    details = {
+        "minimum_100_events": f"{len(observations)} valid events; at least {policy.minimum_events} are required.",
+        "maximum_brier_score": f"Brier score {brier:.6f} exceeds the maximum {policy.maximum_brier_score:.6f}.",
+        "minimum_calibration_bin_size": f"Every populated calibration bin must contain at least {policy.minimum_bin_size} events.",
+        "must_improve_constant_rate_benchmark": f"Brier score {brier:.6f} must be lower than constant-rate benchmark {benchmark:.6f}.",
+    }
     available = not failed
     return CalibrationStatus(
         state=NowcastState.CALIBRATED if available else NowcastState.BACKTEST_READY,
@@ -281,5 +336,7 @@ def assess_probability_calibration(
         brier_score=brier,
         benchmark_brier_score=benchmark,
         calibration_error=calibration_error,
+        calibration_bins=calibration_bins,
         failed_gates=tuple(failed),
+        failed_gate_details={gate: details[gate] for gate in failed},
     )

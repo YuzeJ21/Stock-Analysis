@@ -147,6 +147,7 @@ class ConsensusSnapshot:
     eps_consensus: float | None
     source: str
     retrieved_at: str
+    source_ref: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "ticker", _ticker(self.ticker))
@@ -156,6 +157,11 @@ class ConsensusSnapshot:
         object.__setattr__(self, "revenue_consensus", _optional_finite(self.revenue_consensus, label="revenue_consensus"))
         object.__setattr__(self, "eps_consensus", _optional_finite(self.eps_consensus, label="eps_consensus"))
         object.__setattr__(self, "source", _required_text(self.source, label="source"))
+        object.__setattr__(
+            self,
+            "source_ref",
+            _required_text(self.source_ref, label="source_ref") if self.source_ref is not None else None,
+        )
         if self.revenue_consensus is None and self.eps_consensus is None:
             raise ValueError("at least one consensus metric is required")
 
@@ -179,6 +185,7 @@ class EvidenceSignal:
     evidence_excerpt_hash: str
     peer_relationship_state: str
     review_state: SignalReviewState | str
+    evidence_source_ref: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "signal_id", _required_text(self.signal_id, label="signal_id"))
@@ -197,6 +204,13 @@ class EvidenceSignal:
             raise ValueError("confidence_band must be low, medium, or high")
         object.__setattr__(self, "confidence_band", confidence)
         object.__setattr__(self, "evidence_source", _required_text(self.evidence_source, label="evidence_source"))
+        object.__setattr__(
+            self,
+            "evidence_source_ref",
+            _required_text(self.evidence_source_ref, label="evidence_source_ref")
+            if self.evidence_source_ref is not None
+            else None,
+        )
         object.__setattr__(
             self,
             "evidence_published_at",

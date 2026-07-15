@@ -23,13 +23,26 @@ The baseline requires source-backed quarterly actuals, including the matching pr
 
 Post-cutoff actuals, later consensus revisions, and late news fail closed. Revenue and EPS readiness are independent so unstable EPS can remain withheld while Revenue is ready.
 
+## Read-Only Evidence Onboarding
+
+Blank tracked schemas live in `docs/templates/earnings_nowcast/`. Create a local staging copy and inspect it with:
+
+```bash
+make earnings-nowcast-templates OUTPUT_DIR=data/imports/earnings_nowcast
+make earnings-nowcast-validate INPUT_DIR=data/imports/earnings_nowcast AS_OF=2026-01-31T23:59:59Z
+make earnings-nowcast-preview INPUT_DIR=data/imports/earnings_nowcast EXISTING_DIR=data/earnings_nowcast AS_OF=2026-01-31T23:59:59Z
+make earnings-nowcast-readiness INPUT_DIR=data/imports/earnings_nowcast TICKER=<ticker> AS_OF=<forecast-cutoff>
+```
+
+Actuals and consensus files are required; reviewed signals are optional. Source names, direct source references, fiscal periods, publication/retrieval timestamps, and at least one supported metric are validated. Exact duplicates, new rows, and append-only revisions are reported separately. Post-cutoff evidence is rejected. These commands never apply, overwrite, stage, commit, or push rows; there is intentionally no Earnings Nowcast apply command.
+
 ## Signals
 
 Company news, industry indicators, macro evidence, and trusted peer earnings may provide directional explanation. Candidate peers remain `candidate_context_only`. Trusted signals require reviewed source evidence and can move the lane to `signal_context_ready`; they cannot mutate Revenue/EPS ranges or create a numeric adjustment.
 
 ## Backtest And Calibration
 
-Backtests are chronological walk-forward evaluations. Each event uses only actuals reported and consensus snapshots published by its cutoff. The target actual is used only afterward for scoring. Reports include MAE, median absolute error, WAPE where valid, directional accuracy, interval coverage, exclusions, leakage failures, and consensus/prior-year benchmarks.
+Backtests are chronological walk-forward evaluations. Each event uses only actuals reported and consensus snapshots published by its cutoff. The target actual is used only afterward for scoring. Reports include valid and excluded event counts, exclusion reasons, leakage failures, MAE, median absolute error, WAPE where valid, directional accuracy, interval coverage, and consensus/prior-year benchmarks. Calibration diagnostics show each populated probability bin, bin size, mean probability, outcome rate, constant-rate benchmark, and the exact failed gate.
 
 Numerical probability remains `awaiting_calibration_evidence` until at least 100 valid out-of-sample observations pass all gates. Empty, invalid, poorly calibrated, or benchmark-inferior evidence remains withheld.
 
@@ -39,8 +52,9 @@ Run:
 
 ```bash
 FIXTURE=1 make earnings-nowcast-pilot TICKER=SYN1 AS_OF=2026-01-31T23:59:59Z
+make earnings-nowcast-walkthrough AS_OF=2026-01-31T23:59:59Z
 ```
 
-The `SYN1`-`SYN5` cohort is synthetic test evidence only. It proves deterministic contracts, readiness, ranges, signal separation, CLI output, and withholding behavior. It does not prove real-company coverage, current data, predictive accuracy, or investability.
+The `SYN1`-`SYN5` cohort and `SYN5-BACKTEST` walkthrough label are synthetic test evidence only. The walkthrough demonstrates baseline ready, Revenue ready with EPS withheld, candidate-peer-only context, post-cutoff blocking, non-company exclusion, and backtest-ready/un-calibrated behavior. It proves deterministic contracts, readiness, ranges, signal separation, CLI output, and withholding behavior. It does not prove real-company coverage, current data, predictive accuracy, or investability.
 
 Real semiconductor coverage is `awaiting_point_in_time_consensus`. The next legitimate data step is a narrow append-only cohort with licensed or otherwise permitted historical consensus snapshots and source-backed actuals. Generated packets remain local and unstaged unless an exact artifact is intentionally reviewed.

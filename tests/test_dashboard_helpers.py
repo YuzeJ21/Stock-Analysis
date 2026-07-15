@@ -14,8 +14,17 @@ def test_dashboard_exposes_readiness_gated_nowcast_view_models():
     lane = dashboard.nowcast_data_health_card(None, ticker="NVDA")
 
     assert cards[0]["state"] == "blocked"
+    assert cards[0]["state_label"] == "Source evidence required"
+    assert list(cards[0]["answers"])[0] == "eligibility"
+    assert list(cards[0]["answers"])[-1] == "next_action"
     assert lane["title"] == "Earnings Nowcast"
     assert cards[0]["advanced_default_open"] is False
+
+
+def test_signal_card_html_preserves_safe_multiline_answer_layout():
+    rendered = dashboard.signal_card_html("Lane", "Answer", "First\nSecond", show_command=False)
+
+    assert "First<br>Second" in rendered
 
 
 def test_dashboard_format_helpers_hide_raw_missing_values():

@@ -4,7 +4,7 @@ import argparse
 import csv
 import json
 import sys
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, is_dataclass, replace
 from enum import Enum
 from pathlib import Path
 from typing import Any, Iterable
@@ -58,6 +58,7 @@ def _load_consensus(path: Path) -> list[ConsensusSnapshot]:
             eps_consensus=_optional_float(row.get("eps_consensus")),
             source=row["source"],
             retrieved_at=row["retrieved_at"],
+            source_ref=row.get("source_ref") or None,
         )
         for row in _read_csv(path)
     ]
@@ -151,6 +152,125 @@ def build_nowcast_packet(
     }
 
 
+def build_fixture_walkthrough(input_root: Path, *, as_of_timestamp: str) -> dict[str, object]:
+    """Build synthetic reviewer scenarios without representing them as company evidence."""
+    root = Path(input_root)
+    actuals = _load_actuals(root / "quarterly_actuals.csv")
+    consensus_rows = _load_consensus(root / "consensus_snapshots.csv")
+    signals = _load_signals(root / "signals.csv")
+
+    baseline = build_nowcast_packet(root, ticker="SYN1", as_of_timestamp=as_of_timestamp)
+
+    syn2_actuals = [row for row in actuals if row.ticker == "SYN2"]
+    unstable_syn2 = [
+        replace(row, eps_actual=(abs(float(row.eps_actual or 1.0)) * (-1 if index % 2 else 1)))
+        for index, row in enumerate(syn2_actuals)
+    ]
+    syn2_consensus = [row for row in consensus_rows if row.ticker == "SYN2"]
+    syn2_readiness = assess_nowcast_readiness(
+        ticker="SYN2",
+        fiscal_period=syn2_consensus[0].fiscal_period,
+        as_of_timestamp=as_of_timestamp,
+        actuals=unstable_syn2,
+        consensus=syn2_consensus,
+    )
+
+    candidate_signals = [row for row in signals if row.review_state.value == "candidate_context_only"]
+    candidate_review = review_evidence_signals(candidate_signals, as_of_timestamp, trusted_peer_ids=set())
+
+    syn4_consensus = next(row for row in consensus_rows if row.ticker == "SYN4")
+    post_cutoff_consensus = replace(
+        syn4_consensus,
+        snapshot_at="2026-02-01T12:00:00+00:00",
+        retrieved_at="2026-02-01T12:01:00+00:00",
+    )
+    post_cutoff = assess_nowcast_readiness(
+        ticker="SYN4",
+        fiscal_period=post_cutoff_consensus.fiscal_period,
+        as_of_timestamp=as_of_timestamp,
+        actuals=[row for row in actuals if row.ticker == "SYN4"],
+        consensus=[post_cutoff_consensus],
+    )
+    excluded = assess_nowcast_readiness(
+        ticker="SYN5",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=as_of_timestamp,
+        actuals=[],
+        consensus=[],
+        asset_type="etf",
+    )
+
+    syn5_actuals = [row for row in actuals if row.ticker == "SYN5"]
+    syn5_target = QuarterlyActual(
+        ticker="SYN5",
+        fiscal_period="2026-Q1",
+        period_end_date="2026-03-31",
+        reported_at="2026-04-20T21:00:00Z",
+        revenue_actual=560.0,
+        eps_actual=5.0,
+        source="synthetic_test_fixture",
+        source_ref="fixture://actual/SYN5/2026-Q1",
+        retrieved_at="2026-04-20T21:00:00Z",
+    )
+    backtest = walk_forward_backtest(
+        [*syn5_actuals, syn5_target],
+        [row for row in consensus_rows if row.ticker == "SYN5"],
+        NowcastConfig(),
+    )
+    calibration = assess_probability_calibration([])
+
+    scenarios = [
+        {
+            "scenario": "baseline_ready",
+            "ticker": "SYN1",
+            "state": baseline["readiness"]["state"],
+            "test_only": True,
+        },
+        {
+            "scenario": "revenue_ready_eps_withheld",
+            "ticker": "SYN2",
+            "state": syn2_readiness.state.value,
+            "revenue_ready": syn2_readiness.revenue_ready,
+            "eps_ready": syn2_readiness.eps_ready,
+            "test_only": True,
+        },
+        {
+            "scenario": "candidate_peer_only",
+            "ticker": "SYN3",
+            "state": candidate_review.state.value,
+            "candidate_context_only": len(candidate_review.candidate_context_only),
+            "test_only": True,
+        },
+        {
+            "scenario": "post_cutoff_blocked",
+            "ticker": "SYN4",
+            "state": post_cutoff.state.value,
+            "missing_evidence": list(post_cutoff.missing_evidence),
+            "test_only": True,
+        },
+        {
+            "scenario": "excluded_non_company",
+            "ticker": "SYN5",
+            "state": excluded.state.value,
+            "test_only": True,
+        },
+        {
+            "scenario": "backtest_ready_uncalibrated",
+            "ticker": "SYN5-BACKTEST",
+            "state": calibration.state.value,
+            "valid_event_count": backtest.valid_event_count,
+            "probability_available": calibration.probability_available,
+            "test_only": True,
+        },
+    ]
+    return {
+        "schema_version": "earnings-nowcast-fixture-walkthrough-v1",
+        "evidence_scope": "synthetic_test_evidence_only",
+        "scenarios": scenarios,
+        "boundary": "Workflow test evidence only; not real-company coverage, freshness, or predictive validation.",
+    }
+
+
 def render_nowcast_packet(packet: dict[str, object]) -> str:
     return json.dumps(packet, sort_keys=True, indent=2, ensure_ascii=True) + "\n"
 
@@ -158,9 +278,10 @@ def render_nowcast_packet(packet: dict[str, object]) -> str:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build a read-only earnings nowcast pilot packet.")
     parser.add_argument("--root", type=Path, default=Path("."))
-    parser.add_argument("--ticker", required=True)
+    parser.add_argument("--ticker")
     parser.add_argument("--as-of", required=True, dest="as_of_timestamp")
     parser.add_argument("--fixture", action="store_true")
+    parser.add_argument("--walkthrough", action="store_true")
     parser.add_argument("--actuals", type=Path)
     parser.add_argument("--consensus", type=Path)
     parser.add_argument("--signals", type=Path)
@@ -169,6 +290,12 @@ def _parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _parser().parse_args()
+    if args.walkthrough and not args.fixture:
+        print("The reviewer walkthrough is available only with --fixture.", file=sys.stderr)
+        return 2
+    if not args.walkthrough and not args.ticker:
+        print("--ticker is required unless --walkthrough is selected.", file=sys.stderr)
+        return 2
     if any((args.actuals, args.consensus, args.signals)):
         if not all((args.actuals, args.consensus, args.signals)):
             print("Explicit inputs require --actuals, --consensus, and --signals together.", file=sys.stderr)
@@ -182,7 +309,11 @@ def main() -> int:
     else:
         input_root = args.root / (FIXTURE_RELATIVE_PATH if args.fixture else Path("data/earnings_nowcast"))
     try:
-        packet = build_nowcast_packet(input_root, ticker=args.ticker, as_of_timestamp=args.as_of_timestamp)
+        packet = (
+            build_fixture_walkthrough(input_root, as_of_timestamp=args.as_of_timestamp)
+            if args.walkthrough
+            else build_nowcast_packet(input_root, ticker=args.ticker, as_of_timestamp=args.as_of_timestamp)
+        )
     except FileNotFoundError as exc:
         print(str(exc), file=sys.stderr)
         return 2

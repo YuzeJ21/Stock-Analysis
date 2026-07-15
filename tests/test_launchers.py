@@ -2682,3 +2682,19 @@ def test_earnings_nowcast_pilot_launcher_is_read_only_and_fixture_explicit():
     assert "python3 -m src.earnings_nowcast_report" in section
     assert "$(if $(FIXTURE),--fixture,)" in section
     assert "imports-apply" not in section
+
+
+def test_earnings_nowcast_onboarding_launchers_have_no_apply_path():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    for target in (
+        "earnings-nowcast-templates",
+        "earnings-nowcast-validate",
+        "earnings-nowcast-preview",
+        "earnings-nowcast-readiness",
+    ):
+        assert f"{target}:" in makefile
+    section = makefile[makefile.index("earnings-nowcast-templates:") :]
+    assert "src.earnings_nowcast_onboarding" in section
+    assert "earnings-nowcast-apply" not in section
+    assert "imports-apply" not in section

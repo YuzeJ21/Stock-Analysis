@@ -116,19 +116,19 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     readme = _read("README.md")
 
     assert "## Now / Next / Not Yet" in readme
-    assert "| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, and manual gates. | Use `make public-check` before sharing; keep generated churn excluded. |" in readme
-    assert "| Next | Performance release candidate on the fixed demo profile, then an optional controlled hosted preview. | Run `make public-performance-contract`, then `make public-performance-gate`; hosting remains external until a URL is verified. |" in readme
+    assert "| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, manual gates, and a locally passed performance gate. | Use `make public-check` before sharing; keep generated churn excluded and do not treat local timing as hosted proof. |" in readme
+    assert "| Next | Optional controlled hosted preview and task-based external pilot review. | Hosting remains external until a URL is verified; reviewer feedback must remain anonymous workflow evidence, not investment opinion. |" in readme
     assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |" in readme
     assert "This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified." in readme
     assert "## Current Next Stages" in readme
-    assert "| Performance release candidate | In progress | Use the hashed `data/demo/manifest.json` profile and run `make public-performance-gate`; do not mix measurements with broad data refreshes. |" in readme
+    assert "| Performance release candidate | Passed locally on the fixed demo profile | Re-run `make public-performance-gate` for current route evidence; do not mix measurements with broad data refreshes or treat local timing as hosted proof. |" in readme
     assert "| LinkedIn publish | Ready after GitHub sync | If the branch is ahead, push reviewed commits after `make public-check`; if GitHub is synced, use the GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |" in readme
     assert "| Hosted Streamlit demo | External account required | Run `make hosted-demo-readiness`, then follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |" in readme
     assert "| FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |" in readme
     assert "| Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |" in readme
     assert "| Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |" in readme
     assert "| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |" in readme
-    assert "| Public UX polish | Review limited | Public checks pass, but repeated cold/warm route timings and external reviewer evidence are still required; run `make public-performance-gate` before upgrading the claim. |" in readme
+    assert "| Public UX polish | Review limited | Public checks and repeated local cold/warm route timings pass; external reviewer evidence is still required before upgrading the claim. |" in readme
     assert "| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |" in readme
     assert "The next product stage is not another broad refresh loop" in readme
     assert "rerun live desktop/mobile review after UI changes" in readme

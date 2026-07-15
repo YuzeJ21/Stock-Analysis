@@ -26,6 +26,14 @@ This document is the historical completion log for Stock Research Command Center
 - Ignored mutable `local` profile for refresh/import churn, separate from the public demo package.
 - Hosted-demo readiness guide, blank secrets templates, and an explicit no-hosted-URL boundary.
 - Browser QA and screenshot evidence gates that keep screenshots as product evidence only.
+- Local performance release gate passed on the fixed demo profile across all five public routes at 1280x720 and 390x844; the command remains a regression gate and does not prove hosted performance.
+
+## Earnings Nowcast Software Foundation
+
+- Point-in-time quarterly actual, consensus, evidence-signal, readiness, deterministic-range, and input-hash contracts.
+- Leakage-safe walk-forward diagnostics with explicit exclusion reasons, benchmarks, calibration bins, and fail-closed numerical probability gates.
+- Read-only append-only templates, validation, preview, duplicate/revision classification, and per-ticker readiness commands with no automatic apply path.
+- Six clearly synthetic reviewer scenarios covering ready, partial, candidate-only, post-cutoff blocked, excluded, and uncalibrated states. These are software evidence only, not real-company or predictive proof.
 
 ## Provenance And Source Boundaries
 

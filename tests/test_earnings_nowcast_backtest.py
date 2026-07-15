@@ -126,3 +126,42 @@ def test_empty_backtest_evidence_fails_closed():
 
     assert report.verdict == "failed"
     assert "No valid out-of-sample events" in report.failures
+
+
+def test_backtest_reports_silent_missing_consensus_exclusions_by_reason():
+    report = walk_forward_backtest(_history_with_target(), _consensus(), NowcastConfig())
+
+    assert report.valid_event_count == 1
+    assert report.excluded_count == 8
+    assert report.exclusion_reasons["no_pre_report_consensus_snapshot"] == 8
+    assert len(report.excluded_events) == 8
+
+
+def test_backtest_reports_model_validation_exclusions_separately():
+    target = _actual("2024-Q1", "2024-03-31", "2024-04-20T21:00:00Z", 80.0, 0.60)
+    snapshot = ConsensusSnapshot(
+        ticker="SYN1",
+        fiscal_period="2024-Q1",
+        snapshot_at="2024-04-01T12:00:00Z",
+        revenue_consensus=79.0,
+        eps_consensus=0.58,
+        source="synthetic_test_fixture",
+        retrieved_at="2024-04-01T12:00:00Z",
+    )
+
+    report = walk_forward_backtest([target], [snapshot], NowcastConfig())
+
+    assert report.event_count == 0
+    assert report.exclusion_reasons["model_input_validation_failed"] == 1
+    assert "quarterly_actual_history" in report.excluded_events[0]
+
+
+def test_calibration_reports_each_bin_and_human_readable_failed_gate_details():
+    observations = [ProbabilityObservation(probability=0.6, outcome=index % 2 == 0) for index in range(20)]
+
+    status = assess_probability_calibration(observations)
+
+    assert status.calibration_bins[0].event_count == 20
+    assert status.calibration_bins[0].meets_minimum_size is True
+    assert status.failed_gate_details["minimum_100_events"].startswith("20 valid events")
+    assert status.failed_gate_details["must_improve_constant_rate_benchmark"]

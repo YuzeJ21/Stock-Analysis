@@ -35,7 +35,7 @@ Every analysis-ready record or report section should expose, directly or through
 
 ## Earnings Nowcast Point-In-Time Contract
 
-Every forecast event must preserve `ticker`, `fiscal_period`, `as_of_timestamp`, source publication/retrieval timestamps, `model_version`, `input_snapshot_hash`, readiness/freshness states, and source IDs. Historical consensus snapshots are append-only evidence. A revised or currently visible estimate must not overwrite the snapshot that was knowable at a prior cutoff.
+Every forecast event must preserve `ticker`, `fiscal_period`, `as_of_timestamp`, source publication/retrieval timestamps, direct source references, `model_version`, `input_snapshot_hash`, readiness/freshness states, and source IDs. Historical consensus snapshots are append-only evidence. An exact duplicate is not re-added; a revised or currently visible estimate is retained as a separate revision and must not overwrite the snapshot that was knowable at a prior cutoff.
 
 The target-period actual and every source published after the cutoff are evaluation evidence only and must never enter forecast inputs. Trusted peer/news signals require explicit source, publication time, excerpt hash, review state, and trusted-peer relationship evidence where applicable. They remain directional context and cannot create a numeric adjustment or numerical probability.
 
@@ -49,6 +49,7 @@ Freshness is lane-specific. A price date, a filing date, and a peer review date 
 - Fundamentals and share count: use filing date and reporting period; quarterly or annual changes do not invalidate an older filing, but the report should surface its period.
 - Peer mappings: use source review date; candidate suggestions do not acquire freshness merely because price data refreshed.
 - Earnings and estimates: use provider retrieval and estimate period; unsupported fields remain optional context only.
+- Earnings Nowcast: use the forecast cutoff, actual publication time, consensus snapshot time, retrieval time, and fiscal-period identity. A current price or later revised estimate cannot refresh an older point-in-time forecast.
 - Screenshots and the demo manifest show product/package evidence. They are not data-freshness proof.
 
 ## Method Versioning

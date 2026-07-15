@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from src.earnings_nowcast_report import build_nowcast_packet, render_nowcast_packet
+from src.earnings_nowcast_report import build_fixture_walkthrough, build_nowcast_packet, render_nowcast_packet
 
 
 FIXTURE_ROOT = Path("tests/fixtures/earnings_nowcast")
@@ -87,3 +87,47 @@ def test_packet_selects_latest_consensus_available_at_cutoff_not_a_later_revisio
 
     assert packet["forecast"]["consensus_revenue"] == 112.0
     assert packet["forecast"]["consensus_eps"] == 1.0
+
+
+def test_fixture_walkthrough_covers_six_distinct_test_only_scenarios():
+    walkthrough = build_fixture_walkthrough(FIXTURE_ROOT, as_of_timestamp=CUTOFF)
+    by_scenario = {row["scenario"]: row for row in walkthrough["scenarios"]}
+
+    assert walkthrough["evidence_scope"] == "synthetic_test_evidence_only"
+    assert set(by_scenario) == {
+        "baseline_ready",
+        "revenue_ready_eps_withheld",
+        "candidate_peer_only",
+        "post_cutoff_blocked",
+        "excluded_non_company",
+        "backtest_ready_uncalibrated",
+    }
+    assert by_scenario["baseline_ready"]["state"] == "baseline_ready"
+    assert by_scenario["revenue_ready_eps_withheld"]["revenue_ready"] is True
+    assert by_scenario["revenue_ready_eps_withheld"]["eps_ready"] is False
+    assert by_scenario["candidate_peer_only"]["candidate_context_only"] > 0
+    assert by_scenario["post_cutoff_blocked"]["state"] == "blocked"
+    assert by_scenario["excluded_non_company"]["state"] == "excluded"
+    assert by_scenario["backtest_ready_uncalibrated"]["valid_event_count"] > 0
+    assert by_scenario["backtest_ready_uncalibrated"]["probability_available"] is False
+    assert all(row["test_only"] is True for row in walkthrough["scenarios"])
+
+
+def test_cli_fixture_walkthrough_is_read_only_json():
+    command = [
+        sys.executable,
+        "-m",
+        "src.earnings_nowcast_report",
+        "--root",
+        ".",
+        "--as-of",
+        CUTOFF,
+        "--fixture",
+        "--walkthrough",
+    ]
+
+    result = subprocess.run(command, check=True, capture_output=True, text=True)
+    payload = json.loads(result.stdout)
+
+    assert len(payload["scenarios"]) == 6
+    assert payload["evidence_scope"] == "synthetic_test_evidence_only"

@@ -22,6 +22,8 @@ Public visitor flow: **Home -> Stock Selector -> Single-Stock Report -> Data Hea
 
 ### P0: Performance Release Candidate
 
+**Status:** passed locally on the fixed demo profile on 2026-07-14; retain as a release regression gate.
+
 **Goal:** keep the guided public workflow fast enough that an external reviewer does not mistake loading for a broken page.
 
 Use the tracked `data/demo/manifest.json` snapshot as the fixed performance dataset. Do not mix route measurements with broad data refreshes or generated local-profile churn.
@@ -73,10 +75,10 @@ Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) t
 
 **Goal:** move the implemented Earnings Nowcast pilot from synthetic infrastructure proof to a leakage-safe, source-backed semiconductor cohort.
 
-Earnings Nowcast pilot infrastructure is implemented for deterministic Revenue/EPS ranges, consensus-relative classification, evidence-only directional signals, chronological walk-forward backtesting, and a separate probability calibration gate. The committed fixture cohort is synthetic test evidence only.
+Earnings Nowcast pilot infrastructure is implemented for deterministic Revenue/EPS ranges, consensus-relative classification, evidence-only directional signals, chronological walk-forward backtesting, explicit exclusion/calibration diagnostics, and a separate probability calibration gate. Read-only append-only onboarding templates, validation, preview, and readiness commands are implemented. The committed fixture cohort is synthetic test evidence only.
 
-1. Acquire append-only historical quarterly actuals and point-in-time consensus snapshots with source and retrieval timestamps for a narrow semiconductor cohort.
-2. Validate fiscal-period identity, source cutoff, model version, and immutable input-snapshot hashes before running a historical event.
+1. Acquire permitted append-only historical quarterly actuals and point-in-time consensus snapshots with source references and retrieval timestamps for a narrow semiconductor cohort.
+2. Run the implemented onboarding validate/preview/readiness gates before any real-company packet; no automatic apply path exists.
 3. Keep candidate peer/news signals separate from reviewed trusted evidence; signals explain context and never mutate forecast numbers.
 4. Run chronological out-of-sample evaluation against latest-consensus and prior-year benchmarks.
 5. Withhold numerical Beat/Miss probability until at least 100 valid events pass Brier-score, calibration-bin, and benchmark-improvement gates.

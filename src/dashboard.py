@@ -6168,11 +6168,12 @@ def signal_card_html(
     footer_parts = "".join(tiny_badge_html(badge) for badge in display_badges)
     if command and show_command:
         footer_parts += f"<span class='command-chip'>{html.escape(command)}</span>"
+    escaped_body = html.escape(display_body).replace("\n", "<br>")
     return (
         "<div class='signal-card'>"
         f"<div class='signal-kicker'>{html.escape(display_kicker)}</div>"
         f"<div class='signal-title'>{html.escape(display_title)}</div>"
-        f"<div class='signal-body'>{html.escape(display_body)}</div>"
+        f"<div class='signal-body'>{escaped_body}</div>"
         f"<div class='signal-footer'>{footer_parts}</div>"
         "</div>"
     )

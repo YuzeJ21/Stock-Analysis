@@ -164,7 +164,10 @@ def assess_nowcast_readiness(
     state = NowcastState.BASELINE_READY if revenue_ready or eps_ready else NowcastState.BLOCKED
     source_ids = tuple(row.source_ref for row in available_actuals)
     if selected_consensus is not None:
-        source_ids += (f"consensus:{selected_consensus.source}:{selected_consensus.snapshot_at}",)
+        source_ids += (
+            selected_consensus.source_ref
+            or f"consensus:{selected_consensus.source}:{selected_consensus.snapshot_at}",
+        )
     source_ids = tuple(sorted(set(source_ids)))
 
     if state == NowcastState.BASELINE_READY and not missing:

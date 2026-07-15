@@ -24,7 +24,7 @@ First review move: open Stock Selector, choose a ticker such as `NVDA`, read the
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
 
 ### Earnings Nowcast Pilot
-The repository includes a readiness-gated, deterministic synthetic-fixture workflow for quarterly Revenue/EPS ranges and consensus-relative classification. It records fiscal period, forecast cutoff, provenance, model version, input hash, freshness, and withheld states; peer/news signals are directional evidence only and cannot change forecast numbers. Run `FIXTURE=1 make earnings-nowcast-pilot TICKER=SYN1 AS_OF=2026-01-31T23:59:59Z` to inspect the offline contract.
+The repository includes a readiness-gated, deterministic synthetic-fixture workflow for quarterly Revenue/EPS ranges and consensus-relative classification. It records fiscal period, forecast cutoff, provenance, model version, input hash, freshness, and withheld states; peer/news signals are directional evidence only and cannot change forecast numbers. Run `make earnings-nowcast-walkthrough` for six clearly synthetic reviewer scenarios, or `FIXTURE=1 make earnings-nowcast-pilot TICKER=SYN1 AS_OF=2026-01-31T23:59:59Z` to inspect one offline packet. Read-only templates, validation, preview, and readiness commands are documented in [Earnings Nowcast Pilot](docs/EARNINGS_NOWCAST_PILOT.md); there is no automatic apply path.
 
 This infrastructure does not establish real-company coverage or predictive accuracy. Real semiconductor output remains blocked until append-only point-in-time consensus and quarterly actual histories are source-backed. Numerical Beat/Miss probability is withheld until at least 100 leakage-safe out-of-sample events pass calibration and benchmark gates. The pilot does not predict post-earnings price movement and remains research-only, not investment advice.
 ```mermaid
@@ -38,14 +38,14 @@ flowchart LR
 This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified.
 | Stage | Answer | Guardrail |
 | --- | --- | --- |
-| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, and manual gates. | Use `make public-check` before sharing; keep generated churn excluded. |
-| Next | Performance release candidate on the fixed demo profile, then an optional controlled hosted preview. | Run `make public-performance-contract`, then `make public-performance-gate`; hosting remains external until a URL is verified. |
+| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, manual gates, and a locally passed performance gate. | Use `make public-check` before sharing; keep generated churn excluded and do not treat local timing as hosted proof. |
+| Next | Optional controlled hosted preview and task-based external pilot review. | Hosting remains external until a URL is verified; reviewer feedback must remain anonymous workflow evidence, not investment opinion. |
 | Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |
 ## Current Next Stages
 Use this table to decide what to do next without reopening exhausted proof loops or overstating the public demo.
 | Stage | Current state | Next safe move |
 | --- | --- | --- |
-| Performance release candidate | In progress | Use the hashed `data/demo/manifest.json` profile and run `make public-performance-gate`; do not mix measurements with broad data refreshes. |
+| Performance release candidate | Passed locally on the fixed demo profile | Re-run `make public-performance-gate` for current route evidence; do not mix measurements with broad data refreshes or treat local timing as hosted proof. |
 | LinkedIn publish | Ready after GitHub sync | If the branch is ahead, push reviewed commits after `make public-check`; if GitHub is synced, use the GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |
 | Hosted Streamlit demo | External account required | Run `make hosted-demo-readiness`, then follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |
 | FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |
@@ -53,7 +53,7 @@ Use this table to decide what to do next without reopening exhausted proof loops
 | Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |
 | Earnings Nowcast evidence | Infrastructure ready; real evidence blocked | Use the synthetic fixture command to inspect behavior; add no real output until point-in-time consensus and leakage-safe history exist. |
 | Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |
-| Public UX polish | Review limited | Public checks pass, but repeated cold/warm route timings and external reviewer evidence are still required; run `make public-performance-gate` before upgrading the claim. |
+| Public UX polish | Review limited | Public checks and repeated local cold/warm route timings pass; external reviewer evidence is still required before upgrading the claim. |
 | Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |
 ## What You Can Analyze
 When trusted local data is available, the product can produce price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, portfolio purpose checks, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
