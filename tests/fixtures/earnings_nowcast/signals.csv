@@ -1,0 +1,4 @@
+signal_id,target_ticker,source_ticker,fiscal_period,as_of_timestamp,signal_type,direction,affected_metric,confidence_band,evidence_source,evidence_published_at,evidence_excerpt_hash,peer_relationship_state,review_state
+trusted-peer-1,SYN1,SYN2,2026-Q1,2026-01-31T23:59:59Z,peer_earnings_readthrough,positive,revenue,medium,synthetic_test_fixture,2026-01-20T12:00:00Z,aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,trusted,supported
+candidate-peer-1,SYN1,SYN3,2026-Q1,2026-01-31T23:59:59Z,peer_earnings_readthrough,neutral,revenue,low,synthetic_test_fixture,2026-01-21T12:00:00Z,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,candidate,candidate_context_only
+late-peer-1,SYN1,SYN4,2026-Q1,2026-02-02T00:00:00Z,peer_earnings_readthrough,negative,revenue,medium,synthetic_test_fixture,2026-02-01T12:00:00Z,cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc,trusted,supported

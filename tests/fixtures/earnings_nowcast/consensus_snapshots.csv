@@ -1,0 +1,6 @@
+ticker,fiscal_period,snapshot_at,revenue_consensus,eps_consensus,source,retrieved_at
+SYN1,2026-Q1,2026-01-25T12:00:00Z,112,1.00,synthetic_test_fixture,2026-01-25T12:01:00Z
+SYN2,2026-Q1,2026-01-25T12:00:00Z,224,2.00,synthetic_test_fixture,2026-01-25T12:01:00Z
+SYN3,2026-Q1,2026-01-25T12:00:00Z,336,3.00,synthetic_test_fixture,2026-01-25T12:01:00Z
+SYN4,2026-Q1,2026-01-25T12:00:00Z,448,4.00,synthetic_test_fixture,2026-01-25T12:01:00Z
+SYN5,2026-Q1,2026-01-25T12:00:00Z,560,5.00,synthetic_test_fixture,2026-01-25T12:01:00Z

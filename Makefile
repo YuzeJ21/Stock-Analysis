@@ -1221,3 +1221,6 @@ universe-report:
 
 universe-active:
 	python3 -m src.universe_model --ensure-only
+
+earnings-nowcast-pilot:
+	@python3 -m src.earnings_nowcast_report --root . --ticker $(or $(TICKER),SYN1) --as-of $(or $(AS_OF),2026-01-31T23:59:59Z) $(if $(FIXTURE),--fixture,)

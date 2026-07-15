@@ -1,0 +1,73 @@
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from src.earnings_nowcast_report import build_nowcast_packet, render_nowcast_packet
+
+
+FIXTURE_ROOT = Path("tests/fixtures/earnings_nowcast")
+CUTOFF = "2026-01-31T23:59:59Z"
+
+
+def test_fixture_packet_is_reproducible_and_never_claims_real_company_evidence():
+    first = build_nowcast_packet(FIXTURE_ROOT, ticker="SYN1", as_of_timestamp=CUTOFF)
+    second = build_nowcast_packet(FIXTURE_ROOT, ticker="SYN1", as_of_timestamp=CUTOFF)
+
+    assert first == second
+    rendered = render_nowcast_packet(first)
+    assert "synthetic test evidence" in rendered.lower()
+    assert "investment advice" in rendered.lower()
+    assert "beat probability" not in rendered.lower()
+    assert first["calibration"]["probability_available"] is False
+
+
+def test_fixture_packet_contains_readiness_forecast_provenance_and_signal_boundaries():
+    packet = build_nowcast_packet(FIXTURE_ROOT, ticker="SYN1", as_of_timestamp=CUTOFF)
+
+    assert packet["readiness"]["state"] == "baseline_ready"
+    assert packet["forecast"]["revenue_midpoint"] is not None
+    assert packet["forecast"]["model_version"] == "deterministic-v1"
+    assert len(packet["forecast"]["input_snapshot_hash"]) == 64
+    assert packet["signals"]["supported"]
+    assert packet["signals"]["candidate_context_only"]
+    assert "published_after_cutoff" in packet["signals"]["blockers"]
+    assert packet["boundaries"]["numeric_signal_adjustments"] == "not_permitted"
+
+
+def test_fixture_cohort_contains_five_synthetic_tickers_with_eight_quarters_each():
+    rows = (FIXTURE_ROOT / "quarterly_actuals.csv").read_text(encoding="utf-8").splitlines()[1:]
+    counts = {ticker: 0 for ticker in ("SYN1", "SYN2", "SYN3", "SYN4", "SYN5")}
+    for row in rows:
+        counts[row.split(",", 1)[0]] += 1
+
+    assert counts == {ticker: 8 for ticker in counts}
+
+
+def test_cli_is_deterministic_json():
+    command = [
+        sys.executable,
+        "-m",
+        "src.earnings_nowcast_report",
+        "--root",
+        ".",
+        "--ticker",
+        "SYN1",
+        "--as-of",
+        CUTOFF,
+        "--fixture",
+    ]
+    first = subprocess.run(command, check=True, capture_output=True, text=True).stdout
+    second = subprocess.run(command, check=True, capture_output=True, text=True).stdout
+
+    assert first == second
+    assert json.loads(first)["evidence_scope"] == "synthetic_test_evidence_only"
+
+
+def test_missing_input_directory_is_environment_unavailable():
+    with pytest.raises(FileNotFoundError, match="Nowcast input directory"):
+        build_nowcast_packet(Path("tests/fixtures/does-not-exist"), ticker="SYN1", as_of_timestamp=CUTOFF)
