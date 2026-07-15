@@ -1414,12 +1414,21 @@ def test_roadmap_keeps_active_plan_separate_from_completed_product_history():
         "## Now",
         "## Next",
         "## Later",
-        "### P0: Public Hosted Demo Verification",
-        "### P1: FMP One-Ticker Source Smoke",
-        "### P2: 25-50 Company Trusted-Peer Pilot",
+        "### P0: Performance Release Candidate",
+        "### P1: Controlled Hosted Preview Verification",
+        "### P1: Controlled Pilot Review",
+        "### P2: FMP One-Ticker Source Smoke",
+        "### P3: 25-50 Company Trusted-Peer Pilot",
         "keep GitHub as the public link until the hosted route is verified.",
     ):
         assert phrase in roadmap
+
+    assert roadmap.index("### P0: Performance Release Candidate") < roadmap.index(
+        "### P1: Controlled Hosted Preview Verification"
+    )
+    assert roadmap.index("### P1: Controlled Hosted Preview Verification") < roadmap.index(
+        "### P1: Controlled Pilot Review"
+    )
 
 
 def test_roadmap_routes_exhausted_proof_queues_to_provider_setup_before_candidate_loops():

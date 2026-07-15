@@ -23,6 +23,7 @@ research = [
 ]
 dev = [
   "pytest>=8.0",
+  "playwright>=1.52",
 ]
 
 [project.urls]

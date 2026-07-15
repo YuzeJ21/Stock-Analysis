@@ -12,6 +12,8 @@ This repository is ready to review as a controlled GitHub/LinkedIn portfolio dem
 | What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |
 | What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |
 | What is the current roadmap? | Read `ROADMAP.md` for the sole active priority order, dependencies, and stop rules. |
+| What proves local route performance? | Read the [Performance Release Gate](docs/PERFORMANCE_RELEASE_GATE.md), then rerun `make public-performance-gate` against the fixed demo profile. |
+| How will the project choose its next operating model? | Use the [Product Direction Decision](docs/PRODUCT_DIRECTION_DECISION.md); the choice remains provisional until hosted and external-review evidence exists. |
 | How should I collect pilot feedback? | Send [Pilot Review Invitation](docs/PILOT_REVIEW_INVITATION.md), then use `make pilot-review-feedback`, `docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md`, and `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` for anonymous workflow-clarity notes only; use `make pilot-feedback-closeout` before turning notes into fixes or deferrals. |
 | Which screenshot should I use? | Use `docs/assets/linkedin-public-dashboard.png` for LinkedIn Featured or GitHub preview context. |
 | What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |
@@ -32,19 +34,20 @@ This is the fastest reviewer answer: the product is shareable as a controlled de
 | Stage | Answer | Guardrail |
 | --- | --- | --- |
 | Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, and manual gates. | Use `make public-check` before sharing; keep generated churn excluded. |
-| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Use `make hosted-demo-readiness` or `make provider-setup-checklist`; one ticker only before validate/preview. |
+| Next | Performance release candidate on the fixed demo profile, then an optional controlled hosted preview. | Run `make public-performance-contract`, then `make public-performance-gate`; hosting remains external until a URL is verified. |
 | Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |
 ## Current Next Stages
 Use this table to decide what to do next without reopening exhausted proof loops or overstating the public demo.
 | Stage | Current state | Next safe move |
 | --- | --- | --- |
+| Performance release candidate | In progress | Use the hashed `data/demo/manifest.json` profile and run `make public-performance-gate`; do not mix measurements with broad data refreshes. |
 | LinkedIn publish | Ready after GitHub sync | If the branch is ahead, push reviewed commits after `make public-check`; if GitHub is synced, use the GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |
 | Hosted Streamlit demo | External account required | Run `make hosted-demo-readiness`, then follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |
 | FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |
 | Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |
 | Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |
 | Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |
-| Public UX polish | Share-review ready | Live desktop/mobile route notes are resolved; rerun `make public-ux-review-notes-check` after any UI wording, layout, or route change. |
+| Public UX polish | Review limited | Public checks pass, but repeated cold/warm route timings and external reviewer evidence are still required; run `make public-performance-gate` before upgrading the claim. |
 | Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |
 ## What You Can Analyze
 When trusted local data is available, the product can produce price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, portfolio purpose checks, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
@@ -167,4 +170,4 @@ That constraint is intentional. The product is useful because it says when data 
 The app is organized around dashboard, readiness, decision, report, provider, local-data, and test modules. It is CSV-first and deterministic by default. Optional network-backed data stays behind provider interfaces and is labeled as research-grade when used.
 
 ## Roadmap Snapshot
-The current public workflow is intentionally guided: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. The next product stage is not another broad refresh loop: keep the GitHub/LinkedIn preview current, rerun live desktop/mobile review only after UI changes, choose a hosted app account only when you want a public URL, and activate trusted provider/source rows only through validation, preview, rejected-row review, rebuilt readiness, and proof history. Fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.
+The current public workflow is intentionally guided: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. The next product stage is not another broad refresh loop: complete the fixed-demo performance release gate, keep the GitHub/LinkedIn preview current, rerun live desktop/mobile review after UI changes, choose a hosted app account only when you want a verified preview URL, and activate trusted provider/source rows only through validation, preview, rejected-row review, rebuilt readiness, and proof history. Fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.

@@ -26,6 +26,25 @@ Use this quick model card before relying on a page or report:
 | Peer context | Candidate peers are separated from trusted peer mappings and mapped-peer valuation inputs. | Candidate peers can guide review, but they are not trusted peer proof. |
 | Public share boundary | Public screenshots, walkthroughs, and QA evidence show product behavior. | They do not unlock blocked inputs or prove today's market/fundamental data. |
 
+## Lane-Level Freshness Policy
+
+Freshness is evaluated per lane because a daily price series, an annual filing, and a reviewed peer relationship do not age at the same rate. The product uses three review labels:
+
+- `current`: the required source/as-of evidence exists and no newer known event requires review.
+- `review_due`: the row may remain useful as historical context, but the expected event or review cadence has arrived and the lane needs source review before a current-state claim.
+- `stale_or_unknown`: the as-of date, source event, or review evidence is missing or too uncertain to support a freshness claim. Required analysis stays blocked when freshness is part of its gate.
+
+| Lane | Review expectation | Stale or changed behavior |
+| --- | --- | --- |
+| Price / momentum | Check the latest saved trading date when the project is opened; a daily after-close refresh is appropriate when current setup context is needed. | Show the latest date and short-history state. Do not imply intraday or real-time coverage, and do not fabricate missing OHLCV history. |
+| Fundamentals | Review after a verified quarterly or annual filing/source event. | Keep the filing/as-of date visible. A newer filing makes the prior row `review_due`; missing trusted fields remain blocked. |
+| Share count | Review after a validated capital-structure filing or explicit share-count fact. | Do not infer shares from price or market cap. Missing explicit evidence remains blocked even when metadata is current. |
+| DCF | Regenerate when a required fundamental, share-count, cash/debt input, price reference, or methodology version changes. | DCF inherits the weakest required input state. Stale or missing required inputs withhold current interpretation rather than silently reusing a prior conclusion. |
+| Trusted peers | Version and periodically review accepted relationships, and review again after a material business-model or segment change. | Missing source, rationale, reviewer, review date, or mapped-peer valuation inputs keeps the relationship candidate-only or blocked. |
+| Earnings / estimates | Treat as optional and time-sensitive; review only through a trusted provider/manual row carrying period and retrieval/as-of evidence. | Date-only or target-only rows remain candidate context. Missing trusted fields keep the lane locked. |
+
+A timestamp cannot turn an unsupported row into trusted evidence. Fresh metadata, screenshots, provider availability, or candidate context cannot substitute for the field-level source proof required by a readiness gate.
+
 ## Public Workflow Boundary
 
 The public page order is a reading workflow, not an analysis shortcut.

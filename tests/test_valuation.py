@@ -226,6 +226,48 @@ def test_sensitivity_table_has_expected_shape_when_base_dcf_is_calculable():
     assert len(sensitivity.fair_value_grid[0]) == 2
 
 
+def test_sensitivity_table_moves_in_expected_directions():
+    valuation_input = ValuationInput(
+        ticker="AAPL",
+        free_cash_flow=100.0,
+        shares_outstanding=10.0,
+        net_debt=0.0,
+    )
+    assumptions = build_default_scenarios(valuation_input)["base"]
+
+    sensitivity = build_sensitivity_table(
+        valuation_input,
+        assumptions,
+        wacc_values=[0.08, 0.10],
+        terminal_growth_values=[0.02, 0.04],
+    )
+
+    low_wacc_low_growth, low_wacc_high_growth = sensitivity.fair_value_grid[0]
+    high_wacc_low_growth, high_wacc_high_growth = sensitivity.fair_value_grid[1]
+    assert low_wacc_high_growth > low_wacc_low_growth
+    assert high_wacc_high_growth > high_wacc_low_growth
+    assert low_wacc_low_growth > high_wacc_low_growth
+    assert low_wacc_high_growth > high_wacc_high_growth
+
+
+def test_dcf_exposes_discounted_terminal_value_contribution_for_review():
+    valuation_input = ValuationInput(
+        ticker="AAPL",
+        free_cash_flow=100.0,
+        shares_outstanding=10.0,
+        net_debt=0.0,
+    )
+    assumptions = build_default_scenarios(valuation_input)["base"]
+
+    result = calculate_dcf(valuation_input, assumptions)
+
+    assert result.status == "calculated"
+    assert result.discounted_terminal_value is not None
+    assert result.enterprise_value is not None
+    contribution = result.discounted_terminal_value / result.enterprise_value
+    assert 0.0 < contribution < 1.0
+
+
 def test_sensitivity_table_returns_insufficient_data_when_base_dcf_lacks_per_share_inputs():
     valuation_input = ValuationInput(
         ticker="AAPL",

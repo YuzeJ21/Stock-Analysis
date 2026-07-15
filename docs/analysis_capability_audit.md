@@ -105,4 +105,4 @@ Any external review or research input still has to be translated into determinis
 
 The current functions are strong enough for a transparent local research prototype, single-stock review, market/ETF monitoring, and DCF-ready company analysis when trusted data exists. They are not yet a full-market data platform because fundamentals, peer data, earnings, and analyst estimates are intentionally sparse until trusted rows are imported.
 
-The next quality improvement is not more indicators. It is better data coverage, better source readiness visibility, more trusted fundamentals/peer rows, and continued UI polish so blocked analysis feels intentional rather than broken.
+The next quality improvement is not more indicators or another broad source loop. It is a measured performance release candidate on the fixed demo profile, followed by controlled external review. Deeper trusted peer and provider coverage remains source-gated and should resume only when reviewed evidence exists.

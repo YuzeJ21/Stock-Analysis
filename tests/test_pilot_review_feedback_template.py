@@ -26,6 +26,26 @@ def test_pilot_review_feedback_template_keeps_clarity_feedback_separate_from_dat
     assert "outside the repository" in body
 
 
+def test_pilot_review_template_has_task_based_scorecard_without_investment_opinions():
+    body = Path("docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md").read_text(encoding="utf-8")
+
+    assert "## Optional Task-Based Pilot" in body
+    assert "Find a company with a ready operating-company DCF" in body
+    assert "Explain why an ETF or index proxy excludes company DCF" in body
+    assert "Explain what the product must not be used for" in body
+    for signal in (
+        "Task success",
+        "Moderator help required",
+        "Readiness comprehension",
+        "Misuse risk",
+        "Trust in evidence",
+        "Perceived performance",
+        "Repeat-use case",
+    ):
+        assert signal in body
+    assert "Do not ask whether the reviewer would buy or sell" in body
+
+
 def test_pilot_review_feedback_make_target_is_read_only_and_discoverable():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
@@ -69,6 +89,13 @@ def test_pilot_review_feedback_log_template_is_anonymous_and_comparable():
         "reproducible_issue_route",
         "reproducible_issue_viewport",
         "evidence_pointer",
+        "task_success",
+        "moderator_help_required",
+        "readiness_comprehension",
+        "misuse_risk",
+        "trust_in_evidence",
+        "perceived_performance",
+        "repeat_use_case",
     ):
         assert column in header
 

@@ -20,7 +20,23 @@ Public visitor flow: **Home -> Stock Selector -> Single-Stock Report -> Data Hea
 
 ## Now
 
-### P0: Public Hosted Demo Verification
+### P0: Performance Release Candidate
+
+**Goal:** keep the guided public workflow fast enough that an external reviewer does not mistake loading for a broken page.
+
+Use the tracked `data/demo/manifest.json` snapshot as the fixed performance dataset. Do not mix route measurements with broad data refreshes or generated local-profile churn.
+
+1. Run `make public-performance-contract` to inspect the read-only route, viewport, snapshot, and threshold contract.
+2. Run `make public-performance-gate` for real-browser cold and warm evidence at desktop and phone widths.
+3. Measure the visible shell, first useful answer, and full settle separately; report repeated warm results as p90 rather than selecting the fastest run.
+4. Treat Stock Selector, Single-Stock Report, and Data Health as critical routes. Keep Home and Proof History regression-protected.
+5. Optimize saved summaries, deferred detail, pagination, and deterministic caching in small tested slices without weakening readiness or hiding blocked states.
+
+**Exit gate:** loading feedback within 1 second, first useful answer within 3 seconds, warm full-settle p90 within 5 seconds, and cold full settle within 10 seconds on the defined local reference environment.
+
+**Stop rule:** a missing browser dependency is `environment_limited`, not a pass. Keep timing JSON and screenshots generated and unstaged unless one concise artifact is intentionally reviewed.
+
+### P1: Controlled Hosted Preview Verification
 
 **Goal:** turn the deterministic `demo` profile into a verified, controlled hosted demo without exposing local refresh data or credentials.
 
@@ -32,11 +48,11 @@ Repository-side preparation is complete. The remaining deployment work requires 
 4. Verify the five-page workflow on the hosted URL at desktop and mobile widths.
 5. Set `HOSTED_DEMO_URL` locally only after the URL opens successfully, then rerun the public gates before changing GitHub or LinkedIn copy.
 
-**Dependencies:** external hosting account, public URL, and a human browser review of the deployed route.
+**Dependencies:** the local performance release gate, an external hosting account, a public or access-controlled preview URL, and a human browser review of the deployed route.
 
-**Stop rule:** keep GitHub as the public link until the hosted route is verified. Screenshots remain product evidence only, never data-freshness proof.
+**Stop rule:** keep GitHub as the public link until the hosted route is verified. Call the route private only when access control is actually enforced. Screenshots remain product evidence only, never data-freshness proof.
 
-### P0: Controlled Pilot Review
+### P1: Controlled Pilot Review
 
 **Goal:** validate whether an external reviewer can understand the product in under three minutes.
 
@@ -47,13 +63,13 @@ Repository-side preparation is complete. The remaining deployment work requires 
 
 Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) to capture anonymous, reproducible workflow observations without collecting personal, portfolio, or investment-opinion data.
 
-**Dependencies:** external reviewers and controlled feedback collection.
+**Dependencies:** a locally passing performance release gate, a verified delivery path, external reviewers, and controlled feedback collection.
 
 **Stop rule:** do not call pilot feedback data proof; it only validates product clarity and workflow reliability.
 
 ## Next
 
-### P1: FMP One-Ticker Source Smoke
+### P2: FMP One-Ticker Source Smoke
 
 **Goal:** add one controlled keyed free-tier fallback after the public pilot foundation is stable.
 
@@ -68,7 +84,7 @@ Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) t
 
 **Stop rule:** no broad batch from setup alone. Provider setup/source-boundary review must happen before `make trusted-data-pilot-candidates TOP_N=10` only after source state changes.
 
-### P1: Price History Maintenance
+### P2: Price History Maintenance
 
 Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optional IBKR read-only when explicitly configured, then keyed FMP, Alpha Vantage, and Finnhub fallbacks. This maintenance lane is finite and read-only until a separately reviewed source-backed change is eligible for the import gate.
 
@@ -81,7 +97,7 @@ Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optio
 
 **Stop rules:** stop on no readiness movement in reviewed scope; no identical source-limit retry unless source behavior or verified OHLCV changes; batch compatible proof evidence intentionally; never commit or push one proof row per ticker by default; pivot to the next roadmap item when no executable candidates.
 
-### P2: 25-50 Company Trusted-Peer Pilot
+### P3: 25-50 Company Trusted-Peer Pilot
 
 **Goal:** address the largest analytical-depth gap without inferring trusted peers across the full universe.
 
@@ -97,17 +113,21 @@ Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optio
 
 ## Later
 
-### P3: Optional Earnings And Analyst Estimates
+### P4: Optional Earnings And Analyst Estimates
 
 Proceed only when a trusted provider supplies supported earnings actual/estimate fields, estimate period, source, and retrieval/as-of date. Date-only and target-price-only data remain `candidate_context_only`; optional context never unlocks DCF readiness or becomes a recommendation.
 
-### P3: Scheduler Maturity
+### P4: Scheduler Maturity
 
 Add scheduled monitoring only after at least one provider pilot proves deterministic batch limits, provenance, rejection handling, and proof-ledger recording. Daily price and filing checks may be read-only; imports still require validation, preview, and source gates.
 
 ### Later: Broader Peer Expansion
 
 Expand beyond the peer pilot only after trusted relationship sourcing, review capacity, and lane-level quality checks are repeatable.
+
+### Later: Product Direction Decision
+
+Use `docs/PRODUCT_DIRECTION_DECISION.md` after hosted-preview, controlled-pilot, and trusted-peer evidence exist. Choose explicitly among a portfolio-quality research prototype, maintained research tool, or operated research platform; keep the decision provisional while those dependencies remain external.
 
 ## Dependencies And Manual Gates
 

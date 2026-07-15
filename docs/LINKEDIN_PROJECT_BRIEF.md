@@ -23,6 +23,8 @@ Two-minute external review path:
 
 Each public page now opens with one question, one short answer, one primary next action, and one stop rule. The public workflow is checked at desktop and mobile widths. The current-page shortcut is visible so visitors know where they are.
 
+Current review status is `review_limited`: deterministic public checks pass, while repeated cold/warm route timings and external reviewer evidence are still being completed. This is a truthful controlled-demo status, not a hosted-product or data-freshness claim.
+
 The first story is the public workflow, not operator automation. Keep reviewed batch packets, provider setup, and validate / preview / apply mechanics as operator detail after the visitor understands the product.
 
 Operator details stay collapsed until someone intentionally leaves the public path.
@@ -38,7 +40,7 @@ If someone asks what to do next, run `make next-stage` before opening operator p
 | Stage | Answer | Guardrail |
 | --- | --- | --- |
 | Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |
-| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Keep this as a follow-up; do not imply a hosted URL or provider-backed automation exists before verification. |
+| Next | Performance release candidate on the fixed demo profile, followed by an optional controlled hosted preview. | Use `make public-performance-gate`; do not imply a hosted URL, private access, or provider-backed automation exists before verification. |
 | Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |
 
 ## Suggested LinkedIn Post

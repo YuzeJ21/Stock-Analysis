@@ -19,6 +19,30 @@ Ask them to use one example ticker and answer these four questions in their own 
 
 Do not coach the answers. The purpose is to see whether the public workflow is self-explanatory in under three minutes.
 
+## Optional Task-Based Pilot
+
+After the unassisted three-minute check, use the following tasks when a reviewer can spend another five to eight minutes. Observe first and explain the interface only after the task ends.
+
+1. Find a company with a ready operating-company DCF and identify what can be reviewed now.
+2. Find a partial or blocked company and name the most important missing input.
+3. Explain why an ETF or index proxy excludes company DCF rather than failing it.
+4. Open Proof History and identify the latest evidence outcome without opening raw ledger rows first.
+5. Explain what the product must not be used for.
+
+Record the scorecard as workflow evidence only:
+
+| Signal | Allowed value |
+| --- | --- |
+| Task success | `completed`, `completed_with_help`, or `not_completed`. |
+| Moderator help required | `none`, `one_prompt`, or `multiple_prompts`. |
+| Readiness comprehension | `correct`, `partial`, or `incorrect` explanation of ready, partial, blocked, excluded, and withheld. |
+| Misuse risk | `none`, `uncertain`, or `mistook_as_recommendation_or_live_terminal`. |
+| Trust in evidence | `high`, `medium`, or `low`, with a short reason about provenance or blocker clarity. |
+| Perceived performance | `responsive`, `noticeably_slow`, or `appeared_frozen`, with the affected route. |
+| Repeat-use case | Short research-readiness task they would repeat, or `none`. |
+
+Do not ask whether the reviewer would buy or sell a security. Do not collect a price target, portfolio position, account information, or personal investment decision.
+
 ## Capture Sheet
 
 Record one row per review session outside the repository unless the note contains no personal information. Use `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` as the copy/paste header when you want comparable rows across 5-10 reviewers; keep the working copy outside Git unless it is intentionally anonymized review evidence.
@@ -36,6 +60,7 @@ Record one row per review session outside the repository unless the note contain
 | Confusion point | Exact page, label, or route that caused confusion, if any. |
 | Reviewer signal | `clear`, `confused`, `blocked_by_environment`, or `suggestion_only`. |
 | Closeout outcome | `clear`, `reproducible_ui_issue`, `documentation_gap`, `environment_limited`, or `intentionally_deferred`. |
+| Task scorecard | Record task success, moderator help, readiness comprehension, misuse risk, trust, perceived performance, and repeat-use case only when the optional task pilot was run. |
 
 Do not record names, account details, or investment opinions. Do not ask reviewers for a stock recommendation, price target, trade decision, or personal portfolio information.
 

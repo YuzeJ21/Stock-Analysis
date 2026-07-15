@@ -117,25 +117,93 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
 
     assert "## Now / Next / Not Yet" in readme
     assert "| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, and manual gates. | Use `make public-check` before sharing; keep generated churn excluded. |" in readme
-    assert "| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Use `make hosted-demo-readiness` or `make provider-setup-checklist`; one ticker only before validate/preview. |" in readme
+    assert "| Next | Performance release candidate on the fixed demo profile, then an optional controlled hosted preview. | Run `make public-performance-contract`, then `make public-performance-gate`; hosting remains external until a URL is verified. |" in readme
     assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |" in readme
     assert "This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified." in readme
     assert "## Current Next Stages" in readme
+    assert "| Performance release candidate | In progress | Use the hashed `data/demo/manifest.json` profile and run `make public-performance-gate`; do not mix measurements with broad data refreshes. |" in readme
     assert "| LinkedIn publish | Ready after GitHub sync | If the branch is ahead, push reviewed commits after `make public-check`; if GitHub is synced, use the GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |" in readme
     assert "| Hosted Streamlit demo | External account required | Run `make hosted-demo-readiness`, then follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |" in readme
     assert "| FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |" in readme
     assert "| Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |" in readme
     assert "| Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |" in readme
     assert "| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |" in readme
-    assert "| Public UX polish | Share-review ready | Live desktop/mobile route notes are resolved; rerun `make public-ux-review-notes-check` after any UI wording, layout, or route change. |" in readme
+    assert "| Public UX polish | Review limited | Public checks pass, but repeated cold/warm route timings and external reviewer evidence are still required; run `make public-performance-gate` before upgrading the claim. |" in readme
     assert "| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |" in readme
     assert "The next product stage is not another broad refresh loop" in readme
-    assert "rerun live desktop/mobile review only after UI changes" in readme
-    assert "choose a hosted app account only when you want a public URL" in readme
+    assert "rerun live desktop/mobile review after UI changes" in readme
+    assert "choose a hosted app account only when you want a verified preview URL" in readme
     assert readme.index("## External Reviewer Start Here") < readme.index("## Current Next Stages")
     assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Not Yet")
     assert readme.index("## Now / Next / Not Yet") < readme.index("## Current Next Stages")
     assert readme.index("## Current Next Stages") < readme.index("## What You Can Analyze")
+
+
+def test_public_status_language_uses_review_limited_until_live_route_gate_passes():
+    readme = _read("README.md")
+
+    assert "| Public UX polish | Review limited |" in readme
+    assert "Share-review ready" not in readme
+    assert "make public-performance-gate" in readme
+
+
+def test_active_roadmap_puts_performance_before_hosting_and_external_pilot():
+    roadmap = _read("ROADMAP.md")
+
+    performance = roadmap.index("### P0: Performance Release Candidate")
+    hosted = roadmap.index("### P1: Controlled Hosted Preview Verification")
+    pilot = roadmap.index("### P1: Controlled Pilot Review")
+
+    assert performance < hosted < pilot
+    assert "data/demo/manifest.json" in roadmap
+    assert "first useful" in roadmap.lower()
+    assert "p90" in roadmap.lower()
+
+
+def test_methodology_defines_lane_level_freshness_policy_without_claiming_live_data():
+    methodology = _read("docs/METHODOLOGY.md")
+
+    assert "## Lane-Level Freshness Policy" in methodology
+    for lane in (
+        "Price / momentum",
+        "Fundamentals",
+        "Share count",
+        "DCF",
+        "Trusted peers",
+        "Earnings / estimates",
+    ):
+        assert f"| {lane} |" in methodology
+    assert "current" in methodology
+    assert "review_due" in methodology
+    assert "stale_or_unknown" in methodology
+    assert "A timestamp cannot turn an unsupported row into trusted evidence" in methodology
+
+
+def test_product_direction_decision_stays_provisional_until_external_evidence_exists():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    decision = _read("docs/PRODUCT_DIRECTION_DECISION.md")
+
+    assert "[Product Direction Decision](docs/PRODUCT_DIRECTION_DECISION.md)" in readme
+    assert "docs/PRODUCT_DIRECTION_DECISION.md" in roadmap
+    for path in (
+        "Portfolio-quality research prototype",
+        "Maintained research tool",
+        "Operated research platform",
+    ):
+        assert path in decision
+    for criterion in (
+        "Reviewer demand",
+        "Operating burden",
+        "Data licensing",
+        "Provider reliability",
+        "Monitoring and support",
+    ):
+        assert criterion in decision
+    assert "Current decision: provisional" in decision
+    assert "awaiting_external_review" in decision
+    assert "external_account_required" in decision
+    assert "Do not infer demand" in decision
 
 
 def test_linkedin_brief_has_now_next_not_yet_share_framing():
@@ -143,7 +211,7 @@ def test_linkedin_brief_has_now_next_not_yet_share_framing():
 
     assert "## Now / Next / Not Yet" in linkedin
     assert "| Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |" in linkedin
-    assert "| Next | Optional hosted Streamlit deployment or first keyed-provider smoke, starting with FMP if a key is configured outside the repo. | Keep this as a follow-up; do not imply a hosted URL or provider-backed automation exists before verification. |" in linkedin
+    assert "| Next | Performance release candidate on the fixed demo profile, followed by an optional controlled hosted preview. | Use `make public-performance-gate`; do not imply a hosted URL, private access, or provider-backed automation exists before verification. |" in linkedin
     assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |" in linkedin
     assert "Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages." in linkedin
     assert "If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets." in linkedin
