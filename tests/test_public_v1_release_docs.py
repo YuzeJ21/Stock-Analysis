@@ -179,6 +179,31 @@ def test_methodology_defines_lane_level_freshness_policy_without_claiming_live_d
     assert "A timestamp cannot turn an unsupported row into trusted evidence" in methodology
 
 
+def test_public_docs_keep_nowcast_probability_withheld_until_calibrated():
+    text = _read("docs/EARNINGS_NOWCAST_PILOT.md")
+
+    assert "baseline_ready" in text
+    assert "signal_context_ready" in text
+    assert "backtest_ready" in text
+    assert "calibrated" in text
+    assert "No numerical Beat/Miss probability is shown before calibration" in text
+    assert "does not predict post-earnings price movement" in text
+    assert "synthetic test evidence only" in text
+    assert "awaiting_point_in_time_consensus" in text
+    assert "awaiting_calibration_evidence" in text
+
+
+def test_roadmap_and_readme_describe_nowcast_infrastructure_without_claiming_real_coverage():
+    roadmap = _read("ROADMAP.md")
+    readme = _read("README.md")
+
+    assert "Earnings Nowcast pilot infrastructure" in roadmap
+    assert "Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`" in roadmap
+    assert "Earnings Nowcast Pilot" in readme
+    assert "deterministic synthetic-fixture workflow" in readme
+    assert "does not establish real-company coverage or predictive accuracy" in readme
+
+
 def test_product_direction_decision_stays_provisional_until_external_evidence_exists():
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")

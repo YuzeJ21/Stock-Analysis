@@ -2673,3 +2673,12 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "pipeline" not in public_check_body
     assert "verify:\n\tpython3 -m pytest tests -q" not in makefile
     assert "daily:\n\tpython3 -m src.data_update --universe-file data/universe.csv" not in makefile
+
+
+def test_earnings_nowcast_pilot_launcher_is_read_only_and_fixture_explicit():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    section = makefile[makefile.index("earnings-nowcast-pilot:") :]
+
+    assert "python3 -m src.earnings_nowcast_report" in section
+    assert "$(if $(FIXTURE),--fixture,)" in section
+    assert "imports-apply" not in section

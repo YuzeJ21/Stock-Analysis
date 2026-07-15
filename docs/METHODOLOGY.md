@@ -323,7 +323,19 @@ The safe local sequence is:
 
 This ladder is why empty or partial outputs are useful: they show the first trustworthy proof step instead of hiding the gap behind a weak conclusion.
 
-## 12. Methodology Limits
+## 12. Earnings Nowcast Pilot Method
+
+The Earnings Nowcast pilot is a separate readiness-gated lane. It does not reuse generic optional-context readiness and does not let an earnings date, current target price, candidate peer, or provider availability unlock a forecast.
+
+The deterministic baseline requires at least five source-backed prior quarterly actuals, the matching prior-year fiscal quarter, and an exact forecast-period point-in-time consensus snapshot available at the forecast cutoff. Revenue and EPS are evaluated independently: a stable Revenue history may produce a range while unstable EPS remains withheld. Each snapshot records the fiscal period, cutoff, model version, immutable input hash, freshness state, and source IDs.
+
+The model combines recent sequential behavior and same-quarter year-over-year seasonality with fixed versioned weights. It emits ranges and a `higher`, `aligned`, or `lower` consensus-relative classification. It does not accept a text-generated numeric adjustment. Peer earnings, company news, industry indicators, and macro evidence are directional context only; candidate peers remain `candidate_context_only`, while a reviewed trusted source may raise the context state without changing the numerical baseline.
+
+Historical evaluation is chronological walk-forward only. The target actual and later consensus snapshots are excluded from model inputs and used only for scoring after the forecast. Reports include error, interval coverage, directional accuracy, exclusions, and latest-consensus/prior-year benchmarks. Numerical Beat/Miss probability stays unavailable until at least 100 valid out-of-sample observations pass finite-value, Brier-score, calibration-bin, and constant-rate benchmark gates.
+
+The committed `SYN1`-`SYN5` cohort is synthetic test evidence only. It proves deterministic software behavior, not real semiconductor coverage, predictive accuracy, or data freshness. The pilot does not predict post-earnings price movement and does not provide investment advice.
+
+## 13. Methodology Limits
 
 This is not a full data-vendor terminal, analyst-estimate service, or execution workflow. The useful strength is transparency: the app shows exactly what local data supports and refuses to overstate missing analysis.
 
@@ -342,7 +354,7 @@ The current methodology remains limited when:
 - Earnings and analyst-estimate rows have not been imported.
 - A ticker has too little local price history.
 
-## 13. Where This Lives In Code
+## 14. Where This Lives In Code
 
 The methodology is implemented in project code, not hidden in a model prompt.
 
@@ -353,5 +365,6 @@ The methodology is implemented in project code, not hidden in a model prompt.
 | Research decision fields | `src/research_decisions.py` |
 | Single-stock report wording | `src/stock_report.py` |
 | Dashboard methodology and status views | `src/dashboard.py` |
+| Earnings Nowcast contracts, readiness, model, backtest, signals, and packet | `src/earnings_nowcast_*.py` |
 
 The local CSV files provide inputs. The product code decides what can be analyzed, what must stay blocked, and what explanation appears.

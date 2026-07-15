@@ -31,6 +31,15 @@ Every analysis-ready record or report section should expose, directly or through
 | Candidate peers | Industry, SIC, product, or other contextual suggestion. | Candidate context must not satisfy trusted-peer readiness. |
 | Trusted peers | Source-backed relationship, review rationale, source/as-of date, and required peer inputs. | Peer-relative valuation and comparative conclusions. |
 | Earnings and estimates | Trusted provider/import fields, fiscal period, source, and retrieval/as-of context. | Optional readiness or consensus interpretation from date-only or target-only rows. |
+| Earnings Nowcast | Prior quarterly actuals plus an exact-period point-in-time consensus snapshot, all timestamped no later than the forecast cutoff; model version and input hash are mandatory. | Revenue/EPS range, consensus-relative classification, and every probability output. Candidate signals never satisfy this gate. |
+
+## Earnings Nowcast Point-In-Time Contract
+
+Every forecast event must preserve `ticker`, `fiscal_period`, `as_of_timestamp`, source publication/retrieval timestamps, `model_version`, `input_snapshot_hash`, readiness/freshness states, and source IDs. Historical consensus snapshots are append-only evidence. A revised or currently visible estimate must not overwrite the snapshot that was knowable at a prior cutoff.
+
+The target-period actual and every source published after the cutoff are evaluation evidence only and must never enter forecast inputs. Trusted peer/news signals require explicit source, publication time, excerpt hash, review state, and trusted-peer relationship evidence where applicable. They remain directional context and cannot create a numeric adjustment or numerical probability.
+
+The synthetic fixture packet is software-test evidence only. Real output remains `awaiting_point_in_time_consensus`, and numerical probability remains `awaiting_calibration_evidence` until the documented out-of-sample gates pass.
 
 ## Freshness Rules
 

@@ -22,6 +22,11 @@ This repository is ready to review as a controlled GitHub/LinkedIn portfolio dem
 First review move: open Stock Selector, choose a ticker such as `NVDA`, read the Single-Stock Report answer, then open Data Health only when an input is blocked. The tracked [Data Profiles](docs/DATA_PROFILES.md) guide separates this compact public snapshot from the ignored local research workspace.
 ## What It Does
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
+
+### Earnings Nowcast Pilot
+The repository includes a readiness-gated, deterministic synthetic-fixture workflow for quarterly Revenue/EPS ranges and consensus-relative classification. It records fiscal period, forecast cutoff, provenance, model version, input hash, freshness, and withheld states; peer/news signals are directional evidence only and cannot change forecast numbers. Run `FIXTURE=1 make earnings-nowcast-pilot TICKER=SYN1 AS_OF=2026-01-31T23:59:59Z` to inspect the offline contract.
+
+This infrastructure does not establish real-company coverage or predictive accuracy. Real semiconductor output remains blocked until append-only point-in-time consensus and quarterly actual histories are source-backed. Numerical Beat/Miss probability is withheld until at least 100 leakage-safe out-of-sample events pass calibration and benchmark gates. The pilot does not predict post-earnings price movement and remains research-only, not investment advice.
 ```mermaid
 flowchart LR
     Home["Home: workflow start"] --> Selector["Stock Selector: readiness-backed queue"]
@@ -46,6 +51,7 @@ Use this table to decide what to do next without reopening exhausted proof loops
 | FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |
 | Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |
 | Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |
+| Earnings Nowcast evidence | Infrastructure ready; real evidence blocked | Use the synthetic fixture command to inspect behavior; add no real output until point-in-time consensus and leakage-safe history exist. |
 | Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |
 | Public UX polish | Review limited | Public checks pass, but repeated cold/warm route timings and external reviewer evidence are still required; run `make public-performance-gate` before upgrading the claim. |
 | Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |
