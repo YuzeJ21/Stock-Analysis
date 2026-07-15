@@ -363,6 +363,7 @@ def test_probe_ibkr_price_reports_missing_dependency_without_blocking(monkeypatc
 
 
 def test_session_source_preflight_reports_ibkr_read_only_price_provider(tmp_path: Path, monkeypatch):
+    _clear_provider_env(monkeypatch)
     monkeypatch.setenv("IBKR_HOST", "127.0.0.1")
     monkeypatch.setenv("IBKR_PORT", "7497")
     monkeypatch.setenv("IBKR_CLIENT_ID", "12")

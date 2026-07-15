@@ -13094,7 +13094,11 @@ def test_data_health_readiness_ops_center_frame_groups_broad_lanes():
     assert "source_activation_required" not in rendered
     assert "preview first, reviewed apply" in rendered
     assert "optional source review" in rendered
-    assert "make price-history-proof-queue top_n=25" in rendered
+    price_command = frame.loc[frame["Lane"].eq("Price Coverage"), "Next Safe Command"].iloc[0]
+    assert price_command in {
+        "make price-history-proof-queue TOP_N=25",
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
+    }
     assert "trusted local rows" in rendered
 
 
