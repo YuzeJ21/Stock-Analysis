@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+from dataclasses import fields
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -16,16 +17,28 @@ from src.earnings_nowcast_contract import (
 from src.earnings_nowcast_readiness import assess_nowcast_readiness, readiness_payload
 
 
+EVIDENCE_SCHEMA_VERSION = "earnings-nowcast-evidence-v2"
+
+
 SCHEMAS: dict[str, tuple[str, ...]] = {
     "quarterly_actuals.csv": (
+        "schema_version",
         "ticker", "fiscal_period", "period_end_date", "reported_at", "revenue_actual",
         "eps_actual", "source", "source_ref", "retrieved_at",
+        "revenue_currency", "revenue_unit_scale", "revenue_basis", "eps_currency",
+        "eps_basis", "eps_share_basis", "eps_operations_basis", "split_adjustment_basis",
+        "supersedes_source_ref",
     ),
     "consensus_snapshots.csv": (
+        "schema_version",
         "ticker", "fiscal_period", "snapshot_at", "revenue_consensus", "eps_consensus",
         "source", "source_ref", "retrieved_at",
+        "revenue_currency", "revenue_unit_scale", "revenue_basis", "eps_currency",
+        "eps_basis", "eps_share_basis", "eps_operations_basis", "split_adjustment_basis",
+        "expected_report_date",
     ),
     "signals.csv": (
+        "schema_version",
         "signal_id", "target_ticker", "source_ticker", "fiscal_period", "as_of_timestamp",
         "signal_type", "direction", "affected_metric", "confidence_band", "evidence_source",
         "evidence_source_ref", "evidence_published_at", "evidence_excerpt_hash",
@@ -80,6 +93,15 @@ def _actual(row: Mapping[str, str]) -> QuarterlyActual:
         source=row.get("source", ""),
         source_ref=row.get("source_ref", ""),
         retrieved_at=row.get("retrieved_at", ""),
+        revenue_currency=row.get("revenue_currency", ""),
+        revenue_unit_scale=_optional_float(row.get("revenue_unit_scale")),
+        revenue_basis=row.get("revenue_basis", ""),
+        eps_currency=row.get("eps_currency", ""),
+        eps_basis=row.get("eps_basis", ""),
+        eps_share_basis=row.get("eps_share_basis", ""),
+        eps_operations_basis=row.get("eps_operations_basis", ""),
+        split_adjustment_basis=row.get("split_adjustment_basis", ""),
+        supersedes_source_ref=row.get("supersedes_source_ref") or None,
     )
 
 
@@ -94,12 +116,22 @@ def _consensus(row: Mapping[str, str]) -> ConsensusSnapshot:
         source=row.get("source", ""),
         retrieved_at=row.get("retrieved_at", ""),
         source_ref=row.get("source_ref", ""),
+        revenue_currency=row.get("revenue_currency", ""),
+        revenue_unit_scale=_optional_float(row.get("revenue_unit_scale")),
+        revenue_basis=row.get("revenue_basis", ""),
+        eps_currency=row.get("eps_currency", ""),
+        eps_basis=row.get("eps_basis", ""),
+        eps_share_basis=row.get("eps_share_basis", ""),
+        eps_operations_basis=row.get("eps_operations_basis", ""),
+        split_adjustment_basis=row.get("split_adjustment_basis", ""),
+        expected_report_date=row.get("expected_report_date") or None,
     )
 
 
 def _signal(row: Mapping[str, str]) -> EvidenceSignal:
     _required_reference(row, "evidence_source_ref")
-    return EvidenceSignal(**row)
+    allowed = {field.name for field in fields(EvidenceSignal)}
+    return EvidenceSignal(**{key: value for key, value in row.items() if key in allowed})
 
 
 LOADERS: dict[str, Callable[[Mapping[str, str]], object]] = {
@@ -125,6 +157,8 @@ def validate_onboarding(input_dir: Path, *, cutoff: str | None = None) -> dict[s
     rejected: list[dict[str, Any]] = []
     for filename in SCHEMAS:
         path = root / filename
+        if filename == "signals.csv" and not path.exists():
+            continue
         if filename in {"quarterly_actuals.csv", "consensus_snapshots.csv"} and not path.exists():
             rejected.append(
                 {
@@ -135,9 +169,29 @@ def validate_onboarding(input_dir: Path, *, cutoff: str | None = None) -> dict[s
                 }
             )
             continue
-        for row_number, row in enumerate(_read_rows(path), start=2):
+        header: tuple[str, ...] = ()
+        if path.exists():
+            with path.open(newline="", encoding="utf-8") as handle:
+                header = tuple(csv.DictReader(handle).fieldnames or ())
+        missing_columns = tuple(field for field in SCHEMAS[filename] if field not in header)
+        rows = _read_rows(path)
+        if missing_columns and not rows:
+            rejected.append(
+                {
+                    "file": filename,
+                    "row_number": 0,
+                    "row": {},
+                    "reasons": f"missing required columns: {', '.join(missing_columns)}",
+                }
+            )
+            continue
+        for row_number, row in enumerate(rows, start=2):
             reasons: list[str] = []
             value: object | None = None
+            if missing_columns:
+                reasons.append(f"missing required columns: {', '.join(missing_columns)}")
+            if row.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
+                reasons.append(f"schema_version must be {EVIDENCE_SCHEMA_VERSION}")
             try:
                 value = LOADERS[filename](row)
             except (TypeError, ValueError) as exc:
@@ -180,6 +234,7 @@ def preview_onboarding(
     existing_root = Path(existing_dir) if existing_dir else None
     duplicates: list[dict[str, Any]] = []
     revisions: list[dict[str, Any]] = []
+    conflicts: list[dict[str, Any]] = []
     new_rows: list[dict[str, Any]] = []
     for item in validation["accepted_rows"]:
         filename = item["file"]
@@ -188,6 +243,30 @@ def preview_onboarding(
         if row in existing_rows:
             duplicates.append({"file": filename, "row": row})
             continue
+        if filename == "quarterly_actuals.csv":
+            same_period = [
+                candidate
+                for candidate in existing_rows
+                if candidate.get("ticker", "").strip().upper() == row.get("ticker", "").strip().upper()
+                and candidate.get("fiscal_period", "").strip().upper() == row.get("fiscal_period", "").strip().upper()
+            ]
+            supersedes = row.get("supersedes_source_ref", "").strip()
+            if supersedes and any(candidate.get("source_ref", "").strip() == supersedes for candidate in same_period):
+                prior = next(candidate for candidate in same_period if candidate.get("source_ref", "").strip() == supersedes)
+                revisions.append({"file": filename, "row": row, "revision_of": prior})
+                continue
+            metric_fields = (
+                "revenue_actual", "eps_actual", "revenue_currency", "revenue_unit_scale",
+                "revenue_basis", "eps_currency", "eps_basis", "eps_share_basis",
+                "eps_operations_basis", "split_adjustment_basis",
+            )
+            conflicting = next(
+                (candidate for candidate in same_period if any(candidate.get(field, "") != row.get(field, "") for field in metric_fields)),
+                None,
+            )
+            if conflicting is not None:
+                conflicts.append({"file": filename, "row": row, "conflicts_with": conflicting})
+                continue
         identity_fields = IDENTITY_FIELDS[filename]
         identity = _row_key(row, identity_fields)
         prior = next((candidate for candidate in existing_rows if _row_key(candidate, identity_fields) == identity), None)
@@ -200,9 +279,12 @@ def preview_onboarding(
         "mode": "preview_only",
         "new_count": len(new_rows),
         "revision_count": len(revisions),
+        "conflict_count": len(conflicts),
         "duplicate_count": len(duplicates),
+        "ready_for_packet": bool(validation["valid"] and not conflicts),
         "new_rows": new_rows,
         "revision_rows": revisions,
+        "conflict_rows": conflicts,
         "duplicate_rows": duplicates,
         "apply_performed": False,
     }
@@ -239,6 +321,25 @@ def onboarding_readiness(input_dir: Path, *, ticker: str, cutoff: str | None = N
     return {**readiness_payload(result), "validation": {"valid": validation["valid"], "rejected_count": validation["rejected_count"]}}
 
 
+def prospective_collection_plan(output_dir: Path) -> dict[str, Any]:
+    root = Path(output_dir)
+    return {
+        "schema_version": "earnings-nowcast-prospective-plan-v1",
+        "state": "awaiting_point_in_time_consensus",
+        "output_dir": str(root),
+        "append_only": True,
+        "automatic_apply": False,
+        "scheduler_ready": True,
+        "recommended_cadence": "weekly_and_pre_earnings",
+        "template_command": f"make earnings-nowcast-templates OUTPUT_DIR={root}",
+        "validation_command": f"make earnings-nowcast-validate INPUT_DIR={root} AS_OF=<forecast-cutoff>",
+        "boundary": (
+            "Prospective collection accumulates future point-in-time snapshots; it does not "
+            "recreate historical consensus or unlock probability calibration."
+        ),
+    }
+
+
 def _jsonable(payload: Mapping[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in payload.items() if key != "accepted_rows"}
 
@@ -258,6 +359,8 @@ def _parser() -> argparse.ArgumentParser:
     readiness.add_argument("--input-dir", type=Path, required=True)
     readiness.add_argument("--ticker", required=True)
     readiness.add_argument("--cutoff")
+    prospective = subparsers.add_parser("prospective-plan")
+    prospective.add_argument("--output-dir", type=Path, required=True)
     return parser
 
 
@@ -265,6 +368,9 @@ def main() -> int:
     args = _parser().parse_args()
     if args.command == "templates":
         print(json.dumps({"written": [str(path) for path in write_templates(args.output_dir)]}, indent=2))
+        return 0
+    if args.command == "prospective-plan":
+        print(json.dumps(prospective_collection_plan(args.output_dir), indent=2, sort_keys=True))
         return 0
     if args.command == "validate":
         result = validate_onboarding(args.input_dir, cutoff=args.cutoff)

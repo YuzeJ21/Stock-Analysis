@@ -18,6 +18,7 @@ class NowcastState(StrEnum):
     BLOCKED = "blocked"
     BASELINE_READY = "baseline_ready"
     SIGNAL_CONTEXT_READY = "signal_context_ready"
+    BACKTEST_INSUFFICIENT = "backtest_insufficient"
     BACKTEST_READY = "backtest_ready"
     CALIBRATED = "calibrated"
     EXCLUDED = "excluded"
@@ -101,6 +102,22 @@ def _optional_finite(value: object, *, label: str) -> float | None:
     return number
 
 
+def _positive_finite(value: object, *, label: str) -> float:
+    number = _optional_finite(value, label=label)
+    if number is None or number <= 0:
+        raise ValueError(f"{label} must be positive")
+    return number
+
+
+def _normalized_code(value: object, *, label: str) -> str:
+    return _required_text(value, label=label).strip().lower()
+
+
+def _optional_text(value: object) -> str | None:
+    cleaned = str(value or "").strip()
+    return cleaned or None
+
+
 def validate_cutoff(event_timestamp: object, cutoff: object, *, label: str) -> bool:
     event = parse_utc_timestamp(event_timestamp, label=f"{label} timestamp")
     boundary = parse_utc_timestamp(cutoff, label="forecast cutoff")
@@ -120,6 +137,15 @@ class QuarterlyActual:
     source: str
     source_ref: str
     retrieved_at: str
+    revenue_currency: str = "USD"
+    revenue_unit_scale: float = 1.0
+    revenue_basis: str = "reported"
+    eps_currency: str = "USD"
+    eps_basis: str = "gaap"
+    eps_share_basis: str = "diluted"
+    eps_operations_basis: str = "reported"
+    split_adjustment_basis: str = "as_reported"
+    supersedes_source_ref: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "ticker", _ticker(self.ticker))
@@ -131,6 +157,15 @@ class QuarterlyActual:
         object.__setattr__(self, "eps_actual", _optional_finite(self.eps_actual, label="eps_actual"))
         object.__setattr__(self, "source", _required_text(self.source, label="source"))
         object.__setattr__(self, "source_ref", _required_text(self.source_ref, label="source_ref"))
+        object.__setattr__(self, "revenue_currency", _required_text(self.revenue_currency, label="revenue_currency").upper())
+        object.__setattr__(self, "revenue_unit_scale", _positive_finite(self.revenue_unit_scale, label="revenue_unit_scale"))
+        object.__setattr__(self, "revenue_basis", _normalized_code(self.revenue_basis, label="revenue_basis"))
+        object.__setattr__(self, "eps_currency", _required_text(self.eps_currency, label="eps_currency").upper())
+        object.__setattr__(self, "eps_basis", _normalized_code(self.eps_basis, label="eps_basis"))
+        object.__setattr__(self, "eps_share_basis", _normalized_code(self.eps_share_basis, label="eps_share_basis"))
+        object.__setattr__(self, "eps_operations_basis", _normalized_code(self.eps_operations_basis, label="eps_operations_basis"))
+        object.__setattr__(self, "split_adjustment_basis", _normalized_code(self.split_adjustment_basis, label="split_adjustment_basis"))
+        object.__setattr__(self, "supersedes_source_ref", _optional_text(self.supersedes_source_ref))
         if self.revenue_actual is None and self.eps_actual is None:
             raise ValueError("at least one quarterly actual metric is required")
 
@@ -148,6 +183,15 @@ class ConsensusSnapshot:
     source: str
     retrieved_at: str
     source_ref: str | None = None
+    revenue_currency: str = "USD"
+    revenue_unit_scale: float = 1.0
+    revenue_basis: str = "reported"
+    eps_currency: str = "USD"
+    eps_basis: str = "gaap"
+    eps_share_basis: str = "diluted"
+    eps_operations_basis: str = "reported"
+    split_adjustment_basis: str = "as_reported"
+    expected_report_date: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "ticker", _ticker(self.ticker))
@@ -161,6 +205,19 @@ class ConsensusSnapshot:
             self,
             "source_ref",
             _required_text(self.source_ref, label="source_ref") if self.source_ref is not None else None,
+        )
+        object.__setattr__(self, "revenue_currency", _required_text(self.revenue_currency, label="revenue_currency").upper())
+        object.__setattr__(self, "revenue_unit_scale", _positive_finite(self.revenue_unit_scale, label="revenue_unit_scale"))
+        object.__setattr__(self, "revenue_basis", _normalized_code(self.revenue_basis, label="revenue_basis"))
+        object.__setattr__(self, "eps_currency", _required_text(self.eps_currency, label="eps_currency").upper())
+        object.__setattr__(self, "eps_basis", _normalized_code(self.eps_basis, label="eps_basis"))
+        object.__setattr__(self, "eps_share_basis", _normalized_code(self.eps_share_basis, label="eps_share_basis"))
+        object.__setattr__(self, "eps_operations_basis", _normalized_code(self.eps_operations_basis, label="eps_operations_basis"))
+        object.__setattr__(self, "split_adjustment_basis", _normalized_code(self.split_adjustment_basis, label="split_adjustment_basis"))
+        object.__setattr__(
+            self,
+            "expected_report_date",
+            _iso_date(self.expected_report_date, label="expected_report_date") if self.expected_report_date else None,
         )
         if self.revenue_consensus is None and self.eps_consensus is None:
             raise ValueError("at least one consensus metric is required")
@@ -253,6 +310,10 @@ class ForecastSnapshot:
     freshness_state: FreshnessState | str
     source_ids: tuple[str, ...]
     created_at: str
+    revenue_classification: str = "withheld"
+    eps_classification: str = "withheld"
+    expected_report_date: str | None = None
+    forecast_horizon_days: int | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "forecast_id", _required_text(self.forecast_id, label="forecast_id"))
@@ -260,6 +321,13 @@ class ForecastSnapshot:
         object.__setattr__(self, "fiscal_period", _fiscal_period(self.fiscal_period))
         object.__setattr__(self, "as_of_timestamp", _utc_string(self.as_of_timestamp, label="as_of_timestamp"))
         object.__setattr__(self, "created_at", _utc_string(self.created_at, label="created_at"))
+        object.__setattr__(
+            self,
+            "expected_report_date",
+            _iso_date(self.expected_report_date, label="expected_report_date") if self.expected_report_date else None,
+        )
+        if self.forecast_horizon_days is not None and self.forecast_horizon_days < 0:
+            raise ValueError("forecast_horizon_days must be non-negative")
         object.__setattr__(self, "model_version", _required_text(self.model_version, label="model_version"))
         digest = _required_text(self.input_snapshot_hash, label="input_snapshot_hash").lower()
         if not _HEX_64_PATTERN.fullmatch(digest):

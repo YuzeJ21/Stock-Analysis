@@ -23,7 +23,7 @@ Two-minute external review path:
 
 Each public page now opens with one question, one short answer, one primary next action, and one stop rule. The public workflow is checked at desktop and mobile widths. The current-page shortcut is visible so visitors know where they are.
 
-Current review status is `review_limited`: deterministic public checks pass, while repeated cold/warm route timings and external reviewer evidence are still being completed. This is a truthful controlled-demo status, not a hosted-product or data-freshness claim.
+Current review status is `review_limited`: deterministic public checks and repeated local cold/warm route timings pass, while external reviewer evidence and hosted-route verification are still unavailable. This is a truthful controlled-demo status, not a hosted-product or data-freshness claim.
 
 The first story is the public workflow, not operator automation. Keep reviewed batch packets, provider setup, and validate / preview / apply mechanics as operator detail after the visitor understands the product.
 
@@ -40,7 +40,7 @@ If someone asks what to do next, run `make next-stage` before opening operator p
 | Stage | Answer | Guardrail |
 | --- | --- | --- |
 | Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |
-| Next | Performance release candidate on the fixed demo profile, followed by an optional controlled hosted preview. | Use `make public-performance-gate`; do not imply a hosted URL, private access, or provider-backed automation exists before verification. |
+| Next | Source-backed Earnings Nowcast evidence pilot, plus optional hosted preview and controlled review. | Keep synthetic fixtures separate from real evidence; do not imply a hosted URL, private access, predictive validation, or provider-backed automation before verification. |
 | Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |
 
 ## Suggested LinkedIn Post

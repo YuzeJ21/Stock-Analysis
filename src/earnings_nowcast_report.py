@@ -4,7 +4,7 @@ import argparse
 import csv
 import json
 import sys
-from dataclasses import asdict, is_dataclass, replace
+from dataclasses import asdict, fields, is_dataclass, replace
 from enum import Enum
 from pathlib import Path
 from typing import Any, Iterable
@@ -22,6 +22,15 @@ FIXTURE_RELATIVE_PATH = Path("tests/fixtures/earnings_nowcast")
 def _optional_float(value: str | None) -> float | None:
     cleaned = str(value or "").strip()
     return float(cleaned) if cleaned else None
+
+
+def _synthetic_default(row: dict[str, str], field: str, default: str) -> str:
+    value = str(row.get(field, "")).strip()
+    if value:
+        return value
+    if row.get("source", "").strip() == "synthetic_test_fixture":
+        return default
+    return value
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -43,6 +52,15 @@ def _load_actuals(path: Path) -> list[QuarterlyActual]:
             source=row["source"],
             source_ref=row["source_ref"],
             retrieved_at=row["retrieved_at"],
+            revenue_currency=_synthetic_default(row, "revenue_currency", "USD"),
+            revenue_unit_scale=_optional_float(_synthetic_default(row, "revenue_unit_scale", "1")),
+            revenue_basis=_synthetic_default(row, "revenue_basis", "reported"),
+            eps_currency=_synthetic_default(row, "eps_currency", "USD"),
+            eps_basis=_synthetic_default(row, "eps_basis", "gaap"),
+            eps_share_basis=_synthetic_default(row, "eps_share_basis", "diluted"),
+            eps_operations_basis=_synthetic_default(row, "eps_operations_basis", "reported"),
+            split_adjustment_basis=_synthetic_default(row, "split_adjustment_basis", "as_reported"),
+            supersedes_source_ref=row.get("supersedes_source_ref") or None,
         )
         for row in _read_csv(path)
     ]
@@ -59,13 +77,23 @@ def _load_consensus(path: Path) -> list[ConsensusSnapshot]:
             source=row["source"],
             retrieved_at=row["retrieved_at"],
             source_ref=row.get("source_ref") or None,
+            revenue_currency=_synthetic_default(row, "revenue_currency", "USD"),
+            revenue_unit_scale=_optional_float(_synthetic_default(row, "revenue_unit_scale", "1")),
+            revenue_basis=_synthetic_default(row, "revenue_basis", "reported"),
+            eps_currency=_synthetic_default(row, "eps_currency", "USD"),
+            eps_basis=_synthetic_default(row, "eps_basis", "gaap"),
+            eps_share_basis=_synthetic_default(row, "eps_share_basis", "diluted"),
+            eps_operations_basis=_synthetic_default(row, "eps_operations_basis", "reported"),
+            split_adjustment_basis=_synthetic_default(row, "split_adjustment_basis", "as_reported"),
+            expected_report_date=row.get("expected_report_date") or None,
         )
         for row in _read_csv(path)
     ]
 
 
 def _load_signals(path: Path) -> list[EvidenceSignal]:
-    return [EvidenceSignal(**row) for row in _read_csv(path)]
+    allowed = {field.name for field in fields(EvidenceSignal)}
+    return [EvidenceSignal(**{key: value for key, value in row.items() if key in allowed}) for row in _read_csv(path)]
 
 
 def _jsonable(value: Any) -> Any:
@@ -128,10 +156,12 @@ def build_nowcast_packet(
     signal_review = review_evidence_signals(selected_signals, as_of_timestamp, trusted_peer_ids=trusted_peer_ids)
     backtest = walk_forward_backtest(selected_actuals, [selected_consensus], NowcastConfig())
     calibration = assess_probability_calibration([])
+    synthetic = all(row.source == "synthetic_test_fixture" for row in [*selected_actuals, selected_consensus])
+    evidence_scope = "synthetic_test_evidence_only" if synthetic else "source_backed_preview_only"
 
     return {
         "schema_version": "earnings-nowcast-pilot-v1",
-        "evidence_scope": "synthetic_test_evidence_only",
+        "evidence_scope": evidence_scope,
         "ticker": normalized_ticker,
         "fiscal_period": selected_consensus.fiscal_period,
         "as_of_timestamp": readiness.as_of_timestamp,
@@ -140,14 +170,36 @@ def build_nowcast_packet(
         "signals": signal_context_payload(signal_review),
         "backtest": _jsonable(backtest),
         "calibration": _jsonable(calibration),
+        "metric_definitions": {
+            "revenue": {
+                "currency": selected_consensus.revenue_currency,
+                "unit_scale": selected_consensus.revenue_unit_scale,
+                "basis": selected_consensus.revenue_basis,
+            },
+            "eps": {
+                "currency": selected_consensus.eps_currency,
+                "basis": selected_consensus.eps_basis,
+                "share_basis": selected_consensus.eps_share_basis,
+                "operations_basis": selected_consensus.eps_operations_basis,
+                "split_adjustment_basis": selected_consensus.split_adjustment_basis,
+            },
+        },
         "boundaries": {
             "research_only": True,
             "investment_advice": "not_provided",
-            "public_boundary": "Research-only synthetic test evidence; this is not investment advice.",
+            "public_boundary": (
+                "Research-only synthetic test evidence; this is not investment advice."
+                if synthetic
+                else "Research-only source-backed preview; validation does not apply or publish data."
+            ),
             "post_earnings_price_reaction": "not_predicted",
             "numeric_signal_adjustments": "not_permitted",
             "numerical_surprise_probability": "withheld_until_calibrated",
-            "synthetic_notice": "Synthetic test evidence only; not real company or data-freshness proof.",
+            "synthetic_notice": (
+                "Synthetic test evidence only; not real company or data-freshness proof."
+                if synthetic
+                else "not_applicable"
+            ),
         },
     }
 
@@ -255,7 +307,7 @@ def build_fixture_walkthrough(input_root: Path, *, as_of_timestamp: str) -> dict
             "test_only": True,
         },
         {
-            "scenario": "backtest_ready_uncalibrated",
+            "scenario": "backtest_insufficient_uncalibrated",
             "ticker": "SYN5-BACKTEST",
             "state": calibration.state.value,
             "valid_event_count": backtest.valid_event_count,

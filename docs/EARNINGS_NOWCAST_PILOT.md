@@ -11,6 +11,7 @@ The pilot adds a conservative earnings-research lane: deterministic next-quarter
 | `blocked` | Required quarterly history, exact-period point-in-time consensus, freshness, or provenance is missing. No numerical forecast is shown. |
 | `baseline_ready` | A deterministic Revenue and/or EPS range can be reviewed. Unsupported metrics stay withheld. |
 | `signal_context_ready` | Reviewed directional evidence exists, but it does not change the baseline numbers. |
+| `backtest_insufficient` | Chronological events exist, but fewer than the documented minimum support a backtest-ready claim. |
 | `backtest_ready` | Chronological evaluation exists, but numerical probability has not passed every calibration gate. |
 | `calibrated` | At least 100 valid out-of-sample probability events pass Brier-score, bin-size, and benchmark-improvement gates. |
 | `excluded` | The instrument is not an operating company eligible for this method. |
@@ -19,7 +20,7 @@ No numerical Beat/Miss probability is shown before calibration. Probability is a
 
 ## Required Evidence
 
-The baseline requires source-backed quarterly actuals, including the matching prior-year fiscal quarter, plus an append-only exact-period consensus snapshot that was available at the forecast cutoff. Every row preserves source and timestamps. Every forecast preserves period, cutoff, model version, input-snapshot hash, freshness, readiness, and source IDs.
+The baseline requires source-backed quarterly actuals, including the matching prior-year fiscal quarter, plus an append-only exact-period consensus snapshot that was available at the forecast cutoff. Duplicate rows for one fiscal period count once. Conflicting values require an explicit `supersedes_source_ref` or remain blocked. Revenue and EPS are canonicalized independently and must match the consensus definition for currency, scale, accounting basis, share basis, operations basis, and split treatment. Every row preserves source and timestamps. Every forecast preserves period, cutoff, expected report date, forecast horizon, model version, input-snapshot hash, freshness, readiness, and source IDs.
 
 Post-cutoff actuals, later consensus revisions, and late news fail closed. Revenue and EPS readiness are independent so unstable EPS can remain withheld while Revenue is ready.
 
@@ -32,9 +33,10 @@ make earnings-nowcast-templates OUTPUT_DIR=data/imports/earnings_nowcast
 make earnings-nowcast-validate INPUT_DIR=data/imports/earnings_nowcast AS_OF=2026-01-31T23:59:59Z
 make earnings-nowcast-preview INPUT_DIR=data/imports/earnings_nowcast EXISTING_DIR=data/earnings_nowcast AS_OF=2026-01-31T23:59:59Z
 make earnings-nowcast-readiness INPUT_DIR=data/imports/earnings_nowcast TICKER=<ticker> AS_OF=<forecast-cutoff>
+make earnings-nowcast-prospective-plan OUTPUT_DIR=data/imports/earnings_nowcast
 ```
 
-Actuals and consensus files are required; reviewed signals are optional. Source names, direct source references, fiscal periods, publication/retrieval timestamps, and at least one supported metric are validated. Exact duplicates, new rows, and append-only revisions are reported separately. Post-cutoff evidence is rejected. These commands never apply, overwrite, stage, commit, or push rows; there is intentionally no Earnings Nowcast apply command.
+Actuals and consensus files are required; reviewed signals are optional. The versioned schemas require source names, direct source references, fiscal periods, publication/retrieval timestamps, comparability definitions, and at least one supported metric. Exact duplicates, new rows, explicit append-only revisions, and unresolved conflicts are reported separately; a conflict makes the preview not packet-ready. Post-cutoff evidence is rejected. The prospective plan is scheduler-ready but does not fetch data or create its output directory. These commands never apply, overwrite, stage, commit, or push rows; there is intentionally no Earnings Nowcast apply command.
 
 ## Signals
 
@@ -55,6 +57,6 @@ FIXTURE=1 make earnings-nowcast-pilot TICKER=SYN1 AS_OF=2026-01-31T23:59:59Z
 make earnings-nowcast-walkthrough AS_OF=2026-01-31T23:59:59Z
 ```
 
-The `SYN1`-`SYN5` cohort and `SYN5-BACKTEST` walkthrough label are synthetic test evidence only. The walkthrough demonstrates baseline ready, Revenue ready with EPS withheld, candidate-peer-only context, post-cutoff blocking, non-company exclusion, and backtest-ready/un-calibrated behavior. It proves deterministic contracts, readiness, ranges, signal separation, CLI output, and withholding behavior. It does not prove real-company coverage, current data, predictive accuracy, or investability.
+The `SYN1`-`SYN5` cohort and `SYN5-BACKTEST` walkthrough label are synthetic test evidence only. The walkthrough demonstrates baseline ready, Revenue ready with EPS withheld, candidate-peer-only context, post-cutoff blocking, non-company exclusion, and backtest-insufficient/un-calibrated behavior. It proves deterministic contracts, readiness, ranges, signal separation, CLI output, and withholding behavior. It does not prove real-company coverage, current data, predictive accuracy, or investability.
 
 Real semiconductor coverage is `awaiting_point_in_time_consensus`. The next legitimate data step is a narrow append-only cohort with licensed or otherwise permitted historical consensus snapshots and source-backed actuals. Generated packets remain local and unstaged unless an exact artifact is intentionally reviewed.

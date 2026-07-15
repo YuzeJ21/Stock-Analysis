@@ -32,8 +32,9 @@ This document is the historical completion log for Stock Research Command Center
 
 - Point-in-time quarterly actual, consensus, evidence-signal, readiness, deterministic-range, and input-hash contracts.
 - Leakage-safe walk-forward diagnostics with explicit exclusion reasons, benchmarks, calibration bins, and fail-closed numerical probability gates.
-- Read-only append-only templates, validation, preview, duplicate/revision classification, and per-ticker readiness commands with no automatic apply path.
-- Six clearly synthetic reviewer scenarios covering ready, partial, candidate-only, post-cutoff blocked, excluded, and uncalibrated states. These are software evidence only, not real-company or predictive proof.
+- Metric-specific quarterly canonicalization, explicit revision chains, conflict blocking, and Revenue/EPS comparability checks for currency, scale, accounting, share, operations, and split basis.
+- Versioned read-only append-only templates, validation, conflict-aware preview, prospective collection planning, and per-ticker readiness commands with no automatic apply path.
+- Six clearly synthetic reviewer scenarios covering ready, partial, candidate-only, post-cutoff blocked, excluded, and backtest-insufficient/un-calibrated states. These are software evidence only, not real-company or predictive proof.
 
 ## Provenance And Source Boundaries
 

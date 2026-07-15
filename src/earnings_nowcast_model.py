@@ -3,10 +3,11 @@ from __future__ import annotations
 import math
 import statistics
 from dataclasses import asdict, dataclass
+from datetime import date
 from typing import Sequence
 
-from src.earnings_nowcast_contract import ConsensusSnapshot, ForecastSnapshot, QuarterlyActual, input_snapshot_hash
-from src.earnings_nowcast_readiness import assess_nowcast_readiness
+from src.earnings_nowcast_contract import ConsensusSnapshot, ForecastSnapshot, QuarterlyActual, input_snapshot_hash, parse_utc_timestamp
+from src.earnings_nowcast_readiness import assess_nowcast_readiness, canonicalize_actuals
 
 
 @dataclass(frozen=True)
@@ -180,13 +181,15 @@ def build_baseline_nowcast(
         missing = ", ".join(readiness.missing_evidence) or readiness.state.value
         raise ValueError(f"Nowcast is blocked: {missing}")
 
+    canonical = canonicalize_actuals(rows, consensus)
+
     revenue_midpoint = revenue_low = revenue_high = None
     if readiness.revenue_ready:
-        revenue_midpoint, revenue_low, revenue_high = _revenue_forecast(rows, consensus.fiscal_period, config)
+        revenue_midpoint, revenue_low, revenue_high = _revenue_forecast(canonical.revenue_rows, consensus.fiscal_period, config)
 
     eps_midpoint = eps_low = eps_high = None
     if readiness.eps_ready:
-        eps_midpoint, eps_low, eps_high = _eps_forecast(rows, consensus.fiscal_period, config)
+        eps_midpoint, eps_low, eps_high = _eps_forecast(canonical.eps_rows, consensus.fiscal_period, config)
 
     revenue_classification = (
         classify_consensus_gap(
@@ -210,7 +213,13 @@ def build_baseline_nowcast(
     )
     primary_classification = revenue_classification or eps_classification or "withheld"
 
-    digest = input_snapshot_hash([*rows, consensus, asdict(config)])
+    canonical_rows = {row.source_ref: row for row in (*canonical.revenue_rows, *canonical.eps_rows)}
+    digest = input_snapshot_hash([*canonical_rows.values(), consensus, asdict(config)])
+    forecast_horizon_days = (
+        (date.fromisoformat(consensus.expected_report_date) - parse_utc_timestamp(cutoff).date()).days
+        if consensus.expected_report_date
+        else None
+    )
     return ForecastSnapshot(
         forecast_id=f"NOWCAST-{consensus.ticker}-{consensus.fiscal_period}-{digest[:12]}",
         ticker=consensus.ticker,
@@ -234,4 +243,8 @@ def build_baseline_nowcast(
         freshness_state=readiness.freshness_state,
         source_ids=readiness.source_ids,
         created_at=cutoff,
+        revenue_classification=revenue_classification or "withheld",
+        eps_classification=eps_classification or "withheld",
+        expected_report_date=consensus.expected_report_date,
+        forecast_horizon_days=forecast_horizon_days,
     )

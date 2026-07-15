@@ -47,6 +47,9 @@ class BacktestReport:
     eps_median_absolute_error: float | None
     directional_accuracy: float | None
     interval_coverage: float | None
+    revenue_interval_coverage: float | None
+    eps_interval_coverage: float | None
+    joint_interval_coverage: float | None
     benchmark_metrics: Mapping[str, float]
     leakage_failures: tuple[str, ...]
     failures: tuple[str, ...]
@@ -129,6 +132,8 @@ def walk_forward_backtest(
     actuals: Sequence[QuarterlyActual],
     consensus_snapshots: Sequence[ConsensusSnapshot],
     config: NowcastConfig | None = None,
+    *,
+    minimum_backtest_events: int = 20,
 ) -> BacktestReport:
     config = config or NowcastConfig()
     actual_lookup = {(row.ticker, row.fiscal_period): row for row in actuals}
@@ -212,15 +217,27 @@ def walk_forward_backtest(
     eps_errors = [abs(event.eps_forecast - event.eps_actual) for event in events if event.eps_forecast is not None and event.eps_actual is not None]
     revenue_actual_total = sum(abs(event.revenue_actual) for event in events if event.revenue_forecast is not None and event.revenue_actual is not None)
     interval_hits: list[float] = []
+    revenue_interval_hits: list[float] = []
+    eps_interval_hits: list[float] = []
+    joint_interval_hits: list[float] = []
     directions: list[float] = []
     consensus_revenue_errors: list[float] = []
     prior_year_revenue_errors: list[float] = []
     consensus_eps_errors: list[float] = []
+    prior_year_eps_errors: list[float] = []
     for event in events:
+        revenue_hit: float | None = None
+        eps_hit: float | None = None
         if event.revenue_actual is not None and event.revenue_low is not None and event.revenue_high is not None:
-            interval_hits.append(float(event.revenue_low <= event.revenue_actual <= event.revenue_high))
+            revenue_hit = float(event.revenue_low <= event.revenue_actual <= event.revenue_high)
+            revenue_interval_hits.append(revenue_hit)
+            interval_hits.append(revenue_hit)
         if event.eps_actual is not None and event.eps_low is not None and event.eps_high is not None:
-            interval_hits.append(float(event.eps_low <= event.eps_actual <= event.eps_high))
+            eps_hit = float(event.eps_low <= event.eps_actual <= event.eps_high)
+            eps_interval_hits.append(eps_hit)
+            interval_hits.append(eps_hit)
+        if revenue_hit is not None and eps_hit is not None:
+            joint_interval_hits.append(float(bool(revenue_hit) and bool(eps_hit)))
         if event.revenue_actual is not None and event.consensus_revenue is not None:
             directions.append(float(event.relative_classification == _direction(event.revenue_actual, event.consensus_revenue, config.aligned_tolerance_pct)))
             consensus_revenue_errors.append(abs(event.consensus_revenue - event.revenue_actual))
@@ -228,12 +245,15 @@ def walk_forward_backtest(
             prior_year_revenue_errors.append(abs(event.prior_year_revenue - event.revenue_actual))
         if event.consensus_eps is not None and event.eps_actual is not None:
             consensus_eps_errors.append(abs(event.consensus_eps - event.eps_actual))
+        if event.prior_year_eps is not None and event.eps_actual is not None:
+            prior_year_eps_errors.append(abs(event.prior_year_eps - event.eps_actual))
 
     benchmarks: dict[str, float] = {}
     for name, values in (
         ("consensus_revenue_mae", consensus_revenue_errors),
         ("prior_year_revenue_mae", prior_year_revenue_errors),
         ("consensus_eps_mae", consensus_eps_errors),
+        ("prior_year_eps_mae", prior_year_eps_errors),
     ):
         value = _mean(values)
         if value is not None:
@@ -241,9 +261,18 @@ def walk_forward_backtest(
 
     if not events:
         failures.insert(0, "No valid out-of-sample events")
+    elif len(events) < minimum_backtest_events:
+        failures.append(
+            f"minimum_backtest_events: {len(events)} valid events; at least {minimum_backtest_events} required"
+        )
     if leakage_failures:
         failures.append("Point-in-time leakage detected")
-    verdict = "passed" if events and not leakage_failures else "failed"
+    if not events or leakage_failures:
+        verdict = "failed"
+    elif len(events) < minimum_backtest_events:
+        verdict = "insufficient"
+    else:
+        verdict = "passed"
     return BacktestReport(
         verdict=verdict,
         event_count=len(events),
@@ -258,6 +287,9 @@ def walk_forward_backtest(
         eps_median_absolute_error=_median(eps_errors),
         directional_accuracy=_mean(directions),
         interval_coverage=_mean(interval_hits),
+        revenue_interval_coverage=_mean(revenue_interval_hits),
+        eps_interval_coverage=_mean(eps_interval_hits),
+        joint_interval_coverage=_mean(joint_interval_hits),
         benchmark_metrics=benchmarks,
         leakage_failures=tuple(leakage_failures),
         failures=tuple(failures),
@@ -272,7 +304,7 @@ def assess_probability_calibration(
     policy = policy or CalibrationPolicy()
     if not observations:
         return CalibrationStatus(
-            state=NowcastState.BACKTEST_READY,
+            state=NowcastState.BACKTEST_INSUFFICIENT,
             probability_available=False,
             event_count=0,
             brier_score=None,
@@ -330,7 +362,13 @@ def assess_probability_calibration(
     }
     available = not failed
     return CalibrationStatus(
-        state=NowcastState.CALIBRATED if available else NowcastState.BACKTEST_READY,
+        state=(
+            NowcastState.CALIBRATED
+            if available
+            else NowcastState.BACKTEST_INSUFFICIENT
+            if len(observations) < policy.minimum_events
+            else NowcastState.BACKTEST_READY
+        ),
         probability_available=available,
         event_count=len(observations),
         brier_score=brier,

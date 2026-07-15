@@ -76,12 +76,21 @@ def test_walk_forward_never_uses_target_actual_or_later_consensus():
 def test_walk_forward_reports_errors_benchmarks_and_interval_coverage():
     report = walk_forward_backtest(_history_with_target(), _consensus(), NowcastConfig())
 
-    assert report.verdict == "passed"
+    assert report.verdict == "insufficient"
     assert report.revenue_mae is not None
     assert report.revenue_wape is not None
     assert report.eps_mae is not None
     assert report.interval_coverage in {0.0, 1.0}
-    assert set(report.benchmark_metrics) >= {"consensus_revenue_mae", "prior_year_revenue_mae"}
+    assert report.revenue_interval_coverage in {0.0, 1.0}
+    assert report.eps_interval_coverage in {0.0, 1.0}
+    assert report.joint_interval_coverage in {0.0, 1.0}
+    assert set(report.benchmark_metrics) >= {
+        "consensus_revenue_mae",
+        "prior_year_revenue_mae",
+        "consensus_eps_mae",
+        "prior_year_eps_mae",
+    }
+    assert any(failure.startswith("minimum_backtest_events") for failure in report.failures)
 
 
 def test_probability_is_withheld_below_100_out_of_sample_events():
@@ -89,7 +98,7 @@ def test_probability_is_withheld_below_100_out_of_sample_events():
 
     status = assess_probability_calibration(observations)
 
-    assert status.state == NowcastState.BACKTEST_READY
+    assert status.state == NowcastState.BACKTEST_INSUFFICIENT
     assert status.probability_available is False
     assert "minimum_100_events" in status.failed_gates
 
@@ -113,6 +122,7 @@ def test_empty_probability_evidence_fails_closed():
     status = assess_probability_calibration([])
 
     assert status.probability_available is False
+    assert status.state == NowcastState.BACKTEST_INSUFFICIENT
     assert "no_probability_evidence" in status.failed_gates
 
 

@@ -490,6 +490,42 @@ def test_pilot_readiness_blocks_unsynced_remote(tmp_path: Path, monkeypatch):
     assert by_area["GitHub sync"].command == "git pull --ff-only"
 
 
+@pytest.mark.parametrize(
+    ("comparison", "expected_status", "expected_command"),
+    [
+        (pilot_readiness.GitSyncComparison("origin/main", 0, 0, True), "green", "git status --short --branch"),
+        (pilot_readiness.GitSyncComparison("origin/main", 0, 1, True), "manual", "git push"),
+        (pilot_readiness.GitSyncComparison("origin/main", 1, 0, True), "blocked", "git pull --ff-only"),
+        (pilot_readiness.GitSyncComparison("origin/main", 1, 1, True), "blocked", "git status --short --branch"),
+        (pilot_readiness.GitSyncComparison("origin/main", 0, 1, False), "manual", "git push -u origin HEAD"),
+    ],
+)
+def test_sync_check_uses_commit_counts_and_upstream_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    comparison,
+    expected_status: str,
+    expected_command: str,
+):
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## codex/feature")
+    monkeypatch.setattr(pilot_readiness, "_git_sync_comparison", lambda _root: comparison)
+
+    check = pilot_readiness._sync_check(tmp_path)
+
+    assert check.status == expected_status
+    assert check.command == expected_command
+
+
+def test_sync_check_is_manual_when_branch_has_no_upstream_or_comparable_remote(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## codex/feature")
+    monkeypatch.setattr(pilot_readiness, "_git_sync_comparison", lambda _root: None)
+
+    check = pilot_readiness._sync_check(tmp_path)
+
+    assert check.status == "manual"
+    assert "cannot be verified" in check.detail
+
+
 def test_pilot_readiness_treats_pending_packet_as_manual_reviewed_evidence(tmp_path: Path, monkeypatch):
     root = _sample_root(tmp_path)
     monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")

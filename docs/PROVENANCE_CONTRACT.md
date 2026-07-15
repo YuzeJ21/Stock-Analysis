@@ -35,7 +35,7 @@ Every analysis-ready record or report section should expose, directly or through
 
 ## Earnings Nowcast Point-In-Time Contract
 
-Every forecast event must preserve `ticker`, `fiscal_period`, `as_of_timestamp`, source publication/retrieval timestamps, direct source references, `model_version`, `input_snapshot_hash`, readiness/freshness states, and source IDs. Historical consensus snapshots are append-only evidence. An exact duplicate is not re-added; a revised or currently visible estimate is retained as a separate revision and must not overwrite the snapshot that was knowable at a prior cutoff.
+Every forecast event must preserve `ticker`, `fiscal_period`, `as_of_timestamp`, expected report date and forecast horizon when known, source publication/retrieval timestamps, direct source references, Revenue/EPS metric definitions, `model_version`, `input_snapshot_hash`, readiness/freshness states, and source IDs. Historical consensus snapshots are append-only evidence. An exact duplicate is not re-added; a revised or currently visible estimate is retained as a separate revision and must not overwrite the snapshot that was knowable at a prior cutoff. Duplicate actual rows cannot inflate quarterly history, and conflicting actuals remain blocked unless an explicit `supersedes_source_ref` resolves the revision chain.
 
 The target-period actual and every source published after the cutoff are evaluation evidence only and must never enter forecast inputs. Trusted peer/news signals require explicit source, publication time, excerpt hash, review state, and trusted-peer relationship evidence where applicable. They remain directional context and cannot create a numeric adjustment or numerical probability.
 

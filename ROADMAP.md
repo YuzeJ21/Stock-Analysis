@@ -18,7 +18,7 @@ The product deliberately separates the tracked master universe, active universe,
 
 Public visitor flow: **Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History**.
 
-## Now
+## Completed Regression Gate
 
 ### P0: Performance Release Candidate
 
@@ -37,6 +37,8 @@ Use the tracked `data/demo/manifest.json` snapshot as the fixed performance data
 **Exit gate:** loading feedback within 1 second, first useful answer within 3 seconds, warm full-settle p90 within 5 seconds, and cold full settle within 10 seconds on the defined local reference environment.
 
 **Stop rule:** a missing browser dependency is `environment_limited`, not a pass. Keep timing JSON and screenshots generated and unstaged unless one concise artifact is intentionally reviewed.
+
+## External Stages
 
 ### P1: Controlled Hosted Preview Verification
 
@@ -69,16 +71,16 @@ Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) t
 
 **Stop rule:** do not call pilot feedback data proof; it only validates product clarity and workflow reliability.
 
-## Next
+## Now
 
 ### P2: Earnings Nowcast Pilot Evidence
 
 **Goal:** move the implemented Earnings Nowcast pilot from synthetic infrastructure proof to a leakage-safe, source-backed semiconductor cohort.
 
-Earnings Nowcast pilot infrastructure is implemented for deterministic Revenue/EPS ranges, consensus-relative classification, evidence-only directional signals, chronological walk-forward backtesting, explicit exclusion/calibration diagnostics, and a separate probability calibration gate. Read-only append-only onboarding templates, validation, preview, and readiness commands are implemented. The committed fixture cohort is synthetic test evidence only.
+Earnings Nowcast real-data safety infrastructure is implemented for deterministic Revenue/EPS ranges, consensus-relative classification, metric-specific canonical quarterly evidence, comparability checks, evidence-only directional signals, chronological walk-forward backtesting, explicit sample-sufficiency/calibration diagnostics, and a separate probability calibration gate. Versioned read-only append-only onboarding templates, validation, preview, readiness, and prospective collection planning are implemented. The committed fixture cohort is synthetic test evidence only.
 
-1. Acquire permitted append-only historical quarterly actuals and point-in-time consensus snapshots with source references and retrieval timestamps for a narrow semiconductor cohort.
-2. Run the implemented onboarding validate/preview/readiness gates before any real-company packet; no automatic apply path exists.
+1. Acquire permitted append-only historical quarterly actuals and point-in-time consensus snapshots with source references, publication/retrieval timestamps, and explicit Revenue/EPS comparability definitions for a narrow semiconductor cohort.
+2. Use `make earnings-nowcast-prospective-plan` for future snapshot collection, then run the implemented onboarding validate/preview/readiness gates before any real-company packet; no automatic apply path exists.
 3. Keep candidate peer/news signals separate from reviewed trusted evidence; signals explain context and never mutate forecast numbers.
 4. Run chronological out-of-sample evaluation against latest-consensus and prior-year benchmarks.
 5. Withhold numerical Beat/Miss probability until at least 100 valid events pass Brier-score, calibration-bin, and benchmark-improvement gates.
@@ -86,6 +88,8 @@ Earnings Nowcast pilot infrastructure is implemented for deterministic Revenue/E
 Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`; numerical probability remains `awaiting_calibration_evidence`.
 
 **Stop rule:** do not substitute current analyst estimates for historical point-in-time snapshots, use post-cutoff evidence, infer numeric adjustments from text, claim predictive accuracy from fixtures, or predict post-earnings price movement.
+
+## Next
 
 ### P2: FMP One-Ticker Source Smoke
 

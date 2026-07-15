@@ -100,7 +100,7 @@ def test_fixture_walkthrough_covers_six_distinct_test_only_scenarios():
         "candidate_peer_only",
         "post_cutoff_blocked",
         "excluded_non_company",
-        "backtest_ready_uncalibrated",
+        "backtest_insufficient_uncalibrated",
     }
     assert by_scenario["baseline_ready"]["state"] == "baseline_ready"
     assert by_scenario["revenue_ready_eps_withheld"]["revenue_ready"] is True
@@ -108,8 +108,9 @@ def test_fixture_walkthrough_covers_six_distinct_test_only_scenarios():
     assert by_scenario["candidate_peer_only"]["candidate_context_only"] > 0
     assert by_scenario["post_cutoff_blocked"]["state"] == "blocked"
     assert by_scenario["excluded_non_company"]["state"] == "excluded"
-    assert by_scenario["backtest_ready_uncalibrated"]["valid_event_count"] > 0
-    assert by_scenario["backtest_ready_uncalibrated"]["probability_available"] is False
+    assert by_scenario["backtest_insufficient_uncalibrated"]["state"] == "backtest_insufficient"
+    assert by_scenario["backtest_insufficient_uncalibrated"]["valid_event_count"] > 0
+    assert by_scenario["backtest_insufficient_uncalibrated"]["probability_available"] is False
     assert all(row["test_only"] is True for row in walkthrough["scenarios"])
 
 

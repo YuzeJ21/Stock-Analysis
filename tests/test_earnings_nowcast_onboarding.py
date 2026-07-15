@@ -7,12 +7,14 @@ from pathlib import Path
 from src.earnings_nowcast_onboarding import (
     onboarding_readiness,
     preview_onboarding,
+    prospective_collection_plan,
     validate_onboarding,
     write_templates,
 )
 
 
 ACTUAL = {
+    "schema_version": "earnings-nowcast-evidence-v2",
     "ticker": "SYNX",
     "fiscal_period": "2025-Q4",
     "period_end_date": "2025-12-31",
@@ -22,9 +24,19 @@ ACTUAL = {
     "source": "reviewed_source",
     "source_ref": "https://example.test/filing",
     "retrieved_at": "2026-01-20T22:00:00Z",
+    "revenue_currency": "USD",
+    "revenue_unit_scale": "1",
+    "revenue_basis": "reported",
+    "eps_currency": "USD",
+    "eps_basis": "gaap",
+    "eps_share_basis": "diluted",
+    "eps_operations_basis": "reported",
+    "split_adjustment_basis": "as_reported",
+    "supersedes_source_ref": "",
 }
 
 CONSENSUS = {
+    "schema_version": "earnings-nowcast-evidence-v2",
     "ticker": "SYNX",
     "fiscal_period": "2026-Q1",
     "snapshot_at": "2026-01-25T12:00:00Z",
@@ -33,9 +45,19 @@ CONSENSUS = {
     "source": "licensed_snapshot_source",
     "source_ref": "provider://snapshot/123",
     "retrieved_at": "2026-01-25T12:01:00Z",
+    "revenue_currency": "USD",
+    "revenue_unit_scale": "1",
+    "revenue_basis": "reported",
+    "eps_currency": "USD",
+    "eps_basis": "gaap",
+    "eps_share_basis": "diluted",
+    "eps_operations_basis": "reported",
+    "split_adjustment_basis": "as_reported",
+    "expected_report_date": "2026-02-15",
 }
 
 SIGNAL = {
+    "schema_version": "earnings-nowcast-evidence-v2",
     "signal_id": "signal-1",
     "target_ticker": "SYNX",
     "source_ticker": "SYNY",
@@ -78,6 +100,9 @@ def test_templates_include_provenance_and_create_no_apply_artifact(tmp_path):
         "signals.csv",
     }
     assert "source_ref" in (tmp_path / "templates" / "consensus_snapshots.csv").read_text()
+    assert "schema_version" in (tmp_path / "templates" / "quarterly_actuals.csv").read_text()
+    assert "revenue_currency" in (tmp_path / "templates" / "quarterly_actuals.csv").read_text()
+    assert "eps_share_basis" in (tmp_path / "templates" / "consensus_snapshots.csv").read_text()
     assert "evidence_source_ref" in (tmp_path / "templates" / "signals.csv").read_text()
     assert not (tmp_path / "templates" / "apply.json").exists()
 
@@ -172,3 +197,49 @@ def test_readiness_fails_closed_when_any_onboarding_row_is_rejected(tmp_path):
     assert result["state"] == "blocked"
     assert result["missing_evidence"] == ["invalid_onboarding_rows"]
     assert result["validation"]["rejected_count"] == 1
+
+
+def test_validation_rejects_missing_schema_columns_and_wrong_version(tmp_path):
+    input_dir = _input_dir(tmp_path)
+    incomplete = {key: value for key, value in ACTUAL.items() if key != "revenue_currency"}
+    incomplete["schema_version"] = "earnings-nowcast-evidence-v1"
+    _write(input_dir / "quarterly_actuals.csv", [incomplete])
+
+    result = validate_onboarding(input_dir, cutoff="2026-01-31T23:59:59Z")
+
+    assert result["valid"] is False
+    reasons = " | ".join(row["reasons"] for row in result["rejected_rows"])
+    assert "missing required columns: revenue_currency" in reasons
+    assert "schema_version must be earnings-nowcast-evidence-v2" in reasons
+
+
+def test_preview_classifies_unresolved_actual_conflict_separately(tmp_path):
+    input_dir = _input_dir(tmp_path)
+    existing = tmp_path / "existing"
+    _write(existing / "quarterly_actuals.csv", [ACTUAL])
+    _write(existing / "consensus_snapshots.csv", [CONSENSUS])
+    conflicting = dict(
+        ACTUAL,
+        source="second_source",
+        source_ref="https://example.test/second-filing",
+        revenue_actual="999",
+    )
+    _write(input_dir / "quarterly_actuals.csv", [conflicting])
+
+    result = preview_onboarding(input_dir, existing_dir=existing, cutoff="2026-01-31T23:59:59Z")
+
+    assert result["conflict_count"] == 1
+    assert result["conflict_rows"][0]["file"] == "quarterly_actuals.csv"
+    assert result["new_count"] == 0
+    assert result["ready_for_packet"] is False
+
+
+def test_prospective_collection_plan_is_scheduler_ready_and_read_only(tmp_path):
+    result = prospective_collection_plan(tmp_path / "future-snapshots")
+
+    assert result["state"] == "awaiting_point_in_time_consensus"
+    assert result["append_only"] is True
+    assert result["automatic_apply"] is False
+    assert result["scheduler_ready"] is True
+    assert result["output_dir"] == str(tmp_path / "future-snapshots")
+    assert not (tmp_path / "future-snapshots").exists()

@@ -27,7 +27,20 @@ class NowcastReadiness:
     freshness_state: FreshnessState
     missing_evidence: tuple[str, ...]
     source_ids: tuple[str, ...]
+    evidence_source_ids: tuple[str, ...]
+    conflict_source_ids: tuple[str, ...]
     next_action: str
+
+
+@dataclass(frozen=True)
+class CanonicalActualEvidence:
+    revenue_rows: tuple[QuarterlyActual, ...]
+    eps_rows: tuple[QuarterlyActual, ...]
+    revenue_conflict_source_ids: tuple[str, ...]
+    eps_conflict_source_ids: tuple[str, ...]
+    revenue_incompatible_periods: tuple[str, ...]
+    eps_incompatible_periods: tuple[str, ...]
+    all_source_ids: tuple[str, ...]
 
 
 def _sign_changes(values: Iterable[float]) -> int:
@@ -62,6 +75,78 @@ def _dedupe(items: Iterable[str]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(item for item in items if item))
 
 
+def _metric_definition(row: QuarterlyActual | ConsensusSnapshot, metric: str) -> tuple[object, ...]:
+    if metric == "revenue":
+        return (row.revenue_currency, row.revenue_unit_scale, row.revenue_basis)
+    return (
+        row.eps_currency,
+        row.eps_basis,
+        row.eps_share_basis,
+        row.eps_operations_basis,
+        row.split_adjustment_basis,
+    )
+
+
+def _canonical_period_row(rows: Sequence[QuarterlyActual], metric: str) -> tuple[QuarterlyActual | None, tuple[str, ...]]:
+    value_field = f"{metric}_actual"
+    ordered = sorted(rows, key=lambda row: (parse_utc_timestamp(row.reported_at), parse_utc_timestamp(row.retrieved_at), row.source_ref))
+    values = {float(getattr(row, value_field)) for row in ordered}
+    if len(values) == 1:
+        return ordered[-1], ()
+    latest = ordered[-1]
+    earlier_by_ref = {row.source_ref: row for row in ordered[:-1]}
+    superseded = earlier_by_ref.get(latest.supersedes_source_ref or "")
+    if superseded is not None and float(getattr(superseded, value_field)) != float(getattr(latest, value_field)):
+        unresolved = [
+            row
+            for row in ordered[:-1]
+            if row.source_ref != superseded.source_ref
+            and float(getattr(row, value_field)) != float(getattr(latest, value_field))
+        ]
+        if not unresolved:
+            return latest, ()
+    return None, tuple(sorted(row.source_ref for row in ordered))
+
+
+def canonicalize_actuals(
+    rows: Sequence[QuarterlyActual],
+    consensus: ConsensusSnapshot | None,
+) -> CanonicalActualEvidence:
+    selected: dict[str, list[QuarterlyActual]] = {"revenue": [], "eps": []}
+    conflicts: dict[str, list[str]] = {"revenue": [], "eps": []}
+    incompatible: dict[str, list[str]] = {"revenue": [], "eps": []}
+    for metric in ("revenue", "eps"):
+        by_period: dict[str, list[QuarterlyActual]] = {}
+        for row in rows:
+            if getattr(row, f"{metric}_actual") is not None:
+                by_period.setdefault(row.fiscal_period, []).append(row)
+        expected_definition = _metric_definition(consensus, metric) if consensus is not None else None
+        for period, period_rows in sorted(by_period.items()):
+            definitions = {_metric_definition(row, metric) for row in period_rows}
+            if expected_definition is None:
+                compatible = period_rows if len(definitions) == 1 else []
+            else:
+                compatible = [row for row in period_rows if _metric_definition(row, metric) == expected_definition]
+            if not compatible:
+                incompatible[metric].append(period)
+                continue
+            chosen, period_conflicts = _canonical_period_row(compatible, metric)
+            if chosen is None:
+                conflicts[metric].extend(period_conflicts)
+            else:
+                selected[metric].append(chosen)
+    all_source_ids = tuple(sorted({row.source_ref for row in rows}))
+    return CanonicalActualEvidence(
+        revenue_rows=tuple(selected["revenue"]),
+        eps_rows=tuple(selected["eps"]),
+        revenue_conflict_source_ids=tuple(sorted(set(conflicts["revenue"]))),
+        eps_conflict_source_ids=tuple(sorted(set(conflicts["eps"]))),
+        revenue_incompatible_periods=tuple(incompatible["revenue"]),
+        eps_incompatible_periods=tuple(incompatible["eps"]),
+        all_source_ids=all_source_ids,
+    )
+
+
 def assess_nowcast_readiness(
     *,
     ticker: str,
@@ -91,6 +176,8 @@ def assess_nowcast_readiness(
             freshness_state=FreshnessState.STALE_OR_UNKNOWN,
             missing_evidence=("not_applicable_to_non_company_instrument",),
             source_ids=(),
+            evidence_source_ids=(),
+            conflict_source_ids=(),
             next_action="No company earnings nowcast applies to this instrument.",
         )
 
@@ -120,9 +207,10 @@ def assess_nowcast_readiness(
     ]
     available_actuals.sort(key=lambda row: (row.period_end_date, row.reported_at, row.source_ref))
     selected_consensus = _latest_consensus(available_consensus)
+    canonical = canonicalize_actuals(available_actuals, selected_consensus)
 
-    revenue_history = [row.revenue_actual for row in available_actuals if row.revenue_actual is not None]
-    eps_history = [row.eps_actual for row in available_actuals if row.eps_actual is not None]
+    revenue_history = [row.revenue_actual for row in canonical.revenue_rows]
+    eps_history = [row.eps_actual for row in canonical.eps_rows]
     enough_revenue_history = len(revenue_history) >= minimum_history_quarters
     enough_eps_history = len(eps_history) >= minimum_history_quarters
     stable_eps_history = enough_eps_history and _sign_changes(float(value) for value in eps_history) <= 1
@@ -142,14 +230,36 @@ def assess_nowcast_readiness(
     revenue_consensus_ready = selected_consensus is not None and selected_consensus.revenue_consensus is not None
     eps_consensus_ready = selected_consensus is not None and selected_consensus.eps_consensus is not None
 
-    revenue_ready = enough_revenue_history and revenue_consensus_ready and current_consensus and not post_cutoff
-    eps_ready = stable_eps_history and eps_consensus_ready and current_consensus and not post_cutoff
+    revenue_ready = (
+        enough_revenue_history
+        and revenue_consensus_ready
+        and current_consensus
+        and not post_cutoff
+        and not canonical.revenue_conflict_source_ids
+        and not canonical.revenue_incompatible_periods
+    )
+    eps_ready = (
+        stable_eps_history
+        and eps_consensus_ready
+        and current_consensus
+        and not post_cutoff
+        and not canonical.eps_conflict_source_ids
+        and not canonical.eps_incompatible_periods
+    )
 
     missing: list[str] = []
     if post_cutoff:
         missing.append("post_cutoff_evidence")
     if not enough_revenue_history:
         missing.append("quarterly_actual_history")
+    if canonical.revenue_conflict_source_ids:
+        missing.append("conflicting_quarterly_revenue")
+    if canonical.eps_conflict_source_ids:
+        missing.append("conflicting_quarterly_eps")
+    if canonical.revenue_incompatible_periods:
+        missing.append("incompatible_revenue_definition")
+    if canonical.eps_incompatible_periods:
+        missing.append("incompatible_eps_definition")
     if not consensus_ready:
         missing.append("point_in_time_consensus")
     if consensus_ready and not revenue_consensus_ready:
@@ -162,7 +272,7 @@ def assess_nowcast_readiness(
         missing.append("current_consensus")
 
     state = NowcastState.BASELINE_READY if revenue_ready or eps_ready else NowcastState.BLOCKED
-    source_ids = tuple(row.source_ref for row in available_actuals)
+    source_ids = tuple(row.source_ref for row in (*canonical.revenue_rows, *canonical.eps_rows))
     if selected_consensus is not None:
         source_ids += (
             selected_consensus.source_ref
@@ -188,6 +298,10 @@ def assess_nowcast_readiness(
         freshness_state=freshness_state,
         missing_evidence=_dedupe(missing),
         source_ids=source_ids,
+        evidence_source_ids=canonical.all_source_ids,
+        conflict_source_ids=tuple(
+            sorted(set((*canonical.revenue_conflict_source_ids, *canonical.eps_conflict_source_ids)))
+        ),
         next_action=next_action,
     )
 
@@ -198,4 +312,6 @@ def readiness_payload(readiness: NowcastReadiness) -> dict[str, object]:
     payload["freshness_state"] = readiness.freshness_state.value
     payload["missing_evidence"] = list(readiness.missing_evidence)
     payload["source_ids"] = list(readiness.source_ids)
+    payload["evidence_source_ids"] = list(readiness.evidence_source_ids)
+    payload["conflict_source_ids"] = list(readiness.conflict_source_ids)
     return payload

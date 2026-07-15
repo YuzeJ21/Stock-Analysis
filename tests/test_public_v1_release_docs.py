@@ -130,9 +130,9 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |" in readme
     assert "| Public UX polish | Review limited | Public checks and repeated local cold/warm route timings pass; external reviewer evidence is still required before upgrading the claim. |" in readme
     assert "| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |" in readme
-    assert "The next product stage is not another broad refresh loop" in readme
-    assert "rerun live desktop/mobile review after UI changes" in readme
-    assert "choose a hosted app account only when you want a verified preview URL" in readme
+    assert "The local fixed-demo performance gate has passed and remains a regression check" in readme
+    assert "The active evidence stage is a narrow, append-only Earnings Nowcast pilot" in readme
+    assert "hosting and external review remain separate external stages" in readme
     assert readme.index("## External Reviewer Start Here") < readme.index("## Current Next Stages")
     assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Not Yet")
     assert readme.index("## Now / Next / Not Yet") < readme.index("## Current Next Stages")
@@ -197,7 +197,7 @@ def test_roadmap_and_readme_describe_nowcast_infrastructure_without_claiming_rea
     roadmap = _read("ROADMAP.md")
     readme = _read("README.md")
 
-    assert "Earnings Nowcast pilot infrastructure" in roadmap
+    assert "Earnings Nowcast real-data safety infrastructure" in roadmap
     assert "Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`" in roadmap
     assert "Earnings Nowcast Pilot" in readme
     assert "deterministic synthetic-fixture workflow" in readme
@@ -236,7 +236,7 @@ def test_linkedin_brief_has_now_next_not_yet_share_framing():
 
     assert "## Now / Next / Not Yet" in linkedin
     assert "| Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |" in linkedin
-    assert "| Next | Performance release candidate on the fixed demo profile, followed by an optional controlled hosted preview. | Use `make public-performance-gate`; do not imply a hosted URL, private access, or provider-backed automation exists before verification. |" in linkedin
+    assert "| Next | Source-backed Earnings Nowcast evidence pilot, plus optional hosted preview and controlled review. | Keep synthetic fixtures separate from real evidence; do not imply a hosted URL, private access, predictive validation, or provider-backed automation before verification. |" in linkedin
     assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |" in linkedin
     assert "Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages." in linkedin
     assert "If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets." in linkedin

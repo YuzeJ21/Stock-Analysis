@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from src.earnings_nowcast_contract import ConsensusSnapshot, NowcastState, QuarterlyActual
@@ -124,3 +126,30 @@ def test_post_cutoff_actual_fails_closed():
 def test_config_rejects_weights_that_do_not_sum_to_one():
     with pytest.raises(ValueError, match="weights must sum to 1"):
         NowcastConfig(recent_growth_weight=0.8, seasonal_growth_weight=0.8)
+
+
+def test_exact_duplicate_quarter_does_not_change_forecast():
+    rows = _actuals()
+    duplicate = replace(rows[-1], source="second_source", source_ref="fixture://duplicate/2025-Q4")
+
+    baseline = build_baseline_nowcast(rows, _consensus(), CUTOFF)
+    with_duplicate = build_baseline_nowcast([*rows, duplicate], _consensus(), CUTOFF)
+
+    assert with_duplicate.revenue_midpoint == baseline.revenue_midpoint
+    assert with_duplicate.eps_midpoint == baseline.eps_midpoint
+
+
+def test_forecast_exposes_independent_metric_classifications():
+    result = build_baseline_nowcast(_actuals(), _consensus(revenue=80.0, eps=5.0), CUTOFF)
+
+    assert result.revenue_classification == "higher"
+    assert result.eps_classification == "lower"
+
+
+def test_forecast_records_expected_report_date_and_horizon():
+    consensus = replace(_consensus(), expected_report_date="2026-02-15")
+
+    result = build_baseline_nowcast(_actuals(), consensus, CUTOFF)
+
+    assert result.expected_report_date == "2026-02-15"
+    assert result.forecast_horizon_days == 15

@@ -87,6 +87,14 @@ class PilotCommitPackageItem:
     boundary: str
 
 
+@dataclass(frozen=True)
+class GitSyncComparison:
+    comparison_ref: str
+    behind_count: int
+    ahead_count: int
+    has_upstream: bool
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -120,6 +128,41 @@ def _git_status_line(root: Path) -> str:
     return first_line or "git status unavailable"
 
 
+def _git_output(root: Path, *args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def _git_sync_comparison(root: Path) -> GitSyncComparison | None:
+    upstream = _git_output(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}")
+    has_upstream = bool(upstream)
+    comparison_ref = upstream or "origin/main"
+    if _git_output(root, "rev-parse", "--verify", comparison_ref) is None:
+        return None
+    counts = _git_output(root, "rev-list", "--left-right", "--count", f"{comparison_ref}...HEAD")
+    if not counts:
+        return None
+    parts = counts.replace("\t", " ").split()
+    if len(parts) != 2:
+        return None
+    try:
+        behind_count, ahead_count = (int(value) for value in parts)
+    except ValueError:
+        return None
+    return GitSyncComparison(comparison_ref, behind_count, ahead_count, has_upstream)
+
+
 def _diff_hygiene_groups(root: Path) -> dict[str, list[StatusEntry]]:
     return group_entries(load_status(root))
 
@@ -137,21 +180,57 @@ def _generated_exclusion_pattern_text() -> str:
 def _sync_check(root: Path) -> PilotReadinessCheck:
     line = _git_status_line(root)
     lowered = line.lower()
-    if "behind" in lowered:
+    comparison = _git_sync_comparison(root)
+    if comparison and comparison.behind_count and comparison.ahead_count:
+        status = "blocked"
+        detail = (
+            f"{line}; branch diverges from {comparison.comparison_ref} "
+            f"(behind {comparison.behind_count}, ahead {comparison.ahead_count})."
+        )
+        command = "git status --short --branch"
+        stop_rule = "Stop until remote and local commits are reviewed and reconciled without discarding work."
+    elif comparison and comparison.behind_count:
+        status = "blocked"
+        detail = (
+            f"{line}; branch is behind {comparison.comparison_ref} by {comparison.behind_count} commit(s); "
+            "pull/reconcile remote changes before a public pilot package."
+        )
+        command = "git pull --ff-only"
+        stop_rule = "Stop if the branch is behind or diverged; do not package stale local code."
+    elif comparison and comparison.ahead_count:
+        status = "manual"
+        tracking = "tracked upstream" if comparison.has_upstream else f"fallback {comparison.comparison_ref} with no upstream configured"
+        detail = (
+            f"{line}; branch is ahead by {comparison.ahead_count} commit(s) relative to {tracking}; "
+            "reviewed local commits still need an intentional push before the GitHub pilot link is current."
+        )
+        command = "git push" if comparison.has_upstream else "git push -u origin HEAD"
+        stop_rule = "Do not push if unreviewed product changes or generated churn are staged."
+    elif comparison:
+        status = "green"
+        detail = f"{line}; HEAD is aligned with {comparison.comparison_ref}."
+        command = "git status --short --branch"
+        stop_rule = "Stop if a later comparison shows unreviewed commits or divergence."
+    elif "behind" in lowered:
         status = "blocked"
         detail = f"{line}; pull/reconcile remote changes before a public pilot package."
         command = "git pull --ff-only"
         stop_rule = "Stop if the branch is behind or diverged; do not package stale local code."
     elif "ahead" in lowered:
         status = "manual"
-        detail = f"{line}; reviewed local commits still need a push before the GitHub pilot link is current."
-        command = "git push origin main"
+        detail = f"{line}; reviewed local commits still need an intentional push before the GitHub pilot link is current."
+        command = "git push"
         stop_rule = "Do not push if unreviewed product changes or generated churn are staged."
-    else:
+    elif "..." in line and "unavailable" not in lowered:
         status = "green"
-        detail = f"{line}; local branch is not ahead of the tracked remote."
+        detail = f"{line}; formatted status reports no ahead/behind commits."
         command = "git status --short --branch"
-        stop_rule = "Stop if a later status check shows unreviewed commits or divergence."
+        stop_rule = "Stop if a later explicit comparison shows unreviewed commits or divergence."
+    else:
+        status = "manual"
+        detail = f"{line}; upstream or origin/main comparison cannot be verified."
+        command = "git status --short --branch"
+        stop_rule = "Verify an explicit remote comparison before claiming GitHub sync."
     return PilotReadinessCheck(
         area="GitHub sync",
         status=status,

@@ -2692,6 +2692,7 @@ def test_earnings_nowcast_onboarding_launchers_have_no_apply_path():
         "earnings-nowcast-validate",
         "earnings-nowcast-preview",
         "earnings-nowcast-readiness",
+        "earnings-nowcast-prospective-plan",
     ):
         assert f"{target}:" in makefile
     section = makefile[makefile.index("earnings-nowcast-templates:") :]

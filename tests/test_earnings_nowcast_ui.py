@@ -70,8 +70,9 @@ def test_public_answers_follow_reviewer_question_order():
         "withheld",
         "next_action",
     ]
-    assert answers["eligibility"]["status"] == "eligible"
-    assert answers["baseline"]["status"] == "ready"
+    assert answers["eligibility"]["status"] == "synthetic_test_only"
+    assert answers["baseline"]["status"] == "synthetic_test_only"
+    assert "No real-company baseline" in answers["baseline"]["answer"]
     assert "Revenue" in answers["ranges"]["answer"]
     assert "test-only" in answers["evidence_context"]["answer"]
     assert "probability" in answers["withheld"]["answer"].lower()
@@ -87,11 +88,14 @@ def test_blocked_public_answers_expose_no_numbers_or_synthetic_evidence():
     assert not any(character.isdigit() for character in answers["ranges"]["answer"])
     assert "SYN" not in rendered
     assert answers["next_action"]["answer"] == "Open Data Health"
+    assert answers["eligibility"]["status"] == "eligibility_unverified"
+    assert "not been verified" in answers["eligibility"]["answer"]
 
 
 def test_internal_states_have_plain_english_labels():
     assert nowcast_state_label("baseline_ready") == "Forecast range ready"
     assert nowcast_state_label("signal_context_ready") == "Evidence context ready"
+    assert nowcast_state_label("backtest_insufficient") == "Backtest evidence insufficient"
     assert nowcast_state_label("backtest_ready") == "Backtest ready; probability withheld"
     assert nowcast_state_label("calibrated") == "Calibrated probability ready"
     assert nowcast_state_label("blocked") == "Source evidence required"
@@ -105,3 +109,27 @@ def test_summary_card_body_presents_public_answers_in_review_order():
     positions = [body.index(label) for label in labels]
     assert positions == sorted(positions)
     assert body.count("\n") == 6
+
+
+def test_real_packet_explains_metric_definitions_and_forecast_horizon():
+    packet = _packet()
+    packet["evidence_scope"] = "source_backed_preview_only"
+    packet["forecast"]["expected_report_date"] = "2026-04-30"
+    packet["forecast"]["forecast_horizon_days"] = 89
+    packet["metric_definitions"] = {
+        "revenue": {"currency": "USD", "unit_scale": 1_000_000, "basis": "reported"},
+        "eps": {
+            "currency": "USD",
+            "basis": "gaap",
+            "share_basis": "diluted",
+            "operations_basis": "continuing_operations",
+            "split_adjustment_basis": "split_adjusted",
+        },
+    }
+
+    answers = nowcast_public_answers(packet, ticker="REAL")
+
+    assert "USD millions" in answers["ranges"]["answer"]
+    assert "GAAP diluted EPS" in answers["ranges"]["answer"]
+    assert "89-day forecast horizon" in answers["ranges"]["answer"]
+    assert "expected report date 2026-04-30" in answers["ranges"]["answer"]

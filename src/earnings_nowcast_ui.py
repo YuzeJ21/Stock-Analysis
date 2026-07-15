@@ -6,6 +6,7 @@ from typing import Any, Mapping
 _STATE_LABELS = {
     "baseline_ready": "Forecast range ready",
     "signal_context_ready": "Evidence context ready",
+    "backtest_insufficient": "Backtest evidence insufficient",
     "backtest_ready": "Backtest ready; probability withheld",
     "calibrated": "Calibrated probability ready",
     "blocked": "Source evidence required",
@@ -33,6 +34,50 @@ def _range_text(forecast: Mapping[str, object], prefix: str) -> str:
     return f"{_number(low)} to {_number(high)} (midpoint {_number(midpoint)})"
 
 
+def _unit_label(value: object) -> str:
+    try:
+        scale = float(value)
+    except (TypeError, ValueError):
+        return "stated units"
+    labels = {1.0: "units", 1_000.0: "thousands", 1_000_000.0: "millions", 1_000_000_000.0: "billions"}
+    return labels.get(scale, f"scale {scale:g}")
+
+
+def _metric_definition_text(packet: Mapping[str, Any]) -> str:
+    definitions = packet.get("metric_definitions", {})
+    if not isinstance(definitions, Mapping):
+        return ""
+    revenue = definitions.get("revenue", {})
+    eps = definitions.get("eps", {})
+    if not isinstance(revenue, Mapping) or not isinstance(eps, Mapping):
+        return ""
+    revenue_text = (
+        f"Revenue definition: {revenue.get('currency', 'currency unspecified')} "
+        f"{_unit_label(revenue.get('unit_scale'))}, {str(revenue.get('basis', 'basis unspecified')).replace('_', ' ')} basis."
+    )
+    eps_text = (
+        f"EPS definition: {eps.get('currency', 'currency unspecified')} "
+        f"{str(eps.get('basis', 'basis unspecified')).upper()} "
+        f"{str(eps.get('share_basis', 'share basis unspecified')).replace('_', ' ')} EPS, "
+        f"{str(eps.get('operations_basis', 'operations basis unspecified')).replace('_', ' ')}, "
+        f"{str(eps.get('split_adjustment_basis', 'split basis unspecified')).replace('_', ' ')}."
+    )
+    return f" {revenue_text} {eps_text}"
+
+
+def _forecast_horizon_text(forecast: Mapping[str, object]) -> str:
+    horizon = forecast.get("forecast_horizon_days")
+    report_date = forecast.get("expected_report_date")
+    if horizon is None and not report_date:
+        return ""
+    parts: list[str] = []
+    if horizon is not None:
+        parts.append(f"{int(horizon)}-day forecast horizon")
+    if report_date:
+        parts.append(f"expected report date {report_date}")
+    return " " + "; ".join(parts) + "."
+
+
 def nowcast_public_answers(
     packet: Mapping[str, Any] | None,
     *,
@@ -44,16 +89,23 @@ def nowcast_public_answers(
     excluded = state == "excluded"
     forecast = packet.get("forecast", {}) if packet else {}
     baseline_ready = bool(packet and isinstance(forecast, Mapping) and state not in {"blocked", "excluded"})
+    evidence_scope = str(packet.get("evidence_scope", "unverified_evidence")) if packet else "unverified_evidence"
+    synthetic_test_only = evidence_scope == "synthetic_test_evidence_only"
 
     if baseline_ready:
         ranges = (
             f"Revenue range: {_range_text(forecast, 'revenue')}. "
             f"EPS range: {_range_text(forecast, 'eps')}."
+            f"{_metric_definition_text(packet)}"
+            f"{_forecast_horizon_text(forecast)}"
         )
-        classification = str(forecast.get("relative_classification", "withheld")).replace("_", " ")
-        consensus = f"The available forecast range is {classification} relative to the point-in-time consensus snapshot."
-        evidence_scope = str(packet.get("evidence_scope", "unverified_evidence"))
-        if evidence_scope == "synthetic_test_evidence_only":
+        revenue_classification = str(forecast.get("revenue_classification", "withheld")).replace("_", " ")
+        eps_classification = str(forecast.get("eps_classification", "withheld")).replace("_", " ")
+        consensus = (
+            "Revenue: " + revenue_classification + "; EPS: " + eps_classification
+            + " relative to the point-in-time consensus snapshot."
+        )
+        if synthetic_test_only:
             context = "Synthetic test evidence (test-only) demonstrates the workflow; it is not real-company or freshness proof."
         else:
             context = "Reviewed evidence provides context only and does not change the deterministic forecast numbers."
@@ -70,16 +122,36 @@ def nowcast_public_answers(
         withheld = "Revenue, EPS, and numerical Beat/Miss probability remain analytically withheld."
         next_action = "Open Data Health"
 
+    if excluded:
+        eligibility_status = "excluded"
+        eligibility_answer = "Not eligible for this operating-company pilot."
+    elif synthetic_test_only:
+        eligibility_status = "synthetic_test_only"
+        eligibility_answer = "Synthetic test identity only; this is not a real-company eligibility decision."
+    elif packet:
+        eligibility_status = "eligible"
+        eligibility_answer = f"{normalized_ticker} is eligible for evidence review."
+    else:
+        eligibility_status = "eligibility_unverified"
+        eligibility_answer = f"{normalized_ticker} eligibility has not been verified."
+
+    baseline_status = "synthetic_test_only" if synthetic_test_only and baseline_ready else "ready" if baseline_ready else "blocked"
+    baseline_answer = (
+        "No real-company baseline; a test-only synthetic range is available."
+        if synthetic_test_only and baseline_ready
+        else nowcast_state_label(state)
+    )
+
     return {
         "eligibility": {
             "question": "Is this ticker eligible?",
-            "status": "excluded" if excluded else "eligible",
-            "answer": "Not eligible for this operating-company pilot." if excluded else f"{normalized_ticker} is eligible for evidence review.",
+            "status": eligibility_status,
+            "answer": eligibility_answer,
         },
         "baseline": {
             "question": "Is a real source-backed baseline available?",
-            "status": "ready" if baseline_ready else "blocked",
-            "answer": nowcast_state_label(state),
+            "status": baseline_status,
+            "answer": baseline_answer,
         },
         "ranges": {
             "question": "What Revenue/EPS range can be reviewed?",
@@ -215,6 +287,11 @@ def nowcast_advanced_evidence(packet: Mapping[str, Any] | None) -> dict[str, obj
     return {
         "available": True,
         "model_version": forecast.get("model_version"),
+        "fiscal_period": packet.get("fiscal_period"),
+        "as_of_timestamp": packet.get("as_of_timestamp"),
+        "expected_report_date": forecast.get("expected_report_date"),
+        "forecast_horizon_days": forecast.get("forecast_horizon_days"),
+        "metric_definitions": packet.get("metric_definitions", {}),
         "input_snapshot_hash": forecast.get("input_snapshot_hash"),
         "source_ids": forecast.get("source_ids", []),
         "signals": packet.get("signals", {}),
