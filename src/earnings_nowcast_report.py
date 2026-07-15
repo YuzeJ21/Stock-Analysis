@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from src.earnings_nowcast_backtest import assess_probability_calibration, walk_forward_backtest
-from src.earnings_nowcast_contract import ConsensusSnapshot, EvidenceSignal, QuarterlyActual
+from src.earnings_nowcast_contract import ConsensusSnapshot, EvidenceSignal, QuarterlyActual, parse_utc_timestamp
 from src.earnings_nowcast_model import NowcastConfig, build_baseline_nowcast
 from src.earnings_nowcast_readiness import assess_nowcast_readiness, readiness_payload
 from src.earnings_nowcast_signals import review_evidence_signals, signal_context_payload
@@ -79,11 +79,16 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def _latest_consensus(rows: Iterable[ConsensusSnapshot], ticker: str) -> ConsensusSnapshot:
-    matching = [row for row in rows if row.ticker == ticker]
+def _latest_consensus(rows: Iterable[ConsensusSnapshot], ticker: str, cutoff: str) -> ConsensusSnapshot:
+    matching = [
+        row
+        for row in rows
+        if row.ticker == ticker
+        and parse_utc_timestamp(row.snapshot_at) <= parse_utc_timestamp(cutoff)
+    ]
     if not matching:
-        raise ValueError(f"No point-in-time consensus snapshot exists for {ticker}")
-    return max(matching, key=lambda row: row.snapshot_at)
+        raise ValueError(f"No point-in-time consensus snapshot exists for {ticker} at or before {cutoff}")
+    return max(matching, key=lambda row: parse_utc_timestamp(row.snapshot_at))
 
 
 def build_nowcast_packet(
@@ -102,6 +107,7 @@ def build_nowcast_packet(
     selected_consensus = _latest_consensus(
         (row for row in consensus_rows if row.ticker == normalized_ticker),
         normalized_ticker,
+        as_of_timestamp,
     )
     selected_actuals = [row for row in actuals if row.ticker == normalized_ticker]
     selected_signals = [row for row in signals if row.target_ticker == normalized_ticker]

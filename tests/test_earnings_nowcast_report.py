@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -71,3 +72,18 @@ def test_cli_is_deterministic_json():
 def test_missing_input_directory_is_environment_unavailable():
     with pytest.raises(FileNotFoundError, match="Nowcast input directory"):
         build_nowcast_packet(Path("tests/fixtures/does-not-exist"), ticker="SYN1", as_of_timestamp=CUTOFF)
+
+
+def test_packet_selects_latest_consensus_available_at_cutoff_not_a_later_revision(tmp_path):
+    fixture_copy = tmp_path / "nowcast"
+    shutil.copytree(FIXTURE_ROOT, fixture_copy)
+    consensus_path = fixture_copy / "consensus_snapshots.csv"
+    with consensus_path.open("a", encoding="utf-8") as handle:
+        handle.write(
+            "SYN1,2026-Q1,2026-02-15T12:00:00Z,999,9.99,synthetic_test_fixture,2026-02-15T12:01:00Z\n"
+        )
+
+    packet = build_nowcast_packet(fixture_copy, ticker="SYN1", as_of_timestamp=CUTOFF)
+
+    assert packet["forecast"]["consensus_revenue"] == 112.0
+    assert packet["forecast"]["consensus_eps"] == 1.0
