@@ -267,6 +267,11 @@ from src.research_thesis_journal import (
     derive_journal_state,
     load_journal_entries,
 )
+from src.decision_process_scorecard import (
+    DecisionProcessScorecard,
+    build_decision_process_scorecard,
+    decision_process_rows,
+)
 from src.scenario_lab import (
     ScenarioLabResult,
     ScenarioParameters,
@@ -5448,6 +5453,35 @@ def research_thesis_journal_detail_rows(state: JournalState) -> list[dict[str, s
         }
         for row in state.entries
     ]
+
+
+def decision_process_scorecard_cards(scorecard: DecisionProcessScorecard) -> list[dict[str, object]]:
+    if scorecard.action_needed_count:
+        title = (
+            f"{scorecard.action_needed_count} process action needs review"
+            if scorecard.action_needed_count == 1
+            else f"{scorecard.action_needed_count} process actions need review"
+        )
+        body = (
+            f"{scorecard.complete_count} check(s) are complete and {scorecard.neutral_count} are neutral or readiness-gated. "
+            "This is process documentation only, not a company grade."
+        )
+        badges = ["Process work needed", "No performance score"]
+    else:
+        title = "Research process is documented"
+        body = (
+            f"{scorecard.complete_count} check(s) are complete and {scorecard.neutral_count} are neutral or readiness-gated. "
+            "New evidence can reopen review work; this is not a company grade."
+        )
+        badges = ["Process documented", "Research-only"]
+    return [{"kicker": "DECISION PROCESS", "title": title, "body": body, "badges": badges}]
+
+
+def decision_process_scorecard_frame(scorecard: DecisionProcessScorecard) -> pd.DataFrame:
+    return pd.DataFrame(
+        decision_process_rows(scorecard),
+        columns=["Process Check", "State", "Evidence", "Next Review Step"],
+    )
 
 
 def load_dashboard_journal_state(
@@ -29852,6 +29886,24 @@ def render_single_stock_report(
                 )
             else:
                 st.caption("No verified journal history is available for this selected profile and ticker.")
+        with st.expander("Decision-process scorecard", expanded=False):
+            if journal_state is None:
+                st.caption("The decision-process checks remain unavailable until the selected-profile journal can be verified.")
+            else:
+                try:
+                    scorecard = build_decision_process_scorecard(
+                        report_payload,
+                        profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+                        journal_state=journal_state,
+                        review_items=tuple(ACTIVE_RESEARCH_CHANGE_STATE.get("queue") or ()),
+                    )
+                    render_signal_cards(decision_process_scorecard_cards(scorecard), show_commands=False)
+                    st.dataframe(decision_process_scorecard_frame(scorecard), width="stretch", hide_index=True)
+                    with st.expander("Advanced: process identity", expanded=False):
+                        st.caption(f"Process identity: {scorecard.scorecard_identity}")
+                        st.caption(scorecard.boundary)
+                except ValueError as exc:
+                    st.caption(f"Decision-process checks unavailable: {exc}")
     if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):
         render_context_note(
             "Detailed report stays closed.",

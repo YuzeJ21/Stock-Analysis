@@ -6,6 +6,7 @@ from pathlib import Path
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
 from src.peer_read_through_map import build_peer_read_through_map
+from src.decision_process_scorecard import ProcessCheck, DecisionProcessScorecard
 from src.profile_context import CoverageCounts, ProfileContext
 from src.research_change_monitor import ResearchChangeEvent
 from src.research_review_queue import ResearchReviewItem
@@ -156,6 +157,30 @@ def test_peer_read_through_cards_explain_reviewable_and_withheld_states():
     assert "does not change" in cards[0]["body"]
     assert frame.iloc[0]["Read-Through State"] == "Reviewable context"
     assert "recommend" not in str(cards).lower()
+
+
+def test_decision_process_summary_reports_actions_without_grading_company():
+    scorecard = DecisionProcessScorecard(
+        ticker="ALFA",
+        profile_key="demo",
+        status="process_work_needed",
+        scorecard_identity="a" * 64,
+        checks=(
+            ProcessCheck("readiness_checked", "Readiness checked", "complete", "Saved profile verified.", "None"),
+            ProcessCheck("thesis_documented", "Thesis documented", "action_needed", "No thesis.", "Record one."),
+        ),
+        complete_count=1,
+        action_needed_count=1,
+        neutral_count=0,
+        boundary="Process documentation only; no company grade or return claim.",
+    )
+
+    cards = dashboard.decision_process_scorecard_cards(scorecard)
+    frame = dashboard.decision_process_scorecard_frame(scorecard)
+
+    assert cards[0]["title"] == "1 process action needs review"
+    assert frame["State"].tolist() == ["Complete", "Action needed"]
+    assert "company grade" in cards[0]["body"].lower()
 
 
 def test_dashboard_exposes_readiness_gated_nowcast_view_models():

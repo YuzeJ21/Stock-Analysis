@@ -195,6 +195,8 @@ The Research Comparison View uses two or three selected tickers from the existin
 
 The Peer Read-Through Map is a separate evidence view inside the detailed Valuation tab. It checks relationship provenance, explicit business-overlap fields, source-backed peer Revenue/EPS actuals, and target/peer fiscal periods independently. Candidate relationships remain `candidate_context_only`. Trusted relationships without an actual result remain `awaiting_peer_result`; results without both fiscal periods remain `awaiting_fiscal_timing`. Only complete evidence becomes `reviewable_context`, which is directional context only and cannot change forecast, DCF, readiness, ranking, or action outputs.
 
+The Decision-Process Scorecard reviews research discipline for the selected profile and ticker. It checks that readiness was inspected, a thesis and evidence are documented, later review follows recorded conflicting evidence, invalidation and confidence history exist, the review date is current, evidence-change tasks are addressed, and DCF assumptions are visible when DCF is ready. No conflicting evidence is `not_observed`, not automatically complete. Blocked DCF remains `blocked`; monitor-context DCF is `not_applicable`. The scorecard never grades the company, scores expected returns, or changes analysis.
+
 ### Conservative DCF Normalization
 
 The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into a valuation story without ready inputs.

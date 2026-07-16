@@ -131,6 +131,14 @@ The existing detailed Valuation tab now separates trusted relationships, candida
 
 **Stop rule:** candidate peers never become trusted automatically. Missing relationship source, actual result, or fiscal timing withholds read-through; even reviewable context cannot alter Earnings Nowcast numbers, DCF, readiness, rankings, or actions.
 
+### P2: Decision-Process Scorecard - Implemented
+
+**Goal:** render research discipline reviewable without grading a company or measuring investment performance.
+
+The Single-Stock Report now derives profile-scoped checks for readiness review, thesis documentation, recorded evidence, later review of conflicting evidence, invalidation conditions, confidence history, review-date currency, unresolved Change Monitor tasks, and visible DCF assumptions. Details stay collapsed below the Thesis Journal.
+
+**Stop rule:** the scorecard reports process states and next review steps only. It produces no numeric company score, expected return, performance claim, ranking, recommendation, or action; blocked and excluded analysis remain distinct from incomplete documentation.
+
 ### P2: Earnings Nowcast Pilot Evidence
 
 **Goal:** move the implemented Earnings Nowcast pilot from synthetic infrastructure proof to a leakage-safe, source-backed semiconductor cohort.
