@@ -251,6 +251,11 @@ from src.research_review_queue import (
     build_research_review_queue,
     load_review_resolutions,
 )
+from src.research_thesis_journal import (
+    JournalState,
+    derive_journal_state,
+    load_journal_entries,
+)
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
     latest_reviewed_batch_proof,
@@ -5333,6 +5338,110 @@ def render_research_change_route_summary(
             outcomes = proof_history_event_outcomes(tuple(state.get("resolutions") or ()))
             if outcomes:
                 st.dataframe(pd.DataFrame(outcomes), width="stretch", hide_index=True)
+
+
+def research_thesis_journal_summary(state: JournalState) -> dict[str, str]:
+    """Return one selected-ticker journal answer without exposing raw entry fields."""
+
+    if state.current_thesis is None:
+        return {
+            "status": "not_started",
+            "title": "No reviewed research thesis",
+            "answer": "The journal is empty for this profile and ticker; the product does not create one automatically.",
+            "evidence": "No supporting, conflicting, catalyst, risk, or invalidation evidence is recorded.",
+            "boundary": "Confidence and review history remain unavailable until a reviewer records them.",
+            "confidence": "",
+            "primary_action": "Record a reviewed hypothesis and review date",
+        }
+    evidence = (
+        f"{len(state.supporting_evidence)} supporting, "
+        f"{len(state.conflicting_evidence)} conflicting, "
+        f"{len(state.contextual_evidence)} contextual evidence item(s)"
+    )
+    invalidation_count = len(state.invalidation_conditions)
+    boundary = (
+        f"{invalidation_count} invalidation condition{'s' if invalidation_count != 1 else ''}; "
+        f"next review {state.review_due_date or 'not scheduled'}."
+    )
+    confidence = f"{state.confidence_history[-1][1]:.2f}" if state.confidence_history else ""
+    if state.status == "incomplete":
+        primary_action = "Add a source-backed invalidation condition"
+        title = "Research thesis needs an invalidation condition"
+    elif state.status == "overdue":
+        primary_action = "Review the hypothesis and conflicting evidence"
+        title = "Research thesis review is overdue"
+    elif state.conflicting_evidence:
+        primary_action = "Review the latest conflicting evidence"
+        title = "Reviewed research thesis"
+    else:
+        primary_action = "Revisit when evidence changes or the review date arrives"
+        title = "Reviewed research thesis"
+    return {
+        "status": state.status,
+        "title": title,
+        "answer": state.current_thesis.summary,
+        "evidence": evidence,
+        "boundary": boundary,
+        "confidence": confidence,
+        "primary_action": primary_action,
+    }
+
+
+def research_thesis_journal_html(summary: dict[str, str]) -> str:
+    status = html.escape(str(summary.get("status") or "unavailable"))
+    confidence = str(summary.get("confidence") or "").strip()
+    confidence_text = f" Documented confidence: {html.escape(confidence)}." if confidence else ""
+    return (
+        f"<section class='research-change-summary research-thesis-journal {status}' "
+        "aria-label='Research thesis and evidence journal'>"
+        "<div>"
+        "<span class='research-change-label'>Research Thesis Journal</span>"
+        f"<strong>{html.escape(str(summary.get('title') or 'Journal unavailable'))}</strong>"
+        f"<p>{html.escape(str(summary.get('answer') or 'No journal answer is available.'))}</p>"
+        f"<p>{html.escape(str(summary.get('evidence') or 'No reviewed evidence is recorded.'))} "
+        f"{html.escape(str(summary.get('boundary') or 'Review boundary unavailable.'))}{confidence_text}</p>"
+        "</div>"
+        f"<span class='research-change-action'>{html.escape(str(summary.get('primary_action') or 'Review journal evidence'))}</span>"
+        "</section>"
+    )
+
+
+def research_thesis_journal_detail_rows(state: JournalState) -> list[dict[str, str]]:
+    return [
+        {
+            "Entry ID": row.entry_id,
+            "Type": row.entry_type,
+            "Recorded at": row.recorded_at,
+            "Effective at": row.effective_at,
+            "Reviewer": row.reviewer,
+            "Summary": row.summary,
+            "Direction": row.evidence_direction,
+            "Source": row.source,
+            "Source reference": row.source_ref,
+            "Source published at": row.source_published_at,
+            "Confidence": row.confidence,
+            "Review due": row.review_due_date,
+            "Supersedes": row.supersedes_entry_id,
+        }
+        for row in state.entries
+    ]
+
+
+def load_dashboard_journal_state(
+    context: ProfileContext,
+    *,
+    ticker: str,
+    ledger_path: Path | None = None,
+    as_of: str | None = None,
+) -> JournalState:
+    """Load only the selected profile's reviewed journal rows."""
+
+    return derive_journal_state(
+        load_journal_entries(ledger_path or (BASE_DIR / "data" / "research_thesis_journal.csv")),
+        profile_key=context.profile_key,
+        ticker=ticker,
+        as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+    )
 
 
 def public_home_overview_html(summary: dict[str, object]) -> str:
@@ -29187,7 +29296,13 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     render_table(frame, title.lower().replace(" ", "-"), show_reason_details, show_focus_cards=False)
 
 
-def render_single_stock_report(provider, show_source_details: bool, *, public_mode: bool = True) -> None:
+def render_single_stock_report(
+    provider,
+    show_source_details: bool,
+    *,
+    public_mode: bool = True,
+    profile_context: ProfileContext | None = None,
+) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
@@ -29382,6 +29497,33 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 st.table(clean_display_frame(single_answer_frame))
                 st.table(clean_display_frame(report_answer_frame))
                 render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
+        journal_state = None
+        try:
+            journal_state = load_dashboard_journal_state(
+                profile_context or build_profile_context(project_root=BASE_DIR),
+                ticker=ticker,
+            )
+            journal_summary = research_thesis_journal_summary(journal_state)
+        except ValueError as exc:
+            journal_summary = {
+                "status": "unavailable",
+                "title": "Research journal unavailable",
+                "answer": "The reviewed journal could not be verified for this selected profile and ticker.",
+                "evidence": "No thesis or evidence claim is shown.",
+                "boundary": str(exc),
+                "confidence": "",
+                "primary_action": "Review the journal contract before using it",
+            }
+        st.markdown(research_thesis_journal_html(journal_summary), unsafe_allow_html=True)
+        with st.expander("Advanced: thesis and evidence history", expanded=False):
+            if journal_state is not None and journal_state.entries:
+                st.dataframe(
+                    pd.DataFrame(research_thesis_journal_detail_rows(journal_state)),
+                    width="stretch",
+                    hide_index=True,
+                )
+            else:
+                st.caption("No verified journal history is available for this selected profile and ticker.")
     if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):
         render_context_note(
             "Detailed report stays closed.",
@@ -33100,7 +33242,12 @@ def main() -> None:
     elif selected_page in {"Market Direction", "Momentum Leaders", "Portfolio Review", "Value / Re-rating", "Final Watchlist"}:
         render_output_tab(selected_page, output_frames, show_reason_details)
     elif selected_page == "Single-Stock Report":
-        render_single_stock_report(provider, show_source_details, public_mode=public_demo_mode)
+        render_single_stock_report(
+            provider,
+            show_source_details,
+            public_mode=public_demo_mode,
+            profile_context=profile_context,
+        )
     elif selected_page == "Data Health":
         render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)
     elif selected_page == PROOF_HISTORY_PATH_TITLE:

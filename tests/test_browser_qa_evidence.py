@@ -72,6 +72,7 @@ def test_default_public_browser_qa_contract_uses_current_compact_workflow_marker
     assert "Step 1 of 5" in rendered
     assert "Research-only" in rendered
     assert "Earnings Outlook" in rendered
+    assert "Research Thesis Journal" in rendered
     assert "Current question" not in rendered
     assert "Primary next step" not in rendered
     assert "research-loop-strip" not in rendered

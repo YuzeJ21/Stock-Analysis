@@ -33425,3 +33425,136 @@ def test_stock_report_review_metric_summary_cards_are_product_first():
     assert "at least 60 aligned ticker/spy price rows" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_research_thesis_journal_summary_keeps_empty_state_truthful():
+    from src.research_thesis_journal import derive_journal_state
+
+    state = derive_journal_state((), profile_key="demo", ticker="SYN1", as_of="2026-07-16T00:00:00Z")
+
+    summary = dashboard.research_thesis_journal_summary(state)
+
+    assert summary["status"] == "not_started"
+    assert summary["title"] == "No reviewed research thesis"
+    assert "does not create one automatically" in summary["answer"]
+    assert summary["primary_action"] == "Record a reviewed hypothesis and review date"
+
+
+def test_research_thesis_journal_summary_shows_evidence_and_invalidation_before_confidence():
+    from src.research_thesis_journal import JournalEntry, derive_journal_state
+
+    base = {
+        "schema_version": "research-thesis-journal-v1",
+        "profile_key": "demo",
+        "ticker": "SYN1",
+        "thesis_id": "thesis-syn1",
+        "recorded_at": "2026-07-15T20:00:00Z",
+        "effective_at": "2026-07-15T19:00:00Z",
+        "reviewer": "fixture-reviewer",
+        "source": "fixture_source",
+        "source_ref": "fixture:SYN1",
+        "source_published_at": "2026-07-15T19:00:00Z",
+        "review_due_date": "2026-08-15",
+        "supersedes_entry_id": "",
+    }
+    entries = (
+        JournalEntry(
+            **base,
+            entry_id="thesis-001",
+            entry_type="thesis",
+            summary="Test-only operating hypothesis.",
+            evidence_direction="",
+            confidence="0.60",
+        ),
+        JournalEntry(
+            **base,
+            entry_id="support-001",
+            entry_type="evidence",
+            summary="Source-backed supporting evidence.",
+            evidence_direction="supporting",
+            confidence="",
+        ),
+        JournalEntry(
+            **base,
+            entry_id="conflict-001",
+            entry_type="evidence",
+            summary="Source-backed conflicting evidence.",
+            evidence_direction="conflicting",
+            confidence="",
+        ),
+        JournalEntry(
+            **base,
+            entry_id="invalidate-001",
+            entry_type="invalidation",
+            summary="Invalidate if the operating assumption fails.",
+            evidence_direction="context",
+            confidence="",
+        ),
+    )
+    state = derive_journal_state(entries, profile_key="demo", ticker="SYN1", as_of="2026-07-16T00:00:00Z")
+
+    summary = dashboard.research_thesis_journal_summary(state)
+    rendered = dashboard.research_thesis_journal_html(summary)
+    details = dashboard.research_thesis_journal_detail_rows(state)
+
+    assert summary["status"] == "current"
+    assert summary["title"] == "Reviewed research thesis"
+    assert "1 supporting" in summary["evidence"]
+    assert "1 conflicting" in summary["evidence"]
+    assert "1 invalidation condition" in summary["boundary"]
+    assert "Test-only operating hypothesis" in rendered
+    assert "0.60" in rendered
+    assert "thesis-001" not in rendered
+    assert {row["Entry ID"] for row in details} == {
+        "thesis-001",
+        "support-001",
+        "conflict-001",
+        "invalidate-001",
+    }
+
+
+def test_dashboard_journal_loader_is_profile_scoped_and_fails_closed(tmp_path):
+    from types import SimpleNamespace
+
+    from src.research_thesis_journal import JournalEntry, append_journal_entry
+
+    ledger = tmp_path / "journal.csv"
+    common = {
+        "schema_version": "research-thesis-journal-v1",
+        "ticker": "SYN1",
+        "thesis_id": "thesis-syn1",
+        "entry_type": "thesis",
+        "recorded_at": "2026-07-15T20:00:00Z",
+        "effective_at": "2026-07-15T19:00:00Z",
+        "reviewer": "fixture-reviewer",
+        "summary": "Test-only hypothesis.",
+        "evidence_direction": "",
+        "source": "reviewer_authored",
+        "source_ref": "review:SYN1",
+        "source_published_at": "2026-07-15T19:00:00Z",
+        "confidence": "0.5",
+        "review_due_date": "2026-08-15",
+        "supersedes_entry_id": "",
+    }
+    append_journal_entry(ledger, JournalEntry(**common, entry_id="demo-entry", profile_key="demo"))
+    append_journal_entry(ledger, JournalEntry(**common, entry_id="local-entry", profile_key="local"))
+
+    state = dashboard.load_dashboard_journal_state(
+        SimpleNamespace(profile_key="demo"),
+        ticker="SYN1",
+        ledger_path=ledger,
+        as_of="2026-07-16T00:00:00Z",
+    )
+
+    assert [row.entry_id for row in state.entries] == ["demo-entry"]
+
+
+def test_single_stock_journal_stays_compact_and_advanced_history_is_collapsed():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    assert "research_thesis_journal_html" in render_source
+    assert 'st.expander("Advanced: thesis and evidence history", expanded=False)' in render_source
+    assert render_source.index("research_thesis_journal_html") < render_source.index("Detailed report stays closed.")
