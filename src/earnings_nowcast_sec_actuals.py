@@ -58,6 +58,20 @@ def _required_text(value: object) -> str | None:
     return text or None
 
 
+def _finite_json_number(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    normalized = float(value)
+    return normalized if isfinite(normalized) else None
+
+
+def _integral_fiscal_year(value: object) -> int | None:
+    normalized = _finite_json_number(value)
+    if normalized is None or not normalized.is_integer():
+        return None
+    return int(normalized)
+
+
 def _normalized_fact(
     taxonomy: str,
     concept: str,
@@ -73,11 +87,11 @@ def _normalized_fact(
     accession = _required_text(item.get("accn"))
     fiscal_period = _required_text(item.get("fp"))
     try:
-        value = float(item.get("val"))
-        fiscal_year = int(item.get("fy"))
+        value = _finite_json_number(item.get("val"))
+        fiscal_year = _integral_fiscal_year(item.get("fy"))
         if form not in SEC_QUARTERLY_FORMS or not all((start, end, filed, accession, fiscal_period)):
             return None
-        if not isfinite(value):
+        if value is None or fiscal_year is None:
             return None
         date.fromisoformat(start)
         date.fromisoformat(end)
