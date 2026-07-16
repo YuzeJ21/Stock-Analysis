@@ -45,6 +45,22 @@ Freshness is evaluated per lane because a daily price series, an annual filing, 
 
 A timestamp cannot turn an unsupported row into trusted evidence. Fresh metadata, screenshots, provider availability, or candidate context cannot substitute for the field-level source proof required by a readiness gate.
 
+## Profile Truth And Change Review Method
+
+The dashboard resolves exactly one data profile for each run: `Demo`, `Local Research`, or `Default`. Its trust strip separates:
+
+- `Sources through`: latest valid selected-profile source date.
+- `Readiness built`: timestamp of the selected saved readiness artifact.
+- `Snapshot identity`: deterministic identity of the selected comparison inputs.
+- `Freshness`: current, stale, mixed, or missing based on selected-profile evidence.
+- Profile-matched coverage: saved Price, fundamentals, DCF, and trusted-peer readiness counts.
+
+Snapshot identity is an audit key, not a freshness or quality score. The monitor requires explicit before/after snapshots from the same profile. A missing baseline yields `baseline_missing` and zero claimed events. Cross-profile comparison fails closed.
+
+Detectors compare explicit readiness fields, SEC filing accession, selected fundamental/share-count values, latest price date, and point-in-time Nowcast consensus identifiers. Each event preserves prior/current values, source reference, profile, both snapshot identities, separate publication/retrieval/detection times where available, evidence status, materiality, and one research task. There is no free-text model detector and no event creates a numerical forecast adjustment.
+
+The Research Review Queue is derived from unresolved events. Lost DCF or fundamentals readiness is reviewed before new context; append-only outcomes record `reviewed_supported`, `reviewed_no_change`, `still_blocked`, `intentionally_deferred`, `skipped`, or `excluded`. Recording an outcome does not change source files, readiness, valuation, or a research conclusion.
+
 ## Public Workflow Boundary
 
 The public page order is a reading workflow, not an analysis shortcut.

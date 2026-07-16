@@ -20,6 +20,16 @@ Public visitor flow: **Home -> Stock Selector -> Single-Stock Report -> Data Hea
 
 ## Completed Regression Gate
 
+### P0: Profile Truth And Local Research Change Workflow
+
+**Status:** implemented and locally verified on 2026-07-15.
+
+Every dashboard and status surface uses one selected-profile context for source date, readiness build time, snapshot identity, freshness, and matching coverage counts. Generated comparable snapshots support deterministic filing, readiness, price-history, fundamentals/share-count, and Nowcast-consensus change events. The derived review queue prioritizes unresolved research work, while append-only review outcomes remain separate from readiness mutation.
+
+Use `make profile-context`, `make research-change-snapshot`, `make research-change-monitor`, and `make research-review-queue`. Generated snapshots and event previews stay unstaged. A missing baseline means no comparison is available; it never means no changes occurred.
+
+**Boundary:** local monitoring is read-only except for the explicit reviewed-resolution append. Hosted alerts, scheduled snapshot rotation, and notification delivery remain Later and require operating evidence.
+
 ### P0: Performance Release Candidate
 
 **Status:** passed locally on the fixed demo profile on 2026-07-14; retain as a release regression gate.
@@ -141,7 +151,7 @@ Proceed only when a trusted provider supplies supported earnings actual/estimate
 
 ### P4: Scheduler Maturity
 
-Add scheduled monitoring only after at least one provider pilot proves deterministic batch limits, provenance, rejection handling, and proof-ledger recording. Daily price and filing checks may be read-only; imports still require validation, preview, and source gates.
+Add scheduled snapshot rotation, alerts, and source monitoring only after at least one provider pilot proves deterministic batch limits, provenance, rejection handling, and proof-ledger recording. Daily price and filing checks may be read-only; imports still require validation, preview, and source gates. The local Change Monitor is not itself a hosted alerting service.
 
 ### Later: Broader Peer Expansion
 

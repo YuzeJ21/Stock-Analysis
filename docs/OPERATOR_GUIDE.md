@@ -31,6 +31,27 @@ make status-check TOP_N=5
 make dashboard-smoke
 ```
 
+## Selected Profile And Change Review
+
+Verify the selected profile before interpreting counts or comparing research state:
+
+```bash
+make profile-context
+```
+
+Create generated snapshots only at explicit paths. A normal review cycle keeps a prior snapshot, builds a current snapshot after an intentionally reviewed data/readiness change, then compares and queues evidence:
+
+```bash
+STOCK_RESEARCH_DATA_PROFILE=local make research-change-snapshot OUTPUT=outputs/local/research_changes/snapshot-prior.json
+STOCK_RESEARCH_DATA_PROFILE=local make research-change-snapshot OUTPUT=outputs/local/research_changes/snapshot-current.json
+make research-change-monitor BEFORE=outputs/local/research_changes/snapshot-prior.json AFTER=outputs/local/research_changes/snapshot-current.json
+make research-review-queue BEFORE=outputs/local/research_changes/snapshot-prior.json AFTER=outputs/local/research_changes/snapshot-current.json TOP_N=25
+```
+
+The first snapshot is a baseline, not a detected change. Generate the current snapshot only after the selected-profile source/readiness state actually changes. Review event evidence before using `make research-event-review-record` with every printed event/identity field. The record command appends one reviewed outcome; it does not refresh data, apply imports, rebuild readiness, stage files, commit, push, or create an investment conclusion.
+
+Keep `outputs/**/research_changes/*.json`, event previews, and queue exports generated and unstaged. Rotate a reviewed current snapshot into the next prior baseline deliberately; never compare Demo and Local Research snapshots.
+
 Rebuild local outputs only after changing source data, imports, or pipeline code:
 
 ```bash

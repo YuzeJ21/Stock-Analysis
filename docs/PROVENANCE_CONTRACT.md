@@ -68,3 +68,11 @@ The `demo` profile is a compact tracked snapshot with a manifest, checksums, sel
 The `local` profile is an ignored mutable workspace for refreshed research data. It may contain newer local rows, but those rows need the same validate, preview, apply, rebuild, and proof gates before they change a readiness claim.
 
 Both profiles remain research-only: no broker execution, order routing, auto-trading, direct buy/sell instructions, or fabricated values.
+
+## Research Change Event Contract
+
+A research change event requires two comparable generated snapshots from the same selected profile. Each event preserves a deterministic event ID, ticker, event family/subtype, prior/current values, source and source reference, source publication time when available, retrieval and detection time, selected profile, prior/current snapshot identities, evidence status, materiality, and a research-only review task.
+
+Publication time, retrieval time, and detection time are different facts and must not be substituted for one another. Missing source timestamps stay missing. A missing prior snapshot is `baseline_missing`; it does not prove that nothing changed. Cross-profile comparison is invalid.
+
+Event review outcomes are append-only evidence. The latest valid outcome controls whether an event remains in the open queue, but historical rows are retained. Review resolution never mutates canonical sources or readiness. Candidate context, provider reachability, or a detected event cannot become trusted evidence without the existing source review, validation, preview, rejected-row, apply, readiness rebuild, and proof gates.
