@@ -2482,6 +2482,15 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "research-change-monitor:" in makefile
     assert "research-review-queue:" in makefile
     assert "research-event-review-record:" in makefile
+    assert "thesis-journal:" in makefile
+    assert "thesis-journal-preview:" in makefile
+    assert "thesis-journal-record:" in makefile
+    journal = makefile.split("thesis-journal:", 1)[1].split("help-full:", 1)[0]
+    assert "src.research_thesis_journal" in journal
+    assert "--confirm-reviewed" in journal
+    assert "git add" not in journal
+    assert "git commit" not in journal
+    assert "git push" not in journal
     monitor = makefile.split("research-change-monitor:", 1)[1].split("research-review-queue:", 1)[0]
     assert "imports-apply" not in monitor
     assert "git add" not in monitor

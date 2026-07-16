@@ -39,6 +39,7 @@ ROOT_PRODUCT_FILES = {
     "data/reviewed_data_proofs.csv",
     "data/reviewed_batch_proofs.csv",
     "data/reviewed_research_events.csv",
+    "data/research_thesis_journal.csv",
     "outputs/reviewed_batch_packet.csv",
     "outputs/reviewed_batch_packet.md",
     "outputs/pilot_readiness_packet.md",
@@ -103,6 +104,7 @@ def is_generated_churn(path: str) -> bool:
         "data/reviewed_data_proofs.csv",
         "data/reviewed_batch_proofs.csv",
         "data/reviewed_research_events.csv",
+        "data/research_thesis_journal.csv",
         "outputs/reviewed_batch_packet.csv",
         "outputs/reviewed_batch_packet.md",
     }:
