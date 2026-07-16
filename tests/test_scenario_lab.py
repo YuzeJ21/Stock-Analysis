@@ -4,6 +4,7 @@ import pytest
 
 from src.scenario_lab import (
     ScenarioParameters,
+    default_scenario_parameters,
     render_scenario_lab_result,
     run_scenario_lab,
     validate_scenario_parameters,
@@ -216,3 +217,15 @@ def test_rendered_scenario_result_is_assumption_review_not_transaction_language(
     assert "revenue_growth" in rendered
     for prohibited in ("buy", "sell", "hold", "order", "target price", "position size", "recommendation"):
         assert prohibited not in rendered
+
+
+def test_default_scenario_parameters_use_source_backed_growth_and_margin():
+    parameters = default_scenario_parameters(_input())
+
+    assert parameters == ScenarioParameters(
+        revenue_growth=0.10,
+        fcf_margin=0.20,
+        wacc=0.09,
+        terminal_growth=0.03,
+        forecast_years=5,
+    )

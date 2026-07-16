@@ -33558,3 +33558,71 @@ def test_single_stock_journal_stays_compact_and_advanced_history_is_collapsed():
     assert "research_thesis_journal_html" in render_source
     assert 'st.expander("Advanced: thesis and evidence history", expanded=False)' in render_source
     assert render_source.index("research_thesis_journal_html") < render_source.index("Detailed report stays closed.")
+
+
+def test_scenario_lab_input_from_report_preserves_source_backed_fields():
+    payload = {
+        "ticker": "SYN1",
+        "price_snapshot": {"price": 100.0},
+        "financial_summary": {
+            "revenue": 1_000.0,
+            "revenue_growth": 0.10,
+            "free_cash_flow": 200.0,
+            "fcf_margin": 0.20,
+            "operating_margin": 0.25,
+            "shares_outstanding": 10.0,
+            "cash": 100.0,
+            "debt": 50.0,
+        },
+        "valuation_snapshot": {
+            "source_metadata": [
+                {"source": "synthetic_fixture", "source_ref": "fixture:SYN1", "as_of_date": "2026-06-30"}
+            ]
+        },
+    }
+
+    valuation_input = dashboard.scenario_lab_input_from_report(payload)
+
+    assert valuation_input.ticker == "SYN1"
+    assert valuation_input.current_price == 100.0
+    assert valuation_input.revenue == 1_000.0
+    assert valuation_input.fcf_margin == 0.20
+    assert valuation_input.shares_outstanding == 10.0
+    assert valuation_input.source_metadata[0]["source_ref"] == "fixture:SYN1"
+
+
+def test_scenario_lab_status_cards_fail_closed_and_avoid_action_language():
+    from src.scenario_lab import ScenarioParameters, run_scenario_lab
+    from src.valuation import ValuationInput
+
+    blocked = run_scenario_lab(
+        ValuationInput(ticker="SYN1"),
+        ScenarioParameters(0.10, 0.20, 0.09, 0.03, 5),
+        profile_key="demo",
+        dcf_ready=False,
+        asset_type="company",
+    )
+
+    cards = dashboard.scenario_lab_status_cards(blocked)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "SCENARIO LAB"
+    assert "blocked" in rendered
+    assert "dcf readiness" in rendered
+    for prohibited in ("buy", "sell", "hold", "order", "target price", "position size"):
+        assert prohibited not in rendered
+
+
+def test_scenario_lab_controls_are_bounded_and_stay_inside_detailed_valuation():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    assert 'st.slider("Revenue growth", min_value=-0.50, max_value=0.40' in source
+    assert 'st.slider("FCF margin", min_value=-0.50, max_value=0.45' in source
+    assert 'st.slider("WACC", min_value=0.05, max_value=0.20' in source
+    assert 'st.slider("Terminal growth", min_value=-0.02, max_value=0.05' in source
+    assert 'st.slider("Forecast years", min_value=1, max_value=10' in source
+    assert 'st.expander("Advanced: scenario inputs and sensitivity", expanded=False)' in source
+    assert render_source.index("with valuation_tab:") < render_source.index("render_scenario_lab(")

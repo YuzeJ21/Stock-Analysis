@@ -116,6 +116,21 @@ def _like_for_like_baseline(valuation_input: ValuationInput) -> DCFAssumptions |
     )
 
 
+def default_scenario_parameters(valuation_input: ValuationInput) -> ScenarioParameters:
+    """Return bounded controls seeded from the selected source-backed baseline."""
+
+    baseline = _like_for_like_baseline(valuation_input)
+    if baseline is None or baseline.revenue_growth is None or baseline.fcf_margin is None:
+        raise ValueError("A source-backed revenue growth and FCF margin baseline is required.")
+    return ScenarioParameters(
+        revenue_growth=min(max(baseline.revenue_growth, -0.50), 0.40),
+        fcf_margin=min(max(baseline.fcf_margin, -0.50), 0.45),
+        wacc=baseline.wacc,
+        terminal_growth=baseline.terminal_growth,
+        forecast_years=baseline.forecast_years,
+    )
+
+
 def _input_identity(
     valuation_input: ValuationInput,
     parameters: ScenarioParameters,

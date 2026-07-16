@@ -256,6 +256,13 @@ from src.research_thesis_journal import (
     derive_journal_state,
     load_journal_entries,
 )
+from src.scenario_lab import (
+    ScenarioLabResult,
+    ScenarioParameters,
+    default_scenario_parameters,
+    run_scenario_lab,
+)
+from src.valuation import ValuationInput
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
     latest_reviewed_batch_proof,
@@ -5442,6 +5449,121 @@ def load_dashboard_journal_state(
         ticker=ticker,
         as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
     )
+
+
+def scenario_lab_input_from_report(report_payload: dict[str, object]) -> ValuationInput:
+    """Build a scenario input from the selected report without inventing fields."""
+
+    price = report_payload.get("price_snapshot", {}) or {}
+    financials = report_payload.get("financial_summary", {}) or {}
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    return ValuationInput(
+        ticker=str(report_payload.get("ticker") or "").strip().upper(),
+        current_price=price.get("price"),
+        revenue=financials.get("revenue"),
+        revenue_growth=financials.get("revenue_growth"),
+        free_cash_flow=financials.get("free_cash_flow"),
+        fcf_margin=financials.get("fcf_margin"),
+        operating_margin=financials.get("operating_margin"),
+        profit_margin=financials.get("profit_margin"),
+        eps=financials.get("eps"),
+        ebitda=financials.get("ebitda"),
+        shares_outstanding=financials.get("shares_outstanding"),
+        cash=financials.get("cash"),
+        debt=financials.get("debt"),
+        net_debt=financials.get("net_debt"),
+        market_cap=financials.get("market_cap"),
+        trailing_pe=financials.get("trailing_pe"),
+        forward_pe=financials.get("forward_pe"),
+        price_to_book=financials.get("price_to_book"),
+        source_metadata=[dict(row) for row in (valuation.get("source_metadata") or [])],
+        screener_context=dict(report_payload.get("screener_context", {}) or {}),
+    )
+
+
+def scenario_lab_status_cards(result: ScenarioLabResult) -> list[dict[str, object]]:
+    """Return one truthful Scenario Lab answer for the selected ticker."""
+
+    if result.status != "calculated":
+        return [
+            {
+                "kicker": "SCENARIO LAB",
+                "title": public_status_label(result.status),
+                "body": result.reason,
+                "badges": ["No scenario value shown", "Source-backed inputs required"],
+            }
+        ]
+    return [
+        {
+            "kicker": "SCENARIO LAB",
+            "title": "Session-local assumption review",
+            "body": "Scenario math is available from the selected source-backed DCF baseline. Canonical data is unchanged.",
+            "badges": [f"{len(result.changed_assumptions)} assumption change(s)", "Research-only"],
+        }
+    ]
+
+
+def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) -> None:
+    """Render bounded, session-local DCF assumption controls inside Valuation."""
+
+    valuation_input = scenario_lab_input_from_report(report_payload)
+    try:
+        defaults = default_scenario_parameters(valuation_input)
+    except ValueError:
+        defaults = ScenarioParameters(0.08, 0.15, 0.09, 0.03, 5)
+
+    st.markdown("#### Scenario Lab")
+    render_context_note(
+        "Test assumptions without changing source data.",
+        "Controls start from the selected report where available. Results are session-local, research-only, and withheld when DCF readiness or provenance is missing.",
+    )
+    control_columns = st.columns(2)
+    with control_columns[0]:
+        revenue_growth = st.slider("Revenue growth", min_value=-0.50, max_value=0.40, value=defaults.revenue_growth, step=0.01)
+        fcf_margin = st.slider("FCF margin", min_value=-0.50, max_value=0.45, value=defaults.fcf_margin, step=0.01)
+        forecast_years = st.slider("Forecast years", min_value=1, max_value=10, value=defaults.forecast_years, step=1)
+    with control_columns[1]:
+        wacc = st.slider("WACC", min_value=0.05, max_value=0.20, value=defaults.wacc, step=0.005)
+        terminal_growth = st.slider("Terminal growth", min_value=-0.02, max_value=0.05, value=defaults.terminal_growth, step=0.005)
+
+    result = run_scenario_lab(
+        valuation_input,
+        ScenarioParameters(revenue_growth, fcf_margin, wacc, terminal_growth, forecast_years),
+        profile_key=profile_key,
+        dcf_ready=bool(_stock_report_payload_readiness(report_payload).get("dcf_ready")),
+        asset_type=stock_report_inferred_asset_type(report_payload),
+    )
+    render_signal_cards(scenario_lab_status_cards(result), show_commands=False)
+    if result.status != "calculated" or result.baseline_result is None or result.scenario_result is None:
+        return
+
+    metrics = st.columns(4)
+    metrics[0].metric("Baseline / Share", report_display_value(result.baseline_result.fair_value_per_share, "currency"))
+    metrics[1].metric("Scenario / Share", report_display_value(result.scenario_result.fair_value_per_share, "currency"))
+    metrics[2].metric(
+        "Sensitivity Range",
+        f"{report_display_value(result.sensitivity_low, 'currency')} to {report_display_value(result.sensitivity_high, 'currency')}",
+    )
+    metrics[3].metric("Terminal Value Share", report_display_value(result.terminal_value_contribution, "percent"))
+
+    if result.changed_assumptions:
+        st.dataframe(pd.DataFrame(result.changed_assumptions), width="stretch", hide_index=True)
+    else:
+        st.caption("No assumption differs from the selected source-backed baseline.")
+
+    with st.expander("Advanced: scenario inputs and sensitivity", expanded=False):
+        st.caption(f"Scenario identity: {result.input_identity}")
+        if result.source_metadata:
+            st.dataframe(pd.DataFrame(result.source_metadata), width="stretch", hide_index=True)
+        if result.sensitivity_table is not None and result.sensitivity_table.fair_value_grid:
+            sensitivity_frame = pd.DataFrame(
+                result.sensitivity_table.fair_value_grid,
+                index=[f"WACC {value:.1%}" for value in result.sensitivity_table.wacc_values],
+                columns=[f"TG {value:.1%}" for value in result.sensitivity_table.terminal_growth_values],
+            )
+            st.dataframe(sensitivity_frame, width="stretch")
+        for warning in result.warnings:
+            st.caption(warning)
 
 
 def public_home_overview_html(summary: dict[str, object]) -> str:
@@ -29773,6 +29895,11 @@ def render_single_stock_report(
         if scenario_rows:
             st.markdown("#### Bull / Base / Bear Scenarios")
             st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
+
+        render_scenario_lab(
+            report_payload,
+            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+        )
 
         st.markdown("#### Peer-Relative Valuation")
         peer_summary = stock_report_peer_relative_summary(report_payload)
