@@ -123,6 +123,14 @@ The existing operator-only selected review tray now accepts two or three tickers
 
 **Stop rule:** the comparison produces no score, winner, expected return, recommendation, or action; candidate peer context remains separate from trusted-peer readiness.
 
+### P2: Peer Read-Through Map - Implemented
+
+**Goal:** show which peer results can be reviewed as directional business context without treating sector similarity or candidate peers as trusted evidence.
+
+The existing detailed Valuation tab now separates trusted relationships, candidate-only relationships, explicit business-overlap evidence, target/peer fiscal periods, source-backed Revenue/EPS actuals, and the remaining proof needed for contextual read-through. A result becomes `reviewable_context` only when relationship provenance, business overlap, actual result evidence, and both fiscal periods are explicit.
+
+**Stop rule:** candidate peers never become trusted automatically. Missing relationship source, actual result, or fiscal timing withholds read-through; even reviewable context cannot alter Earnings Nowcast numbers, DCF, readiness, rankings, or actions.
+
 ### P2: Earnings Nowcast Pilot Evidence
 
 **Goal:** move the implemented Earnings Nowcast pilot from synthetic infrastructure proof to a leakage-safe, source-backed semiconductor cohort.
@@ -182,6 +190,8 @@ Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optio
 **Dependencies:** a licensed or otherwise trustworthy peer relationship source and reviewed mappings.
 
 **Stop rule:** sector similarity is not trusted-peer proof. Do not target broad-universe peer readiness before the pilot has repeatable evidence.
+
+The implemented Peer Read-Through Map is the review surface for this future cohort. It does not satisfy the external trusted-relationship dependency or create broad peer coverage by itself.
 
 ## Later
 

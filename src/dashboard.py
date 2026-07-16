@@ -4,6 +4,7 @@ import html
 import json
 import os
 import re
+from dataclasses import asdict
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -250,6 +251,11 @@ from src.research_comparison import (
     ResearchComparison,
     build_research_comparison,
     comparison_matrix_rows,
+)
+from src.peer_read_through_map import (
+    PeerReadThroughMap,
+    build_peer_read_through_map,
+    peer_read_through_rows,
 )
 from src.research_review_queue import (
     ResearchReviewItem,
@@ -5574,6 +5580,83 @@ def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) 
             st.dataframe(sensitivity_frame, width="stretch")
         for warning in result.warnings:
             st.caption(warning)
+
+
+def peer_read_through_summary_cards(read_through: PeerReadThroughMap) -> list[dict[str, object]]:
+    """Return the compact read-through answer before relationship evidence."""
+
+    if read_through.status == "excluded":
+        return [
+            {
+                "kicker": "PEER READ-THROUGH",
+                "title": "Excluded for monitor context",
+                "body": "Operating-company peer read-through is not applied to ETF, index, or fund monitor rows.",
+                "badges": ["Excluded", "Not failed"],
+            }
+        ]
+    if not read_through.edges:
+        return [
+            {
+                "kicker": "PEER READ-THROUGH",
+                "title": "No relationship evidence loaded",
+                "body": "Add or review peer relationships before interpreting company results as contextual read-through.",
+                "badges": ["Withheld", "No inferred peers"],
+            }
+        ]
+    if read_through.reviewable_count:
+        title = (
+            f"{read_through.reviewable_count} peer result ready for contextual review"
+            if read_through.reviewable_count == 1
+            else f"{read_through.reviewable_count} peer results ready for contextual review"
+        )
+        body = (
+            f"{read_through.withheld_count} relationship(s) still need proof. Reviewable context does not change "
+            "a forecast, valuation, readiness state, or action."
+        )
+        badges = ["Context only", f"{read_through.trusted_count} trusted"]
+    else:
+        title = "Peer read-through remains withheld"
+        body = (
+            f"{read_through.trusted_count} trusted and {read_through.candidate_count} candidate relationship(s) are visible, "
+            "but relationship, result, or fiscal-timing proof is incomplete."
+        )
+        badges = ["Evidence gated", "No forecast change"]
+    return [{"kicker": "PEER READ-THROUGH", "title": title, "body": body, "badges": badges}]
+
+
+def peer_read_through_frame(read_through: PeerReadThroughMap) -> pd.DataFrame:
+    return pd.DataFrame(
+        peer_read_through_rows(read_through),
+        columns=[
+            "Peer",
+            "Relationship",
+            "Business Overlap",
+            "Fiscal Timing",
+            "Peer Result",
+            "Read-Through State",
+            "Missing Proof",
+        ],
+    )
+
+
+def render_peer_read_through_map(report_payload: dict[str, object], *, profile_key: str) -> None:
+    read_through = build_peer_read_through_map(report_payload, profile_key=profile_key)
+    st.markdown("#### Peer Read-Through Map")
+    render_context_note(
+        "Which peer results can be reviewed as context?",
+        "Trusted relationships, source-backed actual results, and explicit fiscal periods are checked separately. Candidate peers never become trusted automatically.",
+    )
+    render_signal_cards(peer_read_through_summary_cards(read_through), show_commands=False)
+    frame = peer_read_through_frame(read_through)
+    if not frame.empty:
+        st.dataframe(frame, width="stretch", hide_index=True)
+    with st.expander("Advanced: peer read-through evidence", expanded=False):
+        st.caption(f"Map identity: {read_through.map_identity}")
+        st.caption(read_through.boundary)
+        if read_through.edges:
+            st.dataframe(pd.DataFrame([asdict(edge) for edge in read_through.edges]), width="stretch", hide_index=True)
+        else:
+            st.caption("No peer relationship evidence is available for this ticker.")
 
 
 def source_freshness_summary_cards(timeline: FreshnessTimeline) -> list[dict[str, object]]:
@@ -30020,6 +30103,11 @@ def render_single_stock_report(
             st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
 
         render_scenario_lab(
+            report_payload,
+            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+        )
+
+        render_peer_read_through_map(
             report_payload,
             profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
         )

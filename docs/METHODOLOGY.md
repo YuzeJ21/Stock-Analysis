@@ -193,6 +193,8 @@ The Source Freshness Timeline derives a display chronology from the selected rep
 
 The Research Comparison View uses two or three selected tickers from the existing readiness-backed Stock Selector. It preserves selection order and compares asset type, research state, price, fundamentals, DCF, trusted-peer readiness, supported analysis, blocked inputs, next proof, proof freshness, and reviewer-authored catalysts or risks from the selected profile's journal. It never calculates a score or winner and does not fill missing evidence. Candidate peer wording cannot turn a blocked trusted-peer field into a ready one.
 
+The Peer Read-Through Map is a separate evidence view inside the detailed Valuation tab. It checks relationship provenance, explicit business-overlap fields, source-backed peer Revenue/EPS actuals, and target/peer fiscal periods independently. Candidate relationships remain `candidate_context_only`. Trusted relationships without an actual result remain `awaiting_peer_result`; results without both fiscal periods remain `awaiting_fiscal_timing`. Only complete evidence becomes `reviewable_context`, which is directional context only and cannot change forecast, DCF, readiness, ranking, or action outputs.
+
 ### Conservative DCF Normalization
 
 The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into a valuation story without ready inputs.
@@ -221,6 +223,7 @@ Peer analysis is separate from standalone DCF.
 - Peer valuation context requires source-backed peer mappings and peer valuation inputs.
 - Missing peer mappings block the mapping proof path; mapped peers with missing price, fundamentals, market cap, or valuation fields block the peer valuation inputs proof path.
 - Sector or industry fallback context, if shown, must be labeled as fallback and not trusted manual peer data.
+- Contextual earnings read-through additionally requires a source-backed peer actual and explicit target/peer fiscal periods. Calendar proximity or business similarity is not inferred as period comparability.
 
 This prevents the report from pretending that peer valuation exists when only partial peer data is available.
 

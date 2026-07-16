@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -398,6 +399,47 @@ def test_local_provider_peer_summary_distinguishes_candidate_and_trusted_layers(
     assert summary["candidate_mapping_status"] == "candidate_available"
     assert summary["candidate_states"] == ["candidate", "research_only"]
     assert summary["candidate_peer_tickers"] == ["BETA", "GAMMA"]
+
+
+def test_local_provider_peer_summary_exposes_relationship_and_result_evidence(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-05-01,ALFA,150,1000\n"
+        "2026-05-01,BETA,90,1000\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "fundamentals.csv").write_text(
+        "ticker,revenue,free_cash_flow,shares_outstanding,source\n"
+        "ALFA,1000,100,10,fixture\n"
+        "BETA,800,90,12,fixture\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group,industry,source,as_of_date\n"
+        "ALFA,BETA,cloud infrastructure,Cloud platforms,https://example.test/peer,2026-06-30\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "peer_candidates.csv").write_text(
+        "ticker,peer_ticker,candidate_state,peer_group,source,as_of_date\n"
+        "ALFA,BETA,candidate,cloud infrastructure,classification fallback,2026-06-30\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "earnings.csv").write_text(
+        "ticker,fiscal_period,last_earnings_date,eps_actual,revenue_actual,source\n"
+        "BETA,2026-Q2,2026-07-10,1.2,2500,fixture_earnings\n",
+        encoding="utf-8",
+    )
+    provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
+
+    summary = provider.get_peer_summary("ALFA")
+
+    assert summary["trusted_relationships"][0]["peer_ticker"] == "BETA"
+    assert summary["trusted_relationships"][0]["source"] == "https://example.test/peer"
+    assert summary["trusted_relationships"][0]["peer_result"]["eps_actual"] == 1.2
+    assert summary["candidate_relationships"][0]["candidate_state"] == "candidate"
+    assert "peer_result" not in summary["candidate_relationships"][0]
+    json.dumps(summary)
 
 
 def test_local_provider_ignores_self_peers_and_duplicate_rows(tmp_path: Path):

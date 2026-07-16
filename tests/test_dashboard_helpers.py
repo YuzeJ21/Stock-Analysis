@@ -5,6 +5,7 @@ from pathlib import Path
 
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
+from src.peer_read_through_map import build_peer_read_through_map
 from src.profile_context import CoverageCounts, ProfileContext
 from src.research_change_monitor import ResearchChangeEvent
 from src.research_review_queue import ResearchReviewItem
@@ -117,6 +118,44 @@ def test_change_summary_states_do_not_claim_detected_changes():
         )
         assert "evidence-backed changes detected" not in rendered.lower()
         assert "investment recommendation" not in rendered.lower()
+
+
+def test_peer_read_through_cards_explain_reviewable_and_withheld_states():
+    payload = {
+        "ticker": "ALFA",
+        "asset_type": "company",
+        "earnings_summary": {"fiscal_period": "2026-Q2"},
+        "valuation_readiness": {
+            "peer_summary": {
+                "trusted_relationships": [
+                    {
+                        "ticker": "ALFA",
+                        "peer_ticker": "BETA",
+                        "peer_group": "cloud",
+                        "industry": "Cloud platforms",
+                        "source": "https://example.test/peer",
+                        "as_of_date": "2026-06-30",
+                        "peer_result": {
+                            "fiscal_period": "2026-Q2",
+                            "last_earnings_date": "2026-07-10",
+                            "eps_actual": 1.2,
+                            "source": {"provider": "local:earnings.csv"},
+                        },
+                    }
+                ],
+                "candidate_relationships": [],
+            }
+        },
+    }
+    read_through = build_peer_read_through_map(payload, profile_key="demo")
+
+    cards = dashboard.peer_read_through_summary_cards(read_through)
+    frame = dashboard.peer_read_through_frame(read_through)
+
+    assert cards[0]["title"] == "1 peer result ready for contextual review"
+    assert "does not change" in cards[0]["body"]
+    assert frame.iloc[0]["Read-Through State"] == "Reviewable context"
+    assert "recommend" not in str(cards).lower()
 
 
 def test_dashboard_exposes_readiness_gated_nowcast_view_models():
