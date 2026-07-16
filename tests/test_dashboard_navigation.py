@@ -1,4 +1,5 @@
 from src import dashboard_navigation as nav
+import src.dashboard as dashboard
 
 
 def test_dashboard_navigation_maps_page_query_aliases():
@@ -39,6 +40,16 @@ def test_dashboard_navigation_public_path_labels_round_trip():
     assert nav.page_title_from_public_path("Inspect proof") == "Proof History"
     assert nav.page_title_from_public_path("Improve data coverage") == "Data Health"
     assert nav.page_title_from_public_path("Data Health") == "Data Health"
+
+
+def test_public_navigation_remains_five_pages_after_profile_truth_integration():
+    assert dashboard.PUBLIC_PATH_PAGE_TITLES == [
+        "Home",
+        "Stock Selector",
+        "Single-Stock Report",
+        "Data Health",
+        "Proof History",
+    ]
 
 
 def test_dashboard_navigation_sidebar_options_keep_advanced_pages_secondary():

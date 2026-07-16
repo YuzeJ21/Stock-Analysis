@@ -5,8 +5,53 @@ from pathlib import Path
 
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
+from src.profile_context import CoverageCounts, ProfileContext
 from src.public_home_workflow import public_home_current_data_coverage_cards, public_home_next_step_cards
 import pandas as pd
+
+
+def _profile_context_fixture(**overrides):
+    values = {
+        "profile_key": "local",
+        "profile_label": "Local Research",
+        "data_dir": Path("/private/data/local"),
+        "outputs_dir": Path("/private/outputs/local"),
+        "source_as_of": "2026-07-14",
+        "readiness_built_at": "2026-07-15T19:30:00+00:00",
+        "snapshot_identity": "f" * 64,
+        "snapshot_identity_short": "f" * 12,
+        "freshness_state": "current",
+        "freshness_message": "Selected-profile readiness is current.",
+        "refresh_command": "",
+        "coverage": CoverageCounts(total=10, price_ready=9, fundamentals_ready=7, dcf_ready=6, peer_ready=4),
+        "lane_source_dates": (("prices", "2026-07-14"),),
+        "snapshot_inputs": ("/private/data/local/prices.csv",),
+    }
+    values.update(overrides)
+    return ProfileContext(**values)
+
+
+def test_profile_trust_strip_shows_profile_dates_freshness_and_counts():
+    rendered = dashboard.profile_trust_strip_html(_profile_context_fixture())
+
+    assert "Local Research" in rendered
+    assert "Sources through" in rendered
+    assert "Readiness built" in rendered
+    assert "Current" in rendered
+    assert "Price-ready" in rendered
+    assert "DCF-ready" in rendered
+
+
+def test_profile_advanced_details_keep_paths_and_hash_out_of_compact_strip():
+    context = _profile_context_fixture()
+
+    compact = dashboard.profile_trust_strip_html(context, compact=True)
+    details = dashboard.profile_advanced_details(context)
+
+    assert "/private/data/local" not in compact
+    assert "f" * 64 not in compact
+    assert details["Snapshot identity"] == "f" * 64
+    assert details["Data directory"] == "/private/data/local"
 
 
 def test_dashboard_exposes_readiness_gated_nowcast_view_models():

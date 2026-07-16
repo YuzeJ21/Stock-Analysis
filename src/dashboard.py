@@ -258,6 +258,7 @@ from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, late
 from src.review_metrics import build_metric_readiness_summary, configured_risk_free_rate
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
+from src.profile_context import ProfileContext, build_profile_context
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.paths import resolve_data_dir, resolve_data_profile, resolve_outputs_dir
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
@@ -5095,6 +5096,52 @@ def render_public_app_shell(page_title: str) -> None:
     st.markdown(public_app_shell_html(page_title), unsafe_allow_html=True)
 
 
+def profile_trust_strip_html(context: ProfileContext, *, compact: bool = False) -> str:
+    """Return the selected-profile truth shared by every dashboard route."""
+
+    compact_class = " compact" if compact else ""
+    coverage = context.coverage
+    source_as_of = context.source_as_of or "Unavailable"
+    readiness_built_at = context.readiness_built_at or "Unavailable"
+    freshness = context.freshness_state.title() if context.freshness_state else "Unavailable"
+    return (
+        f"<section class='profile-trust-strip{compact_class}' "
+        "aria-label='Selected data profile and freshness'>"
+        "<div class='profile-trust-primary'>"
+        "<span class='profile-trust-label'>Data profile</span>"
+        f"<strong>{html.escape(context.profile_label)}</strong>"
+        "</div>"
+        f"<span><small>Sources through</small>{html.escape(source_as_of)}</span>"
+        f"<span><small>Readiness built</small>{html.escape(readiness_built_at)}</span>"
+        f"<span class='profile-freshness {html.escape(context.freshness_state)}'>"
+        f"<small>Freshness</small>{html.escape(freshness)}</span>"
+        f"<span><small>Price-ready</small>{coverage.price_ready:,}/{coverage.total:,}</span>"
+        f"<span><small>DCF-ready</small>{coverage.dcf_ready:,}/{coverage.total:,}</span>"
+        "</section>"
+    )
+
+
+def profile_advanced_details(context: ProfileContext) -> dict[str, object]:
+    """Return technical profile evidence kept outside the compact first read."""
+
+    return {
+        "Profile key": context.profile_key,
+        "Snapshot identity": context.snapshot_identity or "Unavailable",
+        "Data directory": str(context.data_dir),
+        "Outputs directory": str(context.outputs_dir),
+        "Freshness detail": context.freshness_message,
+        "Refresh command": context.refresh_command or "No refresh required",
+        "Lane source dates": dict(context.lane_source_dates),
+        "Snapshot inputs": list(context.snapshot_inputs),
+    }
+
+
+def render_profile_trust_strip(context: ProfileContext, *, compact: bool = False) -> None:
+    st.markdown(profile_trust_strip_html(context, compact=compact), unsafe_allow_html=True)
+    with st.expander("Advanced: profile identity and freshness evidence", expanded=False):
+        st.json(profile_advanced_details(context))
+
+
 def public_home_overview_html(summary: dict[str, object]) -> str:
     """Return Home's public first-read as one decision surface instead of stacked cards."""
 
@@ -5145,6 +5192,46 @@ def render_public_shell_mode_styles() -> None:
         .public-app-shell {
           margin: 0 0 1rem;
         }
+        .profile-trust-strip {
+          display: grid;
+          grid-template-columns: minmax(9rem, 1.2fr) repeat(5, minmax(7rem, 1fr));
+          gap: 0.55rem;
+          align-items: stretch;
+          margin: 0.2rem 0 0.7rem;
+          padding: 0.68rem 0;
+          border-top: 1px solid #d9e0dc;
+          border-bottom: 1px solid #d9e0dc;
+          color: #243b53;
+        }
+        .profile-trust-strip > span,
+        .profile-trust-primary {
+          display: grid;
+          align-content: center;
+          min-width: 0;
+          gap: 0.12rem;
+          padding: 0 0.58rem;
+          border-left: 1px solid #e6ebe8;
+          font-size: 0.8rem;
+          line-height: 1.28;
+          overflow-wrap: anywhere;
+        }
+        .profile-trust-primary {
+          padding-left: 0;
+          border-left: 0;
+        }
+        .profile-trust-strip small,
+        .profile-trust-label {
+          color: #667085;
+          font-size: 0.68rem;
+          font-weight: 700;
+          line-height: 1.2;
+          text-transform: uppercase;
+        }
+        .profile-trust-strip strong { color: #102a43; }
+        .profile-freshness.current { color: #0f766e; }
+        .profile-freshness.stale,
+        .profile-freshness.mixed { color: #a15c00; }
+        .profile-freshness.missing { color: #b42318; }
         .public-app-topline {
           display: flex;
           align-items: flex-start;
@@ -5602,6 +5689,16 @@ def render_public_shell_mode_styles() -> None:
           .public-page-intro p {
             font-size: 0.88rem;
           }
+          .profile-trust-strip {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.7rem 0;
+          }
+          .profile-trust-strip > span,
+          .profile-trust-primary {
+            padding: 0 0.5rem;
+          }
+          .profile-trust-primary { padding-left: 0; }
+          .profile-trust-strip > :nth-child(odd) { border-left: 0; }
           .public-home-overview {
             grid-template-columns: 1fr;
             gap: 1rem;
@@ -32592,6 +32689,7 @@ def main() -> None:
     st.set_page_config(page_title="Stock Research Command Center", layout="wide")
     apply_dashboard_theme()
     data_profile = resolve_data_profile(project_root=BASE_DIR)
+    profile_context = build_profile_context(project_root=BASE_DIR)
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
     page_query_value = st.query_params.get("page")
@@ -32712,6 +32810,7 @@ def main() -> None:
         render_public_shell_mode_styles()
         render_public_workflow_skip_link(selected_page, st.query_params)
         render_public_app_shell(selected_page)
+        render_profile_trust_strip(profile_context)
         render_public_workflow_skip_target()
     else:
         render_app_header(
@@ -32720,6 +32819,7 @@ def main() -> None:
             compact=True,
             current_page=selected_page,
         )
+        render_profile_trust_strip(profile_context, compact=True)
         render_public_workflow_skip_target()
 
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
