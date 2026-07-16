@@ -564,3 +564,16 @@ def test_scenario_lab_docs_define_session_local_readiness_gated_boundary():
     assert "terminal growth must remain below WACC" in methodology
     assert "Scenario Lab never writes canonical data" in provenance
     assert "blocked or excluded" in provenance
+
+
+def test_source_freshness_timeline_docs_preserve_timestamp_truth():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+
+    assert "Source Freshness Timeline" in readme
+    assert "Source Freshness Timeline - Implemented" in roadmap
+    assert "never substitutes retrieval time" in methodology
+    assert "Source Freshness Timeline Contract" in provenance
+    assert "missing timestamp" in provenance

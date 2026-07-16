@@ -189,6 +189,8 @@ DCF output is treated as scenario math, not a price target. The report should sh
 
 The Scenario Lab is a session-local review layer over that same DCF engine. It starts from the selected profile's source-backed baseline and permits revenue growth from -50% to 40%, FCF margin from -50% to 45%, WACC from 5% to 20%, terminal growth from -2% to 5%, and a one-to-ten-year forecast horizon; terminal growth must remain below WACC. Missing company eligibility, DCF readiness, provenance, revenue, margin, or shares closes the gate and suppresses all numerical scenario output. Adjustments never modify canonical fundamentals, readiness, reports, or proof history.
 
+The Source Freshness Timeline derives a display chronology from the selected report only. It never substitutes retrieval time for publication or effective time, never treats report generation as source freshness, and never infers a forecast cutoff or revision date. Known events are ordered newest first; invalid or absent timestamps remain explicit unknowns. The timeline explains evidence timing but does not change any lane's readiness state.
+
 ### Conservative DCF Normalization
 
 The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into a valuation story without ready inputs.

@@ -107,6 +107,14 @@ Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) t
 
 **Implemented proof:** the detailed Valuation tab now loads source-backed defaults, enforces bounded controls, reports changed assumptions and sensitivity, and keeps provenance and scenario identity under Advanced. It is session-local and does not change canonical inputs or readiness.
 
+### P2: Source Freshness Timeline - Implemented
+
+**Goal:** show a selected ticker's source chronology without confusing report time, retrieval time, market time, or financial effective date.
+
+The Sources & Gaps tab now derives a deterministic same-profile timeline from the report payload, shows unknown timestamps explicitly, deduplicates exact source records, and keeps raw provenance under Advanced. It never refreshes data, changes readiness, or infers publication, cutoff, or revision dates that are not present.
+
+**Stop rule:** a recent retrieval or report timestamp cannot make an older source period current or unlock a blocked lane.
+
 ### P2: Earnings Nowcast Pilot Evidence
 
 **Goal:** move the implemented Earnings Nowcast pilot from synthetic infrastructure proof to a leakage-safe, source-backed semiconductor cohort.

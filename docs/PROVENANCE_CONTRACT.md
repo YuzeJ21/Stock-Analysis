@@ -88,3 +88,9 @@ Source publication and effective timestamps cannot be later than the recorded ti
 The Scenario Lab never writes canonical data, readiness, reports, or proof records. It derives an immutable input identity from the selected profile, source-backed valuation input, provenance, and bounded session parameters. Only DCF-ready operating companies with source references, revenue, FCF margin, and shares can display numerical scenario math. If the selected row is blocked or excluded, the product shows the reason and withholds baseline, adjusted, sensitivity, and terminal-value figures.
 
 Scenario values are temporary assumption tests. They are not source facts, saved forecasts, price targets, rankings, recommendations, or evidence that can unlock another lane.
+
+## Source Freshness Timeline Contract
+
+The timeline is a read-only same-profile view derived from the selected report payload. Each event preserves a deterministic identity, ticker, profile, lane, event type, timestamp kind, supplied timestamp, source, source reference when present, freshness state, and evidence note. Exact duplicate source events collapse by identity; cross-profile events never merge.
+
+Effective, publication, retrieval, market-observation, forecast-cutoff, revision, and report-generation times are different facts. The product does not substitute one for another. An absent or invalid value remains a `missing timestamp` event, and publication, cutoff, or revision events appear only when the source payload explicitly provides them. The timeline never refreshes data, writes a report, changes readiness, or unlocks a blocked input.
