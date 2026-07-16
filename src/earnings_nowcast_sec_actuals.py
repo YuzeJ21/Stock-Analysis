@@ -29,8 +29,11 @@ REJECTED_AUDIT_STATES = frozenset(
         "ambiguous_concept",
         "ambiguous_fiscal_identity",
         "comparative_period_relabelled",
+        "companyfacts_fetch_failed",
         "cumulative_fact_rejected",
+        "fiscal_period_conflict",
         "post_cutoff_rejected",
+        "ticker_unresolved",
     )
 )
 

@@ -220,6 +220,56 @@ def test_stage_keeps_revenue_only_metric_partial_out_of_rejected_rows(tmp_path):
     assert rejected_rows == []
 
 
+def test_stage_writes_fiscal_period_conflicts_to_rejected_rows(tmp_path):
+    result = write_sec_actuals_stage(
+        tmp_path / "stage",
+        {
+            "SYN1": extract_q1_q3_lineage(
+                "SYN1",
+                companyfacts_fixture(
+                    revenue=[
+                        _fact(val=12, start="2026-02-27", end="2026-05-28", fp="Q2"),
+                        _fact(val=12, start="2026-02-27", end="2026-05-28", fp="Q3"),
+                    ],
+                    eps=[
+                        _fact(val=1.2, start="2026-02-27", end="2026-05-28", fp="Q2"),
+                        _fact(val=1.2, start="2026-02-27", end="2026-05-28", fp="Q3"),
+                    ],
+                ),
+                cutoff=CUTOFF,
+                retrieved_at=RETRIEVED_AT,
+            )
+        },
+    )
+
+    with Path(result.rejected_path).open(newline="", encoding="utf-8") as handle:
+        rejected_rows = list(csv.DictReader(handle))
+
+    assert result.rejected_row_count == 4
+    assert {row["state"] for row in rejected_rows} == {"fiscal_period_conflict"}
+
+
+def test_stage_orchestrator_writes_unresolved_and_fetch_failures_to_rejected_rows(tmp_path):
+    result = stage_sec_quarterly_actuals(
+        ["missing", "broken"],
+        output_dir=tmp_path / "stage",
+        cutoff=CUTOFF,
+        user_agent="Test test@example.com",
+        retrieved_at=RETRIEVED_AT,
+        ticker_map={"BROKEN": {"ticker": "BROKEN", "cik": "0000123456"}},
+        companyfacts_loader=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("fixture failure")),
+    )
+
+    with Path(result.rejected_path).open(newline="", encoding="utf-8") as handle:
+        rejected_rows = list(csv.DictReader(handle))
+
+    assert result.rejected_row_count == 2
+    assert {(row["ticker"], row["state"]) for row in rejected_rows} == {
+        ("BROKEN", "companyfacts_fetch_failed"),
+        ("MISSING", "ticker_unresolved"),
+    }
+
+
 def test_stage_uses_injected_ticker_map_and_companyfacts_fetcher(tmp_path):
     result = stage_sec_quarterly_actuals(
         ["syn1", "missing"],
