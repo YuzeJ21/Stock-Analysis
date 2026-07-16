@@ -262,6 +262,11 @@ from src.scenario_lab import (
     default_scenario_parameters,
     run_scenario_lab,
 )
+from src.source_freshness_timeline import (
+    FreshnessTimeline,
+    build_source_freshness_timeline,
+    timeline_rows,
+)
 from src.valuation import ValuationInput
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
@@ -5564,6 +5569,70 @@ def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) 
             st.dataframe(sensitivity_frame, width="stretch")
         for warning in result.warnings:
             st.caption(warning)
+
+
+def source_freshness_summary_cards(timeline: FreshnessTimeline) -> list[dict[str, object]]:
+    """Return one compact chronology answer without turning time into proof."""
+
+    known_count = len(timeline.events) - timeline.unknown_timestamp_count
+    unknown_label = (
+        f"{timeline.unknown_timestamp_count} unknown timestamp"
+        f"{'s' if timeline.unknown_timestamp_count != 1 else ''}"
+    )
+    latest = timeline.latest_known_timestamp or "No known timestamp"
+    return [
+        {
+            "kicker": "SOURCE TIMELINE",
+            "title": f"{known_count} dated event(s); {unknown_label}",
+            "body": (
+                f"Latest known event: {latest}. Report assembly, retrieval, market observation, and financial effective "
+                "dates remain separate; one cannot substitute for another."
+            ),
+            "badges": [timeline.profile_key, "Read-only evidence"],
+        }
+    ]
+
+
+def source_freshness_timeline_frame(timeline: FreshnessTimeline) -> pd.DataFrame:
+    kind_labels = {
+        "report_generated": "Report generated",
+        "source_retrieved": "Source retrieved",
+        "market_observed": "Market observed",
+        "financial_effective": "Financial effective",
+        "source_published": "Source published",
+        "forecast_cutoff": "Forecast cutoff",
+        "revision_recorded": "Revision recorded",
+    }
+    rows = []
+    for event in timeline.events:
+        rows.append(
+            {
+                "When": event.timestamp or "Unknown",
+                "Time Type": kind_labels.get(event.timestamp_kind, event.timestamp_kind.replace("_", " ").title()),
+                "Lane": event.lane.replace("_", " ").title(),
+                "Source": event.source or "Not available",
+                "State": event.freshness_state.replace("_", " ").capitalize(),
+                "Evidence": event.note or "No additional source note.",
+            }
+        )
+    return pd.DataFrame(rows, columns=["When", "Time Type", "Lane", "Source", "State", "Evidence"])
+
+
+def render_source_freshness_timeline(report_payload: dict[str, object], *, profile_key: str) -> None:
+    timeline = build_source_freshness_timeline(report_payload, profile_key=profile_key)
+    render_signal_cards(source_freshness_summary_cards(timeline), show_commands=False)
+    with st.expander("Source freshness timeline", expanded=False):
+        frame = source_freshness_timeline_frame(timeline)
+        if frame.empty:
+            st.caption("No timestamped source evidence is available for this selected ticker.")
+        else:
+            st.dataframe(frame, width="stretch", hide_index=True)
+    with st.expander("Advanced: freshness provenance", expanded=False):
+        st.caption(f"Timeline identity: {timeline.timeline_identity}")
+        if timeline.events:
+            st.dataframe(pd.DataFrame(timeline_rows(timeline)), width="stretch", hide_index=True)
+        else:
+            st.caption("No source chronology records are available.")
 
 
 def public_home_overview_html(summary: dict[str, object]) -> str:
@@ -30008,6 +30077,10 @@ def render_single_stock_report(
 
     with sources_tab:
         render_context_note("Source readiness and gaps.", "Use this tab to verify source readiness, missing inputs, and how much of the report is based on local coverage versus unavailable optional files.")
+        render_source_freshness_timeline(
+            report_payload,
+            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+        )
         st.markdown("#### Missing Data")
         warning_text = stock_report_missing_data_text(report_payload.get("missing_data_warnings", []))
         if report_payload.get("missing_data_warnings"):

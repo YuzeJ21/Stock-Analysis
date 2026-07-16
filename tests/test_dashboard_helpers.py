@@ -33626,3 +33626,63 @@ def test_scenario_lab_controls_are_bounded_and_stay_inside_detailed_valuation():
     assert 'st.slider("Forecast years", min_value=1, max_value=10' in source
     assert 'st.expander("Advanced: scenario inputs and sensitivity", expanded=False)' in source
     assert render_source.index("with valuation_tab:") < render_source.index("render_scenario_lab(")
+
+
+def test_source_freshness_timeline_summary_keeps_unknown_time_visible():
+    from src.source_freshness_timeline import build_source_freshness_timeline
+
+    timeline = build_source_freshness_timeline(
+        {
+            "ticker": "SYN1",
+            "generated_at": "2026-07-15T20:00:00Z",
+            "data_freshness": [
+                {"provider": "local:prices.csv", "freshness": "current", "retrieved_at": "2026-07-15T17:00:00Z"},
+                {"provider": "manual_peer_review", "freshness": "unknown", "retrieved_at": ""},
+            ],
+        },
+        profile_key="demo",
+    )
+
+    cards = dashboard.source_freshness_summary_cards(timeline)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "SOURCE TIMELINE"
+    assert "1 unknown timestamp" in rendered
+    assert "report assembly" in rendered
+    for prohibited in ("buy", "sell", "hold", "order", "recommendation"):
+        assert prohibited not in rendered
+
+
+def test_source_freshness_timeline_frame_labels_timestamp_kind_and_unknown_value():
+    from src.source_freshness_timeline import build_source_freshness_timeline
+
+    timeline = build_source_freshness_timeline(
+        {
+            "ticker": "SYN1",
+            "data_freshness": [
+                {"provider": "manual_peer_review", "freshness": "unknown", "retrieved_at": ""},
+            ],
+        },
+        profile_key="demo",
+    )
+
+    frame = dashboard.source_freshness_timeline_frame(timeline)
+
+    assert list(frame.columns) == ["When", "Time Type", "Lane", "Source", "State", "Evidence"]
+    assert frame.iloc[0]["When"] == "Unknown"
+    assert frame.iloc[0]["Time Type"] == "Source retrieved"
+    assert frame.iloc[0]["State"] == "Missing timestamp"
+
+
+def test_source_freshness_timeline_stays_inside_sources_tab_with_provenance_collapsed():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    sources_index = render_source.index("with sources_tab:")
+    timeline_index = render_source.index("render_source_freshness_timeline(")
+
+    assert sources_index < timeline_index
+    assert 'st.expander("Source freshness timeline", expanded=False)' in source
+    assert 'st.expander("Advanced: freshness provenance", expanded=False)' in source
