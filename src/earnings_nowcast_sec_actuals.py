@@ -24,6 +24,15 @@ REVENUE_CONCEPTS = (
 )
 EPS_CONCEPT = "EarningsPerShareDiluted"
 SEC_QUARTERLY_FORMS = frozenset(("10-Q", "10-Q/A"))
+REJECTED_AUDIT_STATES = frozenset(
+    (
+        "ambiguous_concept",
+        "ambiguous_fiscal_identity",
+        "comparative_period_relabelled",
+        "cumulative_fact_rejected",
+        "post_cutoff_rejected",
+    )
+)
 
 
 @dataclass(frozen=True)
@@ -513,7 +522,7 @@ def _rejected_audit_rows(results: Mapping[str, ExtractionResult]) -> list[Extrac
         audit_row
         for ticker in sorted(results)
         for audit_row in results[ticker].audit_rows
-        if not audit_row.state.startswith("accepted_")
+        if audit_row.state in REJECTED_AUDIT_STATES
     ]
 
 

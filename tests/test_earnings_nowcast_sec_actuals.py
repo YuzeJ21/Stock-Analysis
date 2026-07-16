@@ -198,6 +198,28 @@ def test_stage_writes_only_explicit_output_directory(tmp_path):
     assert rejected[0]["state"] == "cumulative_fact_rejected"
 
 
+def test_stage_keeps_revenue_only_metric_partial_out_of_rejected_rows(tmp_path):
+    extraction = extract_q1_q3_lineage(
+        "SYN1",
+        companyfacts_fixture(revenue=[_fact(val=12, start="2026-02-27", end="2026-05-28")], eps=[]),
+        cutoff=CUTOFF,
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    result = write_sec_actuals_stage(tmp_path / "stage", {"SYN1": extraction})
+
+    with Path(result.quarterly_actuals_path).open(newline="", encoding="utf-8") as handle:
+        staged_rows = list(csv.DictReader(handle))
+    with Path(result.rejected_path).open(newline="", encoding="utf-8") as handle:
+        rejected_rows = list(csv.DictReader(handle))
+
+    assert len(staged_rows) == 1
+    assert staged_rows[0]["revenue_actual"] == "12.0"
+    assert staged_rows[0]["eps_actual"] == ""
+    assert result.rejected_row_count == 0
+    assert rejected_rows == []
+
+
 def test_stage_uses_injected_ticker_map_and_companyfacts_fetcher(tmp_path):
     result = stage_sec_quarterly_actuals(
         ["syn1", "missing"],
