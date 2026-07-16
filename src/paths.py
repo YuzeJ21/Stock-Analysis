@@ -24,6 +24,22 @@ _DATA_PROFILE_PATHS: dict[str, tuple[str, str]] = {
     "local": ("data/local", "outputs/local"),
 }
 
+PROFILE_LABELS: dict[str, str] = {
+    "default": "Default",
+    "demo": "Demo",
+    "local": "Local Research",
+}
+
+
+def profile_display_label(name: str) -> str:
+    """Return the stable user-facing label for a known data profile."""
+
+    normalized = str(name or "default").strip().lower()
+    if normalized not in PROFILE_LABELS:
+        available = ", ".join(sorted(PROFILE_LABELS))
+        raise ValueError(f"Unknown data profile '{normalized}'. Choose one of: {available}.")
+    return PROFILE_LABELS[normalized]
+
 
 def resolve_project_root(project_root: Path | str | None = None) -> Path:
     """Return the repository root used for config and default data paths."""

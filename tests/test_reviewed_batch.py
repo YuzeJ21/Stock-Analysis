@@ -133,6 +133,33 @@ def test_reviewed_batch_reports_stale_readiness_artifacts(tmp_path: Path):
     assert "Treat this packet as a stale-readiness scaffold, not execution approval." in rendered
 
 
+def test_readiness_freshness_uses_explicit_selected_profile_paths(tmp_path: Path):
+    default_root = _sample_root(tmp_path)
+    local_data = tmp_path / "data/local"
+    local_data.mkdir(parents=True)
+    for source in (default_root / "data").iterdir():
+        if source.name == "local":
+            continue
+        destination = local_data / source.name
+        if source.is_dir():
+            destination.mkdir(parents=True, exist_ok=True)
+            for child in source.iterdir():
+                if child.is_file():
+                    (destination / child.name).write_bytes(child.read_bytes())
+        elif source.is_file():
+            destination.write_bytes(source.read_bytes())
+    for path in [
+        local_data / "reports/ticker_readiness_report.csv",
+        local_data / "reports/feature_readiness_summary.csv",
+    ]:
+        os.utime(path, (path.stat().st_atime + 2000, path.stat().st_mtime + 2000))
+    (tmp_path / "data/reports/ticker_readiness_report.csv").unlink()
+
+    status = readiness_freshness_status(tmp_path, data_dir=local_data)
+
+    assert status.status == "current"
+
+
 def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
     root = _sample_root(tmp_path)
     _mark_readiness_current(root)

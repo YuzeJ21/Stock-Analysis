@@ -4,6 +4,7 @@ import html
 import json
 import os
 import re
+from dataclasses import asdict
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -241,6 +242,48 @@ from src.research_loop import (
     research_loop_strip_html,
     single_stock_research_loop_context,
 )
+from src.research_change_monitor import (
+    ResearchChangeEvent,
+    compare_optional_snapshots,
+)
+from src.research_change_snapshot import load_research_change_snapshot
+from src.research_comparison import (
+    ResearchComparison,
+    build_research_comparison,
+    comparison_matrix_rows,
+)
+from src.peer_read_through_map import (
+    PeerReadThroughMap,
+    build_peer_read_through_map,
+    peer_read_through_rows,
+)
+from src.research_review_queue import (
+    ResearchReviewItem,
+    build_research_review_queue,
+    load_review_resolutions,
+)
+from src.research_thesis_journal import (
+    JournalState,
+    derive_journal_state,
+    load_journal_entries,
+)
+from src.decision_process_scorecard import (
+    DecisionProcessScorecard,
+    build_decision_process_scorecard,
+    decision_process_rows,
+)
+from src.scenario_lab import (
+    ScenarioLabResult,
+    ScenarioParameters,
+    default_scenario_parameters,
+    run_scenario_lab,
+)
+from src.source_freshness_timeline import (
+    FreshnessTimeline,
+    build_source_freshness_timeline,
+    timeline_rows,
+)
+from src.valuation import ValuationInput
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
     latest_reviewed_batch_proof,
@@ -258,6 +301,7 @@ from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, late
 from src.review_metrics import build_metric_readiness_summary, configured_risk_free_rate
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
+from src.profile_context import ProfileContext, build_profile_context
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.paths import resolve_data_dir, resolve_data_profile, resolve_outputs_dir
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
@@ -280,6 +324,7 @@ from src.universe_scope_workflow import universe_scope_risk_handoff_cards, unive
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = resolve_outputs_dir(project_root=BASE_DIR)
 DATA_DIR = resolve_data_dir(project_root=BASE_DIR)
+ACTIVE_RESEARCH_CHANGE_STATE: dict[str, object] = {}
 PIPELINE_FILES = {
     "purpose_classification.csv": "Purpose Classification",
     "market_direction.csv": "Market Direction",
@@ -5095,6 +5140,644 @@ def render_public_app_shell(page_title: str) -> None:
     st.markdown(public_app_shell_html(page_title), unsafe_allow_html=True)
 
 
+def profile_trust_strip_html(context: ProfileContext, *, compact: bool = False) -> str:
+    """Return the selected-profile truth shared by every dashboard route."""
+
+    compact_class = " compact" if compact else ""
+    coverage = context.coverage
+    source_as_of = context.source_as_of or "Unavailable"
+    readiness_built_at = context.readiness_built_at or "Unavailable"
+    freshness = context.freshness_state.title() if context.freshness_state else "Unavailable"
+    readiness_item = (
+        f"<span><small>Readiness built</small>{html.escape(readiness_built_at)}</span>"
+        if not compact
+        else ""
+    )
+    return (
+        f"<section class='profile-trust-strip{compact_class}' "
+        "aria-label='Selected data profile and freshness'>"
+        "<div class='profile-trust-primary'>"
+        "<span class='profile-trust-label'>Data profile</span>"
+        f"<strong>{html.escape(context.profile_label)}</strong>"
+        "</div>"
+        f"<span><small>Sources through</small>{html.escape(source_as_of)}</span>"
+        f"{readiness_item}"
+        f"<span class='profile-freshness {html.escape(context.freshness_state)}'>"
+        f"<small>Freshness</small>{html.escape(freshness)}</span>"
+        f"<span><small>Price-ready</small>{coverage.price_ready:,}/{coverage.total:,}</span>"
+        f"<span><small>DCF-ready</small>{coverage.dcf_ready:,}/{coverage.total:,}</span>"
+        "</section>"
+    )
+
+
+def profile_advanced_details(context: ProfileContext) -> dict[str, object]:
+    """Return technical profile evidence kept outside the compact first read."""
+
+    return {
+        "Profile key": context.profile_key,
+        "Sources through": context.source_as_of or "Unavailable",
+        "Readiness built": context.readiness_built_at or "Unavailable",
+        "Snapshot identity": context.snapshot_identity or "Unavailable",
+        "Coverage": {
+            "total": context.coverage.total,
+            "price_ready": context.coverage.price_ready,
+            "fundamentals_ready": context.coverage.fundamentals_ready,
+            "dcf_ready": context.coverage.dcf_ready,
+            "peer_ready": context.coverage.peer_ready,
+        },
+        "Data directory": str(context.data_dir),
+        "Outputs directory": str(context.outputs_dir),
+        "Freshness detail": context.freshness_message,
+        "Refresh command": context.refresh_command or "No refresh required",
+        "Lane source dates": dict(context.lane_source_dates),
+        "Snapshot inputs": list(context.snapshot_inputs),
+    }
+
+
+def render_profile_trust_strip(context: ProfileContext, *, compact: bool = False) -> None:
+    st.markdown(profile_trust_strip_html(context, compact=compact), unsafe_allow_html=True)
+    with st.expander("Advanced: profile identity and freshness evidence", expanded=False):
+        st.json(profile_advanced_details(context))
+
+
+def research_change_home_summary(
+    queue: list[ResearchReviewItem] | tuple[ResearchReviewItem, ...],
+    *,
+    status: str = "changes_detected",
+) -> dict[str, str]:
+    count = len(queue)
+    if status == "baseline_missing" or status == "current_missing":
+        return {
+            "status": "baseline_missing",
+            "title": "Change baseline unavailable",
+            "answer": "No before-and-after comparison exists yet for this selected data profile.",
+            "primary_action": "Continue with the current readiness review",
+        }
+    if status not in {"changes_detected", "no_changes"}:
+        return {
+            "status": status,
+            "title": "Change review unavailable",
+            "answer": "The saved comparison evidence could not be verified.",
+            "primary_action": "Continue with the current readiness review",
+        }
+    if not count:
+        return {
+            "status": "no_changes",
+            "title": "No evidence-backed changes",
+            "answer": "The comparable snapshots have no unresolved research evidence changes.",
+            "primary_action": "Continue with Stock Selector",
+        }
+    return {
+        "status": "changes_detected",
+        "title": "Changed since your last review",
+        "answer": f"{count} unresolved evidence change{'s' if count != 1 else ''} need research review.",
+        "primary_action": f"Review {count} evidence change{'s' if count != 1 else ''}",
+    }
+
+
+def research_change_state_html(summary: dict[str, object]) -> str:
+    status = str(summary.get("status") or "unavailable")
+    return (
+        f"<section class='research-change-summary {html.escape(status)}' aria-label='Research changes'>"
+        "<div>"
+        "<span class='research-change-label'>Since last review</span>"
+        f"<strong>{html.escape(str(summary.get('title') or 'Change review unavailable'))}</strong>"
+        f"<p>{html.escape(str(summary.get('answer') or 'No comparison claim is available.'))}</p>"
+        "</div>"
+        f"<span class='research-change-action'>{html.escape(str(summary.get('primary_action') or 'Continue readiness review'))}</span>"
+        "</section>"
+    )
+
+
+def research_change_summary_is_primary(status: str) -> bool:
+    """Keep only comparable change evidence in the first-read page flow."""
+
+    return str(status or "").strip() in {"changes_detected", "no_changes"}
+
+
+def ticker_change_timeline(
+    events: list[ResearchChangeEvent] | tuple[ResearchChangeEvent, ...],
+    *,
+    ticker: str,
+) -> list[dict[str, str]]:
+    selected = str(ticker or "").strip().upper()
+    return [
+        {
+            "ticker": event.ticker,
+            "detected_at": event.detected_at,
+            "change": event.subtype.replace("_", " ").title(),
+            "evidence_status": event.evidence_status,
+            "research_task": event.suggested_research_task,
+            "source_ref": event.source_ref,
+        }
+        for event in events
+        if event.ticker.upper() == selected
+    ]
+
+
+def filter_selector_needs_review(
+    frame: pd.DataFrame,
+    *,
+    open_event_ids_by_ticker: dict[str, int],
+) -> pd.DataFrame:
+    if frame is None or frame.empty:
+        return pd.DataFrame(columns=list(frame.columns) if frame is not None else [])
+    ticker_column = "Ticker" if "Ticker" in frame.columns else "ticker" if "ticker" in frame.columns else ""
+    if not ticker_column:
+        return frame.iloc[0:0].copy()
+    counts = {str(key).upper(): int(value) for key, value in open_event_ids_by_ticker.items() if int(value) > 0}
+    result = frame.loc[frame[ticker_column].astype(str).str.upper().isin(counts)].copy()
+    result["Change count"] = result[ticker_column].astype(str).str.upper().map(counts).fillna(0).astype(int)
+    result["Change reason"] = result["Change count"].map(
+        lambda count: f"{count} unresolved evidence change{'s' if count != 1 else ''}"
+    )
+    return result
+
+
+def data_health_change_summary(events: tuple[ResearchChangeEvent, ...]) -> dict[str, str]:
+    families = sorted({event.family.replace("_", " ") for event in events})
+    return {
+        "status": "changes_detected" if events else "no_changes",
+        "title": "Readiness evidence changes" if events else "No readiness evidence changes",
+        "answer": (
+            f"{len(events)} change event(s) span {', '.join(families)}."
+            if events
+            else "No comparable evidence change requires lane review."
+        ),
+        "primary_action": "Review affected evidence lanes" if events else "Continue with the lane summary",
+    }
+
+
+def proof_history_event_outcomes(resolutions) -> list[dict[str, str]]:
+    return [
+        {
+            "Event ID": row.event_id,
+            "Ticker": row.ticker,
+            "Outcome": row.review_status,
+            "Reviewed at": row.reviewed_at,
+            "Reviewer": row.reviewer,
+            "Resolution note": row.resolution_note,
+        }
+        for row in sorted(resolutions, key=lambda item: item.reviewed_at, reverse=True)
+    ]
+
+
+def load_dashboard_research_change_state(context: ProfileContext) -> dict[str, object]:
+    root = context.outputs_dir / "research_changes"
+    prior_path = root / "snapshot-prior.json"
+    current_path = root / "snapshot-current.json"
+    try:
+        before = load_research_change_snapshot(prior_path) if prior_path.is_file() else None
+        after = load_research_change_snapshot(current_path) if current_path.is_file() else None
+        result = compare_optional_snapshots(before, after)
+        ledger_path = BASE_DIR / "data" / "reviewed_research_events.csv"
+        resolutions = load_review_resolutions(ledger_path)
+        queue = build_research_review_queue(result.events, resolutions=resolutions)
+        return {
+            "status": result.status,
+            "message": result.message,
+            "events": result.events,
+            "queue": queue,
+            "resolutions": resolutions,
+            "prior_path": prior_path,
+            "current_path": current_path,
+        }
+    except ValueError as exc:
+        return {
+            "status": "unavailable",
+            "message": str(exc),
+            "events": (),
+            "queue": (),
+            "resolutions": (),
+            "prior_path": prior_path,
+            "current_path": current_path,
+        }
+
+
+def render_research_change_route_summary(
+    page_title: str,
+    state: dict[str, object],
+    *,
+    ticker: str = "",
+) -> None:
+    status = str(state.get("status") or "unavailable")
+    events = tuple(state.get("events") or ())
+    queue = tuple(state.get("queue") or ())
+    if page_title == "Data Health" and status == "changes_detected":
+        summary = data_health_change_summary(events)
+    else:
+        summary = research_change_home_summary(queue, status=status)
+    if page_title == "Single-Stock Report" and ticker:
+        timeline = ticker_change_timeline(events, ticker=ticker)
+        if timeline:
+            summary = {
+                "status": "changes_detected",
+                "title": f"{ticker.upper()} changed since review",
+                "answer": f"{len(timeline)} evidence change(s) are recorded for the selected ticker.",
+                "primary_action": "Review the ticker evidence timeline",
+            }
+    if research_change_summary_is_primary(status):
+        st.markdown(research_change_state_html(summary), unsafe_allow_html=True)
+    with st.expander("Advanced: research change evidence", expanded=False):
+        if events:
+            st.dataframe(pd.DataFrame([event.__dict__ for event in events]), width="stretch", hide_index=True)
+        else:
+            st.caption(str(state.get("message") or "No comparable research change evidence is available."))
+        if page_title == PROOF_HISTORY_PATH_TITLE:
+            outcomes = proof_history_event_outcomes(tuple(state.get("resolutions") or ()))
+            if outcomes:
+                st.dataframe(pd.DataFrame(outcomes), width="stretch", hide_index=True)
+
+
+def research_thesis_journal_summary(state: JournalState) -> dict[str, str]:
+    """Return one selected-ticker journal answer without exposing raw entry fields."""
+
+    if state.current_thesis is None:
+        return {
+            "status": "not_started",
+            "title": "No reviewed research thesis",
+            "answer": "The journal is empty for this profile and ticker; the product does not create one automatically.",
+            "evidence": "No supporting, conflicting, catalyst, risk, or invalidation evidence is recorded.",
+            "boundary": "Confidence and review history remain unavailable until a reviewer records them.",
+            "confidence": "",
+            "primary_action": "Record a reviewed hypothesis and review date",
+        }
+    evidence = (
+        f"{len(state.supporting_evidence)} supporting, "
+        f"{len(state.conflicting_evidence)} conflicting, "
+        f"{len(state.contextual_evidence)} contextual evidence item(s)"
+    )
+    invalidation_count = len(state.invalidation_conditions)
+    boundary = (
+        f"{invalidation_count} invalidation condition{'s' if invalidation_count != 1 else ''}; "
+        f"next review {state.review_due_date or 'not scheduled'}."
+    )
+    confidence = f"{state.confidence_history[-1][1]:.2f}" if state.confidence_history else ""
+    if state.status == "incomplete":
+        primary_action = "Add a source-backed invalidation condition"
+        title = "Research thesis needs an invalidation condition"
+    elif state.status == "overdue":
+        primary_action = "Review the hypothesis and conflicting evidence"
+        title = "Research thesis review is overdue"
+    elif state.conflicting_evidence:
+        primary_action = "Review the latest conflicting evidence"
+        title = "Reviewed research thesis"
+    else:
+        primary_action = "Revisit when evidence changes or the review date arrives"
+        title = "Reviewed research thesis"
+    return {
+        "status": state.status,
+        "title": title,
+        "answer": state.current_thesis.summary,
+        "evidence": evidence,
+        "boundary": boundary,
+        "confidence": confidence,
+        "primary_action": primary_action,
+    }
+
+
+def research_thesis_journal_html(summary: dict[str, str]) -> str:
+    status = html.escape(str(summary.get("status") or "unavailable"))
+    confidence = str(summary.get("confidence") or "").strip()
+    confidence_text = f" Documented confidence: {html.escape(confidence)}." if confidence else ""
+    return (
+        f"<section class='research-change-summary research-thesis-journal {status}' "
+        "aria-label='Research thesis and evidence journal'>"
+        "<div>"
+        "<span class='research-change-label'>Research Thesis Journal</span>"
+        f"<strong>{html.escape(str(summary.get('title') or 'Journal unavailable'))}</strong>"
+        f"<p>{html.escape(str(summary.get('answer') or 'No journal answer is available.'))}</p>"
+        f"<p>{html.escape(str(summary.get('evidence') or 'No reviewed evidence is recorded.'))} "
+        f"{html.escape(str(summary.get('boundary') or 'Review boundary unavailable.'))}{confidence_text}</p>"
+        "</div>"
+        f"<span class='research-change-action'>{html.escape(str(summary.get('primary_action') or 'Review journal evidence'))}</span>"
+        "</section>"
+    )
+
+
+def research_thesis_journal_detail_rows(state: JournalState) -> list[dict[str, str]]:
+    return [
+        {
+            "Entry ID": row.entry_id,
+            "Type": row.entry_type,
+            "Recorded at": row.recorded_at,
+            "Effective at": row.effective_at,
+            "Reviewer": row.reviewer,
+            "Summary": row.summary,
+            "Direction": row.evidence_direction,
+            "Source": row.source,
+            "Source reference": row.source_ref,
+            "Source published at": row.source_published_at,
+            "Confidence": row.confidence,
+            "Review due": row.review_due_date,
+            "Supersedes": row.supersedes_entry_id,
+        }
+        for row in state.entries
+    ]
+
+
+def decision_process_scorecard_cards(scorecard: DecisionProcessScorecard) -> list[dict[str, object]]:
+    if scorecard.action_needed_count:
+        title = (
+            f"{scorecard.action_needed_count} process action needs review"
+            if scorecard.action_needed_count == 1
+            else f"{scorecard.action_needed_count} process actions need review"
+        )
+        body = (
+            f"{scorecard.complete_count} check(s) are complete and {scorecard.neutral_count} are neutral or readiness-gated. "
+            "This is process documentation only, not a company grade."
+        )
+        badges = ["Process work needed", "No performance score"]
+    else:
+        title = "Research process is documented"
+        body = (
+            f"{scorecard.complete_count} check(s) are complete and {scorecard.neutral_count} are neutral or readiness-gated. "
+            "New evidence can reopen review work; this is not a company grade."
+        )
+        badges = ["Process documented", "Research-only"]
+    return [{"kicker": "DECISION PROCESS", "title": title, "body": body, "badges": badges}]
+
+
+def decision_process_scorecard_frame(scorecard: DecisionProcessScorecard) -> pd.DataFrame:
+    return pd.DataFrame(
+        decision_process_rows(scorecard),
+        columns=["Process Check", "State", "Evidence", "Next Review Step"],
+    )
+
+
+def load_dashboard_journal_state(
+    context: ProfileContext,
+    *,
+    ticker: str,
+    ledger_path: Path | None = None,
+    as_of: str | None = None,
+) -> JournalState:
+    """Load only the selected profile's reviewed journal rows."""
+
+    return derive_journal_state(
+        load_journal_entries(ledger_path or (BASE_DIR / "data" / "research_thesis_journal.csv")),
+        profile_key=context.profile_key,
+        ticker=ticker,
+        as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+    )
+
+
+def scenario_lab_input_from_report(report_payload: dict[str, object]) -> ValuationInput:
+    """Build a scenario input from the selected report without inventing fields."""
+
+    price = report_payload.get("price_snapshot", {}) or {}
+    financials = report_payload.get("financial_summary", {}) or {}
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    return ValuationInput(
+        ticker=str(report_payload.get("ticker") or "").strip().upper(),
+        current_price=price.get("price"),
+        revenue=financials.get("revenue"),
+        revenue_growth=financials.get("revenue_growth"),
+        free_cash_flow=financials.get("free_cash_flow"),
+        fcf_margin=financials.get("fcf_margin"),
+        operating_margin=financials.get("operating_margin"),
+        profit_margin=financials.get("profit_margin"),
+        eps=financials.get("eps"),
+        ebitda=financials.get("ebitda"),
+        shares_outstanding=financials.get("shares_outstanding"),
+        cash=financials.get("cash"),
+        debt=financials.get("debt"),
+        net_debt=financials.get("net_debt"),
+        market_cap=financials.get("market_cap"),
+        trailing_pe=financials.get("trailing_pe"),
+        forward_pe=financials.get("forward_pe"),
+        price_to_book=financials.get("price_to_book"),
+        source_metadata=[dict(row) for row in (valuation.get("source_metadata") or [])],
+        screener_context=dict(report_payload.get("screener_context", {}) or {}),
+    )
+
+
+def scenario_lab_status_cards(result: ScenarioLabResult) -> list[dict[str, object]]:
+    """Return one truthful Scenario Lab answer for the selected ticker."""
+
+    if result.status != "calculated":
+        return [
+            {
+                "kicker": "SCENARIO LAB",
+                "title": public_status_label(result.status),
+                "body": result.reason,
+                "badges": ["No scenario value shown", "Source-backed inputs required"],
+            }
+        ]
+    return [
+        {
+            "kicker": "SCENARIO LAB",
+            "title": "Session-local assumption review",
+            "body": "Scenario math is available from the selected source-backed DCF baseline. Canonical data is unchanged.",
+            "badges": [f"{len(result.changed_assumptions)} assumption change(s)", "Research-only"],
+        }
+    ]
+
+
+def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) -> None:
+    """Render bounded, session-local DCF assumption controls inside Valuation."""
+
+    valuation_input = scenario_lab_input_from_report(report_payload)
+    try:
+        defaults = default_scenario_parameters(valuation_input)
+    except ValueError:
+        defaults = ScenarioParameters(0.08, 0.15, 0.09, 0.03, 5)
+
+    st.markdown("#### Scenario Lab")
+    render_context_note(
+        "Test assumptions without changing source data.",
+        "Controls start from the selected report where available. Results are session-local, research-only, and withheld when DCF readiness or provenance is missing.",
+    )
+    control_columns = st.columns(2)
+    with control_columns[0]:
+        revenue_growth = st.slider("Revenue growth", min_value=-0.50, max_value=0.40, value=defaults.revenue_growth, step=0.01)
+        fcf_margin = st.slider("FCF margin", min_value=-0.50, max_value=0.45, value=defaults.fcf_margin, step=0.01)
+        forecast_years = st.slider("Forecast years", min_value=1, max_value=10, value=defaults.forecast_years, step=1)
+    with control_columns[1]:
+        wacc = st.slider("WACC", min_value=0.05, max_value=0.20, value=defaults.wacc, step=0.005)
+        terminal_growth = st.slider("Terminal growth", min_value=-0.02, max_value=0.05, value=defaults.terminal_growth, step=0.005)
+
+    result = run_scenario_lab(
+        valuation_input,
+        ScenarioParameters(revenue_growth, fcf_margin, wacc, terminal_growth, forecast_years),
+        profile_key=profile_key,
+        dcf_ready=bool(_stock_report_payload_readiness(report_payload).get("dcf_ready")),
+        asset_type=stock_report_inferred_asset_type(report_payload),
+    )
+    render_signal_cards(scenario_lab_status_cards(result), show_commands=False)
+    if result.status != "calculated" or result.baseline_result is None or result.scenario_result is None:
+        return
+
+    metrics = st.columns(4)
+    metrics[0].metric("Baseline / Share", report_display_value(result.baseline_result.fair_value_per_share, "currency"))
+    metrics[1].metric("Scenario / Share", report_display_value(result.scenario_result.fair_value_per_share, "currency"))
+    metrics[2].metric(
+        "Sensitivity Range",
+        f"{report_display_value(result.sensitivity_low, 'currency')} to {report_display_value(result.sensitivity_high, 'currency')}",
+    )
+    metrics[3].metric("Terminal Value Share", report_display_value(result.terminal_value_contribution, "percent"))
+
+    if result.changed_assumptions:
+        st.dataframe(pd.DataFrame(result.changed_assumptions), width="stretch", hide_index=True)
+    else:
+        st.caption("No assumption differs from the selected source-backed baseline.")
+
+    with st.expander("Advanced: scenario inputs and sensitivity", expanded=False):
+        st.caption(f"Scenario identity: {result.input_identity}")
+        if result.source_metadata:
+            st.dataframe(pd.DataFrame(result.source_metadata), width="stretch", hide_index=True)
+        if result.sensitivity_table is not None and result.sensitivity_table.fair_value_grid:
+            sensitivity_frame = pd.DataFrame(
+                result.sensitivity_table.fair_value_grid,
+                index=[f"WACC {value:.1%}" for value in result.sensitivity_table.wacc_values],
+                columns=[f"TG {value:.1%}" for value in result.sensitivity_table.terminal_growth_values],
+            )
+            st.dataframe(sensitivity_frame, width="stretch")
+        for warning in result.warnings:
+            st.caption(warning)
+
+
+def peer_read_through_summary_cards(read_through: PeerReadThroughMap) -> list[dict[str, object]]:
+    """Return the compact read-through answer before relationship evidence."""
+
+    if read_through.status == "excluded":
+        return [
+            {
+                "kicker": "PEER READ-THROUGH",
+                "title": "Excluded for monitor context",
+                "body": "Operating-company peer read-through is not applied to ETF, index, or fund monitor rows.",
+                "badges": ["Excluded", "Not failed"],
+            }
+        ]
+    if not read_through.edges:
+        return [
+            {
+                "kicker": "PEER READ-THROUGH",
+                "title": "No relationship evidence loaded",
+                "body": "Add or review peer relationships before interpreting company results as contextual read-through.",
+                "badges": ["Withheld", "No inferred peers"],
+            }
+        ]
+    if read_through.reviewable_count:
+        title = (
+            f"{read_through.reviewable_count} peer result ready for contextual review"
+            if read_through.reviewable_count == 1
+            else f"{read_through.reviewable_count} peer results ready for contextual review"
+        )
+        body = (
+            f"{read_through.withheld_count} relationship(s) still need proof. Reviewable context does not change "
+            "a forecast, valuation, readiness state, or action."
+        )
+        badges = ["Context only", f"{read_through.trusted_count} trusted"]
+    else:
+        title = "Peer read-through remains withheld"
+        body = (
+            f"{read_through.trusted_count} trusted and {read_through.candidate_count} candidate relationship(s) are visible, "
+            "but relationship, result, or fiscal-timing proof is incomplete."
+        )
+        badges = ["Evidence gated", "No forecast change"]
+    return [{"kicker": "PEER READ-THROUGH", "title": title, "body": body, "badges": badges}]
+
+
+def peer_read_through_frame(read_through: PeerReadThroughMap) -> pd.DataFrame:
+    return pd.DataFrame(
+        peer_read_through_rows(read_through),
+        columns=[
+            "Peer",
+            "Relationship",
+            "Business Overlap",
+            "Fiscal Timing",
+            "Peer Result",
+            "Read-Through State",
+            "Missing Proof",
+        ],
+    )
+
+
+def render_peer_read_through_map(report_payload: dict[str, object], *, profile_key: str) -> None:
+    read_through = build_peer_read_through_map(report_payload, profile_key=profile_key)
+    st.markdown("#### Peer Read-Through Map")
+    render_context_note(
+        "Which peer results can be reviewed as context?",
+        "Trusted relationships, source-backed actual results, and explicit fiscal periods are checked separately. Candidate peers never become trusted automatically.",
+    )
+    render_signal_cards(peer_read_through_summary_cards(read_through), show_commands=False)
+    frame = peer_read_through_frame(read_through)
+    if not frame.empty:
+        st.dataframe(frame, width="stretch", hide_index=True)
+    with st.expander("Advanced: peer read-through evidence", expanded=False):
+        st.caption(f"Map identity: {read_through.map_identity}")
+        st.caption(read_through.boundary)
+        if read_through.edges:
+            st.dataframe(pd.DataFrame([asdict(edge) for edge in read_through.edges]), width="stretch", hide_index=True)
+        else:
+            st.caption("No peer relationship evidence is available for this ticker.")
+
+
+def source_freshness_summary_cards(timeline: FreshnessTimeline) -> list[dict[str, object]]:
+    """Return one compact chronology answer without turning time into proof."""
+
+    known_count = len(timeline.events) - timeline.unknown_timestamp_count
+    unknown_label = (
+        f"{timeline.unknown_timestamp_count} unknown timestamp"
+        f"{'s' if timeline.unknown_timestamp_count != 1 else ''}"
+    )
+    latest = timeline.latest_known_timestamp or "No known timestamp"
+    return [
+        {
+            "kicker": "SOURCE TIMELINE",
+            "title": f"{known_count} dated event(s); {unknown_label}",
+            "body": (
+                f"Latest known event: {latest}. Report assembly, retrieval, market observation, and financial effective "
+                "dates remain separate; one cannot substitute for another."
+            ),
+            "badges": [timeline.profile_key, "Read-only evidence"],
+        }
+    ]
+
+
+def source_freshness_timeline_frame(timeline: FreshnessTimeline) -> pd.DataFrame:
+    kind_labels = {
+        "report_generated": "Report generated",
+        "source_retrieved": "Source retrieved",
+        "market_observed": "Market observed",
+        "financial_effective": "Financial effective",
+        "source_published": "Source published",
+        "forecast_cutoff": "Forecast cutoff",
+        "revision_recorded": "Revision recorded",
+    }
+    rows = []
+    for event in timeline.events:
+        rows.append(
+            {
+                "When": event.timestamp or "Unknown",
+                "Time Type": kind_labels.get(event.timestamp_kind, event.timestamp_kind.replace("_", " ").title()),
+                "Lane": event.lane.replace("_", " ").title(),
+                "Source": event.source or "Not available",
+                "State": event.freshness_state.replace("_", " ").capitalize(),
+                "Evidence": event.note or "No additional source note.",
+            }
+        )
+    return pd.DataFrame(rows, columns=["When", "Time Type", "Lane", "Source", "State", "Evidence"])
+
+
+def render_source_freshness_timeline(report_payload: dict[str, object], *, profile_key: str) -> None:
+    timeline = build_source_freshness_timeline(report_payload, profile_key=profile_key)
+    render_signal_cards(source_freshness_summary_cards(timeline), show_commands=False)
+    with st.expander("Source freshness timeline", expanded=False):
+        frame = source_freshness_timeline_frame(timeline)
+        if frame.empty:
+            st.caption("No timestamped source evidence is available for this selected ticker.")
+        else:
+            st.dataframe(frame, width="stretch", hide_index=True)
+    with st.expander("Advanced: freshness provenance", expanded=False):
+        st.caption(f"Timeline identity: {timeline.timeline_identity}")
+        if timeline.events:
+            st.dataframe(pd.DataFrame(timeline_rows(timeline)), width="stretch", hide_index=True)
+        else:
+            st.caption("No source chronology records are available.")
+
+
 def public_home_overview_html(summary: dict[str, object]) -> str:
     """Return Home's public first-read as one decision surface instead of stacked cards."""
 
@@ -5144,6 +5827,82 @@ def render_public_shell_mode_styles() -> None:
         }
         .public-app-shell {
           margin: 0 0 1rem;
+        }
+        .profile-trust-strip {
+          display: grid;
+          grid-template-columns: minmax(9rem, 1.2fr) repeat(5, minmax(7rem, 1fr));
+          gap: 0.55rem;
+          align-items: stretch;
+          margin: 0.2rem 0 0.7rem;
+          padding: 0.68rem 0;
+          border-top: 1px solid #d9e0dc;
+          border-bottom: 1px solid #d9e0dc;
+          color: #243b53;
+        }
+        .profile-trust-strip.compact {
+          grid-template-columns: minmax(9rem, 1.2fr) repeat(4, minmax(7rem, 1fr));
+        }
+        .profile-trust-strip > span,
+        .profile-trust-primary {
+          display: grid;
+          align-content: center;
+          min-width: 0;
+          gap: 0.12rem;
+          padding: 0 0.58rem;
+          border-left: 1px solid #e6ebe8;
+          font-size: 0.8rem;
+          line-height: 1.28;
+          overflow-wrap: anywhere;
+        }
+        .profile-trust-primary {
+          padding-left: 0;
+          border-left: 0;
+        }
+        .profile-trust-strip small,
+        .profile-trust-label {
+          color: #667085;
+          font-size: 0.68rem;
+          font-weight: 700;
+          line-height: 1.2;
+          text-transform: uppercase;
+        }
+        .profile-trust-strip strong { color: #102a43; }
+        .profile-freshness.current { color: #0f766e; }
+        .profile-freshness.stale,
+        .profile-freshness.mixed { color: #a15c00; }
+        .profile-freshness.missing { color: #b42318; }
+        .research-change-summary {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 1rem;
+          align-items: center;
+          margin: 0.35rem 0 0.6rem;
+          padding: 0.72rem 0;
+          border-bottom: 1px solid #e6ebe8;
+        }
+        .research-change-summary strong {
+          display: block;
+          margin-top: 0.12rem;
+          color: #102a43;
+          font-size: 0.94rem;
+        }
+        .research-change-summary p {
+          margin: 0.18rem 0 0;
+          color: #53616f;
+          font-size: 0.82rem;
+        }
+        .research-change-label {
+          color: #0f766e;
+          font-size: 0.68rem;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+        .research-change-action {
+          max-width: 15rem;
+          color: #0b3b36;
+          font-size: 0.78rem;
+          font-weight: 750;
+          text-align: right;
         }
         .public-app-topline {
           display: flex;
@@ -5601,6 +6360,21 @@ def render_public_shell_mode_styles() -> None:
           }
           .public-page-intro p {
             font-size: 0.88rem;
+          }
+          .profile-trust-strip {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.7rem 0;
+          }
+          .profile-trust-strip > span,
+          .profile-trust-primary {
+            padding: 0 0.5rem;
+          }
+          .profile-trust-primary { padding-left: 0; }
+          .profile-trust-strip > :nth-child(odd) { border-left: 0; }
+          .research-change-summary { grid-template-columns: 1fr; }
+          .research-change-action {
+            max-width: none;
+            text-align: left;
           }
           .public-home-overview {
             grid-template-columns: 1fr;
@@ -27556,8 +28330,33 @@ def stock_selector_queue_frame(
         rows.append(
             {
                 "Ticker": ticker,
+                "Asset Type": _selector_text(
+                    readiness_row if readiness_row is not None else row,
+                    _selector_column(ticker_readiness_frame, "asset_type") if ticker_readiness_frame is not None else None,
+                    fallback="Not available",
+                ),
                 "Research State": _selector_text(row, decision_col, fallback="Research state unavailable"),
                 "Readiness": readiness_state,
+                "Price Ready": (
+                    str(readiness_row.get("price_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+                    if readiness_row is not None
+                    else None
+                ),
+                "Fundamentals Ready": (
+                    str(readiness_row.get("fundamentals_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+                    if readiness_row is not None
+                    else None
+                ),
+                "DCF Ready": (
+                    str(readiness_row.get("dcf_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+                    if readiness_row is not None
+                    else None
+                ),
+                "Trusted Peer Ready": (
+                    str(readiness_row.get("peer_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+                    if readiness_row is not None
+                    else None
+                ),
                 "Review Detail": _selector_text(row, subtype_col, fallback="Review detail unavailable"),
                 "Sector / Theme": " / ".join(
                     part
@@ -27684,11 +28483,11 @@ def stock_selector_shortlist_html(frame: pd.DataFrame) -> str:
         return (
             "<div class='selector-shortlist empty'>"
             "<div class='selector-shortlist-title'>Selected tickers for review</div>"
-            "<div class='selector-shortlist-body'>Select up to five rows to inspect readiness, blockers, and next proof steps before opening one report.</div>"
+            "<div class='selector-shortlist-body'>Select two or three rows to compare readiness, blockers, and reviewed evidence before opening one report.</div>"
             "</div>"
         )
     cards: list[str] = []
-    for _, row in frame.head(5).iterrows():
+    for _, row in frame.head(3).iterrows():
         ticker = str(row.get("Ticker", "")).strip().upper() or "TICKER"
         readiness = _selector_public_fragment(row.get("Readiness", "Needs readiness check"), max_chars=48)
         detail = _selector_public_fragment(row.get("Review Detail", "Review detail unavailable"), max_chars=72)
@@ -27711,6 +28510,10 @@ def stock_selector_shortlist_html(frame: pd.DataFrame) -> str:
         + "".join(cards)
         + "</div></div>"
     )
+
+
+def research_comparison_frame(comparison: ResearchComparison) -> pd.DataFrame:
+    return pd.DataFrame(comparison_matrix_rows(comparison))
 
 
 def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, limit: int = 30) -> str:
@@ -27938,6 +28741,18 @@ def render_stock_selector(
         help="Search readiness-backed rows before opening one saved report.",
         key="stock-selector-search",
     ).strip()
+    open_change_counts: dict[str, int] = {}
+    for item in tuple(ACTIVE_RESEARCH_CHANGE_STATE.get("queue") or ()):
+        ticker_key = item.event.ticker.upper()
+        open_change_counts[ticker_key] = open_change_counts.get(ticker_key, 0) + 1
+    needs_review_only = False
+    if open_change_counts:
+        needs_review_only = st.checkbox(
+            "Needs evidence review",
+            value=False,
+            help="Shows only tickers with unresolved source-backed change events. This is a research queue, not a ranking.",
+            key="stock-selector-needs-review",
+        )
     filter_container = st.expander("Advanced: filters and selection guidance", expanded=False)
     with filter_container:
         preset_label = st.selectbox(
@@ -27994,6 +28809,8 @@ def render_stock_selector(
         theme_filter=theme_filter,
         search=search,
     )
+    if needs_review_only:
+        filtered = filter_selector_needs_review(filtered, open_event_ids_by_ticker=open_change_counts)
 
     if public_mode:
         st.markdown(public_selector_result_summary_html(len(filtered), len(selector_frame)), unsafe_allow_html=True)
@@ -28010,15 +28827,35 @@ def render_stock_selector(
                 "Selected tickers for review",
                 shortlist_options,
                 default=[],
-                max_selections=5,
-                help="Optional selected-ticker tray for readiness, blockers, and proof steps. It does not create conclusions or account actions.",
+                max_selections=3,
+                help="Select two or three tickers to compare readiness, blockers, reviewed catalysts, and risks without a score or ranking.",
                 key="stock-selector-shortlist",
             )
             if selected_shortlist:
+                selected_frame = stock_selector_shortlist_frame(filtered, selected_shortlist)
                 st.markdown(
-                    stock_selector_shortlist_html(stock_selector_shortlist_frame(filtered, selected_shortlist)),
+                    stock_selector_shortlist_html(selected_frame),
                     unsafe_allow_html=True,
                 )
+                if len(selected_shortlist) < 2:
+                    st.caption("Select one more ticker to open the evidence comparison.")
+                else:
+                    journal_states: dict[str, JournalState] = {}
+                    try:
+                        comparison_context = build_profile_context(project_root=BASE_DIR)
+                        for selected_ticker in selected_shortlist:
+                            journal_states[selected_ticker] = load_dashboard_journal_state(
+                                comparison_context,
+                                ticker=selected_ticker,
+                            )
+                    except ValueError:
+                        journal_states = {}
+                    comparison = build_research_comparison(selected_frame, journal_states=journal_states)
+                    render_context_note(
+                        "Research evidence comparison.",
+                        comparison.boundary,
+                    )
+                    st.dataframe(research_comparison_frame(comparison), width="stretch", hide_index=True)
     st.markdown(
         stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=10 if public_mode else 15),
         unsafe_allow_html=True,
@@ -28845,7 +29682,13 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     render_table(frame, title.lower().replace(" ", "-"), show_reason_details, show_focus_cards=False)
 
 
-def render_single_stock_report(provider, show_source_details: bool, *, public_mode: bool = True) -> None:
+def render_single_stock_report(
+    provider,
+    show_source_details: bool,
+    *,
+    public_mode: bool = True,
+    profile_context: ProfileContext | None = None,
+) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
@@ -29040,6 +29883,51 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
                 st.table(clean_display_frame(single_answer_frame))
                 st.table(clean_display_frame(report_answer_frame))
                 render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
+        journal_state = None
+        try:
+            journal_state = load_dashboard_journal_state(
+                profile_context or build_profile_context(project_root=BASE_DIR),
+                ticker=ticker,
+            )
+            journal_summary = research_thesis_journal_summary(journal_state)
+        except ValueError as exc:
+            journal_summary = {
+                "status": "unavailable",
+                "title": "Research journal unavailable",
+                "answer": "The reviewed journal could not be verified for this selected profile and ticker.",
+                "evidence": "No thesis or evidence claim is shown.",
+                "boundary": str(exc),
+                "confidence": "",
+                "primary_action": "Review the journal contract before using it",
+            }
+        st.markdown(research_thesis_journal_html(journal_summary), unsafe_allow_html=True)
+        with st.expander("Advanced: thesis and evidence history", expanded=False):
+            if journal_state is not None and journal_state.entries:
+                st.dataframe(
+                    pd.DataFrame(research_thesis_journal_detail_rows(journal_state)),
+                    width="stretch",
+                    hide_index=True,
+                )
+            else:
+                st.caption("No verified journal history is available for this selected profile and ticker.")
+        with st.expander("Decision-process scorecard", expanded=False):
+            if journal_state is None:
+                st.caption("The decision-process checks remain unavailable until the selected-profile journal can be verified.")
+            else:
+                try:
+                    scorecard = build_decision_process_scorecard(
+                        report_payload,
+                        profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+                        journal_state=journal_state,
+                        review_items=tuple(ACTIVE_RESEARCH_CHANGE_STATE.get("queue") or ()),
+                    )
+                    render_signal_cards(decision_process_scorecard_cards(scorecard), show_commands=False)
+                    st.dataframe(decision_process_scorecard_frame(scorecard), width="stretch", hide_index=True)
+                    with st.expander("Advanced: process identity", expanded=False):
+                        st.caption(f"Process identity: {scorecard.scorecard_identity}")
+                        st.caption(scorecard.boundary)
+                except ValueError as exc:
+                    st.caption(f"Decision-process checks unavailable: {exc}")
     if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):
         render_context_note(
             "Detailed report stays closed.",
@@ -29290,6 +30178,16 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
             st.markdown("#### Bull / Base / Bear Scenarios")
             st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
 
+        render_scenario_lab(
+            report_payload,
+            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+        )
+
+        render_peer_read_through_map(
+            report_payload,
+            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+        )
+
         st.markdown("#### Peer-Relative Valuation")
         peer_summary = stock_report_peer_relative_summary(report_payload)
         peer_columns = st.columns(4)
@@ -29397,6 +30295,10 @@ def render_single_stock_report(provider, show_source_details: bool, *, public_mo
 
     with sources_tab:
         render_context_note("Source readiness and gaps.", "Use this tab to verify source readiness, missing inputs, and how much of the report is based on local coverage versus unavailable optional files.")
+        render_source_freshness_timeline(
+            report_payload,
+            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+        )
         st.markdown("#### Missing Data")
         warning_text = stock_report_missing_data_text(report_payload.get("missing_data_warnings", []))
         if report_payload.get("missing_data_warnings"):
@@ -32589,9 +33491,13 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
 
 
 def main() -> None:
+    global ACTIVE_RESEARCH_CHANGE_STATE
     st.set_page_config(page_title="Stock Research Command Center", layout="wide")
     apply_dashboard_theme()
     data_profile = resolve_data_profile(project_root=BASE_DIR)
+    profile_context = build_profile_context(project_root=BASE_DIR)
+    research_change_state = load_dashboard_research_change_state(profile_context)
+    ACTIVE_RESEARCH_CHANGE_STATE = research_change_state
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
     page_query_value = st.query_params.get("page")
@@ -32712,6 +33618,7 @@ def main() -> None:
         render_public_shell_mode_styles()
         render_public_workflow_skip_link(selected_page, st.query_params)
         render_public_app_shell(selected_page)
+        render_profile_trust_strip(profile_context, compact=True)
         render_public_workflow_skip_target()
     else:
         render_app_header(
@@ -32720,7 +33627,15 @@ def main() -> None:
             compact=True,
             current_page=selected_page,
         )
+        render_profile_trust_strip(profile_context, compact=True)
         render_public_workflow_skip_target()
+
+    if selected_page in PUBLIC_PATH_PAGE_TITLES:
+        render_research_change_route_summary(
+            selected_page,
+            research_change_state,
+            ticker=str(st.query_params.get("ticker") or ""),
+        )
 
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
 
@@ -32745,7 +33660,12 @@ def main() -> None:
     elif selected_page in {"Market Direction", "Momentum Leaders", "Portfolio Review", "Value / Re-rating", "Final Watchlist"}:
         render_output_tab(selected_page, output_frames, show_reason_details)
     elif selected_page == "Single-Stock Report":
-        render_single_stock_report(provider, show_source_details, public_mode=public_demo_mode)
+        render_single_stock_report(
+            provider,
+            show_source_details,
+            public_mode=public_demo_mode,
+            profile_context=profile_context,
+        )
     elif selected_page == "Data Health":
         render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)
     elif selected_page == PROOF_HISTORY_PATH_TITLE:

@@ -19,7 +19,7 @@ This repository is ready to review as a controlled GitHub/LinkedIn portfolio dem
 | What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |
 | What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |
 
-First review move: open Stock Selector, choose a ticker such as `NVDA`, read the Single-Stock Report answer, then open Data Health only when an input is blocked. The tracked [Data Profiles](docs/DATA_PROFILES.md) guide separates this compact public snapshot from the ignored local research workspace.
+First review move: open Stock Selector, choose a ticker such as `NVDA`, read the Single-Stock Report answer, then open Data Health only when an input is blocked. The selected-profile trust strip follows [Data Profiles](docs/DATA_PROFILES.md) and shows source/readiness dates, identity, freshness, and matching counts. The local Change Monitor queues same-profile evidence changes as research tasks, never recommendations. The append-only Research Thesis Journal preserves reviewer-authored hypotheses, evidence, invalidation conditions, confidence history, and review dates without changing readiness. The session-local Scenario Lab varies bounded DCF assumptions without writing canonical data. The Source Freshness Timeline separates effective, retrieval, market, and report times. The operator-only Research Comparison View compares two or three selected tickers across evidence availability and reviewed journal context without a score or winner. The Peer Read-Through Map keeps candidate and trusted relationships separate and withholds contextual read-through until relationship, result, and fiscal-timing evidence are explicit. The Decision-Process Scorecard reviews documentation discipline without grading the company or measuring returns; see [Methodology](docs/METHODOLOGY.md).
 ## What It Does
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
 
@@ -126,10 +126,10 @@ For 5-10 external reviewer sessions, run `make pilot-review-feedback` and use [C
 
 ## Try This Visitor Workflow
 Open the product first and follow the five-page path. Use terminal commands only when you want to inspect the same proof artifacts locally.
-
 ```bash
 make demo                         # print the visitor path without changing local data
 make demo-dashboard               # open the compact tracked demo profile
+make profile-context              # verify selected profile, identity, freshness, and matching counts
 make stock-report-md TICKER=NVDA  # ready company report with DCF assumptions
 make stock-report-md TICKER=ACIC  # price context with DCF still gated
 make stock-report-md TICKER=QQQ   # ETF/index report with DCF excluded

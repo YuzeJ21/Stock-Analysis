@@ -103,6 +103,8 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
         route="http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         first_view_markers=(
             "Saved readiness",
+            "Data profile",
+            "Advanced: research change evidence",
             "Step 3 of 5",
             "What can I use for this ticker right now?",
             "Research-only",
@@ -110,6 +112,7 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
             "USE NOW",
             "STILL WITHHELD",
             "Earnings Outlook",
+            "Research Thesis Journal",
             "Open Data Health",
         ),
         min_width=1000,
@@ -149,6 +152,8 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public",
         first_view_markers=(
             "Saved readiness",
+            "Data profile",
+            "Advanced: research change evidence",
             "Step 1 of 5",
             "What is this product and where do I start?",
             "Research-only",
@@ -164,6 +169,8 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public&page=stock-selector",
         first_view_markers=(
             "Saved readiness",
+            "Data profile",
+            "Advanced: research change evidence",
             "Step 2 of 5",
             "Stock Selector",
             "Which stock can I review?",
@@ -179,6 +186,8 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&open=1",
         first_view_markers=(
             "Saved readiness",
+            "Data profile",
+            "Advanced: research change evidence",
             "Step 3 of 5",
             "What can I use for this ticker right now?",
             "Research-only",
@@ -186,6 +195,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
             "USE NOW",
             "STILL WITHHELD",
             "Earnings Outlook",
+            "Research Thesis Journal",
             "Open Data Health",
         ),
         details_boundary="Detailed report sections stay below the selected-ticker contract, usable-now answer, blocked-input answer, and one next step.",
@@ -197,6 +207,8 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public&page=data-health",
         first_view_markers=(
             "Saved readiness",
+            "Data profile",
+            "Advanced: research change evidence",
             "Step 4 of 5",
             "What can I use and what stays unavailable?",
             "Research-only",
@@ -215,6 +227,8 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         route="http://localhost:8501/?mode=public&page=proof-history",
         first_view_markers=(
             "Saved readiness",
+            "Data profile",
+            "Advanced: research change evidence",
             "Step 5 of 5",
             "What evidence changed a readiness state?",
             "Research-only",

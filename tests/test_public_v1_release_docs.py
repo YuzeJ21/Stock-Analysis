@@ -532,3 +532,62 @@ def test_active_roadmap_and_price_history_maintenance_are_finite_and_read_only()
     assert "make price-history-proof-queue TOP_N=25" in readme
     assert "make price-history-batch-closeout TOP_N=25" in readme
     assert "read-only batch closeout" in readme
+
+
+def test_thesis_journal_docs_preserve_append_only_research_boundary():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+
+    assert "append-only Research Thesis Journal" in readme
+    assert "P0: Research Thesis And Evidence Journal" in roadmap
+    assert "P2: Scenario Lab" in roadmap
+    assert "generated thesis text is context only" in methodology
+    assert "never creates or revises a journal entry" in methodology
+    assert "data/research_thesis_journal.csv" in provenance
+    assert "supersedes_entry_id" in provenance
+    assert "make thesis-journal TICKER=NVDA" in operator
+    assert "CONFIRM_REVIEWED=1 make thesis-journal-record" in operator
+
+
+def test_scenario_lab_docs_define_session_local_readiness_gated_boundary():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+
+    assert "session-local Scenario Lab" in readme
+    assert "P2: Scenario Lab - Implemented" in roadmap
+    assert "revenue growth from -50% to 40%" in methodology
+    assert "terminal growth must remain below WACC" in methodology
+    assert "Scenario Lab never writes canonical data" in provenance
+    assert "blocked or excluded" in provenance
+
+
+def test_source_freshness_timeline_docs_preserve_timestamp_truth():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+
+    assert "Source Freshness Timeline" in readme
+    assert "Source Freshness Timeline - Implemented" in roadmap
+    assert "never substitutes retrieval time" in methodology
+    assert "Source Freshness Timeline Contract" in provenance
+    assert "missing timestamp" in provenance
+
+
+def test_research_comparison_docs_preserve_non_ranking_boundary():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+
+    assert "Research Comparison View" in readme
+    assert "Research Comparison View - Implemented" in roadmap
+    assert "two or three selected tickers" in methodology
+    assert "never calculates a score or winner" in methodology
+    assert "Research Comparison Contract" in provenance
+    assert "candidate peer context cannot satisfy trusted-peer readiness" in provenance

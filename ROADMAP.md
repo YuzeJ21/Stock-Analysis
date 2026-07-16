@@ -20,6 +20,26 @@ Public visitor flow: **Home -> Stock Selector -> Single-Stock Report -> Data Hea
 
 ## Completed Regression Gate
 
+### P0: Profile Truth And Local Research Change Workflow
+
+**Status:** implemented and locally verified on 2026-07-15.
+
+Every dashboard and status surface uses one selected-profile context for source date, readiness build time, snapshot identity, freshness, and matching coverage counts. Generated comparable snapshots support deterministic filing, readiness, price-history, fundamentals/share-count, and Nowcast-consensus change events. The derived review queue prioritizes unresolved research work, while append-only review outcomes remain separate from readiness mutation.
+
+Use `make profile-context`, `make research-change-snapshot`, `make research-change-monitor`, and `make research-review-queue`. Generated snapshots and event previews stay unstaged. A missing baseline means no comparison is available; it never means no changes occurred.
+
+**Boundary:** local monitoring is read-only except for the explicit reviewed-resolution append. Hosted alerts, scheduled snapshot rotation, and notification delivery remain Later and require operating evidence.
+
+### P0: Research Thesis And Evidence Journal
+
+**Status:** implemented and locally verified on 2026-07-15; retain as a research-process regression gate.
+
+The selected-profile Single-Stock Report now shows one compact, reviewer-authored thesis answer with supporting and conflicting evidence, catalysts, risks, invalidation conditions, confidence history, and review dates. `data/research_thesis_journal.csv` is append-only. Thesis revisions preserve prior entries through `supersedes_entry_id`; generated thesis text and Change Monitor tasks never write journal rows automatically.
+
+Use `make thesis-journal TICKER=<ticker>` to read, `make thesis-journal-preview ...` to validate without writing, and `CONFIRM_REVIEWED=1 make thesis-journal-record ...` only after source review. Journal entries never mutate source rows, readiness, valuation, or Review Queue outcomes.
+
+**Boundary:** the journal documents a research process. Confidence is not investment conviction, expected return, position size, or a transaction instruction.
+
 ### P0: Performance Release Candidate
 
 **Status:** passed locally on the fixed demo profile on 2026-07-14; retain as a release regression gate.
@@ -72,6 +92,52 @@ Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) t
 **Stop rule:** do not call pilot feedback data proof; it only validates product clarity and workflow reliability.
 
 ## Now
+
+### P2: Scenario Lab - Implemented
+
+**Goal:** let a reviewer vary source-backed DCF assumptions and understand valuation sensitivity without changing canonical data or producing a recommendation.
+
+1. Start only from a company whose selected profile is DCF-ready.
+2. Load the saved source-backed revenue, FCF or margin, shares, cash, debt, and price context as immutable baseline evidence.
+3. Allow bounded changes to revenue growth, operating or FCF margin, discount rate, terminal growth, and forecast horizon.
+4. Show baseline and scenario ranges, directional sensitivity, terminal-value contribution, and every changed assumption.
+5. Keep scenarios session-local or explicitly exported as generated research artifacts; never apply them to canonical fundamentals or readiness.
+
+**Stop rule:** blocked or excluded DCF inputs produce no valuation output. Scenario results are assumption tests, never fair-value claims, rankings, or direct actions.
+
+**Implemented proof:** the detailed Valuation tab now loads source-backed defaults, enforces bounded controls, reports changed assumptions and sensitivity, and keeps provenance and scenario identity under Advanced. It is session-local and does not change canonical inputs or readiness.
+
+### P2: Source Freshness Timeline - Implemented
+
+**Goal:** show a selected ticker's source chronology without confusing report time, retrieval time, market time, or financial effective date.
+
+The Sources & Gaps tab now derives a deterministic same-profile timeline from the report payload, shows unknown timestamps explicitly, deduplicates exact source records, and keeps raw provenance under Advanced. It never refreshes data, changes readiness, or infers publication, cutoff, or revision dates that are not present.
+
+**Stop rule:** a recent retrieval or report timestamp does not render an older source period current or unlock a blocked lane.
+
+### P2: Research Comparison View - Implemented
+
+**Goal:** compare selected companies across usable evidence, blockers, proof freshness, and reviewed catalysts or risks without ranking them.
+
+The existing operator-only selected review tray now accepts two or three tickers, preserves user order, and displays an evidence matrix for price, fundamentals, DCF, trusted peers, supported analysis, missing inputs, next proof, freshness, and profile-scoped journal context. It adds no route and writes no data.
+
+**Stop rule:** the comparison produces no score, winner, expected return, recommendation, or action; candidate peer context remains separate from trusted-peer readiness.
+
+### P2: Peer Read-Through Map - Implemented
+
+**Goal:** show which peer results can be reviewed as directional business context without treating sector similarity or candidate peers as trusted evidence.
+
+The existing detailed Valuation tab now separates trusted relationships, candidate-only relationships, explicit business-overlap evidence, target/peer fiscal periods, source-backed Revenue/EPS actuals, and the remaining proof needed for contextual read-through. A result becomes `reviewable_context` only when relationship provenance, business overlap, actual result evidence, and both fiscal periods are explicit.
+
+**Stop rule:** candidate peers never become trusted automatically. Missing relationship source, actual result, or fiscal timing withholds read-through; even reviewable context cannot alter Earnings Nowcast numbers, DCF, readiness, rankings, or actions.
+
+### P2: Decision-Process Scorecard - Implemented
+
+**Goal:** render research discipline reviewable without grading a company or measuring investment performance.
+
+The Single-Stock Report now derives profile-scoped checks for readiness review, thesis documentation, recorded evidence, later review of conflicting evidence, invalidation conditions, confidence history, review-date currency, unresolved Change Monitor tasks, and visible DCF assumptions. Details stay collapsed below the Thesis Journal.
+
+**Stop rule:** the scorecard reports process states and next review steps only. It produces no numeric company score, expected return, performance claim, ranking, recommendation, or action; blocked and excluded analysis remain distinct from incomplete documentation.
 
 ### P2: Earnings Nowcast Pilot Evidence
 
@@ -133,6 +199,8 @@ Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optio
 
 **Stop rule:** sector similarity is not trusted-peer proof. Do not target broad-universe peer readiness before the pilot has repeatable evidence.
 
+The implemented Peer Read-Through Map is the review surface for this future cohort. It does not satisfy the external trusted-relationship dependency or create broad peer coverage by itself.
+
 ## Later
 
 ### P4: Optional Earnings And Analyst Estimates
@@ -141,7 +209,7 @@ Proceed only when a trusted provider supplies supported earnings actual/estimate
 
 ### P4: Scheduler Maturity
 
-Add scheduled monitoring only after at least one provider pilot proves deterministic batch limits, provenance, rejection handling, and proof-ledger recording. Daily price and filing checks may be read-only; imports still require validation, preview, and source gates.
+Add scheduled snapshot rotation, alerts, and source monitoring only after at least one provider pilot proves deterministic batch limits, provenance, rejection handling, and proof-ledger recording. Daily price and filing checks may be read-only; imports still require validation, preview, and source gates. The local Change Monitor is not itself a hosted alerting service.
 
 ### Later: Broader Peer Expansion
 

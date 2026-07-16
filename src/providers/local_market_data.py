@@ -19,6 +19,24 @@ from src.providers.market_data import (
 ALLOWED_CANDIDATE_STATES = {"candidate", "fallback_context", "research_only"}
 
 
+def _peer_evidence_value(value: object) -> object:
+    """Keep peer evidence JSON-safe without changing its meaning."""
+
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if hasattr(value, "item"):
+        try:
+            return value.item()
+        except (AttributeError, ValueError):
+            pass
+    return value
+
+
 class LocalCSVMarketDataProvider(MarketDataProvider):
     """Research provider backed by local project CSVs.
 
@@ -294,6 +312,45 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         )
         valid_candidate_states = sorted(state for state in candidate_states if state in ALLOWED_CANDIDATE_STATES)
         invalid_candidate_states = sorted(state for state in candidate_states if state not in ALLOWED_CANDIDATE_STATES)
+        trusted_relationships: list[dict[str, Any]] = []
+        for _, relationship in peer_rows.iterrows():
+            peer_ticker = str(relationship.get("peer_ticker") or "").strip().upper()
+            peer_result = self.get_earnings(peer_ticker).to_dict() if peer_ticker else {}
+            trusted_relationships.append(
+                {
+                    key: _peer_evidence_value(relationship.get(key))
+                    for key in (
+                        "ticker",
+                        "peer_ticker",
+                        "peer_group",
+                        "sector",
+                        "industry",
+                        "relationship_rationale",
+                        "source",
+                        "as_of_date",
+                    )
+                    if key in relationship.index and pd.notna(relationship.get(key))
+                }
+                | {"peer_result": peer_result}
+            )
+        candidate_relationships = [
+            {
+                key: _peer_evidence_value(relationship.get(key))
+                for key in (
+                    "ticker",
+                    "peer_ticker",
+                    "candidate_state",
+                    "peer_group",
+                    "sector",
+                    "industry",
+                    "relationship_rationale",
+                    "source",
+                    "as_of_date",
+                )
+                if key in relationship.index and pd.notna(relationship.get(key))
+            }
+            for _, relationship in candidate_rows.iterrows()
+        ]
         peers_with_fundamentals: list[str] = []
         peers_with_quote_or_market_cap: list[str] = []
         for peer_ticker in peer_tickers:
@@ -350,6 +407,8 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             ),
             "candidate_warnings": candidate_warnings,
             "candidate_source_metadata": candidate_metadata.source,
+            "trusted_relationships": trusted_relationships,
+            "candidate_relationships": candidate_relationships,
         }
 
     def get_peer_valuation_inputs(self, ticker: str) -> list[dict[str, Any]]:

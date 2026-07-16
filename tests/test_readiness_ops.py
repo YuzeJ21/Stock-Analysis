@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from src import readiness_ops as readiness_ops_module
@@ -9,6 +10,7 @@ from src.readiness_ops import (
     build_data_coverage_expansion_plan,
     build_peer_readiness_summary,
     build_reviewed_batch_ledger_summaries,
+    build_stale_proof_warning,
     build_coverage_frontier,
     build_readiness_ops_lanes,
     render_data_coverage_proof_queues,
@@ -217,6 +219,19 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert "apply only after validation passes" in by_lane["analyst_estimates_locked"].generated_churn_policy
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"
     assert "trusted local or reviewed provider-assisted rows" in by_lane["earnings_locked"].notes
+
+
+def test_stale_proof_warning_handles_relative_root_with_absolute_data_dir(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    ledger = root / "data" / "reviewed_data_proofs.csv"
+    readiness = root / "data" / "reports" / "ticker_readiness_report.csv"
+    os.utime(ledger, (100, 100))
+    os.utime(readiness, (200, 200))
+    monkeypatch.chdir(root)
+
+    warning = build_stale_proof_warning(Path("."), data_dir=root / "data")
+
+    assert "data/reports/ticker_readiness_report.csv" in warning
 
 
 def test_readiness_ops_surfaces_reviewed_batch_ledger_progress_without_unlocking_lanes(tmp_path: Path):
@@ -450,12 +465,34 @@ def test_readiness_queue_cli_does_not_prebuild_unneeded_frontier(tmp_path: Path,
         raise AssertionError("readiness queue should not prebuild ops lanes before routing")
 
     monkeypatch.setattr(readiness_ops_module, "build_readiness_ops_lanes", fail_if_prebuilt)
-    monkeypatch.setattr(readiness_ops_module, "build_fundamentals_peer_metrics_queue", lambda root, top_n: [])
+    monkeypatch.setattr(
+        readiness_ops_module,
+        "build_fundamentals_peer_metrics_queue",
+        lambda root, top_n, **_kwargs: [],
+    )
 
     assert readiness_ops_module.main(["--root", str(tmp_path), "--readiness-queue", "--top-n", "7"]) == 0
 
     assert lane_calls == []
     assert "No queue rows are available" in capsys.readouterr().out
+
+
+def test_readiness_ops_cli_uses_selected_profile_context_and_lane_counts(tmp_path: Path, monkeypatch, capsys):
+    _sample_root(tmp_path)
+    default_data = tmp_path / "data"
+    local_staging = tmp_path / "local-data-staging"
+    default_data.rename(local_staging)
+    (tmp_path / "data").mkdir()
+    local_staging.rename(tmp_path / "data/local")
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+
+    assert readiness_ops_module.main(["--root", str(tmp_path)]) == 0
+    output = capsys.readouterr().out
+
+    assert "Profile: Local Research (local)" in output
+    assert "Saved readiness coverage: price=2/3; fundamentals=1/3; DCF=1/3; peers=0/3" in output
+    assert "Price Coverage | partial" in output
+    assert "counts: ready=2; partial=0; blocked=1; excluded=0; total=3" in output
 
 
 def test_peer_readiness_summary_separates_mapping_trend_and_valuation_inputs(tmp_path: Path):

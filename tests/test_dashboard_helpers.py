@@ -5,8 +5,193 @@ from pathlib import Path
 
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
+from src.peer_read_through_map import build_peer_read_through_map
+from src.decision_process_scorecard import ProcessCheck, DecisionProcessScorecard
+from src.profile_context import CoverageCounts, ProfileContext
+from src.research_change_monitor import ResearchChangeEvent
+from src.research_review_queue import ResearchReviewItem
 from src.public_home_workflow import public_home_current_data_coverage_cards, public_home_next_step_cards
 import pandas as pd
+
+
+def _profile_context_fixture(**overrides):
+    values = {
+        "profile_key": "local",
+        "profile_label": "Local Research",
+        "data_dir": Path("/private/data/local"),
+        "outputs_dir": Path("/private/outputs/local"),
+        "source_as_of": "2026-07-14",
+        "readiness_built_at": "2026-07-15T19:30:00+00:00",
+        "snapshot_identity": "f" * 64,
+        "snapshot_identity_short": "f" * 12,
+        "freshness_state": "current",
+        "freshness_message": "Selected-profile readiness is current.",
+        "refresh_command": "",
+        "coverage": CoverageCounts(total=10, price_ready=9, fundamentals_ready=7, dcf_ready=6, peer_ready=4),
+        "lane_source_dates": (("prices", "2026-07-14"),),
+        "snapshot_inputs": ("/private/data/local/prices.csv",),
+    }
+    values.update(overrides)
+    return ProfileContext(**values)
+
+
+def test_profile_trust_strip_shows_profile_dates_freshness_and_counts():
+    rendered = dashboard.profile_trust_strip_html(_profile_context_fixture())
+
+    assert "Local Research" in rendered
+    assert "Sources through" in rendered
+    assert "Readiness built" in rendered
+    assert "Current" in rendered
+    assert "Price-ready" in rendered
+    assert "DCF-ready" in rendered
+
+
+def test_profile_advanced_details_keep_paths_and_hash_out_of_compact_strip():
+    context = _profile_context_fixture()
+
+    compact = dashboard.profile_trust_strip_html(context, compact=True)
+    details = dashboard.profile_advanced_details(context)
+
+    assert "/private/data/local" not in compact
+    assert "f" * 64 not in compact
+    assert "2026-07-15T19:30:00+00:00" not in compact
+    assert "Readiness built" not in compact
+    assert details["Readiness built"] == "2026-07-15T19:30:00+00:00"
+    assert details["Snapshot identity"] == "f" * 64
+    assert details["Data directory"] == "/private/data/local"
+
+
+def test_change_summary_only_uses_first_viewport_for_comparable_evidence():
+    assert dashboard.research_change_summary_is_primary("changes_detected") is True
+    assert dashboard.research_change_summary_is_primary("no_changes") is True
+    assert dashboard.research_change_summary_is_primary("baseline_missing") is False
+    assert dashboard.research_change_summary_is_primary("current_missing") is False
+    assert dashboard.research_change_summary_is_primary("unavailable") is False
+
+
+def _change_event(event_id: str, ticker: str, subtype: str = "sec_filing_arrived") -> ResearchChangeEvent:
+    return ResearchChangeEvent(
+        event_id=event_id,
+        ticker=ticker,
+        family="filing",
+        subtype=subtype,
+        prior_value="A1",
+        current_value="A2",
+        source="sec_companyfacts",
+        source_ref=f"sec-accession:{event_id}",
+        source_published_at="2026-07-15",
+        retrieved_at="2026-07-15T20:00:00Z",
+        detected_at="2026-07-15T20:00:00Z",
+        profile_key="local",
+        prior_snapshot_identity="before",
+        current_snapshot_identity="after",
+        evidence_status="source_backed",
+        materiality="medium",
+        suggested_research_task=f"{ticker}: Review the changed source evidence.",
+    )
+
+
+def _review_item(event: ResearchChangeEvent) -> ResearchReviewItem:
+    return ResearchReviewItem(event, 20, "open", "", "", "")
+
+
+def test_home_change_summary_has_one_answer_and_one_action():
+    summary = dashboard.research_change_home_summary(
+        [_review_item(_change_event("1", "NVDA")), _review_item(_change_event("2", "AMD"))]
+    )
+
+    assert summary["title"] == "Changed since your last review"
+    assert summary["primary_action"] == "Review 2 evidence changes"
+    assert "buy" not in str(summary).lower()
+
+
+def test_ticker_timeline_filters_to_selected_ticker():
+    rows = dashboard.ticker_change_timeline(
+        [_change_event("1", "NVDA"), _change_event("2", "AMD")],
+        ticker="NVDA",
+    )
+
+    assert {row["ticker"] for row in rows} == {"NVDA"}
+
+
+def test_selector_needs_review_filter_is_derived_from_open_events():
+    frame = pd.DataFrame({"Ticker": ["NVDA", "AMD"], "Readiness": ["Ready", "Partial"]})
+
+    filtered = dashboard.filter_selector_needs_review(frame, open_event_ids_by_ticker={"NVDA": 2})
+
+    assert filtered["Ticker"].tolist() == ["NVDA"]
+    assert filtered.iloc[0]["Change reason"]
+
+
+def test_change_summary_states_do_not_claim_detected_changes():
+    for status in ("no_changes", "stale", "baseline_missing"):
+        rendered = dashboard.research_change_state_html(
+            {"status": status, "title": "Change baseline unavailable", "answer": "No comparison claim.", "primary_action": "Continue readiness review"}
+        )
+        assert "evidence-backed changes detected" not in rendered.lower()
+        assert "investment recommendation" not in rendered.lower()
+
+
+def test_peer_read_through_cards_explain_reviewable_and_withheld_states():
+    payload = {
+        "ticker": "ALFA",
+        "asset_type": "company",
+        "earnings_summary": {"fiscal_period": "2026-Q2"},
+        "valuation_readiness": {
+            "peer_summary": {
+                "trusted_relationships": [
+                    {
+                        "ticker": "ALFA",
+                        "peer_ticker": "BETA",
+                        "peer_group": "cloud",
+                        "industry": "Cloud platforms",
+                        "source": "https://example.test/peer",
+                        "as_of_date": "2026-06-30",
+                        "peer_result": {
+                            "fiscal_period": "2026-Q2",
+                            "last_earnings_date": "2026-07-10",
+                            "eps_actual": 1.2,
+                            "source": {"provider": "local:earnings.csv"},
+                        },
+                    }
+                ],
+                "candidate_relationships": [],
+            }
+        },
+    }
+    read_through = build_peer_read_through_map(payload, profile_key="demo")
+
+    cards = dashboard.peer_read_through_summary_cards(read_through)
+    frame = dashboard.peer_read_through_frame(read_through)
+
+    assert cards[0]["title"] == "1 peer result ready for contextual review"
+    assert "does not change" in cards[0]["body"]
+    assert frame.iloc[0]["Read-Through State"] == "Reviewable context"
+    assert "recommend" not in str(cards).lower()
+
+
+def test_decision_process_summary_reports_actions_without_grading_company():
+    scorecard = DecisionProcessScorecard(
+        ticker="ALFA",
+        profile_key="demo",
+        status="process_work_needed",
+        scorecard_identity="a" * 64,
+        checks=(
+            ProcessCheck("readiness_checked", "Readiness checked", "complete", "Saved profile verified.", "None"),
+            ProcessCheck("thesis_documented", "Thesis documented", "action_needed", "No thesis.", "Record one."),
+        ),
+        complete_count=1,
+        action_needed_count=1,
+        neutral_count=0,
+        boundary="Process documentation only; no company grade or return claim.",
+    )
+
+    cards = dashboard.decision_process_scorecard_cards(scorecard)
+    frame = dashboard.decision_process_scorecard_frame(scorecard)
+
+    assert cards[0]["title"] == "1 process action needs review"
+    assert frame["State"].tolist() == ["Complete", "Action needed"]
+    assert "company grade" in cards[0]["body"].lower()
 
 
 def test_dashboard_exposes_readiness_gated_nowcast_view_models():
@@ -29864,7 +30049,9 @@ def test_stock_selector_saved_filter_and_compare_controls_are_product_surface():
     assert "Saved filter" in source
     assert "Selected tickers for review" in source
     assert "Compare selected rows" not in source
-    assert "stock_selector_shortlist_html(stock_selector_shortlist_frame(filtered, selected_shortlist))" in source
+    assert "selected_frame = stock_selector_shortlist_frame(filtered, selected_shortlist)" in source
+    assert "stock_selector_shortlist_html(selected_frame)" in source
+    assert "build_research_comparison(selected_frame, journal_states=journal_states)" in source
     proof_href = dashboard.stock_selector_proof_href("NVDA", {"Next Proof Step": "Needs peer mapping"})
     assert proof_href == "?mode=public&page=data-health&ticker=NVDA&lane=peers&drawer=proof"
 
@@ -33315,3 +33502,331 @@ def test_stock_report_review_metric_summary_cards_are_product_first():
     assert "at least 60 aligned ticker/spy price rows" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_research_thesis_journal_summary_keeps_empty_state_truthful():
+    from src.research_thesis_journal import derive_journal_state
+
+    state = derive_journal_state((), profile_key="demo", ticker="SYN1", as_of="2026-07-16T00:00:00Z")
+
+    summary = dashboard.research_thesis_journal_summary(state)
+
+    assert summary["status"] == "not_started"
+    assert summary["title"] == "No reviewed research thesis"
+    assert "does not create one automatically" in summary["answer"]
+    assert summary["primary_action"] == "Record a reviewed hypothesis and review date"
+
+
+def test_research_thesis_journal_summary_shows_evidence_and_invalidation_before_confidence():
+    from src.research_thesis_journal import JournalEntry, derive_journal_state
+
+    base = {
+        "schema_version": "research-thesis-journal-v1",
+        "profile_key": "demo",
+        "ticker": "SYN1",
+        "thesis_id": "thesis-syn1",
+        "recorded_at": "2026-07-15T20:00:00Z",
+        "effective_at": "2026-07-15T19:00:00Z",
+        "reviewer": "fixture-reviewer",
+        "source": "fixture_source",
+        "source_ref": "fixture:SYN1",
+        "source_published_at": "2026-07-15T19:00:00Z",
+        "review_due_date": "2026-08-15",
+        "supersedes_entry_id": "",
+    }
+    entries = (
+        JournalEntry(
+            **base,
+            entry_id="thesis-001",
+            entry_type="thesis",
+            summary="Test-only operating hypothesis.",
+            evidence_direction="",
+            confidence="0.60",
+        ),
+        JournalEntry(
+            **base,
+            entry_id="support-001",
+            entry_type="evidence",
+            summary="Source-backed supporting evidence.",
+            evidence_direction="supporting",
+            confidence="",
+        ),
+        JournalEntry(
+            **base,
+            entry_id="conflict-001",
+            entry_type="evidence",
+            summary="Source-backed conflicting evidence.",
+            evidence_direction="conflicting",
+            confidence="",
+        ),
+        JournalEntry(
+            **base,
+            entry_id="invalidate-001",
+            entry_type="invalidation",
+            summary="Invalidate if the operating assumption fails.",
+            evidence_direction="context",
+            confidence="",
+        ),
+    )
+    state = derive_journal_state(entries, profile_key="demo", ticker="SYN1", as_of="2026-07-16T00:00:00Z")
+
+    summary = dashboard.research_thesis_journal_summary(state)
+    rendered = dashboard.research_thesis_journal_html(summary)
+    details = dashboard.research_thesis_journal_detail_rows(state)
+
+    assert summary["status"] == "current"
+    assert summary["title"] == "Reviewed research thesis"
+    assert "1 supporting" in summary["evidence"]
+    assert "1 conflicting" in summary["evidence"]
+    assert "1 invalidation condition" in summary["boundary"]
+    assert "Test-only operating hypothesis" in rendered
+    assert "0.60" in rendered
+    assert "thesis-001" not in rendered
+    assert {row["Entry ID"] for row in details} == {
+        "thesis-001",
+        "support-001",
+        "conflict-001",
+        "invalidate-001",
+    }
+
+
+def test_dashboard_journal_loader_is_profile_scoped_and_fails_closed(tmp_path):
+    from types import SimpleNamespace
+
+    from src.research_thesis_journal import JournalEntry, append_journal_entry
+
+    ledger = tmp_path / "journal.csv"
+    common = {
+        "schema_version": "research-thesis-journal-v1",
+        "ticker": "SYN1",
+        "thesis_id": "thesis-syn1",
+        "entry_type": "thesis",
+        "recorded_at": "2026-07-15T20:00:00Z",
+        "effective_at": "2026-07-15T19:00:00Z",
+        "reviewer": "fixture-reviewer",
+        "summary": "Test-only hypothesis.",
+        "evidence_direction": "",
+        "source": "reviewer_authored",
+        "source_ref": "review:SYN1",
+        "source_published_at": "2026-07-15T19:00:00Z",
+        "confidence": "0.5",
+        "review_due_date": "2026-08-15",
+        "supersedes_entry_id": "",
+    }
+    append_journal_entry(ledger, JournalEntry(**common, entry_id="demo-entry", profile_key="demo"))
+    append_journal_entry(ledger, JournalEntry(**common, entry_id="local-entry", profile_key="local"))
+
+    state = dashboard.load_dashboard_journal_state(
+        SimpleNamespace(profile_key="demo"),
+        ticker="SYN1",
+        ledger_path=ledger,
+        as_of="2026-07-16T00:00:00Z",
+    )
+
+    assert [row.entry_id for row in state.entries] == ["demo-entry"]
+
+
+def test_single_stock_journal_stays_compact_and_advanced_history_is_collapsed():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    assert "research_thesis_journal_html" in render_source
+    assert 'st.expander("Advanced: thesis and evidence history", expanded=False)' in render_source
+    assert render_source.index("research_thesis_journal_html") < render_source.index("Detailed report stays closed.")
+
+
+def test_scenario_lab_input_from_report_preserves_source_backed_fields():
+    payload = {
+        "ticker": "SYN1",
+        "price_snapshot": {"price": 100.0},
+        "financial_summary": {
+            "revenue": 1_000.0,
+            "revenue_growth": 0.10,
+            "free_cash_flow": 200.0,
+            "fcf_margin": 0.20,
+            "operating_margin": 0.25,
+            "shares_outstanding": 10.0,
+            "cash": 100.0,
+            "debt": 50.0,
+        },
+        "valuation_snapshot": {
+            "source_metadata": [
+                {"source": "synthetic_fixture", "source_ref": "fixture:SYN1", "as_of_date": "2026-06-30"}
+            ]
+        },
+    }
+
+    valuation_input = dashboard.scenario_lab_input_from_report(payload)
+
+    assert valuation_input.ticker == "SYN1"
+    assert valuation_input.current_price == 100.0
+    assert valuation_input.revenue == 1_000.0
+    assert valuation_input.fcf_margin == 0.20
+    assert valuation_input.shares_outstanding == 10.0
+    assert valuation_input.source_metadata[0]["source_ref"] == "fixture:SYN1"
+
+
+def test_scenario_lab_status_cards_fail_closed_and_avoid_action_language():
+    from src.scenario_lab import ScenarioParameters, run_scenario_lab
+    from src.valuation import ValuationInput
+
+    blocked = run_scenario_lab(
+        ValuationInput(ticker="SYN1"),
+        ScenarioParameters(0.10, 0.20, 0.09, 0.03, 5),
+        profile_key="demo",
+        dcf_ready=False,
+        asset_type="company",
+    )
+
+    cards = dashboard.scenario_lab_status_cards(blocked)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "SCENARIO LAB"
+    assert "blocked" in rendered
+    assert "dcf readiness" in rendered
+    for prohibited in ("buy", "sell", "hold", "order", "target price", "position size"):
+        assert prohibited not in rendered
+
+
+def test_scenario_lab_controls_are_bounded_and_stay_inside_detailed_valuation():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    assert 'st.slider("Revenue growth", min_value=-0.50, max_value=0.40' in source
+    assert 'st.slider("FCF margin", min_value=-0.50, max_value=0.45' in source
+    assert 'st.slider("WACC", min_value=0.05, max_value=0.20' in source
+    assert 'st.slider("Terminal growth", min_value=-0.02, max_value=0.05' in source
+    assert 'st.slider("Forecast years", min_value=1, max_value=10' in source
+    assert 'st.expander("Advanced: scenario inputs and sensitivity", expanded=False)' in source
+    assert render_source.index("with valuation_tab:") < render_source.index("render_scenario_lab(")
+
+
+def test_source_freshness_timeline_summary_keeps_unknown_time_visible():
+    from src.source_freshness_timeline import build_source_freshness_timeline
+
+    timeline = build_source_freshness_timeline(
+        {
+            "ticker": "SYN1",
+            "generated_at": "2026-07-15T20:00:00Z",
+            "data_freshness": [
+                {"provider": "local:prices.csv", "freshness": "current", "retrieved_at": "2026-07-15T17:00:00Z"},
+                {"provider": "manual_peer_review", "freshness": "unknown", "retrieved_at": ""},
+            ],
+        },
+        profile_key="demo",
+    )
+
+    cards = dashboard.source_freshness_summary_cards(timeline)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "SOURCE TIMELINE"
+    assert "1 unknown timestamp" in rendered
+    assert "report assembly" in rendered
+    for prohibited in ("buy", "sell", "hold", "order", "recommendation"):
+        assert prohibited not in rendered
+
+
+def test_source_freshness_timeline_frame_labels_timestamp_kind_and_unknown_value():
+    from src.source_freshness_timeline import build_source_freshness_timeline
+
+    timeline = build_source_freshness_timeline(
+        {
+            "ticker": "SYN1",
+            "data_freshness": [
+                {"provider": "manual_peer_review", "freshness": "unknown", "retrieved_at": ""},
+            ],
+        },
+        profile_key="demo",
+    )
+
+    frame = dashboard.source_freshness_timeline_frame(timeline)
+
+    assert list(frame.columns) == ["When", "Time Type", "Lane", "Source", "State", "Evidence"]
+    assert frame.iloc[0]["When"] == "Unknown"
+    assert frame.iloc[0]["Time Type"] == "Source retrieved"
+    assert frame.iloc[0]["State"] == "Missing timestamp"
+
+
+def test_source_freshness_timeline_stays_inside_sources_tab_with_provenance_collapsed():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    sources_index = render_source.index("with sources_tab:")
+    timeline_index = render_source.index("render_source_freshness_timeline(")
+
+    assert sources_index < timeline_index
+    assert 'st.expander("Source freshness timeline", expanded=False)' in source
+    assert 'st.expander("Advanced: freshness provenance", expanded=False)' in source
+
+
+def test_stock_selector_queue_carries_explicit_comparison_readiness_fields():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "decision_bucket": "Research Now",
+                "supported_analysis": "price, fundamentals, dcf, candidate peers",
+                "primary_blocker": "trusted peer evidence",
+            }
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "asset_type": "company",
+                "in_active_universe": True,
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "ready_features": "price, fundamentals, dcf, candidate peers",
+                "missing_data": "trusted peer evidence",
+            }
+        ]
+    )
+
+    frame = dashboard.stock_selector_queue_frame(decisions, pd.DataFrame(), readiness)
+
+    assert frame.loc[0, "Asset Type"] == "company"
+    assert bool(frame.loc[0, "Price Ready"])
+    assert bool(frame.loc[0, "Fundamentals Ready"])
+    assert bool(frame.loc[0, "DCF Ready"])
+    assert not bool(frame.loc[0, "Trusted Peer Ready"])
+
+
+def test_research_comparison_frame_keeps_selected_order_and_evidence_rows():
+    from src.research_comparison import build_research_comparison
+
+    selected = pd.DataFrame(
+        [
+            {"Ticker": "AMD", "DCF Ready": True, "Trusted Peer Ready": False},
+            {"Ticker": "NVDA", "DCF Ready": True, "Trusted Peer Ready": True},
+        ]
+    )
+    comparison = build_research_comparison(selected, journal_states={})
+
+    frame = dashboard.research_comparison_frame(comparison)
+
+    assert list(frame.columns) == ["Research evidence", "AMD", "NVDA"]
+    assert frame.loc[frame["Research evidence"] == "DCF scenario", "AMD"].iloc[0] == "Ready"
+    assert frame.loc[frame["Research evidence"] == "Trusted peers", "AMD"].iloc[0] == "Blocked"
+
+
+def test_stock_selector_comparison_uses_three_ticker_limit_and_profile_scoped_journals():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    render_end = source.index("\ndef price_refresh_operator_plan_cards(", render_index)
+    render_source = source[render_index:render_end]
+
+    assert "max_selections=3" in render_source
+    assert "load_dashboard_journal_state(" in render_source
+    assert "build_research_comparison(" in render_source
+    assert "research_comparison_frame(" in render_source
+    assert render_source.index('st.expander("Advanced: selected review tray", expanded=False)') < render_source.index("build_research_comparison(")

@@ -45,6 +45,30 @@ Freshness is evaluated per lane because a daily price series, an annual filing, 
 
 A timestamp cannot turn an unsupported row into trusted evidence. Fresh metadata, screenshots, provider availability, or candidate context cannot substitute for the field-level source proof required by a readiness gate.
 
+## Profile Truth And Change Review Method
+
+The dashboard resolves exactly one data profile for each run: `Demo`, `Local Research`, or `Default`. Its trust strip separates:
+
+- `Sources through`: latest valid selected-profile source date.
+- `Readiness built`: timestamp of the selected saved readiness artifact.
+- `Snapshot identity`: deterministic identity of the selected comparison inputs.
+- `Freshness`: current, stale, mixed, or missing based on selected-profile evidence.
+- Profile-matched coverage: saved Price, fundamentals, DCF, and trusted-peer readiness counts.
+
+Snapshot identity is an audit key, not a freshness or quality score. The monitor requires explicit before/after snapshots from the same profile. A missing baseline yields `baseline_missing` and zero claimed events. Cross-profile comparison fails closed.
+
+Detectors compare explicit readiness fields, SEC filing accession, selected fundamental/share-count values, latest price date, and point-in-time Nowcast consensus identifiers. Each event preserves prior/current values, source reference, profile, both snapshot identities, separate publication/retrieval/detection times where available, evidence status, materiality, and one research task. There is no free-text model detector and no event creates a numerical forecast adjustment.
+
+The Research Review Queue is derived from unresolved events. Lost DCF or fundamentals readiness is reviewed before new context; append-only outcomes record `reviewed_supported`, `reviewed_no_change`, `still_blocked`, `intentionally_deferred`, `skipped`, or `excluded`. Recording an outcome does not change source files, readiness, valuation, or a research conclusion.
+
+## Research Thesis Journal Method
+
+The selected-profile journal is reviewer-authored, append-only research documentation. It records thesis revisions, source-backed supporting and conflicting evidence, catalysts, risks, invalidation conditions, confidence history, and review dates. Existing generated thesis text is context only; it is never copied into the journal automatically.
+
+Preview validates one prospective entry without writing. Recording requires explicit reviewed confirmation. A later thesis must reference the prior thesis entry, and the historical row remains present. Evidence, catalyst, risk, and invalidation entries require a source, durable source reference, and publication timestamp. A Change Monitor event or Review Queue outcome may prompt review but never creates or revises a journal entry.
+
+Confidence describes the reviewer's confidence in the documented hypothesis at that timestamp. It does not measure expected return, allocation size, or transaction direction. An empty journal is `not_started`; a thesis without a source-backed invalidation condition is `incomplete`; and a passed review date is `overdue`.
+
 ## Public Workflow Boundary
 
 The public page order is a reading workflow, not an analysis shortcut.
@@ -163,6 +187,16 @@ The default report uses bear, base, and bull scenarios. Scenario assumptions are
 
 DCF output is treated as scenario math, not a price target. The report should show the input path, assumptions, sensitivity, and data-confidence limits so a reader can challenge the model instead of trusting a hidden conclusion.
 
+The Scenario Lab is a session-local review layer over that same DCF engine. It starts from the selected profile's source-backed baseline and permits revenue growth from -50% to 40%, FCF margin from -50% to 45%, WACC from 5% to 20%, terminal growth from -2% to 5%, and a one-to-ten-year forecast horizon; terminal growth must remain below WACC. Missing company eligibility, DCF readiness, provenance, revenue, margin, or shares closes the gate and suppresses all numerical scenario output. Adjustments never modify canonical fundamentals, readiness, reports, or proof history.
+
+The Source Freshness Timeline derives a display chronology from the selected report only. It never substitutes retrieval time for publication or effective time, never treats report generation as source freshness, and never infers a forecast cutoff or revision date. Known events are ordered newest first; invalid or absent timestamps remain explicit unknowns. The timeline explains evidence timing but does not change any lane's readiness state.
+
+The Research Comparison View uses two or three selected tickers from the existing readiness-backed Stock Selector. It preserves selection order and compares asset type, research state, price, fundamentals, DCF, trusted-peer readiness, supported analysis, blocked inputs, next proof, proof freshness, and reviewer-authored catalysts or risks from the selected profile's journal. It never calculates a score or winner and does not fill missing evidence. Candidate peer wording cannot turn a blocked trusted-peer field into a ready one.
+
+The Peer Read-Through Map is a separate evidence view inside the detailed Valuation tab. It checks relationship provenance, explicit business-overlap fields, source-backed peer Revenue/EPS actuals, and target/peer fiscal periods independently. Candidate relationships remain `candidate_context_only`. Trusted relationships without an actual result remain `awaiting_peer_result`; results without both fiscal periods remain `awaiting_fiscal_timing`. Only complete evidence becomes `reviewable_context`, which is directional context only and cannot change forecast, DCF, readiness, ranking, or action outputs.
+
+The Decision-Process Scorecard reviews research discipline for the selected profile and ticker. It checks that readiness was inspected, a thesis and evidence are documented, later review follows recorded conflicting evidence, invalidation and confidence history exist, the review date is current, evidence-change tasks are addressed, and DCF assumptions are visible when DCF is ready. No conflicting evidence is `not_observed`, not automatically complete. Blocked DCF remains `blocked`; monitor-context DCF is `not_applicable`. The scorecard never grades the company, scores expected returns, or changes analysis.
+
 ### Conservative DCF Normalization
 
 The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into a valuation story without ready inputs.
@@ -191,6 +225,7 @@ Peer analysis is separate from standalone DCF.
 - Peer valuation context requires source-backed peer mappings and peer valuation inputs.
 - Missing peer mappings block the mapping proof path; mapped peers with missing price, fundamentals, market cap, or valuation fields block the peer valuation inputs proof path.
 - Sector or industry fallback context, if shown, must be labeled as fallback and not trusted manual peer data.
+- Contextual earnings read-through additionally requires a source-backed peer actual and explicit target/peer fiscal periods. Calendar proximity or business similarity is not inferred as period comparability.
 
 This prevents the report from pretending that peer valuation exists when only partial peer data is available.
 

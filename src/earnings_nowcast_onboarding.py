@@ -236,6 +236,15 @@ def preview_onboarding(
     revisions: list[dict[str, Any]] = []
     conflicts: list[dict[str, Any]] = []
     new_rows: list[dict[str, Any]] = []
+    accepted_files = {item["file"] for item in validation["accepted_rows"]}
+    packet_blockers: list[str] = []
+    if not validation["accepted_rows"]:
+        packet_blockers.append("no_source_backed_rows")
+    else:
+        if "quarterly_actuals.csv" not in accepted_files:
+            packet_blockers.append("quarterly_actuals_missing")
+        if "consensus_snapshots.csv" not in accepted_files:
+            packet_blockers.append("point_in_time_consensus_missing")
     for item in validation["accepted_rows"]:
         filename = item["file"]
         row = item["row"]
@@ -281,7 +290,8 @@ def preview_onboarding(
         "revision_count": len(revisions),
         "conflict_count": len(conflicts),
         "duplicate_count": len(duplicates),
-        "ready_for_packet": bool(validation["valid"] and not conflicts),
+        "ready_for_packet": bool(validation["valid"] and not conflicts and not packet_blockers),
+        "packet_blockers": packet_blockers,
         "new_rows": new_rows,
         "revision_rows": revisions,
         "conflict_rows": conflicts,

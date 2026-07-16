@@ -644,6 +644,33 @@ def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: py
     assert "wrote:" not in output
 
 
+def test_project_status_cli_prints_selected_profile_context_and_matching_counts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    default_data = tmp_path / "data"
+    default_outputs = tmp_path / "outputs"
+    local_data_staging = tmp_path / "local-data-staging"
+    local_outputs_staging = tmp_path / "local-outputs-staging"
+    default_data.rename(local_data_staging)
+    default_outputs.rename(local_outputs_staging)
+    (tmp_path / "data").mkdir()
+    (tmp_path / "outputs").mkdir()
+    local_data_staging.rename(tmp_path / "data/local")
+    local_outputs_staging.rename(tmp_path / "outputs/local")
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+
+    main(["--project-root", str(tmp_path), "--check", "--top-n", "2"])
+    output = capsys.readouterr().out
+
+    assert "Profile: Local Research (local)" in output
+    assert "Saved readiness coverage: price=1/2; fundamentals=1/2; DCF=1/2; peers=0/2" in output
+    assert "data: data/local" in output
+    assert "outputs: outputs/local" in output
+
+
 def test_project_status_human_output_names_actionable_peer_blocker(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

@@ -68,3 +68,35 @@ The `demo` profile is a compact tracked snapshot with a manifest, checksums, sel
 The `local` profile is an ignored mutable workspace for refreshed research data. It may contain newer local rows, but those rows need the same validate, preview, apply, rebuild, and proof gates before they change a readiness claim.
 
 Both profiles remain research-only: no broker execution, order routing, auto-trading, direct buy/sell instructions, or fabricated values.
+
+## Research Change Event Contract
+
+A research change event requires two comparable generated snapshots from the same selected profile. Each event preserves a deterministic event ID, ticker, event family/subtype, prior/current values, source and source reference, source publication time when available, retrieval and detection time, selected profile, prior/current snapshot identities, evidence status, materiality, and a research-only review task.
+
+Publication time, retrieval time, and detection time are different facts and must not be substituted for one another. Missing source timestamps stay missing. A missing prior snapshot is `baseline_missing`; it does not prove that nothing changed. Cross-profile comparison is invalid.
+
+Event review outcomes are append-only evidence. The latest valid outcome controls whether an event remains in the open queue, but historical rows are retained. Review resolution never mutates canonical sources or readiness. Candidate context, provider reachability, or a detected event cannot become trusted evidence without the existing source review, validation, preview, rejected-row, apply, readiness rebuild, and proof gates.
+
+## Research Thesis Journal Contract
+
+`data/research_thesis_journal.csv` is the canonical reviewed, append-only journal ledger. Every row identifies schema version, entry ID, selected profile, ticker, thesis ID, entry type, recorded/effective timestamps, reviewer, summary, evidence direction, source, durable source reference, source publication timestamp, confidence, review due date, and `supersedes_entry_id`.
+
+Source publication and effective timestamps cannot be later than the recorded timestamp. Evidence, catalyst, risk, and invalidation rows require source provenance. Thesis revisions must remain within the same profile, ticker, and thesis chain and must preserve the prior row. Generated report text, detected changes, queue outcomes, and synthetic fixtures cannot create a reviewed journal entry automatically.
+
+## Scenario Lab Contract
+
+The Scenario Lab never writes canonical data, readiness, reports, or proof records. It derives an immutable input identity from the selected profile, source-backed valuation input, provenance, and bounded session parameters. Only DCF-ready operating companies with source references, revenue, FCF margin, and shares can display numerical scenario math. If the selected row is blocked or excluded, the product shows the reason and withholds baseline, adjusted, sensitivity, and terminal-value figures.
+
+Scenario values are temporary assumption tests. They are not source facts, saved forecasts, price targets, rankings, recommendations, or evidence that can unlock another lane.
+
+## Source Freshness Timeline Contract
+
+The timeline is a read-only same-profile view derived from the selected report payload. Each event preserves a deterministic identity, ticker, profile, lane, event type, timestamp kind, supplied timestamp, source, source reference when present, freshness state, and evidence note. Exact duplicate source events collapse by identity; cross-profile events never merge.
+
+Effective, publication, retrieval, market-observation, forecast-cutoff, revision, and report-generation times are different facts. The product does not substitute one for another. An absent or invalid value remains a `missing timestamp` event, and publication, cutoff, or revision events appear only when the source payload explicitly provides them. The timeline never refreshes data, writes a report, changes readiness, or unlocks a blocked input.
+
+## Research Comparison Contract
+
+The comparison consumes only selected-profile selector rows plus profile-scoped, reviewer-authored Research Thesis Journal state. It preserves ticker selection order and explicit missing states. Journal catalysts and risks appear only when reviewed entries exist for that same profile and ticker; generated text, Change Monitor tasks, and cross-profile rows cannot populate them.
+
+Readiness lanes remain independent, and candidate peer context cannot satisfy trusted-peer readiness. The view writes no data and produces no score, rank, winner, expected return, recommendation, allocation, or transaction instruction.
