@@ -64,6 +64,22 @@ def test_normalization_rejects_non_json_numeric_scalars_and_non_integral_fiscal_
     assert [(fact.value, fact.fiscal_year) for fact in facts] == [(12.0, 2026)]
 
 
+def test_normalization_rejects_oversized_integer_scalars():
+    oversized_integer = 10**400
+    payload = companyfacts_fixture(
+        revenue=[
+            _fact(val=12, start="2026-02-27", end="2026-05-28", frame="CY2026Q2"),
+            _fact(val=oversized_integer, start="2026-02-27", end="2026-05-28"),
+            _fact(val=12, start="2026-02-27", end="2026-05-28", fy=oversized_integer),
+        ],
+        eps=[],
+    )
+
+    facts = normalize_sec_duration_facts(payload)
+
+    assert [(fact.value, fact.fiscal_year) for fact in facts] == [(12.0, 2026)]
+
+
 def test_q3_lineage_keeps_aligned_quarter_and_rejects_ytd_and_comparative_period():
     payload = companyfacts_fixture(
         revenue=[

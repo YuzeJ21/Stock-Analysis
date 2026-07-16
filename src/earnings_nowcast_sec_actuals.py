@@ -61,7 +61,10 @@ def _required_text(value: object) -> str | None:
 def _finite_json_number(value: object) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    normalized = float(value)
+    try:
+        normalized = float(value)
+    except OverflowError:
+        return None
     return normalized if isfinite(normalized) else None
 
 
