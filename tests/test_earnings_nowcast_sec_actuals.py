@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import csv
+import json
+from pathlib import Path
+
+from src.earnings_nowcast_contract import QuarterlyActual
 from src.earnings_nowcast_sec_actuals import (
+    ExtractionAuditRow,
+    ExtractionResult,
     extract_q1_q3_lineage,
+    link_quarter_revisions,
     normalize_sec_duration_facts,
+    stage_sec_quarterly_actuals,
+    write_sec_actuals_stage,
 )
 
 
@@ -44,6 +54,169 @@ def companyfacts_fixture(*, revenue, eps):
             }
         },
     }
+
+
+def actual(
+    fiscal_period,
+    *,
+    revenue,
+    eps,
+    source_ref,
+    reported_at,
+    source="sec_companyfacts",
+):
+    return QuarterlyActual(
+        ticker="SYN1",
+        fiscal_period=fiscal_period,
+        period_end_date="2025-06-30",
+        reported_at=reported_at,
+        revenue_actual=revenue,
+        eps_actual=eps,
+        source=source,
+        source_ref=source_ref,
+        retrieved_at=RETRIEVED_AT,
+    )
+
+
+def extraction_result():
+    return ExtractionResult(
+        rows=(
+            actual(
+                "2025-Q2",
+                revenue=100,
+                eps=1.0,
+                source_ref="sec://original",
+                reported_at="2025-08-01T00:00:00Z",
+            ),
+        ),
+        audit_rows=(
+            ExtractionAuditRow(
+                ticker="SYN1",
+                state="cumulative_fact_rejected",
+                metric="revenue",
+                fiscal_period="2025-Q2",
+                source_ref="sec://original",
+                detail="duration is cumulative",
+                concept="Revenues",
+                start="2025-01-01",
+                end="2025-06-30",
+                frame="CY2025",
+                accession="0000000000-25-000001",
+            ),
+        ),
+    )
+
+
+def test_later_changed_presentation_is_append_only_revision():
+    original = actual(
+        "2025-Q2",
+        revenue=100,
+        eps=1.0,
+        source_ref="sec://original",
+        reported_at="2025-08-01T00:00:00Z",
+    )
+    revised = actual(
+        "2025-Q2",
+        revenue=100,
+        eps=0.1,
+        source_ref="sec://split-adjusted",
+        reported_at="2025-11-01T00:00:00Z",
+    )
+
+    linked = link_quarter_revisions([original, revised])
+
+    assert len(linked) == 2
+    assert linked[1].supersedes_source_ref == original.source_ref
+    assert linked[0].eps_actual == 1.0
+
+
+def test_later_unchanged_presentation_is_deduplicated():
+    original = actual(
+        "2025-Q2",
+        revenue=100,
+        eps=1.0,
+        source_ref="sec://original",
+        reported_at="2025-08-01T00:00:00Z",
+    )
+    later_same = actual(
+        "2025-Q2",
+        revenue=100,
+        eps=1.0,
+        source_ref="sec://later-presentation",
+        reported_at="2025-11-01T00:00:00Z",
+    )
+
+    linked = link_quarter_revisions([later_same, original])
+
+    assert linked == (original,)
+
+
+def test_unrelated_conflicting_source_is_not_marked_as_revision():
+    sec_original = actual(
+        "2025-Q2",
+        revenue=100,
+        eps=1.0,
+        source_ref="sec://original",
+        reported_at="2025-08-01T00:00:00Z",
+    )
+    unrelated = actual(
+        "2025-Q2",
+        revenue=100,
+        eps=0.1,
+        source_ref="other://conflict",
+        reported_at="2025-11-01T00:00:00Z",
+        source="other_source",
+    )
+
+    linked = link_quarter_revisions([sec_original, unrelated])
+
+    assert len(linked) == 2
+    assert linked[1].supersedes_source_ref is None
+
+
+def test_stage_writes_only_explicit_output_directory(tmp_path):
+    result = write_sec_actuals_stage(tmp_path / "stage", {"SYN1": extraction_result()})
+
+    stage_dir = tmp_path / "stage"
+    assert Path(result.quarterly_actuals_path).parent == stage_dir
+    assert (stage_dir / "quarterly_actuals.csv").exists()
+    assert (stage_dir / "consensus_snapshots.csv").read_text(encoding="utf-8").count("\n") == 1
+    assert (stage_dir / "signals.csv").read_text(encoding="utf-8").count("\n") == 1
+    assert result.automatic_apply is False
+    assert not (tmp_path / "data").exists()
+
+    audit = json.loads((stage_dir / "sec_actuals_audit.json").read_text(encoding="utf-8"))
+    assert audit["audit_rows"][0]["concept"] == "Revenues"
+    assert audit["audit_rows"][0]["start"] == "2025-01-01"
+    assert audit["audit_rows"][0]["end"] == "2025-06-30"
+    assert audit["audit_rows"][0]["frame"] == "CY2025"
+    assert audit["audit_rows"][0]["accession"] == "0000000000-25-000001"
+
+    with (stage_dir / "sec_actuals_rejected.csv").open(newline="", encoding="utf-8") as handle:
+        rejected = list(csv.DictReader(handle))
+    assert rejected[0]["reason_code"] == "cumulative_fact_rejected"
+    assert rejected[0]["state"] == "cumulative_fact_rejected"
+
+
+def test_stage_uses_injected_ticker_map_and_companyfacts_fetcher(tmp_path):
+    result = stage_sec_quarterly_actuals(
+        ["syn1", "missing"],
+        output_dir=tmp_path / "stage",
+        cutoff=CUTOFF,
+        user_agent="Test test@example.com",
+        retrieved_at=RETRIEVED_AT,
+        ticker_map={"SYN1": {"ticker": "SYN1", "cik": "0000123456"}},
+        companyfacts_fetcher=lambda *_: companyfacts_fixture(
+            revenue=[_fact(val=12, start="2026-02-27", end="2026-05-28")],
+            eps=[_fact(val=1.2, start="2026-02-27", end="2026-05-28")],
+        ),
+    )
+
+    assert result.requested_tickers == ("MISSING", "SYN1")
+    assert result.accepted_tickers == ("SYN1",)
+    assert result.withheld_tickers == ("MISSING",)
+    assert result.accepted_row_count == 1
+    assert result.automatic_apply is False
 
 
 def test_normalization_rejects_non_json_numeric_scalars_and_non_integral_fiscal_years():
