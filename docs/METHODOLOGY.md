@@ -187,6 +187,8 @@ The default report uses bear, base, and bull scenarios. Scenario assumptions are
 
 DCF output is treated as scenario math, not a price target. The report should show the input path, assumptions, sensitivity, and data-confidence limits so a reader can challenge the model instead of trusting a hidden conclusion.
 
+The Scenario Lab is a session-local review layer over that same DCF engine. It starts from the selected profile's source-backed baseline and permits revenue growth from -50% to 40%, FCF margin from -50% to 45%, WACC from 5% to 20%, terminal growth from -2% to 5%, and a one-to-ten-year forecast horizon; terminal growth must remain below WACC. Missing company eligibility, DCF readiness, provenance, revenue, margin, or shares closes the gate and suppresses all numerical scenario output. Adjustments never modify canonical fundamentals, readiness, reports, or proof history.
+
 ### Conservative DCF Normalization
 
 The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into a valuation story without ready inputs.

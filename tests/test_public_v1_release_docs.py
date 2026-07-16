@@ -550,3 +550,17 @@ def test_thesis_journal_docs_preserve_append_only_research_boundary():
     assert "supersedes_entry_id" in provenance
     assert "make thesis-journal TICKER=NVDA" in operator
     assert "CONFIRM_REVIEWED=1 make thesis-journal-record" in operator
+
+
+def test_scenario_lab_docs_define_session_local_readiness_gated_boundary():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+
+    assert "session-local Scenario Lab" in readme
+    assert "P2: Scenario Lab - Implemented" in roadmap
+    assert "revenue growth from -50% to 40%" in methodology
+    assert "terminal growth must remain below WACC" in methodology
+    assert "Scenario Lab never writes canonical data" in provenance
+    assert "blocked or excluded" in provenance
