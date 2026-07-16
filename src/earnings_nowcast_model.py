@@ -7,7 +7,7 @@ from datetime import date
 from typing import Sequence
 
 from src.earnings_nowcast_contract import ConsensusSnapshot, ForecastSnapshot, QuarterlyActual, input_snapshot_hash, parse_utc_timestamp
-from src.earnings_nowcast_readiness import assess_nowcast_readiness, canonicalize_actuals
+from src.earnings_nowcast_readiness import assess_nowcast_readiness, canonicalize_actuals, contiguous_metric_window
 
 
 @dataclass(frozen=True)
@@ -181,15 +181,35 @@ def build_baseline_nowcast(
         missing = ", ".join(readiness.missing_evidence) or readiness.state.value
         raise ValueError(f"Nowcast is blocked: {missing}")
 
-    canonical = canonicalize_actuals(rows, consensus)
+    canonical = canonicalize_actuals(
+        [
+            row
+            for row in rows
+            if parse_utc_timestamp(row.reported_at) <= parse_utc_timestamp(cutoff)
+            and row.fiscal_period != consensus.fiscal_period
+        ],
+        consensus,
+    )
+    revenue_window = contiguous_metric_window(
+        canonical.revenue_rows,
+        consensus.fiscal_period,
+        "revenue",
+        config.minimum_history_quarters,
+    )
+    eps_window = contiguous_metric_window(
+        canonical.eps_rows,
+        consensus.fiscal_period,
+        "eps",
+        config.minimum_history_quarters,
+    )
 
     revenue_midpoint = revenue_low = revenue_high = None
     if readiness.revenue_ready:
-        revenue_midpoint, revenue_low, revenue_high = _revenue_forecast(canonical.revenue_rows, consensus.fiscal_period, config)
+        revenue_midpoint, revenue_low, revenue_high = _revenue_forecast(revenue_window, consensus.fiscal_period, config)
 
     eps_midpoint = eps_low = eps_high = None
     if readiness.eps_ready:
-        eps_midpoint, eps_low, eps_high = _eps_forecast(canonical.eps_rows, consensus.fiscal_period, config)
+        eps_midpoint, eps_low, eps_high = _eps_forecast(eps_window, consensus.fiscal_period, config)
 
     revenue_classification = (
         classify_consensus_gap(
@@ -213,7 +233,7 @@ def build_baseline_nowcast(
     )
     primary_classification = revenue_classification or eps_classification or "withheld"
 
-    canonical_rows = {row.source_ref: row for row in (*canonical.revenue_rows, *canonical.eps_rows)}
+    canonical_rows = {row.source_ref: row for row in (*revenue_window, *eps_window)}
     digest = input_snapshot_hash([*canonical_rows.values(), consensus, asdict(config)])
     forecast_horizon_days = (
         (date.fromisoformat(consensus.expected_report_date) - parse_utc_timestamp(cutoff).date()).days

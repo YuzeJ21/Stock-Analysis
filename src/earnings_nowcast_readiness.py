@@ -87,6 +87,34 @@ def _metric_definition(row: QuarterlyActual | ConsensusSnapshot, metric: str) ->
     )
 
 
+def _previous_period(period: str) -> str:
+    year, quarter = period.split("-Q", 1)
+    return f"{int(year) - 1}-Q4" if quarter == "1" else f"{year}-Q{int(quarter) - 1}"
+
+
+def contiguous_metric_window(
+    rows: Sequence[QuarterlyActual],
+    target_period: str,
+    metric: str,
+    minimum_quarters: int,
+) -> tuple[QuarterlyActual, ...]:
+    value_field = f"{metric}_actual"
+    rows_by_period = {
+        row.fiscal_period: row
+        for row in rows
+        if getattr(row, value_field) is not None
+    }
+    expected_period = _previous_period(target_period)
+    window: list[QuarterlyActual] = []
+    for _ in range(minimum_quarters):
+        row = rows_by_period.get(expected_period)
+        if row is None:
+            return ()
+        window.append(row)
+        expected_period = _previous_period(expected_period)
+    return tuple(reversed(window))
+
+
 def _canonical_period_row(rows: Sequence[QuarterlyActual], metric: str) -> tuple[QuarterlyActual | None, tuple[str, ...]]:
     value_field = f"{metric}_actual"
     ordered = sorted(rows, key=lambda row: (parse_utc_timestamp(row.reported_at), parse_utc_timestamp(row.retrieved_at), row.source_ref))
@@ -209,10 +237,24 @@ def assess_nowcast_readiness(
     selected_consensus = _latest_consensus(available_consensus)
     canonical = canonicalize_actuals(available_actuals, selected_consensus)
 
-    revenue_history = [row.revenue_actual for row in canonical.revenue_rows]
-    eps_history = [row.eps_actual for row in canonical.eps_rows]
-    enough_revenue_history = len(revenue_history) >= minimum_history_quarters
-    enough_eps_history = len(eps_history) >= minimum_history_quarters
+    revenue_window = contiguous_metric_window(
+        canonical.revenue_rows,
+        normalized_period,
+        "revenue",
+        minimum_history_quarters,
+    )
+    eps_window = contiguous_metric_window(
+        canonical.eps_rows,
+        normalized_period,
+        "eps",
+        minimum_history_quarters,
+    )
+    revenue_history = [row.revenue_actual for row in revenue_window]
+    eps_history = [row.eps_actual for row in eps_window]
+    enough_revenue_history = len(revenue_window) == minimum_history_quarters
+    enough_eps_history = len(eps_window) == minimum_history_quarters
+    revenue_history_gap = bool(canonical.revenue_rows) and not enough_revenue_history
+    eps_history_gap = bool(canonical.eps_rows) and not enough_eps_history
     stable_eps_history = enough_eps_history and _sign_changes(float(value) for value in eps_history) <= 1
 
     freshness_state = (
@@ -252,6 +294,8 @@ def assess_nowcast_readiness(
         missing.append("post_cutoff_evidence")
     if not enough_revenue_history:
         missing.append("quarterly_actual_history")
+    if revenue_history_gap or eps_history_gap:
+        missing.append("quarter_history_gap")
     if canonical.revenue_conflict_source_ids:
         missing.append("conflicting_quarterly_revenue")
     if canonical.eps_conflict_source_ids:
@@ -272,7 +316,7 @@ def assess_nowcast_readiness(
         missing.append("current_consensus")
 
     state = NowcastState.BASELINE_READY if revenue_ready or eps_ready else NowcastState.BLOCKED
-    source_ids = tuple(row.source_ref for row in (*canonical.revenue_rows, *canonical.eps_rows))
+    source_ids = tuple(row.source_ref for row in (*revenue_window, *eps_window))
     if selected_consensus is not None:
         source_ids += (
             selected_consensus.source_ref

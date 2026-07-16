@@ -5,7 +5,7 @@ from dataclasses import replace
 import pytest
 
 from src.earnings_nowcast_contract import ConsensusSnapshot, FreshnessState, NowcastState, QuarterlyActual
-from src.earnings_nowcast_readiness import assess_nowcast_readiness, readiness_payload
+from src.earnings_nowcast_readiness import assess_nowcast_readiness, canonicalize_actuals, readiness_payload
 
 
 CUTOFF = "2026-01-31T23:59:59Z"
@@ -221,6 +221,43 @@ def test_duplicate_fiscal_period_does_not_satisfy_minimum_history():
     assert "quarterly_actual_history" in result.missing_evidence
 
 
+def test_missing_q4_withholds_both_metrics_instead_of_treating_q3_to_q1_as_sequential():
+    rows = [row for row in _actuals() if row.fiscal_period != "2024-Q4"]
+
+    result = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=rows,
+        consensus=[_consensus()],
+    )
+
+    assert result.revenue_ready is False
+    assert result.eps_ready is False
+    assert "quarter_history_gap" in result.missing_evidence
+
+
+def test_source_ids_include_only_the_contiguous_metric_windows():
+    oldest = replace(
+        _actuals()[0],
+        fiscal_period="2024-Q3",
+        period_end_date="2024-09-30",
+        reported_at="2024-11-01T21:00:00Z",
+        retrieved_at="2024-11-01T21:00:00Z",
+        source_ref="fixture://actual/2024-Q3",
+    )
+
+    result = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=[oldest, *_actuals()],
+        consensus=[_consensus()],
+    )
+
+    assert "fixture://actual/2024-Q3" not in result.source_ids
+
+
 def test_conflicting_quarterly_revenue_blocks_only_revenue():
     rows = _actuals()
     rows.append(
@@ -348,3 +385,77 @@ def test_incompatible_metric_definitions_fail_only_the_affected_metric(
     assert getattr(result, ready_metric) is True
     assert getattr(result, blocked_metric) is False
     assert reason in result.missing_evidence
+
+
+def test_split_basis_change_withholds_eps_but_keeps_revenue_ready():
+    rows = _actuals()
+    rows[0] = replace(rows[0], split_adjustment_basis="pre_split")
+    consensus = replace(_consensus(), split_adjustment_basis="post_split_2024_06_10")
+
+    result = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=rows,
+        consensus=[consensus],
+    )
+
+    assert result.revenue_ready is True
+    assert result.eps_ready is False
+    assert "incompatible_eps_definition" in result.missing_evidence
+
+
+def test_pre_cutoff_split_adjusted_revisions_restore_eps_but_post_cutoff_revisions_do_not():
+    from src.earnings_nowcast_readiness import contiguous_metric_window
+
+    rows = _actuals()
+    consensus = replace(_consensus(), split_adjustment_basis="post_split_2024_06_10")
+    pre_cutoff_revisions = [
+        replace(
+            row,
+            revenue_actual=None,
+            reported_at="2026-01-16T21:00:00Z",
+            retrieved_at="2026-01-16T21:01:00Z",
+            source_ref=f"fixture://revision/{row.fiscal_period}",
+            split_adjustment_basis="post_split_2024_06_10",
+            supersedes_source_ref=row.source_ref,
+        )
+        for row in rows
+    ]
+
+    pre_cutoff = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=[*rows, *pre_cutoff_revisions],
+        consensus=[consensus],
+    )
+    post_cutoff = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=[
+            *rows,
+            *[
+                replace(
+                    revision,
+                    reported_at="2026-02-01T21:00:00Z",
+                    retrieved_at="2026-02-01T21:01:00Z",
+                )
+                for revision in pre_cutoff_revisions
+            ],
+        ],
+        consensus=[consensus],
+    )
+
+    assert pre_cutoff.revenue_ready is True
+    assert pre_cutoff.eps_ready is True
+    assert any(source_id.startswith("fixture://revision/") for source_id in pre_cutoff.source_ids)
+    canonical = canonicalize_actuals([*rows, *pre_cutoff_revisions], consensus)
+    assert tuple(
+        row.source_ref
+        for row in contiguous_metric_window(canonical.eps_rows, "2026-Q1", "eps", minimum_quarters=5)
+    ) == tuple(revision.source_ref for revision in pre_cutoff_revisions)
+    assert post_cutoff.eps_ready is False
+    assert "post_cutoff_evidence" in post_cutoff.missing_evidence
+    assert "incompatible_eps_definition" in post_cutoff.missing_evidence

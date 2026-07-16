@@ -5,6 +5,7 @@ from dataclasses import replace
 import pytest
 
 from src.earnings_nowcast_contract import ConsensusSnapshot, NowcastState, QuarterlyActual
+from src import earnings_nowcast_model
 from src.earnings_nowcast_model import NowcastConfig, build_baseline_nowcast, classify_consensus_gap
 
 
@@ -96,11 +97,40 @@ def test_blocked_eps_never_renders_a_numeric_eps_forecast():
     assert result.eps_gap_pct is None
 
 
-def test_missing_prior_year_target_quarter_fails_instead_of_guessing_seasonality():
+def test_missing_prior_year_target_quarter_is_withheld_as_a_continuity_gap():
     rows = [row for row in _actuals() if row.fiscal_period != "2025-Q1"]
 
-    with pytest.raises(ValueError, match="prior-year target quarter"):
+    with pytest.raises(ValueError, match="quarter_history_gap"):
         build_baseline_nowcast(rows, _consensus(), CUTOFF, NowcastConfig(minimum_history_quarters=4))
+
+
+def test_missing_q4_never_passes_q3_to_q1_into_sequential_growth(monkeypatch: pytest.MonkeyPatch):
+    rows = [row for row in _actuals() if row.fiscal_period != "2025-Q4"]
+    rows.append(
+        QuarterlyActual(
+            ticker="SYN1",
+            fiscal_period="2026-Q1",
+            period_end_date="2026-03-31",
+            reported_at="2026-01-16T21:00:00Z",
+            revenue_actual=104.0,
+            eps_actual=1.3,
+            source="synthetic_test_fixture",
+            source_ref="fixture://actual/2026-Q1",
+            retrieved_at="2026-01-16T21:01:00Z",
+        )
+    )
+    sequential_inputs: list[list[float]] = []
+
+    def capture_sequential_growth(values: list[float]) -> list[float]:
+        sequential_inputs.append(values)
+        return [0.01]
+
+    monkeypatch.setattr(earnings_nowcast_model, "_sequential_growth", capture_sequential_growth)
+
+    with pytest.raises(ValueError, match="quarter_history_gap"):
+        build_baseline_nowcast(rows, replace(_consensus(), fiscal_period="2026-Q2"), CUTOFF)
+
+    assert sequential_inputs == []
 
 
 def test_post_cutoff_actual_fails_closed():
