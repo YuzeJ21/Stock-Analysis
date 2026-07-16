@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import csv
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -9,6 +10,8 @@ from pathlib import Path
 from typing import Iterable
 
 from src.research_change_monitor import ResearchChangeEvent
+from src.research_change_monitor import compare_optional_snapshots
+from src.research_change_snapshot import load_research_change_snapshot
 
 
 REVIEW_SCHEMA_VERSION = "research-event-review-v1"
@@ -214,3 +217,69 @@ def render_research_review_queue(items: Iterable[ResearchReviewItem]) -> str:
         for item in rows
     )
     return "\n".join(lines)
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Review unresolved research changes without mutating readiness.")
+    parser.add_argument("--before")
+    parser.add_argument("--after")
+    parser.add_argument("--top-n", type=int, default=25)
+    parser.add_argument("--ledger", default="data/reviewed_research_events.csv")
+    parser.add_argument("--record", action="store_true")
+    parser.add_argument("--event-id")
+    parser.add_argument("--profile-key")
+    parser.add_argument("--ticker")
+    parser.add_argument("--status")
+    parser.add_argument("--reviewed-at")
+    parser.add_argument("--reviewer")
+    parser.add_argument("--resolution-note")
+    parser.add_argument("--source-ref")
+    parser.add_argument("--prior-snapshot-identity")
+    parser.add_argument("--current-snapshot-identity")
+    return parser.parse_args(argv)
+
+
+def _record_from_args(args: argparse.Namespace) -> ReviewResolution:
+    values = {
+        "event_id": args.event_id,
+        "profile_key": args.profile_key,
+        "ticker": args.ticker,
+        "review_status": args.status,
+        "reviewed_at": args.reviewed_at,
+        "reviewer": args.reviewer,
+        "resolution_note": args.resolution_note,
+        "source_ref": args.source_ref,
+        "prior_snapshot_identity": args.prior_snapshot_identity,
+        "current_snapshot_identity": args.current_snapshot_identity,
+    }
+    missing = [field for field, value in values.items() if not str(value or "").strip()]
+    if missing:
+        raise ValueError("Recording a research event review requires: " + ", ".join(missing))
+    return ReviewResolution(schema_version=REVIEW_SCHEMA_VERSION, **values)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    if args.record:
+        destination = append_review_resolution(args.ledger, _record_from_args(args))
+        print(f"Appended reviewed research event outcome: {destination}")
+        return 0
+    if not args.after:
+        raise ValueError("--after is required to build the research review queue")
+    before_path = Path(args.before) if args.before else None
+    after_path = Path(args.after)
+    before = load_research_change_snapshot(before_path) if before_path and before_path.is_file() else None
+    if not after_path.is_file():
+        raise ValueError(f"Current research change snapshot is missing: {after_path}")
+    result = compare_optional_snapshots(before, load_research_change_snapshot(after_path))
+    queue = build_research_review_queue(
+        result.events,
+        resolutions=load_review_resolutions(args.ledger),
+    )[: max(args.top_n, 0)]
+    print(f"Change status: {result.status}")
+    print(render_research_review_queue(queue))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

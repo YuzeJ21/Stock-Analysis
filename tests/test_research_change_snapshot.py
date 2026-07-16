@@ -7,6 +7,7 @@ from src.research_change_snapshot import (
     build_research_change_snapshot,
     load_research_change_snapshot,
     write_research_change_snapshot,
+    main,
 )
 
 
@@ -125,3 +126,16 @@ def test_snapshot_write_requires_explicit_output_and_never_writes_source_data(tm
     assert destination.exists()
     assert loaded == snapshot
     assert not (data_dir / "research_changes.json").exists()
+
+
+def test_snapshot_cli_prints_by_default_and_writes_only_with_output(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+    _seed_local_profile(tmp_path)
+
+    assert main(["--root", str(tmp_path)]) == 0
+    assert '"profile_key": "local"' in capsys.readouterr().out
+    assert not (tmp_path / "outputs" / "local" / "research_changes" / "snapshot.json").exists()
+
+    output = tmp_path / "outputs" / "local" / "research_changes" / "snapshot.json"
+    assert main(["--root", str(tmp_path), "--output", str(output)]) == 0
+    assert output.exists()

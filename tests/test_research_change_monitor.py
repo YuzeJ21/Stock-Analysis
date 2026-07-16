@@ -2,7 +2,8 @@ import re
 
 import pytest
 
-from src.research_change_monitor import compare_optional_snapshots, compare_research_snapshots
+from src.research_change_monitor import compare_optional_snapshots, compare_research_snapshots, main
+from src.research_change_snapshot import write_research_change_snapshot
 from src.research_change_snapshot import ResearchChangeSnapshot, TickerResearchState
 
 
@@ -124,3 +125,23 @@ def test_suggested_tasks_contain_no_investment_or_execution_language():
     rendered = " ".join(row.suggested_research_task for row in compare_research_snapshots(before, after)).lower()
 
     assert not re.search(r"\b(buy|sell|hold|outperform|underperform|order|trade)\b", rendered)
+
+
+def test_monitor_cli_treats_missing_baseline_as_success(tmp_path, capsys):
+    after = tmp_path / "after.json"
+    write_research_change_snapshot(_snapshot(identity="after"), after)
+
+    result = main(["--before", str(tmp_path / "missing.json"), "--after", str(after)])
+
+    assert result == 0
+    assert "baseline_missing" in capsys.readouterr().out
+
+
+def test_monitor_cli_rejects_cross_profile_snapshots(tmp_path):
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    write_research_change_snapshot(_snapshot(profile="demo"), before)
+    write_research_change_snapshot(_snapshot(profile="local", identity="after"), after)
+
+    with pytest.raises(ValueError, match="same selected profile"):
+        main(["--before", str(before), "--after", str(after)])

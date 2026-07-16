@@ -2477,6 +2477,16 @@ def test_daily_launcher_reuses_current_make_targets():
 def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
+    assert "profile-context:\n\t@python3 -m src.profile_context --root ." in makefile
+    assert "research-change-snapshot:" in makefile
+    assert "research-change-monitor:" in makefile
+    assert "research-review-queue:" in makefile
+    assert "research-event-review-record:" in makefile
+    monitor = makefile.split("research-change-monitor:", 1)[1].split("research-review-queue:", 1)[0]
+    assert "imports-apply" not in monitor
+    assert "git add" not in monitor
+    assert "git push" not in monitor
+
     assert "status:\n\tpython3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)" in makefile
     assert "status-check:\n\tpython3 -m src.project_status --check --top-n $(or $(TOP_N),5) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile

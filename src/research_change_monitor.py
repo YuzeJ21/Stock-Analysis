@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
+import json
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Mapping
 
-from src.research_change_snapshot import ResearchChangeSnapshot, TickerResearchState
+from src.research_change_snapshot import (
+    ResearchChangeSnapshot,
+    TickerResearchState,
+    load_research_change_snapshot,
+)
 
 
 EVENT_ID_FIELDS = (
@@ -347,3 +354,40 @@ def render_change_monitor(result: ResearchChangeResult) -> str:
 
 def event_payload(event: ResearchChangeEvent) -> dict[str, str]:
     return asdict(event)
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Compare two generated research state snapshots without changing data.")
+    parser.add_argument("--before")
+    parser.add_argument("--after", required=True)
+    parser.add_argument("--json", action="store_true")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    before_path = Path(args.before) if args.before else None
+    before = load_research_change_snapshot(before_path) if before_path and before_path.is_file() else None
+    after_path = Path(args.after)
+    if not after_path.is_file():
+        raise ValueError(f"Current research change snapshot is missing: {after_path}")
+    result = compare_optional_snapshots(before, load_research_change_snapshot(after_path))
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "status": result.status,
+                    "message": result.message,
+                    "events": [event_payload(event) for event in result.events],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    else:
+        print(render_change_monitor(result))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

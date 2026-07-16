@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 from dataclasses import asdict, dataclass
@@ -234,3 +235,25 @@ def load_research_change_snapshot(path: Path | str) -> ResearchChangeSnapshot:
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Invalid research change snapshot fields: {exc}") from exc
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Build a generated selected-profile research comparison snapshot.")
+    parser.add_argument("--root", default=".")
+    parser.add_argument("--output")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    snapshot = build_research_change_snapshot(project_root=args.root)
+    if args.output:
+        written = write_research_change_snapshot(snapshot, args.output)
+        print(f"Wrote generated research change snapshot: {written}")
+    else:
+        print(json.dumps(_payload(snapshot), indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
