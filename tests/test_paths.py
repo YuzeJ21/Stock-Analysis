@@ -4,6 +4,7 @@ from src.paths import (
     DATA_PROFILE_ENV,
     PROJECT_ROOT,
     path_context,
+    profile_display_label,
     resolve_data_dir,
     resolve_data_profile,
     resolve_outputs_dir,
@@ -58,3 +59,18 @@ def test_environment_selected_profile_is_used_only_when_paths_are_not_explicit(t
     assert resolve_outputs_dir(project_root=tmp_path) == tmp_path / "outputs" / "demo"
     assert resolve_data_dir("custom", tmp_path) == tmp_path / "custom"
     assert resolve_outputs_dir("custom_outputs", tmp_path) == tmp_path / "custom_outputs"
+
+
+def test_profile_display_labels_are_stable_and_user_facing():
+    assert profile_display_label("default") == "Default"
+    assert profile_display_label("demo") == "Demo"
+    assert profile_display_label("local") == "Local Research"
+
+
+def test_profile_display_label_rejects_unknown_profile():
+    try:
+        profile_display_label("private")
+    except ValueError as exc:
+        assert "Unknown data profile 'private'" in str(exc)
+    else:
+        raise AssertionError("Expected unknown profile to fail closed")
