@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+import hashlib
+import json
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from src.valuation import (
@@ -11,6 +13,7 @@ from src.valuation import (
     SensitivityTable,
     ValuationInput,
     build_default_scenarios,
+    build_sensitivity_table,
     calculate_dcf,
 )
 
@@ -113,6 +116,84 @@ def _like_for_like_baseline(valuation_input: ValuationInput) -> DCFAssumptions |
     )
 
 
+def _input_identity(
+    valuation_input: ValuationInput,
+    parameters: ScenarioParameters,
+    *,
+    profile_key: str,
+) -> str:
+    payload = {
+        "profile_key": profile_key,
+        "valuation_input": valuation_input.to_dict(),
+        "scenario_parameters": asdict(parameters),
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _changed_assumptions(
+    baseline: DCFAssumptions,
+    parameters: ScenarioParameters,
+) -> tuple[dict[str, Any], ...]:
+    rows: list[dict[str, Any]] = []
+    for field in ("revenue_growth", "fcf_margin", "wacc", "terminal_growth", "forecast_years"):
+        prior = getattr(baseline, field)
+        current = getattr(parameters, field)
+        if prior == current:
+            continue
+        rows.append(
+            {
+                "assumption": field,
+                "baseline": prior,
+                "scenario": current,
+                "direction": "higher" if current > prior else "lower",
+            }
+        )
+    return tuple(rows)
+
+
+def _sensitivity_values(parameters: ScenarioParameters) -> tuple[list[float], list[float]]:
+    wacc_values = sorted(
+        {
+            max(0.05, parameters.wacc - 0.01),
+            parameters.wacc,
+            min(0.20, parameters.wacc + 0.01),
+        }
+    )
+    max_terminal = min(0.05, min(wacc_values) - 0.005)
+    terminal_values = sorted(
+        {
+            max(-0.02, min(parameters.terminal_growth - 0.01, max_terminal)),
+            min(parameters.terminal_growth, max_terminal),
+            min(parameters.terminal_growth + 0.01, max_terminal),
+        }
+    )
+    return wacc_values, terminal_values
+
+
+def render_scenario_lab_result(result: ScenarioLabResult) -> str:
+    """Render concise assumption-review output without transaction framing."""
+
+    lines = ["Scenario Lab", f"Status: {result.status}", result.reason]
+    if result.status != "calculated" or result.baseline_result is None or result.scenario_result is None:
+        lines.append("No scenario valuation is shown while the eligibility gate is closed.")
+        return "\n".join(lines)
+    lines.extend(
+        [
+            f"Baseline per-share scenario math: {result.baseline_result.fair_value_per_share:.2f}",
+            f"Adjusted per-share scenario math: {result.scenario_result.fair_value_per_share:.2f}",
+            f"Sensitivity range: {result.sensitivity_low:.2f} to {result.sensitivity_high:.2f}",
+            f"Terminal-value contribution: {result.terminal_value_contribution:.1%}",
+        ]
+    )
+    lines.extend(
+        f"Changed {row['assumption']}: {row['baseline']} -> {row['scenario']} ({row['direction']})"
+        for row in result.changed_assumptions
+    )
+    lines.append("Boundary: this is an assumption test using the selected source-backed baseline.")
+    return "\n".join(lines)
+
+
 def run_scenario_lab(
     valuation_input: ValuationInput,
     parameters: ScenarioParameters,
@@ -186,21 +267,37 @@ def run_scenario_lab(
             valuation_input=valuation_input,
             source_metadata=source_metadata,
         )
+    wacc_values, terminal_growth_values = _sensitivity_values(parameters)
+    sensitivity = build_sensitivity_table(
+        valuation_input,
+        scenario_assumptions,
+        wacc_values=wacc_values,
+        terminal_growth_values=terminal_growth_values,
+    )
+    grid_values = [
+        value
+        for row in sensitivity.fair_value_grid
+        for value in row
+        if value is not None
+    ]
+    terminal_contribution = None
+    if scenario_result.discounted_terminal_value is not None and scenario_result.enterprise_value:
+        terminal_contribution = scenario_result.discounted_terminal_value / scenario_result.enterprise_value
     return ScenarioLabResult(
         status="calculated",
         reason="Scenario math is available for review from the selected source-backed baseline.",
         profile_key=profile_key,
         ticker=valuation_input.ticker,
-        input_identity="",
+        input_identity=_input_identity(valuation_input, parameters, profile_key=profile_key),
         baseline_assumptions=baseline_assumptions,
         scenario_parameters=parameters,
-        changed_assumptions=(),
+        changed_assumptions=_changed_assumptions(baseline_assumptions, parameters),
         baseline_result=baseline_result,
         scenario_result=scenario_result,
-        sensitivity_table=None,
-        sensitivity_low=None,
-        sensitivity_high=None,
-        terminal_value_contribution=None,
+        sensitivity_table=sensitivity,
+        sensitivity_low=min(grid_values) if grid_values else None,
+        sensitivity_high=max(grid_values) if grid_values else None,
+        terminal_value_contribution=terminal_contribution,
         source_metadata=source_metadata,
         warnings=tuple(scenario_result.warnings),
     )
