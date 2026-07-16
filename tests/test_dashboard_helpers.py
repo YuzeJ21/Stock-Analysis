@@ -29974,7 +29974,9 @@ def test_stock_selector_saved_filter_and_compare_controls_are_product_surface():
     assert "Saved filter" in source
     assert "Selected tickers for review" in source
     assert "Compare selected rows" not in source
-    assert "stock_selector_shortlist_html(stock_selector_shortlist_frame(filtered, selected_shortlist))" in source
+    assert "selected_frame = stock_selector_shortlist_frame(filtered, selected_shortlist)" in source
+    assert "stock_selector_shortlist_html(selected_frame)" in source
+    assert "build_research_comparison(selected_frame, journal_states=journal_states)" in source
     proof_href = dashboard.stock_selector_proof_href("NVDA", {"Next Proof Step": "Needs peer mapping"})
     assert proof_href == "?mode=public&page=data-health&ticker=NVDA&lane=peers&drawer=proof"
 
@@ -33686,3 +33688,70 @@ def test_source_freshness_timeline_stays_inside_sources_tab_with_provenance_coll
     assert sources_index < timeline_index
     assert 'st.expander("Source freshness timeline", expanded=False)' in source
     assert 'st.expander("Advanced: freshness provenance", expanded=False)' in source
+
+
+def test_stock_selector_queue_carries_explicit_comparison_readiness_fields():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "decision_bucket": "Research Now",
+                "supported_analysis": "price, fundamentals, dcf, candidate peers",
+                "primary_blocker": "trusted peer evidence",
+            }
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "asset_type": "company",
+                "in_active_universe": True,
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "ready_features": "price, fundamentals, dcf, candidate peers",
+                "missing_data": "trusted peer evidence",
+            }
+        ]
+    )
+
+    frame = dashboard.stock_selector_queue_frame(decisions, pd.DataFrame(), readiness)
+
+    assert frame.loc[0, "Asset Type"] == "company"
+    assert bool(frame.loc[0, "Price Ready"])
+    assert bool(frame.loc[0, "Fundamentals Ready"])
+    assert bool(frame.loc[0, "DCF Ready"])
+    assert not bool(frame.loc[0, "Trusted Peer Ready"])
+
+
+def test_research_comparison_frame_keeps_selected_order_and_evidence_rows():
+    from src.research_comparison import build_research_comparison
+
+    selected = pd.DataFrame(
+        [
+            {"Ticker": "AMD", "DCF Ready": True, "Trusted Peer Ready": False},
+            {"Ticker": "NVDA", "DCF Ready": True, "Trusted Peer Ready": True},
+        ]
+    )
+    comparison = build_research_comparison(selected, journal_states={})
+
+    frame = dashboard.research_comparison_frame(comparison)
+
+    assert list(frame.columns) == ["Research evidence", "AMD", "NVDA"]
+    assert frame.loc[frame["Research evidence"] == "DCF scenario", "AMD"].iloc[0] == "Ready"
+    assert frame.loc[frame["Research evidence"] == "Trusted peers", "AMD"].iloc[0] == "Blocked"
+
+
+def test_stock_selector_comparison_uses_three_ticker_limit_and_profile_scoped_journals():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_stock_selector(")
+    render_end = source.index("\ndef price_refresh_operator_plan_cards(", render_index)
+    render_source = source[render_index:render_end]
+
+    assert "max_selections=3" in render_source
+    assert "load_dashboard_journal_state(" in render_source
+    assert "build_research_comparison(" in render_source
+    assert "research_comparison_frame(" in render_source
+    assert render_source.index('st.expander("Advanced: selected review tray", expanded=False)') < render_source.index("build_research_comparison(")

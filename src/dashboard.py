@@ -246,6 +246,11 @@ from src.research_change_monitor import (
     compare_optional_snapshots,
 )
 from src.research_change_snapshot import load_research_change_snapshot
+from src.research_comparison import (
+    ResearchComparison,
+    build_research_comparison,
+    comparison_matrix_rows,
+)
 from src.research_review_queue import (
     ResearchReviewItem,
     build_research_review_queue,
@@ -28184,8 +28189,33 @@ def stock_selector_queue_frame(
         rows.append(
             {
                 "Ticker": ticker,
+                "Asset Type": _selector_text(
+                    readiness_row if readiness_row is not None else row,
+                    _selector_column(ticker_readiness_frame, "asset_type") if ticker_readiness_frame is not None else None,
+                    fallback="Not available",
+                ),
                 "Research State": _selector_text(row, decision_col, fallback="Research state unavailable"),
                 "Readiness": readiness_state,
+                "Price Ready": (
+                    str(readiness_row.get("price_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+                    if readiness_row is not None
+                    else None
+                ),
+                "Fundamentals Ready": (
+                    str(readiness_row.get("fundamentals_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+                    if readiness_row is not None
+                    else None
+                ),
+                "DCF Ready": (
+                    str(readiness_row.get("dcf_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+                    if readiness_row is not None
+                    else None
+                ),
+                "Trusted Peer Ready": (
+                    str(readiness_row.get("peer_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+                    if readiness_row is not None
+                    else None
+                ),
                 "Review Detail": _selector_text(row, subtype_col, fallback="Review detail unavailable"),
                 "Sector / Theme": " / ".join(
                     part
@@ -28312,11 +28342,11 @@ def stock_selector_shortlist_html(frame: pd.DataFrame) -> str:
         return (
             "<div class='selector-shortlist empty'>"
             "<div class='selector-shortlist-title'>Selected tickers for review</div>"
-            "<div class='selector-shortlist-body'>Select up to five rows to inspect readiness, blockers, and next proof steps before opening one report.</div>"
+            "<div class='selector-shortlist-body'>Select two or three rows to compare readiness, blockers, and reviewed evidence before opening one report.</div>"
             "</div>"
         )
     cards: list[str] = []
-    for _, row in frame.head(5).iterrows():
+    for _, row in frame.head(3).iterrows():
         ticker = str(row.get("Ticker", "")).strip().upper() or "TICKER"
         readiness = _selector_public_fragment(row.get("Readiness", "Needs readiness check"), max_chars=48)
         detail = _selector_public_fragment(row.get("Review Detail", "Review detail unavailable"), max_chars=72)
@@ -28339,6 +28369,10 @@ def stock_selector_shortlist_html(frame: pd.DataFrame) -> str:
         + "".join(cards)
         + "</div></div>"
     )
+
+
+def research_comparison_frame(comparison: ResearchComparison) -> pd.DataFrame:
+    return pd.DataFrame(comparison_matrix_rows(comparison))
 
 
 def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, limit: int = 30) -> str:
@@ -28652,15 +28686,35 @@ def render_stock_selector(
                 "Selected tickers for review",
                 shortlist_options,
                 default=[],
-                max_selections=5,
-                help="Optional selected-ticker tray for readiness, blockers, and proof steps. It does not create conclusions or account actions.",
+                max_selections=3,
+                help="Select two or three tickers to compare readiness, blockers, reviewed catalysts, and risks without a score or ranking.",
                 key="stock-selector-shortlist",
             )
             if selected_shortlist:
+                selected_frame = stock_selector_shortlist_frame(filtered, selected_shortlist)
                 st.markdown(
-                    stock_selector_shortlist_html(stock_selector_shortlist_frame(filtered, selected_shortlist)),
+                    stock_selector_shortlist_html(selected_frame),
                     unsafe_allow_html=True,
                 )
+                if len(selected_shortlist) < 2:
+                    st.caption("Select one more ticker to open the evidence comparison.")
+                else:
+                    journal_states: dict[str, JournalState] = {}
+                    try:
+                        comparison_context = build_profile_context(project_root=BASE_DIR)
+                        for selected_ticker in selected_shortlist:
+                            journal_states[selected_ticker] = load_dashboard_journal_state(
+                                comparison_context,
+                                ticker=selected_ticker,
+                            )
+                    except ValueError:
+                        journal_states = {}
+                    comparison = build_research_comparison(selected_frame, journal_states=journal_states)
+                    render_context_note(
+                        "Research evidence comparison.",
+                        comparison.boundary,
+                    )
+                    st.dataframe(research_comparison_frame(comparison), width="stretch", hide_index=True)
     st.markdown(
         stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=10 if public_mode else 15),
         unsafe_allow_html=True,
