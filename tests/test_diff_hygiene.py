@@ -53,6 +53,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "stock_analysis/pipeline.py",
         "data/reviewed_data_proofs.csv",
         "data/reviewed_batch_proofs.csv",
+        "data/reviewed_research_events.csv",
         "outputs/reviewed_batch_packet.md",
         "outputs/reviewed_batch_packet.csv",
         "outputs/pilot_readiness_packet.md",
@@ -617,13 +618,14 @@ def test_staged_hygiene_check_passes_clean_product_and_sample_report_stage():
         module.StatusEntry("A", "docs/METHODOLOGY.md"),
         module.StatusEntry("D", "stock_analysis/pipeline.py"),
         module.StatusEntry("M", "outputs/stock_reports/nvda.md"),
+        module.StatusEntry("A", "data/reviewed_research_events.csv"),
     ]
 
     report = module.build_staged_check_report(entries)
 
     assert module.staged_hygiene_has_blockers(entries) is False
     assert "Staged Hygiene Check" in report
-    assert "Staged product/code/docs/test files: 4 (3 changed, 1 new)" in report
+    assert "Staged product/code/docs/test files: 5 (3 changed, 2 new)" in report
     assert "Staged Markdown sample reports: 1 (1 changed, 0 new)" in report
     assert "Staged generated CSV/JSON churn: 0 (0 changed, 0 new)" in report
     assert "Staged hygiene check passed." in report
