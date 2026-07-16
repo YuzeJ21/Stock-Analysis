@@ -52,6 +52,22 @@ The first snapshot is a baseline, not a detected change. Generate the current sn
 
 Keep `outputs/**/research_changes/*.json`, event previews, and queue exports generated and unstaged. Rotate a reviewed current snapshot into the next prior baseline deliberately; never compare Demo and Local Research snapshots.
 
+## Research Thesis Journal
+
+Read the selected-profile journal before adding evidence:
+
+```bash
+make thesis-journal TICKER=NVDA
+```
+
+Use `make thesis-journal-preview` with the required entry fields to validate one prospective thesis, evidence, catalyst, risk, invalidation, confidence, or review row. Preview does not write. After reviewing the source, timestamps, profile, ticker, thesis chain, confidence boundary, and next review date, append the exact row with:
+
+```bash
+CONFIRM_REVIEWED=1 make thesis-journal-record ...
+```
+
+Never convert generated `purpose_thesis`, invalidation prompts, Change Monitor tasks, or candidate context into reviewed journal history automatically. A journal record does not refresh providers, apply imports, rebuild readiness, resolve a change event, stage files, commit, push, or create a transaction instruction.
+
 Rebuild local outputs only after changing source data, imports, or pipeline code:
 
 ```bash

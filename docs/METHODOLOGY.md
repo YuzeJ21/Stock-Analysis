@@ -61,6 +61,14 @@ Detectors compare explicit readiness fields, SEC filing accession, selected fund
 
 The Research Review Queue is derived from unresolved events. Lost DCF or fundamentals readiness is reviewed before new context; append-only outcomes record `reviewed_supported`, `reviewed_no_change`, `still_blocked`, `intentionally_deferred`, `skipped`, or `excluded`. Recording an outcome does not change source files, readiness, valuation, or a research conclusion.
 
+## Research Thesis Journal Method
+
+The selected-profile journal is reviewer-authored, append-only research documentation. It records thesis revisions, source-backed supporting and conflicting evidence, catalysts, risks, invalidation conditions, confidence history, and review dates. Existing generated thesis text is context only; it is never copied into the journal automatically.
+
+Preview validates one prospective entry without writing. Recording requires explicit reviewed confirmation. A later thesis must reference the prior thesis entry, and the historical row remains present. Evidence, catalyst, risk, and invalidation entries require a source, durable source reference, and publication timestamp. A Change Monitor event or Review Queue outcome may prompt review but never creates or revises a journal entry.
+
+Confidence describes the reviewer's confidence in the documented hypothesis at that timestamp. It does not measure expected return, allocation size, or transaction direction. An empty journal is `not_started`; a thesis without a source-backed invalidation condition is `incomplete`; and a passed review date is `overdue`.
+
 ## Public Workflow Boundary
 
 The public page order is a reading workflow, not an analysis shortcut.

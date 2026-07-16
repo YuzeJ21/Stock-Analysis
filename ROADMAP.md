@@ -30,6 +30,16 @@ Use `make profile-context`, `make research-change-snapshot`, `make research-chan
 
 **Boundary:** local monitoring is read-only except for the explicit reviewed-resolution append. Hosted alerts, scheduled snapshot rotation, and notification delivery remain Later and require operating evidence.
 
+### P0: Research Thesis And Evidence Journal
+
+**Status:** implemented and locally verified on 2026-07-15; retain as a research-process regression gate.
+
+The selected-profile Single-Stock Report now shows one compact, reviewer-authored thesis answer with supporting and conflicting evidence, catalysts, risks, invalidation conditions, confidence history, and review dates. `data/research_thesis_journal.csv` is append-only. Thesis revisions preserve prior entries through `supersedes_entry_id`; generated thesis text and Change Monitor tasks never write journal rows automatically.
+
+Use `make thesis-journal TICKER=<ticker>` to read, `make thesis-journal-preview ...` to validate without writing, and `CONFIRM_REVIEWED=1 make thesis-journal-record ...` only after source review. Journal entries never mutate source rows, readiness, valuation, or Review Queue outcomes.
+
+**Boundary:** the journal documents a research process. Confidence is not investment conviction, expected return, position size, or a transaction instruction.
+
 ### P0: Performance Release Candidate
 
 **Status:** passed locally on the fixed demo profile on 2026-07-14; retain as a release regression gate.
@@ -82,6 +92,18 @@ Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) t
 **Stop rule:** do not call pilot feedback data proof; it only validates product clarity and workflow reliability.
 
 ## Now
+
+### P2: Scenario Lab
+
+**Goal:** let a reviewer vary source-backed DCF assumptions and understand valuation sensitivity without changing canonical data or producing a recommendation.
+
+1. Start only from a company whose selected profile is DCF-ready.
+2. Load the saved source-backed revenue, FCF or margin, shares, cash, debt, and price context as immutable baseline evidence.
+3. Allow bounded changes to revenue growth, operating or FCF margin, discount rate, terminal growth, and forecast horizon.
+4. Show baseline and scenario ranges, directional sensitivity, terminal-value contribution, and every changed assumption.
+5. Keep scenarios session-local or explicitly exported as generated research artifacts; never apply them to canonical fundamentals or readiness.
+
+**Stop rule:** blocked or excluded DCF inputs produce no valuation output. Scenario results are assumption tests, never fair-value claims, rankings, or direct actions.
 
 ### P2: Earnings Nowcast Pilot Evidence
 

@@ -76,3 +76,9 @@ A research change event requires two comparable generated snapshots from the sam
 Publication time, retrieval time, and detection time are different facts and must not be substituted for one another. Missing source timestamps stay missing. A missing prior snapshot is `baseline_missing`; it does not prove that nothing changed. Cross-profile comparison is invalid.
 
 Event review outcomes are append-only evidence. The latest valid outcome controls whether an event remains in the open queue, but historical rows are retained. Review resolution never mutates canonical sources or readiness. Candidate context, provider reachability, or a detected event cannot become trusted evidence without the existing source review, validation, preview, rejected-row, apply, readiness rebuild, and proof gates.
+
+## Research Thesis Journal Contract
+
+`data/research_thesis_journal.csv` is the canonical reviewed, append-only journal ledger. Every row identifies schema version, entry ID, selected profile, ticker, thesis ID, entry type, recorded/effective timestamps, reviewer, summary, evidence direction, source, durable source reference, source publication timestamp, confidence, review due date, and `supersedes_entry_id`.
+
+Source publication and effective timestamps cannot be later than the recorded timestamp. Evidence, catalyst, risk, and invalidation rows require source provenance. Thesis revisions must remain within the same profile, ticker, and thesis chain and must preserve the prior row. Generated report text, detected changes, queue outcomes, and synthetic fixtures cannot create a reviewed journal entry automatically.

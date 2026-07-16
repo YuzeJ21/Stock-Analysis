@@ -532,3 +532,21 @@ def test_active_roadmap_and_price_history_maintenance_are_finite_and_read_only()
     assert "make price-history-proof-queue TOP_N=25" in readme
     assert "make price-history-batch-closeout TOP_N=25" in readme
     assert "read-only batch closeout" in readme
+
+
+def test_thesis_journal_docs_preserve_append_only_research_boundary():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+
+    assert "append-only Research Thesis Journal" in readme
+    assert "P0: Research Thesis And Evidence Journal" in roadmap
+    assert "P2: Scenario Lab" in roadmap
+    assert "generated thesis text is context only" in methodology
+    assert "never creates or revises a journal entry" in methodology
+    assert "data/research_thesis_journal.csv" in provenance
+    assert "supersedes_entry_id" in provenance
+    assert "make thesis-journal TICKER=NVDA" in operator
+    assert "CONFIRM_REVIEWED=1 make thesis-journal-record" in operator
