@@ -191,6 +191,8 @@ The Scenario Lab is a session-local review layer over that same DCF engine. It s
 
 The Source Freshness Timeline derives a display chronology from the selected report only. It never substitutes retrieval time for publication or effective time, never treats report generation as source freshness, and never infers a forecast cutoff or revision date. Known events are ordered newest first; invalid or absent timestamps remain explicit unknowns. The timeline explains evidence timing but does not change any lane's readiness state.
 
+The Research Comparison View uses two or three selected tickers from the existing readiness-backed Stock Selector. It preserves selection order and compares asset type, research state, price, fundamentals, DCF, trusted-peer readiness, supported analysis, blocked inputs, next proof, proof freshness, and reviewer-authored catalysts or risks from the selected profile's journal. It never calculates a score or winner and does not fill missing evidence. Candidate peer wording cannot turn a blocked trusted-peer field into a ready one.
+
 ### Conservative DCF Normalization
 
 The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into a valuation story without ready inputs.

@@ -94,3 +94,9 @@ Scenario values are temporary assumption tests. They are not source facts, saved
 The timeline is a read-only same-profile view derived from the selected report payload. Each event preserves a deterministic identity, ticker, profile, lane, event type, timestamp kind, supplied timestamp, source, source reference when present, freshness state, and evidence note. Exact duplicate source events collapse by identity; cross-profile events never merge.
 
 Effective, publication, retrieval, market-observation, forecast-cutoff, revision, and report-generation times are different facts. The product does not substitute one for another. An absent or invalid value remains a `missing timestamp` event, and publication, cutoff, or revision events appear only when the source payload explicitly provides them. The timeline never refreshes data, writes a report, changes readiness, or unlocks a blocked input.
+
+## Research Comparison Contract
+
+The comparison consumes only selected-profile selector rows plus profile-scoped, reviewer-authored Research Thesis Journal state. It preserves ticker selection order and explicit missing states. Journal catalysts and risks appear only when reviewed entries exist for that same profile and ticker; generated text, Change Monitor tasks, and cross-profile rows cannot populate them.
+
+Readiness lanes remain independent, and candidate peer context cannot satisfy trusted-peer readiness. The view writes no data and produces no score, rank, winner, expected return, recommendation, allocation, or transaction instruction.

@@ -577,3 +577,17 @@ def test_source_freshness_timeline_docs_preserve_timestamp_truth():
     assert "never substitutes retrieval time" in methodology
     assert "Source Freshness Timeline Contract" in provenance
     assert "missing timestamp" in provenance
+
+
+def test_research_comparison_docs_preserve_non_ranking_boundary():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+
+    assert "Research Comparison View" in readme
+    assert "Research Comparison View - Implemented" in roadmap
+    assert "two or three selected tickers" in methodology
+    assert "never calculates a score or winner" in methodology
+    assert "Research Comparison Contract" in provenance
+    assert "candidate peer context cannot satisfy trusted-peer readiness" in provenance

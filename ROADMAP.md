@@ -115,6 +115,14 @@ The Sources & Gaps tab now derives a deterministic same-profile timeline from th
 
 **Stop rule:** a recent retrieval or report timestamp does not render an older source period current or unlock a blocked lane.
 
+### P2: Research Comparison View - Implemented
+
+**Goal:** compare selected companies across usable evidence, blockers, proof freshness, and reviewed catalysts or risks without ranking them.
+
+The existing operator-only selected review tray now accepts two or three tickers, preserves user order, and displays an evidence matrix for price, fundamentals, DCF, trusted peers, supported analysis, missing inputs, next proof, freshness, and profile-scoped journal context. It adds no route and writes no data.
+
+**Stop rule:** the comparison produces no score, winner, expected return, recommendation, or action; candidate peer context remains separate from trusted-peer readiness.
+
 ### P2: Earnings Nowcast Pilot Evidence
 
 **Goal:** move the implemented Earnings Nowcast pilot from synthetic infrastructure proof to a leakage-safe, source-backed semiconductor cohort.
