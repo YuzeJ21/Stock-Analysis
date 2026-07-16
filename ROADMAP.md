@@ -113,7 +113,7 @@ Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) t
 
 The Sources & Gaps tab now derives a deterministic same-profile timeline from the report payload, shows unknown timestamps explicitly, deduplicates exact source records, and keeps raw provenance under Advanced. It never refreshes data, changes readiness, or infers publication, cutoff, or revision dates that are not present.
 
-**Stop rule:** a recent retrieval or report timestamp cannot make an older source period current or unlock a blocked lane.
+**Stop rule:** a recent retrieval or report timestamp does not render an older source period current or unlock a blocked lane.
 
 ### P2: Earnings Nowcast Pilot Evidence
 
