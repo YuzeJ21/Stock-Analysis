@@ -9,6 +9,9 @@ from src.research_thesis_journal import (
     append_journal_entry,
     derive_journal_state,
     load_journal_entries,
+    main,
+    preview_journal_entry,
+    render_journal_state,
     validate_journal_entry,
 )
 
@@ -188,3 +191,100 @@ def test_invalidation_and_conflicting_evidence_keep_journal_incomplete_until_rec
     )
     assert complete.status == "current"
     assert complete.invalidation_conditions == (invalidation,)
+
+
+def test_empty_journal_renders_not_started_without_generated_thesis():
+    state = derive_journal_state((), profile_key="demo", ticker="SYN1", as_of="2026-07-16T00:00:00Z")
+
+    rendered = render_journal_state(state)
+
+    assert "Status: not_started" in rendered
+    assert "No reviewed thesis is recorded" in rendered
+    assert "Record a reviewed hypothesis" in rendered
+
+
+def test_incomplete_and_overdue_states_explain_the_exact_next_research_action():
+    incomplete = derive_journal_state(
+        (_entry(),),
+        profile_key="demo",
+        ticker="SYN1",
+        as_of="2026-07-16T00:00:00Z",
+    )
+    assert "Record at least one source-backed invalidation condition" in render_journal_state(incomplete)
+
+    invalidation = _entry(
+        entry_id="invalidation-001",
+        entry_type="invalidation",
+        evidence_direction="context",
+        confidence="",
+        supersedes_entry_id="",
+        review_due_date="2026-07-01",
+    )
+    overdue = derive_journal_state(
+        (_entry(review_due_date="2026-07-01"), invalidation),
+        profile_key="demo",
+        ticker="SYN1",
+        as_of="2026-07-16T00:00:00Z",
+    )
+    assert overdue.status == "overdue"
+    assert "Review the recorded hypothesis and its conflicting evidence" in render_journal_state(overdue)
+
+
+def test_preview_validates_without_writing(tmp_path):
+    ledger = tmp_path / "journal.csv"
+
+    preview = preview_journal_entry(_entry(), existing_entries=load_journal_entries(ledger))
+
+    assert "Preview only" in preview
+    assert "entry-001" in preview
+    assert not ledger.exists()
+
+
+def _entry_cli_args(ledger: Path) -> list[str]:
+    entry = _entry()
+    args = ["--ledger", str(ledger)]
+    for field in JOURNAL_COLUMNS:
+        args.extend(["--" + field.replace("_", "-"), str(getattr(entry, field))])
+    return args
+
+
+def test_cli_record_requires_explicit_review_confirmation(tmp_path):
+    ledger = tmp_path / "journal.csv"
+
+    with pytest.raises(ValueError, match="--confirm-reviewed"):
+        main(["--record", *_entry_cli_args(ledger)])
+
+    assert not ledger.exists()
+
+
+def test_cli_preview_then_confirmed_record_preserves_append_only_boundary(tmp_path, capsys):
+    ledger = tmp_path / "journal.csv"
+
+    assert main(["--preview", *_entry_cli_args(ledger)]) == 0
+    assert "Preview only" in capsys.readouterr().out
+    assert not ledger.exists()
+
+    assert main(["--record", "--confirm-reviewed", *_entry_cli_args(ledger)]) == 0
+    assert "Appended reviewed thesis journal entry" in capsys.readouterr().out
+    assert [row.entry_id for row in load_journal_entries(ledger)] == ["entry-001"]
+
+
+def test_rendered_journal_avoids_transaction_or_recommendation_language():
+    invalidation = _entry(
+        entry_id="invalidation-001",
+        entry_type="invalidation",
+        evidence_direction="context",
+        confidence="",
+        supersedes_entry_id="",
+    )
+    rendered = render_journal_state(
+        derive_journal_state(
+            (_entry(), invalidation),
+            profile_key="demo",
+            ticker="SYN1",
+            as_of="2026-07-16T00:00:00Z",
+        )
+    ).lower()
+
+    for prohibited in ("buy", "sell", "hold", "order", "position size", "recommendation"):
+        assert prohibited not in rendered

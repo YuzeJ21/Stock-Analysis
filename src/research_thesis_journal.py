@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import argparse
 import csv
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Iterable
 
@@ -280,3 +281,113 @@ def derive_journal_state(
         review_due_date=due_date,
         overdue=overdue,
     )
+
+
+def _next_research_action(state: JournalState) -> str:
+    if state.status == "not_started":
+        return "Record a reviewed hypothesis with an explicit review date."
+    if state.status == "incomplete":
+        return "Record at least one source-backed invalidation condition."
+    if state.status == "overdue":
+        return "Review the recorded hypothesis and its conflicting evidence before relying on it."
+    if state.conflicting_evidence:
+        return "Review the latest conflicting evidence against the current hypothesis."
+    return "Revisit this journal when source evidence changes or the review date arrives."
+
+
+def render_journal_state(state: JournalState) -> str:
+    """Render a plain-language, research-only selected-ticker journal answer."""
+
+    lines = [
+        "Research Thesis and Evidence Journal",
+        f"Profile: {state.profile_key}",
+        f"Ticker: {state.ticker}",
+        f"Status: {state.status}",
+    ]
+    if state.current_thesis is None:
+        lines.append("No reviewed thesis is recorded for this profile and ticker.")
+    else:
+        lines.extend(
+            [
+                f"Current hypothesis: {state.current_thesis.summary}",
+                f"Thesis revisions: {state.thesis_revision_count}",
+                (
+                    "Evidence: "
+                    f"{len(state.supporting_evidence)} supporting, "
+                    f"{len(state.conflicting_evidence)} conflicting, "
+                    f"{len(state.contextual_evidence)} contextual"
+                ),
+                f"Catalysts: {len(state.catalysts)} | Risks: {len(state.risks)}",
+                f"Invalidation conditions: {len(state.invalidation_conditions)}",
+            ]
+        )
+        if state.confidence_history:
+            lines.append(f"Latest documented confidence: {state.confidence_history[-1][1]:.2f}")
+        if state.latest_reviewed_at:
+            lines.append(f"Latest review: {state.latest_reviewed_at}")
+        if state.review_due_date:
+            lines.append(f"Next review due: {state.review_due_date}")
+    lines.append(f"Next research action: {_next_research_action(state)}")
+    lines.append("Boundary: confidence describes the documented research hypothesis only.")
+    return "\n".join(lines)
+
+
+def preview_journal_entry(entry: JournalEntry, *, existing_entries: Iterable[JournalEntry]) -> str:
+    """Validate and render one prospective row without writing it."""
+
+    validate_journal_entry(entry, existing_entries=existing_entries)
+    lines = ["Research Thesis Journal Entry", "Preview only: no file was changed."]
+    lines.extend(f"{field}: {getattr(entry, field)}" for field in JOURNAL_COLUMNS)
+    return "\n".join(lines)
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Review an append-only research thesis journal.")
+    parser.add_argument("--ledger", default="data/research_thesis_journal.csv")
+    parser.add_argument("--ticker")
+    parser.add_argument("--profile-key", default="default")
+    parser.add_argument("--as-of")
+    parser.add_argument("--preview", action="store_true")
+    parser.add_argument("--record", action="store_true")
+    parser.add_argument("--confirm-reviewed", action="store_true")
+    for field in JOURNAL_COLUMNS:
+        if field in {"profile_key", "ticker"}:
+            continue
+        parser.add_argument("--" + field.replace("_", "-"), dest=field)
+    return parser.parse_args(argv)
+
+
+def _entry_from_args(args: argparse.Namespace) -> JournalEntry:
+    values = {field: str(getattr(args, field, "") or "").strip() for field in JOURNAL_COLUMNS}
+    values["profile_key"] = str(args.profile_key or "").strip()
+    return JournalEntry(**values)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    if args.preview or args.record:
+        entry = _entry_from_args(args)
+        existing = load_journal_entries(args.ledger)
+        if args.preview:
+            print(preview_journal_entry(entry, existing_entries=existing))
+            return 0
+        if not args.confirm_reviewed:
+            raise ValueError("Recording requires --confirm-reviewed after preview and source review.")
+        append_journal_entry(args.ledger, entry)
+        print(f"Appended reviewed thesis journal entry: {entry.entry_id} -> {args.ledger}")
+        return 0
+    if not str(args.ticker or "").strip():
+        raise ValueError("--ticker is required to read the research thesis journal")
+    as_of = args.as_of or datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    state = derive_journal_state(
+        load_journal_entries(args.ledger),
+        profile_key=args.profile_key,
+        ticker=args.ticker,
+        as_of=as_of,
+    )
+    print(render_journal_state(state))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
