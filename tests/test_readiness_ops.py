@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from src import readiness_ops as readiness_ops_module
@@ -9,6 +10,7 @@ from src.readiness_ops import (
     build_data_coverage_expansion_plan,
     build_peer_readiness_summary,
     build_reviewed_batch_ledger_summaries,
+    build_stale_proof_warning,
     build_coverage_frontier,
     build_readiness_ops_lanes,
     render_data_coverage_proof_queues,
@@ -217,6 +219,19 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert "apply only after validation passes" in by_lane["analyst_estimates_locked"].generated_churn_policy
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"
     assert "trusted local or reviewed provider-assisted rows" in by_lane["earnings_locked"].notes
+
+
+def test_stale_proof_warning_handles_relative_root_with_absolute_data_dir(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    ledger = root / "data" / "reviewed_data_proofs.csv"
+    readiness = root / "data" / "reports" / "ticker_readiness_report.csv"
+    os.utime(ledger, (100, 100))
+    os.utime(readiness, (200, 200))
+    monkeypatch.chdir(root)
+
+    warning = build_stale_proof_warning(Path("."), data_dir=root / "data")
+
+    assert "data/reports/ticker_readiness_report.csv" in warning
 
 
 def test_readiness_ops_surfaces_reviewed_batch_ledger_progress_without_unlocking_lanes(tmp_path: Path):

@@ -5148,6 +5148,11 @@ def profile_trust_strip_html(context: ProfileContext, *, compact: bool = False) 
     source_as_of = context.source_as_of or "Unavailable"
     readiness_built_at = context.readiness_built_at or "Unavailable"
     freshness = context.freshness_state.title() if context.freshness_state else "Unavailable"
+    readiness_item = (
+        f"<span><small>Readiness built</small>{html.escape(readiness_built_at)}</span>"
+        if not compact
+        else ""
+    )
     return (
         f"<section class='profile-trust-strip{compact_class}' "
         "aria-label='Selected data profile and freshness'>"
@@ -5156,7 +5161,7 @@ def profile_trust_strip_html(context: ProfileContext, *, compact: bool = False) 
         f"<strong>{html.escape(context.profile_label)}</strong>"
         "</div>"
         f"<span><small>Sources through</small>{html.escape(source_as_of)}</span>"
-        f"<span><small>Readiness built</small>{html.escape(readiness_built_at)}</span>"
+        f"{readiness_item}"
         f"<span class='profile-freshness {html.escape(context.freshness_state)}'>"
         f"<small>Freshness</small>{html.escape(freshness)}</span>"
         f"<span><small>Price-ready</small>{coverage.price_ready:,}/{coverage.total:,}</span>"
@@ -5170,7 +5175,16 @@ def profile_advanced_details(context: ProfileContext) -> dict[str, object]:
 
     return {
         "Profile key": context.profile_key,
+        "Sources through": context.source_as_of or "Unavailable",
+        "Readiness built": context.readiness_built_at or "Unavailable",
         "Snapshot identity": context.snapshot_identity or "Unavailable",
+        "Coverage": {
+            "total": context.coverage.total,
+            "price_ready": context.coverage.price_ready,
+            "fundamentals_ready": context.coverage.fundamentals_ready,
+            "dcf_ready": context.coverage.dcf_ready,
+            "peer_ready": context.coverage.peer_ready,
+        },
         "Data directory": str(context.data_dir),
         "Outputs directory": str(context.outputs_dir),
         "Freshness detail": context.freshness_message,
@@ -5233,6 +5247,12 @@ def research_change_state_html(summary: dict[str, object]) -> str:
         f"<span class='research-change-action'>{html.escape(str(summary.get('primary_action') or 'Continue readiness review'))}</span>"
         "</section>"
     )
+
+
+def research_change_summary_is_primary(status: str) -> bool:
+    """Keep only comparable change evidence in the first-read page flow."""
+
+    return str(status or "").strip() in {"changes_detected", "no_changes"}
 
 
 def ticker_change_timeline(
@@ -5356,7 +5376,8 @@ def render_research_change_route_summary(
                 "answer": f"{len(timeline)} evidence change(s) are recorded for the selected ticker.",
                 "primary_action": "Review the ticker evidence timeline",
             }
-    st.markdown(research_change_state_html(summary), unsafe_allow_html=True)
+    if research_change_summary_is_primary(status):
+        st.markdown(research_change_state_html(summary), unsafe_allow_html=True)
     with st.expander("Advanced: research change evidence", expanded=False):
         if events:
             st.dataframe(pd.DataFrame([event.__dict__ for event in events]), width="stretch", hide_index=True)
@@ -5817,6 +5838,9 @@ def render_public_shell_mode_styles() -> None:
           border-top: 1px solid #d9e0dc;
           border-bottom: 1px solid #d9e0dc;
           color: #243b53;
+        }
+        .profile-trust-strip.compact {
+          grid-template-columns: minmax(9rem, 1.2fr) repeat(4, minmax(7rem, 1fr));
         }
         .profile-trust-strip > span,
         .profile-trust-primary {
@@ -33594,7 +33618,7 @@ def main() -> None:
         render_public_shell_mode_styles()
         render_public_workflow_skip_link(selected_page, st.query_params)
         render_public_app_shell(selected_page)
-        render_profile_trust_strip(profile_context)
+        render_profile_trust_strip(profile_context, compact=True)
         render_public_workflow_skip_target()
     else:
         render_app_header(

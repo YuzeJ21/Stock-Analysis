@@ -257,6 +257,7 @@ def _mtime(path: Path) -> float:
 
 
 def build_stale_proof_warning(root: Path, *, data_dir: Path | str | None = None) -> str:
+    root = Path(root).resolve()
     data = resolve_data_dir(data_dir, root)
     ledger = data / "reviewed_data_proofs.csv"
     proof_time = _mtime(ledger)

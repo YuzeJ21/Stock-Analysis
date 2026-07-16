@@ -234,6 +234,17 @@ def test_preview_classifies_unresolved_actual_conflict_separately(tmp_path):
     assert result["ready_for_packet"] is False
 
 
+def test_preview_keeps_empty_valid_templates_blocked_for_packet_generation(tmp_path):
+    write_templates(tmp_path / "templates")
+
+    result = preview_onboarding(tmp_path / "templates", cutoff="2026-01-31T23:59:59Z")
+
+    assert result["valid"] is True
+    assert result["accepted_count"] == 0
+    assert result["ready_for_packet"] is False
+    assert result["packet_blockers"] == ["no_source_backed_rows"]
+
+
 def test_prospective_collection_plan_is_scheduler_ready_and_read_only(tmp_path):
     result = prospective_collection_plan(tmp_path / "future-snapshots")
 

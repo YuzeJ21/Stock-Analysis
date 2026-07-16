@@ -104,7 +104,7 @@ DEFAULT_BROWSER_QA_CAPTURE_TARGETS: tuple[BrowserQaCaptureTarget, ...] = (
         first_view_markers=(
             "Saved readiness",
             "Data profile",
-            "Since last review",
+            "Advanced: research change evidence",
             "Step 3 of 5",
             "What can I use for this ticker right now?",
             "Research-only",
@@ -153,7 +153,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         first_view_markers=(
             "Saved readiness",
             "Data profile",
-            "Since last review",
+            "Advanced: research change evidence",
             "Step 1 of 5",
             "What is this product and where do I start?",
             "Research-only",
@@ -170,7 +170,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         first_view_markers=(
             "Saved readiness",
             "Data profile",
-            "Since last review",
+            "Advanced: research change evidence",
             "Step 2 of 5",
             "Stock Selector",
             "Which stock can I review?",
@@ -187,7 +187,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         first_view_markers=(
             "Saved readiness",
             "Data profile",
-            "Since last review",
+            "Advanced: research change evidence",
             "Step 3 of 5",
             "What can I use for this ticker right now?",
             "Research-only",
@@ -208,7 +208,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         first_view_markers=(
             "Saved readiness",
             "Data profile",
-            "Since last review",
+            "Advanced: research change evidence",
             "Step 4 of 5",
             "What can I use and what stays unavailable?",
             "Research-only",
@@ -228,7 +228,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         first_view_markers=(
             "Saved readiness",
             "Data profile",
-            "Since last review",
+            "Advanced: research change evidence",
             "Step 5 of 5",
             "What evidence changed a readiness state?",
             "Research-only",

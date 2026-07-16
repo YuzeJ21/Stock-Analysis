@@ -54,8 +54,19 @@ def test_profile_advanced_details_keep_paths_and_hash_out_of_compact_strip():
 
     assert "/private/data/local" not in compact
     assert "f" * 64 not in compact
+    assert "2026-07-15T19:30:00+00:00" not in compact
+    assert "Readiness built" not in compact
+    assert details["Readiness built"] == "2026-07-15T19:30:00+00:00"
     assert details["Snapshot identity"] == "f" * 64
     assert details["Data directory"] == "/private/data/local"
+
+
+def test_change_summary_only_uses_first_viewport_for_comparable_evidence():
+    assert dashboard.research_change_summary_is_primary("changes_detected") is True
+    assert dashboard.research_change_summary_is_primary("no_changes") is True
+    assert dashboard.research_change_summary_is_primary("baseline_missing") is False
+    assert dashboard.research_change_summary_is_primary("current_missing") is False
+    assert dashboard.research_change_summary_is_primary("unavailable") is False
 
 
 def _change_event(event_id: str, ticker: str, subtype: str = "sec_filing_arrived") -> ResearchChangeEvent:
