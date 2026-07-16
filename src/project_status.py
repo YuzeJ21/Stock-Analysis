@@ -20,6 +20,7 @@ from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.dcf_input_proof_queue import _reviewed_non_actionable_tickers as _reviewed_non_actionable_dcf_tickers
 from src.hosted_demo_readiness import read_hosted_demo_url
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.profile_context import build_profile_context, render_profile_context_text
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
 from src.public_ux_review_checklist import public_ux_review_notes_status
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
@@ -2101,7 +2102,7 @@ def _format_operator_path_context(root: Path, data_path: Path, output_path: Path
     )
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Print a read-only local project status snapshot.")
     parser.add_argument("--check", action="store_true", help="Print the current read-only local project status.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
@@ -2116,7 +2117,7 @@ def main() -> None:
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
     parser.add_argument("--tickers", help="Optional comma-separated ticker filter for read-only project status views.")
     parser.add_argument("--top-n", type=int, default=10, help="Number of gaps/actions to show.")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     explicit_tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else None
 
     root = resolve_project_root(args.project_root)
@@ -2164,6 +2165,15 @@ def main() -> None:
         print(json.dumps(payload, indent=2))
         return
 
+    print(
+        render_profile_context_text(
+            build_profile_context(
+                project_root=root,
+                data_dir=data_path,
+                output_dir=output_path,
+            )
+        )
+    )
     print(_format_operator_path_context(root, data_path, output_path))
     _print_human(payload)
     if args.write_output:

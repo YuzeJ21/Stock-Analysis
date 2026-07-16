@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Iterable
 
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir
+from src.profile_context import build_profile_context, render_profile_context_text
 from src.providers.sec_submissions import build_sec_filing_share_count_evidence, build_sec_submission_metadata_packet
 from src.session_source_preflight import load_session_source_preflight
 
@@ -1957,6 +1958,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     root = Path.cwd()
+    print(render_profile_context_text(build_profile_context(project_root=root)))
     print(format_path_context(project_root=root))
     if args.packet:
         ticker = args.packet.strip().upper()

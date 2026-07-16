@@ -287,7 +287,7 @@ def render_profile_context_text(context: ProfileContext) -> str:
             f"Snapshot: {context.snapshot_identity_short or 'unavailable'}",
             f"Freshness: {context.freshness_state} - {context.freshness_message}",
             (
-                f"Coverage: price={coverage.price_ready}/{coverage.total}; "
+                f"Saved readiness coverage: price={coverage.price_ready}/{coverage.total}; "
                 f"fundamentals={coverage.fundamentals_ready}/{coverage.total}; "
                 f"DCF={coverage.dcf_ready}/{coverage.total}; peers={coverage.peer_ready}/{coverage.total}"
             ),

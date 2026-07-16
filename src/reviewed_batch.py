@@ -17,6 +17,7 @@ from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.readiness_ops import ReadinessLane, build_readiness_ops_lanes
 from src.session_source_preflight import load_session_source_preflight
 from src.share_count_proof_queue import build_share_count_proof_queue_from_files
+from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 
 
 DEFAULT_PACKET_MD = Path("outputs/reviewed_batch_packet.md")
@@ -225,8 +226,24 @@ def _mtime(path: Path) -> float:
         return 0.0
 
 
-def readiness_freshness_status(root: Path) -> FreshnessStatus:
-    missing = [path for path in REQUIRED_READINESS_REPORTS if not (root / path).exists()]
+def _selected_data_path(relative_path: str, data_dir: Path) -> Path:
+    path = Path(relative_path)
+    parts = path.parts[1:] if path.parts and path.parts[0] == "data" else path.parts
+    return data_dir.joinpath(*parts)
+
+
+def readiness_freshness_status(
+    root: Path | str = ".",
+    *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
+) -> FreshnessStatus:
+    project_root = resolve_project_root(root)
+    data_path = resolve_data_dir(data_dir, project_root)
+    resolve_outputs_dir(output_dir, project_root)
+    readiness_paths = [_selected_data_path(path, data_path) for path in REQUIRED_READINESS_REPORTS]
+    source_paths = [_selected_data_path(path, data_path) for path in SOURCE_FILES_FOR_FRESHNESS]
+    missing = [str(path.relative_to(data_path)) for path in readiness_paths if not path.exists()]
     if missing:
         return FreshnessStatus(
             "missing",
@@ -234,13 +251,13 @@ def readiness_freshness_status(root: Path) -> FreshnessStatus:
             + ", ".join(missing)
             + ". Run make readiness before using this packet for execution.",
         )
-    readiness_time = min(_mtime(root / path) for path in REQUIRED_READINESS_REPORTS)
-    newer_sources = [path for path in SOURCE_FILES_FOR_FRESHNESS if _mtime(root / path) > readiness_time]
+    readiness_time = min(_mtime(path) for path in readiness_paths)
+    newer_sources = [path for path in source_paths if _mtime(path) > readiness_time]
     if newer_sources:
         return FreshnessStatus(
             "stale",
             "Readiness artifacts may be stale because source file(s) changed after the saved reports: "
-            + ", ".join(newer_sources)
+            + ", ".join(str(path.relative_to(data_path)) for path in newer_sources)
             + ". Run make readiness before relying on final counts.",
         )
     return FreshnessStatus("current", "Readiness artifacts are current relative to watched source files.")

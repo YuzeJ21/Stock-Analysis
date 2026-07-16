@@ -1891,6 +1891,8 @@ def test_trusted_data_pilot_cli_prints_selected_profile_paths(tmp_path, monkeypa
     assert f"Project root: {tmp_path}" in rendered
     assert f"Data dir: {tmp_path / 'data' / 'local'}" in rendered
     assert f"Outputs dir: {tmp_path / 'outputs' / 'local'}" in rendered
+    assert "Profile: Local Research (local)" in rendered
+    assert "Saved readiness coverage: price=0/1; fundamentals=0/1; DCF=0/1; peers=1/1" in rendered
 
 
 def test_pilot_local_file_status_does_not_mix_default_imports_into_local_profile(tmp_path, monkeypatch):

@@ -222,7 +222,7 @@ def test_rendered_profile_context_is_compact_and_complete(tmp_path, monkeypatch)
     assert "Readiness built: 2026-07-15T19:30:00+00:00" in rendered
     assert "Snapshot:" in rendered
     assert "Freshness:" in rendered
-    assert "Coverage: price=1/1; fundamentals=1/1; DCF=1/1; peers=0/1" in rendered
+    assert "Saved readiness coverage: price=1/1; fundamentals=1/1; DCF=1/1; peers=0/1" in rendered
 
 
 def test_source_date_after_readiness_build_date_is_stale_even_when_file_mtimes_are_current(tmp_path, monkeypatch):

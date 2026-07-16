@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Iterable
 
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_queue_from_files, summarize_missing_input_families
+from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.profile_context import build_profile_context, render_profile_context_text
 from src.reviewed_batch_proof import ReviewedBatchProof, load_reviewed_batch_proofs
 from src.session_source_preflight import load_session_source_preflight
 
@@ -254,18 +256,19 @@ def _mtime(path: Path) -> float:
         return 0.0
 
 
-def build_stale_proof_warning(root: Path) -> str:
-    ledger = root / "data" / "reviewed_data_proofs.csv"
+def build_stale_proof_warning(root: Path, *, data_dir: Path | str | None = None) -> str:
+    data = resolve_data_dir(data_dir, root)
+    ledger = data / "reviewed_data_proofs.csv"
     proof_time = _mtime(ledger)
     if not proof_time:
         return "No reviewed proof ledger found; record proof only after reviewed source changes."
     watched = [
-        root / "data" / "prices.csv",
-        root / "data" / "fundamentals.csv",
-        root / "data" / "peers.csv",
-        root / "data" / "earnings.csv",
-        root / "data" / "analyst_estimates.csv",
-        root / "data" / "reports" / "ticker_readiness_report.csv",
+        data / "prices.csv",
+        data / "fundamentals.csv",
+        data / "peers.csv",
+        data / "earnings.csv",
+        data / "analyst_estimates.csv",
+        data / "reports" / "ticker_readiness_report.csv",
     ]
     newer = [path.relative_to(root).as_posix() for path in watched if _mtime(path) > proof_time]
     if not newer:
@@ -283,8 +286,14 @@ def _ticker_set(rows: Iterable[ReviewedBatchProof]) -> set[str]:
     return tickers
 
 
-def build_reviewed_batch_ledger_summaries(root: Path | str = ".") -> dict[str, ReviewedBatchLedgerSummary]:
-    rows = load_reviewed_batch_proofs(Path(root) / "data" / "reviewed_batch_proofs.csv")
+def build_reviewed_batch_ledger_summaries(
+    root: Path | str = ".",
+    *,
+    data_dir: Path | str | None = None,
+) -> dict[str, ReviewedBatchLedgerSummary]:
+    project_root = Path(root)
+    data = resolve_data_dir(data_dir, project_root)
+    rows = load_reviewed_batch_proofs(data / "reviewed_batch_proofs.csv")
     by_lane: dict[str, list[ReviewedBatchProof]] = {}
     for row in rows:
         by_lane.setdefault(row.lane, []).append(row)
@@ -444,9 +453,14 @@ def _dcf_source_ladder_exhausted(rows: list[DcfInputProofRow]) -> bool:
     return all("reviewed proof ledger already records" in str(row.source_note or "").lower() for row in rows)
 
 
-def build_peer_readiness_summary(root: Path | str = ".") -> PeerReadinessSummary:
+def build_peer_readiness_summary(
+    root: Path | str = ".",
+    *,
+    data_dir: Path | str | None = None,
+) -> PeerReadinessSummary:
     root = Path(root)
-    rows = _read_csv(root / "data" / "reports" / "peer_readiness_report.csv")
+    data = resolve_data_dir(data_dir, root)
+    rows = _read_csv(data / "reports" / "peer_readiness_report.csv")
     total = len(rows)
     if not rows:
         return PeerReadinessSummary(
@@ -484,18 +498,21 @@ def build_peer_readiness_summary(root: Path | str = ".") -> PeerReadinessSummary
 def build_readiness_ops_lanes(
     root: Path | str = ".",
     *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
     dcf_input_rows: list[DcfInputProofRow] | None = None,
     share_count_rows: list[object] | None = None,
     peer_summary: PeerReadinessSummary | None = None,
 ) -> list[ReadinessLane]:
     root = Path(root)
-    data = root / "data"
+    data = resolve_data_dir(data_dir, root)
+    resolve_outputs_dir(output_dir, root)
     reports = data / "reports"
     readiness_rows = _read_csv(reports / "ticker_readiness_report.csv")
     feature_rows = _read_csv(reports / "feature_readiness_summary.csv")
     peer_unlock_rows = _read_csv(reports / "peer_unlock_worklist.csv")
-    peer_summary = peer_summary or build_peer_readiness_summary(root)
-    dcf_input_rows = dcf_input_rows if dcf_input_rows is not None else build_dcf_input_proof_queue_from_files(root, top_n=100000)
+    peer_summary = peer_summary or build_peer_readiness_summary(root, data_dir=data)
+    dcf_input_rows = dcf_input_rows if dcf_input_rows is not None else build_dcf_input_proof_queue_from_files(root, data_dir=data, top_n=100000)
     dcf_input_summary = summarize_missing_input_families(dcf_input_rows)
     share_count_rows = share_count_rows if share_count_rows is not None else _share_count_dcf_rows(dcf_input_rows)
     share_count_only_blockers = sum(
@@ -503,7 +520,7 @@ def build_readiness_ops_lanes(
         for row in share_count_rows
         if str(getattr(row, "dcf_input_status", "") or "").startswith(("share-count-only", "single-input blocker: shares_outstanding"))
     )
-    stale_warning = build_stale_proof_warning(root)
+    stale_warning = build_stale_proof_warning(root, data_dir=data)
 
     total = len(readiness_rows)
     share_count_ready = max(total - len(share_count_rows), 0)
@@ -538,7 +555,7 @@ def build_readiness_ops_lanes(
     analyst_blocked = max(total - analyst_ready, 0)
     fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(root)
     source_activation_required, source_activation_context = _source_activation_context(root)
-    batch_ledger_summaries = build_reviewed_batch_ledger_summaries(root)
+    batch_ledger_summaries = build_reviewed_batch_ledger_summaries(root, data_dir=data)
     price_ledger_note = _reviewed_batch_ledger_note(
         batch_ledger_summaries.get("prices"),
         lane_label="price coverage",
@@ -1049,11 +1066,16 @@ def _queue_state(*, ready: int, partial: int = 0, blocked: int = 0, excluded: in
     return _lane_state(ready=ready, partial=partial, blocked=blocked, excluded=excluded)
 
 
-def _metric_queue_rollup(root: Path, *, top_n: int) -> ReadinessQueueRow:
+def _metric_queue_rollup(
+    root: Path,
+    *,
+    top_n: int,
+    data_dir: Path | str | None = None,
+) -> ReadinessQueueRow:
     from src.providers.local_market_data import LocalCSVMarketDataProvider
     from src.review_metrics import build_metric_readiness_board
 
-    provider = LocalCSVMarketDataProvider(base_dir=root, data_dir=root / "data")
+    provider = LocalCSVMarketDataProvider(base_dir=root, data_dir=resolve_data_dir(data_dir, root))
     rows = build_metric_readiness_board(
         root,
         provider,
@@ -1145,12 +1167,15 @@ def build_fundamentals_peer_metrics_queue(
     root: Path | str = ".",
     *,
     top_n: int = 10,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
 ) -> list[ReadinessQueueRow]:
     root = Path(root)
     return build_fundamentals_peer_metrics_queue_from_lanes(
-        build_readiness_ops_lanes(root),
+        build_readiness_ops_lanes(root, data_dir=data_dir, output_dir=output_dir),
         root=root,
         top_n=top_n,
+        data_dir=data_dir,
     )
 
 
@@ -1159,6 +1184,7 @@ def build_fundamentals_peer_metrics_queue_from_lanes(
     *,
     root: Path | str = ".",
     top_n: int = 10,
+    data_dir: Path | str | None = None,
 ) -> list[ReadinessQueueRow]:
     root = Path(root)
     lanes_by_key = {lane.lane: lane for lane in lanes}
@@ -1196,7 +1222,7 @@ def build_fundamentals_peer_metrics_queue_from_lanes(
                 proof_gate="Mapped peers need trusted input rows before peer valuation dispersion can appear.",
             )
         )
-    rows.append(_metric_queue_rollup(root, top_n=top_n))
+    rows.append(_metric_queue_rollup(root, top_n=top_n, data_dir=data_dir))
     for lane_name, missing_inputs in (
         ("earnings_locked", "trusted local or provider-assisted earnings rows"),
         ("analyst_estimates_locked", "trusted local or provider-assisted analyst-estimate rows"),
@@ -1282,16 +1308,26 @@ def build_data_coverage_proof_queues(
     root: Path | str = ".",
     *,
     top_n: int = 10,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
 ) -> list[DataCoverageProofQueueRow]:
     """Build the post-price proof queues without refreshing or applying local data."""
 
     root = Path(root)
-    dcf_rows = build_dcf_input_proof_queue_from_files(root, top_n=100000)
+    data = resolve_data_dir(data_dir, root)
+    dcf_rows = build_dcf_input_proof_queue_from_files(root, data_dir=data, top_n=100000)
     share_count_rows = _share_count_dcf_rows(dcf_rows)
     fundamentals_rows = _fundamentals_dcf_rows(dcf_rows)
     top_family = _top_family(fundamentals_rows or dcf_rows, fallback="shares_outstanding")
-    peer_summary = build_peer_readiness_summary(root)
-    lanes = build_readiness_ops_lanes(root, dcf_input_rows=dcf_rows, share_count_rows=share_count_rows, peer_summary=peer_summary)
+    peer_summary = build_peer_readiness_summary(root, data_dir=data)
+    lanes = build_readiness_ops_lanes(
+        root,
+        data_dir=data,
+        output_dir=output_dir,
+        dcf_input_rows=dcf_rows,
+        share_count_rows=share_count_rows,
+        peer_summary=peer_summary,
+    )
     lanes_by_key = {lane.lane: lane for lane in lanes}
     rows: list[DataCoverageProofQueueRow] = []
 
@@ -1596,24 +1632,46 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    root = Path(args.root)
+    root = resolve_project_root(args.root)
+    data_path = resolve_data_dir(project_root=root)
+    output_path = resolve_outputs_dir(project_root=root)
+    context = build_profile_context(project_root=root, data_dir=data_path, output_dir=output_path)
+    print(render_profile_context_text(context))
     if args.evidence:
-        lanes = build_readiness_ops_lanes(root)
+        lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
         frontier = build_coverage_frontier(lanes, top_n=args.top_n)
         print(render_readiness_ops_evidence(lanes, frontier))
     elif args.coverage_proof_queues:
-        print(render_data_coverage_proof_queues(build_data_coverage_proof_queues(root, top_n=args.top_n)))
+        print(
+            render_data_coverage_proof_queues(
+                build_data_coverage_proof_queues(
+                    root,
+                    top_n=args.top_n,
+                    data_dir=data_path,
+                    output_dir=output_path,
+                )
+            )
+        )
     elif args.readiness_queue:
-        print(render_fundamentals_peer_metrics_queue(build_fundamentals_peer_metrics_queue(root, top_n=args.top_n)))
+        print(
+            render_fundamentals_peer_metrics_queue(
+                build_fundamentals_peer_metrics_queue(
+                    root,
+                    top_n=args.top_n,
+                    data_dir=data_path,
+                    output_dir=output_path,
+                )
+            )
+        )
     elif args.expansion_plan:
-        lanes = build_readiness_ops_lanes(root)
+        lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
         print(render_data_coverage_expansion_plan(build_data_coverage_expansion_plan(lanes, top_n=args.top_n)))
     elif args.coverage_frontier:
-        lanes = build_readiness_ops_lanes(root)
+        lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
         frontier = build_coverage_frontier(lanes, top_n=args.top_n)
         print(render_coverage_frontier(frontier))
     else:
-        lanes = build_readiness_ops_lanes(root)
+        lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
         print(render_readiness_ops_center(lanes))
     return 0
 
