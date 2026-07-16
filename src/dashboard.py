@@ -241,6 +241,16 @@ from src.research_loop import (
     research_loop_strip_html,
     single_stock_research_loop_context,
 )
+from src.research_change_monitor import (
+    ResearchChangeEvent,
+    compare_optional_snapshots,
+)
+from src.research_change_snapshot import load_research_change_snapshot
+from src.research_review_queue import (
+    ResearchReviewItem,
+    build_research_review_queue,
+    load_review_resolutions,
+)
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
     latest_reviewed_batch_proof,
@@ -281,6 +291,7 @@ from src.universe_scope_workflow import universe_scope_risk_handoff_cards, unive
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = resolve_outputs_dir(project_root=BASE_DIR)
 DATA_DIR = resolve_data_dir(project_root=BASE_DIR)
+ACTIVE_RESEARCH_CHANGE_STATE: dict[str, object] = {}
 PIPELINE_FILES = {
     "purpose_classification.csv": "Purpose Classification",
     "market_direction.csv": "Market Direction",
@@ -5142,6 +5153,188 @@ def render_profile_trust_strip(context: ProfileContext, *, compact: bool = False
         st.json(profile_advanced_details(context))
 
 
+def research_change_home_summary(
+    queue: list[ResearchReviewItem] | tuple[ResearchReviewItem, ...],
+    *,
+    status: str = "changes_detected",
+) -> dict[str, str]:
+    count = len(queue)
+    if status == "baseline_missing" or status == "current_missing":
+        return {
+            "status": "baseline_missing",
+            "title": "Change baseline unavailable",
+            "answer": "No before-and-after comparison exists yet for this selected data profile.",
+            "primary_action": "Continue with the current readiness review",
+        }
+    if status not in {"changes_detected", "no_changes"}:
+        return {
+            "status": status,
+            "title": "Change review unavailable",
+            "answer": "The saved comparison evidence could not be verified.",
+            "primary_action": "Continue with the current readiness review",
+        }
+    if not count:
+        return {
+            "status": "no_changes",
+            "title": "No evidence-backed changes",
+            "answer": "The comparable snapshots have no unresolved research evidence changes.",
+            "primary_action": "Continue with Stock Selector",
+        }
+    return {
+        "status": "changes_detected",
+        "title": "Changed since your last review",
+        "answer": f"{count} unresolved evidence change{'s' if count != 1 else ''} need research review.",
+        "primary_action": f"Review {count} evidence change{'s' if count != 1 else ''}",
+    }
+
+
+def research_change_state_html(summary: dict[str, object]) -> str:
+    status = str(summary.get("status") or "unavailable")
+    return (
+        f"<section class='research-change-summary {html.escape(status)}' aria-label='Research changes'>"
+        "<div>"
+        "<span class='research-change-label'>Since last review</span>"
+        f"<strong>{html.escape(str(summary.get('title') or 'Change review unavailable'))}</strong>"
+        f"<p>{html.escape(str(summary.get('answer') or 'No comparison claim is available.'))}</p>"
+        "</div>"
+        f"<span class='research-change-action'>{html.escape(str(summary.get('primary_action') or 'Continue readiness review'))}</span>"
+        "</section>"
+    )
+
+
+def ticker_change_timeline(
+    events: list[ResearchChangeEvent] | tuple[ResearchChangeEvent, ...],
+    *,
+    ticker: str,
+) -> list[dict[str, str]]:
+    selected = str(ticker or "").strip().upper()
+    return [
+        {
+            "ticker": event.ticker,
+            "detected_at": event.detected_at,
+            "change": event.subtype.replace("_", " ").title(),
+            "evidence_status": event.evidence_status,
+            "research_task": event.suggested_research_task,
+            "source_ref": event.source_ref,
+        }
+        for event in events
+        if event.ticker.upper() == selected
+    ]
+
+
+def filter_selector_needs_review(
+    frame: pd.DataFrame,
+    *,
+    open_event_ids_by_ticker: dict[str, int],
+) -> pd.DataFrame:
+    if frame is None or frame.empty:
+        return pd.DataFrame(columns=list(frame.columns) if frame is not None else [])
+    ticker_column = "Ticker" if "Ticker" in frame.columns else "ticker" if "ticker" in frame.columns else ""
+    if not ticker_column:
+        return frame.iloc[0:0].copy()
+    counts = {str(key).upper(): int(value) for key, value in open_event_ids_by_ticker.items() if int(value) > 0}
+    result = frame.loc[frame[ticker_column].astype(str).str.upper().isin(counts)].copy()
+    result["Change count"] = result[ticker_column].astype(str).str.upper().map(counts).fillna(0).astype(int)
+    result["Change reason"] = result["Change count"].map(
+        lambda count: f"{count} unresolved evidence change{'s' if count != 1 else ''}"
+    )
+    return result
+
+
+def data_health_change_summary(events: tuple[ResearchChangeEvent, ...]) -> dict[str, str]:
+    families = sorted({event.family.replace("_", " ") for event in events})
+    return {
+        "status": "changes_detected" if events else "no_changes",
+        "title": "Readiness evidence changes" if events else "No readiness evidence changes",
+        "answer": (
+            f"{len(events)} change event(s) span {', '.join(families)}."
+            if events
+            else "No comparable evidence change requires lane review."
+        ),
+        "primary_action": "Review affected evidence lanes" if events else "Continue with the lane summary",
+    }
+
+
+def proof_history_event_outcomes(resolutions) -> list[dict[str, str]]:
+    return [
+        {
+            "Event ID": row.event_id,
+            "Ticker": row.ticker,
+            "Outcome": row.review_status,
+            "Reviewed at": row.reviewed_at,
+            "Reviewer": row.reviewer,
+            "Resolution note": row.resolution_note,
+        }
+        for row in sorted(resolutions, key=lambda item: item.reviewed_at, reverse=True)
+    ]
+
+
+def load_dashboard_research_change_state(context: ProfileContext) -> dict[str, object]:
+    root = context.outputs_dir / "research_changes"
+    prior_path = root / "snapshot-prior.json"
+    current_path = root / "snapshot-current.json"
+    try:
+        before = load_research_change_snapshot(prior_path) if prior_path.is_file() else None
+        after = load_research_change_snapshot(current_path) if current_path.is_file() else None
+        result = compare_optional_snapshots(before, after)
+        ledger_path = BASE_DIR / "data" / "reviewed_research_events.csv"
+        resolutions = load_review_resolutions(ledger_path)
+        queue = build_research_review_queue(result.events, resolutions=resolutions)
+        return {
+            "status": result.status,
+            "message": result.message,
+            "events": result.events,
+            "queue": queue,
+            "resolutions": resolutions,
+            "prior_path": prior_path,
+            "current_path": current_path,
+        }
+    except ValueError as exc:
+        return {
+            "status": "unavailable",
+            "message": str(exc),
+            "events": (),
+            "queue": (),
+            "resolutions": (),
+            "prior_path": prior_path,
+            "current_path": current_path,
+        }
+
+
+def render_research_change_route_summary(
+    page_title: str,
+    state: dict[str, object],
+    *,
+    ticker: str = "",
+) -> None:
+    status = str(state.get("status") or "unavailable")
+    events = tuple(state.get("events") or ())
+    queue = tuple(state.get("queue") or ())
+    if page_title == "Data Health" and status == "changes_detected":
+        summary = data_health_change_summary(events)
+    else:
+        summary = research_change_home_summary(queue, status=status)
+    if page_title == "Single-Stock Report" and ticker:
+        timeline = ticker_change_timeline(events, ticker=ticker)
+        if timeline:
+            summary = {
+                "status": "changes_detected",
+                "title": f"{ticker.upper()} changed since review",
+                "answer": f"{len(timeline)} evidence change(s) are recorded for the selected ticker.",
+                "primary_action": "Review the ticker evidence timeline",
+            }
+    st.markdown(research_change_state_html(summary), unsafe_allow_html=True)
+    with st.expander("Advanced: research change evidence", expanded=False):
+        if events:
+            st.dataframe(pd.DataFrame([event.__dict__ for event in events]), width="stretch", hide_index=True)
+        else:
+            st.caption(str(state.get("message") or "No comparable research change evidence is available."))
+        if page_title == PROOF_HISTORY_PATH_TITLE:
+            outcomes = proof_history_event_outcomes(tuple(state.get("resolutions") or ()))
+            if outcomes:
+                st.dataframe(pd.DataFrame(outcomes), width="stretch", hide_index=True)
+
+
 def public_home_overview_html(summary: dict[str, object]) -> str:
     """Return Home's public first-read as one decision surface instead of stacked cards."""
 
@@ -5232,6 +5425,39 @@ def render_public_shell_mode_styles() -> None:
         .profile-freshness.stale,
         .profile-freshness.mixed { color: #a15c00; }
         .profile-freshness.missing { color: #b42318; }
+        .research-change-summary {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 1rem;
+          align-items: center;
+          margin: 0.35rem 0 0.6rem;
+          padding: 0.72rem 0;
+          border-bottom: 1px solid #e6ebe8;
+        }
+        .research-change-summary strong {
+          display: block;
+          margin-top: 0.12rem;
+          color: #102a43;
+          font-size: 0.94rem;
+        }
+        .research-change-summary p {
+          margin: 0.18rem 0 0;
+          color: #53616f;
+          font-size: 0.82rem;
+        }
+        .research-change-label {
+          color: #0f766e;
+          font-size: 0.68rem;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+        .research-change-action {
+          max-width: 15rem;
+          color: #0b3b36;
+          font-size: 0.78rem;
+          font-weight: 750;
+          text-align: right;
+        }
         .public-app-topline {
           display: flex;
           align-items: flex-start;
@@ -5699,6 +5925,11 @@ def render_public_shell_mode_styles() -> None:
           }
           .profile-trust-primary { padding-left: 0; }
           .profile-trust-strip > :nth-child(odd) { border-left: 0; }
+          .research-change-summary { grid-template-columns: 1fr; }
+          .research-change-action {
+            max-width: none;
+            text-align: left;
+          }
           .public-home-overview {
             grid-template-columns: 1fr;
             gap: 1rem;
@@ -28035,6 +28266,18 @@ def render_stock_selector(
         help="Search readiness-backed rows before opening one saved report.",
         key="stock-selector-search",
     ).strip()
+    open_change_counts: dict[str, int] = {}
+    for item in tuple(ACTIVE_RESEARCH_CHANGE_STATE.get("queue") or ()):
+        ticker_key = item.event.ticker.upper()
+        open_change_counts[ticker_key] = open_change_counts.get(ticker_key, 0) + 1
+    needs_review_only = False
+    if open_change_counts:
+        needs_review_only = st.checkbox(
+            "Needs evidence review",
+            value=False,
+            help="Shows only tickers with unresolved source-backed change events. This is a research queue, not a ranking.",
+            key="stock-selector-needs-review",
+        )
     filter_container = st.expander("Advanced: filters and selection guidance", expanded=False)
     with filter_container:
         preset_label = st.selectbox(
@@ -28091,6 +28334,8 @@ def render_stock_selector(
         theme_filter=theme_filter,
         search=search,
     )
+    if needs_review_only:
+        filtered = filter_selector_needs_review(filtered, open_event_ids_by_ticker=open_change_counts)
 
     if public_mode:
         st.markdown(public_selector_result_summary_html(len(filtered), len(selector_frame)), unsafe_allow_html=True)
@@ -32686,10 +32931,13 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
 
 
 def main() -> None:
+    global ACTIVE_RESEARCH_CHANGE_STATE
     st.set_page_config(page_title="Stock Research Command Center", layout="wide")
     apply_dashboard_theme()
     data_profile = resolve_data_profile(project_root=BASE_DIR)
     profile_context = build_profile_context(project_root=BASE_DIR)
+    research_change_state = load_dashboard_research_change_state(profile_context)
+    ACTIVE_RESEARCH_CHANGE_STATE = research_change_state
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
     page_query_value = st.query_params.get("page")
@@ -32821,6 +33069,13 @@ def main() -> None:
         )
         render_profile_trust_strip(profile_context, compact=True)
         render_public_workflow_skip_target()
+
+    if selected_page in PUBLIC_PATH_PAGE_TITLES:
+        render_research_change_route_summary(
+            selected_page,
+            research_change_state,
+            ticker=str(st.query_params.get("ticker") or ""),
+        )
 
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
 

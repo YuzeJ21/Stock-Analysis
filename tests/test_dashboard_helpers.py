@@ -6,6 +6,8 @@ from pathlib import Path
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
 from src.profile_context import CoverageCounts, ProfileContext
+from src.research_change_monitor import ResearchChangeEvent
+from src.research_review_queue import ResearchReviewItem
 from src.public_home_workflow import public_home_current_data_coverage_cards, public_home_next_step_cards
 import pandas as pd
 
@@ -52,6 +54,69 @@ def test_profile_advanced_details_keep_paths_and_hash_out_of_compact_strip():
     assert "f" * 64 not in compact
     assert details["Snapshot identity"] == "f" * 64
     assert details["Data directory"] == "/private/data/local"
+
+
+def _change_event(event_id: str, ticker: str, subtype: str = "sec_filing_arrived") -> ResearchChangeEvent:
+    return ResearchChangeEvent(
+        event_id=event_id,
+        ticker=ticker,
+        family="filing",
+        subtype=subtype,
+        prior_value="A1",
+        current_value="A2",
+        source="sec_companyfacts",
+        source_ref=f"sec-accession:{event_id}",
+        source_published_at="2026-07-15",
+        retrieved_at="2026-07-15T20:00:00Z",
+        detected_at="2026-07-15T20:00:00Z",
+        profile_key="local",
+        prior_snapshot_identity="before",
+        current_snapshot_identity="after",
+        evidence_status="source_backed",
+        materiality="medium",
+        suggested_research_task=f"{ticker}: Review the changed source evidence.",
+    )
+
+
+def _review_item(event: ResearchChangeEvent) -> ResearchReviewItem:
+    return ResearchReviewItem(event, 20, "open", "", "", "")
+
+
+def test_home_change_summary_has_one_answer_and_one_action():
+    summary = dashboard.research_change_home_summary(
+        [_review_item(_change_event("1", "NVDA")), _review_item(_change_event("2", "AMD"))]
+    )
+
+    assert summary["title"] == "Changed since your last review"
+    assert summary["primary_action"] == "Review 2 evidence changes"
+    assert "buy" not in str(summary).lower()
+
+
+def test_ticker_timeline_filters_to_selected_ticker():
+    rows = dashboard.ticker_change_timeline(
+        [_change_event("1", "NVDA"), _change_event("2", "AMD")],
+        ticker="NVDA",
+    )
+
+    assert {row["ticker"] for row in rows} == {"NVDA"}
+
+
+def test_selector_needs_review_filter_is_derived_from_open_events():
+    frame = pd.DataFrame({"Ticker": ["NVDA", "AMD"], "Readiness": ["Ready", "Partial"]})
+
+    filtered = dashboard.filter_selector_needs_review(frame, open_event_ids_by_ticker={"NVDA": 2})
+
+    assert filtered["Ticker"].tolist() == ["NVDA"]
+    assert filtered.iloc[0]["Change reason"]
+
+
+def test_change_summary_states_do_not_claim_detected_changes():
+    for status in ("no_changes", "stale", "baseline_missing"):
+        rendered = dashboard.research_change_state_html(
+            {"status": status, "title": "Change baseline unavailable", "answer": "No comparison claim.", "primary_action": "Continue readiness review"}
+        )
+        assert "evidence-backed changes detected" not in rendered.lower()
+        assert "investment recommendation" not in rendered.lower()
 
 
 def test_dashboard_exposes_readiness_gated_nowcast_view_models():
