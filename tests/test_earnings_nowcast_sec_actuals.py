@@ -4,6 +4,8 @@ import csv
 import json
 from pathlib import Path
 
+import pytest
+
 from src.earnings_nowcast_contract import QuarterlyActual
 from src.earnings_nowcast_sec_actuals import (
     ExtractionAuditRow,
@@ -205,6 +207,35 @@ def test_extract_explicit_q4_actual_rejects_nearby_annual_less_nine_month_deriva
         <tr><td>Revenue</td><td>$40 billion</td></tr>
         <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr></table>
         <p>Q4 amounts were calculated from annual less nine-month results.</p>
+        """,
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert result.rows == ()
+    assert "derived_q4_rejected" in {row.state for row in result.audit_rows}
+
+
+@pytest.mark.parametrize(
+    "derivation_note",
+    (
+        "Q4 amounts were calculated from annual less nine months results.",
+        "Q4 amounts were calculated from full year minus 9 months results.",
+    ),
+)
+def test_extract_explicit_q4_actual_rejects_plural_and_numeric_annual_minus_nine_month_derivation(
+    derivation_note,
+):
+    result = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        f"""
+        <p>Fourth Quarter Fiscal 2025 Summary</p>
+        <table><tr><th></th><th>Q4 FY25</th></tr>
+        <tr><td>Revenue</td><td>$40 billion</td></tr>
+        <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr></table>
+        <p>{derivation_note}</p>
         """,
         fiscal_period="2025-Q4",
         filed_at="2026-02-25T00:00:00Z",
@@ -550,7 +581,7 @@ def test_stage_combines_explicit_q4_exhibit_using_injected_document_loaders(tmp_
     assert rows[0]["source_ref"].endswith("/earnings-release.htm")
 
 
-def test_stage_merges_independent_q4_metrics_from_separate_exhibits(tmp_path):
+def test_stage_withholds_independent_q4_metrics_from_separate_exhibits(tmp_path):
     submissions = {
         "cik": "123456",
         "filings": {
@@ -595,7 +626,12 @@ def test_stage_merges_independent_q4_metrics_from_separate_exhibits(tmp_path):
     )
 
     rows = list(csv.DictReader(Path(result.quarterly_actuals_path).open(encoding="utf-8")))
-    assert [(row["revenue_actual"], row["eps_actual"]) for row in rows] == [("40000000000.0", "0.89")]
+    rejected_rows = list(csv.DictReader(Path(result.rejected_path).open(encoding="utf-8")))
+
+    assert rows == []
+    assert {(row["state"], row["fiscal_period"]) for row in rejected_rows} >= {
+        ("ambiguous_concept", "2026-Q4"),
+    }
 
 
 def test_stage_rejects_same_day_date_only_filing_before_end_of_day_cutoff(tmp_path):

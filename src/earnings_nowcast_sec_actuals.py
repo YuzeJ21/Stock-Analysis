@@ -263,8 +263,8 @@ def _derived_q4_context(text: str) -> bool:
     return any(
         re.search(pattern, normalized)
         for pattern in (
-            r"\b(?:annual|full[- ]year)\s+(?:less|minus)\s+(?:the\s+)?nine[- ]month\b",
-            r"\b(?:calculated|derived)\s+from\s+(?:annual|full[- ]year).{0,80}\b(?:less|minus)\s+(?:the\s+)?nine[- ]month\b",
+            r"\b(?:annual|full[- ]year)\s+(?:less|minus)\s+(?:the\s+)?(?:nine|9)[- ]months?\b",
+            r"\b(?:calculated|derived)\s+from\s+(?:annual|full[- ]year).{0,80}\b(?:less|minus)\s+(?:the\s+)?(?:nine|9)[- ]months?\b",
         )
     )
 
@@ -1024,6 +1024,19 @@ def _combine_q4_results(
         by_period.setdefault(row.fiscal_period, []).append(row)
     accepted_rows: list[QuarterlyActual] = []
     for fiscal_period, period_rows in sorted(by_period.items()):
+        source_refs = {row.source_ref for row in period_rows}
+        if len(source_refs) > 1:
+            audit_rows.append(
+                ExtractionAuditRow(
+                    ticker=ticker,
+                    state="ambiguous_concept",
+                    metric="quarterly_actual",
+                    fiscal_period=fiscal_period,
+                    source_ref="",
+                    detail="Q4 metrics span multiple SEC-filed exhibits; per-metric provenance cannot be represented",
+                )
+            )
+            continue
         resolved_metrics = _merge_q4_metric_values(
             [(row.revenue_actual, row.eps_actual) for row in period_rows]
         )
