@@ -29476,6 +29476,27 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     assert "Page answer begins" in target_html
 
 
+def test_public_page_answer_precedes_shared_advanced_evidence():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    main_index = source.index("def main()")
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(selected_page)", main_index)
+    public_mode_index = source.index("if public_demo_mode:", output_frames_index)
+    public_profile_index = source.index(
+        "render_profile_trust_strip(profile_context, compact=True, include_advanced=False)",
+        public_mode_index,
+    )
+    skip_target_index = source.index("render_public_workflow_skip_target()", public_profile_index)
+    dispatch_index = source.index('if selected_page == "Home":', skip_target_index)
+    profile_details_index = source.index("render_profile_trust_details(profile_context)", dispatch_index)
+    change_details_index = source.index(
+        "render_research_change_route_summary(",
+        profile_details_index,
+    )
+
+    assert public_profile_index < skip_target_index < dispatch_index < profile_details_index < change_details_index
+
+
 def test_operator_workflow_skip_link_has_a_main_content_target():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

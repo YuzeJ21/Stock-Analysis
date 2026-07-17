@@ -5194,10 +5194,22 @@ def profile_advanced_details(context: ProfileContext) -> dict[str, object]:
     }
 
 
-def render_profile_trust_strip(context: ProfileContext, *, compact: bool = False) -> None:
-    st.markdown(profile_trust_strip_html(context, compact=compact), unsafe_allow_html=True)
+def render_profile_trust_details(context: ProfileContext) -> None:
+    """Keep technical profile evidence after the page's primary answer."""
+
     with st.expander("Advanced: profile identity and freshness evidence", expanded=False):
         st.json(profile_advanced_details(context))
+
+
+def render_profile_trust_strip(
+    context: ProfileContext,
+    *,
+    compact: bool = False,
+    include_advanced: bool = True,
+) -> None:
+    st.markdown(profile_trust_strip_html(context, compact=compact), unsafe_allow_html=True)
+    if include_advanced:
+        render_profile_trust_details(context)
 
 
 def research_change_home_summary(
@@ -33618,7 +33630,7 @@ def main() -> None:
         render_public_shell_mode_styles()
         render_public_workflow_skip_link(selected_page, st.query_params)
         render_public_app_shell(selected_page)
-        render_profile_trust_strip(profile_context, compact=True)
+        render_profile_trust_strip(profile_context, compact=True, include_advanced=False)
         render_public_workflow_skip_target()
     else:
         render_app_header(
@@ -33630,7 +33642,7 @@ def main() -> None:
         render_profile_trust_strip(profile_context, compact=True)
         render_public_workflow_skip_target()
 
-    if selected_page in PUBLIC_PATH_PAGE_TITLES:
+    if selected_page in PUBLIC_PATH_PAGE_TITLES and not public_demo_mode:
         render_research_change_route_summary(
             selected_page,
             research_change_state,
@@ -33672,6 +33684,14 @@ def main() -> None:
         render_proof_history(public_mode=public_demo_mode)
     elif selected_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
+    if public_demo_mode:
+        render_profile_trust_details(profile_context)
+        if selected_page in PUBLIC_PATH_PAGE_TITLES:
+            render_research_change_route_summary(
+                selected_page,
+                research_change_state,
+                ticker=str(st.query_params.get("ticker") or ""),
+            )
     if bootstrap_placeholder is not None:
         bootstrap_placeholder.empty()
 
