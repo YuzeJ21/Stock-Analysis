@@ -1166,8 +1166,22 @@ def stage_sec_quarterly_actuals(
                 + (_q4_source_unavailable(ticker, "", f"SEC submissions lookup failed: {exc}"),),
             )
             continue
+        q4_candidates = _recent_q4_candidate_filings(submissions_payload)
         q4_results: list[ExtractionResult] = []
-        for accession, filed_date, report_date in _recent_q4_candidate_filings(submissions_payload):
+        if not q4_candidates:
+            q4_results.append(
+                ExtractionResult(
+                    rows=(),
+                    audit_rows=(
+                        _q4_source_unavailable(
+                            ticker,
+                            "",
+                            "no eligible 8-K or 8-K/A Q4 candidate filing was found",
+                        ),
+                    ),
+                )
+            )
+        for accession, filed_date, report_date in q4_candidates:
             filed_at, cutoff_detail = _date_only_filing_availability(filed_date, cutoff)
             if filed_at is None:
                 q4_results.append(

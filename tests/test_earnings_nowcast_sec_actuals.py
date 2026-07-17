@@ -545,6 +545,43 @@ def test_stage_uses_injected_ticker_map_and_companyfacts_fetcher(tmp_path):
     assert result.automatic_apply is False
 
 
+def test_stage_records_unavailable_q4_source_when_submissions_have_no_eligible_candidate(tmp_path):
+    submissions = {
+        "cik": "123456",
+        "filings": {
+            "recent": {
+                "form": ["10-K", "10-Q"],
+                "filingDate": ["2026-02-25", "2026-05-25"],
+                "reportDate": ["2026-01-25", "2026-04-25"],
+                "accessionNumber": ["0000123456-26-000001", "0000123456-26-000002"],
+            }
+        },
+    }
+
+    result = stage_sec_quarterly_actuals(
+        ["syn1"],
+        output_dir=tmp_path / "stage",
+        cutoff=CUTOFF,
+        user_agent="Test test@example.com",
+        retrieved_at=RETRIEVED_AT,
+        ticker_map={"SYN1": {"ticker": "SYN1", "cik": "0000123456"}},
+        companyfacts_loader=lambda *_args, **_kwargs: companyfacts_fixture(revenue=[], eps=[]),
+        submissions_loader=lambda *_args, **_kwargs: submissions,
+        filing_index_loader=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("no eligible Q4 candidate must not fetch a filing index")
+        ),
+    )
+
+    rejected_rows = list(csv.DictReader(Path(result.rejected_path).open(encoding="utf-8")))
+    assert result.accepted_row_count == 0
+    assert {(row["state"], row["detail"]) for row in rejected_rows} == {
+        (
+            "q4_source_unavailable",
+            "no eligible 8-K or 8-K/A Q4 candidate filing was found",
+        ),
+    }
+
+
 def test_stage_combines_explicit_q4_exhibit_using_injected_document_loaders(tmp_path):
     submissions = {
         "cik": "123456",
