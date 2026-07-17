@@ -481,7 +481,8 @@ def test_sec_actuals_cli_json_uses_injected_cached_fixture_stage(tmp_path, capsy
     assert payload["automatic_apply"] is False
     assert payload["tickers"]["SYN1"]["accepted_rows"]
     assert payload["tickers"]["SYN1"]["rejected_rows"]
-    assert payload["tickers"]["SYN1"]["missing_q4"] is True
+    assert payload["tickers"]["SYN1"]["metrics"]["revenue"]["missing_q4"] is True
+    assert payload["tickers"]["SYN1"]["metrics"]["eps"]["missing_q4"] is True
     assert payload["tickers"]["SYN1"]["source_refs"]
 
 
@@ -505,6 +506,114 @@ def test_stage_keeps_revenue_only_metric_partial_out_of_rejected_rows(tmp_path):
     assert staged_rows[0]["eps_actual"] == ""
     assert result.rejected_row_count == 0
     assert rejected_rows == []
+
+
+def test_stage_summary_reports_q4_and_continuity_by_metric(tmp_path):
+    result = write_sec_actuals_stage(
+        tmp_path / "stage",
+        {
+            "SYN1": ExtractionResult(
+                rows=(
+                    actual(
+                        "2025-Q3",
+                        revenue=100,
+                        eps=None,
+                        source_ref="sec://revenue-q3",
+                        reported_at="2025-11-01T00:00:00Z",
+                    ),
+                    actual(
+                        "2025-Q4",
+                        revenue=110,
+                        eps=None,
+                        source_ref="sec://revenue-q4",
+                        reported_at="2026-02-01T00:00:00Z",
+                    ),
+                    actual(
+                        "2025-Q3",
+                        revenue=None,
+                        eps=1.0,
+                        source_ref="sec://eps-q3",
+                        reported_at="2025-11-01T00:00:00Z",
+                    ),
+                    actual(
+                        "2026-Q1",
+                        revenue=None,
+                        eps=1.1,
+                        source_ref="sec://eps-q1",
+                        reported_at="2026-05-01T00:00:00Z",
+                    ),
+                ),
+                audit_rows=(),
+            )
+        },
+    )
+
+    summary = sec_actuals.build_sec_actuals_stage_summary(result)["tickers"]["SYN1"]
+
+    assert summary["metrics"]["revenue"]["missing_q4"] is False
+    assert summary["metrics"]["revenue"]["continuity_gaps"] == []
+    assert len(summary["metrics"]["revenue"]["accepted_rows"]) == 2
+    assert summary["metrics"]["eps"]["missing_q4"] is True
+    assert summary["metrics"]["eps"]["continuity_gaps"] == [
+        {
+            "after_fiscal_period": "2025-Q3",
+            "before_fiscal_period": "2026-Q1",
+            "missing_fiscal_periods": ["2025-Q4"],
+        }
+    ]
+    assert len(summary["metrics"]["eps"]["accepted_rows"]) == 2
+
+    inverse_result = write_sec_actuals_stage(
+        tmp_path / "inverse-stage",
+        {
+            "SYN1": ExtractionResult(
+                rows=(
+                    actual(
+                        "2025-Q3",
+                        revenue=100,
+                        eps=None,
+                        source_ref="sec://inverse-revenue-q3",
+                        reported_at="2025-11-01T00:00:00Z",
+                    ),
+                    actual(
+                        "2026-Q1",
+                        revenue=110,
+                        eps=None,
+                        source_ref="sec://inverse-revenue-q1",
+                        reported_at="2026-05-01T00:00:00Z",
+                    ),
+                    actual(
+                        "2025-Q3",
+                        revenue=None,
+                        eps=1.0,
+                        source_ref="sec://inverse-eps-q3",
+                        reported_at="2025-11-01T00:00:00Z",
+                    ),
+                    actual(
+                        "2025-Q4",
+                        revenue=None,
+                        eps=1.1,
+                        source_ref="sec://inverse-eps-q4",
+                        reported_at="2026-02-01T00:00:00Z",
+                    ),
+                ),
+                audit_rows=(),
+            )
+        },
+    )
+
+    inverse_summary = sec_actuals.build_sec_actuals_stage_summary(inverse_result)["tickers"]["SYN1"]
+
+    assert inverse_summary["metrics"]["revenue"]["missing_q4"] is True
+    assert inverse_summary["metrics"]["revenue"]["continuity_gaps"] == [
+        {
+            "after_fiscal_period": "2025-Q3",
+            "before_fiscal_period": "2026-Q1",
+            "missing_fiscal_periods": ["2025-Q4"],
+        }
+    ]
+    assert inverse_summary["metrics"]["eps"]["missing_q4"] is False
+    assert inverse_summary["metrics"]["eps"]["continuity_gaps"] == []
 
 
 def test_stage_writes_fiscal_period_conflicts_to_rejected_rows(tmp_path):

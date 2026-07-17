@@ -1394,11 +1394,23 @@ def build_sec_actuals_stage_summary(result: StageResult) -> dict[str, object]:
                 if str(row.get("source_ref") or "")
             }
         )
+        metrics = {}
+        for metric, value_field in (("revenue", "revenue_actual"), ("eps", "eps_actual")):
+            metric_accepted = [
+                row for row in ticker_accepted if str(row.get(value_field) or "").strip()
+            ]
+            metrics[metric] = {
+                "accepted_rows": metric_accepted,
+                "missing_q4": not any(
+                    str(row.get("fiscal_period") or "").endswith("-Q4")
+                    for row in metric_accepted
+                ),
+                "continuity_gaps": _continuity_gaps(metric_accepted),
+            }
         ticker_summaries[ticker] = {
             "accepted_rows": ticker_accepted,
             "rejected_rows": ticker_rejected,
-            "missing_q4": not any(str(row.get("fiscal_period") or "").endswith("-Q4") for row in ticker_accepted),
-            "continuity_gaps": _continuity_gaps(ticker_accepted),
+            "metrics": metrics,
             "source_refs": source_refs,
         }
     return {
@@ -1453,7 +1465,8 @@ def main(
         print(
             f"{ticker}: accepted_rows={len(ticker_summary['accepted_rows'])} "
             f"rejected_rows={len(ticker_summary['rejected_rows'])} "
-            f"missing_q4={str(ticker_summary['missing_q4']).lower()}"
+            f"revenue_missing_q4={str(ticker_summary['metrics']['revenue']['missing_q4']).lower()} "
+            f"eps_missing_q4={str(ticker_summary['metrics']['eps']['missing_q4']).lower()}"
         )
 
 
