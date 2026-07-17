@@ -312,6 +312,42 @@ def test_explicit_pre_cutoff_revision_supersedes_prior_value():
     assert "conflicting_quarterly_actuals" not in result.missing_evidence
 
 
+def test_complete_multi_step_revision_chain_selects_latest_reported_row():
+    rows = _actuals()
+    original = rows[-1]
+    middle = replace(
+        original,
+        reported_at="2026-01-16T21:00:00Z",
+        retrieved_at="2026-01-16T21:01:00Z",
+        revenue_actual=105.0,
+        eps_actual=1.25,
+        source_ref="fixture://revision/middle",
+        supersedes_source_ref=original.source_ref,
+    )
+    latest = replace(
+        original,
+        reported_at="2026-01-17T21:00:00Z",
+        retrieved_at="2026-01-17T21:01:00Z",
+        revenue_actual=110.0,
+        eps_actual=1.3,
+        source_ref="fixture://revision/latest",
+        supersedes_source_ref=middle.source_ref,
+    )
+
+    result = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=[*rows, middle, latest],
+        consensus=[_consensus()],
+    )
+
+    assert result.revenue_ready is True
+    assert result.eps_ready is True
+    assert "fixture://revision/latest" in result.source_ids
+    assert "fixture://revision/middle" not in result.conflict_source_ids
+
+
 def test_revision_cannot_hide_a_second_unresolved_conflicting_source():
     rows = _actuals()
     original = rows[-1]
@@ -398,6 +434,29 @@ def test_split_basis_change_withholds_eps_but_keeps_revenue_ready():
         as_of_timestamp=CUTOFF,
         actuals=rows,
         consensus=[consensus],
+    )
+
+    assert result.revenue_ready is True
+    assert result.eps_ready is False
+    assert "incompatible_eps_definition" in result.missing_evidence
+
+
+def test_companyfacts_unverified_split_basis_withholds_only_eps():
+    rows = [
+        replace(
+            row,
+            eps_actual=(row.eps_actual / 10 if index == 0 else row.eps_actual),
+            split_adjustment_basis="companyfacts_split_basis_unverified",
+        )
+        for index, row in enumerate(_actuals())
+    ]
+
+    result = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=rows,
+        consensus=[_consensus()],
     )
 
     assert result.revenue_ready is True

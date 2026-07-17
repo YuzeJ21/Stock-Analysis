@@ -6,6 +6,7 @@ import json
 import os
 import re
 import signal
+import tempfile
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timezone
 from html.parser import HTMLParser
@@ -46,6 +47,8 @@ REJECTED_AUDIT_STATES = frozenset(
         "cumulative_fact_rejected",
         "fiscal_period_conflict",
         "post_cutoff_rejected",
+        "period_end_ambiguous",
+        "period_end_missing",
         "q4_source_unavailable",
         "quarter_header_missing",
         "ambiguous_period_header",
@@ -53,7 +56,19 @@ REJECTED_AUDIT_STATES = frozenset(
         "gaap_eps_missing",
         "derived_q4_rejected",
         "revenue_scale_missing",
+        "split_basis_unverified",
         "ticker_unresolved",
+    )
+)
+COMPANYFACTS_SPLIT_BASIS_UNVERIFIED = "companyfacts_split_basis_unverified"
+_STAGE_OUTPUT_NAMES = frozenset(
+    (
+        ".sec-cache",
+        "consensus_snapshots.csv",
+        "quarterly_actuals.csv",
+        "sec_actuals_audit.json",
+        "sec_actuals_rejected.csv",
+        "signals.csv",
     )
 )
 
@@ -227,6 +242,45 @@ def _has_ambiguous_q4_header(rows: tuple[tuple[str, ...], ...]) -> bool:
     return "q4" in headers
 
 
+def _dates_in_text(value: str) -> set[str]:
+    dates: set[str] = set()
+    for raw_date in re.findall(
+        r"\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},\s+20\d{2}\b",
+        str(value or ""),
+        flags=re.IGNORECASE,
+    ):
+        try:
+            dates.add(datetime.strptime(raw_date.title(), "%B %d, %Y").date().isoformat())
+        except ValueError:
+            continue
+    for raw_date in re.findall(r"\b20\d{2}-\d{2}-\d{2}\b", str(value or "")):
+        try:
+            dates.add(date.fromisoformat(raw_date).isoformat())
+        except ValueError:
+            continue
+    return dates
+
+
+def _q4_period_end_dates(
+    matching_tables: Sequence[tuple[tuple[tuple[str, ...], ...], int]],
+) -> set[str]:
+    period_ends: set[str] = set()
+    for rows, value_column in matching_tables:
+        for row in rows:
+            if len(row) <= value_column:
+                continue
+            label = _normalized_table_text(row[0])
+            value = row[value_column]
+            value_text = _normalized_table_text(value)
+            if not any(
+                marker in label or marker in value_text
+                for marker in ("period ended", "quarter ended", "three months ended")
+            ):
+                continue
+            period_ends.update(_dates_in_text(value))
+    return period_ends
+
+
 def _table_number(value: str, *, scale_required: bool) -> tuple[float, float] | None:
     text = _normalized_table_text(value)
     if any(word in text for word in ("expected", "approximately", "outlook", "guidance")):
@@ -373,7 +427,6 @@ def extract_explicit_q4_actual(
     filed_at: str,
     retrieved_at: str,
     cutoff: str | None = None,
-    period_end_date: str | None = None,
 ) -> ExtractionResult:
     normalized_ticker = str(ticker or "").strip().upper()
     parser = _StructuredTableParser()
@@ -459,6 +512,25 @@ def extract_explicit_q4_actual(
             _q4_audit(normalized_ticker, "ambiguous_concept", "quarterly_actual", fiscal_period, exhibit, "multiple Q4 result tables disagree")
         )
         return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
+    period_end_dates = _q4_period_end_dates(matching_tables)
+    if len(period_end_dates) != 1:
+        state = "period_end_missing" if not period_end_dates else "period_end_ambiguous"
+        detail = (
+            "selected Q4 result table does not state an explicit period-end date"
+            if not period_end_dates
+            else "selected Q4 result table states multiple period-end dates for the Q4 value column"
+        )
+        audit_rows.append(
+            _q4_audit(
+                normalized_ticker,
+                state,
+                "quarterly_actual",
+                fiscal_period,
+                exhibit,
+                detail,
+            )
+        )
+        return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
     reported_at = datetime.fromisoformat(filed_at.replace("Z", "+00:00")).astimezone(timezone.utc).isoformat()
     if cutoff is not None:
         cutoff_timestamp = datetime.fromisoformat(cutoff.replace("Z", "+00:00"))
@@ -470,7 +542,7 @@ def extract_explicit_q4_actual(
             )
             return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
     revenue, eps = resolved_metrics
-    resolved_period_end = period_end_date or reported_at[:10]
+    resolved_period_end = next(iter(period_end_dates))
     row = QuarterlyActual(
         ticker=normalized_ticker,
         fiscal_period=fiscal_period,
@@ -732,22 +804,34 @@ def extract_q1_q3_lineage(
         current_facts.append(fact)
 
     identities_by_end: dict[str, set[str]] = {}
+    ends_by_identity: dict[str, set[str]] = {}
     for fact in current_facts:
-        identities_by_end.setdefault(fact.end, set()).add(f"{fact.fiscal_year}-{fact.fiscal_period}")
+        identity = f"{fact.fiscal_year}-{fact.fiscal_period}"
+        identities_by_end.setdefault(fact.end, set()).add(identity)
+        ends_by_identity.setdefault(identity, set()).add(fact.end)
     conflicting_ends = {end for end, identities in identities_by_end.items() if len(identities) > 1}
+    conflicting_identities = {
+        identity for identity, period_ends in ends_by_identity.items() if len(period_ends) > 1
+    }
     for fact in current_facts:
-        if fact.end not in conflicting_ends:
+        identity = f"{fact.fiscal_year}-{fact.fiscal_period}"
+        if fact.end not in conflicting_ends and identity not in conflicting_identities:
             continue
         metric = _metric_for(fact)
         assert metric is not None
+        detail = (
+            "multiple current-quarter filings assign different fiscal identities to one period end"
+            if fact.end in conflicting_ends
+            else "one fiscal identity maps to multiple current-quarter period ends"
+        )
         audit_rows.append(
             _audit(
                 normalized_ticker,
                 "fiscal_period_conflict",
                 metric,
-                f"{fact.fiscal_year}-{fact.fiscal_period}",
+                identity,
                 _source_ref(payload.get("cik"), fact.accession),
-                "multiple current-quarter filings assign different fiscal identities to one period end",
+                detail,
                 fact,
             )
         )
@@ -755,15 +839,21 @@ def extract_q1_q3_lineage(
     facts_by_identity: list[tuple[SecDurationFact, str]] = []
     comparative_signatures: set[tuple[str, str, str, str, int, str]] = set()
     for fact in current_facts:
-        if fact.end not in conflicting_ends:
-            facts_by_identity.append((fact, f"{fact.fiscal_year}-{fact.fiscal_period}"))
+        identity = f"{fact.fiscal_year}-{fact.fiscal_period}"
+        if fact.end not in conflicting_ends and identity not in conflicting_identities:
+            facts_by_identity.append((fact, identity))
     for fact in comparative_facts:
         metric = _metric_for(fact)
         assert metric is not None
         source_ref = _source_ref(payload.get("cik"), fact.accession)
         identity = identities_by_end.get(fact.end, set())
-        if len(identity) == 1 and fact.end not in conflicting_ends:
-            facts_by_identity.append((fact, next(iter(identity))))
+        canonical_identity = next(iter(identity)) if len(identity) == 1 else None
+        if (
+            canonical_identity is not None
+            and fact.end not in conflicting_ends
+            and canonical_identity not in conflicting_identities
+        ):
+            facts_by_identity.append((fact, canonical_identity))
             comparative_signatures.add(
                 (fact.accession, fact.start, fact.end, fact.filed, fact.fiscal_year, fact.fiscal_period)
             )
@@ -835,6 +925,9 @@ def extract_q1_q3_lineage(
                 source="sec_companyfacts",
                 source_ref=source_ref,
                 retrieved_at=retrieved_at,
+                split_adjustment_basis=(
+                    COMPANYFACTS_SPLIT_BASIS_UNVERIFIED if eps is not None else "as_reported"
+                ),
             )
         )
         accepted_state = "accepted_revision" if signature in comparative_signatures else "accepted_explicit_quarter"
@@ -856,6 +949,18 @@ def extract_q1_q3_lineage(
                         signature_facts[0],
                     )
                 )
+        if eps is not None:
+            audit_rows.append(
+                _audit(
+                    normalized_ticker,
+                    "split_basis_unverified",
+                    "eps",
+                    fiscal_period,
+                    source_ref,
+                    "SEC Companyfacts does not prove whether comparative diluted EPS is on a split-comparable basis",
+                    signature_facts[0],
+                )
+            )
         if revenue is None or eps is None:
             audit_rows.append(
                 _audit(
@@ -907,10 +1012,11 @@ def link_quarter_revisions(rows: Sequence[QuarterlyActual]) -> tuple[QuarterlyAc
             for prior in linked
             if prior.ticker == row.ticker
             and prior.fiscal_period == row.fiscal_period
+            and prior.period_end_date == row.period_end_date
             and prior.source == row.source
             and prior.reported_at < row.reported_at
         ]
-        if any(_same_actual_presentation(prior, row) for prior in family_rows):
+        if family_rows and _same_actual_presentation(family_rows[-1], row):
             continue
         if family_rows:
             linked.append(replace(row, supersedes_source_ref=family_rows[-1].source_ref))
@@ -967,16 +1073,112 @@ def _rejected_audit_rows(results: Mapping[str, ExtractionResult]) -> list[Extrac
     ]
 
 
+def _is_within(path: Path, parent: Path) -> bool:
+    return path == parent or parent in path.parents
+
+
+def _has_generated_stage_marker(root: Path) -> bool:
+    audit_path = root / "sec_actuals_audit.json"
+    if not audit_path.is_file():
+        return False
+    try:
+        payload = json.loads(audit_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return (
+        isinstance(payload, Mapping)
+        and payload.get("mode") == "preview_only"
+        and payload.get("automatic_apply") is False
+    )
+
+
+def _validated_stage_output_dir(output_dir: Path | str) -> Path:
+    root = Path(output_dir).expanduser().resolve(strict=False)
+    project_root = Path(__file__).resolve().parents[1]
+    canonical_data = (project_root / "data").resolve(strict=False)
+    if _is_within(root, canonical_data):
+        raise ValueError(
+            "SEC actuals staging requires a generated temporary/review directory outside canonical data and imports"
+        )
+
+    temporary_root = Path(tempfile.gettempdir()).resolve(strict=False)
+    review_named = any(
+        marker in part.lower()
+        for part in root.parts
+        for marker in ("generated", "review", "sec-actuals", "sec_actuals", "stage", "staging")
+    )
+    allowed_location = _is_within(root, temporary_root) or review_named
+    if not allowed_location:
+        raise ValueError(
+            "SEC actuals staging requires a generated temporary/review directory"
+        )
+
+    if root.exists():
+        if not root.is_dir():
+            raise ValueError("SEC actuals staging output must be a directory")
+        entries = {path.name for path in root.iterdir()}
+        generated_stage = (
+            not entries
+            or entries <= {".sec-cache"}
+            or (_has_generated_stage_marker(root) and entries <= _STAGE_OUTPUT_NAMES)
+        )
+        if not generated_stage:
+            raise ValueError(
+                "SEC actuals staging refuses an existing non-generated evidence directory; use a new generated temporary/review directory"
+            )
+    return root
+
+
+def _stage_identity_conflicts(
+    rows: Sequence[QuarterlyActual],
+) -> tuple[set[tuple[str, str]], list[ExtractionAuditRow]]:
+    period_ends_by_identity: dict[tuple[str, str], set[str]] = {}
+    for row in rows:
+        period_ends_by_identity.setdefault((row.ticker, row.fiscal_period), set()).add(
+            row.period_end_date
+        )
+    conflicts = {
+        identity
+        for identity, period_ends in period_ends_by_identity.items()
+        if len(period_ends) > 1
+    }
+    audit_rows = [
+        ExtractionAuditRow(
+            ticker=row.ticker,
+            state="fiscal_period_conflict",
+            metric="quarterly_actual",
+            fiscal_period=row.fiscal_period,
+            source_ref=row.source_ref,
+            detail="one fiscal identity maps to multiple period ends at the staging boundary",
+            end=row.period_end_date,
+        )
+        for row in rows
+        if (row.ticker, row.fiscal_period) in conflicts
+    ]
+    return conflicts, audit_rows
+
+
 def write_sec_actuals_stage(output_dir: Path, results: Mapping[str, ExtractionResult]) -> StageResult:
-    root = Path(output_dir)
+    root = _validated_stage_output_dir(output_dir)
     root.mkdir(parents=True, exist_ok=True)
     requested_tickers = tuple(sorted({str(ticker).strip().upper() for ticker in results if str(ticker).strip()}))
+    extracted_rows = [row for ticker in requested_tickers for row in results[ticker].rows]
+    conflicting_identities, conflict_audit_rows = _stage_identity_conflicts(extracted_rows)
     linked_rows = link_quarter_revisions(
-        [row for ticker in requested_tickers for row in results[ticker].rows]
+        [
+            row
+            for row in extracted_rows
+            if (row.ticker, row.fiscal_period) not in conflicting_identities
+        ]
     )
     accepted_tickers = tuple(sorted({row.ticker for row in linked_rows}))
     withheld_tickers = tuple(ticker for ticker in requested_tickers if ticker not in accepted_tickers)
-    rejected_rows = _rejected_audit_rows(results)
+    rejected_rows = _rejected_audit_rows(results) + conflict_audit_rows
+    all_audit_rows = [
+        audit_row
+        for ticker in requested_tickers
+        for audit_row in results[ticker].audit_rows
+    ] + conflict_audit_rows
 
     quarterly_actuals_path = root / "quarterly_actuals.csv"
     with quarterly_actuals_path.open("w", newline="", encoding="utf-8") as handle:
@@ -997,7 +1199,7 @@ def write_sec_actuals_stage(output_dir: Path, results: Mapping[str, ExtractionRe
         "withheld_tickers": withheld_tickers,
         "accepted_row_count": len(linked_rows),
         "rejected_row_count": len(rejected_rows),
-        "audit_rows": [asdict(row) for ticker in requested_tickers for row in results[ticker].audit_rows],
+        "audit_rows": [asdict(row) for row in all_audit_rows],
     }
     audit_path.write_text(json.dumps(audit_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -1159,8 +1361,9 @@ def stage_sec_quarterly_actuals(
     exhibit_document_loader: Callable[..., str] = fetch_sec_filing_document,
     exhibit_document_fetcher: Callable[[str, str, float], str] | None = None,
 ) -> StageResult:
+    resolved_output_dir = _validated_stage_output_dir(output_dir)
     requested_tickers = tuple(sorted({str(ticker).strip().upper() for ticker in tickers if str(ticker).strip()}))
-    resolved_cache_dir = Path(cache_dir) if cache_dir is not None else Path(output_dir) / ".sec-cache"
+    resolved_cache_dir = Path(cache_dir) if cache_dir is not None else resolved_output_dir / ".sec-cache"
     provider_refresh = refresh if allow_network else False
     provider_cache = not allow_network
     if ticker_map is None:
@@ -1244,7 +1447,7 @@ def stage_sec_quarterly_actuals(
                     ),
                 )
             )
-        for accession, filed_date, report_date in q4_candidates:
+        for accession, filed_date, _report_date in q4_candidates:
             filed_at, cutoff_detail = _date_only_filing_availability(filed_date, cutoff)
             if filed_at is None:
                 q4_results.append(
@@ -1340,7 +1543,6 @@ def stage_sec_quarterly_actuals(
                         filed_at=filed_at,
                         retrieved_at=resolved_retrieved_at,
                         cutoff=cutoff,
-                        period_end_date=report_date or None,
                     )
                 )
         q4_result = _combine_q4_results(ticker, q4_results)
@@ -1348,7 +1550,7 @@ def stage_sec_quarterly_actuals(
             rows=q1_q3_result.rows + q4_result.rows,
             audit_rows=q1_q3_result.audit_rows + q4_result.audit_rows,
         )
-    return write_sec_actuals_stage(output_dir, results)
+    return write_sec_actuals_stage(resolved_output_dir, results)
 
 
 def _continuity_gaps(rows: Sequence[Mapping[str, str]]) -> list[dict[str, object]]:
@@ -1452,6 +1654,10 @@ def main(
     args = parser.parse_args(argv)
     if args.no_network and args.sec_refresh:
         parser.error("--sec-refresh cannot be combined with --no-network")
+    try:
+        output_dir = _validated_stage_output_dir(args.output_dir)
+    except ValueError as exc:
+        parser.error(str(exc))
     tickers = [ticker.strip() for ticker in args.tickers.split(",") if ticker.strip()]
     previous_handler = None
     if args.max_runtime_seconds is not None:
@@ -1467,7 +1673,7 @@ def main(
     try:
         result = stage_runner(
             tickers,
-            output_dir=Path(args.output_dir),
+            output_dir=output_dir,
             cutoff=args.cutoff,
             user_agent=args.sec_user_agent,
             refresh=args.sec_refresh,

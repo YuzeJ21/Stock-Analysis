@@ -2731,5 +2731,8 @@ def test_earnings_nowcast_sec_actuals_stage_launcher_requires_scoped_output_and_
     assert "--cutoff \"$(AS_OF)\"" in target
     assert "--output-dir \"$(OUTPUT_DIR)\"" in target
     assert "--max-runtime-seconds \"$(or $(SEC_STAGE_MAX_RUNTIME_SECONDS),300)\"" in target
+    assert "generated temporary/review directory" in target
+    assert "data/earnings_nowcast" not in target
+    assert "data/imports" not in target
     assert "imports-apply" not in target
     assert "--apply" not in target

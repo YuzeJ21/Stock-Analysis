@@ -37,6 +37,7 @@ Q4_RELEASE_HTML = """
 <p>Fourth Quarter Fiscal 2025 Summary</p>
 <table>
   <tr><th></th><th>Q4 FY25</th></tr>
+  <tr><th>Period ended</th><th>January 26, 2025</th></tr>
   <tr><td>Revenue</td><td>$39,331 million</td></tr>
   <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr>
 </table>
@@ -58,6 +59,7 @@ def test_extract_explicit_q4_actual_reads_filed_result_table():
     assert result.rows[0].fiscal_period == "2025-Q4"
     assert result.rows[0].revenue_actual == 39_331_000_000
     assert result.rows[0].eps_actual == 0.89
+    assert result.rows[0].period_end_date == "2025-01-26"
     assert result.rows[0].split_adjustment_basis == "split_adjusted_2024_06_07"
 
 
@@ -69,6 +71,7 @@ def test_extract_explicit_q4_actual_reads_the_column_labeled_q4():
         <p>Fourth Quarter Fiscal 2025 Summary</p>
         <table>
           <tr><th></th><th>Fiscal 2025</th><th>Q4 FY25</th></tr>
+          <tr><th>Period ended</th><th>January 28, 2024</th><th>January 26, 2025</th></tr>
           <tr><td>Revenue</td><td>$160 billion</td><td>$39,331 million</td></tr>
           <tr><td>GAAP diluted earnings per share</td><td>$3.00</td><td>$0.89</td></tr>
         </table>
@@ -90,6 +93,7 @@ def test_extract_explicit_q4_actual_uses_explicit_table_level_revenue_scale():
         <p>Fourth Quarter Fiscal 2025 Summary</p>
         <table>
           <tr><th>Dollars in millions</th><th>Q4 FY25</th></tr>
+          <tr><th>Period ended</th><th>January 26, 2025</th></tr>
           <tr><td>Revenue</td><td>$39,331</td></tr>
           <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr>
         </table>
@@ -111,6 +115,7 @@ def test_extract_explicit_q4_actual_uses_caption_table_level_revenue_scale():
         <table>
           <caption>Dollars in millions</caption>
           <tr><th></th><th>Q4 FY25</th></tr>
+          <tr><th>Period ended</th><th>January 26, 2025</th></tr>
           <tr><td>Revenue</td><td>$39,331</td></tr>
           <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr>
         </table>
@@ -131,6 +136,7 @@ def test_extract_explicit_q4_actual_rejects_revenue_without_an_unambiguous_scale
         <p>Fourth Quarter Fiscal 2025 Summary</p>
         <table>
           <tr><th></th><th>Q4 FY25</th></tr>
+          <tr><th>Period ended</th><th>January 26, 2025</th></tr>
           <tr><td>Revenue</td><td>$39,331</td></tr>
           <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr>
         </table>
@@ -143,6 +149,25 @@ def test_extract_explicit_q4_actual_rejects_revenue_without_an_unambiguous_scale
     assert result.rows[0].revenue_actual is None
     assert result.rows[0].eps_actual == 0.89
     assert "revenue_scale_missing" in {row.state for row in result.audit_rows}
+
+
+def test_extract_explicit_q4_actual_requires_source_backed_period_end():
+    result = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        """
+        <p>Fourth Quarter Fiscal 2025 Summary</p>
+        <table><tr><th></th><th>Q4 FY25</th></tr>
+        <tr><td>Revenue</td><td>$39,331 million</td></tr>
+        <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr></table>
+        """,
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert result.rows == ()
+    assert "period_end_missing" in {row.state for row in result.audit_rows}
 
 
 def test_extract_explicit_q4_actual_rejects_annual_only_table():
@@ -321,11 +346,12 @@ def actual(
     source_ref,
     reported_at,
     source="sec_companyfacts",
+    period_end_date="2025-06-30",
 ):
     return QuarterlyActual(
         ticker="SYN1",
         fiscal_period=fiscal_period,
-        period_end_date="2025-06-30",
+        period_end_date=period_end_date,
         reported_at=reported_at,
         revenue_actual=revenue,
         eps_actual=eps,
@@ -406,6 +432,64 @@ def test_later_unchanged_presentation_is_deduplicated():
     linked = link_quarter_revisions([later_same, original])
 
     assert linked == (original,)
+
+
+def test_revision_linking_preserves_a_b_a_chain_and_latest_return_to_a():
+    original = actual(
+        "2025-Q2",
+        revenue=100,
+        eps=1.0,
+        source_ref="sec://a-original",
+        reported_at="2025-08-01T00:00:00Z",
+    )
+    revised = actual(
+        "2025-Q2",
+        revenue=110,
+        eps=1.1,
+        source_ref="sec://b-revised",
+        reported_at="2025-11-01T00:00:00Z",
+    )
+    restored = actual(
+        "2025-Q2",
+        revenue=100,
+        eps=1.0,
+        source_ref="sec://a-restored",
+        reported_at="2026-02-01T00:00:00Z",
+    )
+
+    linked = link_quarter_revisions([restored, original, revised])
+
+    assert [row.source_ref for row in linked] == [
+        "sec://a-original",
+        "sec://b-revised",
+        "sec://a-restored",
+    ]
+    assert linked[1].supersedes_source_ref == "sec://a-original"
+    assert linked[2].supersedes_source_ref == "sec://b-revised"
+
+
+def test_revision_linking_does_not_cross_period_end_collisions():
+    original = actual(
+        "2025-Q2",
+        revenue=100,
+        eps=1.0,
+        source_ref="sec://first-period-end",
+        reported_at="2025-08-01T00:00:00Z",
+        period_end_date="2025-06-29",
+    )
+    colliding_identity = actual(
+        "2025-Q2",
+        revenue=110,
+        eps=1.1,
+        source_ref="sec://second-period-end",
+        reported_at="2025-11-01T00:00:00Z",
+        period_end_date="2025-06-30",
+    )
+
+    linked = link_quarter_revisions([original, colliding_identity])
+
+    assert len(linked) == 2
+    assert linked[1].supersedes_source_ref is None
 
 
 def test_unrelated_conflicting_source_is_not_marked_as_revision():
@@ -512,6 +596,52 @@ def test_sec_actuals_cli_fails_closed_when_stage_exceeds_max_runtime(tmp_path, c
     captured = capsys.readouterr()
     assert "environment_limited" in captured.err
     assert "exceeded max runtime" in captured.err
+
+
+@pytest.mark.parametrize(
+    "output_dir",
+    (
+        Path(sec_actuals.__file__).resolve().parents[1] / "data" / "earnings_nowcast",
+        Path(sec_actuals.__file__).resolve().parents[1] / "data" / "imports" / "earnings_nowcast",
+    ),
+)
+def test_sec_actuals_cli_rejects_canonical_output_directories(output_dir, capsys):
+    stage_called = False
+
+    def forbidden_stage(*_args, **_kwargs):
+        nonlocal stage_called
+        stage_called = True
+        raise AssertionError("canonical output must be rejected before staging")
+
+    with pytest.raises(SystemExit) as exc:
+        sec_actuals.main(
+            [
+                "--tickers",
+                "SYN1",
+                "--output-dir",
+                str(output_dir),
+                "--cutoff",
+                CUTOFF,
+                "--no-network",
+            ],
+            stage_runner=forbidden_stage,
+        )
+
+    assert exc.value.code == 2
+    assert stage_called is False
+    assert "generated temporary/review directory" in capsys.readouterr().err
+
+
+def test_stage_rejects_existing_non_generated_evidence_directory(tmp_path):
+    existing_evidence = tmp_path / "existing-evidence"
+    existing_evidence.mkdir()
+    sentinel = existing_evidence / "quarterly_actuals.csv"
+    sentinel.write_text("trusted,evidence\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="existing non-generated evidence directory"):
+        write_sec_actuals_stage(existing_evidence, {"SYN1": extraction_result()})
+
+    assert sentinel.read_text(encoding="utf-8") == "trusted,evidence\n"
 
 
 def test_stage_keeps_revenue_only_metric_partial_out_of_rejected_rows(tmp_path):
@@ -673,6 +803,41 @@ def test_stage_writes_fiscal_period_conflicts_to_rejected_rows(tmp_path):
     assert {row["state"] for row in rejected_rows} == {"fiscal_period_conflict"}
 
 
+def test_stage_rejects_direct_rows_with_one_identity_and_multiple_period_ends(tmp_path):
+    result = write_sec_actuals_stage(
+        tmp_path / "stage",
+        {
+            "SYN1": ExtractionResult(
+                rows=(
+                    actual(
+                        "2025-Q2",
+                        revenue=100,
+                        eps=1.0,
+                        source_ref="sec://first-period-end",
+                        reported_at="2025-08-01T00:00:00Z",
+                        period_end_date="2025-06-29",
+                    ),
+                    actual(
+                        "2025-Q2",
+                        revenue=110,
+                        eps=1.1,
+                        source_ref="sec://second-period-end",
+                        reported_at="2025-11-01T00:00:00Z",
+                        period_end_date="2025-06-30",
+                    ),
+                ),
+                audit_rows=(),
+            )
+        },
+    )
+
+    rows = list(csv.DictReader(Path(result.quarterly_actuals_path).open(encoding="utf-8")))
+    rejected_rows = list(csv.DictReader(Path(result.rejected_path).open(encoding="utf-8")))
+    assert rows == []
+    assert result.rejected_row_count == 2
+    assert {row["state"] for row in rejected_rows} == {"fiscal_period_conflict"}
+
+
 def test_stage_orchestrator_writes_unresolved_and_fetch_failures_to_rejected_rows(tmp_path):
     result = stage_sec_quarterly_actuals(
         ["missing", "broken"],
@@ -769,7 +934,11 @@ def test_stage_combines_explicit_q4_exhibit_using_injected_document_loaders(tmp_
     <table><tr><td><a href="earnings-release.htm">earnings-release.htm</a></td>
     <td>Earnings release</td><td>EX-99.1</td></tr></table>
     """
-    release_html = Q4_RELEASE_HTML.replace("Fiscal 2025", "Fiscal 2026").replace("FY25", "FY26")
+    release_html = (
+        Q4_RELEASE_HTML.replace("Fiscal 2025", "Fiscal 2026")
+        .replace("FY25", "FY26")
+        .replace("January 26, 2025", "January 25, 2026")
+    )
 
     result = stage_sec_quarterly_actuals(
         ["syn1"],
@@ -786,7 +955,50 @@ def test_stage_combines_explicit_q4_exhibit_using_injected_document_loaders(tmp_
 
     rows = list(csv.DictReader(Path(result.quarterly_actuals_path).open(encoding="utf-8")))
     assert [(row["fiscal_period"], row["source"]) for row in rows] == [("2026-Q4", "sec_filed_exhibit")]
+    assert rows[0]["period_end_date"] == "2026-01-25"
     assert rows[0]["source_ref"].endswith("/earnings-release.htm")
+
+
+def test_stage_does_not_use_submission_report_date_as_q4_period_end(tmp_path):
+    submissions = {
+        "cik": "123456",
+        "filings": {
+            "recent": {
+                "form": ["8-K"],
+                "filingDate": ["2026-02-25"],
+                "reportDate": ["2026-01-25"],
+                "accessionNumber": ["0000123456-26-000001"],
+            }
+        },
+    }
+    index_html = """
+    <table><tr><td><a href="earnings-release.htm">earnings-release.htm</a></td>
+    <td>Earnings release</td><td>EX-99.1</td></tr></table>
+    """
+    release_without_period_end = """
+    <p>Fourth Quarter Fiscal 2026 Summary</p>
+    <table><tr><th></th><th>Q4 FY26</th></tr>
+    <tr><td>Revenue</td><td>$40 billion</td></tr>
+    <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr></table>
+    """
+
+    result = stage_sec_quarterly_actuals(
+        ["syn1"],
+        output_dir=tmp_path / "stage",
+        cutoff=CUTOFF,
+        user_agent="Test test@example.com",
+        retrieved_at=RETRIEVED_AT,
+        ticker_map={"SYN1": {"ticker": "SYN1", "cik": "0000123456"}},
+        companyfacts_loader=lambda *_args, **_kwargs: companyfacts_fixture(revenue=[], eps=[]),
+        submissions_loader=lambda *_args, **_kwargs: submissions,
+        filing_index_loader=lambda *_args, **_kwargs: index_html,
+        exhibit_document_loader=lambda *_args, **_kwargs: release_without_period_end,
+    )
+
+    rows = list(csv.DictReader(Path(result.quarterly_actuals_path).open(encoding="utf-8")))
+    rejected_rows = list(csv.DictReader(Path(result.rejected_path).open(encoding="utf-8")))
+    assert rows == []
+    assert {row["state"] for row in rejected_rows} == {"period_end_missing"}
 
 
 def test_stage_withholds_independent_q4_metrics_from_separate_exhibits(tmp_path):
@@ -811,11 +1023,13 @@ def test_stage_withholds_independent_q4_metrics_from_separate_exhibits(tmp_path)
         "revenue.htm": """
             <p>Fourth Quarter Fiscal 2026 Summary</p>
             <table><tr><th></th><th>Q4 FY26</th></tr>
+            <tr><th>Period ended</th><th>January 25, 2026</th></tr>
             <tr><td>Revenue</td><td>$40 billion</td></tr></table>
         """,
         "eps.htm": """
             <p>Fourth Quarter Fiscal 2026 Summary</p>
             <table><tr><th></th><th>Q4 FY26</th></tr>
+            <tr><th>Period ended</th><th>January 25, 2026</th></tr>
             <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr></table>
         """,
     }
@@ -986,6 +1200,105 @@ def test_later_comparative_uses_original_fiscal_identity_and_unknown_comparative
 
     assert [row.fiscal_period for row in no_original.rows] == ["2026-Q3"]
     assert "comparative_period_relabelled" in {row.state for row in no_original.audit_rows}
+
+
+def test_one_fiscal_identity_mapping_to_multiple_period_ends_fails_closed():
+    payload = companyfacts_fixture(
+        revenue=[
+            _fact(
+                val=12,
+                start="2026-02-27",
+                end="2026-05-28",
+                fy=2026,
+                fp="Q2",
+                accn="0000000000-26-000001",
+            ),
+            _fact(
+                val=13,
+                start="2026-02-28",
+                end="2026-05-29",
+                fy=2026,
+                fp="Q2",
+                accn="0000000000-26-000002",
+            ),
+        ],
+        eps=[
+            _fact(
+                val=1.2,
+                start="2026-02-27",
+                end="2026-05-28",
+                fy=2026,
+                fp="Q2",
+                accn="0000000000-26-000001",
+            ),
+            _fact(
+                val=1.3,
+                start="2026-02-28",
+                end="2026-05-29",
+                fy=2026,
+                fp="Q2",
+                accn="0000000000-26-000002",
+            ),
+        ],
+    )
+
+    result = extract_q1_q3_lineage("SYN1", payload, cutoff=CUTOFF, retrieved_at=RETRIEVED_AT)
+
+    assert result.rows == ()
+    conflicts = [row for row in result.audit_rows if row.state == "fiscal_period_conflict"]
+    assert len(conflicts) == 4
+    assert {row.end for row in conflicts} == {"2026-05-28", "2026-05-29"}
+
+
+def test_companyfacts_eps_split_basis_is_unverified_for_split_restatement():
+    original_eps = _fact(
+        val=0.80,
+        start="2025-02-28",
+        end="2025-05-29",
+        filed="2025-06-25",
+        fy=2025,
+        fp="Q2",
+        accn="0000000000-25-000001",
+    )
+    comparative_eps = _fact(
+        val=0.08,
+        start="2025-02-28",
+        end="2025-05-29",
+        filed="2026-06-25",
+        fy=2026,
+        fp="Q3",
+        accn="0000000000-26-000001",
+    )
+    result = extract_q1_q3_lineage(
+        "SYN1",
+        companyfacts_fixture(
+            revenue=[
+                _fact(
+                    val=8,
+                    start="2025-02-28",
+                    end="2025-05-29",
+                    filed="2025-06-25",
+                    fy=2025,
+                    fp="Q2",
+                    accn="0000000000-25-000001",
+                ),
+                _fact(val=12, start="2026-02-27", end="2026-05-28"),
+            ],
+            eps=[
+                original_eps,
+                comparative_eps,
+                _fact(val=1.2, start="2026-02-27", end="2026-05-28"),
+            ],
+        ),
+        cutoff=CUTOFF,
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    eps_rows = [row for row in result.rows if row.eps_actual is not None]
+    assert {row.split_adjustment_basis for row in eps_rows} == {
+        "companyfacts_split_basis_unverified"
+    }
+    assert "split_basis_unverified" in {row.state for row in result.audit_rows}
 
 
 def test_missing_frame_keeps_uniquely_aligned_quarter():

@@ -111,7 +111,7 @@ The canonical period key is anchored by the current-quarter record from its orig
 
 Later filings may present the same `period_end` with different SEC `fy` / `fp` values because it is a comparative period. Those later records inherit the canonical identity already established for that end date.
 
-If two original current-quarter filings assign incompatible fiscal identities to the same period end, the period is rejected and reported as `fiscal_period_conflict`.
+If two original current-quarter filings assign incompatible fiscal identities to the same period end, or one fiscal identity maps to multiple period ends, every colliding row is rejected and reported as `fiscal_period_conflict`.
 
 ## Revision Lineage
 
@@ -129,8 +129,8 @@ No later presentation overwrites an earlier snapshot. A revision published after
 
 EPS is separate from Revenue readiness.
 
-1. Original SEC EPS facts are labeled `as_reported` unless the source explicitly states retrospective split adjustment.
-2. A source-supported retrospective presentation is labeled `split_adjusted_<effective-date>`.
+1. Q1-Q3 Companyfacts EPS is labeled `companyfacts_split_basis_unverified` because Companyfacts alone does not prove split comparability; it cannot match an `as_reported` or split-adjusted consensus basis.
+2. A filed result document may use `as_reported` only when that is the explicit presentation, while a source-supported retrospective presentation is labeled `split_adjusted_<effective-date>`.
 3. Actual history and consensus must share the same EPS, share, operations, and split-adjustment definitions.
 4. If the five-quarter model window crosses incompatible split bases, EPS is withheld while Revenue may remain ready.
 5. Provider-assisted split history may route review, but it cannot establish the trusted split basis without a primary source reference.
@@ -144,9 +144,10 @@ The Q4 parser must:
 1. Resolve a primary SEC filing and exact earnings-release exhibit.
 2. Require an explicit quarter-ended label or an unambiguous fiscal Q4 label.
 3. Require explicit Revenue and/or diluted GAAP EPS labels in a structured table.
-4. Preserve the filing URL, accession, filed timestamp, period end, metric labels, units, and split note.
-5. Reject non-GAAP-only EPS, annual-only totals, guidance tables, prose estimates, and arithmetic derivations.
-6. Emit a partial row when only one metric is explicit and source-backed.
+4. Require the selected Q4 value column to state one explicit period-end date; filing timestamps and submission `reportDate` metadata are never substitutes.
+5. Preserve the filing URL, accession, filed timestamp, period end, metric labels, units, and split note.
+6. Reject non-GAAP-only EPS, annual-only totals, guidance tables, prose estimates, and arithmetic derivations.
+7. Emit a partial row when only one metric is explicit and source-backed.
 
 Issuer-specific table aliases may be configured for the five-company pilot, but numeric values and periods must still come from the filing itself. The parser must not contain hard-coded company results.
 
@@ -180,6 +181,7 @@ The command:
 - requires an identifying `SEC_USER_AGENT`;
 - uses existing SEC cache/network boundaries;
 - accepts a narrow ticker scope;
+- rejects canonical `data/` and `data/imports/` destinations plus existing directories that are not marked generated SEC review output;
 - performs no import or apply;
 - never writes credentials;
 - returns nonzero only for command/schema failure, not for a truthfully withheld ticker;
@@ -209,6 +211,8 @@ The audit output uses explicit states:
 - `fiscal_period_conflict`
 - `quarter_history_gap`
 - `split_basis_unverified`
+- `period_end_missing`
+- `period_end_ambiguous`
 - `q4_source_unavailable`
 - `post_cutoff_rejected`
 - `source_unavailable`

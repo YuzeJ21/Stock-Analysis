@@ -122,16 +122,21 @@ def _canonical_period_row(rows: Sequence[QuarterlyActual], metric: str) -> tuple
     if len(values) == 1:
         return ordered[-1], ()
     latest = ordered[-1]
-    earlier_by_ref = {row.source_ref: row for row in ordered[:-1]}
-    superseded = earlier_by_ref.get(latest.supersedes_source_ref or "")
-    if superseded is not None and float(getattr(superseded, value_field)) != float(getattr(latest, value_field)):
-        unresolved = [
-            row
-            for row in ordered[:-1]
-            if row.source_ref != superseded.source_ref
-            and float(getattr(row, value_field)) != float(getattr(latest, value_field))
-        ]
-        if not unresolved:
+    by_ref = {row.source_ref: row for row in ordered}
+    if len(by_ref) == len(ordered):
+        position_by_ref = {row.source_ref: index for index, row in enumerate(ordered)}
+        visited: set[str] = set()
+        current = latest
+        while current.source_ref not in visited:
+            visited.add(current.source_ref)
+            supersedes = current.supersedes_source_ref
+            if not supersedes:
+                break
+            prior = by_ref.get(supersedes)
+            if prior is None or position_by_ref[prior.source_ref] >= position_by_ref[current.source_ref]:
+                break
+            current = prior
+        if len(visited) == len(ordered):
             return latest, ()
     return None, tuple(sorted(row.source_ref for row in ordered))
 
