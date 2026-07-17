@@ -1294,4 +1294,4 @@ endif
 ifndef AS_OF
 	$(error AS_OF is required for cutoff-safe evidence staging)
 endif
-	@python3 -m src.earnings_nowcast_sec_actuals --tickers "$(TICKERS)" --output-dir "$(OUTPUT_DIR)" --cutoff "$(AS_OF)"
+	@python3 -m src.earnings_nowcast_sec_actuals --tickers "$(TICKERS)" --output-dir "$(OUTPUT_DIR)" --cutoff "$(AS_OF)" --max-runtime-seconds "$(or $(SEC_STAGE_MAX_RUNTIME_SECONDS),300)"

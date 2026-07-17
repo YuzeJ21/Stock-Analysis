@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -484,6 +485,33 @@ def test_sec_actuals_cli_json_uses_injected_cached_fixture_stage(tmp_path, capsy
     assert payload["tickers"]["SYN1"]["metrics"]["revenue"]["missing_q4"] is True
     assert payload["tickers"]["SYN1"]["metrics"]["eps"]["missing_q4"] is True
     assert payload["tickers"]["SYN1"]["source_refs"]
+
+
+def test_sec_actuals_cli_fails_closed_when_stage_exceeds_max_runtime(tmp_path, capsys):
+    def slow_stage(_tickers, **_kwargs):
+        time.sleep(0.05)
+        return write_sec_actuals_stage(tmp_path / "stage", {"SYN1": extraction_result()})
+
+    with pytest.raises(SystemExit) as exc:
+        sec_actuals.main(
+            [
+                "--tickers",
+                "SYN1",
+                "--output-dir",
+                str(tmp_path / "stage"),
+                "--cutoff",
+                CUTOFF,
+                "--no-network",
+                "--max-runtime-seconds",
+                "0.01",
+            ],
+            stage_runner=slow_stage,
+        )
+
+    assert exc.value.code == 2
+    captured = capsys.readouterr()
+    assert "environment_limited" in captured.err
+    assert "exceeded max runtime" in captured.err
 
 
 def test_stage_keeps_revenue_only_metric_partial_out_of_rejected_rows(tmp_path):

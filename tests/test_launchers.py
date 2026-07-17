@@ -2730,5 +2730,6 @@ def test_earnings_nowcast_sec_actuals_stage_launcher_requires_scoped_output_and_
     assert "AS_OF is required" in target
     assert "--cutoff \"$(AS_OF)\"" in target
     assert "--output-dir \"$(OUTPUT_DIR)\"" in target
+    assert "--max-runtime-seconds \"$(or $(SEC_STAGE_MAX_RUNTIME_SECONDS),300)\"" in target
     assert "imports-apply" not in target
     assert "--apply" not in target

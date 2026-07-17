@@ -5,6 +5,7 @@ import csv
 import json
 import os
 import re
+import signal
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timezone
 from html.parser import HTMLParser
@@ -1442,18 +1443,42 @@ def main(
     parser.add_argument("--no-network", action="store_true", help="Use cached SEC evidence only.")
     parser.add_argument("--sec-refresh", action="store_true", help="Refresh SEC caches before staging.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable staging summary.")
+    parser.add_argument(
+        "--max-runtime-seconds",
+        type=float,
+        default=None,
+        help="Fail closed if staging exceeds this many seconds.",
+    )
     args = parser.parse_args(argv)
     if args.no_network and args.sec_refresh:
         parser.error("--sec-refresh cannot be combined with --no-network")
     tickers = [ticker.strip() for ticker in args.tickers.split(",") if ticker.strip()]
-    result = stage_runner(
-        tickers,
-        output_dir=Path(args.output_dir),
-        cutoff=args.cutoff,
-        user_agent=args.sec_user_agent,
-        refresh=args.sec_refresh,
-        allow_network=not args.no_network,
-    )
+    previous_handler = None
+    if args.max_runtime_seconds is not None:
+        if args.max_runtime_seconds <= 0:
+            parser.error("--max-runtime-seconds must be greater than zero")
+
+        def _stage_timeout(_signum, _frame):
+            raise TimeoutError(f"SEC actuals staging exceeded max runtime of {args.max_runtime_seconds:g} seconds")
+
+        previous_handler = signal.getsignal(signal.SIGALRM)
+        signal.signal(signal.SIGALRM, _stage_timeout)
+        signal.setitimer(signal.ITIMER_REAL, args.max_runtime_seconds)
+    try:
+        result = stage_runner(
+            tickers,
+            output_dir=Path(args.output_dir),
+            cutoff=args.cutoff,
+            user_agent=args.sec_user_agent,
+            refresh=args.sec_refresh,
+            allow_network=not args.no_network,
+        )
+    except TimeoutError as exc:
+        parser.error(f"environment_limited: {exc}")
+    finally:
+        if args.max_runtime_seconds is not None:
+            signal.setitimer(signal.ITIMER_REAL, 0.0)
+            signal.signal(signal.SIGALRM, previous_handler)
     summary = build_sec_actuals_stage_summary(result)
     if args.json:
         print(json.dumps(summary, indent=2, sort_keys=True))
