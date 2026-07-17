@@ -260,13 +260,23 @@ def _table_level_scale(rows: tuple[tuple[str, ...], ...]) -> tuple[float | None,
 
 def _derived_q4_context(text: str) -> bool:
     normalized = _normalized_table_text(text)
-    return any(
+    direct_arithmetic = any(
         re.search(pattern, normalized)
         for pattern in (
             r"\b(?:annual|full[- ]year)\s+(?:less|minus)\s+(?:the\s+)?(?:nine|9)[- ]months?\b",
             r"\b(?:calculated|derived)\s+from\s+(?:annual|full[- ]year).{0,80}\b(?:less|minus)\s+(?:the\s+)?(?:nine|9)[- ]months?\b",
         )
     )
+    if direct_arithmetic:
+        return True
+
+    annual_pattern = r"\b(?:annual|full[- ]year)\b"
+    nine_month_pattern = r"\b(?:nine|9)[- ]months?\b"
+    for match in re.finditer(r"\b(?:calculated|derived|subtracting|subtracted)\b", normalized):
+        context = normalized[max(0, match.start() - 120) : match.end() + 120]
+        if re.search(annual_pattern, context) and re.search(nine_month_pattern, context):
+            return True
+    return False
 
 
 def _q4_metric_values(

@@ -222,6 +222,7 @@ def test_extract_explicit_q4_actual_rejects_nearby_annual_less_nine_month_deriva
     (
         "Q4 amounts were calculated from annual less nine months results.",
         "Q4 amounts were calculated from full year minus 9 months results.",
+        "Q4 amounts were derived by subtracting nine-month results from full-year results.",
     ),
 )
 def test_extract_explicit_q4_actual_rejects_plural_and_numeric_annual_minus_nine_month_derivation(
