@@ -196,6 +196,34 @@ def test_extract_explicit_q4_actual_does_not_borrow_period_end_from_non_result_t
     assert "period_end_missing" in {row.state for row in result.audit_rows}
 
 
+def test_extract_explicit_q4_actual_does_not_borrow_period_end_across_metric_tables():
+    result = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        """
+        <p>Fourth Quarter Fiscal 2025 Summary</p>
+        <table>
+          <tr><th>Dollars in millions</th><th>Q4 FY25</th></tr>
+          <tr><td>Revenue</td><td>$39,331</td></tr>
+        </table>
+        <table>
+          <tr><th></th><th>Q4 FY25</th></tr>
+          <tr><th>Period ended</th><th>January 26, 2025</th></tr>
+          <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr>
+        </table>
+        """,
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert len(result.rows) == 1
+    assert result.rows[0].revenue_actual is None
+    assert result.rows[0].eps_actual == 0.89
+    assert result.rows[0].period_end_date == "2025-01-26"
+    assert "period_end_missing" in {row.state for row in result.audit_rows}
+
+
 def test_extract_explicit_q4_actual_rejects_annual_only_table():
     result = extract_explicit_q4_actual(
         "SYN1",

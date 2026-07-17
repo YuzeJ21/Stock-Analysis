@@ -473,10 +473,11 @@ def extract_explicit_q4_actual(
             ),
         )
     candidates: list[tuple[float | None, float | None]] = []
-    accepted_metric_tables: list[tuple[tuple[tuple[str, ...], ...], int]] = []
+    accepted_period_end_dates: set[str] = set()
     for rows, value_column in matching_tables:
         table_text = _normalized_table_text(" ".join(cell for row in rows for cell in row))
         revenue, eps, non_gaap_eps_present, derived, revenue_scale_missing = _q4_metric_values(rows, value_column)
+        table_period_end_dates = _q4_period_end_dates(((rows, value_column),))
         if any(word in table_text for word in ("outlook", "expected", "approximately", "guidance")):
             audit_rows.append(
                 _q4_audit(normalized_ticker, "guidance_or_outlook_rejected", "quarterly_actual", fiscal_period, exhibit, "Q4 table contains guidance or outlook language")
@@ -499,9 +500,33 @@ def extract_explicit_q4_actual(
             audit_rows.append(
                 _q4_audit(normalized_ticker, "gaap_eps_missing", "eps", fiscal_period, exhibit, "non-GAAP EPS is not accepted without an explicit GAAP diluted EPS label")
             )
+        if revenue is not None and len(table_period_end_dates) != 1:
+            audit_rows.append(
+                _q4_audit(
+                    normalized_ticker,
+                    "period_end_missing" if not table_period_end_dates else "period_end_ambiguous",
+                    "revenue",
+                    fiscal_period,
+                    exhibit,
+                    "Revenue table does not state one explicit period-end date for the Q4 value column",
+                )
+            )
+            revenue = None
+        if eps is not None and len(table_period_end_dates) != 1:
+            audit_rows.append(
+                _q4_audit(
+                    normalized_ticker,
+                    "period_end_missing" if not table_period_end_dates else "period_end_ambiguous",
+                    "eps",
+                    fiscal_period,
+                    exhibit,
+                    "EPS table does not state one explicit period-end date for the Q4 value column",
+                )
+            )
+            eps = None
         if revenue is not None or eps is not None:
             candidates.append((revenue, eps))
-            accepted_metric_tables.append((rows, value_column))
+            accepted_period_end_dates.update(table_period_end_dates)
     if not candidates:
         if not audit_rows:
             audit_rows.append(
@@ -514,7 +539,7 @@ def extract_explicit_q4_actual(
             _q4_audit(normalized_ticker, "ambiguous_concept", "quarterly_actual", fiscal_period, exhibit, "multiple Q4 result tables disagree")
         )
         return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
-    period_end_dates = _q4_period_end_dates(accepted_metric_tables)
+    period_end_dates = accepted_period_end_dates
     if len(period_end_dates) != 1:
         state = "period_end_missing" if not period_end_dates else "period_end_ambiguous"
         detail = (
