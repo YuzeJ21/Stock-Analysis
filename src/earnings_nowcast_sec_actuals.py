@@ -260,21 +260,29 @@ def _table_level_scale(rows: tuple[tuple[str, ...], ...]) -> tuple[float | None,
 
 def _derived_q4_context(text: str) -> bool:
     normalized = _normalized_table_text(text)
+    annual_pattern = r"\b(?:annual|full[- ]year)\b"
+    subtraction_pattern = r"\b(?:less|minus|subtract(?:ing|ed)?|deduct(?:ing|ed)?)\b"
+    short_period_pattern = r"\b(?:nine|9)[- ]months?\b|\b(?:the\s+)?first\s+(?:three|3)\s+quarters?\b"
     direct_arithmetic = any(
         re.search(pattern, normalized)
         for pattern in (
-            r"\b(?:annual|full[- ]year)\s+(?:less|minus)\s+(?:the\s+)?(?:nine|9)[- ]months?\b",
-            r"\b(?:calculated|derived)\s+from\s+(?:annual|full[- ]year).{0,80}\b(?:less|minus)\s+(?:the\s+)?(?:nine|9)[- ]months?\b",
+            rf"{annual_pattern}.{{0,80}}{subtraction_pattern}.{{0,80}}(?:{short_period_pattern})",
+            rf"(?:{short_period_pattern}).{{0,80}}{subtraction_pattern}.{{0,80}}{annual_pattern}",
         )
     )
     if direct_arithmetic:
         return True
 
-    annual_pattern = r"\b(?:annual|full[- ]year)\b"
-    nine_month_pattern = r"\b(?:nine|9)[- ]months?\b"
-    for match in re.finditer(r"\b(?:calculated|derived|subtracting|subtracted)\b", normalized):
+    for match in re.finditer(
+        r"\b(?:comput(?:e|ed|ing)|calculat(?:e|ed|ing)|deriv(?:e|ed|ing)|subtract(?:ing|ed)|deduct(?:ing|ed))\b",
+        normalized,
+    ):
         context = normalized[max(0, match.start() - 120) : match.end() + 120]
-        if re.search(annual_pattern, context) and re.search(nine_month_pattern, context):
+        if (
+            re.search(annual_pattern, context)
+            and re.search(subtraction_pattern, context)
+            and re.search(short_period_pattern, context)
+        ):
             return True
     return False
 
