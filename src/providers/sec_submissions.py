@@ -27,6 +27,7 @@ SEC_FILING_SHARE_COUNT_BOUNDARY = (
 )
 SHARE_COUNT_FACT_NAME = "dei:EntityCommonStockSharesOutstanding"
 SHARE_COUNT_FILING_FORMS = ("10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A")
+Q4_EARNINGS_EXHIBIT_TYPES = frozenset(("EX-99", "EX-99.1", "EX-99.2"))
 
 
 @dataclass(frozen=True)
@@ -120,10 +121,7 @@ def extract_filing_exhibits(index_html: str, *, cik: str, accession: str) -> tup
     exhibits: list[FiledExhibit] = []
     seen: set[tuple[str, str]] = set()
     for row in parser.rows:
-        document_type = next(
-            (text.upper() for text, _href in row if re.fullmatch(r"EX-99(?:\.\d+)?", text.upper())),
-            "",
-        )
+        document_type = next((text.upper() for text, _href in row if text.upper() in Q4_EARNINGS_EXHIBIT_TYPES), "")
         if not document_type:
             continue
         document_name = next((href or text for text, href in row if href or text.lower().endswith((".htm", ".html"))), "")

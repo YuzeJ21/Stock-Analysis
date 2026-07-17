@@ -78,6 +78,69 @@ def test_extract_explicit_q4_actual_reads_the_column_labeled_q4():
     assert result.rows[0].eps_actual == 0.89
 
 
+def test_extract_explicit_q4_actual_uses_explicit_table_level_revenue_scale():
+    result = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        """
+        <p>Fourth Quarter Fiscal 2025 Summary</p>
+        <table>
+          <tr><th>Dollars in millions</th><th>Q4 FY25</th></tr>
+          <tr><td>Revenue</td><td>$39,331</td></tr>
+          <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr>
+        </table>
+        """,
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert result.rows[0].revenue_actual == 39_331_000_000
+
+
+def test_extract_explicit_q4_actual_uses_caption_table_level_revenue_scale():
+    result = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        """
+        <p>Fourth Quarter Fiscal 2025 Summary</p>
+        <table>
+          <caption>Dollars in millions</caption>
+          <tr><th></th><th>Q4 FY25</th></tr>
+          <tr><td>Revenue</td><td>$39,331</td></tr>
+          <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr>
+        </table>
+        """,
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert result.rows[0].revenue_actual == 39_331_000_000
+
+
+def test_extract_explicit_q4_actual_rejects_revenue_without_an_unambiguous_scale():
+    result = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        """
+        <p>Fourth Quarter Fiscal 2025 Summary</p>
+        <table>
+          <tr><th></th><th>Q4 FY25</th></tr>
+          <tr><td>Revenue</td><td>$39,331</td></tr>
+          <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr>
+        </table>
+        """,
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert result.rows[0].revenue_actual is None
+    assert result.rows[0].eps_actual == 0.89
+    assert "revenue_scale_missing" in {row.state for row in result.audit_rows}
+
+
 def test_extract_explicit_q4_actual_rejects_annual_only_table():
     result = extract_explicit_q4_actual(
         "SYN1",
@@ -130,6 +193,26 @@ def test_extract_explicit_q4_actual_rejects_derived_and_ambiguous_q4_headers():
 
     assert result.rows == ()
     assert {row.state for row in result.audit_rows} >= {"ambiguous_period_header", "derived_q4_rejected"}
+
+
+def test_extract_explicit_q4_actual_rejects_nearby_annual_less_nine_month_derivation_note():
+    result = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        """
+        <p>Fourth Quarter Fiscal 2025 Summary</p>
+        <table><tr><th></th><th>Q4 FY25</th></tr>
+        <tr><td>Revenue</td><td>$40 billion</td></tr>
+        <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr></table>
+        <p>Q4 amounts were calculated from annual less nine-month results.</p>
+        """,
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert result.rows == ()
+    assert "derived_q4_rejected" in {row.state for row in result.audit_rows}
 
 
 def test_extract_explicit_q4_actual_rejects_post_cutoff_but_keeps_as_reported_split_basis():
@@ -465,6 +548,85 @@ def test_stage_combines_explicit_q4_exhibit_using_injected_document_loaders(tmp_
     rows = list(csv.DictReader(Path(result.quarterly_actuals_path).open(encoding="utf-8")))
     assert [(row["fiscal_period"], row["source"]) for row in rows] == [("2026-Q4", "sec_filed_exhibit")]
     assert rows[0]["source_ref"].endswith("/earnings-release.htm")
+
+
+def test_stage_merges_independent_q4_metrics_from_separate_exhibits(tmp_path):
+    submissions = {
+        "cik": "123456",
+        "filings": {
+            "recent": {
+                "form": ["8-K"],
+                "filingDate": ["2026-02-25"],
+                "reportDate": ["2026-01-25"],
+                "accessionNumber": ["0000123456-26-000001"],
+            }
+        },
+    }
+    index_html = """
+    <table>
+      <tr><td><a href="revenue.htm">revenue.htm</a></td><td>EX-99.1</td></tr>
+      <tr><td><a href="eps.htm">eps.htm</a></td><td>EX-99.2</td></tr>
+    </table>
+    """
+    documents = {
+        "revenue.htm": """
+            <p>Fourth Quarter Fiscal 2026 Summary</p>
+            <table><tr><th></th><th>Q4 FY26</th></tr>
+            <tr><td>Revenue</td><td>$40 billion</td></tr></table>
+        """,
+        "eps.htm": """
+            <p>Fourth Quarter Fiscal 2026 Summary</p>
+            <table><tr><th></th><th>Q4 FY26</th></tr>
+            <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr></table>
+        """,
+    }
+
+    result = stage_sec_quarterly_actuals(
+        ["syn1"],
+        output_dir=tmp_path / "stage",
+        cutoff=CUTOFF,
+        user_agent="Test test@example.com",
+        retrieved_at=RETRIEVED_AT,
+        ticker_map={"SYN1": {"ticker": "SYN1", "cik": "0000123456"}},
+        companyfacts_loader=lambda *_args, **_kwargs: companyfacts_fixture(revenue=[], eps=[]),
+        submissions_loader=lambda *_args, **_kwargs: submissions,
+        filing_index_loader=lambda *_args, **_kwargs: index_html,
+        exhibit_document_loader=lambda _cik, _accession, document_name, *_args, **_kwargs: documents[document_name],
+    )
+
+    rows = list(csv.DictReader(Path(result.quarterly_actuals_path).open(encoding="utf-8")))
+    assert [(row["revenue_actual"], row["eps_actual"]) for row in rows] == [("40000000000.0", "0.89")]
+
+
+def test_stage_rejects_same_day_date_only_filing_before_end_of_day_cutoff(tmp_path):
+    submissions = {
+        "cik": "123456",
+        "filings": {
+            "recent": {
+                "form": ["8-K"],
+                "filingDate": ["2026-02-25"],
+                "reportDate": ["2026-01-25"],
+                "accessionNumber": ["0000123456-26-000001"],
+            }
+        },
+    }
+
+    result = stage_sec_quarterly_actuals(
+        ["syn1"],
+        output_dir=tmp_path / "stage",
+        cutoff="2026-02-25T12:00:00Z",
+        user_agent="Test test@example.com",
+        retrieved_at=RETRIEVED_AT,
+        ticker_map={"SYN1": {"ticker": "SYN1", "cik": "0000123456"}},
+        companyfacts_loader=lambda *_args, **_kwargs: companyfacts_fixture(revenue=[], eps=[]),
+        submissions_loader=lambda *_args, **_kwargs: submissions,
+        filing_index_loader=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("same-day filing must fail closed before exhibit lookup")),
+    )
+
+    rows = list(csv.DictReader(Path(result.quarterly_actuals_path).open(encoding="utf-8")))
+    rejected_rows = list(csv.DictReader(Path(result.rejected_path).open(encoding="utf-8")))
+    assert rows == []
+    assert {(row["state"], row["accession"]) for row in rejected_rows} == {("post_cutoff_rejected", "0000123456-26-000001")}
 
 
 def test_normalization_rejects_non_json_numeric_scalars_and_non_integral_fiscal_years():

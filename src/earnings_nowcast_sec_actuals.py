@@ -48,6 +48,7 @@ REJECTED_AUDIT_STATES = frozenset(
         "guidance_or_outlook_rejected",
         "gaap_eps_missing",
         "derived_q4_rejected",
+        "revenue_scale_missing",
         "ticker_unresolved",
     )
 )
@@ -115,6 +116,7 @@ class _StructuredTableParser(HTMLParser):
         self._table_rows: list[list[str]] | None = None
         self._row: list[str] | None = None
         self._cell: list[str] | None = None
+        self._caption: list[str] | None = None
         self._table_depth = 0
 
     @property
@@ -127,6 +129,8 @@ class _StructuredTableParser(HTMLParser):
             self._table_depth += 1
             if self._table_depth == 1:
                 self._table_rows = []
+        elif self._table_depth and lowered == "caption":
+            self._caption = []
         elif self._table_depth and lowered == "tr":
             self._row = []
         elif self._table_depth and lowered in {"td", "th"} and self._row is not None:
@@ -134,12 +138,19 @@ class _StructuredTableParser(HTMLParser):
 
     def handle_data(self, data: str) -> None:
         self._page_text.append(data)
+        if self._caption is not None:
+            self._caption.append(data)
         if self._cell is not None:
             self._cell.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         lowered = tag.lower()
-        if lowered in {"td", "th"} and self._cell is not None and self._row is not None:
+        if lowered == "caption" and self._caption is not None and self._table_rows is not None:
+            caption = " ".join(self._caption).strip()
+            if caption:
+                self._table_rows.append([caption])
+            self._caption = None
+        elif lowered in {"td", "th"} and self._cell is not None and self._row is not None:
             self._row.append(" ".join(self._cell).strip())
             self._cell = None
         elif lowered == "tr" and self._row is not None and self._table_rows is not None:
@@ -232,14 +243,42 @@ def _table_number(value: str, *, scale_required: bool) -> tuple[float, float] | 
     return (value_number, 1.0) if not scale_required else None
 
 
+def _table_level_scale(rows: tuple[tuple[str, ...], ...]) -> tuple[float | None, bool]:
+    header_text = _normalized_table_text(" ".join(cell for row in rows[:2] for cell in row))
+    scales = {
+        {"thousand": 1_000.0, "million": 1_000_000.0, "billion": 1_000_000_000.0}[match.group(1).rstrip("s")]
+        for pattern in (
+            r"\b(?:dollars?|amounts?|figures?)\b.{0,30}?\b(thousands?|millions?|billions?)\b",
+            r"\(\s*in\s+(thousands?|millions?|billions?)\s*\)",
+        )
+        for match in re.finditer(pattern, header_text)
+    }
+    if len(scales) != 1:
+        return None, bool(scales)
+    return next(iter(scales)), False
+
+
+def _derived_q4_context(text: str) -> bool:
+    normalized = _normalized_table_text(text)
+    return any(
+        re.search(pattern, normalized)
+        for pattern in (
+            r"\b(?:annual|full[- ]year)\s+(?:less|minus)\s+(?:the\s+)?nine[- ]month\b",
+            r"\b(?:calculated|derived)\s+from\s+(?:annual|full[- ]year).{0,80}\b(?:less|minus)\s+(?:the\s+)?nine[- ]month\b",
+        )
+    )
+
+
 def _q4_metric_values(
     rows: tuple[tuple[str, ...], ...],
     value_column: int = 1,
-) -> tuple[float | None, float | None, bool, bool]:
+) -> tuple[float | None, float | None, bool, bool, bool]:
     revenue: float | None = None
     eps: float | None = None
     non_gaap_eps_present = False
     derived = False
+    revenue_scale_missing = False
+    table_scale, table_scale_ambiguous = _table_level_scale(rows)
     for row in rows:
         if len(row) <= value_column:
             continue
@@ -251,8 +290,17 @@ def _q4_metric_values(
         if label in {"revenue", "total revenue", "net revenue"}:
             parsed = _table_number(value, scale_required=False)
             if parsed is not None:
-                raw_value, scale = parsed
-                revenue = raw_value * scale
+                raw_value, value_scale = parsed
+                if table_scale_ambiguous:
+                    revenue_scale_missing = True
+                elif value_scale != 1.0 and table_scale is not None and value_scale != table_scale:
+                    revenue_scale_missing = True
+                elif value_scale != 1.0:
+                    revenue = raw_value * value_scale
+                elif table_scale is not None:
+                    revenue = raw_value * table_scale
+                else:
+                    revenue_scale_missing = True
         elif "non-gaap" in label and "earnings per share" in label:
             non_gaap_eps_present = True
         elif label in {
@@ -263,7 +311,20 @@ def _q4_metric_values(
             parsed = _table_number(value, scale_required=False)
             if parsed is not None:
                 eps = parsed[0]
-    return revenue, eps, non_gaap_eps_present, derived
+    return revenue, eps, non_gaap_eps_present, derived, revenue_scale_missing
+
+
+def _merge_q4_metric_values(
+    candidates: Sequence[tuple[float | None, float | None]],
+) -> tuple[float | None, float | None] | None:
+    revenue_values = {revenue for revenue, _eps in candidates if revenue is not None}
+    eps_values = {eps for _revenue, eps in candidates if eps is not None}
+    if len(revenue_values) > 1 or len(eps_values) > 1:
+        return None
+    return (
+        next(iter(revenue_values)) if revenue_values else None,
+        next(iter(eps_values)) if eps_values else None,
+    )
 
 
 def _split_adjustment_basis(document_text: str) -> str:
@@ -321,7 +382,7 @@ def extract_explicit_q4_actual(
         audit_rows.append(
             _q4_audit(normalized_ticker, state, "quarterly_actual", fiscal_period, exhibit, "no structured table has an unambiguous matching Q4 header")
         )
-        if any(_q4_metric_values(rows)[3] for rows, _text in parser.tables):
+        if _derived_q4_context(parser.page_text) or any(_q4_metric_values(rows)[3] for rows, _text in parser.tables):
             audit_rows.append(
                 _q4_audit(normalized_ticker, "derived_q4_rejected", "quarterly_actual", fiscal_period, exhibit, "Q4 table labels a metric as derived or arithmetic")
             )
@@ -329,10 +390,17 @@ def extract_explicit_q4_actual(
             rows=(),
             audit_rows=tuple(audit_rows),
         )
+    if _derived_q4_context(parser.page_text):
+        return ExtractionResult(
+            rows=(),
+            audit_rows=(
+                _q4_audit(normalized_ticker, "derived_q4_rejected", "quarterly_actual", fiscal_period, exhibit, "Q4 exhibit context states the selected result was derived from annual and nine-month values"),
+            ),
+        )
     candidates: list[tuple[float | None, float | None]] = []
     for rows, value_column in matching_tables:
         table_text = _normalized_table_text(" ".join(cell for row in rows for cell in row))
-        revenue, eps, non_gaap_eps_present, derived = _q4_metric_values(rows, value_column)
+        revenue, eps, non_gaap_eps_present, derived, revenue_scale_missing = _q4_metric_values(rows, value_column)
         if any(word in table_text for word in ("outlook", "expected", "approximately", "guidance")):
             audit_rows.append(
                 _q4_audit(normalized_ticker, "guidance_or_outlook_rejected", "quarterly_actual", fiscal_period, exhibit, "Q4 table contains guidance or outlook language")
@@ -347,23 +415,27 @@ def extract_explicit_q4_actual(
                 _q4_audit(normalized_ticker, "derived_q4_rejected", "quarterly_actual", fiscal_period, exhibit, "Q4 table labels a metric as derived or arithmetic")
             )
             continue
+        if revenue_scale_missing:
+            audit_rows.append(
+                _q4_audit(normalized_ticker, "revenue_scale_missing", "revenue", fiscal_period, exhibit, "Revenue lacks one unambiguous dollar scale in the selected Q4 table context")
+            )
         if non_gaap_eps_present and eps is None:
             audit_rows.append(
                 _q4_audit(normalized_ticker, "gaap_eps_missing", "eps", fiscal_period, exhibit, "non-GAAP EPS is not accepted without an explicit GAAP diluted EPS label")
             )
         if revenue is not None or eps is not None:
             candidates.append((revenue, eps))
-    presentations = set(candidates)
-    if len(presentations) > 1:
-        audit_rows.append(
-            _q4_audit(normalized_ticker, "ambiguous_concept", "quarterly_actual", fiscal_period, exhibit, "multiple Q4 result tables disagree")
-        )
-        return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
     if not candidates:
         if not audit_rows:
             audit_rows.append(
                 _q4_audit(normalized_ticker, "ambiguous_concept", "quarterly_actual", fiscal_period, exhibit, "explicit Revenue and GAAP diluted EPS labels were not found in a Q4 table")
             )
+        return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
+    resolved_metrics = _merge_q4_metric_values(candidates)
+    if resolved_metrics is None:
+        audit_rows.append(
+            _q4_audit(normalized_ticker, "ambiguous_concept", "quarterly_actual", fiscal_period, exhibit, "multiple Q4 result tables disagree")
+        )
         return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
     reported_at = datetime.fromisoformat(filed_at.replace("Z", "+00:00")).astimezone(timezone.utc).isoformat()
     if cutoff is not None:
@@ -375,7 +447,7 @@ def extract_explicit_q4_actual(
                 _q4_audit(normalized_ticker, "post_cutoff_rejected", "quarterly_actual", fiscal_period, exhibit, f"reported_at={reported_at} is after cutoff={cutoff_timestamp.astimezone(timezone.utc).isoformat()}")
             )
             return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
-    revenue, eps = candidates[0]
+    revenue, eps = resolved_metrics
     resolved_period_end = period_end_date or reported_at[:10]
     row = QuarterlyActual(
         ticker=normalized_ticker,
@@ -952,11 +1024,10 @@ def _combine_q4_results(
         by_period.setdefault(row.fiscal_period, []).append(row)
     accepted_rows: list[QuarterlyActual] = []
     for fiscal_period, period_rows in sorted(by_period.items()):
-        presentations = {
-            (row.revenue_actual, row.eps_actual, row.split_adjustment_basis, row.period_end_date)
-            for row in period_rows
-        }
-        if len(presentations) > 1:
+        resolved_metrics = _merge_q4_metric_values(
+            [(row.revenue_actual, row.eps_actual) for row in period_rows]
+        )
+        if resolved_metrics is None:
             audit_rows.append(
                 ExtractionAuditRow(
                     ticker=ticker,
@@ -968,8 +1039,31 @@ def _combine_q4_results(
                 )
             )
             continue
-        accepted_rows.append(sorted(period_rows, key=lambda row: row.source_ref)[0])
+        canonical_row = sorted(period_rows, key=lambda row: row.source_ref)[0]
+        accepted_rows.append(
+            replace(
+                canonical_row,
+                revenue_actual=resolved_metrics[0],
+                eps_actual=resolved_metrics[1],
+            )
+        )
     return ExtractionResult(rows=tuple(accepted_rows), audit_rows=tuple(audit_rows))
+
+
+def _date_only_filing_availability(filed_date: str, cutoff: str) -> tuple[str | None, str | None]:
+    """Treat date-only SEC metadata as available at 23:59:59 UTC and fail closed before then."""
+    filing_day = date.fromisoformat(filed_date)
+    cutoff_timestamp = datetime.fromisoformat(cutoff.replace("Z", "+00:00"))
+    if cutoff_timestamp.tzinfo is None:
+        raise ValueError("cutoff must be timezone-aware")
+    conservative_available_at = datetime.fromisoformat(f"{filing_day.isoformat()}T23:59:59+00:00")
+    normalized_cutoff = cutoff_timestamp.astimezone(timezone.utc)
+    if conservative_available_at > normalized_cutoff:
+        return None, (
+            f"date-only filed metadata={filing_day.isoformat()} is treated as available at "
+            f"{conservative_available_at.isoformat()}, after cutoff={normalized_cutoff.isoformat()}"
+        )
+    return conservative_available_at.isoformat(), None
 
 
 def stage_sec_quarterly_actuals(
@@ -1061,6 +1155,25 @@ def stage_sec_quarterly_actuals(
             continue
         q4_results: list[ExtractionResult] = []
         for accession, filed_date, report_date in _recent_q4_candidate_filings(submissions_payload):
+            filed_at, cutoff_detail = _date_only_filing_availability(filed_date, cutoff)
+            if filed_at is None:
+                q4_results.append(
+                    ExtractionResult(
+                        rows=(),
+                        audit_rows=(
+                            ExtractionAuditRow(
+                                ticker=ticker,
+                                state="post_cutoff_rejected",
+                                metric="quarterly_actual",
+                                fiscal_period="",
+                                source_ref="",
+                                detail=cutoff_detail or "date-only filing metadata is unavailable at the requested cutoff",
+                                accession=accession,
+                            ),
+                        ),
+                    )
+                )
+                continue
             try:
                 index_html = filing_index_loader(
                     cik,
@@ -1134,7 +1247,7 @@ def stage_sec_quarterly_actuals(
                         exhibit,
                         document_text,
                         fiscal_period=fiscal_period,
-                        filed_at=f"{filed_date}T00:00:00Z",
+                        filed_at=filed_at,
                         retrieved_at=resolved_retrieved_at,
                         cutoff=cutoff,
                         period_end_date=report_date or None,

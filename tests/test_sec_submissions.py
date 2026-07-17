@@ -48,21 +48,27 @@ def test_sec_filing_index_url_uses_archive_accession_path():
     )
 
 
-def test_extract_filing_exhibits_discovers_explicit_ex_99_links():
+def test_extract_filing_exhibits_discovers_only_allowlisted_ex_99_links():
     index_html = """
     <table>
       <tr><th>Document</th><th>Description</th><th>Type</th></tr>
+      <tr><td><a href="nvda-ex99.htm">nvda-ex99.htm</a></td><td>Release</td><td>EX-99</td></tr>
       <tr><td><a href="nvda-ex991.htm">nvda-ex991.htm</a></td><td>Earnings release</td><td>EX-99.1</td></tr>
+      <tr><td><a href="nvda-ex992.htm">nvda-ex992.htm</a></td><td>Supplement</td><td>EX-99.2</td></tr>
+      <tr><td><a href="nvda-ex993.htm">nvda-ex993.htm</a></td><td>Other exhibit</td><td>EX-99.3</td></tr>
+      <tr><td><a href="nvda-ex9917.htm">nvda-ex9917.htm</a></td><td>Other exhibit</td><td>EX-99.17</td></tr>
       <tr><td><a href="not-an-exhibit.htm">not-an-exhibit.htm</a></td><td>Primary</td><td>8-K</td></tr>
     </table>
     """
 
     exhibits = extract_filing_exhibits(index_html, cik="0001045810", accession="0001045810-26-000021")
 
-    assert len(exhibits) == 1
-    assert exhibits[0].document_type == "EX-99.1"
-    assert exhibits[0].document_name == "nvda-ex991.htm"
-    assert exhibits[0].source_ref == (
+    assert [(exhibit.document_type, exhibit.document_name) for exhibit in exhibits] == [
+        ("EX-99", "nvda-ex99.htm"),
+        ("EX-99.1", "nvda-ex991.htm"),
+        ("EX-99.2", "nvda-ex992.htm"),
+    ]
+    assert exhibits[1].source_ref == (
         "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-ex991.htm"
     )
 
