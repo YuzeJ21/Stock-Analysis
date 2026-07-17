@@ -38,6 +38,16 @@ make earnings-nowcast-prospective-plan OUTPUT_DIR=data/imports/earnings_nowcast
 
 Actuals and consensus files are required; reviewed signals are optional. The versioned schemas require source names, direct source references, fiscal periods, publication/retrieval timestamps, comparability definitions, and at least one supported metric. Exact duplicates, new rows, explicit append-only revisions, and unresolved conflicts are reported separately; a conflict makes the preview not packet-ready. Post-cutoff evidence is rejected. The prospective plan is scheduler-ready but does not fetch data or create its output directory. These commands never apply, overwrite, stage, commit, or push rows; there is intentionally no Earnings Nowcast apply command.
 
+## SEC Quarterly Actuals Staging
+
+The read-only SEC staging command is `make earnings-nowcast-sec-actuals-stage TICKERS=<comma-separated-tickers> OUTPUT_DIR=<generated-directory> AS_OF=<UTC-cutoff>`. It writes only the explicit output directory and reports `automatic_apply=false`; it neither changes canonical evidence nor provides an apply path. The five-company pilot scope is NVDA, AMD, AVGO, MU, and QCOM, but a successful staging run is not real Nowcast coverage.
+
+Q1-Q3 lineage accepts only source-backed SEC Companyfacts duration facts with a 60-120 day quarter duration and a uniquely aligned fiscal identity. Cumulative facts, ambiguous concepts, conflicting fiscal identities, and post-cutoff rows are rejected. Q4 requires an explicit fiscal-Q4 result table in a SEC-filed primary-source exhibit. Annual-minus-nine-month arithmetic, derived Q4 disclosures, guidance, and cross-exhibit metric combinations are prohibited.
+
+Historical actual evidence is append-only and cutoff-aware: later presentations remain separate revisions and never overwrite an earlier source-backed row. The stage summary surfaces accepted rows, rejected rows, missing Q4, direct source references, and detected fiscal-quarter continuity gaps; it never fabricates a missing period or metric. Revenue and EPS remain independent. EPS is withheld when its split-adjustment, share, operations, currency, or accounting basis cannot be kept within one source-backed comparable basis.
+
+Real pilot output remains `awaiting_point_in_time_consensus` until permitted historical consensus snapshots are available at each forecast cutoff. Numerical Beat/Miss probability remains `awaiting_calibration_evidence` until at least 100 valid out-of-sample events pass the calibration gates.
+
 ## Signals
 
 Company news, industry indicators, macro evidence, and trusted peer earnings may provide directional explanation. Candidate peers remain `candidate_context_only`. Trusted signals require reviewed source evidence and can move the lane to `signal_context_ready`; they cannot mutate Revenue/EPS ranges or create a numeric adjustment.

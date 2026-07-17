@@ -37,9 +37,11 @@ Every analysis-ready record or report section should expose, directly or through
 
 Every forecast event must preserve `ticker`, `fiscal_period`, `as_of_timestamp`, expected report date and forecast horizon when known, source publication/retrieval timestamps, direct source references, Revenue/EPS metric definitions, `model_version`, `input_snapshot_hash`, readiness/freshness states, and source IDs. Historical consensus snapshots are append-only evidence. An exact duplicate is not re-added; a revised or currently visible estimate is retained as a separate revision and must not overwrite the snapshot that was knowable at a prior cutoff. Duplicate actual rows cannot inflate quarterly history, and conflicting actuals remain blocked unless an explicit `supersedes_source_ref` resolves the revision chain.
 
+SEC quarterly actuals follow the same append-only cutoff boundary. Q1-Q3 requires a 60-120 day SEC Companyfacts duration fact with a source-backed fiscal identity. Q4 requires one explicit result table in a SEC-filed primary-source exhibit; annual-minus-nine-month derivation is forbidden. Staging may identify source-backed quarter-continuity gaps, but it must not infer the missing period, Revenue, EPS, or fiscal basis. Revenue and EPS are independently ready, and EPS is withheld if its split-adjustment, share, operations, accounting, currency, or scale basis is not comparable within the source-backed history. The stage output is review-only and always declares `automatic_apply=false`.
+
 The target-period actual and every source published after the cutoff are evaluation evidence only and must never enter forecast inputs. Trusted peer/news signals require explicit source, publication time, excerpt hash, review state, and trusted-peer relationship evidence where applicable. They remain directional context and cannot create a numeric adjustment or numerical probability.
 
-The synthetic fixture packet is software-test evidence only. Real output remains `awaiting_point_in_time_consensus`, and numerical probability remains `awaiting_calibration_evidence` until the documented out-of-sample gates pass.
+The synthetic fixture packet is software-test evidence only. The five-company SEC staging scope (NVDA, AMD, AVGO, MU, and QCOM) is not a coverage claim. Real output remains `awaiting_point_in_time_consensus`, and numerical probability remains `awaiting_calibration_evidence` until the documented out-of-sample gates pass.
 
 ## Freshness Rules
 

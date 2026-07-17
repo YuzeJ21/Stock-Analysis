@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import argparse
 import csv
 import json
+import os
 import re
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timezone
@@ -33,6 +35,7 @@ REVENUE_CONCEPTS = (
 )
 EPS_CONCEPT = "EarningsPerShareDiluted"
 SEC_QUARTERLY_FORMS = frozenset(("10-Q", "10-Q/A"))
+_FISCAL_PERIOD_PATTERN = re.compile(r"^(?P<year>\d{4})-Q(?P<quarter>[1-4])$")
 REJECTED_AUDIT_STATES = frozenset(
     (
         "ambiguous_concept",
@@ -919,6 +922,41 @@ def _actual_csv_row(row: QuarterlyActual) -> dict[str, object]:
     return {"schema_version": EVIDENCE_SCHEMA_VERSION, **asdict(row)}
 
 
+def _cached_sec_ticker_map(cache_dir: Path) -> dict[str, dict[str, Any]]:
+    """Read the standard SEC ticker cache without falling back to the network."""
+    cache_path = cache_dir / "company_tickers.json"
+    if not cache_path.exists():
+        raise RuntimeError(f"SEC network access is disabled and ticker-map cache is missing: {cache_path}")
+    try:
+        payload = json.loads(cache_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"SEC network access is disabled and ticker-map cache is unreadable: {cache_path}") from exc
+    rows = payload.values() if isinstance(payload, dict) else payload if isinstance(payload, list) else ()
+    ticker_map: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        ticker = str(row.get("ticker") or "").strip().upper()
+        cik_value = row.get("cik_str") or row.get("cik") or row.get("cikStr")
+        if not ticker or cik_value in (None, ""):
+            continue
+        cik_text = str(cik_value).strip()
+        cik = str(int(cik_text)).zfill(10) if cik_text.isdigit() else cik_text.zfill(10)
+        ticker_map[ticker] = {
+            "ticker": ticker,
+            "cik": cik,
+            "title": row.get("title") or row.get("name"),
+            "exchange": row.get("exchange"),
+        }
+    if not ticker_map:
+        raise RuntimeError(f"SEC network access is disabled and ticker-map cache has no usable rows: {cache_path}")
+    return ticker_map
+
+
+def _network_disabled_fetcher(*_args: object, **_kwargs: object) -> Any:
+    raise RuntimeError("SEC network access is disabled; provide cached evidence or rerun without --no-network")
+
+
 def _rejected_audit_rows(results: Mapping[str, ExtractionResult]) -> list[ExtractionAuditRow]:
     return [
         audit_row
@@ -1106,6 +1144,7 @@ def stage_sec_quarterly_actuals(
     retrieved_at: str | None = None,
     cache_dir: Path | str | None = None,
     refresh: bool = False,
+    allow_network: bool = True,
     sleep_seconds: float = 0.2,
     ticker_map: Mapping[str, Mapping[str, Any]] | None = None,
     ticker_map_loader: Callable[..., Mapping[str, Mapping[str, Any]]] = load_sec_ticker_map,
@@ -1120,15 +1159,20 @@ def stage_sec_quarterly_actuals(
     exhibit_document_fetcher: Callable[[str, str, float], str] | None = None,
 ) -> StageResult:
     requested_tickers = tuple(sorted({str(ticker).strip().upper() for ticker in tickers if str(ticker).strip()}))
+    resolved_cache_dir = Path(cache_dir) if cache_dir is not None else Path(output_dir) / ".sec-cache"
+    provider_refresh = refresh if allow_network else False
+    provider_cache = not allow_network
     if ticker_map is None:
-        resolved_cache_dir = Path(cache_dir) if cache_dir is not None else Path(output_dir) / ".sec-cache"
-        resolved_ticker_map = ticker_map_loader(
-            cache_dir=resolved_cache_dir,
-            user_agent=user_agent,
-            refresh=refresh,
-            sleep_seconds=sleep_seconds,
-            fetcher=ticker_map_fetcher,
-        )
+        if allow_network:
+            resolved_ticker_map = ticker_map_loader(
+                cache_dir=resolved_cache_dir,
+                user_agent=user_agent,
+                refresh=provider_refresh,
+                sleep_seconds=sleep_seconds,
+                fetcher=ticker_map_fetcher,
+            )
+        else:
+            resolved_ticker_map = _cached_sec_ticker_map(resolved_cache_dir)
     else:
         resolved_ticker_map = ticker_map
     resolved_retrieved_at = retrieved_at or datetime.now(timezone.utc).isoformat()
@@ -1147,11 +1191,11 @@ def stage_sec_quarterly_actuals(
             payload = companyfacts_loader(
                 cik,
                 user_agent,
-                cache=False,
-                refresh=refresh,
-                cache_dir=cache_dir or Path(output_dir) / ".sec-cache",
+                cache=provider_cache,
+                refresh=provider_refresh,
+                cache_dir=resolved_cache_dir,
                 sleep_seconds=sleep_seconds,
-                fetcher=companyfacts_fetcher,
+                fetcher=companyfacts_fetcher if allow_network else _network_disabled_fetcher,
             )
         except RuntimeError as exc:
             results[ticker] = ExtractionResult(
@@ -1171,11 +1215,11 @@ def stage_sec_quarterly_actuals(
             submissions_payload = submissions_loader(
                 cik,
                 user_agent,
-                cache=False,
-                refresh=refresh,
-                cache_dir=cache_dir or Path(output_dir) / ".sec-cache",
+                cache=provider_cache,
+                refresh=provider_refresh,
+                cache_dir=resolved_cache_dir,
                 sleep_seconds=sleep_seconds,
-                fetcher=submissions_fetcher,
+                fetcher=submissions_fetcher if allow_network else _network_disabled_fetcher,
             )
         except RuntimeError as exc:
             results[ticker] = ExtractionResult(
@@ -1224,11 +1268,11 @@ def stage_sec_quarterly_actuals(
                     cik,
                     accession,
                     user_agent,
-                    cache=False,
-                    refresh=refresh,
-                    cache_dir=cache_dir or Path(output_dir) / ".sec-cache",
+                    cache=provider_cache,
+                    refresh=provider_refresh,
+                    cache_dir=resolved_cache_dir,
                     sleep_seconds=sleep_seconds,
-                    fetcher=filing_index_fetcher,
+                    fetcher=filing_index_fetcher if allow_network else _network_disabled_fetcher,
                 )
             except RuntimeError as exc:
                 q4_results.append(
@@ -1254,11 +1298,11 @@ def stage_sec_quarterly_actuals(
                         accession,
                         exhibit.document_name,
                         user_agent,
-                        cache=False,
-                        refresh=refresh,
-                        cache_dir=cache_dir or Path(output_dir) / ".sec-cache",
+                        cache=provider_cache,
+                        refresh=provider_refresh,
+                        cache_dir=resolved_cache_dir,
                         sleep_seconds=sleep_seconds,
-                        fetcher=exhibit_document_fetcher,
+                        fetcher=exhibit_document_fetcher if allow_network else _network_disabled_fetcher,
                     )
                 except RuntimeError as exc:
                     q4_results.append(
@@ -1304,3 +1348,114 @@ def stage_sec_quarterly_actuals(
             audit_rows=q1_q3_result.audit_rows + q4_result.audit_rows,
         )
     return write_sec_actuals_stage(output_dir, results)
+
+
+def _continuity_gaps(rows: Sequence[Mapping[str, str]]) -> list[dict[str, object]]:
+    periods = sorted(
+        {
+            (int(match.group("year")), int(match.group("quarter")))
+            for row in rows
+            if (match := _FISCAL_PERIOD_PATTERN.match(str(row.get("fiscal_period") or "")))
+        }
+    )
+    gaps: list[dict[str, object]] = []
+    for prior, current in zip(periods, periods[1:]):
+        prior_index = prior[0] * 4 + prior[1] - 1
+        current_index = current[0] * 4 + current[1] - 1
+        if current_index <= prior_index + 1:
+            continue
+        missing = []
+        for index in range(prior_index + 1, current_index):
+            year, quarter_offset = divmod(index, 4)
+            missing.append(f"{year}-Q{quarter_offset + 1}")
+        gaps.append(
+            {
+                "after_fiscal_period": f"{prior[0]}-Q{prior[1]}",
+                "before_fiscal_period": f"{current[0]}-Q{current[1]}",
+                "missing_fiscal_periods": missing,
+            }
+        )
+    return gaps
+
+
+def build_sec_actuals_stage_summary(result: StageResult) -> dict[str, object]:
+    with Path(result.quarterly_actuals_path).open(newline="", encoding="utf-8") as handle:
+        accepted_rows = list(csv.DictReader(handle))
+    with Path(result.rejected_path).open(newline="", encoding="utf-8") as handle:
+        rejected_rows = list(csv.DictReader(handle))
+    ticker_summaries: dict[str, dict[str, object]] = {}
+    for ticker in result.requested_tickers:
+        ticker_accepted = [row for row in accepted_rows if row.get("ticker") == ticker]
+        ticker_rejected = [row for row in rejected_rows if row.get("ticker") == ticker]
+        source_refs = sorted(
+            {
+                str(row.get("source_ref") or "")
+                for row in ticker_accepted + ticker_rejected
+                if str(row.get("source_ref") or "")
+            }
+        )
+        ticker_summaries[ticker] = {
+            "accepted_rows": ticker_accepted,
+            "rejected_rows": ticker_rejected,
+            "missing_q4": not any(str(row.get("fiscal_period") or "").endswith("-Q4") for row in ticker_accepted),
+            "continuity_gaps": _continuity_gaps(ticker_accepted),
+            "source_refs": source_refs,
+        }
+    return {
+        "automatic_apply": False,
+        "requested_tickers": list(result.requested_tickers),
+        "accepted_tickers": list(result.accepted_tickers),
+        "withheld_tickers": list(result.withheld_tickers),
+        "accepted_row_count": result.accepted_row_count,
+        "rejected_row_count": result.rejected_row_count,
+        "paths": {
+            "quarterly_actuals": result.quarterly_actuals_path,
+            "audit": result.audit_path,
+            "rejected_rows": result.rejected_path,
+        },
+        "tickers": ticker_summaries,
+    }
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    stage_runner: Callable[..., StageResult] = stage_sec_quarterly_actuals,
+) -> None:
+    parser = argparse.ArgumentParser(description="Stage SEC quarterly actual evidence to an explicit output directory.")
+    parser.add_argument("--tickers", required=True, help="Comma-separated ticker list.")
+    parser.add_argument("--output-dir", required=True, help="Generated staging directory; no canonical data is changed.")
+    parser.add_argument("--cutoff", required=True, help="Timezone-aware evidence cutoff timestamp.")
+    parser.add_argument("--sec-user-agent", default=os.environ.get("SEC_USER_AGENT"), help="Identifying SEC User-Agent.")
+    parser.add_argument("--no-network", action="store_true", help="Use cached SEC evidence only.")
+    parser.add_argument("--sec-refresh", action="store_true", help="Refresh SEC caches before staging.")
+    parser.add_argument("--json", action="store_true", help="Print machine-readable staging summary.")
+    args = parser.parse_args(argv)
+    if args.no_network and args.sec_refresh:
+        parser.error("--sec-refresh cannot be combined with --no-network")
+    tickers = [ticker.strip() for ticker in args.tickers.split(",") if ticker.strip()]
+    result = stage_runner(
+        tickers,
+        output_dir=Path(args.output_dir),
+        cutoff=args.cutoff,
+        user_agent=args.sec_user_agent,
+        refresh=args.sec_refresh,
+        allow_network=not args.no_network,
+    )
+    summary = build_sec_actuals_stage_summary(result)
+    if args.json:
+        print(json.dumps(summary, indent=2, sort_keys=True))
+        return
+    print(f"automatic_apply: {str(summary['automatic_apply']).lower()}")
+    print(f"accepted_row_count: {summary['accepted_row_count']}")
+    print(f"rejected_row_count: {summary['rejected_row_count']}")
+    for ticker, ticker_summary in summary["tickers"].items():
+        print(
+            f"{ticker}: accepted_rows={len(ticker_summary['accepted_rows'])} "
+            f"rejected_rows={len(ticker_summary['rejected_rows'])} "
+            f"missing_q4={str(ticker_summary['missing_q4']).lower()}"
+        )
+
+
+if __name__ == "__main__":
+    main()

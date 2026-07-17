@@ -2718,3 +2718,17 @@ def test_earnings_nowcast_onboarding_launchers_have_no_apply_path():
     assert "src.earnings_nowcast_onboarding" in section
     assert "earnings-nowcast-apply" not in section
     assert "imports-apply" not in section
+
+
+def test_earnings_nowcast_sec_actuals_stage_launcher_requires_scoped_output_and_cutoff():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "earnings-nowcast-sec-actuals-stage" in _makefile_targets()
+    target = makefile.split("earnings-nowcast-sec-actuals-stage:", 1)[1].split("\n\n", 1)[0]
+    assert "TICKERS is required" in target
+    assert "OUTPUT_DIR is required" in target
+    assert "AS_OF is required" in target
+    assert "--cutoff \"$(AS_OF)\"" in target
+    assert "--output-dir \"$(OUTPUT_DIR)\"" in target
+    assert "imports-apply" not in target
+    assert "--apply" not in target

@@ -143,15 +143,15 @@ The Single-Stock Report now derives profile-scoped checks for readiness review, 
 
 **Goal:** move the implemented Earnings Nowcast pilot from synthetic infrastructure proof to a leakage-safe, source-backed semiconductor cohort.
 
-Earnings Nowcast real-data safety infrastructure is implemented for deterministic Revenue/EPS ranges, consensus-relative classification, metric-specific canonical quarterly evidence, comparability checks, evidence-only directional signals, chronological walk-forward backtesting, explicit sample-sufficiency/calibration diagnostics, and a separate probability calibration gate. Versioned read-only append-only onboarding templates, validation, preview, readiness, and prospective collection planning are implemented. The committed fixture cohort is synthetic test evidence only.
+Earnings Nowcast real-data safety infrastructure is implemented for deterministic Revenue/EPS ranges, consensus-relative classification, metric-specific canonical quarterly evidence, comparability checks, evidence-only directional signals, chronological walk-forward backtesting, explicit sample-sufficiency/calibration diagnostics, and a separate probability calibration gate. Versioned read-only append-only onboarding templates, validation, preview, readiness, prospective collection planning, and SEC quarterly actual staging are implemented. The SEC stage accepts Q1-Q3 only from source-backed duration/fiscal lineage, accepts Q4 only from an explicit SEC-filed result table, preserves revisions and cutoff truth, reports quarter-continuity gaps, and withholds incompatible EPS split basis. It is review-only with no automatic apply path. The committed fixture cohort is synthetic test evidence only.
 
-1. Acquire permitted append-only historical quarterly actuals and point-in-time consensus snapshots with source references, publication/retrieval timestamps, and explicit Revenue/EPS comparability definitions for a narrow semiconductor cohort.
+1. Use the five-company SEC actuals staging scope (NVDA, AMD, AVGO, MU, and QCOM) only to assemble source-backed actual evidence; acquire permitted append-only historical point-in-time consensus snapshots with source references, publication/retrieval timestamps, and explicit Revenue/EPS comparability definitions before any real-company packet.
 2. Use `make earnings-nowcast-prospective-plan` for future snapshot collection, then run the implemented onboarding validate/preview/readiness gates before any real-company packet; no automatic apply path exists.
 3. Keep candidate peer/news signals separate from reviewed trusted evidence; signals explain context and never mutate forecast numbers.
 4. Run chronological out-of-sample evaluation against latest-consensus and prior-year benchmarks.
 5. Withhold numerical Beat/Miss probability until at least 100 valid events pass Brier-score, calibration-bin, and benchmark-improvement gates.
 
-Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`; numerical probability remains `awaiting_calibration_evidence`.
+Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`; numerical probability remains `awaiting_calibration_evidence`. SEC staging success alone does not change either status.
 
 **Stop rule:** do not substitute current analyst estimates for historical point-in-time snapshots, use post-cutoff evidence, infer numeric adjustments from text, claim predictive accuracy from fixtures, or predict post-earnings price movement.
 

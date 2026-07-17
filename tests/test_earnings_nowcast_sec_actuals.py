@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import src.earnings_nowcast_sec_actuals as sec_actuals
 from src.earnings_nowcast_contract import QuarterlyActual
 from src.earnings_nowcast_sec_actuals import (
     ExtractionAuditRow,
@@ -451,6 +452,37 @@ def test_stage_writes_only_explicit_output_directory(tmp_path):
         rejected = list(csv.DictReader(handle))
     assert rejected[0]["reason_code"] == "cumulative_fact_rejected"
     assert rejected[0]["state"] == "cumulative_fact_rejected"
+
+
+def test_sec_actuals_cli_json_uses_injected_cached_fixture_stage(tmp_path, capsys):
+    def cached_fixture_stage(tickers, **kwargs):
+        assert tickers == ["SYN1"]
+        assert kwargs["output_dir"] == tmp_path / "stage"
+        assert kwargs["cutoff"] == CUTOFF
+        assert kwargs["allow_network"] is False
+        assert kwargs["refresh"] is False
+        return write_sec_actuals_stage(tmp_path / "stage", {"SYN1": extraction_result()})
+
+    sec_actuals.main(
+        [
+            "--tickers",
+            "SYN1",
+            "--output-dir",
+            str(tmp_path / "stage"),
+            "--cutoff",
+            CUTOFF,
+            "--no-network",
+            "--json",
+        ],
+        stage_runner=cached_fixture_stage,
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["automatic_apply"] is False
+    assert payload["tickers"]["SYN1"]["accepted_rows"]
+    assert payload["tickers"]["SYN1"]["rejected_rows"]
+    assert payload["tickers"]["SYN1"]["missing_q4"] is True
+    assert payload["tickers"]["SYN1"]["source_refs"]
 
 
 def test_stage_keeps_revenue_only_metric_partial_out_of_rejected_rows(tmp_path):
