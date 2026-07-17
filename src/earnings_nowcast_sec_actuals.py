@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timezone
+from html.parser import HTMLParser
 from math import isfinite
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
@@ -14,6 +16,13 @@ from src.providers.sec_companyfacts import (
     fetch_companyfacts,
     load_sec_ticker_map,
     resolve_ticker_to_cik,
+)
+from src.providers.sec_submissions import (
+    FiledExhibit,
+    extract_filing_exhibits,
+    fetch_sec_filing_document,
+    fetch_sec_filing_index,
+    fetch_sec_submission,
 )
 
 
@@ -33,6 +42,12 @@ REJECTED_AUDIT_STATES = frozenset(
         "cumulative_fact_rejected",
         "fiscal_period_conflict",
         "post_cutoff_rejected",
+        "q4_source_unavailable",
+        "quarter_header_missing",
+        "ambiguous_period_header",
+        "guidance_or_outlook_rejected",
+        "gaap_eps_missing",
+        "derived_q4_rejected",
         "ticker_unresolved",
     )
 )
@@ -90,6 +105,300 @@ class StageResult:
     audit_path: str
     rejected_path: str
     automatic_apply: bool = False
+
+
+class _StructuredTableParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.tables: list[tuple[tuple[tuple[str, ...], ...], str]] = []
+        self._page_text: list[str] = []
+        self._table_rows: list[list[str]] | None = None
+        self._row: list[str] | None = None
+        self._cell: list[str] | None = None
+        self._table_depth = 0
+
+    @property
+    def page_text(self) -> str:
+        return " ".join(self._page_text)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        lowered = tag.lower()
+        if lowered == "table":
+            self._table_depth += 1
+            if self._table_depth == 1:
+                self._table_rows = []
+        elif self._table_depth and lowered == "tr":
+            self._row = []
+        elif self._table_depth and lowered in {"td", "th"} and self._row is not None:
+            self._cell = []
+
+    def handle_data(self, data: str) -> None:
+        self._page_text.append(data)
+        if self._cell is not None:
+            self._cell.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        lowered = tag.lower()
+        if lowered in {"td", "th"} and self._cell is not None and self._row is not None:
+            self._row.append(" ".join(self._cell).strip())
+            self._cell = None
+        elif lowered == "tr" and self._row is not None and self._table_rows is not None:
+            if self._row:
+                self._table_rows.append(self._row)
+            self._row = None
+        elif lowered == "table" and self._table_depth:
+            self._table_depth -= 1
+            if self._table_depth == 0 and self._table_rows is not None:
+                rows = tuple(tuple(cell for cell in row) for row in self._table_rows)
+                self.tables.append((rows, " ".join(cell for row in rows for cell in row)))
+                self._table_rows = None
+
+
+def _normalized_table_text(value: str) -> str:
+    return " ".join(str(value or "").replace("\xa0", " ").lower().split())
+
+
+def _q4_audit(
+    ticker: str,
+    state: str,
+    metric: str,
+    fiscal_period: str,
+    exhibit: FiledExhibit,
+    detail: str,
+) -> ExtractionAuditRow:
+    return ExtractionAuditRow(
+        ticker=str(ticker or "").strip().upper(),
+        state=state,
+        metric=metric,
+        fiscal_period=fiscal_period,
+        source_ref=exhibit.source_ref,
+        detail=detail,
+        concept=exhibit.document_type,
+        accession=exhibit.accession,
+    )
+
+
+def _explicit_q4_fiscal_period(document_text: str) -> str | None:
+    text = _normalized_table_text(document_text)
+    years = {
+        match.group(1)
+        for pattern in (
+            r"(?:fourth quarter|q4)\s+(?:of\s+)?fiscal\s+(20\d{2})",
+            r"fiscal\s+(20\d{2}).{0,80}?(?:fourth quarter|q4)",
+            r"q4\s+fy\s*(20\d{2})",
+        )
+        for match in re.finditer(pattern, text)
+    }
+    if len(years) != 1:
+        return None
+    return f"{next(iter(years))}-Q4"
+
+
+def _q4_value_column(rows: tuple[tuple[str, ...], ...], fiscal_period: str) -> int | None:
+    fiscal_year = fiscal_period.split("-", 1)[0]
+    fiscal_year_short = fiscal_year[-2:]
+    columns = {
+        index
+        for row in rows[:2]
+        for index, cell in enumerate(row)
+        if re.search(rf"\bq4\s+(?:fy\s*)?(?:{fiscal_year}|{fiscal_year_short})\b", _normalized_table_text(cell))
+        or re.search(rf"\bfiscal\s+{fiscal_year}\s+q4\b", _normalized_table_text(cell))
+    }
+    return next(iter(columns)) if len(columns) == 1 else None
+
+
+def _has_ambiguous_q4_header(rows: tuple[tuple[str, ...], ...]) -> bool:
+    headers = _normalized_table_text(" ".join(cell for row in rows[:2] for cell in row))
+    return "q4" in headers
+
+
+def _table_number(value: str, *, scale_required: bool) -> tuple[float, float] | None:
+    text = _normalized_table_text(value)
+    if any(word in text for word in ("expected", "approximately", "outlook", "guidance")):
+        return None
+    match = re.search(r"(?P<negative>\()?\s*\$?\s*(?P<number>\d[\d,]*(?:\.\d+)?)", text)
+    if not match:
+        return None
+    try:
+        value_number = float(match.group("number").replace(",", ""))
+    except ValueError:
+        return None
+    if match.group("negative"):
+        value_number = -value_number
+    if "billion" in text:
+        return value_number, 1_000_000_000.0
+    if "million" in text:
+        return value_number, 1_000_000.0
+    return (value_number, 1.0) if not scale_required else None
+
+
+def _q4_metric_values(
+    rows: tuple[tuple[str, ...], ...],
+    value_column: int = 1,
+) -> tuple[float | None, float | None, bool, bool]:
+    revenue: float | None = None
+    eps: float | None = None
+    non_gaap_eps_present = False
+    derived = False
+    for row in rows:
+        if len(row) <= value_column:
+            continue
+        label = _normalized_table_text(row[0])
+        value = row[value_column]
+        if any(word in label for word in ("less", "minus", "subtract", "derived", "calculated")):
+            derived = True
+            continue
+        if label in {"revenue", "total revenue", "net revenue"}:
+            parsed = _table_number(value, scale_required=False)
+            if parsed is not None:
+                raw_value, scale = parsed
+                revenue = raw_value * scale
+        elif "non-gaap" in label and "earnings per share" in label:
+            non_gaap_eps_present = True
+        elif label in {
+            "gaap diluted earnings per share",
+            "diluted gaap earnings per share",
+            "gaap diluted eps",
+        }:
+            parsed = _table_number(value, scale_required=False)
+            if parsed is not None:
+                eps = parsed[0]
+    return revenue, eps, non_gaap_eps_present, derived
+
+
+def _split_adjustment_basis(document_text: str) -> str:
+    text = _normalized_table_text(document_text)
+    match = re.search(
+        r"(?:retrospectively|retroactively) adjusted[^.]{0,160}?split[^.]{0,160}?effective\s+([a-z]+\s+\d{1,2},\s+20\d{2})",
+        text,
+    )
+    if not match:
+        return "as_reported"
+    try:
+        effective_date = datetime.strptime(match.group(1), "%B %d, %Y").date()
+    except ValueError:
+        return "as_reported"
+    return f"split_adjusted_{effective_date.isoformat().replace('-', '_')}"
+
+
+def extract_explicit_q4_actual(
+    ticker: str,
+    exhibit: FiledExhibit,
+    document_text: str,
+    *,
+    fiscal_period: str,
+    filed_at: str,
+    retrieved_at: str,
+    cutoff: str | None = None,
+    period_end_date: str | None = None,
+) -> ExtractionResult:
+    normalized_ticker = str(ticker or "").strip().upper()
+    parser = _StructuredTableParser()
+    parser.feed(document_text or "")
+    audit_rows: list[ExtractionAuditRow] = []
+    if not re.fullmatch(r"20\d{2}-Q4", fiscal_period or ""):
+        return ExtractionResult(
+            rows=(),
+            audit_rows=(
+                _q4_audit(normalized_ticker, "ambiguous_period_header", "quarterly_actual", "", exhibit, "fiscal period is not an explicit Q4 identity"),
+            ),
+        )
+    explicit_period = _explicit_q4_fiscal_period(parser.page_text)
+    if explicit_period is not None and explicit_period != fiscal_period:
+        return ExtractionResult(
+            rows=(),
+            audit_rows=(
+                _q4_audit(normalized_ticker, "ambiguous_period_header", "quarterly_actual", fiscal_period, exhibit, "document does not state one matching fiscal Q4 identity"),
+            ),
+        )
+    matching_tables = [
+        (rows, value_column)
+        for rows, _table_text in parser.tables
+        if (value_column := _q4_value_column(rows, fiscal_period)) is not None
+    ]
+    if not matching_tables:
+        state = "ambiguous_period_header" if any(_has_ambiguous_q4_header(rows) for rows, _text in parser.tables) else "quarter_header_missing"
+        audit_rows.append(
+            _q4_audit(normalized_ticker, state, "quarterly_actual", fiscal_period, exhibit, "no structured table has an unambiguous matching Q4 header")
+        )
+        if any(_q4_metric_values(rows)[3] for rows, _text in parser.tables):
+            audit_rows.append(
+                _q4_audit(normalized_ticker, "derived_q4_rejected", "quarterly_actual", fiscal_period, exhibit, "Q4 table labels a metric as derived or arithmetic")
+            )
+        return ExtractionResult(
+            rows=(),
+            audit_rows=tuple(audit_rows),
+        )
+    candidates: list[tuple[float | None, float | None]] = []
+    for rows, value_column in matching_tables:
+        table_text = _normalized_table_text(" ".join(cell for row in rows for cell in row))
+        revenue, eps, non_gaap_eps_present, derived = _q4_metric_values(rows, value_column)
+        if any(word in table_text for word in ("outlook", "expected", "approximately", "guidance")):
+            audit_rows.append(
+                _q4_audit(normalized_ticker, "guidance_or_outlook_rejected", "quarterly_actual", fiscal_period, exhibit, "Q4 table contains guidance or outlook language")
+            )
+            if non_gaap_eps_present and eps is None:
+                audit_rows.append(
+                    _q4_audit(normalized_ticker, "gaap_eps_missing", "eps", fiscal_period, exhibit, "non-GAAP EPS is not accepted without an explicit GAAP diluted EPS label")
+                )
+            continue
+        if derived:
+            audit_rows.append(
+                _q4_audit(normalized_ticker, "derived_q4_rejected", "quarterly_actual", fiscal_period, exhibit, "Q4 table labels a metric as derived or arithmetic")
+            )
+            continue
+        if non_gaap_eps_present and eps is None:
+            audit_rows.append(
+                _q4_audit(normalized_ticker, "gaap_eps_missing", "eps", fiscal_period, exhibit, "non-GAAP EPS is not accepted without an explicit GAAP diluted EPS label")
+            )
+        if revenue is not None or eps is not None:
+            candidates.append((revenue, eps))
+    presentations = set(candidates)
+    if len(presentations) > 1:
+        audit_rows.append(
+            _q4_audit(normalized_ticker, "ambiguous_concept", "quarterly_actual", fiscal_period, exhibit, "multiple Q4 result tables disagree")
+        )
+        return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
+    if not candidates:
+        if not audit_rows:
+            audit_rows.append(
+                _q4_audit(normalized_ticker, "ambiguous_concept", "quarterly_actual", fiscal_period, exhibit, "explicit Revenue and GAAP diluted EPS labels were not found in a Q4 table")
+            )
+        return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
+    reported_at = datetime.fromisoformat(filed_at.replace("Z", "+00:00")).astimezone(timezone.utc).isoformat()
+    if cutoff is not None:
+        cutoff_timestamp = datetime.fromisoformat(cutoff.replace("Z", "+00:00"))
+        if cutoff_timestamp.tzinfo is None:
+            raise ValueError("cutoff must be timezone-aware")
+        if datetime.fromisoformat(reported_at) > cutoff_timestamp.astimezone(timezone.utc):
+            audit_rows.append(
+                _q4_audit(normalized_ticker, "post_cutoff_rejected", "quarterly_actual", fiscal_period, exhibit, f"reported_at={reported_at} is after cutoff={cutoff_timestamp.astimezone(timezone.utc).isoformat()}")
+            )
+            return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
+    revenue, eps = candidates[0]
+    resolved_period_end = period_end_date or reported_at[:10]
+    row = QuarterlyActual(
+        ticker=normalized_ticker,
+        fiscal_period=fiscal_period,
+        period_end_date=resolved_period_end,
+        reported_at=reported_at,
+        revenue_actual=revenue,
+        eps_actual=eps,
+        source="sec_filed_exhibit",
+        source_ref=exhibit.source_ref,
+        retrieved_at=retrieved_at,
+        split_adjustment_basis=_split_adjustment_basis(parser.page_text),
+    )
+    for metric, value in (("revenue", revenue), ("eps", eps)):
+        if value is not None:
+            audit_rows.append(
+                _q4_audit(normalized_ticker, "accepted_explicit_q4", metric, fiscal_period, exhibit, f"explicit Q4 {metric} in SEC-filed {exhibit.document_type} table")
+            )
+    if revenue is None or eps is None:
+        audit_rows.append(
+            _q4_audit(normalized_ticker, "metric_partial", "quarterly_actual", fiscal_period, exhibit, "only one source-backed Q4 metric is available")
+        )
+    return ExtractionResult(rows=(row,), audit_rows=tuple(audit_rows))
 
 
 def _required_text(value: object) -> str | None:
@@ -595,6 +904,74 @@ def write_sec_actuals_stage(output_dir: Path, results: Mapping[str, ExtractionRe
     )
 
 
+def _recent_q4_candidate_filings(payload: Mapping[str, Any]) -> tuple[tuple[str, str, str], ...]:
+    recent = payload.get("filings", {}).get("recent", {}) if isinstance(payload.get("filings"), Mapping) else {}
+    if not isinstance(recent, Mapping):
+        return ()
+    forms = recent.get("form") if isinstance(recent.get("form"), list) else []
+    filing_dates = recent.get("filingDate") if isinstance(recent.get("filingDate"), list) else []
+    report_dates = recent.get("reportDate") if isinstance(recent.get("reportDate"), list) else []
+    accessions = recent.get("accessionNumber") if isinstance(recent.get("accessionNumber"), list) else []
+    candidates: list[tuple[str, str, str]] = []
+    for index, form in enumerate(forms):
+        if str(form or "").strip().upper() not in {"8-K", "8-K/A"}:
+            continue
+        accession = str(accessions[index] if index < len(accessions) else "").strip()
+        filed_date = str(filing_dates[index] if index < len(filing_dates) else "").strip()
+        report_date = str(report_dates[index] if index < len(report_dates) else "").strip()
+        if accession and filed_date:
+            candidates.append((accession, filed_date, report_date))
+    return tuple(candidates)
+
+
+def _q4_source_unavailable(
+    ticker: str,
+    source_ref: str,
+    detail: str,
+    accession: str = "",
+) -> ExtractionAuditRow:
+    return ExtractionAuditRow(
+        ticker=ticker,
+        state="q4_source_unavailable",
+        metric="quarterly_actual",
+        fiscal_period="",
+        source_ref=source_ref,
+        detail=detail,
+        accession=accession,
+    )
+
+
+def _combine_q4_results(
+    ticker: str,
+    q4_results: Sequence[ExtractionResult],
+) -> ExtractionResult:
+    audit_rows = [audit_row for result in q4_results for audit_row in result.audit_rows]
+    rows = [row for result in q4_results for row in result.rows]
+    by_period: dict[str, list[QuarterlyActual]] = {}
+    for row in rows:
+        by_period.setdefault(row.fiscal_period, []).append(row)
+    accepted_rows: list[QuarterlyActual] = []
+    for fiscal_period, period_rows in sorted(by_period.items()):
+        presentations = {
+            (row.revenue_actual, row.eps_actual, row.split_adjustment_basis, row.period_end_date)
+            for row in period_rows
+        }
+        if len(presentations) > 1:
+            audit_rows.append(
+                ExtractionAuditRow(
+                    ticker=ticker,
+                    state="ambiguous_concept",
+                    metric="quarterly_actual",
+                    fiscal_period=fiscal_period,
+                    source_ref=period_rows[0].source_ref,
+                    detail="multiple SEC-filed Q4 exhibits disagree",
+                )
+            )
+            continue
+        accepted_rows.append(sorted(period_rows, key=lambda row: row.source_ref)[0])
+    return ExtractionResult(rows=tuple(accepted_rows), audit_rows=tuple(audit_rows))
+
+
 def stage_sec_quarterly_actuals(
     tickers: Sequence[str],
     *,
@@ -610,6 +987,12 @@ def stage_sec_quarterly_actuals(
     ticker_map_fetcher: Callable[[str, str, float], Any] | None = None,
     companyfacts_loader: Callable[..., Mapping[str, Any]] = fetch_companyfacts,
     companyfacts_fetcher: Callable[[str, str, float], Any] | None = None,
+    submissions_loader: Callable[..., Mapping[str, Any]] = fetch_sec_submission,
+    submissions_fetcher: Callable[[str, str, float], Any] | None = None,
+    filing_index_loader: Callable[..., str] = fetch_sec_filing_index,
+    filing_index_fetcher: Callable[[str, str, float], str] | None = None,
+    exhibit_document_loader: Callable[..., str] = fetch_sec_filing_document,
+    exhibit_document_fetcher: Callable[[str, str, float], str] | None = None,
 ) -> StageResult:
     requested_tickers = tuple(sorted({str(ticker).strip().upper() for ticker in tickers if str(ticker).strip()}))
     if ticker_map is None:
@@ -653,10 +1036,113 @@ def stage_sec_quarterly_actuals(
                 ),
             )
             continue
-        results[ticker] = extract_q1_q3_lineage(
+        q1_q3_result = extract_q1_q3_lineage(
             ticker,
             payload,
             cutoff=cutoff,
             retrieved_at=resolved_retrieved_at,
+        )
+        try:
+            submissions_payload = submissions_loader(
+                cik,
+                user_agent,
+                cache=False,
+                refresh=refresh,
+                cache_dir=cache_dir or Path(output_dir) / ".sec-cache",
+                sleep_seconds=sleep_seconds,
+                fetcher=submissions_fetcher,
+            )
+        except RuntimeError as exc:
+            results[ticker] = ExtractionResult(
+                rows=q1_q3_result.rows,
+                audit_rows=q1_q3_result.audit_rows
+                + (_q4_source_unavailable(ticker, "", f"SEC submissions lookup failed: {exc}"),),
+            )
+            continue
+        q4_results: list[ExtractionResult] = []
+        for accession, filed_date, report_date in _recent_q4_candidate_filings(submissions_payload):
+            try:
+                index_html = filing_index_loader(
+                    cik,
+                    accession,
+                    user_agent,
+                    cache=False,
+                    refresh=refresh,
+                    cache_dir=cache_dir or Path(output_dir) / ".sec-cache",
+                    sleep_seconds=sleep_seconds,
+                    fetcher=filing_index_fetcher,
+                )
+            except RuntimeError as exc:
+                q4_results.append(
+                    ExtractionResult(
+                        rows=(),
+                        audit_rows=(_q4_source_unavailable(ticker, "", f"filing index lookup failed: {exc}", accession),),
+                    )
+                )
+                continue
+            exhibits = extract_filing_exhibits(index_html, cik=cik, accession=accession)
+            if not exhibits:
+                q4_results.append(
+                    ExtractionResult(
+                        rows=(),
+                        audit_rows=(_q4_source_unavailable(ticker, "", "no EX-99 result exhibit was found", accession),),
+                    )
+                )
+                continue
+            for exhibit in exhibits:
+                try:
+                    document_text = exhibit_document_loader(
+                        cik,
+                        accession,
+                        exhibit.document_name,
+                        user_agent,
+                        cache=False,
+                        refresh=refresh,
+                        cache_dir=cache_dir or Path(output_dir) / ".sec-cache",
+                        sleep_seconds=sleep_seconds,
+                        fetcher=exhibit_document_fetcher,
+                    )
+                except RuntimeError as exc:
+                    q4_results.append(
+                        ExtractionResult(
+                            rows=(),
+                            audit_rows=(_q4_source_unavailable(ticker, exhibit.source_ref, f"exhibit lookup failed: {exc}", accession),),
+                        )
+                    )
+                    continue
+                fiscal_period = _explicit_q4_fiscal_period(document_text)
+                if fiscal_period is None:
+                    q4_results.append(
+                        ExtractionResult(
+                            rows=(),
+                            audit_rows=(
+                                _q4_audit(
+                                    ticker,
+                                    "ambiguous_period_header",
+                                    "quarterly_actual",
+                                    "",
+                                    exhibit,
+                                    "document does not state one explicit fiscal Q4 identity",
+                                ),
+                            ),
+                        )
+                    )
+                    continue
+                q4_results.append(
+                    extract_explicit_q4_actual(
+                        ticker,
+                        exhibit,
+                        document_text,
+                        fiscal_period=fiscal_period,
+                        filed_at=f"{filed_date}T00:00:00Z",
+                        retrieved_at=resolved_retrieved_at,
+                        cutoff=cutoff,
+                        period_end_date=report_date or None,
+                    )
+                )
+        q4_result = _combine_q4_results(ticker, q4_results)
+        results[ticker] = ExtractionResult(
+            rows=q1_q3_result.rows + q4_result.rows,
+            audit_rows=q1_q3_result.audit_rows + q4_result.audit_rows,
         )
     return write_sec_actuals_stage(output_dir, results)

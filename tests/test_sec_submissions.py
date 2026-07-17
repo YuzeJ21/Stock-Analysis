@@ -7,9 +7,11 @@ from src.providers.sec_submissions import (
     build_sec_filing_share_count_evidence,
     build_sec_submission_metadata_packet,
     build_sec_submission_metadata,
+    extract_filing_exhibits,
     extract_share_count_from_inline_xbrl,
     fetch_sec_submission,
     latest_filing_document,
+    sec_filing_index_url,
     sec_filing_document_url,
     sec_submission_url,
 )
@@ -38,6 +40,31 @@ def _sample_submission_payload() -> dict[str, object]:
 
 def test_sec_submission_url_zero_pads_cik():
     assert sec_submission_url("1045810") == SEC_SUBMISSIONS_URL_TEMPLATE.format(cik="0001045810")
+
+
+def test_sec_filing_index_url_uses_archive_accession_path():
+    assert sec_filing_index_url("0001045810", "0001045810-26-000021") == (
+        "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.html"
+    )
+
+
+def test_extract_filing_exhibits_discovers_explicit_ex_99_links():
+    index_html = """
+    <table>
+      <tr><th>Document</th><th>Description</th><th>Type</th></tr>
+      <tr><td><a href="nvda-ex991.htm">nvda-ex991.htm</a></td><td>Earnings release</td><td>EX-99.1</td></tr>
+      <tr><td><a href="not-an-exhibit.htm">not-an-exhibit.htm</a></td><td>Primary</td><td>8-K</td></tr>
+    </table>
+    """
+
+    exhibits = extract_filing_exhibits(index_html, cik="0001045810", accession="0001045810-26-000021")
+
+    assert len(exhibits) == 1
+    assert exhibits[0].document_type == "EX-99.1"
+    assert exhibits[0].document_name == "nvda-ex991.htm"
+    assert exhibits[0].source_ref == (
+        "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-ex991.htm"
+    )
 
 
 def test_build_sec_submission_metadata_maps_entity_industry_and_latest_filing():
