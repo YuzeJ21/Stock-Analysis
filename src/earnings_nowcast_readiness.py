@@ -13,6 +13,7 @@ from src.earnings_nowcast_contract import (
 
 
 EXCLUDED_ASSET_TYPES = {"etf", "index", "fund", "mutual_fund"}
+COMPANYFACTS_SPLIT_BASIS_UNVERIFIED = "companyfacts_split_basis_unverified"
 
 
 @dataclass(frozen=True)
@@ -115,16 +116,29 @@ def contiguous_metric_window(
     return tuple(reversed(window))
 
 
-def _canonical_period_row(rows: Sequence[QuarterlyActual], metric: str) -> tuple[QuarterlyActual | None, tuple[str, ...]]:
+def _canonical_period_row(
+    rows: Sequence[QuarterlyActual],
+    metric: str,
+    *,
+    lineage_rows: Sequence[QuarterlyActual] | None = None,
+) -> tuple[QuarterlyActual | None, tuple[str, ...]]:
     value_field = f"{metric}_actual"
     ordered = sorted(rows, key=lambda row: (parse_utc_timestamp(row.reported_at), parse_utc_timestamp(row.retrieved_at), row.source_ref))
     values = {float(getattr(row, value_field)) for row in ordered}
     if len(values) == 1:
         return ordered[-1], ()
     latest = ordered[-1]
-    by_ref = {row.source_ref: row for row in ordered}
-    if len(by_ref) == len(ordered):
-        position_by_ref = {row.source_ref: index for index, row in enumerate(ordered)}
+    ordered_lineage = sorted(
+        lineage_rows if lineage_rows is not None else rows,
+        key=lambda row: (
+            parse_utc_timestamp(row.reported_at),
+            parse_utc_timestamp(row.retrieved_at),
+            row.source_ref,
+        ),
+    )
+    by_ref = {row.source_ref: row for row in ordered_lineage}
+    if len(by_ref) == len(ordered_lineage):
+        position_by_ref = {row.source_ref: index for index, row in enumerate(ordered_lineage)}
         visited: set[str] = set()
         current = latest
         while current.source_ref not in visited:
@@ -136,7 +150,7 @@ def _canonical_period_row(rows: Sequence[QuarterlyActual], metric: str) -> tuple
             if prior is None or position_by_ref[prior.source_ref] >= position_by_ref[current.source_ref]:
                 break
             current = prior
-        if len(visited) == len(ordered):
+        if {row.source_ref for row in ordered}.issubset(visited):
             return latest, ()
     return None, tuple(sorted(row.source_ref for row in ordered))
 
@@ -151,19 +165,44 @@ def canonicalize_actuals(
     for metric in ("revenue", "eps"):
         by_period: dict[str, list[QuarterlyActual]] = {}
         for row in rows:
-            if getattr(row, f"{metric}_actual") is not None:
-                by_period.setdefault(row.fiscal_period, []).append(row)
+            by_period.setdefault(row.fiscal_period, []).append(row)
         expected_definition = _metric_definition(consensus, metric) if consensus is not None else None
         for period, period_rows in sorted(by_period.items()):
-            definitions = {_metric_definition(row, metric) for row in period_rows}
+            metric_rows = [
+                row
+                for row in period_rows
+                if getattr(row, f"{metric}_actual") is not None
+            ]
+            if not metric_rows:
+                continue
+            definitions = {_metric_definition(row, metric) for row in metric_rows}
             if expected_definition is None:
-                compatible = period_rows if len(definitions) == 1 else []
+                compatible = metric_rows if len(definitions) == 1 else []
             else:
-                compatible = [row for row in period_rows if _metric_definition(row, metric) == expected_definition]
+                compatible = [
+                    row
+                    for row in metric_rows
+                    if _metric_definition(row, metric) == expected_definition
+                ]
+            if metric == "eps":
+                consensus_unverified = (
+                    consensus is not None
+                    and consensus.split_adjustment_basis == COMPANYFACTS_SPLIT_BASIS_UNVERIFIED
+                )
+                compatible = [
+                    row
+                    for row in compatible
+                    if not consensus_unverified
+                    and row.split_adjustment_basis != COMPANYFACTS_SPLIT_BASIS_UNVERIFIED
+                ]
             if not compatible:
                 incompatible[metric].append(period)
                 continue
-            chosen, period_conflicts = _canonical_period_row(compatible, metric)
+            chosen, period_conflicts = _canonical_period_row(
+                compatible,
+                metric,
+                lineage_rows=period_rows,
+            )
             if chosen is None:
                 conflicts[metric].extend(period_conflicts)
             else:

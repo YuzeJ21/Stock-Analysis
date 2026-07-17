@@ -8,7 +8,7 @@ import re
 import signal
 import tempfile
 from dataclasses import asdict, dataclass, replace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from html.parser import HTMLParser
 from math import isfinite
 from pathlib import Path
@@ -473,6 +473,7 @@ def extract_explicit_q4_actual(
             ),
         )
     candidates: list[tuple[float | None, float | None]] = []
+    accepted_metric_tables: list[tuple[tuple[tuple[str, ...], ...], int]] = []
     for rows, value_column in matching_tables:
         table_text = _normalized_table_text(" ".join(cell for row in rows for cell in row))
         revenue, eps, non_gaap_eps_present, derived, revenue_scale_missing = _q4_metric_values(rows, value_column)
@@ -500,6 +501,7 @@ def extract_explicit_q4_actual(
             )
         if revenue is not None or eps is not None:
             candidates.append((revenue, eps))
+            accepted_metric_tables.append((rows, value_column))
     if not candidates:
         if not audit_rows:
             audit_rows.append(
@@ -512,7 +514,7 @@ def extract_explicit_q4_actual(
             _q4_audit(normalized_ticker, "ambiguous_concept", "quarterly_actual", fiscal_period, exhibit, "multiple Q4 result tables disagree")
         )
         return ExtractionResult(rows=(), audit_rows=tuple(audit_rows))
-    period_end_dates = _q4_period_end_dates(matching_tables)
+    period_end_dates = _q4_period_end_dates(accepted_metric_tables)
     if len(period_end_dates) != 1:
         state = "period_end_missing" if not period_end_dates else "period_end_ambiguous"
         detail = (
@@ -689,7 +691,7 @@ def _source_ref(cik: object, accession: str) -> str:
 
 
 def _reported_at(filed: str) -> str:
-    return datetime.combine(date.fromisoformat(filed), datetime.min.time(), tzinfo=timezone.utc).isoformat()
+    return datetime.combine(date.fromisoformat(filed), time(23, 59, 59), tzinfo=timezone.utc).isoformat()
 
 
 def _audit(
@@ -1131,16 +1133,31 @@ def _validated_stage_output_dir(output_dir: Path | str) -> Path:
 
 def _stage_identity_conflicts(
     rows: Sequence[QuarterlyActual],
-) -> tuple[set[tuple[str, str]], list[ExtractionAuditRow]]:
+) -> tuple[set[tuple[str, str, str]], list[ExtractionAuditRow]]:
     period_ends_by_identity: dict[tuple[str, str], set[str]] = {}
+    identities_by_period_end: dict[tuple[str, str], set[str]] = {}
     for row in rows:
         period_ends_by_identity.setdefault((row.ticker, row.fiscal_period), set()).add(
             row.period_end_date
         )
-    conflicts = {
+        identities_by_period_end.setdefault((row.ticker, row.period_end_date), set()).add(
+            row.fiscal_period
+        )
+    conflicting_identities = {
         identity
         for identity, period_ends in period_ends_by_identity.items()
         if len(period_ends) > 1
+    }
+    conflicting_period_ends = {
+        period_end
+        for period_end, identities in identities_by_period_end.items()
+        if len(identities) > 1
+    }
+    conflicts = {
+        (row.ticker, row.fiscal_period, row.period_end_date)
+        for row in rows
+        if (row.ticker, row.fiscal_period) in conflicting_identities
+        or (row.ticker, row.period_end_date) in conflicting_period_ends
     }
     audit_rows = [
         ExtractionAuditRow(
@@ -1149,11 +1166,15 @@ def _stage_identity_conflicts(
             metric="quarterly_actual",
             fiscal_period=row.fiscal_period,
             source_ref=row.source_ref,
-            detail="one fiscal identity maps to multiple period ends at the staging boundary",
+            detail=(
+                "one period end maps to multiple fiscal identities at the staging boundary"
+                if (row.ticker, row.period_end_date) in conflicting_period_ends
+                else "one fiscal identity maps to multiple period ends at the staging boundary"
+            ),
             end=row.period_end_date,
         )
         for row in rows
-        if (row.ticker, row.fiscal_period) in conflicts
+        if (row.ticker, row.fiscal_period, row.period_end_date) in conflicts
     ]
     return conflicts, audit_rows
 
@@ -1163,12 +1184,12 @@ def write_sec_actuals_stage(output_dir: Path, results: Mapping[str, ExtractionRe
     root.mkdir(parents=True, exist_ok=True)
     requested_tickers = tuple(sorted({str(ticker).strip().upper() for ticker in results if str(ticker).strip()}))
     extracted_rows = [row for ticker in requested_tickers for row in results[ticker].rows]
-    conflicting_identities, conflict_audit_rows = _stage_identity_conflicts(extracted_rows)
+    conflicting_rows, conflict_audit_rows = _stage_identity_conflicts(extracted_rows)
     linked_rows = link_quarter_revisions(
         [
             row
             for row in extracted_rows
-            if (row.ticker, row.fiscal_period) not in conflicting_identities
+            if (row.ticker, row.fiscal_period, row.period_end_date) not in conflicting_rows
         ]
     )
     accepted_tickers = tuple(sorted({row.ticker for row in linked_rows}))

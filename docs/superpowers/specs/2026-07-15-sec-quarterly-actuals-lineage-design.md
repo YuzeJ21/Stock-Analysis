@@ -119,6 +119,7 @@ Evidence remains point-in-time and append-only:
 
 - `source_ref` identifies the exact SEC accession/document presentation.
 - `reported_at` is the filing publication date, not the quarter end.
+- When SEC Companyfacts supplies only a filing date, `reported_at` is conservatively set to `23:59:59Z` on that date so same-day historical cutoffs cannot see the filing early.
 - `retrieved_at` records collection time.
 - A later changed presentation references the prior `source_ref` through `supersedes_source_ref`.
 - Preview retains both rows and lets cutoff-aware canonicalization select only evidence published by the forecast cutoff.

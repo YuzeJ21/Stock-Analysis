@@ -170,6 +170,32 @@ def test_extract_explicit_q4_actual_requires_source_backed_period_end():
     assert "period_end_missing" in {row.state for row in result.audit_rows}
 
 
+def test_extract_explicit_q4_actual_does_not_borrow_period_end_from_non_result_table():
+    result = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        """
+        <p>Fourth Quarter Fiscal 2025 Summary</p>
+        <table>
+          <tr><th></th><th>Q4 FY25</th></tr>
+          <tr><td>Revenue</td><td>$39,331 million</td></tr>
+          <tr><td>GAAP diluted earnings per share</td><td>$0.89</td></tr>
+        </table>
+        <table>
+          <tr><th></th><th>Q4 FY25</th></tr>
+          <tr><th>Period ended</th><th>January 26, 2025</th></tr>
+          <tr><td>Cash and cash equivalents</td><td>$8,000 million</td></tr>
+        </table>
+        """,
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert result.rows == ()
+    assert "period_end_missing" in {row.state for row in result.audit_rows}
+
+
 def test_extract_explicit_q4_actual_rejects_annual_only_table():
     result = extract_explicit_q4_actual(
         "SYN1",
@@ -678,6 +704,7 @@ def test_stage_summary_reports_q4_and_continuity_by_metric(tmp_path):
                         eps=None,
                         source_ref="sec://revenue-q3",
                         reported_at="2025-11-01T00:00:00Z",
+                        period_end_date="2025-09-30",
                     ),
                     actual(
                         "2025-Q4",
@@ -685,6 +712,7 @@ def test_stage_summary_reports_q4_and_continuity_by_metric(tmp_path):
                         eps=None,
                         source_ref="sec://revenue-q4",
                         reported_at="2026-02-01T00:00:00Z",
+                        period_end_date="2025-12-31",
                     ),
                     actual(
                         "2025-Q3",
@@ -692,6 +720,7 @@ def test_stage_summary_reports_q4_and_continuity_by_metric(tmp_path):
                         eps=1.0,
                         source_ref="sec://eps-q3",
                         reported_at="2025-11-01T00:00:00Z",
+                        period_end_date="2025-09-30",
                     ),
                     actual(
                         "2026-Q1",
@@ -699,6 +728,7 @@ def test_stage_summary_reports_q4_and_continuity_by_metric(tmp_path):
                         eps=1.1,
                         source_ref="sec://eps-q1",
                         reported_at="2026-05-01T00:00:00Z",
+                        period_end_date="2026-03-31",
                     ),
                 ),
                 audit_rows=(),
@@ -732,6 +762,7 @@ def test_stage_summary_reports_q4_and_continuity_by_metric(tmp_path):
                         eps=None,
                         source_ref="sec://inverse-revenue-q3",
                         reported_at="2025-11-01T00:00:00Z",
+                        period_end_date="2025-09-30",
                     ),
                     actual(
                         "2026-Q1",
@@ -739,6 +770,7 @@ def test_stage_summary_reports_q4_and_continuity_by_metric(tmp_path):
                         eps=None,
                         source_ref="sec://inverse-revenue-q1",
                         reported_at="2026-05-01T00:00:00Z",
+                        period_end_date="2026-03-31",
                     ),
                     actual(
                         "2025-Q3",
@@ -746,6 +778,7 @@ def test_stage_summary_reports_q4_and_continuity_by_metric(tmp_path):
                         eps=1.0,
                         source_ref="sec://inverse-eps-q3",
                         reported_at="2025-11-01T00:00:00Z",
+                        period_end_date="2025-09-30",
                     ),
                     actual(
                         "2025-Q4",
@@ -753,6 +786,7 @@ def test_stage_summary_reports_q4_and_continuity_by_metric(tmp_path):
                         eps=1.1,
                         source_ref="sec://inverse-eps-q4",
                         reported_at="2026-02-01T00:00:00Z",
+                        period_end_date="2025-12-31",
                     ),
                 ),
                 audit_rows=(),
@@ -824,6 +858,41 @@ def test_stage_rejects_direct_rows_with_one_identity_and_multiple_period_ends(tm
                         source_ref="sec://second-period-end",
                         reported_at="2025-11-01T00:00:00Z",
                         period_end_date="2025-06-30",
+                    ),
+                ),
+                audit_rows=(),
+            )
+        },
+    )
+
+    rows = list(csv.DictReader(Path(result.quarterly_actuals_path).open(encoding="utf-8")))
+    rejected_rows = list(csv.DictReader(Path(result.rejected_path).open(encoding="utf-8")))
+    assert rows == []
+    assert result.rejected_row_count == 2
+    assert {row["state"] for row in rejected_rows} == {"fiscal_period_conflict"}
+
+
+def test_stage_rejects_direct_rows_with_one_period_end_and_multiple_identities(tmp_path):
+    result = write_sec_actuals_stage(
+        tmp_path / "stage",
+        {
+            "SYN1": ExtractionResult(
+                rows=(
+                    actual(
+                        "2025-Q3",
+                        revenue=100,
+                        eps=1.0,
+                        source_ref="sec://q3-collision",
+                        reported_at="2025-11-01T00:00:00Z",
+                        period_end_date="2025-09-30",
+                    ),
+                    actual(
+                        "2025-Q4",
+                        revenue=110,
+                        eps=1.1,
+                        source_ref="sec://q4-collision",
+                        reported_at="2026-02-01T00:00:00Z",
+                        period_end_date="2025-09-30",
                     ),
                 ),
                 audit_rows=(),
@@ -1188,7 +1257,7 @@ def test_later_comparative_uses_original_fiscal_identity_and_unknown_comparative
 
     q2_rows = [row for row in result.rows if row.fiscal_period == "2025-Q2"]
     assert [(row.revenue_actual, row.eps_actual) for row in q2_rows] == [(8.0, 0.8), (9.0, 0.9)]
-    assert q2_rows[1].reported_at == "2026-06-25T00:00:00+00:00"
+    assert q2_rows[1].reported_at == "2026-06-25T23:59:59+00:00"
     assert "accepted_revision" in {row.state for row in result.audit_rows}
 
     no_original = extract_q1_q3_lineage(
@@ -1200,6 +1269,49 @@ def test_later_comparative_uses_original_fiscal_identity_and_unknown_comparative
 
     assert [row.fiscal_period for row in no_original.rows] == ["2026-Q3"]
     assert "comparative_period_relabelled" in {row.state for row in no_original.audit_rows}
+
+
+def test_companyfacts_date_only_filing_is_available_at_end_of_day():
+    payload = companyfacts_fixture(
+        revenue=[
+            _fact(
+                val=12,
+                start="2026-01-20",
+                end="2026-04-19",
+                filed="2026-04-20",
+                fy=2026,
+                fp="Q1",
+            )
+        ],
+        eps=[
+            _fact(
+                val=1.2,
+                start="2026-01-20",
+                end="2026-04-19",
+                filed="2026-04-20",
+                fy=2026,
+                fp="Q1",
+            )
+        ],
+    )
+
+    early = extract_q1_q3_lineage(
+        "SYN1",
+        payload,
+        cutoff="2026-04-20T00:00:01Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+    end_of_day = extract_q1_q3_lineage(
+        "SYN1",
+        payload,
+        cutoff="2026-04-20T23:59:59Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert early.rows == ()
+    assert "post_cutoff_rejected" in {row.state for row in early.audit_rows}
+    assert len(end_of_day.rows) == 1
+    assert end_of_day.rows[0].reported_at == "2026-04-20T23:59:59+00:00"
 
 
 def test_one_fiscal_identity_mapping_to_multiple_period_ends_fails_closed():

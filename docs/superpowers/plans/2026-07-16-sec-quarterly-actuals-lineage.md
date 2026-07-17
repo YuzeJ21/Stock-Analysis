@@ -164,7 +164,7 @@ Implementation rules:
 - pair metrics only when accession/start/end/filed/`fy`/`fp` match;
 - reject conflicting frame or concept values;
 - construct the SEC accession URL from CIK and accession;
-- set `reported_at` to the filed date at `00:00:00Z` and reject rows after cutoff;
+- set date-only Companyfacts `reported_at` metadata to `23:59:59Z` on the filed date and reject rows after cutoff;
 - preserve a metric-only partial row when just Revenue or EPS is proven.
 
 - [ ] **Step 4: Add missing-frame, concept-conflict, partial-row, and cutoff tests**

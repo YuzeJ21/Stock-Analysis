@@ -348,6 +348,37 @@ def test_complete_multi_step_revision_chain_selects_latest_reported_row():
     assert "fixture://revision/middle" not in result.conflict_source_ids
 
 
+def test_metric_empty_revision_nodes_preserve_eps_chain_traversal():
+    rows = _actuals()
+    original = rows[-1]
+    revenue_only_middle = replace(
+        original,
+        reported_at="2026-01-16T21:00:00Z",
+        retrieved_at="2026-01-16T21:01:00Z",
+        revenue_actual=105.0,
+        eps_actual=None,
+        source_ref="fixture://revision/revenue-only-middle",
+        supersedes_source_ref=original.source_ref,
+    )
+    eps_only_latest = replace(
+        original,
+        reported_at="2026-01-17T21:00:00Z",
+        retrieved_at="2026-01-17T21:01:00Z",
+        revenue_actual=None,
+        eps_actual=1.3,
+        source_ref="fixture://revision/eps-only-latest",
+        supersedes_source_ref=revenue_only_middle.source_ref,
+    )
+
+    canonical = canonicalize_actuals(
+        [*rows, revenue_only_middle, eps_only_latest],
+        _consensus(),
+    )
+
+    assert canonical.eps_conflict_source_ids == ()
+    assert canonical.eps_rows[-1].source_ref == "fixture://revision/eps-only-latest"
+
+
 def test_revision_cannot_hide_a_second_unresolved_conflicting_source():
     rows = _actuals()
     original = rows[-1]
@@ -457,6 +488,29 @@ def test_companyfacts_unverified_split_basis_withholds_only_eps():
         as_of_timestamp=CUTOFF,
         actuals=rows,
         consensus=[_consensus()],
+    )
+
+    assert result.revenue_ready is True
+    assert result.eps_ready is False
+    assert "incompatible_eps_definition" in result.missing_evidence
+
+
+def test_matching_companyfacts_unverified_split_basis_still_withholds_only_eps():
+    rows = [
+        replace(row, split_adjustment_basis="companyfacts_split_basis_unverified")
+        for row in _actuals()
+    ]
+    consensus = replace(
+        _consensus(),
+        split_adjustment_basis="companyfacts_split_basis_unverified",
+    )
+
+    result = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=rows,
+        consensus=[consensus],
     )
 
     assert result.revenue_ready is True
