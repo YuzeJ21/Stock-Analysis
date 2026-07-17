@@ -64,9 +64,12 @@ Run:
 
 ```bash
 FIXTURE=1 make earnings-nowcast-pilot TICKER=SYN1 AS_OF=2026-01-31T23:59:59Z
+FIXTURE=1 make earnings-nowcast-readiness TICKER=SYN1 AS_OF=2026-01-31T23:59:59Z
 make earnings-nowcast-walkthrough AS_OF=2026-01-31T23:59:59Z
 ```
 
 The `SYN1`-`SYN5` cohort and `SYN5-BACKTEST` walkthrough label are synthetic test evidence only. The walkthrough demonstrates baseline ready, Revenue ready with EPS withheld, candidate-peer-only context, post-cutoff blocking, non-company exclusion, and backtest-insufficient/un-calibrated behavior. It proves deterministic contracts, readiness, ranges, signal separation, CLI output, and withholding behavior. It does not prove real-company coverage, current data, predictive accuracy, or investability.
+
+The fixture readiness command uses a schema-valid synthetic onboarding fixture and should report `baseline_ready`. The same readiness command without `FIXTURE=1` reads local real-data onboarding rows and must remain blocked until source-backed point-in-time consensus and actuals pass validation.
 
 Real semiconductor coverage is `awaiting_point_in_time_consensus`. The next legitimate data step is a narrow append-only cohort with licensed or otherwise permitted historical consensus snapshots and source-backed actuals. Generated packets remain local and unstaged unless an exact artifact is intentionally reviewed.

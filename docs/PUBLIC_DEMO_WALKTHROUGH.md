@@ -9,7 +9,7 @@ Use this when sharing the project from GitHub or LinkedIn. The walkthrough is re
 - Share under the controlled portfolio/demo license; do not describe the repository as open source or reusable software.
 - Keep the demo research-only: no investment advice, broker action, order routing, auto-trading, or direct buy/sell instructions.
 - No public hosted Streamlit URL is configured yet; the shareable path is the GitHub project, curated screenshots, and tracked `make demo-dashboard` instructions. Use `docs/HOSTED_DEMO_DEPLOYMENT.md` only when preparing a verified hosted app link.
-- Public UX status is `review_limited`: repeated local cold/warm evidence passes, but hosted-route verification and external reviewer workflow evidence remain pending.
+- Public UX status is `share_review_ready` for the local GitHub/demo workflow: public checks, browser evidence, and repeated local cold/warm evidence pass. Hosted-route verification and external reviewer workflow evidence remain pending before calling it a hosted or externally validated product.
 - FMP, Alpha Vantage, and Finnhub are optional provider fallbacks and are not configured by default. Provider setup does not prove coverage until a reviewed source-backed smoke, validation, preview, and readiness rebuild pass.
 - Coverage is intentionally readiness-gated rather than complete. Fundamentals, share count, peer mapping, earnings, and analyst estimates can remain blocked or locked while the product is still useful.
 - Stop before claiming a blocked lane is ready unless source proof, validation, preview, apply, rebuilt readiness, and proof history all support it.

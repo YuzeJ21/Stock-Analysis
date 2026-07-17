@@ -1279,7 +1279,7 @@ earnings-nowcast-preview:
 	@python3 -m src.earnings_nowcast_onboarding preview --input-dir $(or $(INPUT_DIR),data/imports/earnings_nowcast) $(if $(EXISTING_DIR),--existing-dir $(EXISTING_DIR),) $(if $(AS_OF),--cutoff $(AS_OF),)
 
 earnings-nowcast-readiness:
-	@python3 -m src.earnings_nowcast_onboarding readiness --input-dir $(or $(INPUT_DIR),data/imports/earnings_nowcast) --ticker $(or $(TICKER),SYN1) $(if $(AS_OF),--cutoff $(AS_OF),)
+	@python3 -m src.earnings_nowcast_onboarding readiness --input-dir $(if $(FIXTURE),tests/fixtures/earnings_nowcast_onboarding,$(or $(INPUT_DIR),data/imports/earnings_nowcast)) --ticker $(or $(TICKER),SYN1) $(if $(AS_OF),--cutoff $(AS_OF),)
 
 earnings-nowcast-prospective-plan:
 	@python3 -m src.earnings_nowcast_onboarding prospective-plan --output-dir $(or $(OUTPUT_DIR),data/imports/earnings_nowcast)

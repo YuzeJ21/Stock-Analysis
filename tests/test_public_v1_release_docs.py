@@ -128,7 +128,7 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "| Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |" in readme
     assert "| Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |" in readme
     assert "| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |" in readme
-    assert "| Public UX polish | Review limited | Public checks and repeated local cold/warm route timings pass; external reviewer evidence is still required before upgrading the claim. |" in readme
+    assert "| Public UX polish | Share-review ready locally | Public checks, browser evidence, and repeated local cold/warm route timings pass; hosted-route verification and external reviewer evidence are still required before calling it a hosted or externally validated product. |" in readme
     assert "| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |" in readme
     assert "The local fixed-demo performance gate has passed and remains a regression check" in readme
     assert "The active evidence stage is a narrow, append-only Earnings Nowcast pilot" in readme
@@ -139,11 +139,11 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert readme.index("## Current Next Stages") < readme.index("## What You Can Analyze")
 
 
-def test_public_status_language_uses_review_limited_until_live_route_gate_passes():
+def test_public_status_language_keeps_share_review_ready_local_only():
     readme = _read("README.md")
 
-    assert "| Public UX polish | Review limited |" in readme
-    assert "Share-review ready" not in readme
+    assert "| Public UX polish | Share-review ready locally |" in readme
+    assert "hosted-route verification and external reviewer evidence are still required" in readme
     assert "make public-performance-gate" in readme
 
 

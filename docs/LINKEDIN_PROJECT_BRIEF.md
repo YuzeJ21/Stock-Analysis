@@ -23,7 +23,7 @@ Two-minute external review path:
 
 Each public page now opens with one question, one short answer, one primary next action, and one stop rule. The public workflow is checked at desktop and mobile widths. The current-page shortcut is visible so visitors know where they are.
 
-Current review status is `review_limited`: deterministic public checks and repeated local cold/warm route timings pass, while external reviewer evidence and hosted-route verification are still unavailable. This is a truthful controlled-demo status, not a hosted-product or data-freshness claim.
+Current review status is `share_review_ready` for the local GitHub/demo workflow: deterministic public checks, browser evidence, and repeated local cold/warm route timings pass. External reviewer evidence and hosted-route verification are still unavailable, so this remains a controlled-demo status, not a hosted-product or data-freshness claim.
 
 The first story is the public workflow, not operator automation. Keep reviewed batch packets, provider setup, and validate / preview / apply mechanics as operator detail after the visitor understands the product.
 

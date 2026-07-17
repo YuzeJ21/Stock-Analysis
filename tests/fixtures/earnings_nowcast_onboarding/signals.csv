@@ -1,0 +1,2 @@
+schema_version,signal_id,target_ticker,source_ticker,fiscal_period,as_of_timestamp,signal_type,direction,affected_metric,confidence_band,evidence_source,evidence_source_ref,evidence_published_at,evidence_excerpt_hash,peer_relationship_state,review_state
+earnings-nowcast-evidence-v2,onboarding-fixture-peer-1,SYN1,SYN2,2026-Q1,2026-01-31T23:59:59Z,peer_earnings_readthrough,positive,revenue,medium,synthetic_test_fixture,fixture://signal/SYN1/peer/1,2026-01-20T12:00:00Z,aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,trusted,supported

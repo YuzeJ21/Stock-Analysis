@@ -2720,6 +2720,15 @@ def test_earnings_nowcast_onboarding_launchers_have_no_apply_path():
     assert "imports-apply" not in section
 
 
+def test_earnings_nowcast_readiness_launcher_has_explicit_fixture_onboarding_path():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    section = makefile[makefile.index("earnings-nowcast-readiness:") :]
+
+    assert "$(if $(FIXTURE),tests/fixtures/earnings_nowcast_onboarding,$(or $(INPUT_DIR),data/imports/earnings_nowcast))" in section
+    assert "tests/fixtures/earnings_nowcast)" not in section
+    assert "imports-apply" not in section
+
+
 def test_earnings_nowcast_sec_actuals_stage_launcher_requires_scoped_output_and_cutoff():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
