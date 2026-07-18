@@ -2,6 +2,27 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-07-18 Discover Answer-First Live Review
+
+The live demo-profile Discover route was reviewed from the selected worktree at
+`1280x720` and `390x844`. In both viewports, the Personal Research header and
+research-only boundary are followed directly by `Which stock can I review?`,
+the readiness-backed search control, and the existing Company Workbench actions.
+Focused-cohort scope and lane-coverage cards now remain closed under
+`Advanced: cohort readiness context` after the selection task.
+
+The phone viewport reported a `390px` document width at a `390px` viewport,
+with no horizontal overflow and no details element expanded by default. The
+selector remained limited to the same deterministic cohort, and its links
+continued to target Company Workbench in Personal Research mode. This was a
+presentation-order change only; no readiness, data, ranking, or route contract
+changed.
+
+Reviewed screenshots were saved outside the repository in the temporary review
+workspace and remain unstaged. They are product-layout evidence only;
+they do not prove data freshness, source rights, hosted behavior, or predictive
+validity.
+
 ## 2026-07-17 Commercial Beta Research Workflow Live Review
 
 The live local Streamlit app was reviewed in the in-app browser at `1280x720`

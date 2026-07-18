@@ -35,6 +35,13 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Monitor",
     ]
     assert all(route.critical for route in RESEARCH_ROUTE_SPECS)
+    assert RESEARCH_ROUTE_SPECS[1].first_useful_marker == "Which stock can I review?"
+    assert RESEARCH_ROUTE_SPECS[1].full_markers == (
+        "Discover",
+        "Search this review queue",
+        "Advanced: cohort readiness context",
+        "Research-only",
+    )
     assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
     assert "Selected Company" in RESEARCH_ROUTE_SPECS[2].full_markers
     assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers

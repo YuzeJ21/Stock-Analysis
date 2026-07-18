@@ -110,6 +110,29 @@ def test_research_discover_can_limit_selector_rows_to_the_focused_cohort():
     assert dashboard.filter_selector_to_tickers(frame, ()).empty
 
 
+def test_research_discover_renders_selector_before_advanced_cohort_context():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    discover_start = source.index('elif research_mode and selected_page == "Discover":')
+    discover_end = source.index(
+        'elif research_mode and selected_page == "Company Workbench":',
+        discover_start,
+    )
+    discover = source[discover_start:discover_end]
+
+    heading = discover.index('st.markdown("### Which stock can I review?")')
+    selector = discover.index("render_stock_selector(", heading)
+    advanced = discover.index(
+        'with st.expander("Advanced: cohort readiness context", expanded=False):'
+    )
+    cohort = discover.index("focused_cohort_cards(focused_cohort)", advanced)
+    coverage = discover.index(
+        "focused_cohort_coverage_cards(focused_cohort_coverage)",
+        advanced,
+    )
+
+    assert heading < selector < advanced < cohort < coverage
+
+
 def test_research_workbench_data_health_handoff_stays_in_research_mode():
     import pandas as pd
 

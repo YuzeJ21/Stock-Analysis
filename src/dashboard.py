@@ -34383,8 +34383,6 @@ def main() -> None:
             profile_context,
             primary_action="Choose one readiness-backed company and open its workbench",
         )
-        render_signal_cards(focused_cohort_cards(focused_cohort), show_commands=False, variant="queue")
-        render_signal_cards(focused_cohort_coverage_cards(focused_cohort_coverage), show_commands=False, variant="queue")
         st.markdown("### Which stock can I review?")
         render_stock_selector(
             output_frames,
@@ -34393,6 +34391,17 @@ def main() -> None:
             target_page="company-workbench",
             allowed_tickers=tuple(member.ticker for member in focused_cohort.members),
         )
+        with st.expander("Advanced: cohort readiness context", expanded=False):
+            render_signal_cards(focused_cohort_cards(focused_cohort), show_commands=False, variant="queue")
+            render_signal_cards(
+                focused_cohort_coverage_cards(focused_cohort_coverage),
+                show_commands=False,
+                variant="queue",
+            )
+            st.caption(
+                "Cohort membership and lane coverage remain evidence context only; "
+                "they do not rank expected return or create a recommendation."
+            )
     elif research_mode and selected_page == "Company Workbench":
         render_company_workbench(provider, profile_context, research_change_state, focused_cohort_coverage)
     elif research_mode and selected_page == "Monitor":
