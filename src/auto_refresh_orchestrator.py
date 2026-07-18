@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Iterable
 
 from src.refresh_operations import (
+    ProviderAttempt,
     RefreshOperationPlan,
     RefreshOperationRequest,
     build_refresh_operation_plan,
@@ -69,6 +70,9 @@ class SchedulerPlan:
     optional_commands: tuple[str, ...]
     guardrails: tuple[str, ...]
     refresh_operations: tuple[RefreshOperationPlan, ...]
+    retry_cap: int
+    session_id: str
+    provider_availability_proven: bool
 
 
 def build_default_lane_policies() -> tuple[LanePolicy, ...]:
@@ -208,8 +212,14 @@ def build_scheduler_plan(
     policies: Iterable[LanePolicy] | None = None,
     *,
     schedule: str = "all",
+    available_providers: Iterable[str] | None = None,
+    attempts: Iterable[ProviderAttempt] = (),
+    retry_cap: int = 1,
+    session_id: str = "scheduler-session",
 ) -> SchedulerPlan:
     all_policies = tuple(policies or build_default_lane_policies())
+    if retry_cap < 1:
+        raise ValueError("retry_cap must be positive")
 
     def _policy_matches_schedule(policy: LanePolicy) -> bool:
         if schedule == "all":
@@ -223,21 +233,31 @@ def build_scheduler_plan(
         return True
 
     selected = tuple(policy for policy in all_policies if _policy_matches_schedule(policy))
+    provider_attempts = tuple(attempts)
+    provider_availability_proven = available_providers is not None
+    available = (
+        tuple(available_providers)
+        if available_providers is not None
+        else ()
+    )
     refresh_operations = tuple(
         build_refresh_operation_plan(
             RefreshOperationRequest(
                 lane=policy.lane,
                 provider_order=policy.provider_order,
-                available_providers=policy.provider_order,
+                available_providers=available,
                 batch_limit=policy.max_batch_size,
                 freshness_policy=policy.cadence,
+                retry_cap=retry_cap,
+                session_id=session_id,
+                attempts=provider_attempts,
             )
         )
         for policy in selected
     )
 
-    def _commands_for(policy: LanePolicy) -> tuple[str, str]:
-        return (policy.dry_run_command, policy.gated_apply_command)
+    def _commands_for(policy: LanePolicy) -> tuple[str, ...]:
+        return (policy.dry_run_command,)
 
     daily = tuple(
         command
@@ -276,7 +296,35 @@ def build_scheduler_plan(
             "Generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
         ),
         refresh_operations=refresh_operations,
+        retry_cap=retry_cap,
+        session_id=session_id,
+        provider_availability_proven=provider_availability_proven,
     )
+
+
+def available_refresh_providers(preflight: dict[str, object]) -> frozenset[str]:
+    sources = preflight.get("sources", {})
+    sources = sources if isinstance(sources, dict) else {}
+
+    def _available(source_name: str) -> bool:
+        status = sources.get(source_name, {})
+        return isinstance(status, dict) and status.get("status") == "available"
+
+    available = {"local_industry", "sic", "sector"}
+    if _available("price_ladder"):
+        available.update(("stooq", "yahoo"))
+    if _available("sec"):
+        available.add("sec_companyfacts")
+    if _available("sec_submissions"):
+        available.add("sec_submissions")
+    if _available("sec") and _available("sec_submissions"):
+        available.add("sec_filing_document")
+    if _available("yfinance_stage"):
+        available.add("yfinance")
+    for provider in ("fmp", "alpha_vantage", "finnhub"):
+        if _available(provider):
+            available.add(provider)
+    return frozenset(available)
 
 
 def render_scheduler_plan(plan: SchedulerPlan) -> str:
@@ -306,15 +354,17 @@ def render_scheduler_plan(plan: SchedulerPlan) -> str:
             f"auto_apply={str(policy.auto_apply).lower()}; providers={','.join(policy.provider_order)}"
         )
         lines.append(f"  source boundary: {policy.source_boundary}")
-        lines.append(f"  gated apply: {policy.gated_apply_command}")
-        lines.append(f"  proof: {policy.proof_command}")
+        lines.append("  scheduler boundary: scope review only; mutation requires a separate reviewed handoff")
     lines.append("Refresh operation plans:")
     for operation in plan.refresh_operations:
         lines.append(
             f"- {operation.lane}: status={operation.status}; provider={operation.selected_provider or '-'}; "
+            f"skipped={','.join(operation.skipped_providers) or '-'}; "
+            f"failure_reason={operation.failure_reason or '-'}; "
             f"automatic_apply_enabled={str(operation.automatic_apply_enabled).lower()}; "
             f"stages={','.join(stage.name for stage in operation.stages)}"
         )
+    lines.append(f"Retry policy: session_id={plan.session_id}; retry_cap={plan.retry_cap}")
     lines.append("Guardrails:")
     lines.extend(f"- {guardrail}" for guardrail in plan.guardrails)
     return "\n".join(lines)
@@ -361,16 +411,13 @@ def render_scheduler_runbook(plan: SchedulerPlan, preflight: dict[str, object] |
     lines.append("Lane loop:")
     for index, policy in enumerate(plan.policies, start=1):
         gate_mode = (
-            "Automatic application is disabled. A blocked manual gate may use "
-            "ALLOW_BLOCKED_GATE=1 make auto-apply-gate only to record still_blocked and pivot; "
-            "keep candidate context separate from trusted proof."
+            "Automatic application is disabled. This scheduler stops after scope preview; "
+            "record still_blocked and pivot when the source path is unavailable."
         )
         lines.extend(
             [
                 f"{index}. {policy.label}",
                 f"   dry-run: {policy.dry_run_command}",
-                f"   gated apply: {policy.gated_apply_command}",
-                f"   proof: {policy.proof_command}",
                 f"   gate rule: {gate_mode}",
                 f"   source boundary: {policy.source_boundary}",
             ]
@@ -437,11 +484,27 @@ def render_auto_refresh_status(preflight: dict[str, object], plan: SchedulerPlan
         f"free_tier_batch_limits: {payload['free_tier_batch_limits']}",
         f"pivot_rule: {payload['pivot_rule']}",
         f"artifact_policy: {payload['artifact_policy']}",
+        "",
+        "refresh_operations:",
     ]
+    for operation in payload["refresh_operations"]:
+        lines.append(
+            f"- {operation['lane']}: status={operation['status']}; "
+            f"provider={operation['selected_provider'] or '-'}; "
+            f"failure_reason={operation['failure_reason'] or '-'}"
+        )
     return "\n".join(lines)
 
 
 def build_auto_refresh_status_payload(preflight: dict[str, object], plan: SchedulerPlan) -> dict[str, object]:
+    if not plan.provider_availability_proven:
+        plan = build_scheduler_plan(
+            plan.policies,
+            schedule=plan.schedule,
+            available_providers=available_refresh_providers(preflight),
+            retry_cap=plan.retry_cap,
+            session_id=plan.session_id,
+        )
     activation = preflight.get("source_activation", {})
     activation = activation if isinstance(activation, dict) else {}
     categories = preflight.get("source_categories", {})
@@ -471,6 +534,7 @@ def build_auto_refresh_status_payload(preflight: dict[str, object], plan: Schedu
         "free_tier_batch_limits": _join_values(console.get("free_tier_batch_limits")),
         "pivot_rule": "if a source path is unavailable or already reviewed non-actionable, record the outcome once and move to the next executable lane.",
         "artifact_policy": "generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
+        "refresh_operations": [asdict(operation) for operation in plan.refresh_operations],
     }
 
 
@@ -489,6 +553,13 @@ def _build_gate_from_args(args: argparse.Namespace) -> AutoGateInput:
     )
 
 
+def _parse_provider_attempt(value: str) -> ProviderAttempt:
+    parts = tuple(part.strip() for part in value.split(":"))
+    if len(parts) != 3 or not all(parts):
+        raise argparse.ArgumentTypeError("provider attempt must be provider:session_id:outcome")
+    return ProviderAttempt(provider=parts[0], session_id=parts[1], outcome=parts[2])
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Plan and gate unattended source-backed coverage refreshes.")
     parser.add_argument("--root", default=".")
@@ -496,6 +567,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--runbook", action="store_true")
     parser.add_argument("--status", action="store_true")
+    parser.add_argument(
+        "--available-providers",
+        default=None,
+        help="Comma-separated providers proven available for this scheduler session.",
+    )
+    parser.add_argument("--session-id", default="scheduler-session")
+    parser.add_argument("--retry-cap", type=int, default=1)
+    parser.add_argument(
+        "--provider-attempt",
+        action="append",
+        type=_parse_provider_attempt,
+        default=[],
+        help="Prior attempt as provider:session_id:outcome; repeat for multiple attempts.",
+    )
     parser.add_argument("--gate-lane", default="")
     parser.add_argument("--changed-rows", type=int, default=0)
     parser.add_argument("--max-batch-size", type=int, default=25)
@@ -515,7 +600,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
-    Path(args.root).resolve()
+    root = Path(args.root).resolve()
 
     if args.gate_lane:
         decision = evaluate_auto_apply_gate(_build_gate_from_args(args))
@@ -535,9 +620,25 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         return 2
 
-    plan = build_scheduler_plan(schedule=args.schedule)
+    available_providers = None
+    if args.available_providers is not None:
+        available_providers = tuple(
+            provider.strip() for provider in args.available_providers.split(",") if provider.strip()
+        )
+    preflight = None
+    if available_providers is None:
+        preflight = build_session_source_preflight(root)
+        available_providers = available_refresh_providers(preflight)
+    plan = build_scheduler_plan(
+        schedule=args.schedule,
+        available_providers=available_providers,
+        attempts=args.provider_attempt,
+        retry_cap=args.retry_cap,
+        session_id=args.session_id,
+    )
     if args.status:
-        preflight = build_session_source_preflight(Path(args.root).resolve())
+        if preflight is None:
+            preflight = build_session_source_preflight(root)
         if args.json:
             print(json.dumps(build_auto_refresh_status_payload(preflight, plan), indent=2, sort_keys=True))
         else:
@@ -546,7 +647,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(asdict(plan), indent=2, sort_keys=True))
     elif args.runbook:
-        preflight = build_session_source_preflight(Path(args.root).resolve())
+        if preflight is None:
+            preflight = build_session_source_preflight(root)
         print(render_scheduler_runbook(plan, preflight))
     else:
         print(render_scheduler_plan(plan))

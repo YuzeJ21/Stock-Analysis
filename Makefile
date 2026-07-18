@@ -1,6 +1,7 @@
 .PHONY: help help-full next-stage profile-context research-change-snapshot research-change-monitor research-review-queue research-event-review-record demo demo-data-build demo-data-check demo-dashboard demo-dashboard-smoke demo-dashboard-render-smoke local-profile-seed linkedin-share-check public-performance-contract public-performance-gate public-ux-review-checklist public-ux-review-checklist-json public-ux-review-notes public-ux-review-notes-check public-ux-review-note pilot-review-feedback pilot-feedback-closeout browser-qa-evidence browser-qa-capture-plan hosted-demo-readiness pilot-readiness-check pilot-readiness-packet pilot-share-brief trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight auto-refresh-plan auto-refresh-daily auto-refresh-weekly auto-refresh-optional auto-refresh-runbook auto-refresh-status scheduler-activation-checklist auto-apply-gate lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff license-status session-source-preflight source-activation-guide provider-setup-checklist provider-smoke fmp-smoke alpha-vantage-smoke finnhub-smoke universe-scope fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage sec-filing-share-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check risk-context action-queue action-queue-check project-status project-status-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-preview-summary universe-stage universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions earnings-nowcast-pilot earnings-nowcast-walkthrough earnings-nowcast-templates earnings-nowcast-validate earnings-nowcast-preview earnings-nowcast-readiness earnings-nowcast-prospective-plan
 
 .PHONY: thesis-journal thesis-journal-preview thesis-journal-record
+.PHONY: refresh-operations-status refresh-operations-runbook
 .PHONY: earnings-nowcast-sec-actuals-stage
 .PHONY: commercial-source-rights
 
@@ -206,6 +207,8 @@ help-full:
 	@echo "  make auto-refresh-daily      Print daily price, SEC filing/share-count, and fundamentals refresh commands"
 	@echo "  make auto-refresh-runbook    Print compact scheduler runbook for SCHEDULE=daily|weekly|optional|all"
 	@echo "  make auto-refresh-status     Print source activation, setup gaps, next command, and runbook pointer"
+	@echo "  make refresh-operations-status Print read-only provider/retry planning status"
+	@echo "  make refresh-operations-runbook Print the read-only refresh operations runbook"
 	@echo "  make scheduler-activation-checklist Print the safe scheduler activation checklist"
 	@echo "  make auto-apply-gate         Evaluate deterministic auto-apply gate fields for one staged slice"
 	@echo "  make fundamentals-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the SEC/manual fundamentals proof packet with validate, preview, rejected-row, compare, and proof-record gates"
@@ -697,6 +700,12 @@ auto-refresh-runbook:
 
 auto-refresh-status:
 	@python3 -m src.auto_refresh_orchestrator --root . --schedule $(or $(SCHEDULE),daily) --status
+
+refresh-operations-status:
+	@python3 -m src.auto_refresh_orchestrator --root . --schedule $(or $(SCHEDULE),daily) --status
+
+refresh-operations-runbook:
+	@python3 -m src.auto_refresh_orchestrator --root . --schedule $(or $(SCHEDULE),daily) --runbook
 
 scheduler-activation-checklist:
 	@echo "Scheduler Activation Checklist"

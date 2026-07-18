@@ -97,6 +97,8 @@ def test_batch_quarantines_schema_provenance_duplicates_and_stale_rows():
     assert result.status == "quarantine"
     assert result.publish_snapshot is False
     assert result.rebuild_readiness is False
+    assert result.is_invalid is True
+    assert result.is_partial is False
     assert result.failure_reasons == (
         "schema_changed",
         "provenance_missing",
@@ -123,6 +125,53 @@ def test_partial_batch_is_withheld_from_preview_and_publish():
     assert result.failure_reasons == ("partial_batch",)
     assert result.preview_allowed is False
     assert result.publish_snapshot is False
+    assert result.is_partial is True
+    assert result.is_invalid is False
+
+
+def test_empty_schema_identity_fails_closed():
+    result = evaluate_refresh_batch(
+        RefreshBatch(
+            provider="sec",
+            row_count=1,
+            expected_schema_identity="",
+            received_schema_identity=" ",
+            provenance_complete=True,
+            duplicate_rows=0,
+            stale_rows=0,
+            partial_batch=False,
+        )
+    )
+
+    assert result.status == "quarantine"
+    assert result.failure_reasons == ("schema_identity_missing",)
+    assert result.is_invalid is True
+    assert result.preview_allowed is False
+
+
+def test_partial_invalid_batch_preserves_both_states():
+    result = evaluate_refresh_batch(
+        RefreshBatch(
+            provider="sec",
+            row_count=2,
+            expected_schema_identity="quarterly_actuals/v1",
+            received_schema_identity="quarterly_actuals/v2",
+            provenance_complete=False,
+            duplicate_rows=0,
+            stale_rows=0,
+            partial_batch=True,
+        )
+    )
+
+    assert result.status == "partial_invalid"
+    assert result.failure_reasons == (
+        "schema_changed",
+        "provenance_missing",
+        "partial_batch",
+    )
+    assert result.is_partial is True
+    assert result.is_invalid is True
+    assert result.preview_allowed is False
 
 
 def test_scheduler_lanes_keep_automatic_apply_disabled_and_expose_read_only_plans():
@@ -132,3 +181,5 @@ def test_scheduler_lanes_keep_automatic_apply_disabled_and_expose_read_only_plan
     assert all(policy.auto_apply is False for policy in policies)
     assert scheduler_plan.refresh_operations
     assert all(plan.automatic_apply_enabled is False for plan in scheduler_plan.refresh_operations)
+    assert all(plan.status == "blocked" for plan in scheduler_plan.refresh_operations)
+    assert all(plan.failure_reason == "provider_unavailable" for plan in scheduler_plan.refresh_operations)

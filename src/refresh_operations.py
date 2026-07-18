@@ -69,6 +69,8 @@ class RefreshBatch:
 class RefreshBatchDecision:
     status: str
     failure_reasons: tuple[str, ...]
+    is_partial: bool
+    is_invalid: bool
     preview_allowed: bool
     publish_snapshot: bool
     rebuild_readiness: bool
@@ -145,7 +147,11 @@ def evaluate_refresh_batch(batch: RefreshBatch) -> RefreshBatchDecision:
         raise ValueError("row counts cannot be negative")
 
     reasons: list[str] = []
-    if batch.expected_schema_identity != batch.received_schema_identity:
+    expected_schema = batch.expected_schema_identity.strip()
+    received_schema = batch.received_schema_identity.strip()
+    if not expected_schema or not received_schema:
+        reasons.append("schema_identity_missing")
+    elif expected_schema != received_schema:
         reasons.append("schema_changed")
     if not batch.provenance_complete:
         reasons.append("provenance_missing")
@@ -154,10 +160,16 @@ def evaluate_refresh_batch(batch: RefreshBatch) -> RefreshBatchDecision:
     if batch.stale_rows:
         reasons.append("stale_rows")
 
-    if reasons:
+    if batch.partial_batch:
+        reasons.append("partial_batch")
+
+    invalid = any(reason != "partial_batch" for reason in reasons)
+    if invalid:
         return RefreshBatchDecision(
-            status="quarantine",
+            status="partial_invalid" if batch.partial_batch else "quarantine",
             failure_reasons=tuple(reasons),
+            is_partial=batch.partial_batch,
+            is_invalid=True,
             preview_allowed=False,
             publish_snapshot=False,
             rebuild_readiness=False,
@@ -167,6 +179,8 @@ def evaluate_refresh_batch(batch: RefreshBatch) -> RefreshBatchDecision:
         return RefreshBatchDecision(
             status="partial",
             failure_reasons=("partial_batch",),
+            is_partial=True,
+            is_invalid=False,
             preview_allowed=False,
             publish_snapshot=False,
             rebuild_readiness=False,
@@ -175,6 +189,8 @@ def evaluate_refresh_batch(batch: RefreshBatch) -> RefreshBatchDecision:
     return RefreshBatchDecision(
         status="ready_for_preview",
         failure_reasons=(),
+        is_partial=False,
+        is_invalid=False,
         preview_allowed=True,
         publish_snapshot=False,
         rebuild_readiness=False,

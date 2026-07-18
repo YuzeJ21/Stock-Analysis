@@ -12,7 +12,7 @@ Every scheduled review follows the same read-only lifecycle:
 
 - A job plan records provider order, batch limit, freshness policy, schema identity, attempt history, state, and failure reason before any provider call.
 - A failed provider path is not retried again in the same session. Retry caps apply across prior attempts; if every provider is unavailable, already attempted, or capped, record the blocked result and pivot.
-- Schema changes, missing provenance, duplicate rows, and stale rows are quarantined. Partial batches are withheld from preview, snapshot publication, readiness rebuild, and change detection.
+- Missing or changed schema identity, missing provenance, duplicate rows, and stale rows are quarantined. Partial batches are withheld from preview, snapshot publication, readiness rebuild, and change detection. A batch that is both partial and invalid remains explicitly `partial_invalid`; neither condition is flattened away.
 - A clean batch can become `ready_for_preview`, but it never publishes or applies automatically. Snapshot publication, readiness rebuild, and any later apply remain separate reviewed actions.
 - The plan and status commands are descriptive only. They do not fetch, normalize, validate, quarantine, publish, rebuild, detect changes, or write data.
 
@@ -25,6 +25,8 @@ make project-status-check
 make provider-setup-checklist
 make auto-refresh-status SCHEDULE=daily
 make auto-refresh-runbook SCHEDULE=daily
+make refresh-operations-status SCHEDULE=daily
+make refresh-operations-runbook SCHEDULE=daily
 make diff-hygiene-summary
 ```
 
@@ -47,6 +49,10 @@ Do not schedule a mutating refresh or apply path. Automatic application remains 
 
 Provider setup alone is never activation proof.
 The compact activation shortcut is: source available, narrow scope, validation, preview, zero rejected rows, provenance, no fabrication, and proof recorded.
+
+The default refresh-operations status and runbook never print stage, apply, or publication commands. They stop at source preflight and read-only scope preview. A mutating command belongs in a separate, human-reviewed handoff and is never part of the scheduler plan while `auto_apply=false`.
+
+Provider availability and attempt history are session inputs. An unavailable provider fails closed. A failed provider is skipped for the rest of that session, and the bounded retry cap prevents older failures from being retried indefinitely. The CLI accepts `--available-providers`, `--session-id`, `--retry-cap`, and repeated `--provider-attempt provider:session:outcome` arguments for already-reviewed scheduler state.
 
 ## 3. Allowed Recurring Jobs
 
