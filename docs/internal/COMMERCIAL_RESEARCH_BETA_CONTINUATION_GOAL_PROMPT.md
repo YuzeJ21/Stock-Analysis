@@ -49,6 +49,7 @@ Current locally implemented capabilities to verify:
 - Fail-closed provenance, source-rights, freshness, candidate-context, and synthetic-fixture controls.
 - Peer evidence-quality contract separating relationship provenance, peer role, economic comparability, result context, trend readiness, and valuation-anchor eligibility.
 - In-memory quarterly cash-generation evidence contract with independent operating-margin, free-cash-flow, and FCF-margin states, explicit filed-Q4 enforcement, Advanced-only source lineage, and no supplemental data file, writer, template, report, or generated artifact.
+- Quarterly adapter acceptance harness for one in-memory company batch, with deterministic identity, commercial-rights, supported-field, cutoff, revision, component, compatibility, complete-period, and Q4 blockers; `accepted_for_review` always leaves production activation false and readiness promotions empty.
 
 Truth boundaries that must remain unchanged unless direct evidence proves otherwise:
 
@@ -62,6 +63,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Candidate context cannot modify deterministic forecasts or become trusted evidence.
 - A source-backed peer relationship is not automatically a valuation anchor. Only explicitly reviewed `core_peer` or `secondary_peer` rows with source/as-of provenance, relationship rationale, comparability basis, and `valuation_anchor_eligible=yes` may enter peer medians.
 - Operating margin, free cash flow, and FCF margin remain withheld for real companies until a reviewed quarterly source adapter supplies compatible explicit observations. Their readiness cannot promote Revenue, EPS, DCF, consensus, peer, catalyst, outcome, backtest, or calibration states.
+- Quarterly adapter acceptance is a local review-routing decision only. It cannot change source rights, load or write an adapter file, supply Company Workbench production observations, or promote readiness.
 
 Current external dependency classifications to verify once, then avoid looping:
 
@@ -70,6 +72,7 @@ Current external dependency classifications to verify once, then avoid looping:
 - Controlled beta: `external_reviewers_required`; no 10-20 session reviewer cohort has been completed.
 - Trusted-peer pilot: `external_source_and_review_required`; the local contract is implemented, but the existing legacy relationships have no inferred roles or anchor decisions. Resume with one bounded reviewed relationship, not a broad sourcing loop.
 - Quarterly cash-generation source adapter: `external_source_and_review_required`; the no-file local contract is implemented, but no reviewed real-company adapter has supplied compatible operating-income, cash-from-operations, and capital-expenditure observations. Resume with one bounded company and explicit filed-Q4 evidence, not broad coverage.
+- Quarterly adapter acceptance: the checked-in source-rights record must explicitly approve commercial use and list all three required component fields before a candidate can pass. The current SEC Companyfacts record does not list those fields; do not infer support or edit rights without reviewed evidence. Even `accepted_for_review` leaves real activation `external_source_and_review_required`.
 - Numerical calibration: `external_evidence_required`; keep probability withheld until the valid-event threshold and quality gates pass.
 - Operated platform controls: `external_account_and_operations_required`; authentication, workspace isolation, audit, retention, entitlements, monitoring, and health checks must be directly proven in the actual environment.
 

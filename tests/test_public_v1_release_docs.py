@@ -621,6 +621,23 @@ def test_quarterly_cash_generation_docs_preserve_no_file_and_market_maturity_bou
     assert "no supplemental data file" in prompt
 
 
+def test_quarterly_adapter_acceptance_docs_keep_review_and_activation_separate():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal_mode = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "accepted_for_review is not production activation" in methodology
+    assert "production_activation=false" in provenance
+    assert "readiness_promotions=()" in provenance
+    assert "no adapter file is loaded or written" in personal_mode
+    assert "one-company adapter acceptance harness" in roadmap
+    assert "does not prove a real-company source payload" in roadmap
+    assert "Quarterly adapter acceptance" in prompt
+    assert "accepted_for_review" in prompt
+
+
 def test_thesis_journal_docs_preserve_append_only_research_boundary():
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
