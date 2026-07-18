@@ -459,4 +459,3 @@ Keep the PR draft and do not merge or deploy.
 - [ ] **Step 4: Produce the next-goal prompt**
 
 Deliver a copy-ready prompt that starts from current repository truth, verifies the latest commit and draft PR, preserves no-file and independent-readiness boundaries, classifies the real adapter/source dependency once, and moves to the next safe local maturity gap without repeating broad source or generated-artifact loops.
-
