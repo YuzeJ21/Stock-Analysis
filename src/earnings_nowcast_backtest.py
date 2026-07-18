@@ -51,6 +51,7 @@ class BacktestReport:
     eps_interval_coverage: float | None
     joint_interval_coverage: float | None
     benchmark_metrics: Mapping[str, float]
+    benchmark_failures: tuple[str, ...]
     leakage_failures: tuple[str, ...]
     failures: tuple[str, ...]
     events: tuple[BacktestEvent, ...]
@@ -134,8 +135,11 @@ def walk_forward_backtest(
     config: NowcastConfig | None = None,
     *,
     minimum_backtest_events: int = 20,
+    maximum_snapshot_age_days: int = 90,
 ) -> BacktestReport:
     config = config or NowcastConfig()
+    if maximum_snapshot_age_days < 1:
+        raise ValueError("maximum_snapshot_age_days must be positive")
     actual_lookup = {(row.ticker, row.fiscal_period): row for row in actuals}
     events: list[BacktestEvent] = []
     failures: list[str] = []
@@ -152,20 +156,60 @@ def walk_forward_backtest(
 
     targets = sorted(actuals, key=lambda row: (row.reported_at, row.ticker, row.fiscal_period))
     for target in targets:
-        eligible_snapshots = [
+        matching_snapshots = [
             row
             for row in consensus_snapshots
             if row.ticker == target.ticker
             and row.fiscal_period == target.fiscal_period
             and parse_utc_timestamp(row.snapshot_at) < parse_utc_timestamp(target.reported_at)
         ]
+        eligible_snapshots: list[ConsensusSnapshot] = []
+        for row in matching_snapshots:
+            if parse_utc_timestamp(row.retrieved_at) >= parse_utc_timestamp(target.reported_at):
+                leakage_failures.append(
+                    f"{target.ticker} {target.fiscal_period}: consensus retrieved after target report"
+                )
+                continue
+            eligible_snapshots.append(row)
         if not eligible_snapshots:
             exclude(
                 "no_pre_report_consensus_snapshot",
                 f"{target.ticker} {target.fiscal_period}: no consensus snapshot before reported_at",
             )
             continue
-        snapshot = max(eligible_snapshots, key=lambda row: parse_utc_timestamp(row.snapshot_at))
+        latest_timestamp = max(parse_utc_timestamp(row.snapshot_at) for row in eligible_snapshots)
+        latest_snapshots = [
+            row for row in eligible_snapshots if parse_utc_timestamp(row.snapshot_at) == latest_timestamp
+        ]
+        definitions = {
+            (
+                row.revenue_consensus,
+                row.eps_consensus,
+                row.revenue_currency,
+                row.revenue_unit_scale,
+                row.revenue_basis,
+                row.eps_currency,
+                row.eps_basis,
+                row.eps_share_basis,
+                row.eps_operations_basis,
+                row.split_adjustment_basis,
+            )
+            for row in latest_snapshots
+        }
+        if len(definitions) > 1:
+            exclude(
+                "ambiguous_consensus_revision",
+                f"{target.ticker} {target.fiscal_period}: conflicting consensus rows share the latest timestamp",
+            )
+            continue
+        snapshot = sorted(latest_snapshots, key=lambda row: row.source_ref or row.source)[0]
+        snapshot_age = parse_utc_timestamp(target.reported_at) - parse_utc_timestamp(snapshot.snapshot_at)
+        if snapshot_age.days > maximum_snapshot_age_days:
+            exclude(
+                "stale_consensus_snapshot",
+                f"{target.ticker} {target.fiscal_period}: latest consensus is {snapshot_age.days} days before reported_at",
+            )
+            continue
         cutoff = snapshot.snapshot_at
         history = [
             row
@@ -259,6 +303,16 @@ def walk_forward_backtest(
         if value is not None:
             benchmarks[name] = value
 
+    revenue_mae = _mean(revenue_errors)
+    eps_mae = _mean(eps_errors)
+    benchmark_failures: list[str] = []
+    if revenue_mae is not None and "consensus_revenue_mae" in benchmarks:
+        if revenue_mae >= benchmarks["consensus_revenue_mae"]:
+            benchmark_failures.append("revenue_model_did_not_improve_consensus")
+    if eps_mae is not None and "consensus_eps_mae" in benchmarks:
+        if eps_mae >= benchmarks["consensus_eps_mae"]:
+            benchmark_failures.append("eps_model_did_not_improve_consensus")
+
     if not events:
         failures.insert(0, "No valid out-of-sample events")
     elif len(events) < minimum_backtest_events:
@@ -267,7 +321,9 @@ def walk_forward_backtest(
         )
     if leakage_failures:
         failures.append("Point-in-time leakage detected")
-    if not events or leakage_failures:
+    if len(events) >= minimum_backtest_events and benchmark_failures:
+        failures.extend(benchmark_failures)
+    if not events or leakage_failures or (len(events) >= minimum_backtest_events and benchmark_failures):
         verdict = "failed"
     elif len(events) < minimum_backtest_events:
         verdict = "insufficient"
@@ -280,10 +336,10 @@ def walk_forward_backtest(
         excluded_count=excluded_count,
         exclusion_reasons=exclusion_reasons,
         excluded_events=tuple(excluded_events),
-        revenue_mae=_mean(revenue_errors),
+        revenue_mae=revenue_mae,
         revenue_median_absolute_error=_median(revenue_errors),
         revenue_wape=(sum(revenue_errors) / revenue_actual_total if revenue_errors and revenue_actual_total else None),
-        eps_mae=_mean(eps_errors),
+        eps_mae=eps_mae,
         eps_median_absolute_error=_median(eps_errors),
         directional_accuracy=_mean(directions),
         interval_coverage=_mean(interval_hits),
@@ -291,6 +347,7 @@ def walk_forward_backtest(
         eps_interval_coverage=_mean(eps_interval_hits),
         joint_interval_coverage=_mean(joint_interval_hits),
         benchmark_metrics=benchmarks,
+        benchmark_failures=tuple(benchmark_failures),
         leakage_failures=tuple(leakage_failures),
         failures=tuple(failures),
         events=tuple(events),

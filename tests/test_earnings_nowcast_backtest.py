@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from src.earnings_nowcast_backtest import (
@@ -175,3 +177,66 @@ def test_calibration_reports_each_bin_and_human_readable_failed_gate_details():
     assert status.calibration_bins[0].meets_minimum_size is True
     assert status.failed_gate_details["minimum_100_events"].startswith("20 valid events")
     assert status.failed_gate_details["must_improve_constant_rate_benchmark"]
+
+
+def test_post_report_retrieval_is_reported_as_leakage_and_excluded():
+    snapshots = [
+        replace(
+            _consensus()[0],
+            retrieved_at="2026-04-21T00:00:00Z",
+        )
+    ]
+
+    report = walk_forward_backtest(_history_with_target(), snapshots, NowcastConfig())
+
+    assert report.verdict == "failed"
+    assert report.valid_event_count == 0
+    assert report.leakage_failures
+    assert "retrieved after target report" in report.leakage_failures[0]
+
+
+def test_conflicting_same_timestamp_consensus_revisions_are_excluded():
+    original = _consensus()[0]
+    conflicting = replace(original, source_ref="fixture://revision", revenue_consensus=999.0)
+
+    report = walk_forward_backtest(
+        _history_with_target(),
+        [original, conflicting],
+        NowcastConfig(),
+    )
+
+    assert report.valid_event_count == 0
+    assert report.exclusion_reasons["ambiguous_consensus_revision"] == 1
+
+
+def test_stale_consensus_snapshot_is_excluded_by_explicit_age_policy():
+    stale = replace(
+        _consensus()[0],
+        snapshot_at="2025-12-01T00:00:00Z",
+        retrieved_at="2025-12-01T00:01:00Z",
+    )
+
+    report = walk_forward_backtest(
+        _history_with_target(),
+        [stale],
+        NowcastConfig(),
+        maximum_snapshot_age_days=90,
+    )
+
+    assert report.valid_event_count == 0
+    assert report.exclusion_reasons["stale_consensus_snapshot"] == 1
+
+
+def test_benchmark_non_improvement_is_an_explicit_failed_gate():
+    perfect_consensus = replace(_consensus()[0], revenue_consensus=112.0, eps_consensus=1.0)
+
+    report = walk_forward_backtest(
+        _history_with_target(),
+        [perfect_consensus],
+        NowcastConfig(),
+        minimum_backtest_events=1,
+    )
+
+    assert report.verdict == "failed"
+    assert "revenue_model_did_not_improve_consensus" in report.benchmark_failures
+    assert "eps_model_did_not_improve_consensus" in report.benchmark_failures
