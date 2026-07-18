@@ -20,19 +20,19 @@ Default personal-research flow: **Research Desk -> Discover -> Company Workbench
 
 Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History**. Operator mode remains the source/proof workflow. Data Health and Proof History are Advanced Evidence in Personal Research mode, not equal primary destinations.
 
-## Now: Prove Repeated Personal Usefulness
+## Now: Commercial Research Beta Foundation
 
-**Goal:** turn the existing evidence, valuation, journal, scenario, peer, and nowcast capabilities into a repeated focused-company workflow before adding broad coverage or more public-demo surface area.
+**Goal:** turn the proven Personal Research workflow into a controlled, rights-aware beta foundation without claiming hosting, licensed broad coverage, calibrated prediction, or commercial launch readiness.
 
-1. **Implemented:** use Personal Research mode with a deterministic 25-company operating-company/ADR cohort; do not imply broad-universe analysis readiness. The next evidence task is repeated owner use, not a larger cohort.
-2. **Infrastructure implemented, real rows gated:** source-backed quarterly Revenue/EPS trend review preserves revision lineage, compatible definitions, explicit missing periods, and no-derived-Q4 policy. Real output remains blocked when canonical quarterly actuals are absent.
-3. Improve Forward View evidence quality using existing scenarios, trusted peer context, Earnings Outlook state, and reviewed thesis evidence; do not add a new prediction model.
-4. **Weekly review implemented:** a read-only seven-day summary combines deduplicated source-backed changes with reviewer-authored review dates. Daily price/filing scheduling remains deferred until a reliable refresh operation is proven.
-5. Record whether the workflow reduces time to find changed evidence, understand valuation boundaries, and choose the next research task.
+1. **Implemented locally:** the source-rights registry fails closed in explicit commercial mode; unverified Yahoo/yfinance rights remain research-only.
+2. **Implemented locally:** a deterministic maximum-50 focused-cohort matrix separates usable, partial, candidate-only, blocked, and excluded lanes without broad-universe readiness claims.
+3. **Implemented locally:** quarterly Revenue/EPS trend and exact-period Forward View contracts preserve revision lineage, production provenance, freshness downgrades, no-derived-Q4 policy, and independent calibration gates.
+4. **Implemented locally:** controlled refresh and private-beta readiness contracts describe deterministic failure handling and external account requirements without enabling automatic apply or claiming hosted capabilities.
+5. **Next evidence:** run 10-20 task-based beta sessions after a controlled delivery path exists; measure time to first answer, readiness comprehension, misuse risk, trust, performance, and repeat-use intent.
 
-**Exit gate:** the owner can repeatedly move from changed evidence to one company review and a documented next research action without entering Operator mode or mistaking workflow states for recommendations.
+**Exit gate:** local release gates pass; one permitted source path demonstrates repeatable provenance and freshness; a controlled host enforces the claimed access boundary; and 10-20 reviewers can complete the primary workflow without mistaking it for advice or live-market certainty.
 
-**Stop rule:** do not prioritize hosted deployment, external reviewers, authentication, broad universe expansion, or additional public-demo polish ahead of repeated personal usefulness.
+**Stop rule:** do not call this commercially launched, authenticated, predictive, broadly licensed, or externally validated until those separate external gates are proven. Do not reopen broad source loops merely to increase counts.
 
 ## Completed Regression Gate
 
@@ -96,7 +96,7 @@ Repository-side preparation is complete. The remaining deployment work requires 
 
 **Goal:** validate whether an external reviewer can understand the product in under three minutes.
 
-1. Share the GitHub demo package with 5-10 reviewers.
+1. Share the controlled beta package with 10-20 reviewers after the delivery boundary is verified.
 2. Ask reviewers to follow the public visitor flow without operator instructions.
 3. Record only concrete issues: where they started, what they thought was usable, what looked blocked, and what they expected to do next.
 4. Prioritize reproducible first-viewport, wording, routing, or accessibility defects. Do not use pilot feedback to weaken readiness gates.

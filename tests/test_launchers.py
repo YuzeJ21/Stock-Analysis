@@ -320,7 +320,7 @@ def test_makefile_help_documents_key_workflows():
         "make public-ux-review-note",
         "Record one local UX review note row without staging or refreshing data",
         "make pilot-review-feedback",
-        "Print the controlled 5-10 reviewer feedback capture guide",
+        "Print the controlled 10-20 reviewer feedback capture guide",
         "make project-status-check",
         "Print project status without writing dashboard snapshot files",
         "make readiness-ops-center",

@@ -57,7 +57,7 @@ def test_pilot_review_feedback_make_target_is_read_only_and_discoverable():
     assert "docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md" in target
     assert "docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv" in target
     assert "cp docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv /tmp/stock-command-center-pilot-feedback.csv" in target
-    assert "5-10 external reviewers" in target
+    assert "10-20 external reviewers" in target
     assert "not data proof" in target.lower()
     assert "does not refresh data, import rows, stage files, commit, push, or deploy" in target
     assert "Commit a feedback log only after removing personal information" in target
@@ -153,3 +153,29 @@ def test_pilot_review_invitation_is_a_short_privacy_safe_entry_point():
     assert "not data proof" in invitation.lower()
     assert "docs/PILOT_REVIEW_INVITATION.md" in readme
     assert "docs/PILOT_REVIEW_INVITATION.md" in linkedin_brief
+
+
+def test_commercial_beta_pilot_contract_is_task_based_and_truthful():
+    roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
+    readme = Path("README.md").read_text(encoding="utf-8")
+    runbook = Path("docs/PILOT_RUNBOOK.md").read_text(encoding="utf-8")
+    decision = Path("docs/PRODUCT_DIRECTION_DECISION.md").read_text(encoding="utf-8")
+
+    assert "## Now: Commercial Research Beta Foundation" in roadmap
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in roadmap
+    assert "local Commercial Research Beta foundation" in readme
+    assert "not a hosted or commercially launched product" in readme
+    assert "10 to 20" in runbook
+    for metric in (
+        "Task success",
+        "Time to first answer",
+        "Readiness comprehension",
+        "Misuse risk",
+        "Trust in evidence",
+        "Perceived performance",
+        "Repeat-use case",
+    ):
+        assert metric in runbook
+    assert "awaiting_external_review" in decision
+    assert "awaiting_reviewed_source" in decision
+    assert "external_account_required" in decision

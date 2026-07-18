@@ -43,7 +43,7 @@ Evidence expected:
 
 | Criterion | Evidence required | Current state |
 | --- | --- | --- |
-| Reviewer demand | Observed task completion, repeat-use case, and return intent from 5-10 controlled reviewers. | `awaiting_external_review` |
+| Reviewer demand | Observed task completion, repeat-use case, and return intent from 10-20 controlled reviewers. | `awaiting_external_review` |
 | Operating burden | Measured deployment, refresh, review, incident, and support work. | Local gates known; hosted burden unknown. |
 | Data licensing | Written rights and attribution boundaries for every operated provider/source. | Controlled repo license exists; operated data rights are not established. |
 | Provider reliability | Repeated source availability, deterministic limits, rejection handling, and provenance. | Optional keyed providers remain unconfigured; source-proof queues are exhausted. |
@@ -55,9 +55,9 @@ Evidence expected:
 
 - Local five-route desktop/mobile performance gate: passed on the fixed demo snapshot.
 - Public package: pilot-ready with manual gates.
-- Hosted URL: `external_account_required`.
+- Hosted URL and enforced private access: `external_account_required`.
 - Controlled reviewer findings: `awaiting_external_review`.
-- Trusted-peer expansion: `awaiting_reviewed_source`.
+- Trusted-peer expansion and any commercial-use peer rights: `awaiting_reviewed_source`.
 - Optional earnings and estimates: intentionally locked until trusted rows exist.
 
 ## Decision Rule
@@ -67,8 +67,8 @@ Do not infer demand from repository activity, screenshots, test counts, or the c
 Revisit the decision only after:
 
 1. A hosted or otherwise reproducible external delivery path is verified.
-2. Five to ten reviewers complete the task-based pilot.
+2. Ten to twenty reviewers complete the task-based pilot.
 3. Critical trust, comprehension, performance, and methodology findings are closed or intentionally deferred.
 4. A 25-50 company trusted-peer pilot has actual reviewed source relationships, or is explicitly rejected as uneconomic.
 
-Until then, the truthful label is **performance-verified controlled research prototype, preparing for external pilot**.
+Until then, the truthful label is **local Commercial Research Beta foundation, preparing for controlled external validation**.

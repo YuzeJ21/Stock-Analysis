@@ -1,6 +1,6 @@
 # Controlled Pilot Review Feedback
 
-Use this template with 5-10 external reviewers after they open the GitHub demo package or the local `demo` profile. It measures product clarity and workflow reliability only. It does not collect market data, validate a source, change readiness, or support an investment conclusion.
+Use this template with 10-20 external reviewers after they open a verified controlled delivery path or the local `demo` profile. It measures product clarity and workflow reliability only. It does not collect market data, validate a source, change readiness, or support an investment conclusion.
 
 ## Reviewer Task
 
@@ -45,7 +45,7 @@ Do not ask whether the reviewer would buy or sell a security. Do not collect a p
 
 ## Capture Sheet
 
-Record one row per review session outside the repository unless the note contains no personal information. Use `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` as the copy/paste header when you want comparable rows across 5-10 reviewers; keep the working copy outside Git unless it is intentionally anonymized review evidence.
+Record one row per review session outside the repository unless the note contains no personal information. Use `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` as the copy/paste header when you want comparable rows across 10-20 reviewers; keep the working copy outside Git unless it is intentionally anonymized review evidence.
 
 | Field | Record |
 | --- | --- |

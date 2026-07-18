@@ -19,7 +19,7 @@ help:
 	@echo "  make project-status-check       Read current coverage, blockers, and executable next steps"
 	@echo "  make provider-setup-checklist   Review optional key setup without exposing secrets"
 	@echo "  make hosted-demo-readiness      Check hosted-app readiness without deploying"
-	@echo "  make pilot-review-feedback      Print the controlled 5-10 reviewer feedback capture guide"
+	@echo "  make pilot-review-feedback      Print the controlled 10-20 reviewer feedback capture guide"
 	@echo "  make pilot-feedback-closeout    Print the reviewer feedback closeout and fix/defer checklist"
 	@echo "  make scheduler-activation-checklist Print the safe scheduler activation checklist"
 	@echo "  make public-check / public-release-handoff Verify sharing and terminal steps"
@@ -155,7 +155,7 @@ help-full:
 	@echo "  make public-ux-review-note"
 	@echo "                        Record one local UX review note row without staging or refreshing data"
 	@echo "  make pilot-review-feedback"
-	@echo "                        Print the controlled 5-10 reviewer feedback capture guide"
+	@echo "                        Print the controlled 10-20 reviewer feedback capture guide"
 	@echo "  make pilot-feedback-closeout"
 	@echo "                        Print the reviewer feedback closeout and fix/defer checklist"
 	@echo "  make readiness-ops-center"
@@ -447,7 +447,7 @@ public-ux-review-note:
 
 pilot-review-feedback:
 	@echo "Controlled Pilot Review Feedback"
-	@echo "Read-only: this target prints the 5-10 external reviewers feedback capture guide."
+	@echo "Read-only: this target prints the 10-20 external reviewers feedback capture guide."
 	@echo "It does not refresh data, import rows, stage files, commit, push, or deploy."
 	@echo "Research-only: pilot feedback is product clarity evidence, not data proof, source proof, data freshness proof, investment advice, broker integration, or a trade instruction."
 	@echo ""

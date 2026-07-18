@@ -114,7 +114,9 @@ make stock-report-md TICKER=<ticker>
 
 Coverage gate: No broad coverage batch should run from setup alone. Provider setup is only an activation boundary: it can activate a source, but readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence. Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.
 
-Use 5 to 10 operating companies for the controlled pilot. ETF/index examples such as QQQ and SMH are useful monitor-context demos, but they are not operating-company DCF targets.
+Use 5 to 10 operating companies as the fixed research cohort and run 10 to 20 task-based reviewer sessions. ETF/index examples such as QQQ and SMH are useful monitor-context demos, but they are not operating-company DCF targets.
+
+Measure each session with the privacy-safe feedback template: **Task success**, **Time to first answer**, **Readiness comprehension**, **Misuse risk**, **Trust in evidence**, **Perceived performance**, and **Repeat-use case**. These measures test workflow value and comprehension only; they do not validate market data, model accuracy, or investment outcomes.
 
 ## 5. Refresh Data Safely
 
@@ -297,7 +299,7 @@ If `make dashboard-smoke` cannot bind a local socket in a restricted environment
 
 Exit the controlled pilot when:
 
-- 5 to 10 selected operating-company packets have outcome states recorded as `supported`, `candidate_context_only`, `still_blocked`, `skipped`, or `excluded`.
+- The fixed 5 to 10 operating-company cohort has truthful outcome states and 10 to 20 anonymous task-based reviewer sessions are completed or explicitly `awaiting_external_review`.
 - Every supported lane has source proof, validation, preview, rejected-row review, rebuilt readiness, regenerated report, and proof-ledger evidence.
 - Operators can complete the workflow from dashboard, runbook, and CLI commands without guessing the next gate.
 - Public/release checks pass in the target environment.

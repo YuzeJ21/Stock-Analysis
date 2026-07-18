@@ -3,8 +3,8 @@ A local, CSV-first workspace for repeated company research, valuation review, fo
 > Data readiness first, analysis second, research decision last.
 ![Dashboard preview](docs/assets/public-demo-home-real.jpg)
 
-## Personal Research Start Here
-
+## Commercial Research Beta Start Here
+This repository now contains a **local Commercial Research Beta foundation** built around the existing Personal Research workflow. It is not a hosted or commercially launched product. Authentication, private workspaces, operated data rights, real beta users, and repeatable provider operations remain separate gates.
 The default local path is **Research Desk -> Discover -> Company Workbench -> Monitor**. Run `make dashboard`, then open `http://localhost:8501/`. Public remains the controlled demo; Operator context remains the source/proof workspace. Data Health and Proof History stay under **Advanced Evidence**. See [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) for workflow states and truth boundaries.
 
 ## External Reviewer Start Here
