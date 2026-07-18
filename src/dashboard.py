@@ -278,6 +278,7 @@ from src.focused_cohort_coverage import (
     derive_cohort_evidence,
     focused_cohort_coverage_frame,
 )
+from src.forward_view import build_forward_view, forward_view_cards, forward_view_rows
 from src.quarterly_business_trend import (
     QuarterlyTrendPacket,
     build_quarterly_trend_packet,
@@ -30100,6 +30101,31 @@ def render_single_stock_report(
             coverage if provider is not None and ticker else None,
             peer_summary if provider is not None and ticker else None,
         )
+        journal_state = None
+        journal_error = ""
+        try:
+            journal_state = load_dashboard_journal_state(
+                profile_context or build_profile_context(project_root=BASE_DIR),
+                ticker=ticker,
+            )
+        except ValueError as exc:
+            journal_error = str(exc)
+        trend_packet = quarterly_trend_packet or load_dashboard_quarterly_trend(ticker)
+        peer_read_through = build_peer_read_through_map(
+            report_payload,
+            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+        )
+        nowcast_packet = report_payload.get("earnings_nowcast")
+        if not isinstance(nowcast_packet, dict):
+            nowcast_packet = None
+        forward_view_packet = build_forward_view(
+            report_payload,
+            trend_packet,
+            journal_state=journal_state,
+            peer_map=peer_read_through,
+            nowcast_packet=nowcast_packet,
+            freshness_state=(profile_context or build_profile_context(project_root=BASE_DIR)).freshness_state,
+        )
         if public_mode:
             if research_mode:
                 st.markdown(
@@ -30125,7 +30151,6 @@ def render_single_stock_report(
                     variant="queue",
                 )
                 st.markdown("### Business Trend")
-                trend_packet = quarterly_trend_packet or load_dashboard_quarterly_trend(ticker)
                 render_signal_cards(quarterly_trend_cards(trend_packet), show_commands=False, variant="queue")
                 with st.expander("Advanced: quarterly trend evidence", expanded=False):
                     st.dataframe(pd.DataFrame(quarterly_trend_rows(trend_packet)), width="stretch", hide_index=True)
@@ -30137,7 +30162,15 @@ def render_single_stock_report(
                     variant="queue",
                 )
                 st.markdown("### Forward View")
-            render_signal_cards(nowcast_summary_cards(None, ticker=ticker), show_commands=False, variant="queue")
+                render_signal_cards(forward_view_cards(forward_view_packet), show_commands=False, variant="queue")
+                with st.expander("Advanced: Forward View evidence", expanded=False):
+                    st.dataframe(pd.DataFrame(forward_view_rows(forward_view_packet)), width="stretch", hide_index=True)
+                    st.caption(
+                        f"Model {forward_view_packet.model_version}; cutoff {forward_view_packet.source_cutoff or 'unavailable'}. "
+                        "Candidate context never changes numerical scenarios."
+                    )
+            else:
+                render_signal_cards(nowcast_summary_cards(None, ticker=ticker), show_commands=False, variant="queue")
             if research_mode:
                 st.markdown("### What Remains Withheld")
                 withheld = [
@@ -30169,20 +30202,15 @@ def render_single_stock_report(
                 st.table(clean_display_frame(single_answer_frame))
                 st.table(clean_display_frame(report_answer_frame))
                 render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
-        journal_state = None
-        try:
-            journal_state = load_dashboard_journal_state(
-                profile_context or build_profile_context(project_root=BASE_DIR),
-                ticker=ticker,
-            )
+        if journal_state is not None:
             journal_summary = research_thesis_journal_summary(journal_state)
-        except ValueError as exc:
+        else:
             journal_summary = {
                 "status": "unavailable",
                 "title": "Research journal unavailable",
                 "answer": "The reviewed journal could not be verified for this selected profile and ticker.",
                 "evidence": "No thesis or evidence claim is shown.",
-                "boundary": str(exc),
+                "boundary": journal_error or "No reviewed journal evidence is available.",
                 "confidence": "",
                 "primary_action": "Review the journal contract before using it",
             }

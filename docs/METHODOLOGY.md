@@ -375,6 +375,14 @@ Historical evaluation is chronological walk-forward only. The target actual and 
 
 The committed `SYN1`-`SYN5` cohort is synthetic test evidence only. The intended five-company SEC staging scope is NVDA, AMD, AVGO, MU, and QCOM, but real pilot output remains `awaiting_point_in_time_consensus` until exact historical consensus evidence is present. This proves neither real semiconductor coverage, predictive accuracy, nor data freshness. The pilot does not predict post-earnings price movement and does not provide investment advice.
 
+### Forward View V1
+
+Forward View is a deterministic composition of existing evidence, not a second forecast or valuation engine. It keeps five lanes separate: explicit quarterly Revenue/EPS trend, source-backed DCF bull/base/bear scenarios, trusted peer read-through, reviewer-authored thesis evidence, and the independently gated Earnings Outlook.
+
+Scenario values appear only when DCF readiness passes, source metadata retains both source and source reference, and all three bounded scenarios calculate from the same saved report. Stale profile evidence is labeled partial. Candidate peers, news context, generated narrative, and journal text cannot change Revenue, EPS, DCF assumptions, valuation scenarios, or probabilities. Numerical surprise probability remains governed by the Earnings Nowcast calibration gate.
+
+Every Forward View packet shows its source cutoff, saved-profile freshness, model version, withheld fields, and one next research task. Missing or incompatible evidence fails closed. The result describes plausible assumption cases and research wait conditions; it does not predict post-earnings price direction, rank companies, or provide an investment recommendation.
+
 ## 13. Methodology Limits
 
 This is not a full data-vendor terminal, analyst-estimate service, or execution workflow. The useful strength is transparency: the app shows exactly what local data supports and refuses to overstate missing analysis.

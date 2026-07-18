@@ -169,3 +169,15 @@ def test_research_desk_keeps_full_cohort_coverage_under_advanced_evidence():
     assert "focused_cohort_coverage_cards(coverage)" in desk
     assert 'with st.expander("Advanced Evidence", expanded=False):' in desk
     assert "focused_cohort_coverage_frame(coverage)" in desk
+
+
+def test_company_workbench_uses_composed_forward_view_and_keeps_details_advanced():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    render_start = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_start)
+    render = source[render_start:render_end]
+
+    assert "build_forward_view(" in render
+    assert "forward_view_cards(forward_view_packet)" in render
+    assert 'st.expander("Advanced: Forward View evidence", expanded=False)' in render
+    assert "forward_view_rows(forward_view_packet)" in render
