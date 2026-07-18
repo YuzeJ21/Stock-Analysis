@@ -25,7 +25,7 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "First review move: open Stock Selector" in readme
     assert "screenshots are product evidence only" in readme
     assert "| What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |" in readme
-    assert "Start with the five public paths" in readme
+    assert "The controlled Public workspace keeps its existing five-page path" in readme
     assert "| Home |" in readme
     assert "| Stock Selector |" in readme
     assert "| Single-Stock Report |" in readme
@@ -115,35 +115,29 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
 def test_readme_has_compact_current_next_stages_for_external_reviewers():
     readme = _read("README.md")
 
+    assert "## Personal Research Start Here" in readme
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in readme
+    assert "Public remains the controlled demo" in readme
+    assert "Data Health and Proof History stay under **Advanced Evidence**" in readme
     assert "## Now / Next / Not Yet" in readme
     assert "| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, manual gates, and a locally passed performance gate. | Use `make public-check` before sharing; keep generated churn excluded and do not treat local timing as hosted proof. |" in readme
     assert "| Next | Optional controlled hosted preview and task-based external pilot review. | Hosting remains external until a URL is verified; reviewer feedback must remain anonymous workflow evidence, not investment opinion. |" in readme
     assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |" in readme
     assert "This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified." in readme
-    assert "## Current Next Stages" in readme
-    assert "| Performance release candidate | Passed locally on the fixed demo profile | Re-run `make public-performance-gate` for current route evidence; do not mix measurements with broad data refreshes or treat local timing as hosted proof. |" in readme
-    assert "| LinkedIn publish | Ready after GitHub sync | If the branch is ahead, push reviewed commits after `make public-check`; if GitHub is synced, use the GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |" in readme
-    assert "| Hosted Streamlit demo | External account required | Run `make hosted-demo-readiness`, then follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |" in readme
-    assert "| FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |" in readme
-    assert "| Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |" in readme
-    assert "| Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |" in readme
-    assert "| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |" in readme
-    assert "| Public UX polish | Share-review ready locally | Public checks, browser evidence, and repeated local cold/warm route timings pass; hosted-route verification and external reviewer evidence are still required before calling it a hosted or externally validated product. |" in readme
-    assert "| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |" in readme
     assert "The local fixed-demo performance gate has passed and remains a regression check" in readme
     assert "The active evidence stage is a narrow, append-only Earnings Nowcast pilot" in readme
     assert "hosting and external review remain separate external stages" in readme
-    assert readme.index("## External Reviewer Start Here") < readme.index("## Current Next Stages")
+    assert readme.index("## Personal Research Start Here") < readme.index("## External Reviewer Start Here")
     assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Not Yet")
-    assert readme.index("## Now / Next / Not Yet") < readme.index("## Current Next Stages")
-    assert readme.index("## Current Next Stages") < readme.index("## What You Can Analyze")
+    assert readme.index("## Now / Next / Not Yet") < readme.index("## What You Can Analyze")
 
 
 def test_public_status_language_keeps_share_review_ready_local_only():
     readme = _read("README.md")
 
-    assert "| Public UX polish | Share-review ready locally |" in readme
-    assert "hosted-route verification and external reviewer evidence are still required" in readme
+    assert "This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo." in readme
+    assert "It is not currently published as a hosted Streamlit app." in readme
+    assert "Hosting remains external until a URL is verified" in readme
     assert "make public-performance-gate" in readme
 
 

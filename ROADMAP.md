@@ -16,7 +16,23 @@ Use live, read-only commands instead of static counts:
 
 The product deliberately separates the tracked master universe, active universe, and analysis-ready subset. It must never imply that the whole tracked universe is analysis-ready.
 
-Public visitor flow: **Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History**.
+Default personal-research flow: **Research Desk -> Discover -> Company Workbench -> Monitor**.
+
+Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History**. Operator mode remains the source/proof workflow. Data Health and Proof History are Advanced Evidence in Personal Research mode, not equal primary destinations.
+
+## Now: Prove Repeated Personal Usefulness
+
+**Goal:** turn the existing evidence, valuation, journal, scenario, peer, and nowcast capabilities into a repeated focused-company workflow before adding broad coverage or more public-demo surface area.
+
+1. Use Personal Research mode with a focused 25-50 operating-company cohort; do not imply broad-universe analysis readiness.
+2. Strengthen source-backed quarterly business-trend review and make unavailable periods explicit.
+3. Improve Forward View evidence quality using existing scenarios, trusted peer context, Earnings Outlook state, and reviewed thesis evidence; do not add a new prediction model.
+4. Run read-only daily price/filing checks and a weekly research-summary review only after their source/freshness boundaries are explicit.
+5. Record whether the workflow reduces time to find changed evidence, understand valuation boundaries, and choose the next research task.
+
+**Exit gate:** the owner can repeatedly move from changed evidence to one company review and a documented next research action without entering Operator mode or mistaking workflow states for recommendations.
+
+**Stop rule:** do not prioritize hosted deployment, external reviewers, authentication, broad universe expansion, or additional public-demo polish ahead of repeated personal usefulness.
 
 ## Completed Regression Gate
 
@@ -58,7 +74,7 @@ Use the tracked `data/demo/manifest.json` snapshot as the fixed performance data
 
 **Stop rule:** a missing browser dependency is `environment_limited`, not a pass. Keep timing JSON and screenshots generated and unstaged unless one concise artifact is intentionally reviewed.
 
-## External Stages
+## Later External Stages
 
 ### P1: Controlled Hosted Preview Verification
 
@@ -91,7 +107,7 @@ Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) t
 
 **Stop rule:** do not call pilot feedback data proof; it only validates product clarity and workflow reliability.
 
-## Now
+## Implemented Product Capabilities
 
 ### P2: Scenario Lab - Implemented
 
@@ -155,7 +171,7 @@ Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`; 
 
 **Stop rule:** do not substitute current analyst estimates for historical point-in-time snapshots, use post-cutoff evidence, infer numeric adjustments from text, claim predictive accuracy from fixtures, or predict post-earnings price movement.
 
-## Next
+## Next: Focused-Cohort Evidence
 
 ### P2: FMP One-Ticker Source Smoke
 

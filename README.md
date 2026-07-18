@@ -1,7 +1,12 @@
 # Stock Research Command Center
-A local, CSV-first research dashboard for screening stocks, reviewing portfolio names, and seeing exactly which data is ready to support analysis.
+A local, CSV-first workspace for repeated company research, valuation review, forward-view evidence, and truthful data-readiness decisions.
 > Data readiness first, analysis second, research decision last.
 ![Dashboard preview](docs/assets/public-demo-home-real.jpg)
+
+## Personal Research Start Here
+
+The default local path is **Research Desk -> Discover -> Company Workbench -> Monitor**. Run `make dashboard`, then open `http://localhost:8501/`. Public remains the controlled demo; Operator context remains the source/proof workspace. Data Health and Proof History stay under **Advanced Evidence**. See [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) for workflow states and truth boundaries.
+
 ## External Reviewer Start Here
 This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo. It is not currently published as a hosted Streamlit app.
 
@@ -19,7 +24,8 @@ This repository is ready to review as a controlled GitHub/LinkedIn portfolio dem
 | What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |
 | What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |
 
-First review move: open Stock Selector, choose a ticker such as `NVDA`, read the Single-Stock Report answer, then open Data Health only when an input is blocked. The selected-profile trust strip follows [Data Profiles](docs/DATA_PROFILES.md) and shows source/readiness dates, identity, freshness, and matching counts. The local Change Monitor queues same-profile evidence changes as research tasks, never recommendations. The append-only Research Thesis Journal preserves reviewer-authored hypotheses, evidence, invalidation conditions, confidence history, and review dates without changing readiness. The session-local Scenario Lab varies bounded DCF assumptions without writing canonical data. The Source Freshness Timeline separates effective, retrieval, market, and report times. The operator-only Research Comparison View compares two or three selected tickers across evidence availability and reviewed journal context without a score or winner. The Peer Read-Through Map keeps candidate and trusted relationships separate and withholds contextual read-through until relationship, result, and fiscal-timing evidence are explicit. The Decision-Process Scorecard reviews documentation discipline without grading the company or measuring returns; see [Methodology](docs/METHODOLOGY.md).
+First personal-research move: open Discover, choose a ticker such as `NVDA`, and open Company Workbench. Use Monitor for source-backed changes; open Data Health only when a missing input is the question. The selected-profile trust strip follows [Data Profiles](docs/DATA_PROFILES.md) and shows source/readiness dates, identity, freshness, and matching counts. The local Change Monitor queues same-profile evidence changes as research tasks, never recommendations. The append-only Research Thesis Journal preserves reviewer-authored hypotheses, evidence, invalidation conditions, confidence history, and review dates without changing readiness. The session-local Scenario Lab varies bounded DCF assumptions without writing canonical data. The Source Freshness Timeline separates effective, retrieval, market, and report times. The operator-only Research Comparison View compares two or three selected tickers across evidence availability and reviewed journal context without a score or winner. The Peer Read-Through Map keeps candidate and trusted relationships separate and withholds contextual read-through until relationship, result, and fiscal-timing evidence are explicit. The Decision-Process Scorecard reviews documentation discipline without grading the company or measuring returns; see [Methodology](docs/METHODOLOGY.md).
+First review move: open Stock Selector, choose a ticker such as `NVDA`, read the Single-Stock Report answer, then open Data Health only when an input is blocked.
 ## What It Does
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
 
@@ -29,10 +35,10 @@ The repository includes a readiness-gated, deterministic synthetic-fixture workf
 This infrastructure does not establish real-company coverage or predictive accuracy. Real semiconductor output remains blocked until append-only point-in-time consensus and quarterly actual histories are source-backed. Numerical Beat/Miss probability is withheld until at least 100 leakage-safe out-of-sample events pass calibration and benchmark gates. The pilot does not predict post-earnings price movement and remains research-only, not investment advice.
 ```mermaid
 flowchart LR
-    Home["Home: workflow start"] --> Selector["Stock Selector: readiness-backed queue"]
-    Selector --> Report["Single-Stock Report: one ticker"]
-    Report --> Health["Data Health: missing input"]
-    Health --> Proof["Proof History: source-proof trail"]
+    Desk["Research Desk: changed evidence"] --> Discover["Discover: readiness-backed company"]
+    Discover --> Workbench["Company Workbench: trend, valuation, forward view"]
+    Workbench --> Monitor["Monitor: unresolved research changes"]
+    Workbench -. advanced evidence .-> Health["Data Health and Proof History"]
 ```
 ## Now / Next / Not Yet
 This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified.
@@ -41,20 +47,6 @@ This is the fastest reviewer answer: the product is shareable as a controlled de
 | Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, manual gates, and a locally passed performance gate. | Use `make public-check` before sharing; keep generated churn excluded and do not treat local timing as hosted proof. |
 | Next | Optional controlled hosted preview and task-based external pilot review. | Hosting remains external until a URL is verified; reviewer feedback must remain anonymous workflow evidence, not investment opinion. |
 | Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |
-## Current Next Stages
-Use this table to decide what to do next without reopening exhausted proof loops or overstating the public demo.
-| Stage | Current state | Next safe move |
-| --- | --- | --- |
-| Performance release candidate | Passed locally on the fixed demo profile | Re-run `make public-performance-gate` for current route evidence; do not mix measurements with broad data refreshes or treat local timing as hosted proof. |
-| LinkedIn publish | Ready after GitHub sync | If the branch is ahead, push reviewed commits after `make public-check`; if GitHub is synced, use the GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |
-| Hosted Streamlit demo | External account required | Run `make hosted-demo-readiness`, then follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |
-| FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |
-| Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |
-| Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |
-| Earnings Nowcast evidence | Real-data safety gates ready; real evidence blocked | Use the versioned templates and prospective plan; add no real output until comparable quarterly actuals and point-in-time consensus pass conflict, cutoff, validation, and readiness gates. |
-| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |
-| Public UX polish | Share-review ready locally | Public checks, browser evidence, and repeated local cold/warm route timings pass; hosted-route verification and external reviewer evidence are still required before calling it a hosted or externally validated product. |
-| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |
 ## What You Can Analyze
 When trusted local data is available, the product can produce price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, portfolio purpose checks, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 ## How Analysis Works
@@ -90,7 +82,15 @@ This is a working local research prototype with deterministic outputs, dashboard
 Useful with limits: price/momentum, fundamentals/DCF, peer review, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer comparison, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker/execution system, or auto-refreshing trading system.
 
 ## Product Tour
-Start with the five public paths the dashboard is built around:
+For repeated local use, start with the four Personal Research destinations:
+| Path | Use it when | First answer |
+| --- | --- | --- |
+| Research Desk | You want changed evidence, attention items, blocked/stale work, and the next research action. | What changed since the last comparable review? |
+| Discover | You want to filter readiness-backed companies without a buy ranking. | Which company can support review now? |
+| Company Workbench | You want one company answer spanning data usability, business trend, valuation, forward context, uncertainty, and next review work. | What can I use now, and what remains withheld? |
+| Monitor | You want unresolved source-backed changes and wait conditions. | Which evidence change needs review? |
+
+The controlled Public workspace keeps its existing five-page path:
 | Path | Use it when | First place to open |
 | --- | --- | --- |
 | Home | You want the workflow question, next safe action, stop rule, and then readiness context before choosing a route. | `Home` |
@@ -98,14 +98,14 @@ Start with the five public paths the dashboard is built around:
 | Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |
 | Data Health | You want to understand what trusted input is missing and which proof path should be reviewed next. | `Data Health` |
 | Proof History | You want one evidence answer before opening raw proof ledger details. | `Proof History` |
-The dashboard starts in public visitor mode at `http://localhost:8501/?mode=public`.
+The dashboard starts in Personal Research mode at `http://localhost:8501/`. Public review remains available at `http://localhost:8501/?mode=public`.
 - Home answers what the product is, where to start, and when to stop.
 - Stock Selector filters readiness-backed candidates without framing the queue as advice.
 - Single-Stock Report shows selected-ticker readiness, usable sections, blocked inputs, and one next step before detailed report sections.
 - Data Health starts with Coverage Summary / What Can I Use, one answer per lane, and advanced proof drawers collapsed.
 - Proof History is evidence-only before trusting a changed readiness state.
 
-Switch off Public visitor mode only for internal Operator context, detailed boards, local proof commands, and validate / preview / apply guidance. Advanced pages remain secondary, and watchlist-style outputs stay readiness-state output, not an action list.
+Choose Operator only for detailed boards, local proof commands, and validate / preview / apply guidance. Advanced pages remain secondary, and watchlist-style outputs stay readiness-state output, not an action list.
 
 ## Quick Start
 Run these from the repository root so `make` can find the project targets. Open the product before proof packets or report commands so reviewers see the guided workflow before operator detail.

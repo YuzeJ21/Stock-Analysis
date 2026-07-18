@@ -129,6 +129,8 @@ from src.dashboard_navigation import (
     PUBLIC_DEMO_MODE,
     PUBLIC_PATH_LABELS,
     PUBLIC_PATH_PAGE_TITLES,
+    RESEARCH_MODE,
+    RESEARCH_PATH_PAGE_TITLES,
     STOCK_SELECTOR_PATH_TITLE,
     advanced_page_titles as _advanced_page_titles,
     dashboard_mode_from_query as _dashboard_mode_from_query,
@@ -140,6 +142,8 @@ from src.dashboard_navigation import (
     public_workflow_position,
     public_workflow_step,
     route_rail_query_update,
+    research_path_label,
+    research_path_options,
     selected_page_from_route_rail,
     sidebar_path_index as _sidebar_path_index,
     sidebar_path_options as _sidebar_path_options,
@@ -302,6 +306,14 @@ from src.review_metrics import build_metric_readiness_summary, configured_risk_f
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
 from src.profile_context import ProfileContext, build_profile_context
+from src.research_workspace import (
+    advanced_evidence_links_html,
+    company_workbench_section_contract,
+    research_desk_cards,
+    research_desk_cards_html,
+    research_monitor_frame,
+    research_workspace_header_html,
+)
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.paths import resolve_data_dir, resolve_data_profile, resolve_outputs_dir
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
@@ -352,8 +364,16 @@ DASHBOARD_TAB_TITLES = [
     "Data Health",
     "Universe Manager",
 ]
-USER_PAGE_TITLES = ["Home", STOCK_SELECTOR_PATH_TITLE] + DASHBOARD_TAB_TITLES
-ADVANCED_PAGE_TITLES = _advanced_page_titles(USER_PAGE_TITLES)
+USER_PAGE_TITLES = ["Home", STOCK_SELECTOR_PATH_TITLE] + RESEARCH_PATH_PAGE_TITLES + DASHBOARD_TAB_TITLES
+ADVANCED_PAGE_TITLES = [
+    title for title in _advanced_page_titles(USER_PAGE_TITLES) if title not in RESEARCH_PATH_PAGE_TITLES
+]
+RESEARCH_PAGE_RENDER_TARGETS = {
+    "Research Desk": "Research Desk",
+    "Discover": STOCK_SELECTOR_PATH_TITLE,
+    "Company Workbench": "Single-Stock Report",
+    "Monitor": "Monitor",
+}
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
@@ -373,6 +393,32 @@ def dashboard_query_value_present(value: object) -> bool:
 
 def dashboard_mode_from_query(value: object, initial_page: str = "Home") -> str:
     return _dashboard_mode_from_query(value, initial_page, ADVANCED_PAGE_TITLES)
+
+
+def workspace_default_page(initial_page: str, *, mode: str, has_explicit_page_query: bool) -> str:
+    if has_explicit_page_query:
+        return initial_page
+    if mode == RESEARCH_MODE and initial_page == "Home":
+        return "Research Desk"
+    return initial_page
+
+
+def workspace_path_options(initial_page: str, mode: str) -> list[str]:
+    if mode == RESEARCH_MODE:
+        return research_path_options(initial_page)
+    return sidebar_path_options(initial_page)
+
+
+def workspace_path_label(page_title: str, mode: str) -> str:
+    if mode == RESEARCH_MODE:
+        return research_path_label(page_title)
+    return public_path_label(page_title)
+
+
+def workspace_content_page(selected_page: str, mode: str) -> str:
+    if mode == RESEARCH_MODE:
+        return RESEARCH_PAGE_RENDER_TARGETS.get(selected_page, selected_page)
+    return selected_page
 
 
 def dashboard_generated_artifact_stale_warning(root: Path = BASE_DIR) -> str:
@@ -7218,6 +7264,7 @@ def command_center_header_html(
     latest_price: str,
     compact: bool = False,
     current_page: str = "Home",
+    current_mode: str = PUBLIC_DEMO_MODE,
 ) -> str:
     summary = summary or {}
     normalized_current_page = str(current_page or "Home").strip()
@@ -7242,6 +7289,8 @@ def command_center_header_html(
     )
     compact_class = " compact" if compact else ""
     data_health_current_attr = " aria-current='page'" if normalized_current_page == "Data Health" else ""
+    data_health_mode = RESEARCH_MODE if current_mode == RESEARCH_MODE else PUBLIC_DEMO_MODE
+    data_health_href = f"?mode={data_health_mode}&page=data-health"
     topbar_html = (
         f"<header class='command-shell{compact_class}'>"
         f"<nav class='command-topbar{compact_class}' aria-label='Readiness status'>"
@@ -7253,7 +7302,7 @@ def command_center_header_html(
         "<span class='command-status-item command-stop-status'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
-        f"<a class='command-top-link' href='?mode=public&page=data-health' target='_self'{data_health_current_attr}>Blocked inputs? Data Health</a>"
+        f"<a class='command-top-link' href='{data_health_href}' target='_self'{data_health_current_attr}>Blocked inputs? Data Health</a>"
         "</div>"
         "</nav>"
     )
@@ -7457,6 +7506,7 @@ def render_app_header(
     *,
     compact: bool = False,
     current_page: str = "Home",
+    current_mode: str = OPERATOR_DEMO_MODE,
 ) -> None:
     universe = catalog.load_dataframe("universe")
     tickers = 0 if universe is None or universe.empty else len(universe)
@@ -7475,6 +7525,7 @@ def render_app_header(
             latest_price=latest_price,
             compact=compact,
             current_page=current_page,
+            current_mode=current_mode,
         ),
         unsafe_allow_html=True,
     )
@@ -28528,7 +28579,14 @@ def research_comparison_frame(comparison: ResearchComparison) -> pd.DataFrame:
     return pd.DataFrame(comparison_matrix_rows(comparison))
 
 
-def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, limit: int = 30) -> str:
+def stock_selector_result_table_html(
+    frame: pd.DataFrame,
+    *,
+    total_count: int,
+    limit: int = 30,
+    target_mode: str = PUBLIC_DEMO_MODE,
+    target_page: str = "single-stock-report",
+) -> str:
     """Render selector rows as a compact public review queue."""
 
     if frame is None or frame.empty:
@@ -28548,7 +28606,9 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
         if theme.strip().lower() in {"", "not available", "unclassified"}:
             theme = ""
         supported = _selector_public_fragment(row.get("Supported Now", "Supported analysis not listed."), max_chars=110)
-        report_href = html.escape(f"?mode=public&page=single-stock-report&ticker={ticker}&open=1")
+        report_href = html.escape(
+            f"?mode={target_mode}&page={target_page}&ticker={ticker}&open=1"
+        )
         state_label = stock_selector_public_state_label(row)
         readiness_class = _selector_readiness_class(state_label)
         identity_html = (
@@ -28696,6 +28756,8 @@ def render_stock_selector(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
     public_mode: bool = True,
+    target_mode: str = PUBLIC_DEMO_MODE,
+    target_page: str = "single-stock-report",
 ) -> None:
     ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
     dcf_readiness_frame, _ = load_dcf_readiness()
@@ -28869,7 +28931,12 @@ def render_stock_selector(
                     )
                     st.dataframe(research_comparison_frame(comparison), width="stretch", hide_index=True)
     st.markdown(
-        stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=10 if public_mode else 15),
+        stock_selector_result_table_html(filtered,
+            total_count=len(selector_frame),
+            limit=10 if public_mode else 15,
+            target_mode=target_mode,
+            target_page=target_page,
+        ),
         unsafe_allow_html=True,
     )
     with st.expander("Advanced: full filtered selector rows", expanded=False):
@@ -29700,6 +29767,7 @@ def render_single_stock_report(
     *,
     public_mode: bool = True,
     profile_context: ProfileContext | None = None,
+    research_mode: bool = False,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -29888,6 +29956,20 @@ def render_single_stock_report(
         )
         if public_mode:
             st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
+            if research_mode:
+                st.markdown("### Business Trend")
+                render_signal_cards(
+                    stock_report_review_metric_summary_cards(report_payload),
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.markdown("### Valuation")
+                render_signal_cards(
+                    stock_report_valuation_boundary_cards(report_payload),
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.markdown("### Forward View")
             render_signal_cards(nowcast_summary_cards(None, ticker=ticker), show_commands=False, variant="queue")
         else:
             render_signal_cards(operator_single_stock_workflow_cards(workflow_fit_cards), show_commands=False)
@@ -29940,6 +30022,17 @@ def render_single_stock_report(
                         st.caption(scorecard.boundary)
                 except ValueError as exc:
                     st.caption(f"Decision-process checks unavailable: {exc}")
+        if research_mode:
+            st.markdown("### Research Conclusion")
+            render_signal_cards(
+                stock_report_next_step_cards(
+                    report_payload,
+                    coverage if provider is not None and ticker else None,
+                    peer_summary if provider is not None and ticker else None,
+                ),
+                show_commands=False,
+                variant="queue",
+            )
     if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):
         render_context_note(
             "Detailed report stays closed.",
@@ -33502,6 +33595,192 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
         )
 
 
+def render_research_workspace_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .research-workspace-header {
+            border: 1px solid #d7ddd9;
+            border-left: 4px solid #087f5b;
+            border-radius: 8px;
+            padding: 1rem 1.1rem;
+            margin: 0 0 1rem;
+            background: #ffffff;
+        }
+        .profile-trust-strip {
+            display: grid;
+            grid-template-columns: minmax(9rem, 1.2fr) repeat(4, minmax(7rem, 1fr));
+            gap: .55rem;
+            margin: .2rem 0 .8rem;
+            padding: .65rem 0;
+            border-top: 1px solid #d9e0dc;
+            border-bottom: 1px solid #d9e0dc;
+        }
+        .profile-trust-strip > span,
+        .profile-trust-primary {
+            display: grid;
+            min-width: 0;
+            gap: .12rem;
+            padding: 0 .55rem;
+            border-left: 1px solid #e6ebe8;
+            font-size: .8rem;
+            overflow-wrap: anywhere;
+        }
+        .profile-trust-primary { border-left: 0; padding-left: 0; }
+        .profile-trust-strip small,
+        .profile-trust-label {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .profile-freshness.current { color: #0f766e; }
+        .profile-freshness.stale,
+        .profile-freshness.mixed { color: #a15c00; }
+        .profile-freshness.missing { color: #b42318; }
+        .research-workspace-heading span,
+        .research-desk-answer > span {
+            color: #52615c;
+            font-size: .78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .research-workspace-heading h1 { margin: .15rem 0; font-size: 1.7rem; }
+        .research-workspace-heading p,
+        .research-workspace-boundary { margin: .25rem 0 0; color: #52615c; }
+        .research-workspace-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .65rem;
+            margin: .9rem 0;
+        }
+        .research-workspace-meta div { border-top: 1px solid #e5e9e7; padding-top: .55rem; }
+        .research-workspace-meta dt { color: #66736f; font-size: .78rem; }
+        .research-workspace-meta dd { margin: .1rem 0 0; font-weight: 650; }
+        .research-desk-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .75rem;
+            margin-bottom: 1rem;
+        }
+        .research-desk-answer {
+            border: 1px solid #dfe4e1;
+            border-radius: 8px;
+            padding: .9rem;
+            background: #fff;
+        }
+        .research-desk-answer h2 { font-size: 1rem; margin: .3rem 0; }
+        .research-desk-answer p { margin: 0; color: #394640; }
+        .research-evidence-links { display: grid; gap: .55rem; }
+        .research-evidence-link {
+            border: 1px solid #dfe4e1;
+            border-radius: 8px;
+            color: inherit;
+            display: grid;
+            padding: .75rem;
+            text-decoration: none;
+        }
+        .research-evidence-link span { color: #52615c; font-size: .86rem; }
+        @media (max-width: 640px) {
+            .research-desk-grid, .research-workspace-meta { grid-template-columns: 1fr; }
+            .research-workspace-heading h1 { font-size: 1.4rem; }
+            .profile-trust-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .profile-trust-strip > :nth-child(odd) { border-left: 0; }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_research_workspace_header(
+    page_title: str,
+    context: ProfileContext,
+    *,
+    ticker: str = "",
+    primary_action: str,
+) -> None:
+    st.markdown(
+        research_workspace_header_html(
+            page_title,
+            ticker=ticker,
+            profile_label=context.profile_label,
+            freshness=context.freshness_state.replace("_", " ").title(),
+            primary_action=primary_action,
+        ),
+        unsafe_allow_html=True,
+    )
+
+
+def render_research_desk(state: dict[str, object], context: ProfileContext) -> None:
+    render_research_workspace_header(
+        "Research Desk",
+        context,
+        primary_action="Open Discover and choose one readiness-backed company",
+    )
+    cards = research_desk_cards(
+        change_status=str(state.get("status") or "unavailable"),
+        review_items=state.get("queue") or (),
+        readiness_summary=_header_readiness_summary(),
+    )
+    st.markdown(research_desk_cards_html(cards), unsafe_allow_html=True)
+    st.link_button("Open Discover", "?mode=research&page=discover", type="primary")
+    with st.expander("Advanced Evidence", expanded=False):
+        st.markdown(advanced_evidence_links_html(""), unsafe_allow_html=True)
+        st.caption("Detailed change events remain in the separate research change evidence drawer below.")
+    render_research_change_route_summary("Research Desk", state)
+
+
+def render_research_monitor(state: dict[str, object], context: ProfileContext) -> None:
+    render_research_workspace_header(
+        "Monitor",
+        context,
+        primary_action="Review unresolved evidence changes; otherwise wait for new source evidence",
+    )
+    st.markdown("### Research change monitor")
+    frame = research_monitor_frame(state.get("queue") or ())
+    if frame.empty:
+        render_context_note(
+            "No unresolved evidence change is queued.",
+            "This is a monitoring state, not a stock ranking. Continue with Discover or wait for a comparable source-backed change.",
+            tone="success",
+        )
+    else:
+        st.dataframe(frame, width="stretch", hide_index=True)
+    with st.expander("Advanced Evidence", expanded=False):
+        st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
+    render_research_change_route_summary("Monitor", state)
+
+
+def render_company_workbench(
+    provider,
+    context: ProfileContext,
+    state: dict[str, object],
+) -> None:
+    ticker = str(st.query_params.get("ticker") or "").strip().upper()
+    render_research_workspace_header(
+        "Company Workbench",
+        context,
+        ticker=ticker,
+        primary_action="Review usable evidence, then record what remains uncertain",
+    )
+    section_names = [section["title"] for section in company_workbench_section_contract()]
+    st.caption("Review path: " + " -> ".join(section_names[:-1]))
+    st.markdown("### Selected Company")
+    render_single_stock_report(
+        provider,
+        False,
+        public_mode=True,
+        profile_context=context,
+        research_mode=True,
+    )
+    st.markdown("### Advanced Evidence")
+    with st.expander("Advanced Evidence", expanded=False):
+        st.markdown(advanced_evidence_links_html(ticker), unsafe_allow_html=True)
+        st.caption("Detailed ticker-change evidence remains in the separate evidence drawer below.")
+    render_research_change_route_summary("Single-Stock Report", state, ticker=ticker)
+
+
 def main() -> None:
     global ACTIVE_RESEARCH_CHANGE_STATE
     st.set_page_config(page_title="Stock Research Command Center", layout="wide")
@@ -33514,38 +33793,58 @@ def main() -> None:
     provider = get_local_provider()
     page_query_value = st.query_params.get("page")
     mode_query_value = st.query_params.get("mode")
-    initial_page = dashboard_page_from_query(page_query_value)
-    initial_mode = dashboard_mode_from_query(mode_query_value, initial_page)
-    bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)
+    has_explicit_page_query = dashboard_query_value_present(page_query_value)
+    has_explicit_mode_query = dashboard_query_value_present(mode_query_value)
+    queried_page = dashboard_page_from_query(page_query_value)
+    initial_mode = dashboard_mode_from_query(mode_query_value, queried_page)
+    initial_page = workspace_default_page(
+        queried_page,
+        mode=initial_mode,
+        has_explicit_page_query=has_explicit_page_query,
+    )
+    bootstrap_placeholder = (
+        render_public_route_bootstrap(initial_page, initial_mode)
+        if initial_mode == PUBLIC_DEMO_MODE
+        else None
+    )
 
     with st.sidebar:
         render_sidebar_nav_header()
-        has_explicit_page_query = dashboard_query_value_present(page_query_value)
-        has_explicit_mode_query = dashboard_query_value_present(mode_query_value)
-        public_demo_mode = st.toggle(
-            "Public visitor mode",
-            value=initial_mode == PUBLIC_DEMO_MODE,
-            help="Keeps the dashboard focused on the real visitor workflow. Turn off for operator workflows, detailed boards, and local command runbooks.",
+        mode_options = [RESEARCH_MODE, PUBLIC_DEMO_MODE, OPERATOR_DEMO_MODE]
+        mode_selection = st.radio(
+            "Workspace",
+            mode_options,
+            index=mode_options.index(initial_mode),
+            format_func=dashboard_mode_label,
+            help="Personal research is the working default. Public keeps the guided demo; Operator keeps proof and maintenance tools.",
+            key="dashboard-workspace-mode",
         )
         if has_explicit_mode_query:
-            public_demo_mode = initial_mode == PUBLIC_DEMO_MODE
-        mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
-        if not public_demo_mode:
+            mode_selection = initial_mode
+        mode = mode_selection
+        research_mode = mode == RESEARCH_MODE
+        public_demo_mode = mode == PUBLIC_DEMO_MODE
+        operator_mode = mode == OPERATOR_DEMO_MODE
+        if operator_mode:
             render_public_workflow_skip_link(initial_page, st.query_params, mode=OPERATOR_DEMO_MODE)
-        if not public_demo_mode:
-            st.caption(f"Mode: {dashboard_mode_label(mode)}")
+        st.caption(f"Workspace: {dashboard_mode_label(mode)}")
         st.caption(f"Data profile: {data_profile.name}")
-        path_options = sidebar_path_options(initial_page)
-        default_path = "Home" if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES else initial_page
+        path_options = workspace_path_options(initial_page, mode)
+        if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES:
+            default_path = "Home"
+        elif research_mode and initial_page not in path_options:
+            default_path = "Research Desk"
+        else:
+            default_path = initial_page
         route_signature = f"{mode}:{initial_page}"
         path_state_key = "dashboard-path-selection"
         path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"
         path_selection = st.radio(
             "Choose your path",
             path_options,
-            index=sidebar_path_index(default_path, path_options),
-            format_func=public_path_label,
-            help="Most visitors only need these paths: review one stock, explore ready names, check data coverage, or inspect proof.",
+            index=path_options.index(default_path) if default_path in path_options else 0,
+            format_func=lambda page: workspace_path_label(page, mode),
+            help="Choose the next research step. Evidence and maintenance remain secondary to the company review path.",
             key=path_widget_key,
             label_visibility="collapsed",
         )
@@ -33555,15 +33854,20 @@ def main() -> None:
             path_selection=path_selection,
             has_explicit_page_query=has_explicit_page_query,
         )
-        route_query_update = route_rail_query_update(selected_page=selected_page, initial_page=initial_page, mode=mode)
+        route_query_update = route_rail_query_update(
+            selected_page=selected_page,
+            initial_page=initial_page,
+            mode=mode,
+            allowed_pages=path_options,
+        )
         if route_query_update:
             st.query_params.clear()
             for query_key, query_value in route_query_update.items():
                 st.query_params[query_key] = query_value
-        if not public_demo_mode and initial_page == "Data Health":
+        if operator_mode and initial_page == "Data Health":
             selected_page = "Data Health"
-        show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"
-        if public_demo_mode or selected_page != "Data Health":
+        show_sidebar_operator_guides = operator_mode and selected_page != "Data Health"
+        if public_demo_mode or operator_mode and selected_page != "Data Health":
             render_sidebar_product_intro()
         if show_sidebar_operator_guides:
             with st.expander("Advanced: operator tools", expanded=False):
@@ -33593,27 +33897,27 @@ def main() -> None:
                     language="bash",
                 )
         show_reason_details = False
-        if not public_demo_mode and selected_page != "Data Health":
+        if operator_mode and selected_page != "Data Health":
             show_reason_details = st.checkbox(
                 "Show reader tips",
                 value=False,
                 help="Adds extra explanation and review sections. Most visitors can leave this off.",
             )
         show_source_details = False
-        if selected_page == "Single-Stock Report" and not public_demo_mode:
+        if selected_page == "Single-Stock Report" and operator_mode:
             show_source_details = st.checkbox(
                 "Show data source details",
                 value=False,
                 help="Adds extra data-source and missing-input checks under Sources & Gaps. Most users can leave this off.",
             )
         st.divider()
-        if not public_demo_mode and selected_page == "Data Health":
+        if operator_mode and selected_page == "Data Health":
             render_context_note(
                 "Data Health operator.",
                 "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers.",
                 tone="success",
             )
-        else:
+        elif not research_mode:
             note_title, note_body = sidebar_navigation_note(selected_page)
             render_context_note(note_title, note_body, tone="success")
         if public_demo_mode:
@@ -33621,8 +33925,15 @@ def main() -> None:
                 "Clean visitor workflow.",
                 "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
             )
+        if research_mode:
+            render_context_note(
+                "Personal research workspace.",
+                "Research Desk -> Discover -> Company Workbench -> Monitor. Data Health and Proof History remain secondary evidence routes.",
+                tone="success",
+            )
 
-    output_frames = dashboard_output_frames_for_page(selected_page)
+    content_page = workspace_content_page(selected_page, mode)
+    output_frames = dashboard_output_frames_for_page(content_page)
     if public_demo_mode:
         if bootstrap_placeholder is not None:
             bootstrap_placeholder.empty()
@@ -33638,11 +33949,14 @@ def main() -> None:
             output_frames,
             compact=True,
             current_page=selected_page,
+            current_mode=mode,
         )
-        render_profile_trust_strip(profile_context, compact=True)
+        render_profile_trust_strip(profile_context, compact=True, include_advanced=operator_mode)
         render_public_workflow_skip_target()
+        if research_mode:
+            render_research_workspace_styles()
 
-    if selected_page in PUBLIC_PATH_PAGE_TITLES and not public_demo_mode:
+    if selected_page in PUBLIC_PATH_PAGE_TITLES and operator_mode:
         render_research_change_route_summary(
             selected_page,
             research_change_state,
@@ -33652,10 +33966,29 @@ def main() -> None:
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
 
     universe_summary = None
-    if selected_page in {"Overview", "Universe Manager"}:
+    if content_page in {"Overview", "Universe Manager"}:
         universe_summary = summarize_universe_manager(BASE_DIR)
 
-    if selected_page == "Home":
+    if research_mode and selected_page == "Research Desk":
+        render_research_desk(research_change_state, profile_context)
+    elif research_mode and selected_page == "Discover":
+        render_research_workspace_header(
+            "Discover",
+            profile_context,
+            primary_action="Choose one readiness-backed company and open its workbench",
+        )
+        st.markdown("### Which stock can I review?")
+        render_stock_selector(
+            output_frames,
+            public_mode=True,
+            target_mode=RESEARCH_MODE,
+            target_page="company-workbench",
+        )
+    elif research_mode and selected_page == "Company Workbench":
+        render_company_workbench(provider, profile_context, research_change_state)
+    elif research_mode and selected_page == "Monitor":
+        render_research_monitor(research_change_state, profile_context)
+    elif content_page == "Home":
         render_home_page(
             catalog,
             output_frames,
@@ -33663,26 +33996,40 @@ def main() -> None:
             public_mode=public_demo_mode,
             project_status_payload=project_status_payload,
         )
-    elif selected_page == STOCK_SELECTOR_PATH_TITLE:
+    elif content_page == STOCK_SELECTOR_PATH_TITLE:
         render_stock_selector(output_frames, public_mode=public_demo_mode)
-    elif selected_page == "Overview":
+    elif content_page == "Overview":
         render_overview(output_frames, catalog, universe_summary or summarize_universe_manager(BASE_DIR), project_status_payload)
-    elif selected_page == "Monthly Picks":
+    elif content_page == "Monthly Picks":
         render_monthly_picks(catalog)
-    elif selected_page in {"Market Direction", "Momentum Leaders", "Portfolio Review", "Value / Re-rating", "Final Watchlist"}:
-        render_output_tab(selected_page, output_frames, show_reason_details)
-    elif selected_page == "Single-Stock Report":
+    elif content_page in {"Market Direction", "Momentum Leaders", "Portfolio Review", "Value / Re-rating", "Final Watchlist"}:
+        render_output_tab(content_page, output_frames, show_reason_details)
+    elif content_page == "Single-Stock Report":
         render_single_stock_report(
             provider,
             show_source_details,
             public_mode=public_demo_mode,
             profile_context=profile_context,
         )
-    elif selected_page == "Data Health":
-        render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)
-    elif selected_page == PROOF_HISTORY_PATH_TITLE:
-        render_proof_history(public_mode=public_demo_mode)
-    elif selected_page == "Universe Manager":
+    elif content_page == "Data Health":
+        if research_mode:
+            render_research_workspace_header(
+                "Data Health",
+                profile_context,
+                ticker=str(st.query_params.get("ticker") or ""),
+                primary_action="Inspect the blocked lane, then return to Company Workbench",
+            )
+        render_data_health(provider, project_status_payload, show_reason_details, public_mode=not operator_mode)
+    elif content_page == PROOF_HISTORY_PATH_TITLE:
+        if research_mode:
+            render_research_workspace_header(
+                "Proof History",
+                profile_context,
+                ticker=str(st.query_params.get("ticker") or ""),
+                primary_action="Confirm what evidence changed, then return to Company Workbench",
+            )
+        render_proof_history(public_mode=not operator_mode)
+    elif content_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
     if public_demo_mode:
         render_profile_trust_details(profile_context)

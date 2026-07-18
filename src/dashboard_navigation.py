@@ -14,6 +14,12 @@ PUBLIC_PATH_PAGE_TITLES = [
     "Data Health",
     PROOF_HISTORY_PATH_TITLE,
 ]
+RESEARCH_PATH_PAGE_TITLES = [
+    "Research Desk",
+    "Discover",
+    "Company Workbench",
+    "Monitor",
+]
 PUBLIC_PATH_LABELS = {
     "Home": "Home",
     "Single-Stock Report": "Single-Stock Report",
@@ -32,7 +38,9 @@ LEGACY_PUBLIC_PATH_LABELS = {
 }
 PUBLIC_DEMO_MODE = "public"
 OPERATOR_DEMO_MODE = "operator"
+RESEARCH_MODE = "research"
 DEMO_MODE_LABELS = {
+    RESEARCH_MODE: "Personal research mode",
     PUBLIC_DEMO_MODE: "Public visitor mode",
     OPERATOR_DEMO_MODE: "Operator mode",
 }
@@ -125,6 +133,12 @@ def dashboard_page_from_query(value: object, user_page_titles: list[str]) -> str
         "explore-ready-names": STOCK_SELECTOR_PATH_TITLE,
         "ready-names": STOCK_SELECTOR_PATH_TITLE,
         "research-queue": STOCK_SELECTOR_PATH_TITLE,
+        "research-desk": "Research Desk",
+        "desk": "Research Desk",
+        "discover": "Discover",
+        "company-workbench": "Company Workbench",
+        "workbench": "Company Workbench",
+        "monitor": "Monitor",
         "selector": STOCK_SELECTOR_PATH_TITLE,
         "single": "Single-Stock Report",
         "single-stock": "Single-Stock Report",
@@ -159,9 +173,11 @@ def dashboard_mode_from_query(value: object, initial_page: str, advanced_titles:
         return OPERATOR_DEMO_MODE
     if slug in {"public", "demo", "visitor", "share"}:
         return PUBLIC_DEMO_MODE
+    if slug in {"research", "personal", "workspace"}:
+        return RESEARCH_MODE
     if initial_page in advanced_titles:
         return OPERATOR_DEMO_MODE
-    return PUBLIC_DEMO_MODE
+    return RESEARCH_MODE
 
 
 def dashboard_mode_label(mode: str) -> str:
@@ -173,6 +189,17 @@ def sidebar_path_options(initial_page: str, advanced_titles: list[str]) -> list[
     if initial_page in advanced_titles:
         return PUBLIC_PATH_PAGE_TITLES + [initial_page]
     return PUBLIC_PATH_PAGE_TITLES
+
+
+def research_path_options(initial_page: str) -> list[str]:
+    """Return the personal research path plus an active evidence route."""
+    if initial_page in {"Data Health", PROOF_HISTORY_PATH_TITLE}:
+        return RESEARCH_PATH_PAGE_TITLES + [initial_page]
+    return RESEARCH_PATH_PAGE_TITLES
+
+
+def research_path_label(page_title: str) -> str:
+    return page_title if page_title in RESEARCH_PATH_PAGE_TITLES else PUBLIC_PATH_LABELS.get(page_title, page_title)
 
 
 def sidebar_path_index(initial_page: str, path_options: list[str], advanced_titles: list[str]) -> int:
@@ -212,11 +239,17 @@ def selected_page_from_route_rail(
     return selected_path
 
 
-def route_rail_query_update(*, selected_page: str, initial_page: str, mode: str) -> dict[str, str]:
+def route_rail_query_update(
+    *,
+    selected_page: str,
+    initial_page: str,
+    mode: str,
+    allowed_pages: list[str] | None = None,
+) -> dict[str, str]:
     selected_page = page_title_from_public_path(selected_page)
     if selected_page == initial_page:
         return {}
-    if selected_page not in PUBLIC_PATH_PAGE_TITLES:
+    if selected_page not in (allowed_pages or PUBLIC_PATH_PAGE_TITLES):
         return {}
     return {
         "mode": dashboard_page_slug(mode),

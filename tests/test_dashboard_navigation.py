@@ -131,14 +131,60 @@ def test_public_workflow_stop_rules_keep_research_only_boundary_visible():
     assert "trusting rows" not in data_health_stop
 
 
-def test_dashboard_navigation_mode_defaults_public_unless_advanced_context():
+def test_dashboard_navigation_mode_defaults_research_unless_explicit_or_advanced_context():
     advanced = ["Overview", "Monthly Picks", "Universe Manager"]
 
     assert nav.dashboard_mode_from_query("public", "Home", advanced) == nav.PUBLIC_DEMO_MODE
     assert nav.dashboard_mode_from_query("operator", "Home", advanced) == nav.OPERATOR_DEMO_MODE
-    assert nav.dashboard_mode_from_query("", "Home", advanced) == nav.PUBLIC_DEMO_MODE
+    assert nav.dashboard_mode_from_query("", "Home", advanced) == nav.RESEARCH_MODE
     assert nav.dashboard_mode_from_query("", "Universe Manager", advanced) == nav.OPERATOR_DEMO_MODE
     assert nav.dashboard_mode_label(nav.OPERATOR_DEMO_MODE) == "Operator mode"
+
+
+def test_dashboard_navigation_supports_personal_research_mode_without_changing_public_paths():
+    advanced = ["Overview", "Monthly Picks", "Universe Manager"]
+
+    assert nav.RESEARCH_MODE == "research"
+    assert nav.RESEARCH_PATH_PAGE_TITLES == [
+        "Research Desk",
+        "Discover",
+        "Company Workbench",
+        "Monitor",
+    ]
+    assert nav.dashboard_mode_from_query("", "Home", advanced) == nav.RESEARCH_MODE
+    assert nav.dashboard_mode_from_query("research", "Research Desk", advanced) == nav.RESEARCH_MODE
+    assert nav.dashboard_mode_from_query("public", "Home", advanced) == nav.PUBLIC_DEMO_MODE
+    assert nav.dashboard_mode_from_query("operator", "Home", advanced) == nav.OPERATOR_DEMO_MODE
+    assert nav.dashboard_mode_label(nav.RESEARCH_MODE) == "Personal research mode"
+    assert nav.PUBLIC_PATH_PAGE_TITLES == [
+        "Home",
+        "Stock Selector",
+        "Single-Stock Report",
+        "Data Health",
+        "Proof History",
+    ]
+
+
+def test_research_navigation_keeps_evidence_pages_secondary_and_supports_deep_links():
+    pages = nav.PUBLIC_PATH_PAGE_TITLES + nav.RESEARCH_PATH_PAGE_TITLES + ["Data Health", "Proof History"]
+
+    assert nav.dashboard_page_from_query("research-desk", pages) == "Research Desk"
+    assert nav.dashboard_page_from_query("discover", pages) == "Discover"
+    assert nav.dashboard_page_from_query("company-workbench", pages) == "Company Workbench"
+    assert nav.dashboard_page_from_query("monitor", pages) == "Monitor"
+    assert nav.research_path_options("Data Health") == nav.RESEARCH_PATH_PAGE_TITLES + ["Data Health"]
+    assert nav.research_path_options("Proof History") == nav.RESEARCH_PATH_PAGE_TITLES + ["Proof History"]
+    assert nav.research_path_options("Research Desk") == nav.RESEARCH_PATH_PAGE_TITLES
+    assert nav.research_path_label("Research Desk") == "Research Desk"
+    assert nav.research_path_label("Discover") == "Discover"
+    assert nav.research_path_label("Company Workbench") == "Company Workbench"
+    assert nav.research_path_label("Monitor") == "Monitor"
+    assert nav.route_rail_query_update(
+        selected_page="Company Workbench",
+        initial_page="Research Desk",
+        mode=nav.RESEARCH_MODE,
+        allowed_pages=nav.RESEARCH_PATH_PAGE_TITLES,
+    ) == {"mode": "research", "page": "company-workbench"}
 
 
 def test_dashboard_navigation_query_wins_only_until_route_rail_changes():

@@ -2993,7 +2993,7 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
     assert "Show reader tips" in source
-    assert 'if not public_demo_mode and selected_page != "Data Health":' in source
+    assert 'if operator_mode and selected_page != "Data Health":' in source
     assert "Show page tips" not in source
     assert "Adds extra explanation and review sections" in source
     assert "Most visitors can leave this off" in source
@@ -3049,7 +3049,7 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert 'st.expander("Advanced pages"' not in source
     assert '"Open a research view"' in source
     assert '"Open a detailed page"' not in source
-    assert "Most visitors only need these paths" in source
+    assert "Choose the next research step" in source
     assert "Additional research views remain available" in source
     assert "Detailed research views remain available" not in source
     assert '"Page to review"' not in source
@@ -3066,26 +3066,26 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard"' in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard-smoke"' not in source
     assert "sidebar_quick_help_lines()" in source
-    assert "path_options = sidebar_path_options(initial_page)" in source
+    assert "path_options = workspace_path_options(initial_page, mode)" in source
     assert 'path_state_key = "dashboard-path-selection"' in source
     assert 'path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"' in source
     assert "key=path_widget_key" in source
     assert 'st.session_state["dashboard-route-signature"] = route_signature' not in source
     assert 'elif path_selection == PROOF_HISTORY_PATH_TITLE:\n            selected_page = "Data Health"' not in source
-    assert "elif selected_page == PROOF_HISTORY_PATH_TITLE:" in source
-    assert "render_proof_history(public_mode=public_demo_mode)" in source
+    assert "elif content_page == PROOF_HISTORY_PATH_TITLE:" in source
+    assert "render_proof_history(public_mode=not operator_mode)" in source
     assert "render_public_shell_mode_styles()" in source
     assert "render_public_app_shell(selected_page)" in source
     assert "compact=True," in source
     assert "command_center_header_html(" in source
     assert "_header_readiness_summary()" in source
-    assert 'if public_demo_mode or selected_page != "Data Health":' in source
-    assert source.index("elif selected_page == PROOF_HISTORY_PATH_TITLE:") < source.index(
-        "elif selected_page == \"Universe Manager\":"
+    assert 'if public_demo_mode or operator_mode and selected_page != "Data Health":' in source
+    assert source.index("elif content_page == PROOF_HISTORY_PATH_TITLE:") < source.index(
+        "elif content_page == \"Universe Manager\":"
     )
-    assert 'show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"' in source
+    assert 'show_sidebar_operator_guides = operator_mode and selected_page != "Data Health"' in source
     assert "if show_sidebar_operator_guides:" in source
-    assert 'if not public_demo_mode and selected_page == "Data Health":' in source
+    assert 'if operator_mode and selected_page == "Data Health":' in source
     assert '"Data Health operator."' in source
     assert "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers." in source
     assert "Use the command center and lane buttons" not in source
@@ -3288,7 +3288,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'with st.expander("Queue outcome ledger summary", expanded=False)' not in source
     assert 'with st.expander("Readiness queue evidence", expanded=False)' not in source
     assert 'with st.expander("Data coverage proof queue detail", expanded=False)' not in source
-    assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
+    assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=not operator_mode)" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Optional context evidence drawer", expanded=False)' in source
     assert 'st.expander("Last-resort diagnostic context", expanded=False)' in source
@@ -29081,13 +29081,13 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert "Monthly Picks page" not in navigation
 
 
-def test_dashboard_public_demo_mode_query_defaults_to_visitor_view():
+def test_dashboard_query_defaults_to_personal_research_and_preserves_explicit_modes():
     assert dashboard.dashboard_query_value_present("data-health")
     assert dashboard.dashboard_query_value_present(["operator"])
     assert not dashboard.dashboard_query_value_present(None)
     assert not dashboard.dashboard_query_value_present("")
     assert not dashboard.dashboard_query_value_present([""])
-    assert dashboard.dashboard_mode_from_query(None) == dashboard.PUBLIC_DEMO_MODE
+    assert dashboard.dashboard_mode_from_query(None) == dashboard.RESEARCH_MODE
     assert dashboard.dashboard_mode_from_query("public") == dashboard.PUBLIC_DEMO_MODE
     assert dashboard.dashboard_mode_from_query("demo") == dashboard.PUBLIC_DEMO_MODE
     assert dashboard.dashboard_mode_from_query(["visitor"]) == dashboard.PUBLIC_DEMO_MODE
@@ -29165,32 +29165,32 @@ def test_data_health_freshness_status_marks_current_readiness_stale_when_status_
 def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert '"Public visitor mode"' in source
+    assert '"Workspace"' in source
     assert 'page_query_value = st.query_params.get("page")' in source
     assert 'mode_query_value = st.query_params.get("mode")' in source
     assert "has_explicit_page_query = dashboard_query_value_present(page_query_value)" in source
     assert "has_explicit_mode_query = dashboard_query_value_present(mode_query_value)" in source
-    assert "if has_explicit_mode_query:\n            public_demo_mode = initial_mode == PUBLIC_DEMO_MODE" in source
+    assert "if has_explicit_mode_query:\n            mode_selection = initial_mode" in source
     assert "selected_page_from_route_rail(" in source
     assert "if has_explicit_page_query:\n            selected_page = initial_page" not in source
-    assert "public_demo_mode = st.toggle" in source
-    assert "path_options = sidebar_path_options(initial_page)" in source
+    assert "mode_selection = st.radio" in source
+    assert "path_options = workspace_path_options(initial_page, mode)" in source
     assert 'path_state_key = "dashboard-path-selection"' in source
     assert 'path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"' in source
     assert "key=path_widget_key" in source
     assert "route_signature = f\"{mode}:{initial_page}\"" in source
     assert "show_reason_details = False" in source
-    assert 'if not public_demo_mode and selected_page != "Data Health":' in source
+    assert 'if operator_mode and selected_page != "Data Health":' in source
     assert 'st.expander("Research view switcher"' not in source
     assert 'st.expander("Operator run commands"' not in source
     assert 'if show_sidebar_operator_guides:\n            with st.expander("Advanced: operator tools"' in source
-    assert 'show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"' in source
+    assert 'show_sidebar_operator_guides = operator_mode and selected_page != "Data Health"' in source
     assert "Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers." in source
     assert '"Data Health operator."' in source
-    assert 'if selected_page == "Single-Stock Report" and not public_demo_mode:' in source
+    assert 'if selected_page == "Single-Stock Report" and operator_mode:' in source
     assert "render_home_page(\n            catalog," in source
     assert "project_status_payload=project_status_payload" in source
-    assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
+    assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=not operator_mode)" in source
     assert "data_health_freshness_status(BASE_DIR)" in source
     assert "dashboard_generated_artifact_stale_warning(BASE_DIR)" in source
     assert '"Generated status may be stale"' in source
@@ -29200,17 +29200,17 @@ def test_public_pages_use_compact_shell_before_page_content():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "def dashboard_output_frames_for_page(" in source
-    assert "output_frames = dashboard_output_frames_for_page(selected_page)" in source
+    assert "output_frames = dashboard_output_frames_for_page(content_page)" in source
     initial_catalog_index = source.index("catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)")
     selected_page_index = source.index("selected_page = selected_page_from_route_rail(")
-    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(selected_page)")
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)")
     assert initial_catalog_index < selected_page_index < output_frames_index
     assert "if selected_page in {\"Data Health\", PROOF_HISTORY_PATH_TITLE}:" in source
     assert "return {}" in source[source.index("def dashboard_output_frames_for_page(") : output_frames_index]
 
     shell_style_index = source.index("render_public_shell_mode_styles()")
     shell_index = source.index("render_public_app_shell(selected_page)", shell_style_index)
-    dispatch_index = source.index('if selected_page == "Home":', shell_index)
+    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', shell_index)
     operator_header_index = source.index("render_app_header(\n            catalog,\n            output_frames,", shell_index)
     assert shell_style_index < shell_index < operator_header_index < dispatch_index
     assert "public-app-shell" in source
@@ -29450,13 +29450,13 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     assert "id='public-page-answer'" in source
     assert "tabindex='-1'" in source
 
-    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(selected_page)")
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)")
     public_mode_index = source.index("if public_demo_mode:", output_frames_index)
     public_shell_style_index = source.index("render_public_shell_mode_styles()", public_mode_index)
     skip_link_index = source.index("render_public_workflow_skip_link(selected_page, st.query_params)", public_shell_style_index)
     shell_index = source.index("render_public_app_shell(selected_page)", skip_link_index)
     skip_target_index = source.index("render_public_workflow_skip_target()", shell_index)
-    dispatch_index = source.index('if selected_page == "Home":', skip_target_index)
+    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', skip_target_index)
     assert public_mode_index < public_shell_style_index < skip_link_index < shell_index < skip_target_index < dispatch_index
 
     skip_href = dashboard.public_workflow_skip_href(
@@ -29480,14 +29480,14 @@ def test_public_page_answer_precedes_shared_advanced_evidence():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     main_index = source.index("def main()")
-    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(selected_page)", main_index)
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)", main_index)
     public_mode_index = source.index("if public_demo_mode:", output_frames_index)
     public_profile_index = source.index(
         "render_profile_trust_strip(profile_context, compact=True, include_advanced=False)",
         public_mode_index,
     )
     skip_target_index = source.index("render_public_workflow_skip_target()", public_profile_index)
-    dispatch_index = source.index('if selected_page == "Home":', skip_target_index)
+    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', skip_target_index)
     profile_details_index = source.index("render_profile_trust_details(profile_context)", dispatch_index)
     change_details_index = source.index(
         "render_research_change_route_summary(",
@@ -29513,11 +29513,11 @@ def test_operator_workflow_skip_link_has_a_main_content_target():
         "render_public_workflow_skip_link(initial_page, st.query_params, mode=OPERATOR_DEMO_MODE)",
         sidebar_index,
     )
-    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(selected_page)", operator_link_index)
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)", operator_link_index)
     operator_branch_index = source.index("else:", output_frames_index)
     app_header_index = source.index("render_app_header(", operator_branch_index)
     skip_target_index = source.index("render_public_workflow_skip_target()", app_header_index)
-    dispatch_index = source.index('if selected_page == "Home":', skip_target_index)
+    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', skip_target_index)
 
     assert sidebar_index < operator_link_index < output_frames_index < operator_branch_index < app_header_index < skip_target_index < dispatch_index
 
@@ -29586,16 +29586,16 @@ def test_public_data_health_bootstrap_clears_before_the_shared_public_shell():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "def render_public_route_bootstrap(" in source
-    assert "bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)" in source
-    bootstrap_index = source.index("bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)")
+    assert "render_public_route_bootstrap(initial_page, initial_mode)" in source
+    bootstrap_index = source.index("bootstrap_placeholder = (")
     sidebar_index = source.index("with st.sidebar:", bootstrap_index)
     public_mode_index = source.index("if public_demo_mode:", sidebar_index)
     clear_index = source.index("if bootstrap_placeholder is not None:", public_mode_index)
     shell_index = source.index("render_public_app_shell(selected_page)", clear_index)
-    data_health_branch_index = source.index('elif selected_page == "Data Health":', shell_index)
-    data_health_render_index = source.index("render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)")
-    proof_history_branch_index = source.index("elif selected_page == PROOF_HISTORY_PATH_TITLE:", data_health_render_index)
-    proof_render_index = source.index("render_proof_history(public_mode=public_demo_mode)", proof_history_branch_index)
+    data_health_branch_index = source.index('elif content_page == "Data Health":', shell_index)
+    data_health_render_index = source.index("render_data_health(provider, project_status_payload, show_reason_details, public_mode=not operator_mode)")
+    proof_history_branch_index = source.index("elif content_page == PROOF_HISTORY_PATH_TITLE:", data_health_render_index)
+    proof_render_index = source.index("render_proof_history(public_mode=not operator_mode)", proof_history_branch_index)
     assert bootstrap_index < sidebar_index < public_mode_index < clear_index < shell_index < data_health_branch_index < data_health_render_index
     assert "bootstrap_placeholder = None" in source[clear_index:shell_index]
     assert data_health_render_index < proof_history_branch_index < proof_render_index
@@ -29614,10 +29614,10 @@ def test_public_data_health_bootstrap_clears_before_the_shared_public_shell():
 def test_public_route_bootstrap_clears_before_the_actual_shell_to_avoid_duplicate_public_chrome():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    public_mode_index = source.index("if public_demo_mode:", source.index("output_frames = dashboard_output_frames_for_page(selected_page)"))
+    public_mode_index = source.index("if public_demo_mode:", source.index("output_frames = dashboard_output_frames_for_page(content_page)"))
     clear_index = source.index("if bootstrap_placeholder is not None:", public_mode_index)
     shell_index = source.index("render_public_app_shell(selected_page)", clear_index)
-    dispatch_index = source.index('if selected_page == "Home":', shell_index)
+    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', shell_index)
 
     assert public_mode_index < clear_index < shell_index < dispatch_index
     assert "bootstrap_placeholder.empty()" in source[clear_index:shell_index]
@@ -33851,3 +33851,4 @@ def test_stock_selector_comparison_uses_three_ticker_limit_and_profile_scoped_jo
     assert "build_research_comparison(" in render_source
     assert "research_comparison_frame(" in render_source
     assert render_source.index('st.expander("Advanced: selected review tray", expanded=False)') < render_source.index("build_research_comparison(")
+    assert dashboard.dashboard_mode_label(dashboard.RESEARCH_MODE) == "Personal research mode"

@@ -934,10 +934,10 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert stale_preview_phrase not in preview
     assert "## Quick Start" in readme
     assert "flowchart LR" in readme
-    assert 'Home["Home: workflow start"] --> Selector["Stock Selector: readiness-backed queue"]' in readme
-    assert 'Selector --> Report["Single-Stock Report: one ticker"]' in readme
-    assert 'Report --> Health["Data Health: missing input"]' in readme
-    assert 'Health --> Proof["Proof History: source-proof trail"]' in readme
+    assert 'Desk["Research Desk: changed evidence"] --> Discover["Discover: readiness-backed company"]' in readme
+    assert 'Discover --> Workbench["Company Workbench: trend, valuation, forward view"]' in readme
+    assert 'Workbench --> Monitor["Monitor: unresolved research changes"]' in readme
+    assert 'Workbench -. advanced evidence .-> Health["Data Health and Proof History"]' in readme
     assert "Open the product before proof packets or report commands" in readme
     quick_start = readme[readme.index("## Quick Start") : readme.index("## Try This Visitor Workflow")]
     assert quick_start.index("make demo-dashboard") < quick_start.index("make status-check TOP_N=5")

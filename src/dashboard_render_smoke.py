@@ -62,6 +62,44 @@ PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
 )
 
 
+RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
+    DashboardRenderRoute(
+        name="Research Desk",
+        query_params=(("mode", "research"),),
+        required_markers=("Research Desk", "What changed?", "What should I review next?", "Research-only"),
+    ),
+    DashboardRenderRoute(
+        name="Discover",
+        query_params=(("mode", "research"), ("page", "discover")),
+        required_markers=("Discover", "Which stock can I review?", "Research-only"),
+    ),
+    DashboardRenderRoute(
+        name="Company Workbench",
+        query_params=(
+            ("mode", "research"),
+            ("page", "company-workbench"),
+            ("ticker", "NVDA"),
+            ("open", "1"),
+        ),
+        required_markers=(
+            "Company Workbench",
+            "Selected Company",
+            "Business Trend",
+            "Valuation",
+            "Forward View",
+            "Research Conclusion",
+            "Advanced Evidence",
+            "Research-only",
+        ),
+    ),
+    DashboardRenderRoute(
+        name="Monitor",
+        query_params=(("mode", "research"), ("page", "monitor")),
+        required_markers=("Monitor", "Research change monitor", "Research-only"),
+    ),
+)
+
+
 def _rendered_markdown(app: AppTest) -> str:
     return "\n".join(item.value for item in app.markdown)
 
