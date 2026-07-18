@@ -1,0 +1,32 @@
+from src.private_beta_readiness import build_private_beta_readiness
+
+
+def test_clean_local_contract_is_ready_but_account_capabilities_stay_external():
+    readiness = build_private_beta_readiness()
+    checks = {check.area: check for check in readiness.checks}
+
+    assert readiness.classification == "local_ready"
+    assert checks["authentication"].status == "external_account_required"
+    assert checks["workspaces"].status == "external_account_required"
+    assert checks["secrets"].status == "local_ready"
+    assert "do not claim runtime authentication or hosting" in readiness.boundary
+
+
+def test_declared_external_setup_still_requires_manual_verification():
+    readiness = build_private_beta_readiness(external_setup_declared=True)
+    checks = {check.area: check for check in readiness.checks}
+
+    assert readiness.classification == "manual_verification_required"
+    assert checks["authentication"].status == "manual_verification_required"
+    assert checks["health_checks"].status == "manual_verification_required"
+    assert "does not prove runtime authentication or hosting" in readiness.boundary
+
+
+def test_unsafe_secret_condition_blocks_private_beta_readiness_without_echoing_value():
+    readiness = build_private_beta_readiness(unsafe_secret_detected=True)
+    checks = {check.area: check for check in readiness.checks}
+
+    assert readiness.classification == "unsafe_secret_blocked"
+    assert checks["secrets"].status == "unsafe_secret_blocked"
+    assert "remove the secret from tracked files" in checks["secrets"].next_step.lower()
+    assert "secret value" not in checks["secrets"].detail.lower()

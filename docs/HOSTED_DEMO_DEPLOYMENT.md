@@ -17,6 +17,12 @@ make hosted-demo-readiness
 
 This command is read-only. It checks the root Streamlit entrypoint, runtime dependency manifest, hosted URL boundary, provider-secret boundary, and public verification commands. It does not deploy, open accounts, print secrets, refresh data, stage files, commit, or push.
 
+## Private Beta Is A Separate External Gate
+
+The public demo deployment path does not provide private-beta authentication, private workspaces, per-user data separation, entitlements, audit retention, monitoring, or health checks. These remain `external_account_required` until an external hosting, identity, persistence, and monitoring setup has been configured and independently verified.
+
+Use [Private Beta Architecture](PRIVATE_BETA_ARCHITECTURE.md) for the required external setup sequence and the read-only local classification. A declared setup becomes `manual_verification_required`; it is not evidence that accounts, hosting, or user isolation are live. Keep all real credentials outside Git and do not claim private-beta availability before supervised verification with real test accounts.
+
 ## Hosted URL Marker
 
 The repository includes `config/hosted_demo.env.example` as a blank handoff template for a future hosted app URL. Keep the real marker local and untracked:
