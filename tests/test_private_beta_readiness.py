@@ -11,6 +11,9 @@ def test_clean_local_contract_is_ready_but_account_capabilities_stay_external():
     assert readiness.classification == "local_ready"
     assert checks["authentication"].status == "external_account_required"
     assert checks["workspaces"].status == "external_account_required"
+    assert checks["incident_response"].status == "external_operations_required"
+    assert checks["rollback"].status == "external_operations_required"
+    assert checks["owner_capacity"].status == "external_operations_required"
     assert checks["secrets"].status == "local_ready"
     assert "do not claim runtime authentication or hosting" in readiness.boundary
     assert set(checks) == {
@@ -23,6 +26,9 @@ def test_clean_local_contract_is_ready_but_account_capabilities_stay_external():
         "entitlements",
         "monitoring",
         "health_checks",
+        "incident_response",
+        "rollback",
+        "owner_capacity",
     }
 
 
@@ -33,6 +39,9 @@ def test_declared_external_setup_still_requires_manual_verification():
     assert readiness.classification == "manual_verification_required"
     assert checks["authentication"].status == "manual_verification_required"
     assert checks["health_checks"].status == "manual_verification_required"
+    assert checks["incident_response"].status == "manual_verification_required"
+    assert checks["rollback"].status == "manual_verification_required"
+    assert checks["owner_capacity"].status == "manual_verification_required"
     assert "does not prove runtime authentication or hosting" in readiness.boundary
 
 
@@ -66,5 +75,8 @@ def test_private_beta_cli_and_make_target_are_read_only_and_truthful():
         assert "classification: local_ready" in output
         assert "authentication: external_account_required" in output
         assert "health_checks: external_account_required" in output
+        assert "incident_response: external_operations_required" in output
+        assert "rollback: external_operations_required" in output
+        assert "owner_capacity: external_operations_required" in output
         assert "does not prove runtime authentication or hosting" in output
         assert "token=" not in output.lower()

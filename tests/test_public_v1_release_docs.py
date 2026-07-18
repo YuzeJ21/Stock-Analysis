@@ -179,6 +179,17 @@ def test_hosted_handoff_covers_research_routes_health_and_rollback_without_claim
     assert "Do not claim private or authenticated access" in hosted
 
 
+def test_private_beta_architecture_keeps_operating_controls_external_and_independent():
+    architecture = _read("docs/PRIVATE_BETA_ARCHITECTURE.md")
+
+    assert "external_operations_required" in architecture
+    assert "incident response" in architecture
+    assert "rollback" in architecture
+    assert "owner capacity" in architecture
+    assert "authentication, workspaces, user data separation" in architecture
+    assert "A local runbook does not prove" in architecture
+
+
 def test_methodology_defines_lane_level_freshness_policy_without_claiming_live_data():
     methodology = _read("docs/METHODOLOGY.md")
 

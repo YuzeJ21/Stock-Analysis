@@ -32,6 +32,21 @@ _EXTERNAL_ACCOUNT_AREAS = (
     ("health_checks", "Configure and verify hosted health checks after deployment."),
 )
 
+_EXTERNAL_OPERATIONS_AREAS = (
+    (
+        "incident_response",
+        "Assign an incident owner, escalation path, reviewer-access stop rule, and evidence-preserving response procedure.",
+    ),
+    (
+        "rollback",
+        "Define and rehearse rollback to the previous verified revision in the actual hosted environment.",
+    ),
+    (
+        "owner_capacity",
+        "Confirm named operating coverage for source failures, access incidents, reviewer support, and recovery.",
+    ),
+)
+
 
 def build_private_beta_readiness(
     *, external_setup_declared: bool = False, unsafe_secret_detected: bool = False
@@ -70,6 +85,20 @@ def build_private_beta_readiness(
         )
         for area, next_step in _EXTERNAL_ACCOUNT_AREAS
     )
+    operations_status = (
+        "manual_verification_required"
+        if external_setup_declared
+        else "external_operations_required"
+    )
+    checks.extend(
+        PrivateBetaCheck(
+            area=area,
+            status=operations_status,
+            detail="The repository can define this operating requirement, but only a staffed hosted rehearsal can prove it.",
+            next_step=next_step,
+        )
+        for area, next_step in _EXTERNAL_OPERATIONS_AREAS
+    )
     return PrivateBetaReadiness(
         classification=(
             "unsafe_secret_blocked"
@@ -81,7 +110,8 @@ def build_private_beta_readiness(
         checks=tuple(checks),
         boundary=(
             "Local readiness only; declared setup does not prove runtime authentication or "
-            "hosting; do not claim runtime authentication or hosting."
+            "hosting; do not claim runtime authentication or hosting. It also does not prove "
+            "operated response capacity."
         ),
     )
 

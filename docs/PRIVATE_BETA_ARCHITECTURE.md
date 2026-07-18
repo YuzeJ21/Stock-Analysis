@@ -2,7 +2,7 @@
 
 ## Boundary
 
-The repository contains a deterministic readiness contract for a future private beta. It does not implement runtime authentication, private workspaces, hosted persistence, user accounts, entitlements, audit storage, monitoring, health checks, or hosting. Real user evidence remains `awaiting_external_review`.
+The repository contains a deterministic readiness contract for a future private beta. It does not implement runtime authentication, private workspaces, hosted persistence, user accounts, entitlements, audit storage, monitoring, health checks, incident response, rollback, owner capacity, or hosting. Real user evidence remains `awaiting_external_review`.
 
 The contract is available through `src.private_beta_readiness.build_private_beta_readiness()`. It accepts only declared review facts; it does not inspect environment variables, scan files, open accounts, contact a host, or read secret material.
 
@@ -10,6 +10,7 @@ The contract is available through `src.private_beta_readiness.build_private_beta
 | --- | --- | --- |
 | `local_ready` | Repository-side guidance is present, while account-backed capabilities remain external. | Complete the external setup below. |
 | `external_account_required` | An individual capability needs a real hosted account or service. | Do not represent the capability as available. |
+| `external_operations_required` | An operating control needs a staffed hosted rehearsal, not only repository guidance. | Assign owners and rehearse the control in the actual environment before claiming it. |
 | `manual_verification_required` | An external setup has been declared, but it has not been independently verified. | Verify the live behavior before any access or product claim. |
 | `unsafe_secret_blocked` | A tracked or otherwise unsafe secret condition has been declared. | Remove it from tracked files, rotate it outside the repository, then repeat the review. |
 
@@ -30,11 +31,16 @@ Credentials, tokens, account identifiers, license documents, and secret values r
 5. Configure audit events for sign-in, workspace membership, export, deletion, and entitlement changes. Define a retention and deletion policy before retaining beta-user data.
 6. Configure role and entitlement rules, including revocation, and test that unauthorized users cannot read or modify another workspace.
 7. Configure privacy-safe usage and error monitoring, alert routing, and health checks for the hosted entrypoint and backing services.
-8. Run a supervised external verification with real test accounts. Record the outcome as `awaiting_external_review`, `manual_verification_required`, or another evidence-backed state; do not infer readiness from setup alone.
+8. Define incident response severity, escalation, reviewer-access shutdown, evidence preservation, communication ownership, and recovery criteria.
+9. Keep the previous verified revision available, rehearse rollback in the hosted environment, and record who can execute and verify recovery.
+10. Confirm owner capacity for source failures, access incidents, reviewer support, and recovery; a named document without available coverage is not operating proof.
+11. Run a supervised external verification with real test accounts. Record the outcome as `awaiting_external_review`, `manual_verification_required`, or another evidence-backed state; do not infer readiness from setup alone.
 
 ## Local Contract
 
-The classifier reports the following areas: authentication, workspaces, user data separation, secrets, audit, retention, entitlements, monitoring, and health checks. It is intentionally read-only.
+The classifier reports authentication, workspaces, user data separation, secrets, audit, retention, entitlements, monitoring, and health checks independently from incident response, rollback, and owner capacity. It is intentionally read-only.
+
+A local runbook does not prove that an incident owner is available, rollback works on the host, or recovery can be staffed. Without a real rehearsal, those controls remain `external_operations_required`; declaring external setup moves them only to `manual_verification_required`.
 
 ```python
 from src.private_beta_readiness import build_private_beta_readiness
@@ -47,4 +53,4 @@ Passing `external_setup_declared=True` produces `manual_verification_required`, 
 
 ## Non-Claims
 
-No current repository state proves that a private-beta host exists, authentication is live, user data is separated, retention works, entitlements are enforced, audit logs are stored, monitoring receives events, or health checks run. Do not present this contract as commercial launch readiness, hosting evidence, or user validation.
+No current repository state proves that a private-beta host exists, authentication is live, user data is separated, retention works, entitlements are enforced, audit logs are stored, monitoring receives events, health checks run, incident response is staffed, rollback succeeds, or owner capacity is available. Do not present this contract as commercial launch readiness, hosting evidence, or user validation.

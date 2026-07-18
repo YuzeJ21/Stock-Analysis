@@ -270,6 +270,7 @@ Use `docs/PRODUCT_DIRECTION_DECISION.md` after hosted-preview, controlled-pilot,
 | Item | State | What the repo can do | What remains external |
 | --- | --- | --- | --- |
 | Hosted demo | repo-ready | deterministic demo profile, deployment guide, and local public checks | hosting account, verified public URL, browser review |
+| Operated controls | contract-ready | independent fail-closed states for account controls, incident response, rollback, and owner capacity | hosted accounts, named coverage, and supervised operating rehearsal |
 | FMP fallback | optional key missing | one-ticker smoke, validation, preview, provenance gate | `FMP_API_KEY` outside Git |
 | Alpha Vantage / Finnhub | optional keys missing | capped fallback interfaces and source-state checks | provider keys and a reviewed use case |
 | Trusted peers | source-gated | candidate/trusted separation, role/comparability/anchor contract, and proof workflow | licensed or otherwise trustworthy reviewed relationships, roles, rationales, and comparability decisions |
