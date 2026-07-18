@@ -375,6 +375,12 @@ Historical evaluation is chronological walk-forward only. The target actual and 
 
 The committed `SYN1`-`SYN5` cohort is synthetic test evidence only. The intended five-company SEC staging scope is NVDA, AMD, AVGO, MU, and QCOM, but real pilot output remains `awaiting_point_in_time_consensus` until exact historical consensus evidence is present. This proves neither real semiconductor coverage, predictive accuracy, nor data freshness. The pilot does not predict post-earnings price movement and does not provide investment advice.
 
+The cohort readiness board reports actual-history, Q4, split-basis, exact-period consensus, backtest, and calibration gates independently. Prospective collection preserves immutable snapshots and revisions; it does not reconstruct historical consensus from a current estimate. Provider configuration is an access state, not an evidence or rights state.
+
+Historical valuation regime context is computed only from observations where the denominator was publicly available by the matching numerator timestamp. Each metric definition forms a separate segment, and fewer than eight compatible observations remains `insufficient_history`. The output is a descriptive range and percentile, never a cheap/expensive label or recommendation.
+
+Research outcome review is an append-only learning loop tied to an original thesis and a closed observation window. Catalyst evidence is a cutoff-safe timeline of reviewed events. Neither uses price returns, sentiment scoring, or narrative adjustments to grade the company, grade the researcher, or change a numerical model.
+
 ### Forward View V1
 
 Forward View is a deterministic composition of existing evidence, not a second forecast or valuation engine. It keeps five lanes separate: explicit quarterly Revenue/EPS trend, source-backed DCF bull/base/bear scenarios, trusted peer read-through, reviewer-authored thesis evidence, and the independently gated Earnings Outlook.

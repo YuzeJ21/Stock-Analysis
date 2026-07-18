@@ -48,6 +48,16 @@ Historical actual evidence is append-only and cutoff-aware: later presentations 
 
 Real pilot output remains `awaiting_point_in_time_consensus` until permitted historical consensus snapshots are available at each forecast cutoff. Numerical Beat/Miss probability remains `awaiting_calibration_evidence` until at least 100 valid out-of-sample events pass the calibration gates.
 
+## Cohort Readiness And Prospective Collection
+
+Use `make earnings-nowcast-cohort-readiness AS_OF=<timestamp>` to review NVDA, AMD, AVGO, MU, and QCOM as one evidence board. The board reports the latest actual period, next forecast period, Revenue/EPS history, explicit Q4 evidence, split-basis readiness, exact-period consensus count, backtest count, calibration count, state, blocker, and next action. It does not create a forecast.
+
+Use `make earnings-consensus-source-status` to inspect Alpha Vantage, FMP, Finnhub, and reviewed-CSV activation in deterministic order. A configured key is only `configured_unverified`; it is not evidence that historical snapshots, use rights, or comparable definitions are available. Current-only estimates remain `candidate_context_only` and cannot be used as reconstructed historical snapshots.
+
+Use `make earnings-consensus-collection-plan AS_OF=<timestamp>` for a weekly or pre-earnings plan and `make earnings-consensus-collection-status` for the append-only ledger status. The prospective record preserves snapshot identity, source reference, publication/retrieval cutoff, metric definitions, explicit revisions, and review state. Duplicate snapshots are rejected, cooldown is explicit, prior snapshots are never overwritten, and no automatic apply or readiness promotion exists.
+
+Start from `docs/templates/earnings_nowcast/prospective_consensus.csv`. Preview with `make earnings-consensus-collection-preview INPUT=<reviewed.csv> AS_OF=<timestamp>`. Recording requires the separately reviewed `CONFIRM_REVIEWED=1 make earnings-consensus-collection-record INPUT=<reviewed.csv>` command; it appends evidence only and does not create a forecast or promote readiness automatically.
+
 ## Signals
 
 Company news, industry indicators, macro evidence, and trusted peer earnings may provide directional explanation. Candidate peers remain `candidate_context_only`. Trusted signals require reviewed source evidence and can move the lane to `signal_context_ready`; they cannot mutate Revenue/EPS ranges or create a numeric adjustment.

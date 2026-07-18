@@ -43,6 +43,12 @@ The target-period actual and every source published after the cutoff are evaluat
 
 The synthetic fixture packet is software-test evidence only. The five-company SEC staging scope (NVDA, AMD, AVGO, MU, and QCOM) is not a coverage claim. Real output remains `awaiting_point_in_time_consensus`, and numerical probability remains `awaiting_calibration_evidence` until the documented out-of-sample gates pass.
 
+Prospective consensus snapshots are append-only. Each row preserves a unique snapshot ID, ticker, fiscal period, snapshot and retrieval timestamps, source and durable reference, Revenue/EPS values when present, complete comparability definitions, expected report date, review state, and an explicit superseded snapshot ID for revisions. Current-only provider payloads remain candidate context and cannot be relabeled as historical point-in-time evidence.
+
+Historical valuation observations preserve the numerator timestamp, denominator period end, denominator availability timestamp, metric definition ID, retrieval time, and source reference. A denominator unavailable at the historical price timestamp is rejected. Definition changes create separate history segments instead of a mixed regime.
+
+Research outcome and catalyst ledgers are append-only reviewed evidence. Outcomes retain the original thesis entry, observation window, review time, source, and learning; they contain no return or skill score. Catalysts retain publication, retrieval, effective time, event type, evidence state, and reviewer. Neither ledger mutates source data, readiness, forecasts, probabilities, DCF assumptions, or recommendations.
+
 ## Freshness Rules
 
 Freshness is lane-specific. A price date, a filing date, and a peer review date answer different questions.

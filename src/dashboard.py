@@ -203,6 +203,18 @@ from src.dcf_input_proof_queue import build_dcf_input_proof_handoff, build_dcf_i
 from src.dcf_input_proof_queue import build_dcf_input_source_review_rows
 from src.earnings_nowcast_ui import nowcast_data_health_card, nowcast_summary_cards
 from src.earnings_nowcast_report import build_nowcast_packet
+from src.earnings_nowcast_cohort import build_cohort_readiness, cohort_readiness_cards
+from src.research_outcome_review import derive_outcome_status, load_outcomes, outcome_status_cards
+from src.catalyst_evidence_timeline import (
+    build_catalyst_timeline,
+    catalyst_timeline_cards,
+    load_catalyst_events,
+)
+from src.historical_valuation_regime import (
+    build_valuation_regime,
+    load_valuation_observations,
+    valuation_regime_cards,
+)
 from src.monthly_picks import build_monthly_research_picks
 from src.monthly_picks import MonthlyPickConfig
 from src.providers.local_data_catalog import LocalDataCatalog
@@ -5740,6 +5752,60 @@ def load_dashboard_journal_state(
 
     return derive_journal_state(
         load_journal_entries(ledger_path or (BASE_DIR / "data" / "research_thesis_journal.csv")),
+        profile_key=context.profile_key,
+        ticker=ticker,
+        as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+    )
+
+
+def load_dashboard_nowcast_cohort(as_of: str | None = None):
+    """Load the five-company readiness board without fetching or applying data."""
+
+    return build_cohort_readiness(
+        DATA_DIR / "earnings_nowcast",
+        tickers=("NVDA", "AMD", "AVGO", "MU", "QCOM"),
+        as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+    )
+
+
+def load_dashboard_valuation_regime(ticker: str, *, as_of: str | None = None):
+    """Load aligned point-in-time valuation observations or fail closed."""
+
+    try:
+        observations = load_valuation_observations(DATA_DIR / "historical_valuation_observations.csv")
+    except (OSError, UnicodeError, ValueError):
+        observations = ()
+    return build_valuation_regime(
+        observations,
+        ticker=ticker,
+        metric="price_to_fcf_per_share",
+        as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+    )
+
+
+def load_dashboard_outcome_status(context: ProfileContext, *, ticker: str):
+    """Load selected-profile outcome learning without grading performance."""
+
+    try:
+        outcomes = load_outcomes(DATA_DIR / "research_outcome_reviews.csv")
+    except (OSError, UnicodeError, ValueError):
+        outcomes = ()
+    return derive_outcome_status(
+        outcomes,
+        profile_key=context.profile_key,
+        ticker=ticker,
+    )
+
+
+def load_dashboard_catalyst_timeline(context: ProfileContext, *, ticker: str, as_of: str | None = None):
+    """Load cutoff-safe reviewed catalyst context without provider calls."""
+
+    try:
+        events = load_catalyst_events(DATA_DIR / "catalyst_evidence.csv")
+    except (OSError, UnicodeError, ValueError):
+        events = ()
+    return build_catalyst_timeline(
+        events,
         profile_key=context.profile_key,
         ticker=ticker,
         as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
@@ -30154,6 +30220,10 @@ def render_single_stock_report(
             profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
         )
         nowcast_packet = load_dashboard_nowcast_packet(report_payload, ticker=ticker)
+        selected_context = profile_context or build_profile_context(project_root=BASE_DIR)
+        valuation_regime = load_dashboard_valuation_regime(ticker)
+        outcome_status = load_dashboard_outcome_status(selected_context, ticker=ticker)
+        catalyst_timeline = load_dashboard_catalyst_timeline(selected_context, ticker=ticker)
         forward_view_packet = build_forward_view(
             report_payload,
             trend_packet,
@@ -30197,10 +30267,26 @@ def render_single_stock_report(
                     show_commands=False,
                     variant="queue",
                 )
+                render_signal_cards(valuation_regime_cards(valuation_regime), show_commands=False, variant="queue")
+                with st.expander("Advanced: historical valuation evidence", expanded=False):
+                    if valuation_regime.source_refs:
+                        st.dataframe(
+                            pd.DataFrame({"Source Reference": list(valuation_regime.source_refs)}),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    st.caption(valuation_regime.boundary)
                 st.markdown("### Forward View")
                 render_signal_cards(forward_view_cards(forward_view_packet), show_commands=False, variant="queue")
+                render_signal_cards(catalyst_timeline_cards(catalyst_timeline), show_commands=False, variant="queue")
                 with st.expander("Advanced: Forward View evidence", expanded=False):
                     st.dataframe(pd.DataFrame(forward_view_rows(forward_view_packet)), width="stretch", hide_index=True)
+                    if catalyst_timeline.upcoming or catalyst_timeline.recent:
+                        st.dataframe(
+                            pd.DataFrame([asdict(row) for row in (*catalyst_timeline.upcoming, *catalyst_timeline.recent)]),
+                            width="stretch",
+                            hide_index=True,
+                        )
                     st.caption(
                         f"Model {forward_view_packet.model_version}; cutoff {forward_view_packet.source_cutoff or 'unavailable'}. "
                         "Candidate context never changes numerical scenarios."
@@ -30251,6 +30337,8 @@ def render_single_stock_report(
                 "primary_action": "Review the journal contract before using it",
             }
         st.markdown(research_thesis_journal_html(journal_summary), unsafe_allow_html=True)
+        if research_mode:
+            render_signal_cards(outcome_status_cards(outcome_status), show_commands=False, variant="queue")
         with st.expander("Advanced: thesis and evidence history", expanded=False):
             if journal_state is not None and journal_state.entries:
                 st.dataframe(
@@ -34032,6 +34120,12 @@ def render_research_monitor(
         primary_action="Review unresolved evidence changes; otherwise wait for new source evidence",
     )
     render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
+    nowcast_cohort = load_dashboard_nowcast_cohort()
+    st.markdown("### Earnings evidence readiness")
+    render_signal_cards(cohort_readiness_cards(nowcast_cohort), show_commands=False, variant="queue")
+    with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):
+        st.dataframe(pd.DataFrame([asdict(row) for row in nowcast_cohort]), width="stretch", hide_index=True)
+        st.caption("This board creates no forecast. Missing consensus, Q4, split, backtest, and calibration evidence remain separate blockers.")
     st.markdown("### Research change monitor")
     frame = research_monitor_frame(state.get("queue") or ())
     if frame.empty:

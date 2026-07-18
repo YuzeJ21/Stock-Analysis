@@ -41,6 +41,12 @@ Research Desk composes a read-only coverage matrix for every focused-cohort comp
 
 The concise usable/gated answer appears on Research Desk; the full company-by-lane matrix remains under Advanced Evidence. A DCF-ready flag does not fabricate quarterly actuals, earnings dates, or consensus. Candidate peers do not become trusted peers. Missing source provenance remains blocked, and non-company rows remain excluded rather than forced through operating-company analysis.
 
+Monitor also carries one compact five-company Earnings Nowcast evidence answer. Company Workbench keeps historical valuation regime, catalyst evidence, and research outcome learning inside the existing Valuation, Forward View, and Thesis Journal sequence. Their raw rows stay under Advanced. These helpers do not add a route, refresh a provider, apply an import, or change canonical readiness.
+
+Historical valuation is descriptive only and requires a denominator that was public at the matching price timestamp. Research outcomes preserve reviewed learning without return attribution or skill scoring. Catalyst events require source and cutoff timestamps and cannot change forecasts, valuation inputs, readiness, or recommendations.
+
+Header-only templates live at `docs/templates/historical_valuation_observations.csv`, `docs/templates/research_outcome_reviews.csv`, and `docs/templates/catalyst_evidence.csv`. Outcome and catalyst inputs must be previewed before the explicit `CONFIRM_REVIEWED=1` record command. The canonical ledgers remain local working evidence unless one exact artifact is intentionally reviewed for a controlled package.
+
 The weekly summary is derived from deduplicated, source-backed Change Monitor events from the prior seven days plus reviewer-authored journal review dates. It writes no data and does not turn a missing event into a no-change claim.
 
 Quarterly business trend is descriptive evidence, not a forecast. Revenue and EPS comparisons require explicit versioned quarterly actuals with compatible definitions. Sequential and year-over-year changes are withheld when matching periods or definitions are unavailable. Q4 is never derived from annual results; it requires an explicit filed-quarter row. Operating margin, free cash flow, and FCF margin remain withheld until they have their own versioned quarterly source contract.

@@ -214,3 +214,44 @@ def test_dashboard_nowcast_loader_passes_exact_report_period_and_rejects_synthet
         lambda *args, **kwargs: {"evidence_scope": "synthetic_test_evidence_only"},
     )
     assert dashboard.load_dashboard_nowcast_packet(report, ticker="AAA") is None
+
+
+def test_monitor_and_workbench_integrate_new_evidence_layers_without_new_routes():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    monitor_start = source.index("def render_research_monitor(")
+    monitor_end = source.index("def render_company_workbench(", monitor_start)
+    monitor = source[monitor_start:monitor_end]
+    report_start = source.index("def render_single_stock_report(")
+    report_end = source.index("\ndef render_data_health(", report_start)
+    report = source[report_start:report_end]
+
+    assert "cohort_readiness_cards(nowcast_cohort)" in monitor
+    assert 'st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False)' in monitor
+    assert "valuation_regime_cards(valuation_regime)" in report
+    assert "catalyst_timeline_cards(catalyst_timeline)" in report
+    assert "outcome_status_cards(outcome_status)" in report
+    assert dashboard.workspace_path_options("Research Desk", nav.RESEARCH_MODE) == nav.RESEARCH_PATH_PAGE_TITLES
+
+
+def test_new_evidence_loaders_fail_closed_on_invalid_local_ledgers(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "historical_valuation_observations.csv").write_text("ticker,numerator\nNVDA,nope\n", encoding="utf-8")
+    (data_dir / "research_outcome_reviews.csv").write_text("bad,header\n1,2\n", encoding="utf-8")
+    (data_dir / "catalyst_evidence.csv").write_text("bad,header\n1,2\n", encoding="utf-8")
+    monkeypatch.setattr(dashboard, "DATA_DIR", data_dir)
+    context = SimpleNamespace(profile_key="default")
+
+    valuation = dashboard.load_dashboard_valuation_regime("NVDA", as_of="2026-07-18T05:00:00Z")
+    outcome = dashboard.load_dashboard_outcome_status(context, ticker="NVDA")
+    catalyst = dashboard.load_dashboard_catalyst_timeline(
+        context,
+        ticker="NVDA",
+        as_of="2026-07-18T05:00:00Z",
+    )
+
+    assert valuation.state == "insufficient_history"
+    assert outcome.state == "not_started"
+    assert catalyst.state == "blocked"

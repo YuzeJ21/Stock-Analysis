@@ -31,7 +31,8 @@ Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> 
 3. **Implemented locally:** quarterly Revenue/EPS trend and exact-period Forward View contracts preserve revision lineage, production provenance, freshness downgrades, no-derived-Q4 policy, and independent calibration gates.
 4. **Implemented locally:** controlled refresh and private-beta readiness contracts describe deterministic failure handling and external account requirements without enabling automatic apply or claiming hosted capabilities.
 5. **Implemented locally:** research-route render smoke, desktop/phone performance contracts, and a consolidated read-only release check verify the local candidate without refreshing data or weakening blocked states.
-6. **Next evidence:** run 10-20 task-based beta sessions after a controlled delivery path exists; measure time to first answer, readiness comprehension, misuse risk, trust, performance, and repeat-use intent.
+6. **Implemented locally:** the Evidence Activation Layer adds a five-company Earnings Nowcast readiness board, fail-closed consensus source status, append-only prospective snapshot planning, point-in-time valuation regime context, research outcome learning, and catalyst evidence timelines inside the existing four-page workflow.
+7. **Next evidence:** acquire permitted point-in-time consensus snapshots prospectively, verify one repeatable source path, and run 10-20 task-based beta sessions after a controlled delivery path exists; measure time to first answer, readiness comprehension, misuse risk, trust, performance, and repeat-use intent.
 
 **Exit gate:** local release gates pass; one permitted source path demonstrates repeatable provenance and freshness; a controlled host enforces the claimed access boundary; and 10-20 reviewers can complete the primary workflow without mistaking it for advice or live-market certainty.
 
@@ -174,6 +175,19 @@ Earnings Nowcast real-data safety infrastructure is implemented for deterministi
 5. Withhold numerical Beat/Miss probability until at least 100 valid events pass Brier-score, calibration-bin, and benchmark-improvement gates.
 
 Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`; numerical probability remains `awaiting_calibration_evidence`. SEC staging success alone does not change either status.
+
+**Activation workflow implemented:** `make earnings-nowcast-cohort-readiness`, `make earnings-consensus-source-status`, `make earnings-consensus-collection-plan`, and `make earnings-consensus-collection-status` separate quarterly actual readiness, exact-period consensus, Q4 evidence, EPS split basis, backtest count, and calibration count. Current-only provider estimates remain candidate context. The first real-data exit step is a permitted append-only prospective snapshot, not a reconstructed historical estimate.
+
+### P2: Evidence Timeline And Learning Layer - Implemented
+
+**Goal:** make forward-looking research reviewable without turning narrative context into numerical prediction.
+
+1. Historical valuation regimes use only aligned point-in-time numerator and denominator evidence. Definition changes split the history; current denominators are never applied to older prices.
+2. Research outcome reviews preserve the original thesis reference, observation window, source evidence, and learning in an append-only ledger. They do not calculate returns, rank companies, or score research skill.
+3. Catalyst timelines require reviewed event type, source reference, publication, retrieval, and effective timestamps. Candidate context remains visibly separate from supported evidence.
+4. These answers live inside Company Workbench and Monitor; raw evidence stays under Advanced.
+
+**Stop rule:** no source-backed rows means withheld output. Catalyst or outcome context cannot change Earnings Nowcast numbers, DCF assumptions, readiness, rankings, recommendations, or actions.
 
 **Stop rule:** do not substitute current analyst estimates for historical point-in-time snapshots, use post-cutoff evidence, infer numeric adjustments from text, claim predictive accuracy from fixtures, or predict post-earnings price movement.
 

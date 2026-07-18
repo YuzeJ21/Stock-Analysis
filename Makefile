@@ -3,6 +3,8 @@
 .PHONY: thesis-journal thesis-journal-preview thesis-journal-record
 .PHONY: refresh-operations-status refresh-operations-runbook
 .PHONY: earnings-nowcast-sec-actuals-stage
+.PHONY: earnings-nowcast-cohort-readiness earnings-consensus-source-status earnings-consensus-collection-plan earnings-consensus-collection-status earnings-consensus-collection-preview earnings-consensus-collection-record research-outcome-review research-outcome-review-preview research-outcome-review-record catalyst-evidence-timeline catalyst-evidence-preview catalyst-evidence-record
+EARNINGS_NOWCAST_COHORT ?= NVDA,AMD,AVGO,MU,QCOM
 .PHONY: commercial-source-rights commercial-beta-check commercial-beta-release-check
 .PHONY: private-beta-readiness
 
@@ -1332,6 +1334,42 @@ earnings-nowcast-preview:
 
 earnings-nowcast-readiness:
 	@python3 -m src.earnings_nowcast_onboarding readiness --input-dir $(if $(FIXTURE),tests/fixtures/earnings_nowcast_onboarding,$(or $(INPUT_DIR),data/imports/earnings_nowcast)) --ticker $(or $(TICKER),SYN1) $(if $(AS_OF),--cutoff $(AS_OF),)
+
+earnings-nowcast-cohort-readiness:
+	@python3 -m src.earnings_nowcast_cohort --input-dir $(if $(FIXTURE),tests/fixtures/earnings_nowcast_onboarding,$(or $(INPUT_DIR),data/imports/earnings_nowcast)) --tickers "$(or $(TICKERS),$(EARNINGS_NOWCAST_COHORT))" --as-of "$(or $(AS_OF),2026-01-31T23:59:59Z)" $(if $(JSON),--json,)
+
+earnings-consensus-source-status:
+	@python3 -m src.earnings_consensus_sources $(if $(REVIEWED_CSV),--reviewed-csv "$(REVIEWED_CSV)",) $(if $(JSON),--json,)
+
+earnings-consensus-collection-plan:
+	@python3 -m src.earnings_consensus_collector plan --tickers "$(or $(TICKERS),$(EARNINGS_NOWCAST_COHORT))" --as-of "$(or $(AS_OF),2026-01-31T23:59:59Z)" --cadence "$(or $(CADENCE),weekly)"
+
+earnings-consensus-collection-status:
+	@python3 -m src.earnings_consensus_collector status --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)"
+
+earnings-consensus-collection-preview:
+	@python3 -m src.earnings_consensus_collector preview --input "$(INPUT)" --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)" --as-of "$(AS_OF)"
+
+earnings-consensus-collection-record:
+	@python3 -m src.earnings_consensus_collector record --input "$(INPUT)" --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)" $(if $(CONFIRM_REVIEWED),--confirm-reviewed,)
+
+research-outcome-review:
+	@python3 -m src.research_outcome_review --ledger "$(or $(LEDGER),data/research_outcome_reviews.csv)" --profile-key "$(or $(PROFILE_KEY),default)" --ticker "$(or $(TICKER),NVDA)"
+
+research-outcome-review-preview:
+	@python3 -m src.research_outcome_review --ledger "$(or $(LEDGER),data/research_outcome_reviews.csv)" --preview-input "$(INPUT)"
+
+research-outcome-review-record:
+	@python3 -m src.research_outcome_review --ledger "$(or $(LEDGER),data/research_outcome_reviews.csv)" --record-input "$(INPUT)" $(if $(CONFIRM_REVIEWED),--confirm-reviewed,)
+
+catalyst-evidence-timeline:
+	@python3 -m src.catalyst_evidence_timeline --ledger "$(or $(LEDGER),data/catalyst_evidence.csv)" --profile-key "$(or $(PROFILE_KEY),default)" --ticker "$(or $(TICKER),NVDA)" --as-of "$(or $(AS_OF),2026-01-31T23:59:59Z)"
+
+catalyst-evidence-preview:
+	@python3 -m src.catalyst_evidence_timeline --ledger "$(or $(LEDGER),data/catalyst_evidence.csv)" --preview-input "$(INPUT)"
+
+catalyst-evidence-record:
+	@python3 -m src.catalyst_evidence_timeline --ledger "$(or $(LEDGER),data/catalyst_evidence.csv)" --record-input "$(INPUT)" $(if $(CONFIRM_REVIEWED),--confirm-reviewed,)
 
 earnings-nowcast-prospective-plan:
 	@python3 -m src.earnings_nowcast_onboarding prospective-plan --output-dir $(or $(OUTPUT_DIR),data/imports/earnings_nowcast)
