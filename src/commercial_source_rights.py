@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -26,6 +27,9 @@ REQUIRED_FIELDS = (
     "fallback_priority",
 )
 APPROVED_COMMERCIAL_USE = "approved"
+COMMERCIAL_RESEARCH_MODE_ENV = "COMMERCIAL_RESEARCH_MODE"
+_COMMERCIAL_MODE_ENABLED_VALUES = frozenset({"1", "true", "yes", "on", "commercial"})
+_COMMERCIAL_MODE_DISABLED_VALUES = frozenset({"", "0", "false", "no", "off", "research"})
 DEFAULT_REGISTRY_PATH = Path(__file__).resolve().parent.parent / "config" / "source_rights.yml"
 
 
@@ -150,6 +154,34 @@ def commercial_eligibility(
         status="approved",
         reason="Commercial rights are explicitly approved in the checked-in registry.",
     )
+
+
+def commercial_mode_enabled(environ: Mapping[str, str] | None = None) -> bool:
+    """Return whether the explicit commercial-mode environment gate is enabled."""
+
+    value = (environ or os.environ).get(COMMERCIAL_RESEARCH_MODE_ENV, "").strip().lower()
+    if value in _COMMERCIAL_MODE_ENABLED_VALUES:
+        return True
+    if value in _COMMERCIAL_MODE_DISABLED_VALUES:
+        return False
+    raise ValueError(
+        f"{COMMERCIAL_RESEARCH_MODE_ENV} must be one of "
+        "1, true, yes, on, commercial, 0, false, no, off, or research."
+    )
+
+
+def enforce_commercial_source_rights(source_id: str) -> None:
+    """Block unapproved sources before provider code executes in explicit commercial mode."""
+
+    if not commercial_mode_enabled():
+        return
+
+    decision = commercial_eligibility(load_source_rights_registry(), source_id)
+    if not decision.allowed:
+        raise RuntimeError(
+            f"{decision.source_id or source_id}: commercial rights are not explicitly approved "
+            f"for this source ({decision.status})."
+        )
 
 
 def render_source_rights_status(

@@ -2,6 +2,7 @@
 
 .PHONY: thesis-journal thesis-journal-preview thesis-journal-record
 .PHONY: earnings-nowcast-sec-actuals-stage
+.PHONY: commercial-source-rights
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -799,6 +800,9 @@ public-check:
 
 test:
 	python3 -m pytest tests -q
+
+commercial-source-rights:
+	@python3 -m src.commercial_source_rights $(if $(SOURCE),--source "$(SOURCE)",)
 
 status:
 	python3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)

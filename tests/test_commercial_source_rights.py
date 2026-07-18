@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import subprocess
+import sys
 from dataclasses import FrozenInstanceError
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -97,3 +100,54 @@ def test_explicitly_approved_source_is_accepted():
 
     assert decision.allowed is True
     assert decision.status == "approved"
+
+
+def test_commercial_source_rights_cli_reports_unverified_yfinance():
+    result = subprocess.run(
+        [sys.executable, "-m", MODULE_NAME, "--source", "yfinance"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "source_id: yfinance" in result.stdout
+    assert "commercial_mode_allowed: false" in result.stdout
+    assert "status: commercial_rights_unverified" in result.stdout
+
+
+def test_make_commercial_source_rights_target_runs_the_cli():
+    result = subprocess.run(
+        ["make", "--no-print-directory", "commercial-source-rights", "SOURCE=yfinance"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "source_id: yfinance" in result.stdout
+    assert "status: commercial_rights_unverified" in result.stdout
+
+
+def test_yfinance_provider_remains_available_in_default_research_mode(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("COMMERCIAL_RESEARCH_MODE", raising=False)
+    monkeypatch.setitem(sys.modules, "yfinance", SimpleNamespace(Ticker=lambda _ticker: object()))
+    from src.providers.yfinance_provider import YFinanceProvider
+
+    assert isinstance(YFinanceProvider(), YFinanceProvider)
+
+
+def test_yfinance_staging_fails_closed_in_explicit_commercial_mode(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("COMMERCIAL_RESEARCH_MODE", "1")
+    ticker_calls: list[str] = []
+    monkeypatch.setitem(
+        sys.modules,
+        "yfinance",
+        SimpleNamespace(Ticker=lambda ticker: ticker_calls.append(ticker)),
+    )
+    from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
+
+    with pytest.raises(RuntimeError, match="commercial rights are not explicitly approved"):
+        build_yfinance_fundamentals_rows(["NVDA"])
+
+    assert ticker_calls == []
