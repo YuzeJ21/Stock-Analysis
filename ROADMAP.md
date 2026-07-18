@@ -13,6 +13,7 @@ Use live, read-only commands instead of static counts:
 - Lane readiness: use `make readiness-ops-center`.
 - Source/provider state: use `make session-source-preflight` and `make provider-setup-checklist`.
 - Package/share state: use `make pilot-readiness-check TOP_N=10` and `make public-check`.
+- Commercial-beta contract state: use `make commercial-beta-check`; this is local contract evidence, not hosted or operated proof.
 
 The product deliberately separates the tracked master universe, active universe, and analysis-ready subset. It must never imply that the whole tracked universe is analysis-ready.
 

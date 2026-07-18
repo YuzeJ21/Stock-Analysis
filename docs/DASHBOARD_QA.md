@@ -2,6 +2,25 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-07-17 Commercial Beta Research Workflow Live Review
+
+The live local Streamlit app was reviewed in the in-app browser at `1280x720`
+and `390x844` across Research Desk, Discover, Company Workbench, and Monitor.
+Each route rendered from the selected worktree, kept the research-only boundary
+visible, preserved one next action, kept Advanced evidence closed, and showed no horizontal overflow at either viewport.
+
+The first settled Company Workbench review exposed a real `ArrowInvalid`
+failure when immutable Forward View evidence reached the display table. The
+display adapter now serializes that immutable nested evidence into deterministic
+JSON text. A fresh server restart and repeat NVDA review completed through
+Research Conclusion and Next Research Task without traceback text. Focused and
+full tests plus the dashboard and public gates cover the corrected contract.
+
+This live review is product evidence only. It does not prove hosted behavior,
+data freshness, licensed commercial source operation, external reviewer
+success, or predictive validity. No screenshot from this session is committed;
+generated capture output remains excluded.
+
 ## 2026-07-11 Public Workflow Modernization
 
 The current public first-view contract is intentionally simpler than older

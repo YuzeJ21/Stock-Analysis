@@ -3,7 +3,7 @@
 .PHONY: thesis-journal thesis-journal-preview thesis-journal-record
 .PHONY: refresh-operations-status refresh-operations-runbook
 .PHONY: earnings-nowcast-sec-actuals-stage
-.PHONY: commercial-source-rights
+.PHONY: commercial-source-rights commercial-beta-check
 .PHONY: private-beta-readiness
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
@@ -20,6 +20,7 @@ help:
 	@echo "  make project-status-check       Read current coverage, blockers, and executable next steps"
 	@echo "  make provider-setup-checklist   Review optional key setup without exposing secrets"
 	@echo "  make hosted-demo-readiness      Check hosted-app readiness without deploying"
+	@echo "  make commercial-beta-check      Run the read-only commercial-beta contract checks"
 	@echo "  make pilot-review-feedback      Print the controlled 10-20 reviewer feedback capture guide"
 	@echo "  make pilot-feedback-closeout    Print the reviewer feedback closeout and fix/defer checklist"
 	@echo "  make scheduler-activation-checklist Print the safe scheduler activation checklist"
@@ -1129,6 +1130,13 @@ hosted-demo-readiness:
 
 private-beta-readiness:
 	@python3 -m src.private_beta_readiness
+
+commercial-beta-check:
+	@echo "Commercial Research Beta Check"
+	@echo "Read-only: checks source rights, refresh-operation safety, and private-beta readiness without fetching or applying data."
+	@$(MAKE) --silent commercial-source-rights
+	@$(MAKE) --silent refresh-operations-status
+	@$(MAKE) --silent private-beta-readiness
 
 provider-smoke:
 ifndef TICKER

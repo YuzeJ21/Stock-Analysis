@@ -280,6 +280,38 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         qa_focus="Operator can see why a fundamentals lane is blocked before opening advanced route-map evidence.",
         stop_rule="Stop if route links execute commands, expose raw tables first, or imply generated churn belongs in the default staging set.",
     ),
+    BrowserQaRouteCheck(
+        name="Research Desk",
+        route="http://localhost:8501/?mode=research&page=research-desk",
+        first_view_markers=("Saved readiness", "RESEARCH DESK", "FOCUSED COHORT", "Next action", "Research-only"),
+        details_boundary="Research change evidence stays under Advanced; the desk starts with cohort scope and one next action.",
+        qa_focus="Reviewer can understand the saved research scope and continue to Discover without reading operator evidence.",
+        stop_rule="Stop if the desk shows a traceback, recommendation ranking, raw source table, or unresolved evidence before the cohort answer.",
+    ),
+    BrowserQaRouteCheck(
+        name="Research Discover",
+        route="http://localhost:8501/?mode=research&page=discover",
+        first_view_markers=("Saved readiness", "DISCOVER", "Which stock can I review?", "Search this review queue", "Research-only"),
+        details_boundary="Advanced filters and full selector rows stay collapsed; the first path is a bounded readiness-backed company queue.",
+        qa_focus="Reviewer can choose a company because it is reviewable, not because the product predicts expected return.",
+        stop_rule="Stop if Discover ranks recommendations, exposes raw readiness tables first, or requires horizontal scrolling.",
+    ),
+    BrowserQaRouteCheck(
+        name="Research Company Workbench",
+        route="http://localhost:8501/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+        first_view_markers=("Saved readiness", "COMPANY WORKBENCH", "Selected Company", "Use now", "Still withheld", "Research-only"),
+        details_boundary="Forward View evidence, quarterly evidence, source rows, and technical diagnostics stay collapsed under Advanced.",
+        qa_focus="Reviewer sees the selected company, usable evidence, withheld lanes, and one research task before technical tables.",
+        stop_rule="Stop if the workbench shows traceback text, synthetic evidence as real, an unavailable forecast, or an Arrow-incompatible evidence table.",
+    ),
+    BrowserQaRouteCheck(
+        name="Research Monitor",
+        route="http://localhost:8501/?mode=research&page=monitor",
+        first_view_markers=("Saved readiness", "MONITOR", "WEEKLY RESEARCH SUMMARY", "Research change monitor", "Research-only"),
+        details_boundary="Change evidence stays under Advanced; an empty monitor remains a truthful wait state rather than a ranking.",
+        qa_focus="Reviewer can distinguish no verified change from no data and knows when to continue or wait.",
+        stop_rule="Stop if Monitor invents changes, recommends stocks, or exposes raw evidence before the change summary.",
+    ),
 )
 
 
@@ -328,6 +360,42 @@ DEFAULT_BROWSER_QA_RESPONSIVE_ROUTE_CHECKS: tuple[BrowserQaResponsiveRouteCheck,
         first_view_must_keep="Saved readiness, Step 5 of 5, latest evidence, proof ledger details collapsed",
         mobile_risk="Proof History starts to feel like a second command center instead of evidence review.",
         stop_rule="Stop if raw ledger rows, command blocks, or data-refresh language appear before evidence cards.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Research Desk",
+        route="http://localhost:8501/?mode=research&page=research-desk",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Saved readiness, Research Desk, focused cohort, freshness, one next action, Research-only",
+        mobile_risk="Cohort cards or monitoring summaries push the primary Discover path too far below the first answer.",
+        stop_rule="Stop if the phone view overflows horizontally or opens with raw research-change evidence.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Discover",
+        route="http://localhost:8501/?mode=research&page=discover",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Saved readiness, Discover, focused cohort boundary, company search, Research-only",
+        mobile_risk="Company cards, filters, or badges become cramped enough to obscure the review action.",
+        stop_rule="Stop if the phone view ranks recommendations, exposes full rows first, or forces horizontal scrolling.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Company Workbench",
+        route="http://localhost:8501/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Saved readiness, selected company, freshness, usable evidence, withheld lanes, one next action",
+        mobile_risk="Long review-path copy or technical sections obscure the selected-company answer and research boundary.",
+        stop_rule="Stop if the phone view overflows, shows traceback text, or renders technical evidence before the selected-company answer.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Monitor",
+        route="http://localhost:8501/?mode=research&page=monitor",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Saved readiness, Monitor, weekly summary, change state, one next action, Research-only",
+        mobile_risk="An empty evidence queue looks broken instead of a truthful wait state.",
+        stop_rule="Stop if the phone view invents changes, exposes raw evidence first, or forces horizontal scrolling.",
     ),
 )
 
@@ -755,8 +823,8 @@ def main(argv: list[str] | None = None) -> int:
     print("Manual browser review: use these route checks when a normal local browser can open the Streamlit app.")
     print(_markdown_table(route_rows, ["Route Check", "Route", "First View Markers", "Details Boundary", "QA Focus", "Stop Rule"]))
     print()
-    print("Responsive Public Workflow QA")
-    print("Review the five public pages at desktop and phone width before changing screenshots or LinkedIn copy.")
+    print("Responsive Public And Personal Research Workflow QA")
+    print("Review the five public pages and four personal-research pages at desktop and phone width before changing screenshots or LinkedIn copy.")
     print(
         _markdown_table(
             responsive_route_rows,

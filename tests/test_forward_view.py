@@ -1,3 +1,4 @@
+import json
 from types import MappingProxyType, SimpleNamespace
 
 import pytest
@@ -218,3 +219,14 @@ def test_forward_view_rows_keep_technical_details_separate_and_research_only():
     rendered = str(cards).lower()
     for prohibited in ("buy now", "sell now", "position size", "will rise", "recommendation score"):
         assert prohibited not in rendered
+
+
+def test_forward_view_rows_serialize_immutable_evidence_for_display_tables():
+    packet = build_forward_view(_report(), _ready_trend(), freshness_state="current")
+
+    rows = forward_view_rows(packet)
+    valuation_row = next(row for row in rows if row["Section"] == "Valuation Scenarios")
+
+    assert isinstance(valuation_row["Evidence"], str)
+    evidence = json.loads(valuation_row["Evidence"])
+    assert evidence[0]["provenance"][0]["provider"] == "sec_companyfacts"

@@ -481,6 +481,18 @@ def test_dashboard_qa_tracks_v1_replacement_browser_checks():
     assert "the current in-app browser shows `localhost refused to connect`" not in qa
 
 
+def test_dashboard_qa_records_commercial_beta_research_mode_live_review():
+    qa = _read("docs/DASHBOARD_QA.md")
+
+    assert "Commercial Beta Research Workflow Live Review" in qa
+    assert "1280x720" in qa
+    assert "390x844" in qa
+    assert "Research Desk, Discover, Company Workbench, and Monitor" in qa
+    assert "ArrowInvalid" in qa
+    assert "no horizontal overflow" in qa
+    assert "product evidence only" in qa
+
+
 def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     makefile = _read("Makefile")
     brief = _read("docs/LINKEDIN_PROJECT_BRIEF.md")

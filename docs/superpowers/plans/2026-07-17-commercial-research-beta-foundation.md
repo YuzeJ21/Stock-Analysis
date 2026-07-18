@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.12, dataclasses, pandas, CSV/JSON contracts, Streamlit, pytest, Make.
 
+**Implementation status (2026-07-17):** Tasks 1-10 are implemented and locally verified; the desktop/mobile findings and corrected Workbench defect are recorded in [Dashboard QA Notes](../../DASHBOARD_QA.md). The unchecked boxes below preserve the original execution sequence; this status line is the current plan truth. The local package is not hosted, externally validated, merged, or commercially launched.
+
 ## Global Constraints
 
 - Research-only; no investment advice, broker integration, trading, order routing, auto-trading, or direct buy/sell instructions.

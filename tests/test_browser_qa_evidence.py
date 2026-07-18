@@ -411,7 +411,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert len(payload["local_capture_checklist"]) == 3
     assert len(payload["capture_session_plan"]) == 6
     assert len(payload["route_qa_checklist"]) >= 7
-    assert len(payload["responsive_route_qa_checklist"]) == 5
+    assert len(payload["responsive_route_qa_checklist"]) == 9
     assert "browser qa evidence is product evidence only" in rendered
     assert "responsive_route_qa_checklist" in rendered
     assert "saved readiness" in rendered
@@ -476,7 +476,8 @@ def test_browser_qa_responsive_route_rows_cover_public_flow_without_raw_ops():
     rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
     pages = [str(row["Page"]) for row in rows]
 
-    assert pages == ["Home", "Stock Selector", "Single-Stock Report", "Data Health", "Proof History"]
+    assert pages[:5] == ["Home", "Stock Selector", "Single-Stock Report", "Data Health", "Proof History"]
+    assert pages[5:] == ["Research Desk", "Discover", "Company Workbench", "Monitor"]
     assert all(row["Desktop Viewport"] == "1280x720" for row in rows)
     assert all(row["Phone Viewport"] == "390x844" for row in rows)
     assert all("Saved readiness" in str(row["First View Must Keep"]) for row in rows)
@@ -530,6 +531,12 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Public Data Health coverage answer" in route_names
     assert "Data Health proof lane progressive load" in route_names
     assert "Data Health queue drawer routing" in route_names
+    assert {
+        "Research Desk",
+        "Research Discover",
+        "Research Company Workbench",
+        "Research Monitor",
+    }.issubset(route_names)
     public_rows = [
         row
         for row in rows
@@ -611,6 +618,8 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "operator-data-health-queue-routing-real.jpg" in output
     assert "real streamlit screenshots" in output
     assert "route qa checklist" in output
+    assert "responsive public and personal research workflow qa" in output
+    assert "five public pages and four personal-research pages" in output
     assert "manual browser review" in output
     assert "single-stock workflow fit" in output
     assert "data health proof lane progressive load" in output

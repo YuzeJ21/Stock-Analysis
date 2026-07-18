@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -60,6 +61,14 @@ def _freeze(value: object) -> object:
         return MappingProxyType({str(key): _freeze(item) for key, item in value.items()})
     if isinstance(value, (list, tuple)):
         return tuple(_freeze(item) for item in value)
+    return value
+
+
+def _display_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {str(key): _display_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_display_value(item) for item in value]
     return value
 
 
@@ -396,7 +405,7 @@ def forward_view_rows(packet: ForwardViewPacket) -> list[dict[str, object]]:
             "Section": section.name,
             "State": section.state.replace("_", " "),
             "Answer": section.answer,
-            "Evidence": list(section.details),
+            "Evidence": json.dumps(_display_value(section.details), sort_keys=True, default=str),
             "Boundary": section.boundary,
         }
         for section in (

@@ -2751,3 +2751,15 @@ def test_earnings_nowcast_sec_actuals_stage_launcher_requires_scoped_output_and_
     assert "data/imports" not in target
     assert "imports-apply" not in target
     assert "--apply" not in target
+
+
+def test_makefile_exposes_read_only_commercial_beta_check():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "commercial-beta-check" in _makefile_targets()
+    target = makefile.split("commercial-beta-check:", 1)[1].split("\n\n", 1)[0]
+    assert "$(MAKE) --silent commercial-source-rights" in target
+    assert "$(MAKE) --silent refresh-operations-status" in target
+    assert "$(MAKE) --silent private-beta-readiness" in target
+    for forbidden in ("price-refresh", "imports-apply", "git add", "git push"):
+        assert forbidden not in target
