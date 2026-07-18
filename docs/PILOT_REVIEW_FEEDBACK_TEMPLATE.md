@@ -43,6 +43,32 @@ Record the scorecard as workflow evidence only:
 
 Do not ask whether the reviewer would buy or sell a security. Do not collect a price target, portfolio position, account information, or personal investment decision.
 
+## Commercial Research Beta Tasks
+
+Use this sequence for the Commercial Research Beta after the reviewer can open
+the controlled research workspace:
+
+```text
+Research Desk -> Discover -> Company Workbench -> Monitor
+```
+
+1. Start at Research Desk.
+2. Identify the focused cohort and freshness state.
+3. Use Discover to select one reviewable company.
+4. Open Company Workbench.
+5. Explain what can be used now.
+6. Identify one withheld input.
+7. Review Business Trend, Valuation, and Forward View boundaries.
+8. Use Monitor to determine whether verified evidence changed.
+9. State why the product is research-only.
+
+Capture the same task-success, time-to-first-answer, readiness-comprehension,
+misuse-risk, evidence-trust, perceived-performance, and repeat-use signals
+defined above. Do not fabricate reviewer sessions, completion rates, quotes, or findings.
+If no reviewer can access a verified delivery path, classify the
+stage as `awaiting_external_review` rather than treating local test evidence as
+pilot evidence.
+
 ## Capture Sheet
 
 Record one row per review session outside the repository unless the note contains no personal information. Use `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` as the copy/paste header when you want comparable rows across 10-20 reviewers; keep the working copy outside Git unless it is intentionally anonymized review evidence.

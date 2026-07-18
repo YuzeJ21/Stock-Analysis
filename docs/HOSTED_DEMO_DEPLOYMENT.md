@@ -104,6 +104,16 @@ If the hosted deployment changes app startup, route behavior, or copy, also revi
 
 Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History
 
+For a controlled Commercial Research Beta, also verify:
+
+Research Desk -> Discover -> Company Workbench -> Monitor
+
+Run the same research performance contract against the verified base URL:
+
+```bash
+make commercial-beta-performance-gate BASE_URL=<verified-url>
+```
+
 Stop before publishing the hosted link if the first public view shows tracebacks, raw tables before the answer, command-heavy copy, missing research-only boundaries, or unavailable-provider claims.
 
 ## Post-Deploy Smoke Checklist
@@ -116,6 +126,19 @@ Run this before replacing the GitHub link in README, LinkedIn, or portfolio copy
 4. Open `/?mode=public&page=data-health` and confirm the coverage answer appears before provider setup, commands, or raw proof ledgers.
 5. Open `/?mode=public&page=proof-history` and confirm proof history is evidence-only before raw ledger details.
 6. Keep the hosted link private if any route shows a traceback, operator mode by default, stale data-freshness claims, or a missing research-only stop rule.
+
+## Health Check And Rollback
+
+Before admitting reviewers, verify `/_stcore/health`, open every public and
+research route above at desktop and phone widths, and confirm the host uses the
+tracked `demo` profile. Keep the previous verified revision available as the
+rollback target. If startup, route rendering, access control, secrets handling,
+or timing fails, remove reviewer access, restore the previous verified
+revision, and keep GitHub as the share link while the issue is investigated.
+
+Without a real host, the correct status is `external_account_required`. Do not claim private or authenticated access until a real host enforces and has been
+tested for that boundary. A healthy URL alone does not prove authentication,
+per-user isolation, data rights, monitoring, or reviewer success.
 
 ## Link Decision Ladder
 

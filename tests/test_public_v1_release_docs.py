@@ -152,6 +152,18 @@ def test_active_roadmap_puts_performance_before_hosting_and_external_pilot():
     assert "data/demo/manifest.json" in roadmap
     assert "first useful" in roadmap.lower()
     assert "p90" in roadmap.lower()
+    assert "make commercial-beta-release-check" in roadmap
+    assert "make commercial-beta-performance-gate" in roadmap
+
+
+def test_hosted_handoff_covers_research_routes_health_and_rollback_without_claiming_a_host():
+    hosted = _read("docs/HOSTED_DEMO_DEPLOYMENT.md")
+
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in hosted
+    assert "make commercial-beta-performance-gate BASE_URL=<verified-url>" in hosted
+    assert "## Health Check And Rollback" in hosted
+    assert "external_account_required" in hosted
+    assert "Do not claim private or authenticated access" in hosted
 
 
 def test_methodology_defines_lane_level_freshness_policy_without_claiming_live_data():

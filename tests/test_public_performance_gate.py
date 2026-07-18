@@ -25,6 +25,23 @@ def test_default_performance_contract_covers_the_guided_public_workflow():
     assert all(route.full_markers for route in DEFAULT_ROUTE_SPECS)
 
 
+def test_research_performance_contract_covers_the_commercial_beta_workflow():
+    from src.public_performance_gate import RESEARCH_ROUTE_SPECS
+
+    assert [route.name for route in RESEARCH_ROUTE_SPECS] == [
+        "Research Desk",
+        "Discover",
+        "Company Workbench",
+        "Monitor",
+    ]
+    assert all(route.critical for route in RESEARCH_ROUTE_SPECS)
+    assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
+    assert "Selected Company" in RESEARCH_ROUTE_SPECS[2].full_markers
+    assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers
+    assert "What Remains Withheld" in RESEARCH_ROUTE_SPECS[2].full_markers
+    assert RESEARCH_ROUTE_SPECS[3].full_markers[0] == "WEEKLY RESEARCH SUMMARY"
+
+
 def test_nearest_rank_percentile_does_not_select_the_best_run():
     from src.public_performance_gate import nearest_rank_percentile
 
@@ -71,6 +88,30 @@ def test_performance_summary_and_gate_keep_cold_warm_and_failure_truth_separate(
     assert "Data Health: 1 failed timing run(s)" in result.failures
 
 
+def test_performance_gate_fails_closed_when_required_samples_are_missing():
+    from src.public_performance_gate import (
+        PerformanceThresholds,
+        RouteTimingSample,
+        evaluate_performance_gate,
+        summarize_route_timings,
+    )
+
+    summary = summarize_route_timings(
+        [RouteTimingSample("Company Workbench", "390x844", "cold", 0.2, 1.2, 3.0, True)]
+    )
+
+    result = evaluate_performance_gate(
+        summary,
+        critical_routes={"Company Workbench"},
+        thresholds=PerformanceThresholds(),
+        min_cold_runs=1,
+        min_warm_runs=5,
+    )
+
+    assert result.verdict == "failed"
+    assert "Company Workbench: warm sample count 0 is below 5" in result.failures
+
+
 def test_demo_snapshot_identity_uses_the_tracked_manifest_hashes(tmp_path):
     from src.public_performance_gate import demo_snapshot_identity
 
@@ -97,16 +138,27 @@ def test_demo_snapshot_identity_uses_the_tracked_manifest_hashes(tmp_path):
 
 
 def test_contract_payload_is_read_only_research_safe_and_browser_explicit(tmp_path):
-    from src.public_performance_gate import performance_contract_payload
+    from src.public_performance_gate import RESEARCH_ROUTE_SPECS, performance_contract_payload
 
     manifest = tmp_path / "data" / "demo" / "manifest.json"
     manifest.parent.mkdir(parents=True)
     manifest.write_text(json.dumps({"files": {}}), encoding="utf-8")
 
-    payload = performance_contract_payload(tmp_path)
+    payload = performance_contract_payload(
+        tmp_path,
+        route_specs=RESEARCH_ROUTE_SPECS,
+        workflow="research",
+    )
     rendered = json.dumps(payload).lower()
 
     assert payload["mode"] == "contract_only"
+    assert payload["workflow"] == "research"
+    assert [row["name"] for row in payload["routes"]] == [
+        "Research Desk",
+        "Discover",
+        "Company Workbench",
+        "Monitor",
+    ]
     assert payload["browser_requirement"] == "playwright plus a local chrome-compatible executable"
     assert payload["thresholds"]["warm_full_settle_seconds"] == 5.0
     assert payload["thresholds"]["cold_full_settle_seconds"] == 10.0
@@ -124,6 +176,10 @@ def test_makefile_exposes_contract_and_real_browser_performance_commands():
     assert "public-performance-gate:" in makefile
     assert "python3 -m src.public_performance_gate --contract" in makefile
     assert "python3 -m src.public_performance_gate --browser" in makefile
+    assert "commercial-beta-performance-contract:" in makefile
+    assert "commercial-beta-performance-gate:" in makefile
+    assert "--workflow research --contract" in makefile
+    assert "--workflow research --browser" in makefile
 
 
 def test_find_chrome_executable_uses_only_an_executable_candidate(tmp_path):
@@ -203,6 +259,18 @@ def test_visible_text_wait_names_the_missing_marker_on_timeout():
         _wait_for_visible_text(FailingPage(), "USE NOW", timeout_seconds=3)
 
 
+def test_horizontal_overflow_check_uses_document_widths():
+    from src.public_performance_gate import _horizontal_overflow_pixels
+
+    class FakePage:
+        def evaluate(self, expression):
+            assert "scrollWidth" in expression
+            assert "clientWidth" in expression
+            return 14
+
+    assert _horizontal_overflow_pixels(FakePage()) == 14
+
+
 def test_reviewed_performance_baseline_documents_reproducible_evidence_boundary():
     readme = Path("README.md").read_text(encoding="utf-8")
     baseline = Path("docs/PERFORMANCE_RELEASE_GATE.md").read_text(encoding="utf-8")
@@ -218,6 +286,12 @@ def test_reviewed_performance_baseline_documents_reproducible_evidence_boundary(
     assert "60 recorded route samples" in baseline
     assert "product performance evidence only" in baseline.lower()
     assert "not data-freshness proof" in baseline.lower()
+    assert "make commercial-beta-performance-contract" in baseline
+    assert "make commercial-beta-performance-gate" in baseline
+    assert "242f1f344cdbdfab9b69c1c65b98803ad1fb465c" in baseline
+    assert "48 recorded route samples" in baseline
+    assert "Company Workbench" in baseline
+    assert "Research Desk" in baseline
 
 
 def test_performance_progress_line_shows_route_viewport_run_and_outcome():

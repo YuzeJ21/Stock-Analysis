@@ -3,7 +3,7 @@
 .PHONY: thesis-journal thesis-journal-preview thesis-journal-record
 .PHONY: refresh-operations-status refresh-operations-runbook
 .PHONY: earnings-nowcast-sec-actuals-stage
-.PHONY: commercial-source-rights commercial-beta-check
+.PHONY: commercial-source-rights commercial-beta-check commercial-beta-release-check
 .PHONY: private-beta-readiness
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
@@ -34,7 +34,7 @@ help:
 	@echo ""
 	@echo "For the full local command catalog, run: make help-full"
 
-.PHONY: dashboard-render-smoke
+.PHONY: dashboard-render-smoke research-dashboard-render-smoke commercial-beta-performance-contract commercial-beta-performance-gate
 .PHONY: price-history-batch-closeout
 
 next-stage:
@@ -433,6 +433,12 @@ public-performance-contract:
 public-performance-gate:
 	@python3 -m src.public_performance_gate --browser --warm-runs $(or $(WARM_RUNS),5) --cold-runs $(or $(COLD_RUNS),1) --timeout-seconds $(or $(TIMEOUT_SECONDS),30) $(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
 
+commercial-beta-performance-contract:
+	@python3 -m src.public_performance_gate --workflow research --contract --root .
+
+commercial-beta-performance-gate:
+	@python3 -m src.public_performance_gate --workflow research --browser --root . --warm-runs $(or $(WARM_RUNS),5) --cold-runs $(or $(COLD_RUNS),1) --timeout-seconds $(or $(TIMEOUT_SECONDS),30) --output "$(or $(OUTPUT),/tmp/stock-command-center-commercial-beta-performance.json)" $(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
+
 public-ux-review-checklist:
 	@python3 -m src.public_ux_review_checklist
 
@@ -460,6 +466,8 @@ pilot-review-feedback:
 	@echo ""
 	@echo "Reviewer path:"
 	@echo "   Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History"
+	@echo "Commercial beta path:"
+	@echo "   Research Desk -> Discover -> Company Workbench -> Monitor"
 	@echo ""
 	@echo "Ask four questions:"
 	@echo "   1. Where did you start?"
@@ -1113,6 +1121,9 @@ demo-dashboard-smoke:
 dashboard-render-smoke:
 	@python3 -m src.dashboard_render_smoke
 
+research-dashboard-render-smoke:
+	@python3 -m src.dashboard_render_smoke --routes research
+
 demo-dashboard-render-smoke:
 	@STOCK_RESEARCH_DATA_PROFILE=demo python3 -m src.dashboard_render_smoke
 
@@ -1137,6 +1148,21 @@ commercial-beta-check:
 	@$(MAKE) --silent commercial-source-rights
 	@$(MAKE) --silent refresh-operations-status
 	@$(MAKE) --silent private-beta-readiness
+
+commercial-beta-release-check:
+	@echo "Commercial Research Beta Release Check"
+	@echo "Read-only: verifies the local release candidate without fetching, importing, applying, staging, committing, pushing, or changing external services."
+	@$(MAKE) --silent commercial-beta-check
+	@python3 -m pytest tests/test_dashboard_render_smoke.py tests/test_public_performance_gate.py tests/test_launchers.py -q
+	@$(MAKE) --silent research-dashboard-render-smoke
+	@$(MAKE) --silent commercial-beta-performance-contract
+	@$(MAKE) --silent browser-qa-evidence
+	@$(MAKE) --silent public-check
+	@$(MAKE) --silent pilot-readiness-check TOP_N=10
+	@$(MAKE) --silent diff-hygiene-summary
+	@git diff --check
+	@echo "Safe claims: reproducible local research workflow; readiness-first analysis; source-rights gates; research-only controlled beta candidate."
+	@echo "Unsafe claims: hosted or authenticated availability; complete coverage; calibrated predictive accuracy; investment recommendations; licensed operation without verified rights."
 
 provider-smoke:
 ifndef TICKER

@@ -63,6 +63,14 @@ def test_public_check_requires_a_fresh_dashboard_render_smoke():
     assert "$(MAKE) --silent demo-dashboard-smoke" in public_check
 
 
+def test_makefile_exposes_research_dashboard_render_smoke():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "research-dashboard-render-smoke" in _makefile_targets()
+    target = makefile.split("research-dashboard-render-smoke:", 1)[1].split("\n\n", 1)[0]
+    assert "python3 -m src.dashboard_render_smoke --routes research" in target
+
+
 def test_dashboard_smoke_uses_an_isolated_fresh_server():
     smoke = Path("scripts/smoke_dashboard.sh").read_text(encoding="utf-8")
 
@@ -2762,4 +2770,33 @@ def test_makefile_exposes_read_only_commercial_beta_check():
     assert "$(MAKE) --silent refresh-operations-status" in target
     assert "$(MAKE) --silent private-beta-readiness" in target
     for forbidden in ("price-refresh", "imports-apply", "git add", "git push"):
+        assert forbidden not in target
+
+
+def test_makefile_exposes_read_only_commercial_beta_release_check():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "commercial-beta-release-check" in _makefile_targets()
+    target = makefile.split("commercial-beta-release-check:", 1)[1].split("\n\n", 1)[0]
+    for required in (
+        "$(MAKE) --silent commercial-beta-check",
+        "$(MAKE) --silent research-dashboard-render-smoke",
+        "$(MAKE) --silent commercial-beta-performance-contract",
+        "$(MAKE) --silent browser-qa-evidence",
+        "$(MAKE) --silent public-check",
+        "$(MAKE) --silent pilot-readiness-check TOP_N=10",
+        "$(MAKE) --silent diff-hygiene-summary",
+        "git diff --check",
+        "Safe claims:",
+        "Unsafe claims:",
+    ):
+        assert required in target
+    for forbidden in (
+        "price-refresh",
+        "imports-apply",
+        "git add",
+        "git commit",
+        "git push",
+        "deploy",
+    ):
         assert forbidden not in target

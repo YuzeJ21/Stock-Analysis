@@ -46,6 +46,37 @@ The release run used five warm runs and one server-cold run for every public rou
 
 Local verdict: **passed**. The result does not remove the separate hosted-preview and external-review gates.
 
+## Commercial Beta Research Workflow Result
+
+The research workflow was measured on 2026-07-18 from implementation baseline
+`242f1f344cdbdfab9b69c1c65b98803ad1fb465c` using the same tracked demo
+snapshot and environment. The run covered Research Desk, Discover, Company
+Workbench, and Monitor at both viewports with one cold and five warm samples:
+48 recorded route samples, zero failures, and no horizontal overflow.
+
+| Route | Viewport | Shell p90 | First useful p90 | Warm full p90 | Cold full |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Research Desk | 1280x720 | 0.304s | 2.208s | 2.404s | 3.103s |
+| Research Desk | 390x844 | 0.244s | 2.108s | 2.386s | 3.052s |
+| Discover | 1280x720 | 0.272s | 2.081s | 2.748s | 3.205s |
+| Discover | 390x844 | 0.241s | 2.033s | 2.684s | 3.186s |
+| Company Workbench | 1280x720 | 0.242s | 1.952s | 2.900s | 3.314s |
+| Company Workbench | 390x844 | 0.259s | 2.081s | 3.128s | 3.448s |
+| Monitor | 1280x720 | 0.250s | 1.962s | 2.458s | 2.821s |
+| Monitor | 390x844 | 0.264s | 2.038s | 2.503s | 2.895s |
+
+Reproduce the research contract and browser evidence with:
+
+```bash
+make commercial-beta-performance-contract
+make commercial-beta-performance-gate
+```
+
+The generated evidence path is
+`/tmp/stock-command-center-commercial-beta-performance.json`. Keep it out of
+Git. This local result does not prove hosted performance, external-user task
+success, licensed broad data operation, or predictive accuracy.
+
 ## Reproduce
 
 ```bash

@@ -58,6 +58,7 @@ def test_pilot_review_feedback_make_target_is_read_only_and_discoverable():
     assert "docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv" in target
     assert "cp docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv /tmp/stock-command-center-pilot-feedback.csv" in target
     assert "10-20 external reviewers" in target
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in target
     assert "not data proof" in target.lower()
     assert "does not refresh data, import rows, stage files, commit, push, or deploy" in target
     assert "Commit a feedback log only after removing personal information" in target
@@ -179,3 +180,21 @@ def test_commercial_beta_pilot_contract_is_task_based_and_truthful():
     assert "awaiting_external_review" in decision
     assert "awaiting_reviewed_source" in decision
     assert "external_account_required" in decision
+
+
+def test_commercial_beta_pilot_uses_the_research_workflow_and_nine_tasks():
+    template = Path("docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md").read_text(encoding="utf-8")
+
+    assert "## Commercial Research Beta Tasks" in template
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in template
+    for task in (
+        "Identify the focused cohort and freshness state",
+        "Use Discover to select one reviewable company",
+        "Explain what can be used now",
+        "Identify one withheld input",
+        "Review Business Trend, Valuation, and Forward View boundaries",
+        "Use Monitor to determine whether verified evidence changed",
+        "State why the product is research-only",
+    ):
+        assert task in template
+    assert "Do not fabricate reviewer sessions, completion rates, quotes, or findings" in template

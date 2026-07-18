@@ -14,6 +14,7 @@ Use live, read-only commands instead of static counts:
 - Source/provider state: use `make session-source-preflight` and `make provider-setup-checklist`.
 - Package/share state: use `make pilot-readiness-check TOP_N=10` and `make public-check`.
 - Commercial-beta contract state: use `make commercial-beta-check`; this is local contract evidence, not hosted or operated proof.
+- Commercial-beta release-candidate state: use `make commercial-beta-release-check`; browser timing remains separate generated evidence.
 
 The product deliberately separates the tracked master universe, active universe, and analysis-ready subset. It must never imply that the whole tracked universe is analysis-ready.
 
@@ -29,7 +30,8 @@ Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> 
 2. **Implemented locally:** a deterministic maximum-50 focused-cohort matrix separates usable, partial, candidate-only, blocked, and excluded lanes without broad-universe readiness claims.
 3. **Implemented locally:** quarterly Revenue/EPS trend and exact-period Forward View contracts preserve revision lineage, production provenance, freshness downgrades, no-derived-Q4 policy, and independent calibration gates.
 4. **Implemented locally:** controlled refresh and private-beta readiness contracts describe deterministic failure handling and external account requirements without enabling automatic apply or claiming hosted capabilities.
-5. **Next evidence:** run 10-20 task-based beta sessions after a controlled delivery path exists; measure time to first answer, readiness comprehension, misuse risk, trust, performance, and repeat-use intent.
+5. **Implemented locally:** research-route render smoke, desktop/phone performance contracts, and a consolidated read-only release check verify the local candidate without refreshing data or weakening blocked states.
+6. **Next evidence:** run 10-20 task-based beta sessions after a controlled delivery path exists; measure time to first answer, readiness comprehension, misuse risk, trust, performance, and repeat-use intent.
 
 **Exit gate:** local release gates pass; one permitted source path demonstrates repeatable provenance and freshness; a controlled host enforces the claimed access boundary; and 10-20 reviewers can complete the primary workflow without mistaking it for advice or live-market certainty.
 
@@ -67,9 +69,12 @@ Use the tracked `data/demo/manifest.json` snapshot as the fixed performance data
 
 1. Run `make public-performance-contract` to inspect the read-only route, viewport, snapshot, and threshold contract.
 2. Run `make public-performance-gate` for real-browser cold and warm evidence at desktop and phone widths.
-3. Measure the visible shell, first useful answer, and full settle separately; report repeated warm results as p90 rather than selecting the fastest run.
-4. Treat Stock Selector, Single-Stock Report, and Data Health as critical routes. Keep Home and Proof History regression-protected.
-5. Optimize saved summaries, deferred detail, pagination, and deterministic caching in small tested slices without weakening readiness or hiding blocked states.
+3. Run `make commercial-beta-performance-gate` for Research Desk, Discover, Company Workbench, and Monitor.
+4. Measure the visible shell, first useful answer, and full settle separately; report repeated warm results as p90 rather than selecting the fastest run.
+5. Treat Stock Selector, Single-Stock Report, Data Health, and all four research routes as critical. Keep Home and Proof History regression-protected.
+6. Optimize saved summaries, deferred detail, pagination, and deterministic caching in small tested slices without weakening readiness or hiding blocked states.
+
+Use `make commercial-beta-release-check` for the consolidated local release-candidate gate. It does not run the optional browser timing command or prove hosted/private availability.
 
 **Exit gate:** loading feedback within 1 second, first useful answer within 3 seconds, warm full-settle p90 within 5 seconds, and cold full settle within 10 seconds on the defined local reference environment.
 

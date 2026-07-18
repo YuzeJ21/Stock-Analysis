@@ -22,10 +22,30 @@ class DashboardRenderResult:
     name: str
     exceptions: tuple[str, ...]
     missing_markers: tuple[str, ...]
+    forbidden_markers: tuple[str, ...] = ()
+    expanded_advanced: tuple[str, ...] = ()
 
     @property
     def passed(self) -> bool:
-        return not self.exceptions and not self.missing_markers
+        return not (
+            self.exceptions
+            or self.missing_markers
+            or self.forbidden_markers
+            or self.expanded_advanced
+        )
+
+
+FORBIDDEN_RENDER_MARKERS: tuple[str, ...] = (
+    "Traceback (most recent call last)",
+    "ArrowInvalid",
+    "ModuleNotFoundError",
+    "ImportError:",
+    "SYN1",
+    "SYN2",
+    "SYN3",
+    "SYN4",
+    "SYN5",
+)
 
 
 PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
@@ -104,7 +124,31 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
 
 
 def _rendered_markdown(app: AppTest) -> str:
-    return "\n".join(item.value for item in app.markdown)
+    collections = (
+        "markdown",
+        "text",
+        "caption",
+        "title",
+        "header",
+        "subheader",
+        "error",
+        "exception",
+    )
+    values: list[str] = []
+    for collection in collections:
+        for item in getattr(app, collection):
+            value = getattr(item, "value", "")
+            if value:
+                values.append(str(value))
+    return "\n".join(values)
+
+
+def _expanded_advanced_sections(app: AppTest) -> tuple[str, ...]:
+    return tuple(
+        str(item.label)
+        for item in app.expander
+        if str(item.label).lower().startswith("advanced") and bool(item.proto.expanded)
+    )
 
 
 def render_public_routes(
@@ -124,21 +168,28 @@ def render_public_routes(
         rendered = _rendered_markdown(app)
         exceptions = tuple(str(item.value) for item in app.exception)
         missing_markers = tuple(marker for marker in route.required_markers if marker not in rendered)
+        forbidden_markers = tuple(marker for marker in FORBIDDEN_RENDER_MARKERS if marker in rendered)
         results.append(
             DashboardRenderResult(
                 name=route.name,
                 exceptions=exceptions,
                 missing_markers=missing_markers,
+                forbidden_markers=forbidden_markers,
+                expanded_advanced=_expanded_advanced_sections(app),
             )
         )
 
     return results
 
 
-def render_dashboard_smoke(results: Iterable[DashboardRenderResult]) -> str:
+def render_dashboard_smoke(
+    results: Iterable[DashboardRenderResult],
+    *,
+    contract_name: str = "Dashboard render smoke",
+) -> str:
     lines = [
-        "Dashboard render smoke",
-        "Read-only: renders the public route contract with Streamlit AppTest; it does not refresh data, import rows, apply changes, stage files, commit, or push.",
+        contract_name,
+        "Read-only: renders the selected route contract with Streamlit AppTest; it does not refresh data, import rows, apply changes, stage files, commit, or push.",
     ]
     for result in results:
         status = "passed" if result.passed else "failed"
@@ -147,16 +198,28 @@ def render_dashboard_smoke(results: Iterable[DashboardRenderResult]) -> str:
             lines.append(f"  exceptions: {' | '.join(result.exceptions)}")
         if result.missing_markers:
             lines.append(f"  missing markers: {', '.join(result.missing_markers)}")
+        if result.forbidden_markers:
+            lines.append(f"  forbidden markers: {', '.join(result.forbidden_markers)}")
+        if result.expanded_advanced:
+            lines.append(f"  expanded advanced sections: {', '.join(result.expanded_advanced)}")
     return "\n".join(lines)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render the public Streamlit routes without starting a long-lived server.")
     parser.add_argument("--root", default=".", help="Project root containing src/dashboard.py")
+    parser.add_argument(
+        "--routes",
+        choices=("public", "research"),
+        default="public",
+        help="Route contract to render.",
+    )
     args = parser.parse_args()
 
-    results = render_public_routes(Path(args.root))
-    print(render_dashboard_smoke(results))
+    routes = RESEARCH_RENDER_ROUTES if args.routes == "research" else PUBLIC_RENDER_ROUTES
+    contract_name = "Research dashboard render smoke" if args.routes == "research" else "Dashboard render smoke"
+    results = render_public_routes(Path(args.root), routes=routes)
+    print(render_dashboard_smoke(results, contract_name=contract_name))
     return 0 if all(result.passed for result in results) else 1
 
 
