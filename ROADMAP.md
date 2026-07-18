@@ -15,6 +15,7 @@ Use live, read-only commands instead of static counts:
 - Package/share state: use `make pilot-readiness-check TOP_N=10` and `make public-check`.
 - Commercial-beta contract state: use `make commercial-beta-check`; this is local contract evidence, not hosted or operated proof.
 - Commercial-beta release-candidate state: use `make commercial-beta-release-check`; browser timing remains separate generated evidence.
+- Persistent continuation contract: use [Commercial Research Beta Continuation Contract](docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md); it requires repo-truth-first execution, one-time external classification, and direct evidence for every completion claim.
 
 The product deliberately separates the tracked master universe, active universe, and analysis-ready subset. It must never imply that the whole tracked universe is analysis-ready.
 
@@ -36,8 +37,10 @@ Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> 
 8. **Implemented locally:** Company Workbench is answer-first: the existing selected-company report answer renders as the first expanded research content, while unchanged lane-coverage cards remain available under a collapsed Advanced section.
 9. **Implemented locally:** Research Desk is answer-first: the weekly summary, four direct research answers, and Discover action render before unchanged cohort scope, coverage cards, and full matrices under Advanced Evidence.
 10. **Implemented locally:** Monitor is answer-first: the weekly summary and deduplicated research-change answer render before five-company Earnings Nowcast readiness under Advanced; an empty queue remains a neutral wait state with one Discover action and never implies that no real-world event occurred.
-11. **Next evidence gate:** run the cached source preflight once. If one rights-appropriate point-in-time consensus path is configured, collect and review one prospective ticker snapshot through validate and preview only; otherwise record the external dependency once and continue to the next executable controlled-host preparation task without reopening exhausted provider loops.
-12. **Next external validation:** after one repeatable permitted source path and a controlled delivery boundary exist, run 10-20 task-based beta sessions; measure time to first answer, readiness comprehension, misuse risk, trust, performance, and repeat-use intent.
+11. **Source state classified:** point-in-time consensus remains `external_data_required` with 0 prospective snapshots. Do not repeat provider probes until a permitted key is configured or a reviewed CSV is supplied; the exact resume step is one-ticker validate and preview.
+12. **Implemented locally:** the peer evidence-quality contract preserves relationship provenance, reviewer-assigned role, economic comparability, result context, and valuation-anchor eligibility independently. The current 75 legacy mappings produce 0 eligible valuation anchors by design; no role was inferred.
+13. **Next evidence-depth gate:** review one bounded peer relationship through the updated template and write-back guard when a trustworthy source and reviewer are available. Do not start a broad 25-50 company sourcing loop before the first relationship proves the repeatable contract.
+14. **Next external validation:** after one repeatable permitted source path and a controlled delivery boundary exist, run 10-20 task-based beta sessions; measure time to first answer, readiness comprehension, misuse risk, trust, performance, and repeat-use intent.
 
 **Exit gate:** local release gates pass; one permitted source path demonstrates repeatable provenance and freshness; a controlled host enforces the claimed access boundary; and 10-20 reviewers can complete the primary workflow without mistaking it for advice or live-market certainty.
 

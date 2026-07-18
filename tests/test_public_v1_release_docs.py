@@ -565,6 +565,34 @@ def test_active_roadmap_and_price_history_maintenance_are_finite_and_read_only()
     assert "read-only batch closeout" in readme
 
 
+def test_commercial_beta_continuation_prompt_is_persistent_but_evidence_bound():
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "Commercial Research Beta Continuation Contract" in roadmap
+    assert "/goal" in prompt
+    assert "codex/personal-research-mode-mvp" in prompt
+    assert "pull/113" in prompt
+    assert "commit `e0eea1f95` or a later verified descendant" in prompt
+    assert "classify it once" in prompt
+    assert "avoid identical retry loops" in prompt
+    assert "Continue automatically while any safe, meaningful, in-scope local task remains" in prompt
+    assert "Do not mark the objective complete" in prompt
+    assert "Stage 1 — Answer-first workflow hardening" in prompt
+    assert "Stage 6 — Operating maturity and product direction" in prompt
+    assert "Never use `git add -A`" in prompt
+    assert "Keep PR #113 draft" in prompt
+    assert "Do not merge into main or deploy publicly without explicit approval" in prompt
+    assert "Generated CSV, JSON" in prompt
+    assert "Point-in-time consensus: `external_data_required`" in prompt
+    assert "Hosted preview: `external_account_required`" in prompt
+    assert "Controlled beta: `external_reviewers_required`" in prompt
+    assert "Trusted-peer pilot: `external_source_and_review_required`" in prompt
+    assert "Numerical calibration: `external_evidence_required`" in prompt
+    assert "Research-only; no investment advice" in prompt
+    assert "Keep the goal active whenever any applicable gate remains incomplete or unproven" in prompt
+
+
 def test_thesis_journal_docs_preserve_append_only_research_boundary():
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
