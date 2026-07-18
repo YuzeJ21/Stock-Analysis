@@ -144,9 +144,9 @@ def test_local_provider_reuses_financial_and_peer_lookups(tmp_path: Path, monkey
         encoding="utf-8",
     )
     (tmp_path / "data" / "peers.csv").write_text(
-        "ticker,peer_ticker,peer_group\n"
-        "ALFA,BETA,test_group\n"
-        "ALFA,GAMMA,test_group\n",
+        "ticker,peer_ticker,peer_group,peer_role,relationship_rationale,comparability_basis,valuation_anchor_eligible,source,as_of_date\n"
+        "ALFA,BETA,test_group,core_peer,Reviewed operating overlap,business model; growth and margin,yes,fixture,2026-01-02\n"
+        "ALFA,GAMMA,test_group,secondary_peer,Reviewed operating overlap,business model; customer mix,yes,fixture,2026-01-02\n",
         encoding="utf-8",
     )
     provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
@@ -440,6 +440,40 @@ def test_local_provider_peer_summary_exposes_relationship_and_result_evidence(tm
     assert summary["candidate_relationships"][0]["candidate_state"] == "candidate"
     assert "peer_result" not in summary["candidate_relationships"][0]
     json.dumps(summary)
+
+
+def test_local_provider_keeps_legacy_relationship_visible_but_out_of_valuation_inputs(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-05-01,ALFA,150,1000\n"
+        "2026-05-01,BETA,90,1000\n"
+        "2026-05-01,GAMMA,80,1000\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "fundamentals.csv").write_text(
+        "ticker,revenue,eps,free_cash_flow,shares_outstanding,market_cap,source\n"
+        "ALFA,1000,5,100,10,1500,fixture\n"
+        "BETA,800,4,90,12,1080,fixture\n"
+        "GAMMA,700,3,80,11,880,fixture\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group,peer_role,relationship_rationale,comparability_basis,valuation_anchor_eligible,source,as_of_date\n"
+        "ALFA,BETA,software,,,,,fixture,2026-06-30\n"
+        "ALFA,GAMMA,software,core_peer,Reviewed operating overlap,business model; customer mix,yes,fixture,2026-06-30\n",
+        encoding="utf-8",
+    )
+    provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
+
+    summary = provider.get_peer_summary("ALFA")
+    inputs = provider.get_peer_valuation_inputs("ALFA")
+
+    relationships = {row["peer_ticker"]: row for row in summary["trusted_relationships"]}
+    assert relationships["BETA"]["valuation_anchor_state"] == "withheld"
+    assert "peer_role_missing" in relationships["BETA"]["evidence_quality_blockers"]
+    assert relationships["GAMMA"]["valuation_anchor_state"] == "eligible"
+    assert [row["ticker"] for row in inputs] == ["GAMMA"]
 
 
 def test_local_provider_ignores_self_peers_and_duplicate_rows(tmp_path: Path):

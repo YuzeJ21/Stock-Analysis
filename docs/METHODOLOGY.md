@@ -23,7 +23,7 @@ Use this quick model card before relying on a page or report:
 | Freshness by lane | Latest price date, latest fundamentals filing date, peer review date, optional-context review date, and proof-ledger date. | Screenshots and sample reports are product evidence only; they do not prove current data freshness. |
 | Provenance | Source, as-of date, reviewed/import status, and whether the row is source-backed, candidate context, blocked, skipped, or excluded. | Metadata, candidate peers, or provider availability do not substitute for fundamentals, share-count, peer valuation, earnings, or analyst-estimate proof. |
 | DCF assumptions | WACC, terminal growth, forecast years, growth caps, FCF margin caps, and any normalization warning. | DCF output is scenario math, not a price target or instruction. |
-| Peer context | Candidate peers are separated from trusted peer mappings and mapped-peer valuation inputs. | Candidate peers can guide review, but they are not trusted peer proof. |
+| Peer context | Candidate peers are separated from trusted relationships, result read-through, and valuation-anchor inputs. | Candidate peers can guide review, but they are not trusted peer proof. |
 | Public share boundary | Public screenshots, walkthroughs, and QA evidence show product behavior. | They do not unlock blocked inputs or prove today's market/fundamental data. |
 
 ## Lane-Level Freshness Policy
@@ -229,6 +229,7 @@ Peer analysis is separate from standalone DCF.
 - Missing peer mappings block the mapping proof path; mapped peers with missing price, fundamentals, market cap, or valuation fields block the peer valuation inputs proof path.
 - Sector or industry fallback context, if shown, must be labeled as fallback and not trusted manual peer data.
 - Contextual earnings read-through additionally requires a source-backed peer actual and explicit target/peer fiscal periods. Calendar proximity or business similarity is not inferred as period comparability.
+- Peer valuation uses a stricter independent gate. A relationship may anchor peer medians only when it has source and as-of provenance, a reviewed `core_peer` or `secondary_peer` role, a relationship rationale, an economic comparability basis, and explicit `valuation_anchor_eligible=yes`. Aspirational, negative, excluded-close, and not-clean roles remain context-only. Legacy mappings without these fields stay visible as relationship context but cannot enter peer medians.
 
 This prevents the report from pretending that peer valuation exists when only partial peer data is available.
 
@@ -345,7 +346,7 @@ The product uses the same readiness proof ladder in the dashboard, single-stock 
 | --- | --- | --- | --- |
 | 1. Prices | Trusted local price rows. | Price/setup review, trend context, basic risk context when enough history exists. | Fundamentals, DCF, peers, earnings, and estimates. |
 | 2. Fundamentals / DCF inputs | Trusted company fundamentals with revenue, free cash flow or FCF margin, shares outstanding, and source metadata. | Fundamental field review and standalone DCF assumptions, scenarios, sensitivity, and fair value/share math. | Peer-relative valuation and optional earnings/estimate context. |
-| 3. Source-backed peers | Trusted peer mappings first, then mapped-peer price, fundamentals, market cap, and valuation inputs. | Peer trend context first, then peer-relative valuation only when mapped-peer valuation inputs pass readiness. | Peer premium/discount or peer DCF comparison when peer mappings or mapped-peer inputs are incomplete. |
+| 3. Source-backed peers | Trusted peer mappings first, then explicit peer role, economic comparability and valuation-anchor review, then mapped-peer price, fundamentals, market cap, and valuation inputs. | Peer trend context first, then peer-relative valuation only when at least two eligible anchors and their mapped-peer valuation inputs pass readiness. | Peer premium/discount or peer DCF comparison when roles, comparability, anchor decisions, mappings, or mapped-peer inputs are incomplete. |
 | 4. Optional context | Trusted earnings and analyst-estimate CSV rows. | Earnings timing context and analyst-estimate context. | Optional sections remain unavailable when those rows are missing. |
 
 Each step is permission to review a specific analysis layer, not permission to invent the next layer. Price-ready does not mean fundamentals-ready. Fundamentals-ready does not mean DCF-ready unless all required DCF fields pass. DCF-ready does not mean peer-ready. Peer-ready does not mean earnings or analyst estimates are available.

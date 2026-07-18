@@ -222,7 +222,7 @@ help-full:
 	@echo "  make price-history-batch-closeout [TOP_N=10] [TICKERS=AIAI,AMAN] Print a read-only grouped still-blocked proof-record scaffold"
 	@echo "  make peer-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the peer mapping and mapped-peer valuation-input proof packet without inferring peers"
 	@echo "  make peer-mapping-source-review [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write a fillable source-review packet before editing data/imports/peers.csv"
-	@echo "  make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> PEER_GROUP=<group> SOURCE=<url> AS_OF_DATE=<yyyy-mm-dd> REVIEWER=<name> REVIEW_DATE=<yyyy-mm-dd> Preview one reviewed peer import row; blocks duplicates, self-peers, placeholders, and stale readiness"
+	@echo "  make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> PEER_GROUP=<group> PEER_ROLE=<role> COMPARABILITY_BASIS=<basis> VALUATION_ANCHOR_ELIGIBLE=<yes|no> SOURCE=<url> AS_OF_DATE=<yyyy-mm-dd> REVIEWER=<name> REVIEW_DATE=<yyyy-mm-dd> Preview one reviewed peer import row; blocks incomplete evidence, duplicates, self-peers, placeholders, and stale readiness"
 	@echo "  make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan"
 	@echo "  make public-demo-readiness-pack Print the small shareable public demo proof set"
 	@echo "  make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data"
@@ -685,7 +685,7 @@ peer-mapping-source-review:
 	@python3 -m src.peer_mapping_source_review --root . --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/peer_mapping_source_review.md) --csv-output $(or $(CSV_OUTPUT),outputs/peer_mapping_source_review.csv) $(if $(DRY_RUN),--dry-run,)
 
 peer-mapping-writeback-guard:
-	@python3 -m src.peer_mapping_source_review --root . --guard-writeback --ticker "$(TICKER)" --peer-ticker "$(PEER_TICKER)" --peer-group "$(PEER_GROUP)" --sector "$(SECTOR)" --industry "$(INDUSTRY)" --source "$(SOURCE)" --as-of-date "$(AS_OF_DATE)" --relationship-rationale "$(RELATIONSHIP_RATIONALE)" --reviewer "$(REVIEWER)" --review-date "$(REVIEW_DATE)" --source-proof-status "$(SOURCE_PROOF_STATUS)" --import-row-ready "$(IMPORT_ROW_READY)"
+	@python3 -m src.peer_mapping_source_review --root . --guard-writeback --ticker "$(TICKER)" --peer-ticker "$(PEER_TICKER)" --peer-group "$(PEER_GROUP)" --sector "$(SECTOR)" --industry "$(INDUSTRY)" --peer-role "$(PEER_ROLE)" --source "$(SOURCE)" --as-of-date "$(AS_OF_DATE)" --relationship-rationale "$(RELATIONSHIP_RATIONALE)" --comparability-basis "$(COMPARABILITY_BASIS)" --valuation-anchor-eligible "$(VALUATION_ANCHOR_ELIGIBLE)" --reviewer "$(REVIEWER)" --review-date "$(REVIEW_DATE)" --source-proof-status "$(SOURCE_PROOF_STATUS)" --import-row-ready "$(IMPORT_ROW_READY)"
 
 reviewed-batch-proof:
 	@python3 -m src.reviewed_batch_proof --ledger $(or $(LEDGER),data/reviewed_batch_proofs.csv)

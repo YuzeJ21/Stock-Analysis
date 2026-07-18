@@ -52,7 +52,7 @@ def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
     assert "dcf-ready but peer-blocked: 2" in rendered
     assert "meta" in rendered
     assert "data/imports/peers.csv" in rendered
-    assert "schema fields: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
+    assert "schema fields: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "make imports-preview" in rendered
     assert "dcf ready peer mapping" in rendered
     assert "peer trend can use mapped peer price history" in rendered

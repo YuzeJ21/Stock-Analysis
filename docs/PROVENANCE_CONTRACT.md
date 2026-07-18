@@ -29,9 +29,11 @@ Every analysis-ready record or report section should expose, directly or through
 | Share count | Explicit filing or trusted source fact with date/context. | Per-share DCF math; shares are never inferred from price or market cap. |
 | DCF | Price, revenue, free cash flow or FCF margin, shares, method assumptions, and company eligibility. | Fair-value scenario math and valuation interpretation. |
 | Candidate peers | Industry, SIC, product, or other contextual suggestion. | Candidate context must not satisfy trusted-peer readiness. |
-| Trusted peers | Source-backed relationship, review rationale, source/as-of date, and required peer inputs. | Peer-relative valuation and comparative conclusions. |
+| Trusted peers | Source-backed relationship, review rationale, source/as-of date, reviewer-assigned peer role, economic comparability basis, explicit valuation-anchor decision, and required peer inputs. | Peer-relative valuation and comparative conclusions. |
 | Earnings and estimates | Trusted provider/import fields, fiscal period, source, and retrieval/as-of context. | Optional readiness or consensus interpretation from date-only or target-only rows. |
 | Earnings Nowcast | Prior quarterly actuals plus an exact-period point-in-time consensus snapshot, all timestamped no later than the forecast cutoff; model version and input hash are mandatory. | Revenue/EPS range, consensus-relative classification, and every probability output. Candidate signals never satisfy this gate. |
+
+Trusted-peer relationship provenance and valuation-anchor eligibility are independent. A source-backed mapping remains relationship evidence, but peer medians additionally require a reviewed `core_peer` or `secondary_peer` role, explicit relationship rationale, economic comparability basis, and `valuation_anchor_eligible=yes`. Missing fields, other roles, and legacy mappings remain context-only. No role or comparability field may be inferred from sector, industry, peer group, popularity, or existing row count.
 
 ## Earnings Nowcast Point-In-Time Contract
 

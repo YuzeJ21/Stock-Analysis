@@ -26,6 +26,7 @@ These are workflow states. They are not rankings, expected-return claims, invest
 
 - Missing trend, valuation, peer, earnings, estimate, or nowcast inputs stay unavailable rather than inferred.
 - Candidate peers and news context cannot become trusted peer proof or modify numerical forecasts.
+- Source-backed peer relationships do not automatically become valuation anchors. Peer role, economic comparability, and anchor eligibility are reviewed independently; legacy or context-only rows are withheld from peer medians.
 - Numerical Beat/Miss probability remains withheld without calibration evidence.
 - Scenarios remain bounded, session-local assumption tests and do not change canonical data.
 - The Change Monitor and Thesis Journal do not mutate readiness or source rows.
@@ -40,6 +41,8 @@ The current saved profile deterministically selects up to 25 eligible operating 
 Research Desk composes a read-only coverage matrix for every focused-cohort company. The matrix separates adjusted daily price history, quarterly Revenue, quarterly EPS, margins, free cash flow, cash/debt, shares outstanding, trusted peers, filing dates, earnings dates, and exact-period point-in-time consensus. Each lane is labeled `usable_now`, `partial`, `candidate_context_only`, `blocked`, or `excluded` from saved source evidence only. The weekly summary and four direct research answers render first; concise cohort cards and the full company-by-lane matrix remain under Advanced Evidence.
 
 Closing Advanced Evidence does not remove or combine cohort states. A DCF-ready flag does not fabricate quarterly actuals, earnings dates, or consensus. Candidate peers do not become trusted peers. Missing source provenance remains blocked, and non-company rows remain excluded rather than forced through operating-company analysis.
+
+In Company Workbench, the Peer Read-Through Map answers result-context and valuation-anchor questions separately. `core_peer` and `secondary_peer` are the only roles that can become anchors, and only with explicit source, as-of date, relationship rationale, comparability basis, and `valuation_anchor_eligible=yes`. Aspirational, negative, excluded-close, not-clean, candidate, and legacy-unreviewed relationships remain visible context without entering peer medians.
 
 Discover uses the same deterministic cohort but keeps the primary company-selection task first. Its search control and compact readiness-backed rows render before the collapsed cohort context, so a researcher can choose a company without reading technical coverage evidence. This order changes no cohort membership, readiness state, ranking, or Company Workbench route.
 

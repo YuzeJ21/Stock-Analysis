@@ -191,9 +191,9 @@ make imports-validate IMPORT_TICKERS=<ticker>
 make imports-preview IMPORT_TICKERS=<ticker>
 ```
 
-For a 25-50 company peer pilot, keep the working source-review sheet outside Git until rows are reviewed. The template is a collection aid only: candidate/context rows stay `candidate_context_only`, and only source-backed relationships that pass `peer-mapping-writeback-guard`, validation, preview, rejected-row review, rebuilt readiness, and proof recording can become trusted peer mappings.
+For a 25-50 company peer pilot, keep the working source-review sheet outside Git until rows are reviewed. The template is a collection aid only: candidate/context rows stay `candidate_context_only`, and only source-backed relationships with a reviewed peer role, relationship rationale, economic comparability basis, and explicit valuation-anchor decision that pass `peer-mapping-writeback-guard`, validation, preview, rejected-row review, rebuilt readiness, and proof recording can become trusted peer mappings. Only reviewed `core_peer` and `secondary_peer` rows marked `valuation_anchor_eligible=yes` may enter peer medians; all other roles remain context-only.
 
-Use the extra template fields (`source_type`, `source_title`, `source_accessed_date`, and `source_evidence_note`) to keep reviewer evidence defensible before copy/paste into the import guard. They are review-only fields, not import columns. The guard still accepts only the trusted peer mapping fields needed for `data/imports/peers.csv`; do not bypass it by pasting the full review sheet into the import file.
+Use `peer_role`, `relationship_rationale`, `comparability_basis`, and `valuation_anchor_eligible` as import fields so the reviewed decision survives into Company Workbench and valuation readiness. The extra source-document fields (`source_type`, `source_title`, `source_accessed_date`, and `source_evidence_note`) remain review-only. Do not bypass the guard by pasting the full review sheet into the import file.
 
 Earnings and analyst estimates:
 

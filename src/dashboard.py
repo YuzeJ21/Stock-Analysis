@@ -5959,7 +5959,9 @@ def peer_read_through_summary_cards(read_through: PeerReadThroughMap) -> list[di
             else f"{read_through.reviewable_count} peer results ready for contextual review"
         )
         body = (
-            f"{read_through.withheld_count} relationship(s) still need proof. Reviewable context does not change "
+            f"{read_through.valuation_anchor_count} valuation anchor eligible; "
+            f"{read_through.comparability_withheld_count} trusted relationship(s) still need role or comparability proof. "
+            "Reviewable context does not change "
             "a forecast, valuation, readiness state, or action."
         )
         badges = ["Context only", f"{read_through.trusted_count} trusted"]
@@ -5979,6 +5981,9 @@ def peer_read_through_frame(read_through: PeerReadThroughMap) -> pd.DataFrame:
         columns=[
             "Peer",
             "Relationship",
+            "Peer Role",
+            "Comparability",
+            "Valuation Anchor",
             "Business Overlap",
             "Fiscal Timing",
             "Peer Result",
@@ -5993,7 +5998,7 @@ def render_peer_read_through_map(report_payload: dict[str, object], *, profile_k
     st.markdown("#### Peer Read-Through Map")
     render_context_note(
         "Which peer results can be reviewed as context?",
-        "Trusted relationships, source-backed actual results, and explicit fiscal periods are checked separately. Candidate peers never become trusted automatically.",
+        "Relationship provenance, peer role, economic comparability, valuation-anchor eligibility, source-backed actual results, and fiscal periods are checked separately. Candidate peers never become trusted automatically.",
     )
     render_signal_cards(peer_read_through_summary_cards(read_through), show_commands=False)
     frame = peer_read_through_frame(read_through)
@@ -11392,13 +11397,13 @@ def data_health_coverage_summary_frame(
             "lane": "Peers",
             "coverage_tier": "peer_candidate_context / trusted_peer_ready",
             "state": _coverage_lane_state(peer_ready, master, locked_when_empty=True),
-            "one_clear_answer": "Use only where source-backed peer mappings and required peer data exist.",
+            "one_clear_answer": "Use relationship context only with source-backed mappings; use peer medians only after role, comparability, and anchor review.",
             "ready_coverage": _coverage_summary_fraction(peer_ready, master),
             "supporting_coverage": f"Peer valuation comparisons {peer_valuation_ready:,}",
             "blocked_or_limited": f"{max(master - peer_ready, 0):,} still need peer mapping or peer inputs",
-            "why_blocked_or_limited": "Candidate peers are context only; trusted peers need source-backed mappings plus trusted peer inputs.",
-            "proof_to_unlock": "Reviewed trusted peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
-            "stop_rule": "Stop if candidate peers are promoted to trusted peers or mapped-peer inputs are missing.",
+            "why_blocked_or_limited": "Candidate and legacy-unreviewed peers stay context-only and cannot enter peer medians.",
+            "proof_to_unlock": "Reviewed peer role, rationale, comparability, anchor decision, and required mapped-peer inputs.",
+            "stop_rule": "Stop if candidate or legacy-unreviewed peers enter peer medians or required inputs are missing.",
             "operator_step": "make project-status",
         },
         {
@@ -16266,7 +16271,7 @@ def peer_input_ladder_cards(peer_input_ladder: pd.DataFrame | None) -> list[dict
     total_rows = int(pd.to_numeric(frame.get("Priority Count"), errors="coerce").fillna(0).sum())
     active_rows = int(pd.to_numeric(frame.get("Active Universe Count"), errors="coerce").fillna(0).sum())
     dcf_rows = int(pd.to_numeric(frame.get("DCF-Ready Count"), errors="coerce").fillna(0).sum())
-    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date"
     return [
         {
             "kicker": "PEER INPUT LADDER",
@@ -16345,7 +16350,7 @@ def first_peer_mapping_unlock_frame(peer_unlock_worklist_frame: pd.DataFrame | N
             "Step": "2. Add source-backed mappings only",
             "Why It Matters": (
                 "Peer relationships must come from trusted research context; sector or industry fallback is not trusted peer data. "
-                "Schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date."
+                "Schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date."
             ),
             "Copy Command": "make templates",
             "Trusted Input": "data/imports/peers.csv",
@@ -16878,7 +16883,7 @@ def data_health_peer_unlock_frame(
     unlock_rows = frame.loc[missing_mapping | peer_not_ready | missing_peer_inputs].copy()
     if unlock_rows.empty:
         return pd.DataFrame(columns=columns)
-    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date"
     if "priority" in unlock_rows.columns:
         scope_text = unlock_rows.get("workflow_scope", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
         workflow_text = unlock_rows.get("workflow_group", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
@@ -16994,7 +16999,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     sequence_summary = validation_sequence_summary(sequence)
     validation_summary = validation_sequence_summary(first.get("Validation Path"))
     command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
-    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date"
     return [
         {
             "kicker": "PEER QUEUE",
@@ -17062,7 +17067,7 @@ def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket |
     freshness_status = format_missing(packet.freshness.status, "unknown").replace("_", " ")
     review_gate = "blocked by freshness" if packet.freshness.status in {"missing", "stale"} else "source proof required"
     required_fills = (
-        "proposed_peer_ticker, peer_group, source, as_of_date, relationship_rationale, reviewer, review_date"
+        "proposed_peer_ticker, peer_group, peer_role, source, as_of_date, relationship_rationale, comparability_basis, valuation_anchor_eligible, reviewer, review_date"
     )
     rows: list[dict[str, object]] = []
     for row in packet.rows[: max(limit, 0)]:

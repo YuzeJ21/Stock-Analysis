@@ -7,6 +7,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any, Mapping
 
+from src.peer_evidence_quality import assess_peer_evidence
 
 @dataclass(frozen=True)
 class PeerReadThroughEdge:
@@ -14,6 +15,10 @@ class PeerReadThroughEdge:
     peer_ticker: str
     relationship_state: str
     peer_group: str
+    peer_role: str
+    comparability_state: str
+    valuation_anchor_state: str
+    evidence_quality_blockers: tuple[str, ...]
     business_overlap: str
     fiscal_timing: str
     result_evidence: str
@@ -37,6 +42,8 @@ class PeerReadThroughMap:
     candidate_count: int
     reviewable_count: int
     withheld_count: int
+    valuation_anchor_count: int
+    comparability_withheld_count: int
     boundary: str
 
 
@@ -91,6 +98,7 @@ def _trusted_edge(
 ) -> PeerReadThroughEdge:
     peer = _text(row.get("peer_ticker")).upper()
     overlap = _business_overlap(row)
+    quality = assess_peer_evidence(row)
     relationship_ready = _relationship_source_ready(row)
     result = row.get("peer_result") if isinstance(row.get("peer_result"), Mapping) else {}
     result = result or {}
@@ -125,6 +133,10 @@ def _trusted_edge(
         peer_ticker=peer,
         relationship_state=relationship_state,
         peer_group=_text(row.get("peer_group")) or "Not documented",
+        peer_role=quality.peer_role,
+        comparability_state=quality.comparability_state,
+        valuation_anchor_state=quality.valuation_anchor_state,
+        evidence_quality_blockers=quality.blockers,
         business_overlap=overlap,
         fiscal_timing=fiscal_timing,
         result_evidence=result_label,
@@ -139,11 +151,16 @@ def _trusted_edge(
 
 
 def _candidate_edge(*, ticker: str, row: Mapping[str, object]) -> PeerReadThroughEdge:
+    quality = assess_peer_evidence(row)
     return PeerReadThroughEdge(
         subject_ticker=ticker,
         peer_ticker=_text(row.get("peer_ticker")).upper(),
         relationship_state="candidate_context_only",
         peer_group=_text(row.get("peer_group")) or "Not documented",
+        peer_role=quality.peer_role,
+        comparability_state=quality.comparability_state,
+        valuation_anchor_state=quality.valuation_anchor_state,
+        evidence_quality_blockers=quality.blockers,
         business_overlap=_business_overlap(row),
         fiscal_timing="Not established",
         result_evidence="Not reviewed",
@@ -170,7 +187,20 @@ def build_peer_read_through_map(
     if asset_type in {"etf", "index_proxy", "fund"}:
         identity_payload = {"ticker": ticker, "profile_key": profile_key, "status": "excluded", "edges": []}
         identity = hashlib.sha256(json.dumps(identity_payload, sort_keys=True).encode("utf-8")).hexdigest()
-        return PeerReadThroughMap(ticker, profile_key, "excluded", identity, (), 0, 0, 0, 0, common_boundary)
+        return PeerReadThroughMap(
+            ticker=ticker,
+            profile_key=profile_key,
+            status="excluded",
+            map_identity=identity,
+            edges=(),
+            trusted_count=0,
+            candidate_count=0,
+            reviewable_count=0,
+            withheld_count=0,
+            valuation_anchor_count=0,
+            comparability_withheld_count=0,
+            boundary=common_boundary,
+        )
 
     earnings = report_payload.get("earnings_summary") if isinstance(report_payload.get("earnings_summary"), Mapping) else {}
     target_period = _text((earnings or {}).get("fiscal_period"))
@@ -204,6 +234,14 @@ def build_peer_read_through_map(
     trusted_count = sum(edge.relationship_state == "trusted_peer_ready" for edge in edges)
     candidate_count = sum(edge.relationship_state == "candidate_context_only" for edge in edges)
     reviewable_count = sum(edge.read_through_state == "reviewable_context" for edge in edges)
+    valuation_anchor_count = sum(
+        edge.relationship_state == "trusted_peer_ready" and edge.valuation_anchor_state == "eligible"
+        for edge in edges
+    )
+    comparability_withheld_count = sum(
+        edge.relationship_state == "trusted_peer_ready" and edge.valuation_anchor_state != "eligible"
+        for edge in edges
+    )
     status = "ready_for_context_review" if reviewable_count else "evidence_withheld" if edges else "no_relationship_evidence"
     return PeerReadThroughMap(
         ticker=ticker,
@@ -215,6 +253,8 @@ def build_peer_read_through_map(
         candidate_count=candidate_count,
         reviewable_count=reviewable_count,
         withheld_count=len(edges) - reviewable_count,
+        valuation_anchor_count=valuation_anchor_count,
+        comparability_withheld_count=comparability_withheld_count,
         boundary=common_boundary,
     )
 
@@ -228,12 +268,30 @@ def peer_read_through_rows(read_through: PeerReadThroughMap) -> list[dict[str, s
         "awaiting_peer_result": "Awaiting peer result",
         "awaiting_fiscal_timing": "Awaiting fiscal timing",
     }
+    role_labels = {
+        "core_peer": "Core peer",
+        "secondary_peer": "Secondary peer",
+        "aspirational_peer": "Aspirational peer",
+        "negative_peer": "Negative peer",
+        "excluded_close_peer": "Excluded close peer",
+        "not_clean_comp": "Not clean comp",
+        "unreviewed": "Unreviewed",
+    }
+    comparability_labels = {
+        "reviewed_comparable": "Reviewed comparable",
+        "context_only": "Context only",
+        "unreviewed": "Unreviewed",
+    }
+    anchor_labels = {"eligible": "Eligible", "withheld": "Withheld"}
     rows: list[dict[str, str]] = []
     for edge in read_through.edges:
         rows.append(
             {
                 "Peer": edge.peer_ticker,
                 "Relationship": "Trusted peer" if edge.relationship_state == "trusted_peer_ready" else state_labels.get(edge.relationship_state, edge.relationship_state),
+                "Peer Role": role_labels.get(edge.peer_role, edge.peer_role),
+                "Comparability": comparability_labels.get(edge.comparability_state, edge.comparability_state),
+                "Valuation Anchor": anchor_labels.get(edge.valuation_anchor_state, edge.valuation_anchor_state),
                 "Business Overlap": edge.business_overlap,
                 "Fiscal Timing": edge.fiscal_timing,
                 "Peer Result": edge.result_evidence,

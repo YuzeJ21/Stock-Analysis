@@ -121,7 +121,7 @@ def test_peer_mapping_source_review_packet_builds_two_review_slots_per_candidate
     assert "## First Peer Readiness Answer" in rendered
     assert "First answer status: `needs_source_review_fields`" in rendered
     assert "Trusted peer proof state: `locked`" in rendered
-    assert "Import schema: `ticker, peer_ticker, peer_group, sector, industry, source, as_of_date`" in rendered
+    assert "Import schema: `ticker, peer_ticker, peer_group, sector, industry, peer_role" in rendered
     assert "relationship rationale" in rendered
     assert "memory, popularity, sector/theme similarity alone" in rendered
     assert "Candidate context:" in rendered
@@ -216,7 +216,10 @@ def test_peer_mapping_source_review_completion_detects_placeholders(tmp_path: Pa
     assert "keep peer valuation locked" in completion.next_safe_action
     assert peer_mapping_import_row_scaffold(packet.rows[0]).startswith("blocked until reviewed fields are filled")
     assert preview.status == "needs_field_fills"
-    assert preview.csv_header == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
+    assert preview.csv_header == (
+        "ticker,peer_ticker,peer_group,sector,industry,peer_role,relationship_rationale,"
+        "comparability_basis,valuation_anchor_eligible,source,as_of_date"
+    )
     assert preview.csv_row == ""
     assert "Do not edit or apply" in preview.apply_boundary
 
@@ -229,9 +232,12 @@ def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(
         peer_group="large-cap software",
         sector="Technology",
         industry="Software",
+        peer_role="core_peer",
         source="https://example.com/peer-proof",
         as_of_date="2026-06-14",
         relationship_rationale="Source names comparable enterprise software exposure.",
+        comparability_basis="business model; customer mix; growth and margin profile",
+        valuation_anchor_eligible="yes",
         reviewer="local reviewer",
         review_date="2026-06-14",
         source_proof_status="reviewed",
@@ -244,9 +250,17 @@ def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(
 
     assert peer_mapping_source_review_missing_fields(reviewed_row) == ()
     assert completion.status == "ready_for_import_row_scaffold"
-    assert completion.import_row_scaffold == "AAA,MSFT,large-cap software,Technology,Software,https://example.com/peer-proof,2026-06-14"
+    assert completion.import_row_scaffold == (
+        "AAA,MSFT,large-cap software,Technology,Software,core_peer,"
+        "Source names comparable enterprise software exposure.,"
+        "business model; customer mix; growth and margin profile,yes,"
+        "https://example.com/peer-proof,2026-06-14"
+    )
     assert "validate and preview" in completion.next_safe_action
-    assert peer_mapping_import_csv_header() == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
+    assert peer_mapping_import_csv_header() == (
+        "ticker,peer_ticker,peer_group,sector,industry,peer_role,relationship_rationale,"
+        "comparability_basis,valuation_anchor_eligible,source,as_of_date"
+    )
     assert preview.status == "ready_for_validate_preview"
     assert preview.csv_row == completion.import_row_scaffold
     assert preview.validation_command == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
@@ -255,6 +269,31 @@ def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(
     assert decision.status == "ready_for_validate_preview"
     assert decision.next_safe_action == "Run make peer-mapping-writeback-guard for AAA / peer_1, then validate and preview."
     assert decision.trusted_peer_proof_state == "ready_for_guard"
+
+
+def test_peer_mapping_source_review_blocks_invalid_role_or_anchor_decision(tmp_path: Path):
+    packet = build_peer_mapping_source_review_packet(_sample_root(tmp_path), top_n=1)
+    invalid_row = replace(
+        packet.rows[0],
+        proposed_peer_ticker="MSFT",
+        peer_group="large-cap software",
+        peer_role="favorite_peer",
+        source="https://example.com/peer-proof",
+        as_of_date="2026-06-14",
+        relationship_rationale="Source names comparable enterprise software exposure.",
+        comparability_basis="business model; customer mix; growth and margin profile",
+        valuation_anchor_eligible="yes",
+        reviewer="local reviewer",
+        review_date="2026-06-14",
+        source_proof_status="reviewed",
+        import_row_ready="yes",
+    )
+
+    completion = peer_mapping_source_review_completion(invalid_row, packet.freshness)
+
+    assert completion.status == "needs_field_fills"
+    assert completion.missing_fields == ("peer_role_invalid",)
+    assert completion.import_row_scaffold.startswith("blocked until reviewed fields are filled")
 
 
 def test_peer_mapping_writeback_guard_allows_ready_non_duplicate_row(tmp_path: Path):
@@ -266,9 +305,12 @@ def test_peer_mapping_writeback_guard_allows_ready_non_duplicate_row(tmp_path: P
         peer_group="large-cap software",
         sector="Technology",
         industry="Software",
+        peer_role="core_peer",
         source="https://example.com/peer-proof",
         as_of_date="2026-06-14",
         relationship_rationale="Source names comparable enterprise software exposure.",
+        comparability_basis="business model; customer mix; growth and margin profile",
+        valuation_anchor_eligible="yes",
         reviewer="local reviewer",
         review_date="2026-06-14",
         source_proof_status="reviewed",
@@ -281,8 +323,16 @@ def test_peer_mapping_writeback_guard_allows_ready_non_duplicate_row(tmp_path: P
     assert guard.status == "ready_for_validate_preview"
     assert guard.blocking_reasons == ()
     assert guard.duplicate_sources == ()
-    assert guard.csv_header == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
-    assert guard.csv_row == "AAA,MSFT,large-cap software,Technology,Software,https://example.com/peer-proof,2026-06-14"
+    assert guard.csv_header == (
+        "ticker,peer_ticker,peer_group,sector,industry,peer_role,relationship_rationale,"
+        "comparability_basis,valuation_anchor_eligible,source,as_of_date"
+    )
+    assert guard.csv_row == (
+        "AAA,MSFT,large-cap software,Technology,Software,core_peer,"
+        "Source names comparable enterprise software exposure.,"
+        "business model; customer mix; growth and margin profile,yes,"
+        "https://example.com/peer-proof,2026-06-14"
+    )
     assert guard.proof_record_status == "ready_for_review_fields"
     assert "validation_result" in guard.proof_record_missing_fields
     assert "final_outcome" in guard.proof_record_missing_fields
@@ -312,9 +362,12 @@ def test_peer_mapping_writeback_guard_blocks_duplicate_and_self_peer(tmp_path: P
         packet.rows[0],
         proposed_peer_ticker="MSFT",
         peer_group="large-cap software",
+        peer_role="core_peer",
         source="https://example.com/peer-proof",
         as_of_date="2026-06-14",
         relationship_rationale="Source names comparable enterprise software exposure.",
+        comparability_basis="business model; customer mix; growth and margin profile",
+        valuation_anchor_eligible="yes",
         reviewer="local reviewer",
         review_date="2026-06-14",
         source_proof_status="reviewed",
@@ -354,12 +407,18 @@ def test_peer_mapping_writeback_guard_cli_is_copy_only(tmp_path: Path, capsys):
             "Technology",
             "--industry",
             "Software",
+            "--peer-role",
+            "core_peer",
             "--source",
             "https://example.com/peer-proof",
             "--as-of-date",
             "2026-06-14",
             "--relationship-rationale",
             "Source names comparable enterprise software exposure.",
+            "--comparability-basis",
+            "business model; customer mix; growth and margin profile",
+            "--valuation-anchor-eligible",
+            "yes",
             "--reviewer",
             "local reviewer",
             "--review-date",
@@ -375,7 +434,12 @@ def test_peer_mapping_writeback_guard_cli_is_copy_only(tmp_path: Path, capsys):
     assert rc == 0
     assert "Peer mapping write-back guard" in output
     assert "status: ready_for_validate_preview" in output
-    assert "csv_row: AAA,MSFT,large-cap software,Technology,Software,https://example.com/peer-proof,2026-06-14" in output
+    assert (
+        "csv_row: AAA,MSFT,large-cap software,Technology,Software,core_peer,"
+        "Source names comparable enterprise software exposure.,"
+        "business model; customer mix; growth and margin profile,yes,"
+        "https://example.com/peer-proof,2026-06-14"
+    ) in output
     assert "proof_record_command: DRY_RUN=1 make reviewed-batch-proof-record" in output
     assert "does not edit files" in output
 

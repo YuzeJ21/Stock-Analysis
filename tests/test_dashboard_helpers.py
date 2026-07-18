@@ -145,6 +145,10 @@ def test_peer_read_through_cards_explain_reviewable_and_withheld_states():
                         "peer_ticker": "BETA",
                         "peer_group": "cloud",
                         "industry": "Cloud platforms",
+                        "peer_role": "core_peer",
+                        "relationship_rationale": "Comparable cloud platform exposure.",
+                        "comparability_basis": "business model; customer mix; growth and margin profile",
+                        "valuation_anchor_eligible": "yes",
                         "source": "https://example.test/peer",
                         "as_of_date": "2026-06-30",
                         "peer_result": {
@@ -166,6 +170,10 @@ def test_peer_read_through_cards_explain_reviewable_and_withheld_states():
 
     assert cards[0]["title"] == "1 peer result ready for contextual review"
     assert "does not change" in cards[0]["body"]
+    assert "1 valuation anchor eligible" in cards[0]["body"]
+    assert frame.iloc[0]["Peer Role"] == "Core peer"
+    assert frame.iloc[0]["Comparability"] == "Reviewed comparable"
+    assert frame.iloc[0]["Valuation Anchor"] == "Eligible"
     assert frame.iloc[0]["Read-Through State"] == "Reviewable context"
     assert "recommend" not in str(cards).lower()
 
@@ -20768,7 +20776,7 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
         "Metadata can confirm scope and filing context, but it is not price, fundamentals, valuation, earnings, or estimates.",
         "Some tickers still lack enough verified local price history.",
         "Missing trusted fundamentals, shares, or DCF inputs keep valuation withheld.",
-        "Candidate peers are context only; trusted peers need source-backed mappings plus trusted peer inputs.",
+        "Candidate and legacy-unreviewed peers stay context-only and cannot enter peer medians.",
         "Trusted local earnings rows have not been reviewed for most tickers.",
         "Trusted local analyst-estimate rows have not been reviewed for most tickers.",
         "Screenshots and proof artifacts do not prove current market data.",
@@ -20777,7 +20785,7 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
         "SEC submissions metadata, local universe rows, or reviewed ticker metadata prove identity only.",
         "Reviewed price rows or a capped dry-run refresh prove price coverage.",
         "Validated fundamentals imports, preview, rejected-row review, apply decision, and rebuilt readiness.",
-        "Reviewed trusted peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
+        "Reviewed peer role, rationale, comparability, anchor decision, and required mapped-peer inputs.",
         "Trusted earnings CSV rows that pass validation, preview, and optional-context readiness.",
         "Trusted analyst-estimate CSV rows that pass validation, preview, and optional-context readiness.",
         "Current app screenshot evidence plus public-check; data freshness still comes from readiness commands.",
@@ -20795,7 +20803,7 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
         "Stop before analysis if only metadata evidence exists.",
         "Stop if price rows are missing, too short, stale, or unreviewed.",
         "Stop if any required DCF input is missing or not source-backed.",
-        "Stop if candidate peers are promoted to trusted peers or mapped-peer inputs are missing.",
+        "Stop if candidate or legacy-unreviewed peers enter peer medians or required inputs are missing.",
         "Stop if rows are empty, stale, or not trusted local evidence.",
         "Stop if estimates are absent, scraped without review, or treated as a recommendation.",
         "Stop if screenshots are used as proof of data freshness or source-input coverage.",
@@ -20808,11 +20816,10 @@ def test_data_health_coverage_summary_answers_each_lane_without_recommendations(
     assert "next proof:" in rendered
     assert "stop:" in rendered
     assert "candidate peers are context only" not in rendered
-    assert "reviewed trusted peer mapping rows" in rendered
-    assert "do not promote candidate peers to trusted peers" in rendered
-    assert "Candidate peers are context only" in " ".join(map(str, frame["why_blocked_or_limited"]))
-    assert "Reviewed trusted peer mapping rows" in " ".join(map(str, frame["proof_to_unlock"]))
-    assert "Stop if candidate peers are promoted to trusted peers" in " ".join(map(str, frame["stop_rule"]))
+    assert "reviewed peer role" in rendered
+    assert "Candidate and legacy-unreviewed peers" in " ".join(map(str, frame["why_blocked_or_limited"]))
+    assert "Reviewed peer role" in " ".join(map(str, frame["proof_to_unlock"]))
+    assert "Stop if candidate or legacy-unreviewed peers" in " ".join(map(str, frame["stop_rule"]))
     assert "do not use until trusted earnings rows exist" in rendered
     assert "not data freshness" in rendered
     assert "buy" not in rendered
@@ -22812,7 +22819,7 @@ def test_first_peer_mapping_unlock_frame_prioritizes_source_backed_mapping_workf
     assert frame.iloc[1]["Copy Command"] == "make templates"
     assert frame.iloc[1]["Trusted Input"] == "data/imports/peers.csv"
     assert "sector or industry fallback is not trusted peer data" in rendered
-    assert "schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
+    assert "schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "make imports-validate import_tickers=<ticker-or-reviewed-batch> && make imports-preview import_tickers=<ticker-or-reviewed-batch> && make imports-apply import_tickers=<ticker-or-reviewed-batch>" in rendered
     assert "make readiness && make peer-mapping-queue top_n=25" in rendered
     assert "peer readiness should improve only after mapped rows pass validation" in rendered
@@ -22952,7 +22959,7 @@ def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
     assert "dcf-ready but peer-blocked: 2" in rendered
     assert "meta" in rendered
     assert "data/imports/peers.csv" in rendered
-    assert "schema fields: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
+    assert "schema fields: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "make imports-preview" in rendered
     assert "dcf ready peer mapping" in rendered
     assert "peer trend can use mapped peer price history" in rendered
@@ -23126,7 +23133,7 @@ def test_peer_input_ladder_prioritizes_active_dcf_ready_rows_and_separates_trend
     assert "peer valuation remains locked until peer fundamentals and valuation inputs pass readiness" in rendered
     assert "peer-relative premium/discount, peer valuation comparison, and peer dcf comparison stay locked" in rendered
     assert "do not skip from mappings to peer valuation" in rendered
-    assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
+    assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "sector or industry fallback can guide research context only; it is not trusted peer valuation data" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make focus-peers ticker=meta" in rendered
@@ -23652,7 +23659,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert "do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
     assert "make templates" in rendered
     assert "add source-backed peer rows in `data/imports/peers.csv`" in rendered
-    assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
+    assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
@@ -23705,7 +23712,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "valuation: peer valuation blocked" in rendered
     assert "trusted peer requirement: peer mapping, peer fundamentals" in rendered
     assert "boundary: do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
-    assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
+    assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "next proof: add source-backed peer rows, validate and preview them, apply only reviewed rows" in rendered
     assert "validation proof: add source-backed peer rows, validate and preview them, apply only reviewed rows" in rendered
     assert "make imports-validate" in rendered
@@ -23788,7 +23795,10 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert frame.iloc[0]["Completion Status"] == "needs field fills"
     assert frame.iloc[0]["Import Preview Status"] == "needs field fills"
     assert "proposed_peer_ticker" in frame.iloc[0]["Missing Fields"]
-    assert frame.iloc[0]["CSV Header"] == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
+    assert frame.iloc[0]["CSV Header"] == (
+        "ticker,peer_ticker,peer_group,sector,industry,peer_role,relationship_rationale,"
+        "comparability_basis,valuation_anchor_eligible,source,as_of_date"
+    )
     assert frame.iloc[0]["CSV Row"] == "blocked until completion-ready"
     assert frame.iloc[0]["Candidate Context State"] in {"still_blocked", "not_loaded"}
     assert frame.iloc[0]["Candidate Context Boundary"]
@@ -23796,13 +23806,13 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert "Do not edit or apply data/imports/peers.csv until the source-review row is completion-ready." in frame.iloc[0]["Apply Boundary"]
     assert "make readiness" in frame.iloc[0]["Post-Apply Proof"]
     assert frame.iloc[0]["Ticker"] == "META"
-    assert "proposed_peer_ticker, peer_group, source, as_of_date" in rendered
+    assert "proposed_peer_ticker, peer_group, peer_role, source, as_of_date" in rendered
     assert "fill proposed_peer_ticker" in rendered
     assert "source does not name the peer relationship" in rendered
     assert "classification similarity alone stays fallback context" in rendered
     assert "candidate context" in rendered
     assert "does not infer peer relationships or unlock peer valuation" in rendered
-    assert "header: ticker,peer_ticker,peer_group,sector,industry,source,as_of_date" in rendered
+    assert "header: ticker,peer_ticker,peer_group,sector,industry,peer_role,relationship_rationale,comparability_basis,valuation_anchor_eligible,source,as_of_date" in rendered
     assert "row: blocked until completion-ready" in rendered
     assert "no hand-edit shortcut" in rendered
     assert "check duplicates, then prepare proof" in rendered

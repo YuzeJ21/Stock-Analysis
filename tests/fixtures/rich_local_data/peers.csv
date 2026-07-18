@@ -1,3 +1,3 @@
-ticker,peer_ticker,peer_group,sector,industry,source,as_of_date
-ALFA,BETA,fixture_group,Technology,Software,fixture_peers,2026-05-01
-ALFA,GAMMA,fixture_group,Technology,Software,fixture_peers,2026-05-01
+ticker,peer_ticker,peer_group,sector,industry,peer_role,relationship_rationale,comparability_basis,valuation_anchor_eligible,source,as_of_date
+ALFA,BETA,fixture_group,Technology,Software,core_peer,Synthetic fixture operating overlap,business model; customer mix; growth and margin,yes,synthetic_test_fixture,2026-05-01
+ALFA,GAMMA,fixture_group,Technology,Software,secondary_peer,Synthetic fixture operating overlap,business model; customer mix; growth and margin,yes,synthetic_test_fixture,2026-05-01

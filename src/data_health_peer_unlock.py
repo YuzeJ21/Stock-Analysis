@@ -137,7 +137,10 @@ def peer_unlock_operator_cards(
         "make templates -> make imports-validate IMPORT_TICKERS=<ticker> -> "
         "make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>",
     )
-    peer_schema = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    peer_schema = (
+        "ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, "
+        "comparability_basis, valuation_anchor_eligible, source, as_of_date"
+    )
     priority_text = ", ".join(f"P{int(key)}: {int(value)}" for key, value in priority_counts.head(4).items())
     workflow_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in workflow_counts.head(3).items())
     scope_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in scope_counts.head(3).items())

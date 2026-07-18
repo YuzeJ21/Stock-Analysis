@@ -232,15 +232,17 @@ Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optio
 
 1. Select 25-50 operating companies from a few clearly comparable industries.
 2. Generate candidate peer context from SIC, industry, and product context; label it `candidate_context_only`.
-3. Promote a relationship only after source-backed review captures peer source, review date, rationale, and as-of context.
+3. Promote a relationship only after source-backed review captures peer source, review date, rationale, as-of context, reviewer-assigned peer role, economic comparability basis, and an explicit valuation-anchor decision.
 4. Keep peer trend readiness separate from peer valuation readiness.
-5. Require trusted peer price, fundamentals, and valuation inputs before relative valuation appears.
+5. Require at least two explicitly eligible `core_peer` or `secondary_peer` relationships plus trusted peer price, fundamentals, and valuation inputs before relative valuation appears.
 
 **Dependencies:** a licensed or otherwise trustworthy peer relationship source and reviewed mappings.
 
 **Stop rule:** sector similarity is not trusted-peer proof. Do not target broad-universe peer readiness before the pilot has repeatable evidence.
 
-The implemented Peer Read-Through Map is the review surface for this future cohort. It does not satisfy the external trusted-relationship dependency or create broad peer coverage by itself.
+**Evidence-quality slice implemented:** the source-review template, write-back guard, local provider, readiness engine, and Peer Read-Through Map now preserve and evaluate `peer_role`, `relationship_rationale`, `comparability_basis`, and `valuation_anchor_eligible`. Legacy seven-column relationships remain visible for source-backed trend or result context but fail closed as valuation anchors. Candidate rows remain separate. No existing canonical peer row was assigned a role by inference.
+
+The implemented Peer Read-Through Map is the review surface for this future cohort. This contract improves local methodology but does not satisfy the external trusted-relationship dependency, review the existing 75 canonical rows, or create broad peer coverage by itself.
 
 ## Later
 
@@ -267,7 +269,7 @@ Use `docs/PRODUCT_DIRECTION_DECISION.md` after hosted-preview, controlled-pilot,
 | Hosted demo | repo-ready | deterministic demo profile, deployment guide, and local public checks | hosting account, verified public URL, browser review |
 | FMP fallback | optional key missing | one-ticker smoke, validation, preview, provenance gate | `FMP_API_KEY` outside Git |
 | Alpha Vantage / Finnhub | optional keys missing | capped fallback interfaces and source-state checks | provider keys and a reviewed use case |
-| Trusted peers | source-gated | candidate/trusted state separation and proof workflow | reviewed source relationships and rationale |
+| Trusted peers | source-gated | candidate/trusted separation, role/comparability/anchor contract, and proof workflow | licensed or otherwise trustworthy reviewed relationships, roles, rationales, and comparability decisions |
 | Earnings / estimates | intentionally locked | optional-context states and import gates | trusted provider/manual rows with supported fields |
 
 ## Success Gates

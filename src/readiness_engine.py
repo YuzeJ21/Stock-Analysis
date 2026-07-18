@@ -16,6 +16,7 @@ except ImportError:  # pragma: no cover - exercised only in stripped-down enviro
 from src.company_analysis_scope import excludes_company_dcf_for_inputs as company_dcf_excluded
 from src.loader import normalize_columns
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.peer_evidence_quality import assess_peer_evidence
 from src.universe_model import ASSET_TYPES, build_universe_coverage_report, ensure_universe_files, infer_asset_type
 
 ALLOWED_CANDIDATE_STATES = {"candidate", "fallback_context", "research_only"}
@@ -113,6 +114,8 @@ PEER_READINESS_COLUMNS = [
     "peer_momentum_ready_count",
     "peer_fundamentals_ready_count",
     "peer_valuation_ready_count",
+    "peer_valuation_anchor_eligible_count",
+    "peer_valuation_anchor_blockers",
     "ready_peer_count",
     "peer_missing_price_tickers",
     "peer_missing_momentum_tickers",
@@ -506,6 +509,8 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
                     "peer_momentum_ready_count": 0,
                     "peer_fundamentals_ready_count": 0,
                     "peer_valuation_ready_count": 0,
+                    "peer_valuation_anchor_eligible_count": 0,
+                    "peer_valuation_anchor_blockers": "",
                     "ready_peer_count": 0,
                     "peer_missing_price_tickers": "",
                     "peer_missing_momentum_tickers": "",
@@ -557,15 +562,26 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
         momentum_ready_peers = []
         fundamentals_ready_peers = []
         valuation_ready_peers = []
+        valuation_anchor_eligible_peers: list[str] = []
+        valuation_anchor_blockers: list[str] = []
+        peer_rows_by_ticker = {
+            str(row.get("peer_ticker") or "").strip().upper(): row
+            for row in ticker_peers.to_dict("records")
+        }
         for peer in valid_peers:
             fundamental_row = _select_row(fundamentals, peer)
+            quality = assess_peer_evidence(peer_rows_by_ticker.get(peer, {}))
+            if quality.valuation_anchor_state == "eligible":
+                valuation_anchor_eligible_peers.append(peer)
+            else:
+                valuation_anchor_blockers.append(f"{peer}: {', '.join(quality.blockers)}")
             if peer_price_ready_by_ticker.get(peer, False):
                 price_ready_peers.append(peer)
             if peer_momentum_ready_by_ticker.get(peer, False):
                 momentum_ready_peers.append(peer)
             if _has_meaningful_fundamentals(fundamental_row):
                 fundamentals_ready_peers.append(peer)
-            if _has_dcf_fundamentals(fundamental_row):
+            if quality.valuation_anchor_state == "eligible" and _has_dcf_fundamentals(fundamental_row):
                 valuation_ready_peers.append(peer)
         missing_price_peers = sorted(set(valid_peers) - set(price_ready_peers))
         missing_momentum_peers = sorted(set(valid_peers) - set(momentum_ready_peers))
@@ -574,7 +590,11 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
         peer_price_ready = len(valid_peers) >= min_peers and len(price_ready_peers) >= min_peers
         peer_momentum_ready = len(valid_peers) >= min_peers and len(momentum_ready_peers) >= min_peers
         peer_fundamentals_ready = len(valid_peers) >= min_peers and len(fundamentals_ready_peers) >= min_peers
-        peer_valuation_ready = len(valid_peers) >= min_peers and len(valuation_ready_peers) >= min_peers
+        peer_valuation_ready = (
+            len(valid_peers) >= min_peers
+            and len(valuation_anchor_eligible_peers) >= min_peers
+            and len(valuation_ready_peers) >= min_peers
+        )
         peer_ready = peer_momentum_ready
         mapping_status = "mapped" if len(valid_peers) >= min_peers else "missing_mapping" if not valid_peers else "insufficient_mapping"
         blocker_type = ""
@@ -586,6 +606,8 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
             blocker_type = "peer_momentum_missing"
         elif not peer_fundamentals_ready:
             blocker_type = "peer_fundamentals_missing"
+        elif len(valuation_anchor_eligible_peers) < min_peers:
+            blocker_type = "peer_comparability_unreviewed"
         elif not peer_valuation_ready:
             blocker_type = "peer_valuation_blocked"
         group = ""
@@ -639,6 +661,11 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
             next_peer_action = f"Add enough local price history for mapped peers: {', '.join(missing_momentum_peers[:5])}."
         elif blocker_type == "peer_fundamentals_missing":
             next_peer_action = f"Import trusted fundamentals for mapped peers: {', '.join(missing_fundamentals_peers[:5])}."
+        elif blocker_type == "peer_comparability_unreviewed":
+            next_peer_action = (
+                "Review peer role, relationship rationale, economic comparability basis, and explicit valuation-anchor "
+                f"eligibility for mapped peers: {', '.join(sorted(set(valid_peers) - set(valuation_anchor_eligible_peers))[:5])}."
+            )
         elif blocker_type == "peer_valuation_blocked":
             next_peer_action = f"Import DCF-ready fundamentals for mapped peers: {', '.join(missing_valuation_peers[:5])}."
         else:
@@ -667,6 +694,8 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
                 "peer_momentum_ready_count": len(momentum_ready_peers),
                 "peer_fundamentals_ready_count": len(fundamentals_ready_peers),
                 "peer_valuation_ready_count": len(valuation_ready_peers),
+                "peer_valuation_anchor_eligible_count": len(valuation_anchor_eligible_peers),
+                "peer_valuation_anchor_blockers": "; ".join(valuation_anchor_blockers),
                 "ready_peer_count": len(momentum_ready_peers),
                 "peer_missing_price_tickers": ", ".join(missing_price_peers[:10]),
                 "peer_missing_momentum_tickers": ", ".join(missing_momentum_peers[:10]),
