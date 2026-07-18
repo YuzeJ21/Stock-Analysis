@@ -4,10 +4,10 @@ Personal Research is the default local workspace for repeated company review. It
 
 ## Workflow
 
-1. **Research Desk** answers what changed, what needs attention, what is blocked or stale, and what to review next.
-2. **Discover** filters the existing readiness-backed Stock Selector and opens one company directly in Company Workbench.
-3. **Company Workbench** keeps the selected company, usable evidence, valuation boundaries, forward context, uncertainty, and next research work in one review path.
-4. **Monitor** shows unresolved source-backed changes and wait conditions without ranking companies.
+1. **Research Desk** shows the deterministic focused cohort, a traceable weekly summary, what changed, what is blocked or stale, and what to review next.
+2. **Discover** limits the existing readiness-backed Stock Selector to the focused cohort and opens one company directly in Company Workbench.
+3. **Company Workbench** keeps the selected company, changed evidence, quarterly business trend, valuation boundaries, forward context, withheld inputs, conclusion, and one next research task in one review path.
+4. **Monitor** shows the weekly summary plus deduplicated unresolved source-backed changes and wait conditions without ranking companies.
 
 Data Health and Proof History remain available through **Advanced Evidence**. Operator mode remains the place for source setup, validation, preview, proof, and maintenance commands. Public mode retains the controlled five-page demonstration.
 
@@ -33,4 +33,15 @@ These are workflow states. They are not rankings, expected-return claims, invest
 
 ## Focused-Use Strategy
 
-The next product stage is a focused 25-50-company cohort. The purpose is to prove a useful routine around quarterly trends, valuation boundaries, forward-view evidence quality, daily price/filing checks, and weekly research-summary review before prioritizing hosted pilots, authentication, broad coverage, or more public-demo features.
+The current saved profile deterministically selects up to 25 eligible operating companies or ADRs with price-ready evidence. Active-universe and deeper ready lanes affect review order only; they do not create a score, expected return, or recommendation. If fewer than 25 eligible companies exist, the cohort reports `awaiting_reviewed_source` and is never padded.
+
+The weekly summary is derived from deduplicated, source-backed Change Monitor events from the prior seven days plus reviewer-authored journal review dates. It writes no data and does not turn a missing event into a no-change claim.
+
+Quarterly business trend is descriptive evidence, not a forecast. Revenue and EPS comparisons require explicit versioned quarterly actuals with compatible definitions. Sequential and year-over-year changes are withheld when matching periods or definitions are unavailable. Q4 is never derived from annual results; it requires an explicit filed-quarter row. Operating margin, free cash flow, and FCF margin remain withheld until they have their own versioned quarterly source contract.
+
+## Repeated Review Routine
+
+- **Daily or after a source refresh:** open Research Desk, review traceable changes, then use Monitor for unresolved source tasks.
+- **Company review:** use Discover, open one Company Workbench, read What Changed, Business Trend, Valuation, Forward View, and What Remains Withheld before recording a conclusion.
+- **Weekly:** review the weekly summary, overdue journal reviews, and wait conditions. A no-change summary means no traceable saved event in the review window, not that the company had no real-world change.
+- **Operator handoff:** use Data Health or Proof History only when source proof, blocked inputs, or event evidence is the question.

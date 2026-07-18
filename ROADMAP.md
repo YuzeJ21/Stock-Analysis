@@ -24,10 +24,10 @@ Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> 
 
 **Goal:** turn the existing evidence, valuation, journal, scenario, peer, and nowcast capabilities into a repeated focused-company workflow before adding broad coverage or more public-demo surface area.
 
-1. Use Personal Research mode with a focused 25-50 operating-company cohort; do not imply broad-universe analysis readiness.
-2. Strengthen source-backed quarterly business-trend review and make unavailable periods explicit.
+1. **Implemented:** use Personal Research mode with a deterministic 25-company operating-company/ADR cohort; do not imply broad-universe analysis readiness. The next evidence task is repeated owner use, not a larger cohort.
+2. **Infrastructure implemented, real rows gated:** source-backed quarterly Revenue/EPS trend review preserves revision lineage, compatible definitions, explicit missing periods, and no-derived-Q4 policy. Real output remains blocked when canonical quarterly actuals are absent.
 3. Improve Forward View evidence quality using existing scenarios, trusted peer context, Earnings Outlook state, and reviewed thesis evidence; do not add a new prediction model.
-4. Run read-only daily price/filing checks and a weekly research-summary review only after their source/freshness boundaries are explicit.
+4. **Weekly review implemented:** a read-only seven-day summary combines deduplicated source-backed changes with reviewer-authored review dates. Daily price/filing scheduling remains deferred until a reliable refresh operation is proven.
 5. Record whether the workflow reduces time to find changed evidence, understand valuation boundaries, and choose the next research task.
 
 **Exit gate:** the owner can repeatedly move from changed evidence to one company review and a documented next research action without entering Operator mode or mistaking workflow states for recommendations.

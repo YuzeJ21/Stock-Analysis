@@ -66,12 +66,12 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Research Desk",
         query_params=(("mode", "research"),),
-        required_markers=("Research Desk", "What changed?", "What should I review next?", "Research-only"),
+        required_markers=("Research Desk", "Focused cohort", "Weekly research summary", "What changed?", "What should I review next?", "Research-only"),
     ),
     DashboardRenderRoute(
         name="Discover",
         query_params=(("mode", "research"), ("page", "discover")),
-        required_markers=("Discover", "Which stock can I review?", "Research-only"),
+        required_markers=("Discover", "Focused cohort", "Which stock can I review?", "Research-only"),
     ),
     DashboardRenderRoute(
         name="Company Workbench",
@@ -84,10 +84,13 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         required_markers=(
             "Company Workbench",
             "Selected Company",
+            "What Changed",
             "Business Trend",
             "Valuation",
             "Forward View",
+            "What Remains Withheld",
             "Research Conclusion",
+            "Next Research Task",
             "Advanced Evidence",
             "Research-only",
         ),

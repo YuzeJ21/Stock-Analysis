@@ -5,11 +5,18 @@ from src.research_workspace import (
     advanced_evidence_links,
     advanced_evidence_links_html,
     company_workbench_section_contract,
+    company_change_answer,
+    focused_cohort_cards,
+    quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
     research_monitor_frame,
     research_workspace_header_html,
+    weekly_summary_cards,
 )
+from src.focused_research_cohort import FocusedCohort, FocusedCohortMember
+from src.quarterly_business_trend import build_quarterly_trend_packet
+from src.weekly_research_summary import WeeklyResearchSummary
 
 
 def test_research_desk_answers_changes_attention_blockers_and_next_action_without_recommendations():
@@ -44,10 +51,13 @@ def test_company_workbench_contract_keeps_evidence_last():
 
     assert [section["title"] for section in sections] == [
         "Selected Company",
+        "What Changed",
         "Business Trend",
         "Valuation",
         "Forward View",
+        "What Remains Withheld",
         "Research Conclusion",
+        "Next Research Task",
         "Advanced Evidence",
     ]
     assert sections[-1]["expanded"] is False
@@ -55,11 +65,62 @@ def test_company_workbench_contract_keeps_evidence_last():
     assert "Proof History" in sections[-1]["contents"]
 
 
-def test_research_monitor_uses_review_queue_without_ranking_or_inventing_changes():
+def test_company_change_answer_is_ticker_scoped_and_does_not_invent_change():
     event = SimpleNamespace(
+        event_id="evt-nvda",
         ticker="NVDA",
         subtype="sec_filing_arrived",
+        source_ref="sec:accession",
+        suggested_research_task="NVDA: Review the filing.",
+    )
+    item = SimpleNamespace(event=event, review_status="open", wait_condition="")
+
+    changed = company_change_answer("NVDA", [item])
+    unchanged = company_change_answer("MSFT", [item])
+
+    assert changed["state"] == "review_now"
+    assert changed["answer"] == "1 unresolved source-backed change needs review."
+    assert changed["source_refs"] == ("sec:accession",)
+    assert unchanged["state"] == "monitor"
+    assert unchanged["answer"] == "No unresolved source-backed change is queued for this company."
+
+
+def test_cohort_trend_and_weekly_cards_keep_truthful_boundaries():
+    member = FocusedCohortMember(
+        "AAA", "A Co", "Technology", "Software", "Source-backed evidence.",
+        ("price", "dcf"), ("peers",), "stale", "", "Review peer evidence.",
+    )
+    cohort = FocusedCohort("awaiting_reviewed_source", 25, 25, 1, (member,), "Only one eligible company.")
+    trend = build_quarterly_trend_packet("AAA", [])
+    weekly = WeeklyResearchSummary(
+        "no_changes", "2026-07-17T00:00:00+00:00", 1, 0, (),
+        "No traceable cohort evidence change requires review this week.",
+    )
+
+    cohort_cards = focused_cohort_cards(cohort)
+    trend_cards = quarterly_trend_cards(trend)
+    summary_cards = weekly_summary_cards(weekly)
+
+    assert "1 of 25" in cohort_cards[0]["title"]
+    assert cohort_cards[0]["state"] == "awaiting_reviewed_source"
+    assert trend_cards[0]["state"] == "blocked"
+    assert "No source-backed quarterly actual" in trend_cards[0]["body"]
+    assert summary_cards[0]["state"] == "monitor"
+    rendered = str(cohort_cards + trend_cards + summary_cards).lower()
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_research_monitor_uses_review_queue_without_ranking_or_inventing_changes():
+    event = SimpleNamespace(
+        event_id="evt-1",
+        ticker="NVDA",
+        family="filing",
+        subtype="sec_filing_arrived",
         materiality="medium",
+        prior_value="000-old",
+        current_value="000-new",
+        source_published_at="2026-07-16T12:00:00Z",
         detected_at="2026-07-17T12:00:00Z",
         suggested_research_task="NVDA: Review the new SEC filing.",
         evidence_status="source_backed",
@@ -77,14 +138,47 @@ def test_research_monitor_uses_review_queue_without_ranking_or_inventing_changes
         {
             "Ticker": "NVDA",
             "Change": "Sec Filing Arrived",
+            "Previous state": "000-old",
+            "Current state": "000-new",
             "Evidence": "source backed",
+            "Affected section": "Filing",
             "Review state": "review_now",
+            "Effective date": "2026-07-16T12:00:00Z",
             "Detected": "2026-07-17T12:00:00Z",
             "Next research task": "NVDA: Review the new SEC filing.",
+            "Wait condition": "",
         }
     ]
     assert "Score" not in frame.columns
     assert "Rank" not in frame.columns
+
+
+def test_research_monitor_deduplicates_identical_event_identity_and_preserves_wait_condition():
+    event = SimpleNamespace(
+        event_id="same-event",
+        ticker="BLOCK",
+        family="readiness",
+        subtype="dcf_readiness_changed",
+        materiality="high",
+        prior_value="true",
+        current_value="false",
+        source_published_at="2026-07-16T00:00:00Z",
+        detected_at="2026-07-17T00:00:00Z",
+        suggested_research_task="BLOCK: Review DCF evidence.",
+        evidence_status="source_backed",
+    )
+    item = SimpleNamespace(
+        event=event,
+        priority=10,
+        review_status="still_blocked",
+        wait_condition="Wait for a new source-backed filing.",
+    )
+
+    frame = research_monitor_frame([item, item])
+
+    assert len(frame) == 1
+    assert frame.iloc[0]["Review state"] == "wait_for_evidence"
+    assert frame.iloc[0]["Wait condition"] == "Wait for a new source-backed filing."
 
 
 def test_advanced_evidence_links_preserve_research_only_routing():

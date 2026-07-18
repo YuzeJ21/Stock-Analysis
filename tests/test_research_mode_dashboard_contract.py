@@ -89,3 +89,42 @@ def test_research_header_keeps_data_health_inside_the_same_workspace():
 
     assert "?mode=research&page=data-health" in research_html
     assert "?mode=public&page=data-health" in public_html
+
+
+def test_research_discover_can_limit_selector_rows_to_the_focused_cohort():
+    import pandas as pd
+
+    frame = pd.DataFrame(
+        [
+            {"Ticker": "AAA", "Readiness": "ready"},
+            {"Ticker": "BBB", "Readiness": "partial"},
+            {"Ticker": "OUT", "Readiness": "ready"},
+        ]
+    )
+
+    filtered = dashboard.filter_selector_to_tickers(frame, ("BBB", "AAA", "MISSING"))
+
+    assert filtered["Ticker"].tolist() == ["AAA", "BBB"]
+    assert dashboard.filter_selector_to_tickers(frame, None).equals(frame)
+    assert dashboard.filter_selector_to_tickers(frame, ()).empty
+
+
+def test_research_workbench_data_health_handoff_stays_in_research_mode():
+    import pandas as pd
+
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Use Now": "Price and valuation evidence.",
+                "Still Blocked": "Optional context.",
+                "Context Only": "Candidate context only.",
+                "Next Safe Action": "Open Data Health.",
+                "Review Boundary": "Research-only.",
+            }
+        ]
+    )
+
+    rendered = dashboard.single_stock_public_summary_html(frame, target_mode="research")
+
+    assert "?mode=research&amp;page=data-health&amp;ticker=NVDA" in rendered

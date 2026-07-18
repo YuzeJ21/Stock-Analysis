@@ -6,6 +6,10 @@ import html
 import pandas as pd
 from urllib.parse import quote
 
+from src.focused_research_cohort import FocusedCohort
+from src.quarterly_business_trend import QuarterlyTrendPacket
+from src.weekly_research_summary import WeeklyResearchSummary
+
 
 RESEARCH_ROUTING_STATES = {"review_now", "monitor", "wait_for_evidence", "excluded"}
 
@@ -74,6 +78,11 @@ def company_workbench_section_contract() -> list[dict[str, object]]:
             "expanded": True,
         },
         {
+            "title": "What Changed",
+            "contents": ["Source-backed evidence changes", "Previous state", "Current state", "Review task"],
+            "expanded": True,
+        },
+        {
             "title": "Business Trend",
             "contents": ["Financial trend", "Price trend", "Evidence window", "Unavailable inputs"],
             "expanded": True,
@@ -89,8 +98,18 @@ def company_workbench_section_contract() -> list[dict[str, object]]:
             "expanded": True,
         },
         {
+            "title": "What Remains Withheld",
+            "contents": ["Missing periods", "Blocked inputs", "Candidate context", "Source wait conditions"],
+            "expanded": True,
+        },
+        {
             "title": "Research Conclusion",
             "contents": ["Usable evidence", "Uncertainty", "Routing state", "Next research action"],
+            "expanded": True,
+        },
+        {
+            "title": "Next Research Task",
+            "contents": ["One evidence review action", "Wait condition when unavailable"],
             "expanded": True,
         },
         {
@@ -101,8 +120,117 @@ def company_workbench_section_contract() -> list[dict[str, object]]:
     ]
 
 
+def company_change_answer(ticker: str, review_items) -> dict[str, object]:
+    symbol = str(ticker or "").strip().upper()
+    matching = [item for item in tuple(review_items or ()) if str(item.event.ticker or "").strip().upper() == symbol]
+    source_refs = tuple(
+        dict.fromkeys(
+            str(getattr(item.event, "source_ref", "") or "").strip()
+            for item in matching
+            if str(getattr(item.event, "source_ref", "") or "").strip()
+        )
+    )
+    count = len({str(getattr(item.event, "event_id", "") or id(item)) for item in matching})
+    if not count:
+        return {
+            "state": "monitor",
+            "answer": "No unresolved source-backed change is queued for this company.",
+            "next_task": "Continue the current review or wait for changed source evidence.",
+            "source_refs": (),
+        }
+    first_task = str(getattr(matching[0].event, "suggested_research_task", "") or "Review the changed evidence.")
+    return {
+        "state": "review_now",
+        "answer": (
+            "1 unresolved source-backed change needs review."
+            if count == 1
+            else f"{count} unresolved source-backed changes need review."
+        ),
+        "next_task": first_task,
+        "source_refs": source_refs,
+    }
+
+
+def focused_cohort_cards(cohort: FocusedCohort) -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "FOCUSED COHORT",
+            "title": f"{len(cohort.members)} of {cohort.requested_size} requested companies",
+            "body": cohort.message,
+            "state": cohort.status,
+            "badges": [cohort.status.replace("_", " "), "evidence availability"],
+            "command": "",
+        },
+        {
+            "kicker": "SELECTION BOUNDARY",
+            "title": "Reviewability, not expected return",
+            "body": "Operating-company and price readiness establish eligibility; deeper source-backed lanes improve review order without creating a recommendation.",
+            "state": "research_only",
+            "badges": ["deterministic", "no recommendation score"],
+            "command": "",
+        },
+    ]
+
+
+def quarterly_trend_cards(packet: QuarterlyTrendPacket) -> list[dict[str, object]]:
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "QUARTERLY BUSINESS TREND",
+            "title": packet.latest_fiscal_period or "Quarterly evidence unavailable",
+            "body": packet.message,
+            "state": packet.status,
+            "badges": [packet.status, packet.source_confidence.replace("_", " ")],
+            "command": "",
+        }
+    ]
+    for label, trend in (("Revenue", packet.revenue), ("EPS", packet.eps)):
+        change_parts = []
+        if trend.sequential_change_pct is not None:
+            change_parts.append(f"sequential {trend.sequential_change_pct:+.1f}%")
+        if trend.year_over_year_change_pct is not None:
+            change_parts.append(f"year over year {trend.year_over_year_change_pct:+.1f}%")
+        boundary = "; ".join((*trend.missing_comparisons, trend.withheld_reason)).strip("; ")
+        cards.append(
+            {
+                "kicker": label.upper(),
+                "title": str(trend.latest_value) if trend.latest_value is not None else "Withheld",
+                "body": ", ".join(change_parts) if change_parts else boundary or "Comparable change is withheld.",
+                "state": trend.status,
+                "badges": [trend.status, trend.latest_fiscal_period or "no period"],
+                "command": "",
+            }
+        )
+    return cards
+
+
+def weekly_summary_cards(summary: WeeklyResearchSummary) -> list[dict[str, object]]:
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "WEEKLY RESEARCH SUMMARY",
+            "title": f"{len(summary.items)} traceable item{'s' if len(summary.items) != 1 else ''}",
+            "body": summary.message,
+            "state": "review_now" if summary.items else "monitor",
+            "badges": [summary.status.replace("_", " "), f"{summary.cohort_size} companies"],
+            "command": "",
+        }
+    ]
+    cards.extend(
+        {
+            "kicker": item.category.replace("_", " ").upper(),
+            "title": item.ticker,
+            "body": item.answer,
+            "state": item.state,
+            "badges": [item.state.replace("_", " "), "traceable"],
+            "command": "",
+        }
+        for item in summary.items[:5]
+    )
+    return cards
+
+
 def research_monitor_frame(review_items) -> pd.DataFrame:
     rows: list[dict[str, str]] = []
+    seen_event_ids: set[str] = set()
     state_map = {
         "open": "review_now",
         "still_blocked": "wait_for_evidence",
@@ -111,19 +239,44 @@ def research_monitor_frame(review_items) -> pd.DataFrame:
     }
     for item in tuple(review_items or ()):
         event = item.event
+        event_id = str(getattr(event, "event_id", "") or "").strip()
+        deduplication_key = event_id or "\x1f".join(
+            str(getattr(event, field, "") or "")
+            for field in ("ticker", "family", "subtype", "prior_value", "current_value", "source_ref", "detected_at")
+        )
+        if deduplication_key in seen_event_ids:
+            continue
+        seen_event_ids.add(deduplication_key)
         rows.append(
             {
                 "Ticker": str(event.ticker or "").upper(),
                 "Change": str(event.subtype or "").replace("_", " ").title(),
+                "Previous state": str(getattr(event, "prior_value", "") or ""),
+                "Current state": str(getattr(event, "current_value", "") or ""),
                 "Evidence": str(event.evidence_status or "").replace("_", " "),
+                "Affected section": str(getattr(event, "family", "") or "").replace("_", " ").title(),
                 "Review state": state_map.get(str(item.review_status or ""), "monitor"),
+                "Effective date": str(getattr(event, "source_published_at", "") or ""),
                 "Detected": str(event.detected_at or ""),
                 "Next research task": str(event.suggested_research_task or item.wait_condition or ""),
+                "Wait condition": str(item.wait_condition or ""),
             }
         )
     return pd.DataFrame(
         rows,
-        columns=["Ticker", "Change", "Evidence", "Review state", "Detected", "Next research task"],
+        columns=[
+            "Ticker",
+            "Change",
+            "Previous state",
+            "Current state",
+            "Evidence",
+            "Affected section",
+            "Review state",
+            "Effective date",
+            "Detected",
+            "Next research task",
+            "Wait condition",
+        ],
     )
 
 

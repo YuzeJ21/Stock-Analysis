@@ -271,6 +271,14 @@ from src.research_thesis_journal import (
     derive_journal_state,
     load_journal_entries,
 )
+from src.focused_research_cohort import FocusedCohort, build_focused_cohort, focused_cohort_frame
+from src.quarterly_business_trend import (
+    QuarterlyTrendPacket,
+    build_quarterly_trend_packet,
+    load_quarterly_actuals_csv,
+    quarterly_trend_rows,
+)
+from src.weekly_research_summary import WeeklyResearchSummary, build_weekly_research_summary, weekly_summary_rows
 from src.decision_process_scorecard import (
     DecisionProcessScorecard,
     build_decision_process_scorecard,
@@ -308,11 +316,15 @@ from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_stat
 from src.profile_context import ProfileContext, build_profile_context
 from src.research_workspace import (
     advanced_evidence_links_html,
+    company_change_answer,
     company_workbench_section_contract,
+    focused_cohort_cards,
+    quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
     research_monitor_frame,
     research_workspace_header_html,
+    weekly_summary_cards,
 )
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.paths import resolve_data_dir, resolve_data_profile, resolve_outputs_dir
@@ -5412,6 +5424,78 @@ def load_dashboard_research_change_state(context: ProfileContext) -> dict[str, o
         }
 
 
+def load_dashboard_focused_cohort(context: ProfileContext) -> FocusedCohort:
+    """Build the personal review cohort from saved readiness evidence only."""
+
+    try:
+        readiness = pd.read_csv(DATA_DIR / "reports" / "ticker_readiness_report.csv")
+        universe = pd.read_csv(DATA_DIR / "universe_master.csv")
+    except (FileNotFoundError, OSError, UnicodeError, pd.errors.ParserError):
+        readiness = pd.DataFrame()
+        universe = pd.DataFrame()
+    return build_focused_cohort(
+        readiness,
+        universe,
+        target_size=25,
+        minimum_size=25,
+        profile_freshness=context.freshness_state,
+    )
+
+
+def load_dashboard_quarterly_trend(ticker: str) -> QuarterlyTrendPacket:
+    """Load real canonical quarterly actuals; absent evidence fails closed."""
+
+    loaded = load_quarterly_actuals_csv(DATA_DIR / "earnings_nowcast" / "quarterly_actuals.csv")
+    return build_quarterly_trend_packet(
+        ticker,
+        loaded.actuals,
+        as_of=pd.Timestamp.now(tz="UTC").isoformat(),
+    )
+
+
+def load_dashboard_weekly_summary(
+    context: ProfileContext,
+    cohort: FocusedCohort,
+    review_items,
+) -> WeeklyResearchSummary:
+    """Compose a traceable weekly queue from reviewed events and journal dates."""
+
+    as_of = pd.Timestamp.now(tz="UTC").isoformat()
+    try:
+        entries = load_journal_entries(DATA_DIR / "research_thesis_journal.csv")
+    except ValueError:
+        entries = ()
+    journal_rows: list[dict[str, object]] = []
+    for member in cohort.members:
+        try:
+            state = derive_journal_state(
+                entries,
+                profile_key=context.profile_key,
+                ticker=member.ticker,
+                as_of=as_of,
+            )
+        except ValueError:
+            continue
+        source_ref = ""
+        if state.invalidation_conditions:
+            source_ref = state.invalidation_conditions[-1].source_ref
+        journal_rows.append(
+            {
+                "ticker": member.ticker,
+                "review_due_date": state.review_due_date,
+                "source_ref": source_ref or f"journal:{context.profile_key}:{member.ticker}",
+                "invalidation_triggered": False,
+                "invalidation_condition": "",
+            }
+        )
+    return build_weekly_research_summary(
+        cohort,
+        review_items,
+        journal_rows=journal_rows,
+        as_of=as_of,
+    )
+
+
 def render_research_change_route_summary(
     page_title: str,
     state: dict[str, object],
@@ -7075,7 +7159,7 @@ def single_stock_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, obje
     ]
 
 
-def single_stock_public_summary_html(frame: pd.DataFrame) -> str:
+def single_stock_public_summary_html(frame: pd.DataFrame, *, target_mode: str = "public") -> str:
     """Return one public ticker answer with a visible evidence handoff."""
 
     if frame is None or frame.empty:
@@ -7091,7 +7175,8 @@ def single_stock_public_summary_html(frame: pd.DataFrame) -> str:
     context = format_missing(row.get("Context Only"), "No context-only note reported.")
     next_action = public_safe_next_action_text(row.get("Next Safe Action"))
     boundary = format_missing(row.get("Review Boundary"), "Keep the review research-only.")
-    href = html.escape(f"?mode=public&page=data-health&ticker={ticker}", quote=True)
+    safe_mode = RESEARCH_MODE if target_mode == RESEARCH_MODE else PUBLIC_DEMO_MODE
+    href = html.escape(f"?mode={safe_mode}&page=data-health&ticker={ticker}", quote=True)
     return (
         "<section class='public-ticker-summary' aria-label='Selected ticker answer'>"
         "<div class='public-ticker-name'>"
@@ -28752,12 +28837,27 @@ def _selector_option_index(options: list[str], preferred: str) -> int:
     return options.index(preferred_text) if preferred_text in options else 0
 
 
+def filter_selector_to_tickers(
+    frame: pd.DataFrame,
+    allowed_tickers: tuple[str, ...] | None,
+) -> pd.DataFrame:
+    """Limit a selector queue without changing its source order."""
+
+    if allowed_tickers is None:
+        return frame
+    if frame is None or frame.empty or "Ticker" not in frame.columns:
+        return pd.DataFrame(columns=list(frame.columns) if frame is not None else [])
+    allowed = {str(ticker or "").strip().upper() for ticker in allowed_tickers}
+    return frame.loc[frame["Ticker"].astype(str).str.upper().isin(allowed)].copy()
+
+
 def render_stock_selector(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
     public_mode: bool = True,
     target_mode: str = PUBLIC_DEMO_MODE,
     target_page: str = "single-stock-report",
+    allowed_tickers: tuple[str, ...] | None = None,
 ) -> None:
     ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
     dcf_readiness_frame, _ = load_dcf_readiness()
@@ -28775,6 +28875,7 @@ def render_stock_selector(
         ticker_readiness_frame,
     )
     selector_frame = stock_selector_queue_frame(decisions_frame, final_frame, ticker_readiness_frame, limit=120)
+    selector_frame = filter_selector_to_tickers(selector_frame, allowed_tickers)
 
     if not public_mode:
         render_section_header(
@@ -29768,6 +29869,8 @@ def render_single_stock_report(
     public_mode: bool = True,
     profile_context: ProfileContext | None = None,
     research_mode: bool = False,
+    research_review_items=(),
+    quarterly_trend_packet: QuarterlyTrendPacket | None = None,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -29955,14 +30058,35 @@ def render_single_stock_report(
             peer_summary if provider is not None and ticker else None,
         )
         if public_mode:
-            st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
             if research_mode:
-                st.markdown("### Business Trend")
+                st.markdown(
+                    single_stock_public_summary_html(single_answer_frame, target_mode=RESEARCH_MODE),
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
+            if research_mode:
+                change_answer = company_change_answer(ticker, research_review_items)
+                st.markdown("### What Changed")
                 render_signal_cards(
-                    stock_report_review_metric_summary_cards(report_payload),
+                    [
+                        {
+                            "kicker": "EVIDENCE CHANGE",
+                            "title": str(change_answer["answer"]),
+                            "body": str(change_answer["next_task"]),
+                            "badges": [str(change_answer["state"]).replace("_", " "), "source-backed only"],
+                            "command": "",
+                        }
+                    ],
                     show_commands=False,
                     variant="queue",
                 )
+                st.markdown("### Business Trend")
+                trend_packet = quarterly_trend_packet or load_dashboard_quarterly_trend(ticker)
+                render_signal_cards(quarterly_trend_cards(trend_packet), show_commands=False, variant="queue")
+                with st.expander("Advanced: quarterly trend evidence", expanded=False):
+                    st.dataframe(pd.DataFrame(quarterly_trend_rows(trend_packet)), width="stretch", hide_index=True)
+                    st.caption("Q4 is never derived. Only explicit versioned quarterly source rows can unlock a comparison.")
                 st.markdown("### Valuation")
                 render_signal_cards(
                     stock_report_valuation_boundary_cards(report_payload),
@@ -29971,6 +30095,31 @@ def render_single_stock_report(
                 )
                 st.markdown("### Forward View")
             render_signal_cards(nowcast_summary_cards(None, ticker=ticker), show_commands=False, variant="queue")
+            if research_mode:
+                st.markdown("### What Remains Withheld")
+                withheld = [
+                    lane.replace("_", " ")
+                    for lane, ready in (
+                        ("quarterly trend", (quarterly_trend_packet or load_dashboard_quarterly_trend(ticker)).status != "blocked"),
+                        ("trusted peers", bool(report_readiness.get("peer_ready"))),
+                        ("earnings context", bool(report_readiness.get("earnings_available") or report_readiness.get("earnings_ready"))),
+                        ("analyst estimates", bool(report_readiness.get("analyst_estimates_available") or report_readiness.get("analyst_estimates_ready"))),
+                    )
+                    if not ready
+                ]
+                render_signal_cards(
+                    [
+                        {
+                            "kicker": "WITHHELD INPUTS",
+                            "title": ", ".join(withheld) if withheld else "No listed review lane is withheld",
+                            "body": "Unavailable or unverified inputs remain withheld; the workbench does not infer them from price, peers, or narrative context.",
+                            "badges": ["fail closed", "no inference"],
+                            "command": "",
+                        }
+                    ],
+                    show_commands=False,
+                    variant="queue",
+                )
         else:
             render_signal_cards(operator_single_stock_workflow_cards(workflow_fit_cards), show_commands=False)
             with st.expander("Advanced: review summary details", expanded=False):
@@ -30030,6 +30179,21 @@ def render_single_stock_report(
                     coverage if provider is not None and ticker else None,
                     peer_summary if provider is not None and ticker else None,
                 ),
+                show_commands=False,
+                variant="queue",
+            )
+            change_answer = company_change_answer(ticker, research_review_items)
+            st.markdown("### Next Research Task")
+            render_signal_cards(
+                [
+                    {
+                        "kicker": "ONE NEXT TASK",
+                        "title": str(change_answer["next_task"]),
+                        "body": "Complete only this evidence review, or wait when the required source has not changed.",
+                        "badges": [str(change_answer["state"]).replace("_", " "), "research-only"],
+                        "command": "",
+                    }
+                ],
                 show_commands=False,
                 variant="queue",
             )
@@ -33712,12 +33876,20 @@ def render_research_workspace_header(
     )
 
 
-def render_research_desk(state: dict[str, object], context: ProfileContext) -> None:
+def render_research_desk(
+    state: dict[str, object],
+    context: ProfileContext,
+    cohort: FocusedCohort,
+    weekly_summary: WeeklyResearchSummary,
+) -> None:
     render_research_workspace_header(
         "Research Desk",
         context,
         primary_action="Open Discover and choose one readiness-backed company",
     )
+    render_signal_cards(focused_cohort_cards(cohort), show_commands=False, variant="queue")
+    st.markdown("### Weekly research summary")
+    render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
     cards = research_desk_cards(
         change_status=str(state.get("status") or "unavailable"),
         review_items=state.get("queue") or (),
@@ -33726,17 +33898,28 @@ def render_research_desk(state: dict[str, object], context: ProfileContext) -> N
     st.markdown(research_desk_cards_html(cards), unsafe_allow_html=True)
     st.link_button("Open Discover", "?mode=research&page=discover", type="primary")
     with st.expander("Advanced Evidence", expanded=False):
+        cohort_frame = focused_cohort_frame(cohort)
+        if not cohort_frame.empty:
+            st.dataframe(cohort_frame, width="stretch", hide_index=True)
+        weekly_rows = weekly_summary_rows(weekly_summary)
+        if weekly_rows:
+            st.dataframe(pd.DataFrame(weekly_rows), width="stretch", hide_index=True)
         st.markdown(advanced_evidence_links_html(""), unsafe_allow_html=True)
         st.caption("Detailed change events remain in the separate research change evidence drawer below.")
     render_research_change_route_summary("Research Desk", state)
 
 
-def render_research_monitor(state: dict[str, object], context: ProfileContext) -> None:
+def render_research_monitor(
+    state: dict[str, object],
+    context: ProfileContext,
+    weekly_summary: WeeklyResearchSummary,
+) -> None:
     render_research_workspace_header(
         "Monitor",
         context,
         primary_action="Review unresolved evidence changes; otherwise wait for new source evidence",
     )
+    render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
     st.markdown("### Research change monitor")
     frame = research_monitor_frame(state.get("queue") or ())
     if frame.empty:
@@ -33773,6 +33956,8 @@ def render_company_workbench(
         public_mode=True,
         profile_context=context,
         research_mode=True,
+        research_review_items=state.get("queue") or (),
+        quarterly_trend_packet=load_dashboard_quarterly_trend(ticker),
     )
     st.markdown("### Advanced Evidence")
     with st.expander("Advanced Evidence", expanded=False):
@@ -33789,6 +33974,12 @@ def main() -> None:
     profile_context = build_profile_context(project_root=BASE_DIR)
     research_change_state = load_dashboard_research_change_state(profile_context)
     ACTIVE_RESEARCH_CHANGE_STATE = research_change_state
+    focused_cohort = load_dashboard_focused_cohort(profile_context)
+    weekly_research_summary = load_dashboard_weekly_summary(
+        profile_context,
+        focused_cohort,
+        research_change_state.get("queue") or (),
+    )
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
     page_query_value = st.query_params.get("page")
@@ -33970,24 +34161,31 @@ def main() -> None:
         universe_summary = summarize_universe_manager(BASE_DIR)
 
     if research_mode and selected_page == "Research Desk":
-        render_research_desk(research_change_state, profile_context)
+        render_research_desk(
+            research_change_state,
+            profile_context,
+            focused_cohort,
+            weekly_research_summary,
+        )
     elif research_mode and selected_page == "Discover":
         render_research_workspace_header(
             "Discover",
             profile_context,
             primary_action="Choose one readiness-backed company and open its workbench",
         )
+        render_signal_cards(focused_cohort_cards(focused_cohort), show_commands=False, variant="queue")
         st.markdown("### Which stock can I review?")
         render_stock_selector(
             output_frames,
             public_mode=True,
             target_mode=RESEARCH_MODE,
             target_page="company-workbench",
+            allowed_tickers=tuple(member.ticker for member in focused_cohort.members),
         )
     elif research_mode and selected_page == "Company Workbench":
         render_company_workbench(provider, profile_context, research_change_state)
     elif research_mode and selected_page == "Monitor":
-        render_research_monitor(research_change_state, profile_context)
+        render_research_monitor(research_change_state, profile_context, weekly_research_summary)
     elif content_page == "Home":
         render_home_page(
             catalog,

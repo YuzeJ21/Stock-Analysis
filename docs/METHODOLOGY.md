@@ -38,12 +38,15 @@ Freshness is evaluated per lane because a daily price series, an annual filing, 
 | --- | --- | --- |
 | Price / momentum | Check the latest saved trading date when the project is opened; a daily after-close refresh is appropriate when current setup context is needed. | Show the latest date and short-history state. Do not imply intraday or real-time coverage, and do not fabricate missing OHLCV history. |
 | Fundamentals | Review after a verified quarterly or annual filing/source event. | Keep the filing/as-of date visible. A newer filing makes the prior row `review_due`; missing trusted fields remain blocked. |
+| Quarterly business trend | Review only from explicit, versioned quarterly actual rows available by the selected cutoff. | Revenue and EPS comparisons require compatible metric definitions and matching periods. Missing comparisons remain partial; ambiguous revisions and absent evidence remain blocked. Q4 is never derived from annual values. |
 | Share count | Review after a validated capital-structure filing or explicit share-count fact. | Do not infer shares from price or market cap. Missing explicit evidence remains blocked even when metadata is current. |
 | DCF | Regenerate when a required fundamental, share-count, cash/debt input, price reference, or methodology version changes. | DCF inherits the weakest required input state. Stale or missing required inputs withhold current interpretation rather than silently reusing a prior conclusion. |
 | Trusted peers | Version and periodically review accepted relationships, and review again after a material business-model or segment change. | Missing source, rationale, reviewer, review date, or mapped-peer valuation inputs keeps the relationship candidate-only or blocked. |
 | Earnings / estimates | Treat as optional and time-sensitive; review only through a trusted provider/manual row carrying period and retrieval/as-of evidence. | Date-only or target-only rows remain candidate context. Missing trusted fields keep the lane locked. |
 
 A timestamp cannot turn an unsupported row into trusted evidence. Fresh metadata, screenshots, provider availability, or candidate context cannot substitute for the field-level source proof required by a readiness gate.
+
+Quarterly business trend is descriptive and backward-looking. Sequential and year-over-year changes do not become a forecast, recommendation, or numerical adjustment to DCF or Earnings Nowcast. Operating margin, free cash flow, and FCF margin remain withheld until explicit versioned quarterly contracts exist for those metrics.
 
 ## Profile Truth And Change Review Method
 
