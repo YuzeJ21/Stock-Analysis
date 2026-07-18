@@ -7,6 +7,7 @@ from src.research_workspace import (
     company_workbench_section_contract,
     company_change_answer,
     focused_cohort_cards,
+    focused_cohort_coverage_cards,
     quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
@@ -14,6 +15,7 @@ from src.research_workspace import (
     research_workspace_header_html,
     weekly_summary_cards,
 )
+from src.focused_cohort_coverage import FocusedCohortCoverage, FocusedCohortCoverageRow
 from src.focused_research_cohort import FocusedCohort, FocusedCohortMember
 from src.quarterly_business_trend import build_quarterly_trend_packet
 from src.weekly_research_summary import WeeklyResearchSummary
@@ -109,6 +111,27 @@ def test_cohort_trend_and_weekly_cards_keep_truthful_boundaries():
     rendered = str(cohort_cards + trend_cards + summary_cards).lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_focused_cohort_coverage_cards_answer_what_is_usable_without_overclaiming():
+    coverage = FocusedCohortCoverage(
+        status="partial",
+        company_count=1,
+        rows=(
+            FocusedCohortCoverageRow("AAA", "Alpha", "adjusted_daily_price_history", "usable_now", "price", "boundary"),
+            FocusedCohortCoverageRow("AAA", "Alpha", "quarterly_revenue", "blocked", "missing", "boundary"),
+            FocusedCohortCoverageRow("AAA", "Alpha", "trusted_peers", "candidate_context_only", "candidate", "not trusted"),
+        ),
+        message="Mixed coverage.",
+    )
+
+    cards = focused_cohort_coverage_cards(coverage)
+
+    assert cards[0]["title"] == "1 usable lane"
+    assert cards[1]["title"] == "2 gated lanes"
+    rendered = str(cards).lower()
+    assert "candidate context" in rendered
+    assert "research-only" in rendered
 
 
 def test_research_monitor_uses_review_queue_without_ranking_or_inventing_changes():

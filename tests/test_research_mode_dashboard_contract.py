@@ -1,5 +1,6 @@
 from src import dashboard
 from src import dashboard_navigation as nav
+from src.focused_research_cohort import build_focused_cohort
 
 
 def test_dashboard_defaults_local_use_to_research_desk_and_preserves_explicit_modes():
@@ -128,3 +129,43 @@ def test_research_workbench_data_health_handoff_stays_in_research_mode():
     rendered = dashboard.single_stock_public_summary_html(frame, target_mode="research")
 
     assert "?mode=research&amp;page=data-health&amp;ticker=NVDA" in rendered
+
+
+def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_path, monkeypatch):
+    import pandas as pd
+
+    data_dir = tmp_path / "data"
+    (data_dir / "reports").mkdir(parents=True)
+    readiness = pd.DataFrame(
+        [{"ticker": "AAA", "price_ready": True, "fundamentals_ready": True, "dcf_ready": True, "peer_ready": False}]
+    )
+    universe = pd.DataFrame(
+        [{"ticker": "AAA", "name": "Alpha", "asset_type": "company", "is_active_listing": True}]
+    )
+    fundamentals = pd.DataFrame(
+        [{"ticker": "AAA", "source": "sec_companyfacts", "free_cash_flow": 10, "cash": 20, "debt": 5, "shares_outstanding": 100}]
+    )
+    readiness.to_csv(data_dir / "reports" / "ticker_readiness_report.csv", index=False)
+    universe.to_csv(data_dir / "universe_master.csv", index=False)
+    fundamentals.to_csv(data_dir / "fundamentals.csv", index=False)
+    cohort = build_focused_cohort(readiness, universe, target_size=1, minimum_size=1)
+    monkeypatch.setattr(dashboard, "DATA_DIR", data_dir)
+
+    coverage = dashboard.load_dashboard_focused_cohort_coverage(cohort)
+
+    states = {row.lane: row.state for row in coverage.rows}
+    assert states["adjusted_daily_price_history"] == "usable_now"
+    assert states["free_cash_flow"] == "usable_now"
+    assert states["trusted_peers"] == "blocked"
+    assert states["quarterly_revenue"] == "blocked"
+
+
+def test_research_desk_keeps_full_cohort_coverage_under_advanced_evidence():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    desk_start = source.index("def render_research_desk(")
+    desk_end = source.index("def render_research_monitor(", desk_start)
+    desk = source[desk_start:desk_end]
+
+    assert "focused_cohort_coverage_cards(coverage)" in desk
+    assert 'with st.expander("Advanced Evidence", expanded=False):' in desk
+    assert "focused_cohort_coverage_frame(coverage)" in desk

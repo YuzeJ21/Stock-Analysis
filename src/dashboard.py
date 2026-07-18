@@ -272,6 +272,12 @@ from src.research_thesis_journal import (
     load_journal_entries,
 )
 from src.focused_research_cohort import FocusedCohort, build_focused_cohort, focused_cohort_frame
+from src.focused_cohort_coverage import (
+    FocusedCohortCoverage,
+    build_focused_cohort_coverage,
+    derive_cohort_evidence,
+    focused_cohort_coverage_frame,
+)
 from src.quarterly_business_trend import (
     QuarterlyTrendPacket,
     build_quarterly_trend_packet,
@@ -319,6 +325,7 @@ from src.research_workspace import (
     company_change_answer,
     company_workbench_section_contract,
     focused_cohort_cards,
+    focused_cohort_coverage_cards,
     quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
@@ -5439,6 +5446,42 @@ def load_dashboard_focused_cohort(context: ProfileContext) -> FocusedCohort:
         target_size=25,
         minimum_size=25,
         profile_freshness=context.freshness_state,
+    )
+
+
+def load_dashboard_focused_cohort_coverage(cohort: FocusedCohort) -> FocusedCohortCoverage:
+    """Compose saved cohort lane evidence without refreshing or repairing data."""
+
+    def optional_csv(path: Path) -> pd.DataFrame:
+        try:
+            return pd.read_csv(path)
+        except (FileNotFoundError, OSError, UnicodeError, pd.errors.ParserError):
+            return pd.DataFrame()
+
+    readiness = optional_csv(DATA_DIR / "reports" / "ticker_readiness_report.csv")
+    universe = optional_csv(DATA_DIR / "universe_master.csv")
+    fundamentals = optional_csv(DATA_DIR / "fundamentals.csv")
+    consensus = optional_csv(DATA_DIR / "earnings_nowcast" / "consensus_snapshots.csv")
+    earnings = optional_csv(DATA_DIR / "earnings.csv")
+    actuals = load_quarterly_actuals_csv(DATA_DIR / "earnings_nowcast" / "quarterly_actuals.csv")
+    tickers = tuple(member.ticker for member in cohort.members)
+    evidence = derive_cohort_evidence(
+        tickers,
+        fundamentals=fundamentals,
+        readiness=readiness,
+        universe=universe,
+        consensus=consensus,
+        earnings=earnings,
+    )
+    packets = {
+        ticker: build_quarterly_trend_packet(ticker, actuals.actuals)
+        for ticker in tickers
+    }
+    return build_focused_cohort_coverage(
+        cohort,
+        readiness,
+        quarterly_packets=packets,
+        evidence_by_ticker=evidence,
     )
 
 
@@ -33880,6 +33923,7 @@ def render_research_desk(
     state: dict[str, object],
     context: ProfileContext,
     cohort: FocusedCohort,
+    coverage: FocusedCohortCoverage,
     weekly_summary: WeeklyResearchSummary,
 ) -> None:
     render_research_workspace_header(
@@ -33888,6 +33932,7 @@ def render_research_desk(
         primary_action="Open Discover and choose one readiness-backed company",
     )
     render_signal_cards(focused_cohort_cards(cohort), show_commands=False, variant="queue")
+    render_signal_cards(focused_cohort_coverage_cards(coverage), show_commands=False, variant="queue")
     st.markdown("### Weekly research summary")
     render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
     cards = research_desk_cards(
@@ -33901,6 +33946,9 @@ def render_research_desk(
         cohort_frame = focused_cohort_frame(cohort)
         if not cohort_frame.empty:
             st.dataframe(cohort_frame, width="stretch", hide_index=True)
+        coverage_frame = focused_cohort_coverage_frame(coverage)
+        if not coverage_frame.empty:
+            st.dataframe(coverage_frame, width="stretch", hide_index=True)
         weekly_rows = weekly_summary_rows(weekly_summary)
         if weekly_rows:
             st.dataframe(pd.DataFrame(weekly_rows), width="stretch", hide_index=True)
@@ -33975,6 +34023,7 @@ def main() -> None:
     research_change_state = load_dashboard_research_change_state(profile_context)
     ACTIVE_RESEARCH_CHANGE_STATE = research_change_state
     focused_cohort = load_dashboard_focused_cohort(profile_context)
+    focused_cohort_coverage = load_dashboard_focused_cohort_coverage(focused_cohort)
     weekly_research_summary = load_dashboard_weekly_summary(
         profile_context,
         focused_cohort,
@@ -34165,6 +34214,7 @@ def main() -> None:
             research_change_state,
             profile_context,
             focused_cohort,
+            focused_cohort_coverage,
             weekly_research_summary,
         )
     elif research_mode and selected_page == "Discover":

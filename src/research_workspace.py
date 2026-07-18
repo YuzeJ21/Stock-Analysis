@@ -6,6 +6,7 @@ import html
 import pandas as pd
 from urllib.parse import quote
 
+from src.focused_cohort_coverage import FocusedCohortCoverage
 from src.focused_research_cohort import FocusedCohort
 from src.quarterly_business_trend import QuarterlyTrendPacket
 from src.weekly_research_summary import WeeklyResearchSummary
@@ -167,6 +168,35 @@ def focused_cohort_cards(cohort: FocusedCohort) -> list[dict[str, object]]:
             "body": "Operating-company and price readiness establish eligibility; deeper source-backed lanes improve review order without creating a recommendation.",
             "state": "research_only",
             "badges": ["deterministic", "no recommendation score"],
+            "command": "",
+        },
+    ]
+
+
+def focused_cohort_coverage_cards(coverage: FocusedCohortCoverage) -> list[dict[str, object]]:
+    usable = sum(row.state == "usable_now" for row in coverage.rows)
+    candidate = sum(row.state == "candidate_context_only" for row in coverage.rows)
+    gated = sum(row.state in {"partial", "candidate_context_only", "blocked"} for row in coverage.rows)
+    excluded = sum(row.state == "excluded" for row in coverage.rows)
+    return [
+        {
+            "kicker": "COHORT COVERAGE",
+            "title": f"{usable} usable lane{'s' if usable != 1 else ''}",
+            "body": coverage.message,
+            "state": coverage.status,
+            "badges": [f"{coverage.company_count} companies", "saved evidence only"],
+            "command": "",
+        },
+        {
+            "kicker": "WITHHELD OR CONTEXT ONLY",
+            "title": f"{gated} gated lane{'s' if gated != 1 else ''}",
+            "body": (
+                f"{candidate} lane{'s are' if candidate != 1 else ' is'} candidate context only; "
+                f"{excluded} lane{'s are' if excluded != 1 else ' is'} excluded as not applicable. "
+                "Research-only states remain separate from supported evidence."
+            ),
+            "state": "wait_for_evidence" if gated else "monitor",
+            "badges": ["candidate context separated", "no inferred coverage"],
             "command": "",
         },
     ]

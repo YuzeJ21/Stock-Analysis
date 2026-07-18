@@ -1,0 +1,233 @@
+import pandas as pd
+import pytest
+
+from src.focused_cohort_coverage import (
+    COHORT_COVERAGE_LANES,
+    build_focused_cohort_coverage,
+    derive_cohort_evidence,
+    focused_cohort_coverage_frame,
+)
+from src.focused_research_cohort import build_focused_cohort
+from src.quarterly_business_trend import build_quarterly_trend_packet
+from src.earnings_nowcast_contract import QuarterlyActual
+
+
+def _actual(period: str, revenue: float, eps: float) -> QuarterlyActual:
+    year, quarter = period.split("-Q")
+    return QuarterlyActual(
+        ticker="AAA",
+        fiscal_period=period,
+        period_end_date=f"{year}-{int(quarter) * 3:02d}-28",
+        reported_at=f"{int(year) + (1 if quarter == '4' else 0)}-02-01T00:00:00Z",
+        revenue_actual=revenue,
+        eps_actual=eps,
+        source="reviewed_fixture",
+        source_ref=f"fixture:{period}",
+        retrieved_at="2026-07-17T00:00:00Z",
+        revenue_currency="USD",
+        revenue_unit_scale=1.0,
+        revenue_basis="gaap",
+        eps_currency="USD",
+        eps_basis="gaap_diluted",
+        eps_share_basis="diluted",
+        eps_operations_basis="continuing",
+        split_adjustment_basis="as_reported",
+    )
+
+
+def _cohort():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+            }
+        ]
+    )
+    universe = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "name": "Alpha Co",
+                "asset_type": "company",
+                "is_active_listing": True,
+            }
+        ]
+    )
+    return build_focused_cohort(readiness, universe, target_size=1, minimum_size=1), readiness
+
+
+def test_coverage_matrix_reports_each_required_lane_without_padding_missing_evidence():
+    cohort, readiness = _cohort()
+    actuals = (
+        _actual("2024-Q1", 100, 1.0),
+        _actual("2024-Q4", 130, 1.3),
+        _actual("2025-Q1", 150, 1.5),
+    )
+    packet = build_quarterly_trend_packet("AAA", actuals)
+
+    coverage = build_focused_cohort_coverage(
+        cohort,
+        readiness,
+        quarterly_packets={"AAA": packet},
+        evidence_by_ticker={
+            "AAA": {
+                "margin_state": "partial",
+                "free_cash_flow_state": "blocked",
+                "cash_debt_state": "usable_now",
+                "shares_state": "usable_now",
+                "trusted_peers_state": "candidate_context_only",
+                "filing_dates_state": "usable_now",
+                "earnings_dates_state": "blocked",
+                "point_in_time_consensus_state": "blocked",
+            }
+        },
+    )
+
+    assert coverage.status == "partial"
+    assert coverage.company_count == 1
+    assert tuple(item.lane for item in coverage.rows) == COHORT_COVERAGE_LANES
+    states = {item.lane: item.state for item in coverage.rows}
+    assert states == {
+        "adjusted_daily_price_history": "usable_now",
+        "quarterly_revenue": "usable_now",
+        "quarterly_eps": "usable_now",
+        "margins": "partial",
+        "free_cash_flow": "blocked",
+        "cash_and_debt": "usable_now",
+        "shares_outstanding": "usable_now",
+        "trusted_peers": "candidate_context_only",
+        "filing_dates": "usable_now",
+        "earnings_dates": "blocked",
+        "point_in_time_consensus": "blocked",
+    }
+
+
+def test_missing_evidence_is_blocked_and_non_company_is_excluded():
+    cohort, readiness = _cohort()
+    coverage = build_focused_cohort_coverage(cohort, readiness)
+    states = {item.lane: item.state for item in coverage.rows}
+    assert states["adjusted_daily_price_history"] == "usable_now"
+    assert states["quarterly_revenue"] == "blocked"
+    assert states["trusted_peers"] == "blocked"
+
+    excluded = build_focused_cohort_coverage(
+        cohort,
+        readiness,
+        evidence_by_ticker={"AAA": {"asset_type": "etf"}},
+    )
+    assert {item.state for item in excluded.rows} == {"excluded"}
+
+
+def test_candidate_context_cannot_be_promoted_to_usable_and_invalid_states_fail():
+    cohort, readiness = _cohort()
+    coverage = build_focused_cohort_coverage(
+        cohort,
+        readiness,
+        evidence_by_ticker={"AAA": {"trusted_peers_state": "candidate_context_only"}},
+    )
+    peer = next(item for item in coverage.rows if item.lane == "trusted_peers")
+    assert peer.state == "candidate_context_only"
+    assert "not trusted" in peer.boundary.lower()
+
+    with pytest.raises(ValueError, match="unsupported coverage state"):
+        build_focused_cohort_coverage(
+            cohort,
+            readiness,
+            evidence_by_ticker={"AAA": {"margin_state": "ready_enough"}},
+        )
+
+
+def test_coverage_frame_is_stable_and_contains_no_recommendation_language():
+    cohort, readiness = _cohort()
+    coverage = build_focused_cohort_coverage(cohort, readiness)
+    frame = focused_cohort_coverage_frame(coverage)
+
+    assert frame.columns.tolist() == ["Ticker", "Company", "Lane", "State", "Evidence", "Boundary"]
+    assert len(frame) == len(COHORT_COVERAGE_LANES)
+    rendered = frame.to_string(index=False).lower()
+    for prohibited in ("buy", "sell", "winner", "expected return", "recommendation score"):
+        assert prohibited not in rendered
+
+
+def test_coverage_rejects_cohorts_over_commercial_beta_cap():
+    cohort, readiness = _cohort()
+    oversized = cohort.__class__(
+        status="ready",
+        requested_size=50,
+        minimum_size=1,
+        eligible_count=51,
+        members=cohort.members * 51,
+        message="invalid",
+    )
+    with pytest.raises(ValueError, match="cannot exceed 50"):
+        build_focused_cohort_coverage(oversized, readiness)
+
+
+def test_derive_cohort_evidence_requires_values_and_source_provenance():
+    fundamentals = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "source": "sec_companyfacts",
+                "free_cash_flow": 10.0,
+                "operating_margin": 0.2,
+                "cash": 50.0,
+                "debt": 20.0,
+                "shares_outstanding": 100.0,
+                "sec_filed_date": "2026-05-01",
+            },
+            {
+                "ticker": "BBB",
+                "source": "",
+                "free_cash_flow": 99.0,
+                "cash": 10.0,
+                "debt": 2.0,
+                "shares_outstanding": 200.0,
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "AAA", "peer_ready": True},
+            {"ticker": "BBB", "peer_ready": False},
+        ]
+    )
+    universe = pd.DataFrame(
+        [
+            {"ticker": "AAA", "asset_type": "company"},
+            {"ticker": "BBB", "asset_type": "company"},
+        ]
+    )
+    consensus = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "fiscal_period": "2026-Q2",
+                "source": "licensed_consensus",
+                "source_ref": "consensus:AAA:2026-Q2",
+                "available_at": "2026-07-01T00:00:00Z",
+            }
+        ]
+    )
+
+    evidence = derive_cohort_evidence(
+        ("AAA", "BBB"),
+        fundamentals=fundamentals,
+        readiness=readiness,
+        universe=universe,
+        consensus=consensus,
+    )
+
+    assert evidence["AAA"]["free_cash_flow_state"] == "usable_now"
+    assert evidence["AAA"]["margin_state"] == "usable_now"
+    assert evidence["AAA"]["cash_debt_state"] == "usable_now"
+    assert evidence["AAA"]["shares_state"] == "usable_now"
+    assert evidence["AAA"]["trusted_peers_state"] == "usable_now"
+    assert evidence["AAA"]["filing_dates_state"] == "usable_now"
+    assert evidence["AAA"]["point_in_time_consensus_state"] == "usable_now"
+    assert evidence["BBB"]["free_cash_flow_state"] == "blocked"
+    assert evidence["BBB"]["shares_state"] == "blocked"
