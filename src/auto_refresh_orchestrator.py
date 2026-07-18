@@ -6,6 +6,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.refresh_operations import (
+    RefreshOperationPlan,
+    RefreshOperationRequest,
+    build_refresh_operation_plan,
+)
 from src.session_source_preflight import build_session_source_preflight
 
 
@@ -63,6 +68,7 @@ class SchedulerPlan:
     weekly_commands: tuple[str, ...]
     optional_commands: tuple[str, ...]
     guardrails: tuple[str, ...]
+    refresh_operations: tuple[RefreshOperationPlan, ...]
 
 
 def build_default_lane_policies() -> tuple[LanePolicy, ...]:
@@ -73,7 +79,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             cadence="daily_after_market_close",
             provider_order=("stooq", "yahoo", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=3500,
-            auto_apply=True,
+            auto_apply=False,
             dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
             gated_apply_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
             proof_command="make price-coverage TOP_N=25 && make readiness && make status-check TOP_N=5",
@@ -85,7 +91,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             cadence="daily",
             provider_order=("sec_submissions", "sec_filing_document", "sec_companyfacts"),
             max_batch_size=25,
-            auto_apply=True,
+            auto_apply=False,
             dry_run_command="make share-count-proof-queue TOP_N=25",
             gated_apply_command=(
                 "make sec-filing-share-stage TICKERS=<ticker> && "
@@ -104,7 +110,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             cadence="daily",
             provider_order=("sec_companyfacts", "yfinance", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=25,
-            auto_apply=True,
+            auto_apply=False,
             dry_run_command="make fundamentals-source-ladder-queue TOP_N=25",
             gated_apply_command=(
                 "make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && "
@@ -134,7 +140,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             cadence="daily_or_weekly_when_provider_configured",
             provider_order=("yfinance", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=25,
-            auto_apply=True,
+            auto_apply=False,
             dry_run_command="make optional-context-source-ladder-queue TOP_N=10",
             gated_apply_command=(
                 "make imports-validate IMPORT_TICKERS=<ticker> && "
@@ -217,6 +223,18 @@ def build_scheduler_plan(
         return True
 
     selected = tuple(policy for policy in all_policies if _policy_matches_schedule(policy))
+    refresh_operations = tuple(
+        build_refresh_operation_plan(
+            RefreshOperationRequest(
+                lane=policy.lane,
+                provider_order=policy.provider_order,
+                available_providers=policy.provider_order,
+                batch_limit=policy.max_batch_size,
+                freshness_policy=policy.cadence,
+            )
+        )
+        for policy in selected
+    )
 
     def _commands_for(policy: LanePolicy) -> tuple[str, str]:
         return (policy.dry_run_command, policy.gated_apply_command)
@@ -251,18 +269,20 @@ def build_scheduler_plan(
             "No broker integration.",
             "No auto-trading, order routing, or direct buy/sell instructions.",
             "No fabricated prices, fundamentals, shares, peers, earnings, estimates, or valuation inputs.",
+            "Automatic application is disabled; scheduler output is read-only planning and manual-review handoff only.",
             "Run make session-source-preflight before scheduler batches.",
             "Free-tier fallback caps: fmp<=250/day and <=25/run; alpha_vantage<=25/day and <=5/run; finnhub<=60/day and <=10/run.",
             "Do not repeat exhausted source-proof queues; run make coverage-expansion-loop TOP_N=10 and pivot to workflow evidence until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers appear.",
             "Generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
         ),
+        refresh_operations=refresh_operations,
     )
 
 
 def render_scheduler_plan(plan: SchedulerPlan) -> str:
     lines = [
         "Auto Refresh Orchestrator Plan",
-        "Read-only plan: this command prints scheduler-ready coverage commands and deterministic auto-apply gates.",
+        "Read-only plan: this command prints scheduler-ready coverage commands and manual-review gates.",
         "Research-only: no broker integration, no auto-trading, no order routing, and no direct buy/sell instructions.",
         "",
         "Proof outcomes: auto_supported, human_reviewed_supported, candidate_context_only, still_blocked, skipped, excluded.",
@@ -288,6 +308,13 @@ def render_scheduler_plan(plan: SchedulerPlan) -> str:
         lines.append(f"  source boundary: {policy.source_boundary}")
         lines.append(f"  gated apply: {policy.gated_apply_command}")
         lines.append(f"  proof: {policy.proof_command}")
+    lines.append("Refresh operation plans:")
+    for operation in plan.refresh_operations:
+        lines.append(
+            f"- {operation.lane}: status={operation.status}; provider={operation.selected_provider or '-'}; "
+            f"automatic_apply_enabled={str(operation.automatic_apply_enabled).lower()}; "
+            f"stages={','.join(stage.name for stage in operation.stages)}"
+        )
     lines.append("Guardrails:")
     lines.extend(f"- {guardrail}" for guardrail in plan.guardrails)
     return "\n".join(lines)
@@ -334,10 +361,9 @@ def render_scheduler_runbook(plan: SchedulerPlan, preflight: dict[str, object] |
     lines.append("Lane loop:")
     for index, policy in enumerate(plan.policies, start=1):
         gate_mode = (
-            "Run the deterministic gate before apply; if blocked, use "
-            "ALLOW_BLOCKED_GATE=1 make auto-apply-gate to record still_blocked and pivot."
-            if policy.auto_apply
-            else "No auto-apply; keep candidate context separate from trusted proof."
+            "Automatic application is disabled. A blocked manual gate may use "
+            "ALLOW_BLOCKED_GATE=1 make auto-apply-gate only to record still_blocked and pivot; "
+            "keep candidate context separate from trusted proof."
         )
         lines.extend(
             [
