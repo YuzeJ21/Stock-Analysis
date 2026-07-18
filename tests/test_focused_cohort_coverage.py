@@ -209,7 +209,17 @@ def test_derive_cohort_evidence_requires_values_and_source_provenance():
                 "fiscal_period": "2026-Q2",
                 "source": "licensed_consensus",
                 "source_ref": "consensus:AAA:2026-Q2",
-                "available_at": "2026-07-01T00:00:00Z",
+                "snapshot_at": "2026-07-01T00:00:00Z",
+            }
+        ]
+    )
+    earnings = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "source": "sec_companyfacts",
+                "source_ref": "earnings:AAA",
+                "next_earnings_date": "2026-08-15",
             }
         ]
     )
@@ -220,6 +230,8 @@ def test_derive_cohort_evidence_requires_values_and_source_provenance():
         readiness=readiness,
         universe=universe,
         consensus=consensus,
+        earnings=earnings,
+        as_of="2026-07-17T00:00:00Z",
     )
 
     assert evidence["AAA"]["free_cash_flow_state"] == "usable_now"
@@ -229,5 +241,53 @@ def test_derive_cohort_evidence_requires_values_and_source_provenance():
     assert evidence["AAA"]["trusted_peers_state"] == "usable_now"
     assert evidence["AAA"]["filing_dates_state"] == "usable_now"
     assert evidence["AAA"]["point_in_time_consensus_state"] == "usable_now"
+    assert evidence["AAA"]["earnings_dates_state"] == "usable_now"
     assert evidence["BBB"]["free_cash_flow_state"] == "blocked"
     assert evidence["BBB"]["shares_state"] == "blocked"
+
+
+def test_consensus_after_cutoff_and_unverified_commercial_sources_fail_closed():
+    consensus = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "fiscal_period": "2026-Q2",
+                "source": "yfinance",
+                "source_ref": "provider:AAA",
+                "snapshot_at": "2026-07-18T00:00:00Z",
+            }
+        ]
+    )
+    fundamentals = pd.DataFrame(
+        [{"ticker": "AAA", "source": "yfinance", "source_ref": "provider:AAA", "shares_outstanding": 100}]
+    )
+
+    cutoff = derive_cohort_evidence(
+        ("AAA",),
+        consensus=consensus,
+        as_of="2026-07-17T00:00:00Z",
+    )
+    commercial = derive_cohort_evidence(
+        ("AAA",),
+        fundamentals=fundamentals,
+        consensus=consensus.assign(snapshot_at="2026-07-16T00:00:00Z"),
+        as_of="2026-07-17T00:00:00Z",
+        commercial_mode=True,
+    )
+
+    assert cutoff["AAA"]["point_in_time_consensus_state"] == "blocked"
+    assert commercial["AAA"]["shares_state"] == "blocked"
+    assert commercial["AAA"]["point_in_time_consensus_state"] == "blocked"
+
+
+def test_candidate_peer_rows_remain_candidate_context_only():
+    candidates = pd.DataFrame(
+        [
+            {"ticker": "AAA", "peer_ticker": "BBB", "candidate_state": "candidate_context_only"},
+            {"ticker": "AAA", "peer_ticker": "CCC", "candidate_state": "candidate_context_only"},
+        ]
+    )
+    evidence = derive_cohort_evidence(("AAA",), peer_candidates=candidates)
+
+    assert evidence["AAA"]["trusted_peers_state"] == "candidate_context_only"
+    assert "not trusted" in evidence["AAA"]["trusted_peers_evidence"].lower()

@@ -8,6 +8,7 @@ from src.research_workspace import (
     company_change_answer,
     focused_cohort_cards,
     focused_cohort_coverage_cards,
+    focused_ticker_coverage_cards,
     quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
@@ -132,6 +133,25 @@ def test_focused_cohort_coverage_cards_answer_what_is_usable_without_overclaimin
     rendered = str(cards).lower()
     assert "candidate context" in rendered
     assert "research-only" in rendered
+
+
+def test_focused_ticker_coverage_cards_keep_one_company_answer_concise():
+    coverage = FocusedCohortCoverage(
+        status="partial",
+        company_count=1,
+        rows=(
+            FocusedCohortCoverageRow("AAA", "Alpha", "adjusted_daily_price_history", "usable_now", "price", "boundary"),
+            FocusedCohortCoverageRow("AAA", "Alpha", "quarterly_revenue", "blocked", "missing", "boundary"),
+            FocusedCohortCoverageRow("BBB", "Beta", "adjusted_daily_price_history", "usable_now", "price", "boundary"),
+        ),
+        message="Mixed coverage.",
+    )
+
+    cards = focused_ticker_coverage_cards(coverage, "AAA")
+
+    assert cards[0]["title"] == "1 usable lane"
+    assert cards[1]["title"] == "1 blocked lane"
+    assert "BBB" not in str(cards)
 
 
 def test_research_monitor_uses_review_queue_without_ranking_or_inventing_changes():

@@ -7,6 +7,7 @@ from typing import Mapping
 
 import pandas as pd
 
+from src.commercial_source_rights import commercial_eligibility, load_source_rights_registry
 from src.focused_research_cohort import FocusedCohort
 from src.quarterly_business_trend import QuarterlyTrendPacket
 
@@ -93,8 +94,58 @@ def _has_value(row: pd.Series | None, *fields: str) -> bool:
     return False
 
 
-def _source_backed(row: pd.Series | None) -> bool:
-    return bool(row is not None and (_has_value(row, "source", "source_ref", "sec_accession")))
+def _source_backed(
+    row: pd.Series | None,
+    *,
+    commercial_mode: bool = False,
+    rights_registry=None,
+) -> bool:
+    if row is None or not _has_value(row, "source", "source_ref", "sec_accession"):
+        return False
+    if not commercial_mode:
+        return True
+    source_id = _text(row.get("source"))
+    if not source_id:
+        return False
+    registry = rights_registry if rights_registry is not None else load_source_rights_registry()
+    return commercial_eligibility(registry, source_id).allowed
+
+
+def _latest_consensus_by_cutoff(frame: pd.DataFrame | None, *, as_of: str | None) -> dict[str, pd.Series]:
+    if frame is None or frame.empty or not as_of or "ticker" not in frame.columns:
+        return {}
+    normalized = frame.copy()
+    normalized.columns = [str(column).strip().lower() for column in normalized.columns]
+    timestamp_column = next(
+        (column for column in ("snapshot_at", "available_at", "retrieved_at", "published_at") if column in normalized.columns),
+        "",
+    )
+    if not timestamp_column:
+        return {}
+    normalized["ticker"] = normalized["ticker"].map(lambda value: _text(value).upper())
+    normalized["_snapshot_at"] = pd.to_datetime(normalized[timestamp_column], utc=True, errors="coerce")
+    cutoff = pd.to_datetime(as_of, utc=True, errors="coerce")
+    if pd.isna(cutoff):
+        raise ValueError("as_of must be an ISO-8601 timestamp")
+    normalized = normalized[
+        normalized["ticker"].ne("")
+        & normalized["_snapshot_at"].notna()
+        & normalized["_snapshot_at"].le(cutoff)
+    ].sort_values("_snapshot_at")
+    normalized = normalized.drop_duplicates("ticker", keep="last")
+    return {str(row["ticker"]): row for _, row in normalized.iterrows()}
+
+
+def _grouped_rows(frame: pd.DataFrame | None) -> dict[str, tuple[pd.Series, ...]]:
+    if frame is None or frame.empty or "ticker" not in frame.columns:
+        return {}
+    normalized = frame.copy()
+    normalized.columns = [str(column).strip().lower() for column in normalized.columns]
+    normalized["ticker"] = normalized["ticker"].map(lambda value: _text(value).upper())
+    return {
+        ticker: tuple(row for _, row in group.iterrows())
+        for ticker, group in normalized[normalized["ticker"].ne("")].groupby("ticker", sort=True)
+    }
 
 
 def derive_cohort_evidence(
@@ -105,14 +156,21 @@ def derive_cohort_evidence(
     universe: pd.DataFrame | None = None,
     consensus: pd.DataFrame | None = None,
     earnings: pd.DataFrame | None = None,
+    peers: pd.DataFrame | None = None,
+    peer_candidates: pd.DataFrame | None = None,
+    as_of: str | None = None,
+    commercial_mode: bool = False,
 ) -> dict[str, dict[str, object]]:
     """Derive display states only from saved rows that retain provenance."""
 
     fundamentals_rows = _row_map(fundamentals)
     readiness_rows = _row_map(readiness)
     universe_rows = _row_map(universe)
-    consensus_rows = _row_map(consensus)
+    consensus_rows = _latest_consensus_by_cutoff(consensus, as_of=as_of)
     earnings_rows = _row_map(earnings)
+    peer_rows = _grouped_rows(peers)
+    candidate_rows = _grouped_rows(peer_candidates)
+    rights_registry = load_source_rights_registry() if commercial_mode else None
     result: dict[str, dict[str, object]] = {}
     for raw_ticker in tickers:
         ticker = _text(raw_ticker).upper()
@@ -121,7 +179,11 @@ def derive_cohort_evidence(
         universe_row = universe_rows.get(ticker)
         consensus_row = consensus_rows.get(ticker)
         earnings_row = earnings_rows.get(ticker)
-        source_backed = _source_backed(fundamental)
+        source_backed = _source_backed(
+            fundamental,
+            commercial_mode=commercial_mode,
+            rights_registry=rights_registry,
+        )
 
         margin_ready = source_backed and _has_value(fundamental, "operating_margin", "fcf_margin", "profit_margin")
         fcf_ready = source_backed and _has_value(fundamental, "free_cash_flow", "fcf")
@@ -129,17 +191,40 @@ def derive_cohort_evidence(
         debt_ready = source_backed and _has_value(fundamental, "debt")
         shares_ready = source_backed and _has_value(fundamental, "shares_outstanding")
         filing_ready = source_backed and _has_value(fundamental, "sec_filed_date", "filed_date")
-        peers_ready = bool(ready is not None and _truthy(ready.get("peer_ready")))
+        saved_peer_ready = bool(ready is not None and _truthy(ready.get("peer_ready")))
+        trusted_rows = peer_rows.get(ticker, ())
+        trusted_source_ready = bool(trusted_rows) and all(
+            _source_backed(row, commercial_mode=commercial_mode, rights_registry=rights_registry)
+            for row in trusted_rows
+        )
+        peers_ready = saved_peer_ready and (trusted_source_ready if commercial_mode else True)
+        candidate_count = len(candidate_rows.get(ticker, ()))
         consensus_ready = bool(
             consensus_row is not None
-            and _source_backed(consensus_row)
+            and _source_backed(
+                consensus_row,
+                commercial_mode=commercial_mode,
+                rights_registry=rights_registry,
+            )
             and _has_value(consensus_row, "fiscal_period")
-            and _has_value(consensus_row, "available_at", "retrieved_at", "published_at")
+            and _has_value(consensus_row, "snapshot_at", "available_at", "retrieved_at", "published_at")
         )
         earnings_ready = bool(
             earnings_row is not None
-            and _source_backed(earnings_row)
-            and _has_value(earnings_row, "earnings_date", "expected_report_date", "event_date")
+            and _source_backed(
+                earnings_row,
+                commercial_mode=commercial_mode,
+                rights_registry=rights_registry,
+            )
+            and _has_value(
+                earnings_row,
+                "earnings_date",
+                "expected_report_date",
+                "event_date",
+                "next_earnings_date",
+                "last_earnings_date",
+                "report_date",
+            )
         )
         result[ticker] = {
             "asset_type": _text(universe_row.get("asset_type")) if universe_row is not None else "company",
@@ -151,8 +236,14 @@ def derive_cohort_evidence(
             "cash_debt_evidence": "Saved source-backed cash and debt are available." if cash_ready and debt_ready else "Cash and debt evidence is incomplete.",
             "shares_state": "usable_now" if shares_ready else "blocked",
             "shares_evidence": "Saved source-backed shares outstanding are available." if shares_ready else "No source-backed shares-outstanding input is available.",
-            "trusted_peers_state": "usable_now" if peers_ready else "blocked",
-            "trusted_peers_evidence": "Saved readiness confirms trusted peer inputs." if peers_ready else "Trusted peer inputs are unavailable.",
+            "trusted_peers_state": "usable_now" if peers_ready else "candidate_context_only" if candidate_count else "blocked",
+            "trusted_peers_evidence": (
+                "Saved readiness and source rows confirm trusted peer inputs."
+                if peers_ready
+                else f"{candidate_count} candidate peer relationship(s) are visible but not trusted."
+                if candidate_count
+                else "Trusted peer inputs are unavailable."
+            ),
             "filing_dates_state": "usable_now" if filing_ready else "blocked",
             "filing_dates_evidence": "A source-backed filing date is available." if filing_ready else "No source-backed filing date is available.",
             "earnings_dates_state": "usable_now" if earnings_ready else "blocked",

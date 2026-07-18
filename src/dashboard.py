@@ -327,6 +327,7 @@ from src.research_workspace import (
     company_workbench_section_contract,
     focused_cohort_cards,
     focused_cohort_coverage_cards,
+    focused_ticker_coverage_cards,
     quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
@@ -5464,6 +5465,8 @@ def load_dashboard_focused_cohort_coverage(cohort: FocusedCohort) -> FocusedCoho
     fundamentals = optional_csv(DATA_DIR / "fundamentals.csv")
     consensus = optional_csv(DATA_DIR / "earnings_nowcast" / "consensus_snapshots.csv")
     earnings = optional_csv(DATA_DIR / "earnings.csv")
+    peers = optional_csv(DATA_DIR / "peers.csv")
+    peer_candidates = optional_csv(DATA_DIR / "peer_candidates.csv")
     actuals = load_quarterly_actuals_csv(DATA_DIR / "earnings_nowcast" / "quarterly_actuals.csv")
     tickers = tuple(member.ticker for member in cohort.members)
     evidence = derive_cohort_evidence(
@@ -5473,6 +5476,10 @@ def load_dashboard_focused_cohort_coverage(cohort: FocusedCohort) -> FocusedCoho
         universe=universe,
         consensus=consensus,
         earnings=earnings,
+        peers=peers,
+        peer_candidates=peer_candidates,
+        as_of=pd.Timestamp.now(tz="UTC").isoformat(),
+        commercial_mode=True,
     )
     packets = {
         ticker: build_quarterly_trend_packet(ticker, actuals.actuals)
@@ -34015,6 +34022,7 @@ def render_company_workbench(
     provider,
     context: ProfileContext,
     state: dict[str, object],
+    coverage: FocusedCohortCoverage,
 ) -> None:
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
     render_research_workspace_header(
@@ -34026,6 +34034,7 @@ def render_company_workbench(
     section_names = [section["title"] for section in company_workbench_section_contract()]
     st.caption("Review path: " + " -> ".join(section_names[:-1]))
     st.markdown("### Selected Company")
+    render_signal_cards(focused_ticker_coverage_cards(coverage, ticker), show_commands=False, variant="queue")
     render_single_stock_report(
         provider,
         False,
@@ -34252,6 +34261,7 @@ def main() -> None:
             primary_action="Choose one readiness-backed company and open its workbench",
         )
         render_signal_cards(focused_cohort_cards(focused_cohort), show_commands=False, variant="queue")
+        render_signal_cards(focused_cohort_coverage_cards(focused_cohort_coverage), show_commands=False, variant="queue")
         st.markdown("### Which stock can I review?")
         render_stock_selector(
             output_frames,
@@ -34261,7 +34271,7 @@ def main() -> None:
             allowed_tickers=tuple(member.ticker for member in focused_cohort.members),
         )
     elif research_mode and selected_page == "Company Workbench":
-        render_company_workbench(provider, profile_context, research_change_state)
+        render_company_workbench(provider, profile_context, research_change_state, focused_cohort_coverage)
     elif research_mode and selected_page == "Monitor":
         render_research_monitor(research_change_state, profile_context, weekly_research_summary)
     elif content_page == "Home":

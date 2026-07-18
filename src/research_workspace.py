@@ -202,6 +202,39 @@ def focused_cohort_coverage_cards(coverage: FocusedCohortCoverage) -> list[dict[
     ]
 
 
+def focused_ticker_coverage_cards(
+    coverage: FocusedCohortCoverage,
+    ticker: str,
+) -> list[dict[str, object]]:
+    symbol = str(ticker or "").strip().upper()
+    rows = tuple(row for row in coverage.rows if row.ticker == symbol)
+    usable = sum(row.state == "usable_now" for row in rows)
+    partial = sum(row.state in {"partial", "candidate_context_only"} for row in rows)
+    blocked = sum(row.state == "blocked" for row in rows)
+    excluded = sum(row.state == "excluded" for row in rows)
+    return [
+        {
+            "kicker": f"{symbol or 'SELECTED COMPANY'} COVERAGE",
+            "title": f"{usable} usable lane{'s' if usable != 1 else ''}",
+            "body": "Saved source evidence supports these lanes now; each remains research context only.",
+            "state": "ready" if usable and not (partial or blocked) else "partial" if rows else "blocked",
+            "badges": ["source-backed only", "no inferred inputs"],
+            "command": "",
+        },
+        {
+            "kicker": "GATED OR NOT APPLICABLE",
+            "title": f"{blocked} blocked lane{'s' if blocked != 1 else ''}",
+            "body": (
+                f"{partial} partial or candidate-context lane(s); {excluded} excluded lane(s). "
+                "Open Advanced Evidence only when the exact lane proof is needed."
+            ),
+            "state": "wait_for_evidence" if blocked or partial else "monitor",
+            "badges": ["blocked stays blocked", "research-only"],
+            "command": "",
+        },
+    ]
+
+
 def quarterly_trend_cards(packet: QuarterlyTrendPacket) -> list[dict[str, object]]:
     cards: list[dict[str, object]] = [
         {
