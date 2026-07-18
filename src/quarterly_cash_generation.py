@@ -147,6 +147,17 @@ def _component_definition(row: QuarterlyBusinessObservation) -> tuple[object, ..
     )
 
 
+def _comparison_definition(row: QuarterlyBusinessObservation) -> tuple[object, ...]:
+    """Return the accounting definition without period-specific identity."""
+
+    return (
+        row.currency,
+        row.unit_scale,
+        row.accounting_basis,
+        row.duration_basis,
+    )
+
+
 def _same_component(
     left: QuarterlyBusinessObservation,
     right: QuarterlyBusinessObservation,
@@ -266,7 +277,7 @@ def derive_quarterly_business_metrics(
                         fiscal_period=period,
                         period_end_date=operating_income.period_end_date,
                         value=operating_income.value / revenue.revenue_actual,
-                        definition=_component_definition(operating_income),
+                        definition=_comparison_definition(operating_income),
                         source_refs=(operating_income.source_ref, revenue.source_ref),
                     )
                 )
@@ -290,7 +301,7 @@ def derive_quarterly_business_metrics(
                         fiscal_period=period,
                         period_end_date=cash_from_operations.period_end_date,
                         value=free_cash_flow_value,
-                        definition=free_cash_flow_definition,
+                        definition=_comparison_definition(cash_from_operations),
                         source_refs=free_cash_flow_refs,
                     )
                 )
@@ -309,7 +320,7 @@ def derive_quarterly_business_metrics(
                         fiscal_period=period,
                         period_end_date=str(free_cash_flow_definition[-1]),
                         value=free_cash_flow_value / revenue.revenue_actual,
-                        definition=free_cash_flow_definition,
+                        definition=_comparison_definition(cash_from_operations),
                         source_refs=(*free_cash_flow_refs, revenue.source_ref),
                     )
                 )

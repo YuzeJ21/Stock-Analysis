@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import Iterable
 
 from src.earnings_nowcast_contract import QuarterlyActual, parse_utc_timestamp
+from src.quarterly_cash_generation import (
+    QuarterlyBusinessMetricPoint,
+    QuarterlyBusinessObservation,
+    derive_quarterly_business_metrics,
+)
 
 
 @dataclass(frozen=True)
@@ -32,6 +37,9 @@ class QuarterlyTrendPacket:
     available_periods: tuple[str, ...]
     revenue: QuarterlyMetricTrend
     eps: QuarterlyMetricTrend
+    operating_margin: QuarterlyMetricTrend
+    free_cash_flow: QuarterlyMetricTrend
+    fcf_margin: QuarterlyMetricTrend
     withheld_metrics: tuple[str, ...]
     ambiguous_periods: tuple[str, ...]
     revision_count: int
@@ -168,6 +176,24 @@ def _blocked_metric(metric: str, reason: str) -> QuarterlyMetricTrend:
     return QuarterlyMetricTrend(metric, "blocked", None, "", "", None, None, (), (), reason)
 
 
+def _withheld_metric(metric: str) -> QuarterlyMetricTrend:
+    return QuarterlyMetricTrend(
+        metric,
+        "withheld",
+        None,
+        "",
+        "",
+        None,
+        None,
+        (),
+        (),
+        (
+            "A reviewed explicit versioned quarterly source contract and source adapter "
+            "are required before this metric can be shown."
+        ),
+    )
+
+
 def _metric_trend(
     metric: str,
     rows_by_period: dict[str, QuarterlyActual],
@@ -228,11 +254,114 @@ def _metric_trend(
     )
 
 
+def _point_metric_trend(
+    metric: str,
+    points: Iterable[QuarterlyBusinessMetricPoint],
+    *,
+    blockers: tuple[str, ...],
+) -> QuarterlyMetricTrend:
+    available = {point.fiscal_period: point for point in points if point.metric == metric}
+    if not available:
+        tokens = {
+            "operating_margin": ("operating_income", "operating_margin"),
+            "free_cash_flow": ("cash_from_operations", "capital_expenditures", "free_cash_flow"),
+            "fcf_margin": (
+                "cash_from_operations",
+                "capital_expenditures",
+                "free_cash_flow",
+                "fcf_margin",
+            ),
+        }[metric]
+        matching = tuple(
+            blocker.replace("_", " ")
+            for blocker in blockers
+            if any(token in blocker for token in tokens)
+        )
+        reason = "; ".join(matching) or "Required quarterly components are unavailable or incompatible."
+        return _blocked_metric(metric, reason)
+
+    periods = tuple(sorted(available, key=_period_key))
+    latest_period = periods[-1]
+    latest = available[latest_period]
+    missing: list[str] = []
+    withheld: list[str] = []
+
+    previous_period = _previous_period(latest_period)
+    previous = available.get(previous_period)
+    sequential: float | None = None
+    if previous is None:
+        missing.append("previous quarter unavailable")
+    elif previous.definition != latest.definition:
+        withheld.append("sequential comparison uses incompatible metric definitions")
+    else:
+        sequential = _pct_change(latest.value, previous.value)
+        if sequential is None:
+            withheld.append("sequential comparison denominator is unavailable or zero")
+
+    prior_year_period = _prior_year_period(latest_period)
+    prior_year = available.get(prior_year_period)
+    year_over_year: float | None = None
+    if prior_year is None:
+        missing.append("prior-year quarter unavailable")
+    elif prior_year.definition != latest.definition:
+        withheld.append("year-over-year comparison uses incompatible metric definitions")
+    else:
+        year_over_year = _pct_change(latest.value, prior_year.value)
+        if year_over_year is None:
+            withheld.append("year-over-year comparison denominator is unavailable or zero")
+
+    return QuarterlyMetricTrend(
+        metric=metric,
+        status="ready" if sequential is not None and year_over_year is not None else "partial",
+        latest_value=latest.value,
+        latest_fiscal_period=latest_period,
+        latest_source_ref=";".join(latest.source_refs),
+        sequential_change_pct=sequential,
+        year_over_year_change_pct=year_over_year,
+        available_periods=periods,
+        missing_comparisons=tuple(missing),
+        withheld_reason="; ".join(withheld),
+    )
+
+
+def _supplemental_trends(
+    ticker: str,
+    observations: tuple[QuarterlyBusinessObservation, ...],
+    revenues: Iterable[QuarterlyActual],
+    *,
+    as_of: str | None,
+) -> tuple[QuarterlyMetricTrend, QuarterlyMetricTrend, QuarterlyMetricTrend, int]:
+    if not observations:
+        return (
+            _withheld_metric("operating_margin"),
+            _withheld_metric("free_cash_flow"),
+            _withheld_metric("fcf_margin"),
+            0,
+        )
+    derived = derive_quarterly_business_metrics(
+        ticker,
+        observations,
+        revenues,
+        as_of=as_of,
+    )
+    return (
+        _point_metric_trend("operating_margin", derived.points, blockers=derived.blockers),
+        _point_metric_trend("free_cash_flow", derived.points, blockers=derived.blockers),
+        _point_metric_trend("fcf_margin", derived.points, blockers=derived.blockers),
+        derived.revision_count,
+    )
+
+
+def _withheld_metric_names(*trends: QuarterlyMetricTrend) -> tuple[str, ...]:
+    return tuple(trend.metric for trend in trends if trend.status in {"blocked", "withheld"})
+
+
 def build_quarterly_trend_packet(
     ticker: str,
     actuals: Iterable[QuarterlyActual],
     *,
     as_of: str | None = None,
+    business_observations: Iterable[QuarterlyBusinessObservation] = (),
 ) -> QuarterlyTrendPacket:
     symbol = str(ticker or "").strip().upper()
     cutoff = parse_utc_timestamp(as_of).timestamp() if as_of else None
@@ -257,6 +386,15 @@ def build_quarterly_trend_packet(
         else:
             resolved[period] = chosen
 
+    supplemental_input = tuple(business_observations)
+    operating_margin, free_cash_flow, fcf_margin, supplemental_revisions = _supplemental_trends(
+        symbol,
+        supplemental_input,
+        resolved.values(),
+        as_of=as_of,
+    )
+    revision_count += supplemental_revisions
+
     if not resolved:
         reason = (
             "Quarterly observations are ambiguous because explicit revision lineage is missing."
@@ -271,12 +409,29 @@ def build_quarterly_trend_packet(
             available_periods=(),
             revenue=_blocked_metric("revenue", metric_reason),
             eps=_blocked_metric("eps", metric_reason),
-            withheld_metrics=("operating_margin", "free_cash_flow", "fcf_margin"),
+            operating_margin=operating_margin,
+            free_cash_flow=free_cash_flow,
+            fcf_margin=fcf_margin,
+            withheld_metrics=_withheld_metric_names(operating_margin, free_cash_flow, fcf_margin),
             ambiguous_periods=tuple(sorted(ambiguous, key=_period_key)),
             revision_count=revision_count,
-            source_confidence="withheld",
+            source_confidence=(
+                "source_backed"
+                if any(
+                    trend.latest_value is not None
+                    for trend in (operating_margin, free_cash_flow, fcf_margin)
+                )
+                else "withheld"
+            ),
             q4_policy="explicit_filed_quarter_only",
-            message=reason,
+            message=(
+                f"{reason} Independent quarterly cash-generation evidence remains separately reviewable."
+                if any(
+                    trend.latest_value is not None
+                    for trend in (operating_margin, free_cash_flow, fcf_margin)
+                )
+                else reason
+            ),
         )
 
     periods = tuple(sorted(resolved, key=_period_key))
@@ -290,7 +445,10 @@ def build_quarterly_trend_packet(
         available_periods=periods,
         revenue=revenue,
         eps=eps,
-        withheld_metrics=("operating_margin", "free_cash_flow", "fcf_margin"),
+        operating_margin=operating_margin,
+        free_cash_flow=free_cash_flow,
+        fcf_margin=fcf_margin,
+        withheld_metrics=_withheld_metric_names(operating_margin, free_cash_flow, fcf_margin),
         ambiguous_periods=tuple(sorted(ambiguous, key=_period_key)),
         revision_count=revision_count,
         source_confidence="source_backed",
@@ -307,9 +465,23 @@ def _display_change(value: float | None) -> str:
     return f"{value:+.1f}%" if value is not None else "withheld"
 
 
+def _display_value(trend: QuarterlyMetricTrend) -> object:
+    if trend.latest_value is None:
+        return "withheld"
+    if trend.metric in {"operating_margin", "fcf_margin"}:
+        return f"{trend.latest_value * 100.0:.1f}%"
+    return trend.latest_value
+
+
 def quarterly_trend_rows(packet: QuarterlyTrendPacket) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
-    for label, trend in (("Revenue", packet.revenue), ("EPS", packet.eps)):
+    for label, trend in (
+        ("Revenue", packet.revenue),
+        ("EPS", packet.eps),
+        ("Operating margin", packet.operating_margin),
+        ("Free cash flow", packet.free_cash_flow),
+        ("FCF margin", packet.fcf_margin),
+    ):
         boundary_parts = list(trend.missing_comparisons)
         if trend.withheld_reason:
             boundary_parts.append(trend.withheld_reason)
@@ -318,28 +490,11 @@ def quarterly_trend_rows(packet: QuarterlyTrendPacket) -> list[dict[str, object]
                 "Metric": label,
                 "State": trend.status,
                 "Latest period": trend.latest_fiscal_period or "unavailable",
-                "Latest value": trend.latest_value if trend.latest_value is not None else "withheld",
+                "Latest value": _display_value(trend),
                 "Sequential": _display_change(trend.sequential_change_pct),
                 "Year over year": _display_change(trend.year_over_year_change_pct),
                 "Source reference": trend.latest_source_ref or "unavailable",
                 "Boundary": "; ".join(boundary_parts) or "Comparable source-backed periods available.",
-            }
-        )
-    for metric, label in (
-        ("operating_margin", "Operating margin"),
-        ("free_cash_flow", "Free cash flow"),
-        ("fcf_margin", "FCF margin"),
-    ):
-        rows.append(
-            {
-                "Metric": label,
-                "State": "withheld",
-                "Latest period": "unavailable",
-                "Latest value": "withheld",
-                "Sequential": "withheld",
-                "Year over year": "withheld",
-                "Source reference": "unavailable",
-                "Boundary": f"{metric} needs an explicit versioned quarterly source contract.",
             }
         )
     return rows
