@@ -381,7 +381,9 @@ Forward View is a deterministic composition of existing evidence, not a second f
 
 Scenario values appear only when DCF readiness passes, source metadata retains both source and source reference, and all three bounded scenarios calculate from the same saved report. Stale profile evidence is labeled partial. Candidate peers, news context, generated narrative, and journal text cannot change Revenue, EPS, DCF assumptions, valuation scenarios, or probabilities. Numerical surprise probability remains governed by the Earnings Nowcast calibration gate.
 
-Every Forward View packet shows its source cutoff, saved-profile freshness, model version, withheld fields, and one next research task. Missing or incompatible evidence fails closed. The result describes plausible assumption cases and research wait conditions; it does not predict post-earnings price direction, rank companies, or provide an investment recommendation.
+Every Forward View packet shows its source cutoff, saved-profile freshness, model version, withheld fields, and one next research task. It accepts the production stock-report provenance contract (`provider`, `retrieved_at`, `official`, freshness, and notes) or an explicit source/source-reference pair, and preserves that provenance under Advanced evidence. Any stale, mixed, missing, or unknown saved-profile freshness downgrades otherwise usable sections to review-due rather than presenting them as current.
+
+The Earnings Outlook lane loads only a real source-backed packet for the exact fiscal period named by the selected report. It never silently chooses a different real-company forecast period, never displays synthetic fixture evidence in the workbench, and reads the independent `probability_available` calibration gate before changing probability wording. Missing or incompatible evidence fails closed. The result describes plausible assumption cases and research wait conditions; it does not predict post-earnings price direction, rank companies, or provide an investment recommendation.
 
 ## 13. Methodology Limits
 

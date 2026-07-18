@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any, Mapping
 
 from src.quarterly_business_trend import QuarterlyTrendPacket
@@ -13,7 +14,7 @@ class ForwardViewSection:
     name: str
     state: str
     answer: str
-    details: tuple[dict[str, object], ...]
+    details: tuple[Mapping[str, object], ...]
     boundary: str
 
 
@@ -42,9 +43,44 @@ def _text(value: object) -> str:
 def _provenance_complete(rows: object) -> bool:
     return bool(rows) and all(
         isinstance(row, Mapping)
-        and _text(row.get("source"))
-        and _text(row.get("source_ref"))
+        and (
+            (_text(row.get("source")) and _text(row.get("source_ref")))
+            or (
+                _text(row.get("provider"))
+                and _text(row.get("retrieved_at"))
+                and "official" in row
+            )
+        )
         for row in rows
+    )
+
+
+def _freeze(value: object) -> object:
+    if isinstance(value, Mapping):
+        return MappingProxyType({str(key): _freeze(item) for key, item in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    return value
+
+
+def _frozen_row(**values: object) -> Mapping[str, object]:
+    return _freeze(values)  # type: ignore[return-value]
+
+
+def _normalized_provenance(rows: object) -> tuple[Mapping[str, object], ...]:
+    if not rows:
+        return ()
+    return tuple(
+        _frozen_row(
+            provider=_text(row.get("provider") or row.get("source")),
+            source_ref=_text(row.get("source_ref")),
+            freshness=_text(row.get("freshness")),
+            retrieved_at=_text(row.get("retrieved_at") or row.get("as_of_date")),
+            official=row.get("official"),
+            notes=tuple(row.get("notes") or ()),
+        )
+        for row in rows
+        if isinstance(row, Mapping)
     )
 
 
@@ -60,14 +96,14 @@ def _historical_section(packet: QuarterlyTrendPacket) -> ForwardViewSection:
             "Explicit, compatible quarterly Revenue and EPS observations are required.",
         )
     details = tuple(
-        {
-            "metric": label,
-            "period": trend.latest_fiscal_period,
-            "value": trend.latest_value,
-            "sequential_change_pct": trend.sequential_change_pct,
-            "year_over_year_change_pct": trend.year_over_year_change_pct,
-            "source_ref": trend.latest_source_ref,
-        }
+        _frozen_row(
+            metric=label,
+            period=trend.latest_fiscal_period,
+            value=trend.latest_value,
+            sequential_change_pct=trend.sequential_change_pct,
+            year_over_year_change_pct=trend.year_over_year_change_pct,
+            source_ref=trend.latest_source_ref,
+        )
         for label, trend in (("Revenue", packet.revenue), ("EPS", packet.eps))
         if trend.latest_value is not None and trend.latest_source_ref
     )
@@ -98,7 +134,8 @@ def _valuation_section(report: Mapping[str, object], *, stale: bool) -> ForwardV
             "DCF readiness and complete source provenance are required before scenario values appear.",
         )
 
-    details: list[dict[str, object]] = []
+    provenance = _normalized_provenance(source_rows)
+    details: list[Mapping[str, object]] = []
     for scenario in scenarios:
         if not isinstance(scenario, Mapping):
             continue
@@ -111,7 +148,14 @@ def _valuation_section(report: Mapping[str, object], *, stale: bool) -> ForwardV
         value = result.get("fair_value_per_share")
         if value is None:
             continue
-        details.append({"name": name, "per_share_value": value, "assumptions": dict(assumptions or {})})
+        details.append(
+            _frozen_row(
+                name=name,
+                per_share_value=value,
+                assumptions=dict(assumptions or {}),
+                provenance=provenance,
+            )
+        )
     order = {"bear": 0, "base": 1, "bull": 2}
     details.sort(key=lambda row: order[str(row["name"])])
     if [row["name"] for row in details] != ["bear", "base", "bull"]:
@@ -156,18 +200,18 @@ def _peer_section(peer_map: object | None) -> ForwardViewSection:
         "Trusted Peer Context",
         "usable_now",
         f"{reviewable} source-backed peer result(s) are available for contextual review.",
-        ({"trusted_count": trusted, "reviewable_count": reviewable, "candidate_count": candidate},),
+        (_frozen_row(trusted_count=trusted, reviewable_count=reviewable, candidate_count=candidate),),
         _text(getattr(peer_map, "boundary", "")) or "Peer evidence remains context only.",
     )
 
 
-def _journal_details(entries: object) -> tuple[dict[str, object], ...]:
+def _journal_details(entries: object) -> tuple[Mapping[str, object], ...]:
     return tuple(
-        {
-            "summary": _text(getattr(entry, "summary", "")),
-            "source": _text(getattr(entry, "source", "")),
-            "source_ref": _text(getattr(entry, "source_ref", "")),
-        }
+        _frozen_row(
+            summary=_text(getattr(entry, "summary", "")),
+            source=_text(getattr(entry, "source", "")),
+            source_ref=_text(getattr(entry, "source_ref", "")),
+        )
         for entry in tuple(entries or ())
         if _text(getattr(entry, "summary", ""))
         and _text(getattr(entry, "source", ""))
@@ -182,13 +226,13 @@ def _thesis_section(journal_state: object | None) -> ForwardViewSection:
             "No reviewed catalyst, risk, or invalidation evidence is available.",
             "Generated narrative cannot substitute for reviewer-authored, source-backed journal entries.",
         )
-    details: list[dict[str, object]] = []
+    details: list[Mapping[str, object]] = []
     for category, entries in (
         ("catalyst", getattr(journal_state, "catalysts", ())),
         ("risk", getattr(journal_state, "risks", ())),
         ("invalidation", getattr(journal_state, "invalidation_conditions", ())),
     ):
-        details.extend({"category": category, **row} for row in _journal_details(entries))
+        details.extend(_frozen_row(category=category, **dict(row)) for row in _journal_details(entries))
     if not details:
         return _blocked(
             "Reviewer Thesis Context",
@@ -221,14 +265,14 @@ def _nowcast_section(packet: Mapping[str, object] | None) -> ForwardViewSection:
             "No numerical range is shown until the source-backed baseline is ready.",
         )
     details = tuple(
-        {"metric": metric, "low": forecast.get(low), "high": forecast.get(high)}
+        _frozen_row(metric=metric, low=forecast.get(low), high=forecast.get(high))
         for metric, low, high in (
             ("Revenue", "revenue_low", "revenue_high"),
             ("EPS", "eps_low", "eps_high"),
         )
         if forecast.get(low) is not None and forecast.get(high) is not None
     )
-    calibrated = state == "calibrated" and bool((packet.get("calibration") or {}).get("eligible"))
+    calibrated = state == "calibrated" and bool((packet.get("calibration") or {}).get("probability_available"))
     return ForwardViewSection(
         "Earnings Outlook",
         "usable_now" if details else "partial",
@@ -239,6 +283,19 @@ def _nowcast_section(packet: Mapping[str, object] | None) -> ForwardViewSection:
             if calibrated
             else "Numerical surprise probability withheld until calibration evidence passes."
         ),
+    )
+
+
+def _apply_freshness_gate(section: ForwardViewSection, freshness: str) -> ForwardViewSection:
+    if freshness in {"current", "fresh"} or section.state == "blocked":
+        return section
+    state = "partial" if section.state == "usable_now" else section.state
+    return ForwardViewSection(
+        section.name,
+        state,
+        section.answer,
+        section.details,
+        f"{section.boundary} Saved evidence freshness is {freshness}; treat this section as review-due.",
     )
 
 
@@ -254,13 +311,14 @@ def build_forward_view(
     ticker = _text(report_payload.get("ticker")).upper()
     source_cutoff = _text(report_payload.get("generated_at") or report_payload.get("as_of_timestamp"))
     freshness = _text(freshness_state).lower() or "unknown"
-    sections = (
+    raw_sections = (
         _historical_section(quarterly_trend),
-        _valuation_section(report_payload, stale=freshness == "stale"),
+        _valuation_section(report_payload, stale=freshness not in {"current", "fresh"}),
         _peer_section(peer_map),
         _thesis_section(journal_state),
         _nowcast_section(nowcast_packet),
     )
+    sections = tuple(_apply_freshness_gate(section, freshness) for section in raw_sections)
     withheld = tuple(
         key
         for key, section in zip(

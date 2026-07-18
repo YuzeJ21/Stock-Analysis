@@ -1,4 +1,6 @@
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
+
+import pytest
 
 from src.forward_view import build_forward_view, forward_view_cards, forward_view_rows
 from src.quarterly_business_trend import build_quarterly_trend_packet
@@ -46,7 +48,13 @@ def _report():
         "valuation_snapshot": {
             "status": "calculated",
             "source_metadata": [
-                {"source": "sec_companyfacts", "source_ref": "sec:AAA", "as_of_date": "2026-06-30"}
+                {
+                    "provider": "sec_companyfacts",
+                    "freshness": "current",
+                    "retrieved_at": "2026-07-01T00:00:00Z",
+                    "official": True,
+                    "notes": ["SEC filing source"],
+                }
             ],
             "scenarios": [
                 {"name": "bear", "dcf_result": {"status": "calculated", "fair_value_per_share": 70.0}, "assumptions": {"wacc": 0.11}},
@@ -119,13 +127,79 @@ def test_nowcast_probability_stays_withheld_until_calibrated():
     uncalibrated = {
         "readiness": {"state": "baseline_ready"},
         "forecast": {"revenue_low": 100, "revenue_high": 110, "eps_low": 1.0, "eps_high": 1.2},
-        "calibration": {"eligible": False},
+        "calibration": {"probability_available": False},
     }
-    packet = build_forward_view(_report(), _ready_trend(), nowcast_packet=uncalibrated)
+    packet = build_forward_view(
+        _report(),
+        _ready_trend(),
+        nowcast_packet=uncalibrated,
+        freshness_state="current",
+    )
 
     assert packet.earnings_outlook.state == "usable_now"
     assert "probability withheld" in packet.earnings_outlook.boundary.lower()
     assert all("probability" not in str(detail).lower() for detail in packet.earnings_outlook.details)
+
+
+def test_nowcast_calibration_uses_production_probability_available_field():
+    calibrated = {
+        "readiness": {"state": "calibrated"},
+        "forecast": {"revenue_low": 100, "revenue_high": 110, "eps_low": 1.0, "eps_high": 1.2},
+        "calibration": {"probability_available": True},
+    }
+
+    packet = build_forward_view(
+        _report(),
+        _ready_trend(),
+        nowcast_packet=calibrated,
+        freshness_state="current",
+    )
+
+    assert "calibration evidence passed" in packet.earnings_outlook.boundary.lower()
+
+
+@pytest.mark.parametrize("freshness", ["stale", "unknown", "mixed", "missing"])
+def test_non_current_freshness_downgrades_every_otherwise_usable_section(freshness):
+    journal = SimpleNamespace(
+        catalysts=(_entry("Product cycle"),),
+        risks=(_entry("Customer concentration"),),
+        invalidation_conditions=(),
+    )
+    peer_map = SimpleNamespace(trusted_count=1, candidate_count=0, reviewable_count=1, boundary="Context only")
+    nowcast = {
+        "readiness": {"state": "baseline_ready"},
+        "forecast": {"revenue_low": 100, "revenue_high": 110},
+        "calibration": {"probability_available": False},
+    }
+
+    packet = build_forward_view(
+        _report(),
+        _ready_trend(),
+        journal_state=journal,
+        peer_map=peer_map,
+        nowcast_packet=nowcast,
+        freshness_state=freshness,
+    )
+
+    sections = (
+        packet.historical_trend,
+        packet.valuation_scenarios,
+        packet.peer_context,
+        packet.thesis_context,
+        packet.earnings_outlook,
+    )
+    assert all(section.state == "partial" for section in sections)
+    assert all("freshness" in section.boundary.lower() for section in sections)
+
+
+def test_forward_view_advanced_details_include_immutable_provenance():
+    packet = build_forward_view(_report(), _ready_trend(), freshness_state="current")
+
+    detail = packet.valuation_scenarios.details[0]
+    assert isinstance(detail, MappingProxyType)
+    assert detail["provenance"][0]["provider"] == "sec_companyfacts"
+    with pytest.raises(TypeError):
+        detail["name"] = "changed"
 
 
 def test_forward_view_rows_keep_technical_details_separate_and_research_only():

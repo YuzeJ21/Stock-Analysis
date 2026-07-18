@@ -181,3 +181,36 @@ def test_company_workbench_uses_composed_forward_view_and_keeps_details_advanced
     assert "forward_view_cards(forward_view_packet)" in render
     assert 'st.expander("Advanced: Forward View evidence", expanded=False)' in render
     assert "forward_view_rows(forward_view_packet)" in render
+    assert "load_dashboard_nowcast_packet(" in render
+    assert "fiscal_period" in render
+
+
+def test_dashboard_nowcast_loader_passes_exact_report_period_and_rejects_synthetic(monkeypatch):
+    calls = []
+
+    def fake_builder(root, **kwargs):
+        calls.append((root, kwargs))
+        return {"evidence_scope": "source_backed_preview_only", "fiscal_period": kwargs["fiscal_period"]}
+
+    monkeypatch.setattr(dashboard, "build_nowcast_packet", fake_builder)
+    report = {
+        "generated_at": "2026-07-17T00:00:00Z",
+        "earnings_summary": {"fiscal_period": "2026-Q3"},
+    }
+
+    packet = dashboard.load_dashboard_nowcast_packet(report, ticker="AAA")
+
+    assert packet["fiscal_period"] == "2026-Q3"
+    assert calls[0][1] == {
+        "ticker": "AAA",
+        "fiscal_period": "2026-Q3",
+        "as_of_timestamp": "2026-07-17T00:00:00Z",
+    }
+    assert dashboard.load_dashboard_nowcast_packet({"earnings_summary": {}}, ticker="AAA") is None
+
+    monkeypatch.setattr(
+        dashboard,
+        "build_nowcast_packet",
+        lambda *args, **kwargs: {"evidence_scope": "synthetic_test_evidence_only"},
+    )
+    assert dashboard.load_dashboard_nowcast_packet(report, ticker="AAA") is None

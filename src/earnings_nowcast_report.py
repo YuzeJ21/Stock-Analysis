@@ -108,15 +108,23 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def _latest_consensus(rows: Iterable[ConsensusSnapshot], ticker: str, cutoff: str) -> ConsensusSnapshot:
+def _latest_consensus(
+    rows: Iterable[ConsensusSnapshot],
+    ticker: str,
+    cutoff: str,
+    *,
+    fiscal_period: str | None = None,
+) -> ConsensusSnapshot:
     matching = [
         row
         for row in rows
         if row.ticker == ticker
+        and (fiscal_period is None or row.fiscal_period == fiscal_period)
         and parse_utc_timestamp(row.snapshot_at) <= parse_utc_timestamp(cutoff)
     ]
     if not matching:
-        raise ValueError(f"No point-in-time consensus snapshot exists for {ticker} at or before {cutoff}")
+        period_note = f" for {fiscal_period}" if fiscal_period else ""
+        raise ValueError(f"No point-in-time consensus snapshot exists for {ticker}{period_note} at or before {cutoff}")
     return max(matching, key=lambda row: parse_utc_timestamp(row.snapshot_at))
 
 
@@ -125,11 +133,24 @@ def build_nowcast_packet(
     *,
     ticker: str,
     as_of_timestamp: str,
+    fiscal_period: str | None = None,
 ) -> dict[str, object]:
     root = Path(input_root)
     if not root.is_dir():
         raise FileNotFoundError(f"Nowcast input directory is unavailable: {root}")
     normalized_ticker = str(ticker or "").strip().upper()
+    normalized_period = str(fiscal_period or "").strip().upper() or None
+    raw_consensus = [
+        row
+        for row in _read_csv(root / "consensus_snapshots.csv")
+        if str(row.get("ticker") or "").strip().upper() == normalized_ticker
+    ]
+    synthetic_only = bool(raw_consensus) and all(
+        str(row.get("source") or "").strip() == "synthetic_test_fixture"
+        for row in raw_consensus
+    )
+    if normalized_period is None and not synthetic_only:
+        raise ValueError("fiscal_period is required for real-company nowcast evidence")
     actuals = _load_actuals(root / "quarterly_actuals.csv")
     consensus_rows = _load_consensus(root / "consensus_snapshots.csv")
     signals = _load_signals(root / "signals.csv")
@@ -137,6 +158,7 @@ def build_nowcast_packet(
         (row for row in consensus_rows if row.ticker == normalized_ticker),
         normalized_ticker,
         as_of_timestamp,
+        fiscal_period=normalized_period,
     )
     selected_actuals = [row for row in actuals if row.ticker == normalized_ticker]
     selected_signals = [row for row in signals if row.target_ticker == normalized_ticker]
@@ -331,6 +353,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build a read-only earnings nowcast pilot packet.")
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--ticker")
+    parser.add_argument("--fiscal-period")
     parser.add_argument("--as-of", required=True, dest="as_of_timestamp")
     parser.add_argument("--fixture", action="store_true")
     parser.add_argument("--walkthrough", action="store_true")
@@ -364,7 +387,12 @@ def main() -> int:
         packet = (
             build_fixture_walkthrough(input_root, as_of_timestamp=args.as_of_timestamp)
             if args.walkthrough
-            else build_nowcast_packet(input_root, ticker=args.ticker, as_of_timestamp=args.as_of_timestamp)
+            else build_nowcast_packet(
+                input_root,
+                ticker=args.ticker,
+                fiscal_period=args.fiscal_period,
+                as_of_timestamp=args.as_of_timestamp,
+            )
         )
     except FileNotFoundError as exc:
         print(str(exc), file=sys.stderr)

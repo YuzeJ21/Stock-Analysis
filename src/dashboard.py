@@ -202,6 +202,7 @@ from src.coverage_expansion_loop import CoverageExpansionLoop, build_coverage_ex
 from src.dcf_input_proof_queue import build_dcf_input_proof_handoff, build_dcf_input_proof_queue_from_files
 from src.dcf_input_proof_queue import build_dcf_input_source_review_rows
 from src.earnings_nowcast_ui import nowcast_data_health_card, nowcast_summary_cards
+from src.earnings_nowcast_report import build_nowcast_packet
 from src.monthly_picks import build_monthly_research_picks
 from src.monthly_picks import MonthlyPickConfig
 from src.providers.local_data_catalog import LocalDataCatalog
@@ -5502,6 +5503,36 @@ def load_dashboard_quarterly_trend(ticker: str) -> QuarterlyTrendPacket:
         loaded.actuals,
         as_of=pd.Timestamp.now(tz="UTC").isoformat(),
     )
+
+
+def load_dashboard_nowcast_packet(
+    report_payload: dict[str, object],
+    *,
+    ticker: str,
+) -> dict[str, object] | None:
+    """Load one exact-period real-company nowcast packet or fail closed."""
+
+    earnings = report_payload.get("earnings_summary")
+    fiscal_period = (
+        str(earnings.get("fiscal_period") or "").strip().upper()
+        if isinstance(earnings, dict)
+        else ""
+    )
+    as_of = str(report_payload.get("generated_at") or "").strip()
+    if not fiscal_period or not as_of:
+        return None
+    try:
+        packet = build_nowcast_packet(
+            DATA_DIR / "earnings_nowcast",
+            ticker=ticker,
+            fiscal_period=fiscal_period,
+            as_of_timestamp=as_of,
+        )
+    except (FileNotFoundError, KeyError, TypeError, ValueError):
+        return None
+    if packet.get("evidence_scope") != "source_backed_preview_only":
+        return None
+    return packet
 
 
 def load_dashboard_weekly_summary(
@@ -30122,9 +30153,7 @@ def render_single_stock_report(
             report_payload,
             profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
         )
-        nowcast_packet = report_payload.get("earnings_nowcast")
-        if not isinstance(nowcast_packet, dict):
-            nowcast_packet = None
+        nowcast_packet = load_dashboard_nowcast_packet(report_payload, ticker=ticker)
         forward_view_packet = build_forward_view(
             report_payload,
             trend_packet,
