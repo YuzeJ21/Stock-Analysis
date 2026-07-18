@@ -42,6 +42,18 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Advanced: cohort readiness context",
         "Research-only",
     )
+    assert RESEARCH_ROUTE_SPECS[2].full_markers == (
+        "Selected Company",
+        "Advanced: selected-company lane coverage",
+        "What Changed",
+        "Business Trend",
+        "Valuation",
+        "Forward View",
+        "What Remains Withheld",
+        "Research Conclusion",
+        "Next Research Task",
+        "Research-only",
+    )
     assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
     assert "Selected Company" in RESEARCH_ROUTE_SPECS[2].full_markers
     assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers

@@ -2,6 +2,27 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-07-18 Company Workbench Answer-First Live Review
+
+The live default-profile Company Workbench route for NVDA was reviewed at
+`1280x720` and `390x844`. The route rendered the workspace boundary and one
+next action, then kept selected-company lane cards closed under
+`Advanced: selected-company lane coverage`. The unchanged selected-ticker
+answer remained visible and the full review continued through What Changed,
+Business Trend, Valuation, Forward View, What Remains Withheld, Research
+Conclusion, and Next Research Task.
+
+At both widths, no details element was expanded by default and the hidden lane
+cards were absent from rendered visible text. The document width matched the
+viewport exactly (`1280px` and `390px`), with no horizontal overflow. The phone
+first view retained the research-only boundary and primary next action before
+the selected-company content continued below it.
+
+Reviewed screenshots were saved outside the repository in the temporary review
+workspace and remain unstaged. They prove local layout and route composition
+only; they do not prove current data, source rights, hosted behavior, or
+predictive validity.
+
 ## 2026-07-18 Discover Answer-First Live Review
 
 The live demo-profile Discover route was reviewed from the selected worktree at

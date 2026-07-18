@@ -6,7 +6,7 @@ Personal Research is the default local workspace for repeated company review. It
 
 1. **Research Desk** shows the deterministic focused cohort, a traceable weekly summary, what changed, what is blocked or stale, and what to review next.
 2. **Discover** starts with the readiness-backed Stock Selector, limits it to the focused cohort, and opens one company directly in Company Workbench. Cohort scope and lane-coverage context remain available under a collapsed Advanced section after the selection task.
-3. **Company Workbench** keeps the selected company, changed evidence, quarterly business trend, valuation boundaries, forward context, withheld inputs, conclusion, and one next research task in one review path.
+3. **Company Workbench** starts with the selected company's compact usable/withheld answer, then keeps changed evidence, quarterly business trend, valuation boundaries, forward context, withheld inputs, conclusion, and one next research task in one review path. Technical lane-coverage cards remain available under a collapsed Advanced section.
 4. **Monitor** shows the weekly summary plus deduplicated unresolved source-backed changes and wait conditions without ranking companies.
 
 Data Health and Proof History remain available through **Advanced Evidence**. Operator mode remains the place for source setup, validation, preview, proof, and maintenance commands. Public mode retains the controlled five-page demonstration.
@@ -42,6 +42,8 @@ Research Desk composes a read-only coverage matrix for every focused-cohort comp
 The concise usable/gated answer appears on Research Desk; the full company-by-lane matrix remains under Advanced Evidence. A DCF-ready flag does not fabricate quarterly actuals, earnings dates, or consensus. Candidate peers do not become trusted peers. Missing source provenance remains blocked, and non-company rows remain excluded rather than forced through operating-company analysis.
 
 Discover uses the same deterministic cohort but keeps the primary company-selection task first. Its search control and compact readiness-backed rows render before the collapsed cohort context, so a researcher can choose a company without reading technical coverage evidence. This order changes no cohort membership, readiness state, ranking, or Company Workbench route.
+
+Company Workbench keeps the existing selected-ticker coverage calculation but moves its cards under `Advanced: selected-company lane coverage`. The unchanged report renderer supplies the first expanded company answer and continues to show supported evidence, withheld inputs, source-backed changes, uncertainty, and one next task. Closing the lane cards does not infer coverage, combine readiness states, or unlock a report section.
 
 Monitor also carries one compact five-company Earnings Nowcast evidence answer. Company Workbench keeps historical valuation regime, catalyst evidence, and research outcome learning inside the existing Valuation, Forward View, and Thesis Journal sequence. Their raw rows stay under Advanced. These helpers do not add a route, refresh a provider, apply an import, or change canonical readiness.
 

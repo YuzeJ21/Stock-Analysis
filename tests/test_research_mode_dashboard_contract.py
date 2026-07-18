@@ -133,6 +133,22 @@ def test_research_discover_renders_selector_before_advanced_cohort_context():
     assert heading < selector < advanced < cohort < coverage
 
 
+def test_company_workbench_keeps_lane_coverage_collapsed_before_report_answer():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    workbench_start = source.index("def render_company_workbench(")
+    workbench_end = source.index("\ndef main()", workbench_start)
+    workbench = source[workbench_start:workbench_end]
+
+    selected = workbench.index('st.markdown("### Selected Company")')
+    advanced = workbench.index(
+        'with st.expander("Advanced: selected-company lane coverage", expanded=False):'
+    )
+    coverage = workbench.index("focused_ticker_coverage_cards(coverage, ticker)", advanced)
+    report = workbench.index("render_single_stock_report(", coverage)
+
+    assert selected < advanced < coverage < report
+
+
 def test_research_workbench_data_health_handoff_stays_in_research_mode():
     import pandas as pd
 

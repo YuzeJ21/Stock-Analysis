@@ -34157,7 +34157,15 @@ def render_company_workbench(
     section_names = [section["title"] for section in company_workbench_section_contract()]
     st.caption("Review path: " + " -> ".join(section_names[:-1]))
     st.markdown("### Selected Company")
-    render_signal_cards(focused_ticker_coverage_cards(coverage, ticker), show_commands=False, variant="queue")
+    with st.expander("Advanced: selected-company lane coverage", expanded=False):
+        render_signal_cards(
+            focused_ticker_coverage_cards(coverage, ticker),
+            show_commands=False,
+            variant="queue",
+        )
+        st.caption(
+            "Lane coverage is technical evidence only; blocked and candidate-only states remain separate."
+        )
     render_single_stock_report(
         provider,
         False,
