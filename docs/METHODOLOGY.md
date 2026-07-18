@@ -46,7 +46,9 @@ Freshness is evaluated per lane because a daily price series, an annual filing, 
 
 A timestamp cannot turn an unsupported row into trusted evidence. Fresh metadata, screenshots, provider availability, or candidate context cannot substitute for the field-level source proof required by a readiness gate.
 
-Quarterly business trend is descriptive and backward-looking. Sequential and year-over-year changes do not become a forecast, recommendation, or numerical adjustment to DCF or Earnings Nowcast. Operating margin, free cash flow, and FCF margin remain withheld until explicit versioned quarterly contracts exist for those metrics.
+Quarterly business trend is descriptive and backward-looking. Sequential and year-over-year changes do not become a forecast, recommendation, or numerical adjustment to DCF or Earnings Nowcast. Revenue, EPS, operating margin, free cash flow, and FCF margin keep independent `ready`, `partial`, `blocked`, or `withheld` states.
+
+The quarterly cash-generation contract derives operating margin as reported operating income divided by compatible quarterly Revenue, free cash flow as **cash from operations + reported capital expenditures** while preserving the source-reported capital-expenditure sign, and FCF margin as derived free cash flow divided by compatible quarterly Revenue. Inputs must match currency, scale, accounting basis, duration basis, fiscal period, and period end. Cross-quarter comparisons use the stable accounting definition rather than treating different period-end dates as different measurement definitions. Missing, ambiguous, post-cutoff, zero-denominator, or incompatible inputs block only the affected metric. The contract is in-memory and descriptive; it does not write a source row, modify a canonical dataset, or promote DCF, Earnings Nowcast, peer, catalyst, outcome, backtest, or calibration readiness.
 
 ## Profile Truth And Change Review Method
 

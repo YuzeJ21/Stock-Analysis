@@ -604,6 +604,23 @@ def test_commercial_beta_continuation_prompt_is_persistent_but_evidence_bound():
     assert "Keep the goal active whenever any applicable gate remains incomplete or unproven" in prompt
 
 
+def test_quarterly_cash_generation_docs_preserve_no_file_and_market_maturity_boundaries():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal_mode = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "cash from operations + reported capital expenditures" in methodology
+    assert "explicit_filed_quarter" in provenance
+    assert "no new data file, writer, template, or generated artifact" in provenance
+    assert "reviewed quarterly source adapter" in personal_mode
+    assert "methodology maturity" in roadmap
+    assert "does not prove real-company coverage or market validation" in roadmap
+    assert "Quarterly cash-generation source adapter: `external_source_and_review_required`" in prompt
+    assert "no supplemental data file" in prompt
+
+
 def test_thesis_journal_docs_preserve_append_only_research_boundary():
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")

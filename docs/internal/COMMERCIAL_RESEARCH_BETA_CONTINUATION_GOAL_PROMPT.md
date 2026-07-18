@@ -26,6 +26,7 @@ Persistence contract:
 9. Never fabricate or infer data, forecasts, probabilities, evidence, events, peers, roles, comparability, outcomes, timestamps, sources, rights, reviewer results, hosted properties, recommendations, or completion evidence.
 10. Do not mark the objective complete until the requirement-by-requirement completion audit directly proves every applicable exit gate. Passing local tests is not proof of source access, hosting, external beta validation, evidence depth, calibration, or operating maturity.
 11. If every remaining task genuinely requires unavailable external input or new authority, leave completion unclaimed, produce the exact dependency ledger and resume checklist, and follow the active goal system's strict blocked audit. “Non-blocking” means pivoting to executable work, not retrying an unavailable dependency forever or pretending it is complete.
+12. Keep the goal active whenever any applicable gate remains incomplete or unproven. A single unavailable dependency is not a reason to stop while another safe executable local slice remains; completion requires direct evidence for all applicable gates, not persistence theater or repeated external retries.
 
 Expected lineage to verify, never assume:
 
@@ -47,6 +48,7 @@ Current locally implemented capabilities to verify:
 - Forward View, Scenario Lab, Source Freshness Timeline, Research Comparison, Peer Read-Through Map, and Decision-Process Scorecard.
 - Fail-closed provenance, source-rights, freshness, candidate-context, and synthetic-fixture controls.
 - Peer evidence-quality contract separating relationship provenance, peer role, economic comparability, result context, trend readiness, and valuation-anchor eligibility.
+- In-memory quarterly cash-generation evidence contract with independent operating-margin, free-cash-flow, and FCF-margin states, explicit filed-Q4 enforcement, Advanced-only source lineage, and no supplemental data file, writer, template, report, or generated artifact.
 
 Truth boundaries that must remain unchanged unless direct evidence proves otherwise:
 
@@ -59,6 +61,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Empty valuation, catalyst, outcome, and consensus ledgers remain visibly empty.
 - Candidate context cannot modify deterministic forecasts or become trusted evidence.
 - A source-backed peer relationship is not automatically a valuation anchor. Only explicitly reviewed `core_peer` or `secondary_peer` rows with source/as-of provenance, relationship rationale, comparability basis, and `valuation_anchor_eligible=yes` may enter peer medians.
+- Operating margin, free cash flow, and FCF margin remain withheld for real companies until a reviewed quarterly source adapter supplies compatible explicit observations. Their readiness cannot promote Revenue, EPS, DCF, consensus, peer, catalyst, outcome, backtest, or calibration states.
 
 Current external dependency classifications to verify once, then avoid looping:
 
@@ -66,6 +69,7 @@ Current external dependency classifications to verify once, then avoid looping:
 - Hosted preview: `external_account_required`; repository-side entrypoint, deterministic demo profile, runtime guidance, and checks exist, but no hosted URL or enforced access boundary has been proven.
 - Controlled beta: `external_reviewers_required`; no 10-20 session reviewer cohort has been completed.
 - Trusted-peer pilot: `external_source_and_review_required`; the local contract is implemented, but the existing legacy relationships have no inferred roles or anchor decisions. Resume with one bounded reviewed relationship, not a broad sourcing loop.
+- Quarterly cash-generation source adapter: `external_source_and_review_required`; the no-file local contract is implemented, but no reviewed real-company adapter has supplied compatible operating-income, cash-from-operations, and capital-expenditure observations. Resume with one bounded company and explicit filed-Q4 evidence, not broad coverage.
 - Numerical calibration: `external_evidence_required`; keep probability withheld until the valid-event threshold and quality gates pass.
 - Operated platform controls: `external_account_and_operations_required`; authentication, workspace isolation, audit, retention, entitlements, monitoring, and health checks must be directly proven in the actual environment.
 
@@ -76,7 +80,7 @@ Execution order for each continuation:
 3. Audit the complete user workflow: Research Desk -> Discover -> Company Workbench -> Monitor.
 4. Identify the highest-impact executable usability, methodology, evidence, reliability, or operating-readiness gap that moves an actual completion gate closer.
 5. Implement one coherent slice with failing tests first where behavior changes.
-6. Preserve independent readiness for actuals, consensus, Revenue, EPS, valuation, trusted relationships, peer comparability, peer valuation anchors, catalysts, outcomes, backtesting, and calibration.
+6. Preserve independent readiness for actuals, consensus, Revenue, EPS, operating margin, free cash flow, FCF margin, valuation, trusted relationships, peer comparability, peer valuation anchors, catalysts, outcomes, backtesting, and calibration.
 7. Keep technical evidence under Advanced unless it is required to explain the primary research answer.
 8. Classify unavailable external dependencies once and move to the next executable local roadmap item.
 9. Update tests, methodology, provenance, runbooks, ROADMAP.md, and this prompt when the verified stage or continuation contract changes.

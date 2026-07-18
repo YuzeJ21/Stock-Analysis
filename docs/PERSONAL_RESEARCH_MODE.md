@@ -56,7 +56,7 @@ Header-only templates live at `docs/templates/historical_valuation_observations.
 
 The weekly summary is derived from deduplicated, source-backed Change Monitor events from the prior seven days plus reviewer-authored journal review dates. It writes no data and does not turn a missing event into a no-change claim.
 
-Quarterly business trend is descriptive evidence, not a forecast. Revenue and EPS comparisons require explicit versioned quarterly actuals with compatible definitions. Sequential and year-over-year changes are withheld when matching periods or definitions are unavailable. Q4 is never derived from annual results; it requires an explicit filed-quarter row. Operating margin, free cash flow, and FCF margin remain withheld until they have their own versioned quarterly source contract.
+Quarterly business trend is descriptive evidence, not a forecast. Revenue and EPS comparisons require explicit versioned quarterly actuals with compatible definitions. Operating margin, free cash flow, and FCF margin now have a separate in-memory evidence contract and independent states, but production values remain withheld until a **reviewed quarterly source adapter** supplies explicit compatible observations. Sequential and year-over-year changes are withheld when matching periods or definitions are unavailable. Q4 is never derived from annual results; every Q4 component requires explicit filed-quarter evidence. Primary cards show the research answer only; component values, formulas, and source references stay in the collapsed Advanced quarterly evidence table. No supplemental file is loaded or written.
 
 ## Repeated Review Routine
 
