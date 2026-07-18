@@ -157,8 +157,15 @@ RESEARCH_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
     PublicRouteSpec(
         "Monitor",
         "/?mode=research&page=monitor",
-        "Monitor",
-        ("WEEKLY RESEARCH SUMMARY", "Research change monitor", "Research-only"),
+        "WEEKLY RESEARCH SUMMARY",
+        (
+            "WEEKLY RESEARCH SUMMARY",
+            "Research change monitor",
+            "No unresolved evidence change is queued.",
+            "Open Discover",
+            "Advanced: five-company Earnings Nowcast readiness",
+            "Research-only",
+        ),
         True,
     ),
 )

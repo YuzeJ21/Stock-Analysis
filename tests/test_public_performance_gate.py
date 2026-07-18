@@ -62,6 +62,15 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Next Research Task",
         "Research-only",
     )
+    assert RESEARCH_ROUTE_SPECS[3].first_useful_marker == "WEEKLY RESEARCH SUMMARY"
+    assert RESEARCH_ROUTE_SPECS[3].full_markers == (
+        "WEEKLY RESEARCH SUMMARY",
+        "Research change monitor",
+        "No unresolved evidence change is queued.",
+        "Open Discover",
+        "Advanced: five-company Earnings Nowcast readiness",
+        "Research-only",
+    )
     assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
     assert "Selected Company" in RESEARCH_ROUTE_SPECS[2].full_markers
     assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers

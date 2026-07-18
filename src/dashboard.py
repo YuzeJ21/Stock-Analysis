@@ -2948,6 +2948,10 @@ def apply_dashboard_theme() -> None:
         [data-testid="stMarkdownContainer"] p {
           color: var(--research-muted);
         }
+        [data-testid="stLinkButton"] a[kind="primary"],
+        [data-testid="stLinkButton"] a[kind="primary"] * {
+          color: #ffffff !important;
+        }
         .block-container {
           padding-top: 1.25rem;
           max-width: 1380px;
@@ -34120,22 +34124,22 @@ def render_research_monitor(
         primary_action="Review unresolved evidence changes; otherwise wait for new source evidence",
     )
     render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
-    nowcast_cohort = load_dashboard_nowcast_cohort()
-    st.markdown("### Earnings evidence readiness")
-    render_signal_cards(cohort_readiness_cards(nowcast_cohort), show_commands=False, variant="queue")
-    with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):
-        st.dataframe(pd.DataFrame([asdict(row) for row in nowcast_cohort]), width="stretch", hide_index=True)
-        st.caption("This board creates no forecast. Missing consensus, Q4, split, backtest, and calibration evidence remain separate blockers.")
     st.markdown("### Research change monitor")
     frame = research_monitor_frame(state.get("queue") or ())
     if frame.empty:
         render_context_note(
             "No unresolved evidence change is queued.",
             "This is a monitoring state, not a stock ranking. Continue with Discover or wait for a comparable source-backed change.",
-            tone="success",
         )
+        st.link_button("Open Discover", "?mode=research&page=discover", type="primary")
     else:
         st.dataframe(frame, width="stretch", hide_index=True)
+    nowcast_cohort = load_dashboard_nowcast_cohort()
+    with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):
+        st.markdown("### Earnings evidence readiness")
+        render_signal_cards(cohort_readiness_cards(nowcast_cohort), show_commands=False, variant="queue")
+        st.dataframe(pd.DataFrame([asdict(row) for row in nowcast_cohort]), width="stretch", hide_index=True)
+        st.caption("This board creates no forecast. Missing consensus, Q4, split, backtest, and calibration evidence remain separate blockers.")
     with st.expander("Advanced Evidence", expanded=False):
         st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
     render_research_change_route_summary("Monitor", state)

@@ -7,7 +7,7 @@ Personal Research is the default local workspace for repeated company review. It
 1. **Research Desk** starts with a traceable weekly summary, what changed, what is blocked or stale, what to review next, and the Discover action. Deterministic cohort scope, concise lane coverage, and full matrices remain under collapsed Advanced Evidence.
 2. **Discover** starts with the readiness-backed Stock Selector, limits it to the focused cohort, and opens one company directly in Company Workbench. Cohort scope and lane-coverage context remain available under a collapsed Advanced section after the selection task.
 3. **Company Workbench** starts with the selected company's compact usable/withheld answer, then keeps changed evidence, quarterly business trend, valuation boundaries, forward context, withheld inputs, conclusion, and one next research task in one review path. Technical lane-coverage cards remain available under a collapsed Advanced section.
-4. **Monitor** shows the weekly summary plus deduplicated unresolved source-backed changes and wait conditions without ranking companies.
+4. **Monitor** starts with the weekly summary and the deduplicated unresolved source-backed change answer. An empty queue is a neutral wait state with one Discover action, not proof that nothing changed. Five-company Earnings Nowcast readiness remains available under collapsed Advanced evidence without ranking companies or combining blockers.
 
 Data Health and Proof History remain available through **Advanced Evidence**. Operator mode remains the place for source setup, validation, preview, proof, and maintenance commands. Public mode retains the controlled five-page demonstration.
 

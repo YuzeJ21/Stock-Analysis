@@ -2,6 +2,32 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-07-18 Monitor Answer-First Live Review
+
+The default-profile Monitor route was reviewed before and after the hierarchy
+change at `1280x720` and `390x844`. Before the change, five-company Earnings
+Nowcast readiness interrupted the path between the weekly summary and the
+actual research-change answer. After the change, the weekly summary is followed
+by `Research change monitor`, the neutral empty-queue answer, and one Open
+Discover action. Five-company readiness cards and full rows remain unchanged
+inside the collapsed `Advanced: five-company Earnings Nowcast readiness`
+drawer.
+
+At both widths, no details element was expanded, the technical readiness card
+was absent from visible text while Advanced was closed, and the document width
+matched the viewport exactly (`1280px` and `390px`). The browser recorded no
+errors. The phone review confirmed the answer, Open Discover action, and all
+three Advanced drawers in reading order without horizontal overflow. Computed
+styles confirmed the primary action and its nested text use a white foreground
+on the existing primary-button background; the action measured approximately
+`110x40px`.
+
+Reviewed before/after screenshots were saved outside the repository and remain
+unstaged. They prove local route hierarchy, responsive reflow, and visible
+control styling only; they do not prove current market data, source rights,
+hosted behavior, full keyboard or assistive-technology support, or predictive
+validity.
+
 ## 2026-07-18 Research Desk Answer-First Live Review
 
 The live default-profile Research Desk route was reviewed at `1280x720` and

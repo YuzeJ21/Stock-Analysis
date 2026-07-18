@@ -282,6 +282,40 @@ def test_monitor_and_workbench_integrate_new_evidence_layers_without_new_routes(
     assert dashboard.workspace_path_options("Research Desk", nav.RESEARCH_MODE) == nav.RESEARCH_PATH_PAGE_TITLES
 
 
+def test_monitor_renders_change_answer_before_advanced_readiness():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    monitor_start = source.index("def render_research_monitor(")
+    monitor_end = source.index("def render_company_workbench(", monitor_start)
+    monitor = source[monitor_start:monitor_end]
+
+    weekly = monitor.index("weekly_summary_cards(weekly_summary)")
+    answer = monitor.index('st.markdown("### Research change monitor")', weekly)
+    frame = monitor.index("research_monitor_frame(state.get", answer)
+    empty = monitor.index("if frame.empty:", frame)
+    note = monitor.index("render_context_note(", empty)
+    discover = monitor.index('st.link_button("Open Discover"', note)
+    cohort = monitor.index("nowcast_cohort = load_dashboard_nowcast_cohort()", discover)
+    advanced = monitor.index(
+        'with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):',
+        cohort,
+    )
+    readiness_heading = monitor.index('st.markdown("### Earnings evidence readiness")', advanced)
+    readiness_cards = monitor.index("cohort_readiness_cards(nowcast_cohort)", readiness_heading)
+    readiness_frame = monitor.index("pd.DataFrame([asdict(row) for row in nowcast_cohort])", readiness_cards)
+
+    assert weekly < answer < frame < empty < note < discover < cohort < advanced
+    assert advanced < readiness_heading < readiness_cards < readiness_frame
+    assert 'tone="success"' not in monitor[empty:discover]
+
+
+def test_dashboard_theme_keeps_primary_link_button_text_white():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+
+    assert '[data-testid="stLinkButton"] a[kind="primary"],' in source
+    assert '[data-testid="stLinkButton"] a[kind="primary"] * {' in source
+    assert "color: #ffffff !important;" in source[source.index('[data-testid="stLinkButton"] a[kind="primary"],'):]
+
+
 def test_new_evidence_loaders_fail_closed_on_invalid_local_ledgers(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
