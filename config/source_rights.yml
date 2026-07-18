@@ -1,0 +1,30 @@
+sources:
+  - source_id: sec_companyfacts
+    display_name: SEC Companyfacts
+    permitted_use: source_backed_company_facts
+    commercial_use: approved
+    redistribution: derived_data_only
+    storage_limits: retain normalized filing facts and source references under the applicable records policy
+    attribution: SEC EDGAR with filing accession or source reference
+    rate_limits: fair-access only; identify requests with SEC_USER_AGENT and do not automate abusive retrieval
+    authentication: SEC_USER_AGENT
+    expected_freshness: filing-driven; review after a new filing becomes available
+    supported_fields:
+      - revenue
+      - shares_outstanding
+      - filing_dates
+    fallback_priority: 1
+  - source_id: yfinance
+    display_name: yfinance / Yahoo Finance
+    permitted_use: research_only
+    commercial_use: unverified
+    redistribution: not_permitted_without_separate_rights_review
+    storage_limits: local research cache only; do not retain or redistribute in commercial mode
+    attribution: yfinance / Yahoo Finance when used in research mode
+    rate_limits: follow the upstream provider terms and avoid automated bulk retrieval
+    authentication: none
+    expected_freshness: market-data dependent; not a commercial freshness guarantee
+    supported_fields:
+      - prices
+      - company_context
+    fallback_priority: 90

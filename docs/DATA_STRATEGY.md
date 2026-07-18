@@ -4,6 +4,12 @@ The product is CSV-first. Local rows are the source of truth; provider-assisted 
 
 Provider-assisted does not mean provider-decided. A provider can help populate local price rows, but the product still validates local CSV coverage before momentum, liquidity, DCF, peer, or decision sections appear. Fundamentals, peer relationships, earnings, and analyst estimates need trusted source review before they become analysis inputs.
 
+## Commercial Source Rights
+
+Commercial Research mode is fail-closed. It may use a source only when `config/source_rights.yml` records explicitly approved commercial use alongside permitted use, redistribution, storage, attribution, rate-limit, authentication, freshness, supported-field, and fallback details. Credentials and license documents stay outside Git.
+
+Run `python3 -m src.commercial_source_rights` to inspect the read-only registry, or add `--source <source_id>` for one commercial-mode decision. The current registry permits SEC Companyfacts subject to SEC fair-access requirements. `yfinance`/Yahoo Finance remains research-only until separate commercial rights are verified; the commercial gate refuses it rather than treating availability or a local cache as permission.
+
 ## Public Visitor FAQ
 
 The public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Use this data strategy as the explanation layer behind that path, not as a second navigation model.
