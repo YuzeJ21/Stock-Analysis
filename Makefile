@@ -1098,10 +1098,10 @@ daily:
 	python3 -m src.project_status --write-output
 
 dashboard:
-	streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
+	PYTHONPATH="$(CURDIR):$${PYTHONPATH:-}" streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
 
 demo-dashboard:
-	STOCK_RESEARCH_DATA_PROFILE=demo streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
+	STOCK_RESEARCH_DATA_PROFILE=demo PYTHONPATH="$(CURDIR):$${PYTHONPATH:-}" streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
 
 dashboard-smoke:
 	scripts/smoke_dashboard.sh

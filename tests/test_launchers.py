@@ -44,10 +44,14 @@ def test_streamlit_toolbar_uses_viewer_mode_for_public_dashboard():
 def test_dashboard_launchers_force_viewer_mode_for_public_demo():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     launcher = Path("scripts/dashboard.sh").read_text(encoding="utf-8")
+    smoke = Path("scripts/smoke_dashboard.sh").read_text(encoding="utf-8")
 
     assert "streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true" in makefile
     assert "--client.toolbarMode viewer" in launcher
     assert "--server.headless true" in launcher
+    assert 'export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"' in launcher
+    assert 'export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"' in smoke
+    assert 'PYTHONPATH="$(CURDIR):$${PYTHONPATH:-}" streamlit run' in makefile
 
 
 def test_public_check_requires_a_fresh_dashboard_render_smoke():
@@ -66,6 +70,8 @@ def test_dashboard_smoke_uses_an_isolated_fresh_server():
     assert 'if [[ "${PORT}" == "0" ]]' in smoke
     assert "Dashboard already healthy" not in smoke
     assert "--server.fileWatcherType none" in smoke
+    assert "Dashboard import check passed" in smoke
+    assert "Path(dashboard.__file__).resolve()" in smoke
 
 
 def test_price_mutation_targets_use_the_ignored_local_profile():
