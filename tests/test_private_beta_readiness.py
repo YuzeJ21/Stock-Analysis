@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 from src.private_beta_readiness import build_private_beta_readiness
 
 
@@ -10,6 +13,17 @@ def test_clean_local_contract_is_ready_but_account_capabilities_stay_external():
     assert checks["workspaces"].status == "external_account_required"
     assert checks["secrets"].status == "local_ready"
     assert "do not claim runtime authentication or hosting" in readiness.boundary
+    assert set(checks) == {
+        "authentication",
+        "workspaces",
+        "user_data_separation",
+        "secrets",
+        "audit",
+        "retention",
+        "entitlements",
+        "monitoring",
+        "health_checks",
+    }
 
 
 def test_declared_external_setup_still_requires_manual_verification():
@@ -30,3 +44,27 @@ def test_unsafe_secret_condition_blocks_private_beta_readiness_without_echoing_v
     assert checks["secrets"].status == "unsafe_secret_blocked"
     assert "remove the secret from tracked files" in checks["secrets"].next_step.lower()
     assert "secret value" not in checks["secrets"].detail.lower()
+
+
+def test_private_beta_cli_and_make_target_are_read_only_and_truthful():
+    cli = subprocess.run(
+        [sys.executable, "-m", "src.private_beta_readiness"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    make = subprocess.run(
+        ["make", "--no-print-directory", "private-beta-readiness"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert cli.returncode == 0
+    assert make.returncode == 0
+    for output in (cli.stdout, make.stdout):
+        assert "classification: local_ready" in output
+        assert "authentication: external_account_required" in output
+        assert "health_checks: external_account_required" in output
+        assert "does not prove runtime authentication or hosting" in output
+        assert "token=" not in output.lower()

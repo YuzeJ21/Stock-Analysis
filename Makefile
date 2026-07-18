@@ -4,6 +4,7 @@
 .PHONY: refresh-operations-status refresh-operations-runbook
 .PHONY: earnings-nowcast-sec-actuals-stage
 .PHONY: commercial-source-rights
+.PHONY: private-beta-readiness
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -209,6 +210,7 @@ help-full:
 	@echo "  make auto-refresh-status     Print source activation, setup gaps, next command, and runbook pointer"
 	@echo "  make refresh-operations-status Print read-only provider/retry planning status"
 	@echo "  make refresh-operations-runbook Print the read-only refresh operations runbook"
+	@echo "  make private-beta-readiness Print the read-only nine-area private-beta readiness contract"
 	@echo "  make scheduler-activation-checklist Print the safe scheduler activation checklist"
 	@echo "  make auto-apply-gate         Evaluate deterministic auto-apply gate fields for one staged slice"
 	@echo "  make fundamentals-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the SEC/manual fundamentals proof packet with validate, preview, rejected-row, compare, and proof-record gates"
@@ -1124,6 +1126,9 @@ provider-setup-checklist:
 
 hosted-demo-readiness:
 	@python3 -m src.hosted_demo_readiness --root .
+
+private-beta-readiness:
+	@python3 -m src.private_beta_readiness
 
 provider-smoke:
 ifndef TICKER

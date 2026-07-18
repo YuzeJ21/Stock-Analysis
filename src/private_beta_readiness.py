@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 
 
@@ -83,3 +84,31 @@ def build_private_beta_readiness(
             "hosting; do not claim runtime authentication or hosting."
         ),
     )
+
+
+def render_private_beta_readiness(readiness: PrivateBetaReadiness) -> str:
+    lines = [
+        "Private Beta Readiness",
+        "Read-only: this command does not configure accounts, inspect secrets, deploy, or claim hosted capabilities.",
+        f"classification: {readiness.classification}",
+    ]
+    lines.extend(f"- {check.area}: {check.status}; {check.next_step}" for check in readiness.checks)
+    lines.append(f"boundary: {readiness.boundary}")
+    return "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Print the read-only private-beta readiness contract.")
+    parser.add_argument("--external-setup-declared", action="store_true")
+    parser.add_argument("--unsafe-secret-detected", action="store_true")
+    args = parser.parse_args(argv)
+    readiness = build_private_beta_readiness(
+        external_setup_declared=args.external_setup_declared,
+        unsafe_secret_detected=args.unsafe_secret_detected,
+    )
+    print(render_private_beta_readiness(readiness))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
