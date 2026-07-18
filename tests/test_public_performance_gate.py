@@ -288,7 +288,7 @@ def test_reviewed_performance_baseline_documents_reproducible_evidence_boundary(
     assert "not data-freshness proof" in baseline.lower()
     assert "make commercial-beta-performance-contract" in baseline
     assert "make commercial-beta-performance-gate" in baseline
-    assert "242f1f344cdbdfab9b69c1c65b98803ad1fb465c" in baseline
+    assert "e930bd0e1b1062c029a7633a226db8dbc03a506b" in baseline
     assert "48 recorded route samples" in baseline
     assert "Company Workbench" in baseline
     assert "Research Desk" in baseline

@@ -48,22 +48,22 @@ Local verdict: **passed**. The result does not remove the separate hosted-previe
 
 ## Commercial Beta Research Workflow Result
 
-The research workflow was measured on 2026-07-18 from implementation baseline
-`242f1f344cdbdfab9b69c1c65b98803ad1fb465c` using the same tracked demo
+The research workflow was measured on 2026-07-18 from immutable release-candidate
+commit `e930bd0e1b1062c029a7633a226db8dbc03a506b` using the same tracked demo
 snapshot and environment. The run covered Research Desk, Discover, Company
 Workbench, and Monitor at both viewports with one cold and five warm samples:
 48 recorded route samples, zero failures, and no horizontal overflow.
 
 | Route | Viewport | Shell p90 | First useful p90 | Warm full p90 | Cold full |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Research Desk | 1280x720 | 0.304s | 2.208s | 2.404s | 3.103s |
-| Research Desk | 390x844 | 0.244s | 2.108s | 2.386s | 3.052s |
-| Discover | 1280x720 | 0.272s | 2.081s | 2.748s | 3.205s |
-| Discover | 390x844 | 0.241s | 2.033s | 2.684s | 3.186s |
-| Company Workbench | 1280x720 | 0.242s | 1.952s | 2.900s | 3.314s |
-| Company Workbench | 390x844 | 0.259s | 2.081s | 3.128s | 3.448s |
-| Monitor | 1280x720 | 0.250s | 1.962s | 2.458s | 2.821s |
-| Monitor | 390x844 | 0.264s | 2.038s | 2.503s | 2.895s |
+| Research Desk | 1280x720 | 0.238s | 1.934s | 2.137s | 2.881s |
+| Research Desk | 390x844 | 0.202s | 1.991s | 2.153s | 2.875s |
+| Discover | 1280x720 | 0.211s | 1.864s | 2.444s | 2.768s |
+| Discover | 390x844 | 0.208s | 1.842s | 2.474s | 2.964s |
+| Company Workbench | 1280x720 | 0.224s | 1.783s | 2.856s | 3.162s |
+| Company Workbench | 390x844 | 0.216s | 1.812s | 2.797s | 3.218s |
+| Monitor | 1280x720 | 0.208s | 1.962s | 2.213s | 2.826s |
+| Monitor | 390x844 | 0.231s | 1.811s | 2.246s | 2.679s |
 
 Reproduce the research contract and browser evidence with:
 

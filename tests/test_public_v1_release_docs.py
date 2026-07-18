@@ -156,6 +156,19 @@ def test_active_roadmap_puts_performance_before_hosting_and_external_pilot():
     assert "make commercial-beta-performance-gate" in roadmap
 
 
+def test_performance_release_gate_records_immutable_research_evidence():
+    performance = _read("docs/PERFORMANCE_RELEASE_GATE.md")
+
+    assert "immutable release-candidate" in performance
+    assert re.search(r"commit `[0-9a-f]{40}`", performance)
+    assert "48 recorded route samples, zero failures, and no horizontal overflow" in performance
+    for route in ("Research Desk", "Discover", "Company Workbench", "Monitor"):
+        assert f"| {route} | 1280x720 |" in performance
+        assert f"| {route} | 390x844 |" in performance
+    assert "/tmp/stock-command-center-commercial-beta-performance.json" in performance
+    assert "Keep it out of\nGit" in performance
+
+
 def test_hosted_handoff_covers_research_routes_health_and_rollback_without_claiming_a_host():
     hosted = _read("docs/HOSTED_DEMO_DEPLOYMENT.md")
 
