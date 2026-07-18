@@ -34083,8 +34083,6 @@ def render_research_desk(
         context,
         primary_action="Open Discover and choose one readiness-backed company",
     )
-    render_signal_cards(focused_cohort_cards(cohort), show_commands=False, variant="queue")
-    render_signal_cards(focused_cohort_coverage_cards(coverage), show_commands=False, variant="queue")
     st.markdown("### Weekly research summary")
     render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
     cards = research_desk_cards(
@@ -34095,6 +34093,8 @@ def render_research_desk(
     st.markdown(research_desk_cards_html(cards), unsafe_allow_html=True)
     st.link_button("Open Discover", "?mode=research&page=discover", type="primary")
     with st.expander("Advanced Evidence", expanded=False):
+        render_signal_cards(focused_cohort_cards(cohort), show_commands=False, variant="queue")
+        render_signal_cards(focused_cohort_coverage_cards(coverage), show_commands=False, variant="queue")
         cohort_frame = focused_cohort_frame(cohort)
         if not cohort_frame.empty:
             st.dataframe(cohort_frame, width="stretch", hide_index=True)

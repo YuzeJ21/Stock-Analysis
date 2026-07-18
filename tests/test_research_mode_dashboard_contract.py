@@ -199,15 +199,25 @@ def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_pa
     assert states["quarterly_revenue"] == "blocked"
 
 
-def test_research_desk_keeps_full_cohort_coverage_under_advanced_evidence():
+def test_research_desk_renders_answers_before_advanced_cohort_context():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     desk_start = source.index("def render_research_desk(")
     desk_end = source.index("def render_research_monitor(", desk_start)
     desk = source[desk_start:desk_end]
 
-    assert "focused_cohort_coverage_cards(coverage)" in desk
-    assert 'with st.expander("Advanced Evidence", expanded=False):' in desk
-    assert "focused_cohort_coverage_frame(coverage)" in desk
+    weekly = desk.index('st.markdown("### Weekly research summary")')
+    weekly_cards = desk.index("weekly_summary_cards(weekly_summary)", weekly)
+    answers = desk.index("cards = research_desk_cards(", weekly_cards)
+    answers_html = desk.index("research_desk_cards_html(cards)", answers)
+    discover = desk.index('st.link_button("Open Discover"', answers_html)
+    advanced = desk.index('with st.expander("Advanced Evidence", expanded=False):', discover)
+    cohort = desk.index("focused_cohort_cards(cohort)", advanced)
+    coverage = desk.index("focused_cohort_coverage_cards(coverage)", cohort)
+    cohort_frame = desk.index("focused_cohort_frame(cohort)", coverage)
+    coverage_frame = desk.index("focused_cohort_coverage_frame(coverage)", cohort_frame)
+
+    assert weekly < weekly_cards < answers < answers_html < discover < advanced
+    assert advanced < cohort < coverage < cohort_frame < coverage_frame
 
 
 def test_company_workbench_uses_composed_forward_view_and_keeps_details_advanced():

@@ -35,6 +35,14 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Monitor",
     ]
     assert all(route.critical for route in RESEARCH_ROUTE_SPECS)
+    assert RESEARCH_ROUTE_SPECS[0].first_useful_marker == "Weekly research summary"
+    assert RESEARCH_ROUTE_SPECS[0].full_markers == (
+        "Weekly research summary",
+        "What should I review next?",
+        "Open Discover",
+        "Advanced Evidence",
+        "Research-only",
+    )
     assert RESEARCH_ROUTE_SPECS[1].first_useful_marker == "Which stock can I review?"
     assert RESEARCH_ROUTE_SPECS[1].full_markers == (
         "Discover",

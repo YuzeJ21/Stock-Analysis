@@ -2,6 +2,26 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-07-18 Research Desk Answer-First Live Review
+
+The live default-profile Research Desk route was reviewed at `1280x720` and
+`390x844`. The workspace boundary and Discover next action were followed by the
+weekly research summary, four direct research answers, and the Open Discover
+action. Focused-cohort scope, concise lane coverage, full matrices, and weekly
+rows remained available inside the existing collapsed `Advanced Evidence`
+drawer.
+
+At both widths, no details element was expanded by default and the hidden cohort
+cards were absent from rendered visible text. The weekly summary, `What should I
+review next?`, Open Discover, and Advanced Evidence remained present. The
+document width matched the viewport exactly (`1280px` and `390px`), with no
+horizontal overflow, and the browser recorded no errors.
+
+Reviewed screenshots were saved outside the repository in the temporary review
+workspace and remain unstaged. They prove local layout and route composition
+only; they do not prove current data, source rights, hosted behavior, or
+predictive validity.
+
 ## 2026-07-18 Company Workbench Answer-First Live Review
 
 The live default-profile Company Workbench route for NVDA was reviewed at
