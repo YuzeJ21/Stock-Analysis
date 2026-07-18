@@ -33668,6 +33668,28 @@ def test_single_stock_journal_stays_compact_and_advanced_history_is_collapsed():
     assert render_source.index("research_thesis_journal_html") < render_source.index("Detailed report stays closed.")
 
 
+def test_company_workbench_cash_generation_uses_no_supplemental_file_and_keeps_evidence_advanced():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    business_trend_index = render_source.index('st.markdown("### Business Trend")')
+    primary_cards_index = render_source.index("quarterly_trend_cards(trend_packet)", business_trend_index)
+    evidence_drawer_index = render_source.index(
+        'st.expander("Advanced: quarterly trend evidence", expanded=False)',
+        primary_cards_index,
+    )
+    evidence_rows_index = render_source.index("quarterly_trend_rows(trend_packet)", evidence_drawer_index)
+
+    assert business_trend_index < primary_cards_index < evidence_drawer_index < evidence_rows_index
+    assert "quarterly_cash_generation.csv" not in source
+    assert "quarterly_business_observations.csv" not in source
+    assert "quarterly-cash-generation" not in makefile
+    assert "cash-generation-report" not in makefile
+
+
 def test_scenario_lab_input_from_report_preserves_source_backed_fields():
     payload = {
         "ticker": "SYN1",

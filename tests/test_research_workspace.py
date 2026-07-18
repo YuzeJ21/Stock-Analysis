@@ -18,8 +18,61 @@ from src.research_workspace import (
 )
 from src.focused_cohort_coverage import FocusedCohortCoverage, FocusedCohortCoverageRow
 from src.focused_research_cohort import FocusedCohort, FocusedCohortMember
+from src.earnings_nowcast_contract import QuarterlyActual
 from src.quarterly_business_trend import build_quarterly_trend_packet
+from src.quarterly_cash_generation import QuarterlyBusinessObservation
 from src.weekly_research_summary import WeeklyResearchSummary
+
+
+def _quarterly_actual(period: str, revenue: float, eps: float) -> QuarterlyActual:
+    year = int(period[:4])
+    quarter = int(period[-1])
+    period_end = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}[quarter]
+    return QuarterlyActual(
+        ticker="SYN1",
+        fiscal_period=period,
+        period_end_date=f"{year}-{period_end}",
+        reported_at=f"{year + (quarter == 4)}-05-15T12:00:00+00:00",
+        revenue_actual=revenue,
+        eps_actual=eps,
+        source="synthetic_test_fixture",
+        source_ref=f"fixture:{period}:actuals",
+        retrieved_at="2026-07-18T12:00:00+00:00",
+        revenue_currency="USD",
+        revenue_unit_scale=1.0,
+        revenue_basis="reported",
+        eps_currency="USD",
+        eps_basis="gaap",
+        eps_share_basis="diluted",
+        eps_operations_basis="reported",
+        split_adjustment_basis="as_reported",
+    )
+
+
+def _quarterly_business_observation(
+    period: str,
+    metric: str,
+    value: float,
+) -> QuarterlyBusinessObservation:
+    year = int(period[:4])
+    quarter = int(period[-1])
+    period_end = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}[quarter]
+    return QuarterlyBusinessObservation(
+        ticker="SYN1",
+        fiscal_period=period,
+        period_end_date=f"{year}-{period_end}",
+        metric=metric,
+        value=value,
+        currency="USD",
+        unit_scale=1.0,
+        accounting_basis="reported",
+        duration_basis="three_months",
+        source="synthetic_test_fixture",
+        source_ref=f"fixture:{period}:{metric}",
+        published_at=f"{year + (quarter == 4)}-05-15T12:00:00+00:00",
+        retrieved_at="2026-07-18T12:00:00+00:00",
+        q4_evidence_state="explicit_filed_quarter" if quarter == 4 else "not_q4",
+    )
 
 
 def test_research_desk_answers_changes_attention_blockers_and_next_action_without_recommendations():
@@ -112,6 +165,62 @@ def test_cohort_trend_and_weekly_cards_keep_truthful_boundaries():
     rendered = str(cohort_cards + trend_cards + summary_cards).lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_quarterly_trend_cards_keep_cash_generation_withheld_without_reviewed_observations():
+    packet = build_quarterly_trend_packet(
+        "SYN1",
+        [_quarterly_actual("2025-Q1", 120.0, 1.2)],
+    )
+
+    cards = quarterly_trend_cards(packet)
+    by_kicker = {card["kicker"]: card for card in cards}
+
+    assert by_kicker["OPERATING MARGIN"]["title"] == "Withheld"
+    assert by_kicker["FREE CASH FLOW"]["title"] == "Withheld"
+    assert by_kicker["FCF MARGIN"]["title"] == "Withheld"
+    assert all(
+        "reviewed" in by_kicker[kicker]["body"].lower()
+        and "source adapter" in by_kicker[kicker]["body"].lower()
+        for kicker in ("OPERATING MARGIN", "FREE CASH FLOW", "FCF MARGIN")
+    )
+
+
+def test_quarterly_trend_cards_show_cash_conversion_answer_without_raw_formula_or_sources():
+    actuals = [
+        _quarterly_actual("2024-Q1", 80.0, 0.8),
+        _quarterly_actual("2024-Q4", 100.0, 1.0),
+        _quarterly_actual("2025-Q1", 120.0, 1.2),
+    ]
+    values = {
+        "2024-Q1": {"operating_income": 20.0, "cash_from_operations": 24.0, "capital_expenditures": -8.0},
+        "2024-Q4": {"operating_income": 20.0, "cash_from_operations": 30.0, "capital_expenditures": -10.0},
+        "2025-Q1": {"operating_income": 30.0, "cash_from_operations": 36.0, "capital_expenditures": -12.0},
+    }
+    observations = [
+        _quarterly_business_observation(period, metric, value)
+        for period, metrics in values.items()
+        for metric, value in metrics.items()
+    ]
+
+    cards = quarterly_trend_cards(
+        build_quarterly_trend_packet(
+            "SYN1",
+            actuals,
+            business_observations=observations,
+        )
+    )
+    by_kicker = {card["kicker"]: card for card in cards}
+
+    assert by_kicker["OPERATING MARGIN"]["title"] == "25.0%"
+    assert by_kicker["FREE CASH FLOW"]["title"] == "24"
+    assert by_kicker["FCF MARGIN"]["title"] == "20.0%"
+    assert "sequential +25.0%" in by_kicker["OPERATING MARGIN"]["body"]
+    primary_text = str(cards).lower()
+    assert "fixture:" not in primary_text
+    assert "cash_from_operations" not in primary_text
+    assert "capital_expenditures" not in primary_text
+    assert "cfo +" not in primary_text
 
 
 def test_focused_cohort_coverage_cards_answer_what_is_usable_without_overclaiming():

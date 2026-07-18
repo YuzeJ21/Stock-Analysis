@@ -246,17 +246,30 @@ def quarterly_trend_cards(packet: QuarterlyTrendPacket) -> list[dict[str, object
             "command": "",
         }
     ]
-    for label, trend in (("Revenue", packet.revenue), ("EPS", packet.eps)):
+    metrics = (
+        ("Revenue", packet.revenue, False),
+        ("EPS", packet.eps, False),
+        ("Operating margin", packet.operating_margin, True),
+        ("Free cash flow", packet.free_cash_flow, False),
+        ("FCF margin", packet.fcf_margin, True),
+    )
+    for label, trend, is_percent in metrics:
         change_parts = []
         if trend.sequential_change_pct is not None:
             change_parts.append(f"sequential {trend.sequential_change_pct:+.1f}%")
         if trend.year_over_year_change_pct is not None:
             change_parts.append(f"year over year {trend.year_over_year_change_pct:+.1f}%")
         boundary = "; ".join((*trend.missing_comparisons, trend.withheld_reason)).strip("; ")
+        if trend.latest_value is None:
+            title = "Withheld"
+        elif is_percent:
+            title = f"{trend.latest_value * 100:.1f}%"
+        else:
+            title = f"{trend.latest_value:g}"
         cards.append(
             {
                 "kicker": label.upper(),
-                "title": str(trend.latest_value) if trend.latest_value is not None else "Withheld",
+                "title": title,
                 "body": ", ".join(change_parts) if change_parts else boundary or "Comparable change is withheld.",
                 "state": trend.status,
                 "badges": [trend.status, trend.latest_fiscal_period or "no period"],
