@@ -990,15 +990,14 @@ def build_ticker_readiness_report(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    write_outputs: bool = True,
 ) -> dict[str, pd.DataFrame]:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
     outputs_path = resolve_outputs_dir(output_dir, root)
     reports_path = data_path / "reports"
-    ensure_universe_files(root, data_dir=data_path)
+    master, active = ensure_universe_files(root, data_dir=data_path, write_outputs=write_outputs)
     thresholds = _load_thresholds(root)
-    master = _read_csv(data_path / "universe_master.csv")
-    active = _read_csv(data_path / "universe_active.csv")
     legacy = _read_csv(data_path / "universe.csv")
     holdings = _read_csv(data_path / "holdings.csv")
     prices = _read_csv(data_path / "prices.csv")
@@ -1006,7 +1005,7 @@ def build_ticker_readiness_report(
     earnings = _read_csv(data_path / "earnings.csv")
     estimates = _read_csv(data_path / "analyst_estimates.csv")
 
-    universe_report = build_universe_coverage_report(root, data_dir=data_path)
+    universe_report = build_universe_coverage_report(root, data_dir=data_path, write_output=write_outputs)
     price_report = build_price_coverage_report(root, data_path, master, active, thresholds)
     fundamentals_report = build_fundamentals_coverage_report(root, data_path, master)
     peer_report = build_peer_readiness_report(root, data_path, master, thresholds)
@@ -1161,16 +1160,17 @@ def build_ticker_readiness_report(
         "peer_unlock_worklist": peer_unlock_worklist,
         "data_source_status": source_status,
     }
-    for name, frame in reports.items():
-        _write(frame, reports_path / f"{name}.csv")
-    # Compatibility copies for existing dashboard/helpers.
-    _write(price_report, data_path / "price_coverage_report.csv")
-    _write(dcf_report, data_path / "dcf_readiness.csv")
-    _write(earnings_report, data_path / "earnings_readiness.csv")
-    _write(estimates_report, data_path / "analyst_estimates_readiness.csv")
-    outputs_path.mkdir(parents=True, exist_ok=True)
-    _write(feature_summary, outputs_path / "feature_readiness_summary.csv")
-    _write(peer_unlock_worklist, outputs_path / "peer_unlock_worklist.csv")
+    if write_outputs:
+        for name, frame in reports.items():
+            _write(frame, reports_path / f"{name}.csv")
+        # Compatibility copies for existing dashboard/helpers.
+        _write(price_report, data_path / "price_coverage_report.csv")
+        _write(dcf_report, data_path / "dcf_readiness.csv")
+        _write(earnings_report, data_path / "earnings_readiness.csv")
+        _write(estimates_report, data_path / "analyst_estimates_readiness.csv")
+        outputs_path.mkdir(parents=True, exist_ok=True)
+        _write(feature_summary, outputs_path / "feature_readiness_summary.csv")
+        _write(peer_unlock_worklist, outputs_path / "peer_unlock_worklist.csv")
     return reports
 
 

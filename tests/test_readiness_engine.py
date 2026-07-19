@@ -9,6 +9,50 @@ from src.readiness_engine import (
 )
 
 
+def _file_manifest(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+
+
+def test_ticker_readiness_no_write_returns_reports_without_mutating_files(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "name": "NVIDIA",
+                "exchange": "NASDAQ",
+                "asset_type": "company",
+                "sector": "Technology",
+                "source": "test_fixture",
+            }
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame(
+        [{"ticker": "NVDA", "scope": "active_research", "theme": "AI"}]
+    ).to_csv(data_dir / "universe_active.csv", index=False)
+    before = _file_manifest(tmp_path)
+
+    reports = build_ticker_readiness_report(
+        tmp_path,
+        data_dir=data_dir,
+        output_dir=tmp_path / "outputs",
+        write_outputs=False,
+    )
+
+    assert "ticker_readiness_report" in reports
+    assert "data_source_status" in reports
+    assert set(reports["ticker_readiness_report"]["ticker"]) == {"NVDA"}
+    assert _file_manifest(tmp_path) == before
+    assert not (tmp_path / "outputs").exists()
+
+
 def _price_rows(ticker: str, periods: int) -> list[dict[str, object]]:
     return [
         {
