@@ -2,6 +2,12 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-07-18 Personal Research Evidence Detour Continuity
+
+Read-only AppTest coverage now verifies six Personal Research surfaces: Research Desk, Discover, Company Workbench, Monitor, Research Data Health, and Research Proof History. Data Health and Proof History stay inside Personal Research mode when opened from Company Workbench Advanced Evidence, preserve the selected ticker, and show **Return to Company Workbench** before existing evidence content.
+
+The same-mode detour does not change readiness or evidence state, add a route, expose Operator commands, refresh data, record a review outcome, or treat Proof History as an unlock. The active continuation contract prohibited new screenshots, so this pass proves route and render continuity only; it does not prove visual spacing, focus order, contrast, assistive-technology behavior, hosted behavior, or accessibility compliance.
+
 ## 2026-07-18 Monitor Answer-First Live Review
 
 The default-profile Monitor route was reviewed before and after the hierarchy

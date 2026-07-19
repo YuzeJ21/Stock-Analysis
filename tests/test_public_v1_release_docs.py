@@ -660,6 +660,18 @@ def test_mobile_research_first_action_docs_preserve_readiness_and_market_boundar
     assert "mobile first-action density" in prompt.lower()
 
 
+def test_personal_research_evidence_detours_preserve_workspace_and_return_path():
+    roadmap = _read("ROADMAP.md")
+    personal_mode = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, personal_mode, dashboard_qa, prompt):
+        assert "Data Health and Proof History stay inside Personal Research mode" in text
+        assert "Return to Company Workbench" in text
+        assert "does not change readiness" in text
+
+
 def test_pilot_freshness_docs_fail_closed_on_declared_source_dates():
     data_strategy = _read("docs/DATA_STRATEGY.md")
     roadmap = _read("ROADMAP.md")

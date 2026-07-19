@@ -11,6 +11,8 @@ Personal Research is the default local workspace for repeated company review. It
 
 Data Health and Proof History remain available through **Advanced Evidence**. Operator mode remains the place for source setup, validation, preview, proof, and maintenance commands. Public mode retains the controlled five-page demonstration.
 
+Data Health and Proof History stay inside Personal Research mode when opened from Company Workbench Advanced Evidence. Both preserve the selected ticker and show a direct **Return to Company Workbench** action before evidence content; a missing ticker returns to Research Desk instead of inventing a company. This navigation does not change readiness or evidence state, record a review outcome, expose Operator commands, or promote blocked inputs.
+
 ## Research States
 
 Personal Research may route work only as:
