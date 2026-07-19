@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 
+from src.commercial_source_rights import build_source_rights_registry
 from src.focused_cohort_coverage import (
     COHORT_COVERAGE_LANES,
     build_focused_cohort_coverage,
@@ -58,6 +59,27 @@ def _cohort():
         ]
     )
     return build_focused_cohort(readiness, universe, target_size=1, minimum_size=1), readiness
+
+
+def _rights_registry(*supported_fields: str):
+    return build_source_rights_registry(
+        [
+            {
+                "source_id": "licensed_source",
+                "display_name": "Licensed fixture source",
+                "permitted_use": "reviewed_research",
+                "commercial_use": "approved",
+                "redistribution": "derived_data_only",
+                "storage_limits": "reviewed rows only",
+                "attribution": "source reference required",
+                "rate_limits": "fixture only",
+                "authentication": "fixture only",
+                "expected_freshness": "fixture timestamp",
+                "supported_fields": list(supported_fields),
+                "fallback_priority": 1,
+            }
+        ]
+    )
 
 
 def test_coverage_matrix_reports_each_required_lane_without_padding_missing_evidence():
@@ -210,6 +232,7 @@ def test_derive_cohort_evidence_requires_values_and_source_provenance():
                 "source": "licensed_consensus",
                 "source_ref": "consensus:AAA:2026-Q2",
                 "snapshot_at": "2026-07-01T00:00:00Z",
+                "revenue_consensus": 100.0,
             }
         ]
     )
@@ -278,6 +301,146 @@ def test_consensus_after_cutoff_and_unverified_commercial_sources_fail_closed():
     assert cutoff["AAA"]["point_in_time_consensus_state"] == "blocked"
     assert commercial["AAA"]["shares_state"] == "blocked"
     assert commercial["AAA"]["point_in_time_consensus_state"] == "blocked"
+
+
+def test_checked_registry_does_not_reuse_sec_revenue_permission_for_unrelated_fields():
+    fundamentals = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "source": "sec_companyfacts",
+                "source_ref": "sec:AAA:10-Q",
+                "operating_margin": 0.2,
+                "free_cash_flow": 10.0,
+                "cash": 50.0,
+                "debt": 20.0,
+                "shares_outstanding": 100.0,
+                "sec_filed_date": "2026-05-01",
+            }
+        ]
+    )
+
+    evidence = derive_cohort_evidence(
+        ("AAA",), fundamentals=fundamentals, commercial_mode=True
+    )["AAA"]
+
+    assert evidence["margin_state"] == "blocked"
+    assert evidence["free_cash_flow_state"] == "blocked"
+    assert evidence["cash_debt_state"] == "blocked"
+    assert evidence["shares_state"] == "usable_now"
+    assert evidence["filing_dates_state"] == "usable_now"
+    assert "operating_margin" in evidence["margin_evidence"]
+    assert "free_cash_flow" in evidence["free_cash_flow_evidence"]
+
+
+def test_commercial_cash_and_debt_scope_remain_independent():
+    fundamentals = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "source": "licensed_source",
+                "source_ref": "licensed:AAA",
+                "cash": 50.0,
+                "debt": 20.0,
+            }
+        ]
+    )
+
+    cash_only = derive_cohort_evidence(
+        ("AAA",),
+        fundamentals=fundamentals,
+        commercial_mode=True,
+        rights_registry=_rights_registry("cash"),
+    )["AAA"]
+    both = derive_cohort_evidence(
+        ("AAA",),
+        fundamentals=fundamentals,
+        commercial_mode=True,
+        rights_registry=_rights_registry("cash", "debt"),
+    )["AAA"]
+
+    assert cash_only["cash_debt_state"] == "partial"
+    assert "debt" in cash_only["cash_debt_evidence"]
+    assert both["cash_debt_state"] == "usable_now"
+
+
+def test_commercial_earnings_consensus_and_peer_fields_require_own_scope():
+    readiness = pd.DataFrame([{"ticker": "AAA", "peer_ready": True}])
+    earnings = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "source": "licensed_source",
+                "source_ref": "licensed:earnings:AAA",
+                "next_earnings_date": "2026-08-15",
+            }
+        ]
+    )
+    consensus = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "fiscal_period": "2026-Q2",
+                "source": "licensed_source",
+                "source_ref": "licensed:consensus:AAA",
+                "snapshot_at": "2026-07-16T00:00:00Z",
+                "revenue_consensus": 100.0,
+                "eps_consensus": 1.0,
+            }
+        ]
+    )
+    peers = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "peer_ticker": "BBB",
+                "source": "licensed_source",
+                "source_ref": "licensed:peer:AAA:BBB",
+            }
+        ]
+    )
+
+    evidence = derive_cohort_evidence(
+        ("AAA",),
+        readiness=readiness,
+        earnings=earnings,
+        consensus=consensus,
+        peers=peers,
+        as_of="2026-07-17T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=_rights_registry("revenue_consensus"),
+    )["AAA"]
+
+    assert evidence["earnings_dates_state"] == "blocked"
+    assert evidence["point_in_time_consensus_state"] == "blocked"
+    assert "eps_consensus" in evidence["point_in_time_consensus_evidence"]
+    assert evidence["trusted_peers_state"] == "blocked"
+    assert "trusted_peers" in evidence["trusted_peers_evidence"]
+
+
+def test_commercial_consensus_requires_a_populated_metric_not_only_a_date():
+    consensus = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "fiscal_period": "2026-Q2",
+                "source": "licensed_source",
+                "source_ref": "licensed:consensus:AAA",
+                "snapshot_at": "2026-07-16T00:00:00Z",
+            }
+        ]
+    )
+
+    evidence = derive_cohort_evidence(
+        ("AAA",),
+        consensus=consensus,
+        as_of="2026-07-17T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=_rights_registry("revenue_consensus", "eps_consensus"),
+    )["AAA"]
+
+    assert evidence["point_in_time_consensus_state"] == "blocked"
+    assert "value" in evidence["point_in_time_consensus_evidence"].lower()
 
 
 def test_candidate_peer_rows_remain_candidate_context_only():

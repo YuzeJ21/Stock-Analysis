@@ -7,7 +7,11 @@ from typing import Mapping
 
 import pandas as pd
 
-from src.commercial_source_rights import commercial_eligibility, load_source_rights_registry
+from src.commercial_source_rights import (
+    SourceRights,
+    load_source_rights_registry,
+    review_commercial_field_scope,
+)
 from src.focused_research_cohort import FocusedCohort
 from src.quarterly_business_trend import QuarterlyTrendPacket
 
@@ -53,6 +57,16 @@ class FocusedCohortCoverage:
     message: str
 
 
+@dataclass(frozen=True)
+class CohortSavedFieldReview:
+    technical_available: bool
+    provenance_complete: bool
+    commercial_rights_approved: bool
+    required_supported_fields: tuple[str, ...]
+    missing_supported_fields: tuple[str, ...]
+    usable: bool
+
+
 def _text(value: object) -> str:
     if value is None:
         return ""
@@ -94,21 +108,130 @@ def _has_value(row: pd.Series | None, *fields: str) -> bool:
     return False
 
 
-def _source_backed(
+def _commercial_field_review(
     row: pd.Series | None,
     *,
+    technical_available: bool,
+    required_fields: tuple[str, ...],
     commercial_mode: bool = False,
-    rights_registry=None,
-) -> bool:
-    if row is None or not _has_value(row, "source", "source_ref", "sec_accession"):
-        return False
+    rights_registry: Mapping[str, SourceRights] | None = None,
+) -> CohortSavedFieldReview:
+    research_source_backed = bool(
+        row is not None and _has_value(row, "source", "source_ref", "sec_accession")
+    )
+    provenance_complete = bool(
+        row is not None
+        and _has_value(row, "source")
+        and _has_value(row, "source_ref", "sec_accession")
+    )
     if not commercial_mode:
-        return True
-    source_id = _text(row.get("source"))
-    if not source_id:
-        return False
+        return CohortSavedFieldReview(
+            technical_available=technical_available,
+            provenance_complete=research_source_backed,
+            commercial_rights_approved=True,
+            required_supported_fields=required_fields,
+            missing_supported_fields=(),
+            usable=technical_available and research_source_backed,
+        )
+    source_id = _text(row.get("source")) if row is not None else ""
     registry = rights_registry if rights_registry is not None else load_source_rights_registry()
-    return commercial_eligibility(registry, source_id).allowed
+    review = review_commercial_field_scope(registry, source_id, required_fields)
+    return CohortSavedFieldReview(
+        technical_available=technical_available,
+        provenance_complete=provenance_complete,
+        commercial_rights_approved=review.commercial_rights_approved,
+        required_supported_fields=review.required_supported_fields,
+        missing_supported_fields=review.missing_supported_fields,
+        usable=(
+            technical_available
+            and provenance_complete
+            and review.commercial_evidence_ready
+        ),
+    )
+
+
+def _populated_fields(
+    row: pd.Series | None,
+    field_aliases: tuple[tuple[str, tuple[str, ...]], ...],
+) -> tuple[str, ...]:
+    return tuple(
+        field
+        for field, aliases in field_aliases
+        if _has_value(row, *aliases)
+    )
+
+
+def _alternative_field_review(
+    row: pd.Series | None,
+    field_aliases: tuple[tuple[str, tuple[str, ...]], ...],
+    *,
+    commercial_mode: bool,
+    rights_registry: Mapping[str, SourceRights] | None,
+) -> CohortSavedFieldReview:
+    populated = _populated_fields(row, field_aliases)
+    if not populated:
+        return _commercial_field_review(
+            row,
+            technical_available=False,
+            required_fields=(),
+            commercial_mode=commercial_mode,
+            rights_registry=rights_registry,
+        )
+    reviews = tuple(
+        _commercial_field_review(
+            row,
+            technical_available=True,
+            required_fields=(field,),
+            commercial_mode=commercial_mode,
+            rights_registry=rights_registry,
+        )
+        for field in populated
+    )
+    if any(review.usable for review in reviews):
+        selected = next(review for review in reviews if review.usable)
+        return CohortSavedFieldReview(
+            technical_available=True,
+            provenance_complete=selected.provenance_complete,
+            commercial_rights_approved=selected.commercial_rights_approved,
+            required_supported_fields=populated,
+            missing_supported_fields=(),
+            usable=True,
+        )
+    return CohortSavedFieldReview(
+        technical_available=True,
+        provenance_complete=all(review.provenance_complete for review in reviews),
+        commercial_rights_approved=all(
+            review.commercial_rights_approved for review in reviews
+        ),
+        required_supported_fields=populated,
+        missing_supported_fields=tuple(
+            field
+            for review in reviews
+            for field in review.missing_supported_fields
+        ),
+        usable=False,
+    )
+
+
+def _commercial_blocked_evidence(
+    review: CohortSavedFieldReview,
+    *,
+    available: str,
+    missing: str,
+) -> str:
+    if review.usable:
+        return available
+    if not review.technical_available:
+        return missing
+    if not review.provenance_complete:
+        return "A saved technical value exists, but source provenance is incomplete."
+    if not review.commercial_rights_approved:
+        return "A saved technical value and provenance exist, but exact-source commercial rights are not approved."
+    fields = ", ".join(review.missing_supported_fields) or "required lane field"
+    return (
+        "A saved technical value and provenance exist, but registered field scope "
+        f"is incomplete: {fields}."
+    )
 
 
 def _latest_consensus_by_cutoff(frame: pd.DataFrame | None, *, as_of: str | None) -> dict[str, pd.Series]:
@@ -160,6 +283,7 @@ def derive_cohort_evidence(
     peer_candidates: pd.DataFrame | None = None,
     as_of: str | None = None,
     commercial_mode: bool = False,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> dict[str, dict[str, object]]:
     """Derive display states only from saved rows that retain provenance."""
 
@@ -170,7 +294,13 @@ def derive_cohort_evidence(
     earnings_rows = _row_map(earnings)
     peer_rows = _grouped_rows(peers)
     candidate_rows = _grouped_rows(peer_candidates)
-    rights_registry = load_source_rights_registry() if commercial_mode else None
+    registry = (
+        rights_registry
+        if rights_registry is not None
+        else load_source_rights_registry()
+        if commercial_mode
+        else None
+    )
     result: dict[str, dict[str, object]] = {}
     for raw_ticker in tickers:
         ticker = _text(raw_ticker).upper()
@@ -179,43 +309,97 @@ def derive_cohort_evidence(
         universe_row = universe_rows.get(ticker)
         consensus_row = consensus_rows.get(ticker)
         earnings_row = earnings_rows.get(ticker)
-        source_backed = _source_backed(
+        margin_review = _alternative_field_review(
             fundamental,
+            (
+                ("operating_margin", ("operating_margin",)),
+                ("fcf_margin", ("fcf_margin",)),
+                ("profit_margin", ("profit_margin",)),
+            ),
             commercial_mode=commercial_mode,
-            rights_registry=rights_registry,
+            rights_registry=registry,
+        )
+        fcf_review = _alternative_field_review(
+            fundamental,
+            (("free_cash_flow", ("free_cash_flow", "fcf")),),
+            commercial_mode=commercial_mode,
+            rights_registry=registry,
+        )
+        cash_review = _commercial_field_review(
+            fundamental,
+            technical_available=_has_value(fundamental, "cash"),
+            required_fields=("cash",),
+            commercial_mode=commercial_mode,
+            rights_registry=registry,
+        )
+        debt_review = _commercial_field_review(
+            fundamental,
+            technical_available=_has_value(fundamental, "debt"),
+            required_fields=("debt",),
+            commercial_mode=commercial_mode,
+            rights_registry=registry,
+        )
+        shares_review = _commercial_field_review(
+            fundamental,
+            technical_available=_has_value(fundamental, "shares_outstanding"),
+            required_fields=("shares_outstanding",),
+            commercial_mode=commercial_mode,
+            rights_registry=registry,
+        )
+        filing_review = _commercial_field_review(
+            fundamental,
+            technical_available=_has_value(fundamental, "sec_filed_date", "filed_date"),
+            required_fields=("filing_dates",),
+            commercial_mode=commercial_mode,
+            rights_registry=registry,
         )
 
-        margin_ready = source_backed and _has_value(fundamental, "operating_margin", "fcf_margin", "profit_margin")
-        fcf_ready = source_backed and _has_value(fundamental, "free_cash_flow", "fcf")
-        cash_ready = source_backed and _has_value(fundamental, "cash")
-        debt_ready = source_backed and _has_value(fundamental, "debt")
-        shares_ready = source_backed and _has_value(fundamental, "shares_outstanding")
-        filing_ready = source_backed and _has_value(fundamental, "sec_filed_date", "filed_date")
+        margin_ready = margin_review.usable
+        fcf_ready = fcf_review.usable
+        cash_ready = cash_review.usable
+        debt_ready = debt_review.usable
+        shares_ready = shares_review.usable
+        filing_ready = filing_review.usable
         saved_peer_ready = bool(ready is not None and _truthy(ready.get("peer_ready")))
         trusted_rows = peer_rows.get(ticker, ())
-        trusted_source_ready = bool(trusted_rows) and all(
-            _source_backed(row, commercial_mode=commercial_mode, rights_registry=rights_registry)
+        trusted_reviews = tuple(
+            _commercial_field_review(
+                row,
+                technical_available=True,
+                required_fields=("trusted_peers",),
+                commercial_mode=commercial_mode,
+                rights_registry=registry,
+            )
             for row in trusted_rows
+        )
+        trusted_source_ready = bool(trusted_reviews) and all(
+            review.usable for review in trusted_reviews
         )
         peers_ready = saved_peer_ready and (trusted_source_ready if commercial_mode else True)
         candidate_count = len(candidate_rows.get(ticker, ()))
-        consensus_ready = bool(
+        consensus_metric_fields = _populated_fields(
+            consensus_row,
+            (
+                ("revenue_consensus", ("revenue_consensus", "revenue_estimate")),
+                ("eps_consensus", ("eps_consensus", "eps_estimate")),
+            ),
+        )
+        consensus_base_ready = bool(
             consensus_row is not None
-            and _source_backed(
-                consensus_row,
-                commercial_mode=commercial_mode,
-                rights_registry=rights_registry,
-            )
             and _has_value(consensus_row, "fiscal_period")
             and _has_value(consensus_row, "snapshot_at", "available_at", "retrieved_at", "published_at")
+            and consensus_metric_fields
         )
-        earnings_ready = bool(
+        consensus_review = _commercial_field_review(
+            consensus_row,
+            technical_available=consensus_base_ready,
+            required_fields=consensus_metric_fields,
+            commercial_mode=commercial_mode,
+            rights_registry=registry,
+        )
+        consensus_ready = consensus_review.usable
+        earnings_technical = bool(
             earnings_row is not None
-            and _source_backed(
-                earnings_row,
-                commercial_mode=commercial_mode,
-                rights_registry=rights_registry,
-            )
             and _has_value(
                 earnings_row,
                 "earnings_date",
@@ -226,30 +410,82 @@ def derive_cohort_evidence(
                 "report_date",
             )
         )
+        earnings_review = _commercial_field_review(
+            earnings_row,
+            technical_available=earnings_technical,
+            required_fields=("earnings_dates",),
+            commercial_mode=commercial_mode,
+            rights_registry=registry,
+        )
+        earnings_ready = earnings_review.usable
         result[ticker] = {
             "asset_type": _text(universe_row.get("asset_type")) if universe_row is not None else "company",
             "margin_state": "usable_now" if margin_ready else "blocked",
-            "margin_evidence": "Saved source-backed margin input is available." if margin_ready else "No source-backed margin input is available.",
+            "margin_evidence": _commercial_blocked_evidence(
+                margin_review,
+                available="Saved source-backed margin input is available.",
+                missing="No source-backed margin input is available.",
+            ),
             "free_cash_flow_state": "usable_now" if fcf_ready else "blocked",
-            "free_cash_flow_evidence": "Saved source-backed free cash flow is available." if fcf_ready else "No source-backed free cash flow is available.",
+            "free_cash_flow_evidence": _commercial_blocked_evidence(
+                fcf_review,
+                available="Saved source-backed free cash flow is available.",
+                missing="No source-backed free cash flow is available.",
+            ),
             "cash_debt_state": "usable_now" if cash_ready and debt_ready else "partial" if cash_ready or debt_ready else "blocked",
-            "cash_debt_evidence": "Saved source-backed cash and debt are available." if cash_ready and debt_ready else "Cash and debt evidence is incomplete.",
+            "cash_debt_evidence": (
+                "Saved source-backed cash and debt are available."
+                if cash_ready and debt_ready
+                else "Cash and debt evidence is incomplete; "
+                + "; ".join(
+                    (
+                        f"cash: {_commercial_blocked_evidence(cash_review, available='available', missing='missing')}",
+                        f"debt: {_commercial_blocked_evidence(debt_review, available='available', missing='missing')}",
+                    )
+                )
+            ),
             "shares_state": "usable_now" if shares_ready else "blocked",
-            "shares_evidence": "Saved source-backed shares outstanding are available." if shares_ready else "No source-backed shares-outstanding input is available.",
+            "shares_evidence": _commercial_blocked_evidence(
+                shares_review,
+                available="Saved source-backed shares outstanding are available.",
+                missing="No source-backed shares-outstanding input is available.",
+            ),
             "trusted_peers_state": "usable_now" if peers_ready else "candidate_context_only" if candidate_count else "blocked",
             "trusted_peers_evidence": (
                 "Saved readiness and source rows confirm trusted peer inputs."
                 if peers_ready
+                else _commercial_blocked_evidence(
+                    next(review for review in trusted_reviews if not review.usable),
+                    available="Saved trusted peer evidence is available.",
+                    missing="Trusted peer inputs are unavailable.",
+                )
+                if saved_peer_ready and trusted_reviews and not trusted_source_ready
                 else f"{candidate_count} candidate peer relationship(s) are visible but not trusted."
                 if candidate_count
                 else "Trusted peer inputs are unavailable."
             ),
             "filing_dates_state": "usable_now" if filing_ready else "blocked",
-            "filing_dates_evidence": "A source-backed filing date is available." if filing_ready else "No source-backed filing date is available.",
+            "filing_dates_evidence": _commercial_blocked_evidence(
+                filing_review,
+                available="A source-backed filing date is available.",
+                missing="No source-backed filing date is available.",
+            ),
             "earnings_dates_state": "usable_now" if earnings_ready else "blocked",
-            "earnings_dates_evidence": "A source-backed earnings date is available." if earnings_ready else "No permitted source-backed earnings date is available.",
+            "earnings_dates_evidence": _commercial_blocked_evidence(
+                earnings_review,
+                available="A source-backed earnings date is available.",
+                missing="No permitted source-backed earnings date is available.",
+            ),
             "point_in_time_consensus_state": "usable_now" if consensus_ready else "blocked",
-            "point_in_time_consensus_evidence": "An exact-period point-in-time consensus snapshot is available." if consensus_ready else "No exact-period point-in-time consensus snapshot is available.",
+            "point_in_time_consensus_evidence": _commercial_blocked_evidence(
+                consensus_review,
+                available="An exact-period point-in-time consensus snapshot is available.",
+                missing=(
+                    "No populated exact-period point-in-time consensus value is available."
+                    if consensus_row is not None and not consensus_metric_fields
+                    else "No exact-period point-in-time consensus snapshot is available."
+                ),
+            ),
         }
     return result
 

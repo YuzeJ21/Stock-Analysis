@@ -182,7 +182,17 @@ def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_pa
         [{"ticker": "AAA", "name": "Alpha", "asset_type": "company", "is_active_listing": True}]
     )
     fundamentals = pd.DataFrame(
-        [{"ticker": "AAA", "source": "sec_companyfacts", "free_cash_flow": 10, "cash": 20, "debt": 5, "shares_outstanding": 100}]
+        [
+            {
+                "ticker": "AAA",
+                "source": "sec_companyfacts",
+                "source_ref": "sec:AAA:10-Q",
+                "free_cash_flow": 10,
+                "cash": 20,
+                "debt": 5,
+                "shares_outstanding": 100,
+            }
+        ]
     )
     readiness.to_csv(data_dir / "reports" / "ticker_readiness_report.csv", index=False)
     universe.to_csv(data_dir / "universe_master.csv", index=False)
@@ -194,9 +204,13 @@ def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_pa
 
     states = {row.lane: row.state for row in coverage.rows}
     assert states["adjusted_daily_price_history"] == "usable_now"
-    assert states["free_cash_flow"] == "usable_now"
+    assert states["free_cash_flow"] == "blocked"
+    assert states["shares_outstanding"] == "usable_now"
     assert states["trusted_peers"] == "blocked"
     assert states["quarterly_revenue"] == "blocked"
+    fcf = next(row for row in coverage.rows if row.lane == "free_cash_flow")
+    assert "registered field scope" in fcf.evidence
+    assert "free_cash_flow" in fcf.evidence
 
 
 def test_research_desk_renders_answers_before_advanced_cohort_context():
