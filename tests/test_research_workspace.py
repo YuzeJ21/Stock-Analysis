@@ -12,6 +12,7 @@ from src.research_workspace import (
     quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
+    research_evidence_return_link,
     research_monitor_frame,
     research_workspace_header_html,
     weekly_summary_cards,
@@ -333,21 +334,35 @@ def test_research_monitor_deduplicates_identical_event_identity_and_preserves_wa
     assert frame.iloc[0]["Wait condition"] == "Wait for a new source-backed filing."
 
 
-def test_advanced_evidence_links_preserve_research_only_routing():
+def test_advanced_evidence_links_preserve_personal_research_mode_and_ticker():
     links = advanced_evidence_links("NVDA")
 
     assert links == [
         {
             "label": "Open Data Health",
-            "href": "?mode=operator&page=data-health&ticker=NVDA",
+            "href": "?mode=research&page=data-health&ticker=NVDA",
             "purpose": "Inspect blocked inputs and source-proof paths.",
         },
         {
             "label": "Open Proof History",
-            "href": "?mode=public&page=proof-history&ticker=NVDA",
+            "href": "?mode=research&page=proof-history&ticker=NVDA",
             "purpose": "Review evidence that changed a readiness state.",
         },
     ]
+
+
+def test_research_evidence_links_encode_ticker_and_return_to_workbench_or_desk():
+    assert advanced_evidence_links("BRK/B")[0]["href"].endswith("ticker=BRK%2FB")
+    assert research_evidence_return_link("BRK/B") == {
+        "label": "Return to Company Workbench",
+        "href": "?mode=research&page=company-workbench&ticker=BRK%2FB&open=1",
+        "purpose": "Continue the selected-company review without changing evidence state.",
+    }
+    assert research_evidence_return_link("") == {
+        "label": "Return to Research Desk",
+        "href": "?mode=research&page=research-desk",
+        "purpose": "Return to the primary research workflow without changing evidence state.",
+    }
 
 
 def test_research_workspace_header_keeps_scope_freshness_action_and_boundary_visible():

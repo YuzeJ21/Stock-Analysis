@@ -356,21 +356,40 @@ def research_monitor_frame(review_items) -> pd.DataFrame:
     )
 
 
+def _quoted_ticker(ticker: str) -> str:
+    return quote(str(ticker or "").strip().upper(), safe="")
+
+
 def advanced_evidence_links(ticker: str) -> list[dict[str, str]]:
-    symbol = quote(str(ticker or "").strip().upper())
+    symbol = _quoted_ticker(ticker)
     suffix = f"&ticker={symbol}" if symbol else ""
     return [
         {
             "label": "Open Data Health",
-            "href": f"?mode=operator&page=data-health{suffix}",
+            "href": f"?mode=research&page=data-health{suffix}",
             "purpose": "Inspect blocked inputs and source-proof paths.",
         },
         {
             "label": "Open Proof History",
-            "href": f"?mode=public&page=proof-history{suffix}",
+            "href": f"?mode=research&page=proof-history{suffix}",
             "purpose": "Review evidence that changed a readiness state.",
         },
     ]
+
+
+def research_evidence_return_link(ticker: str) -> dict[str, str]:
+    symbol = _quoted_ticker(ticker)
+    if symbol:
+        return {
+            "label": "Return to Company Workbench",
+            "href": f"?mode=research&page=company-workbench&ticker={symbol}&open=1",
+            "purpose": "Continue the selected-company review without changing evidence state.",
+        }
+    return {
+        "label": "Return to Research Desk",
+        "href": "?mode=research&page=research-desk",
+        "purpose": "Return to the primary research workflow without changing evidence state.",
+    }
 
 
 def research_workspace_header_html(
