@@ -160,6 +160,38 @@ def test_readiness_freshness_uses_explicit_selected_profile_paths(tmp_path: Path
     assert status.status == "current"
 
 
+def test_readiness_freshness_blocks_newer_declared_source_date_when_file_mtimes_are_current(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write(
+        root / "data" / "fundamentals.csv",
+        (
+            "ticker,source,revenue,free_cash_flow,fcf_margin,shares_outstanding,as_of_date\n"
+            "AAA,manual,100,20,0.20,,2026-07-16\n"
+        ),
+    )
+    _write(
+        root / "data" / "reports" / "ticker_readiness_report.csv",
+        (
+            "ticker,price_ready,fundamentals_ready,dcf_ready,peer_ready,generated_at\n"
+            "AAA,true,true,false,false,2026-07-15T19:30:00+00:00\n"
+        ),
+    )
+    _write(
+        root / "data" / "reports" / "feature_readiness_summary.csv",
+        (
+            "feature,ready_count,blocked_count,total_count,generated_at\n"
+            "fundamentals,1,0,1,2026-07-15T19:30:00+00:00\n"
+        ),
+    )
+    _mark_readiness_current(root)
+
+    status = readiness_freshness_status(root)
+
+    assert status.status == "stale"
+    assert "source dates are newer" in status.message.lower()
+    assert status.refresh_command == "make readiness"
+
+
 def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
     root = _sample_root(tmp_path)
     _mark_readiness_current(root)

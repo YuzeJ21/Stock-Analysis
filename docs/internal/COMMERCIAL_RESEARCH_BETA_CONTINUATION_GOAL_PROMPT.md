@@ -48,6 +48,7 @@ Current locally implemented capabilities to verify:
 - Historical Valuation Regime, Research Outcome Review, and Catalyst Evidence Timeline.
 - Forward View, Scenario Lab, Source Freshness Timeline, Research Comparison, Peer Read-Through Map, and Decision-Process Scorecard.
 - Fail-closed provenance, source-rights, freshness, candidate-context, and synthetic-fixture controls.
+- Shared pilot and reviewed-batch freshness that treats declared source dates newer than the saved readiness build as stale even when file mtimes look current; the read-only gate never runs `make readiness` or writes generated artifacts.
 - Peer evidence-quality contract separating relationship provenance, peer role, economic comparability, result context, trend readiness, and valuation-anchor eligibility.
 - In-memory quarterly cash-generation evidence contract with independent operating-margin, free-cash-flow, and FCF-margin states, explicit filed-Q4 enforcement, Advanced-only source lineage, and no supplemental data file, writer, template, report, or generated artifact.
 - Quarterly adapter acceptance harness for one in-memory company batch, with deterministic identity, commercial-rights, supported-field, cutoff, revision, component, compatibility, complete-period, and Q4 blockers; `accepted_for_review` always leaves production activation false and readiness promotions empty.
@@ -65,6 +66,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - A source-backed peer relationship is not automatically a valuation anchor. Only explicitly reviewed `core_peer` or `secondary_peer` rows with source/as-of provenance, relationship rationale, comparability basis, and `valuation_anchor_eligible=yes` may enter peer medians.
 - Operating margin, free cash flow, and FCF margin remain withheld for real companies until a reviewed quarterly source adapter supplies compatible explicit observations. Their readiness cannot promote Revenue, EPS, DCF, consensus, peer, catalyst, outcome, backtest, or calibration states.
 - Quarterly adapter acceptance is a local review-routing decision only. It cannot change source rights, load or write an adapter file, supply Company Workbench production observations, or promote readiness.
+- Declared source dates newer than the saved readiness build must keep pilot, reviewed-batch, project-status, and profile-context freshness stale. File mtimes cannot override that evidence; only an intentional reviewed `make readiness` run can rebuild the generated snapshot.
 
 Current external dependency classifications to verify once, then avoid looping:
 

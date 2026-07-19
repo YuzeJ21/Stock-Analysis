@@ -29153,8 +29153,14 @@ def test_data_health_freshness_status_marks_current_readiness_stale_when_status_
     outputs_dir = tmp_path / "outputs"
     reports_dir.mkdir(parents=True)
     outputs_dir.mkdir()
-    (reports_dir / "ticker_readiness_report.csv").write_text("ticker\nNVDA\n", encoding="utf-8")
-    (reports_dir / "feature_readiness_summary.csv").write_text("metric\nprice\n", encoding="utf-8")
+    (reports_dir / "ticker_readiness_report.csv").write_text(
+        "ticker,generated_at\nNVDA,2026-01-02T00:00:00+00:00\n",
+        encoding="utf-8",
+    )
+    (reports_dir / "feature_readiness_summary.csv").write_text(
+        "metric,generated_at\nprice,2026-01-02T00:00:00+00:00\n",
+        encoding="utf-8",
+    )
     (outputs_dir / dashboard.PROJECT_STATUS_NEXT_STEPS_CSV).write_text("Step\nReview\n", encoding="utf-8")
     source = data_dir / "prices.csv"
     source.write_text("ticker,date,close\nNVDA,2026-01-01,1\n", encoding="utf-8")

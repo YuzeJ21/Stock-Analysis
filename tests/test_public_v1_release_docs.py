@@ -649,6 +649,18 @@ def test_mobile_research_first_action_docs_preserve_readiness_and_market_boundar
     assert "mobile first-action density" in prompt.lower()
 
 
+def test_pilot_freshness_docs_fail_closed_on_declared_source_dates():
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (data_strategy, roadmap, prompt):
+        assert "declared source dates" in text.lower()
+        assert "file mtimes" in text.lower()
+    assert "does not rebuild readiness" in data_strategy.lower()
+    assert "make readiness" in prompt
+
+
 def test_thesis_journal_docs_preserve_append_only_research_boundary():
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")

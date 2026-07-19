@@ -18,6 +18,7 @@ from src.readiness_ops import ReadinessLane, build_readiness_ops_lanes
 from src.session_source_preflight import load_session_source_preflight
 from src.share_count_proof_queue import build_share_count_proof_queue_from_files
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.profile_context import build_profile_context
 
 
 DEFAULT_PACKET_MD = Path("outputs/reviewed_batch_packet.md")
@@ -240,7 +241,7 @@ def readiness_freshness_status(
 ) -> FreshnessStatus:
     project_root = resolve_project_root(root)
     data_path = resolve_data_dir(data_dir, project_root)
-    resolve_outputs_dir(output_dir, project_root)
+    output_path = resolve_outputs_dir(output_dir, project_root)
     readiness_paths = [_selected_data_path(path, data_path) for path in REQUIRED_READINESS_REPORTS]
     source_paths = [_selected_data_path(path, data_path) for path in SOURCE_FILES_FOR_FRESHNESS]
     missing = [str(path.relative_to(data_path)) for path in readiness_paths if not path.exists()]
@@ -259,6 +260,17 @@ def readiness_freshness_status(
             "Readiness artifacts may be stale because source file(s) changed after the saved reports: "
             + ", ".join(str(path.relative_to(data_path)) for path in newer_sources)
             + ". Run make readiness before relying on final counts.",
+        )
+    profile_context = build_profile_context(
+        project_root=project_root,
+        data_dir=data_path,
+        output_dir=output_path,
+    )
+    if profile_context.freshness_state != "current":
+        return FreshnessStatus(
+            profile_context.freshness_state,
+            profile_context.freshness_message,
+            profile_context.refresh_command or "make readiness",
         )
     return FreshnessStatus("current", "Readiness artifacts are current relative to watched source files.")
 
