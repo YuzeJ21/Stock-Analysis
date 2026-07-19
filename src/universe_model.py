@@ -167,7 +167,12 @@ def _legacy_universe_to_active(legacy: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=ACTIVE_COLUMNS)
 
 
-def ensure_universe_files(base_dir: Path | str | None = None, *, data_dir: Path | str | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+def ensure_universe_files(
+    base_dir: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    write_outputs: bool = True,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
     master_path = data_path / "universe_master.csv"
@@ -177,7 +182,8 @@ def ensure_universe_files(base_dir: Path | str | None = None, *, data_dir: Path 
     active = _read_csv(active_path)
     if master.empty and not legacy.empty:
         master = _legacy_universe_to_master(legacy)
-        _write_csv(master, master_path, MASTER_COLUMNS)
+        if write_outputs:
+            _write_csv(master, master_path, MASTER_COLUMNS)
     elif not legacy.empty:
         legacy_master = _legacy_universe_to_master(legacy)
         missing_legacy = legacy_master.loc[~legacy_master["ticker"].isin(set(master.get("ticker", pd.Series(dtype=str))))]
@@ -188,7 +194,8 @@ def ensure_universe_files(base_dir: Path | str | None = None, *, data_dir: Path 
                 .sort_values("ticker")
                 .reset_index(drop=True)
             )
-            _write_csv(master, master_path, MASTER_COLUMNS)
+            if write_outputs:
+                _write_csv(master, master_path, MASTER_COLUMNS)
         if not legacy_master.empty and "ticker" in master.columns:
             master = master.copy()
             legacy_by_ticker = legacy_master.set_index("ticker", drop=False)
@@ -215,10 +222,12 @@ def ensure_universe_files(base_dir: Path | str | None = None, *, data_dir: Path 
                         master.at[idx, "name"] = legacy_row.get("name", "")
                     repaired = True
             if repaired:
-                _write_csv(master, master_path, MASTER_COLUMNS)
+                if write_outputs:
+                    _write_csv(master, master_path, MASTER_COLUMNS)
     if active.empty and not legacy.empty:
         active = _legacy_universe_to_active(legacy)
-        _write_csv(active, active_path, ACTIVE_COLUMNS)
+        if write_outputs:
+            _write_csv(active, active_path, ACTIVE_COLUMNS)
     return master, active
 
 
@@ -301,10 +310,11 @@ def build_universe_coverage_report(
     *,
     data_dir: Path | str | None = None,
     output_path: Path | str | None = None,
+    write_output: bool = True,
 ) -> pd.DataFrame:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
-    master, active = ensure_universe_files(root, data_dir=data_path)
+    master, active = ensure_universe_files(root, data_dir=data_path, write_outputs=write_output)
     output = Path(output_path) if output_path is not None else data_path / "reports" / "universe_coverage_report.csv"
     output = output if output.is_absolute() else root / output
     active_tickers = set(active.get("ticker", pd.Series(dtype=str)).dropna().astype(str).str.upper())
@@ -336,8 +346,9 @@ def build_universe_coverage_report(
             }
         )
     report = pd.DataFrame(rows)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    report.to_csv(output, index=False)
+    if write_output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        report.to_csv(output, index=False)
     return report
 
 

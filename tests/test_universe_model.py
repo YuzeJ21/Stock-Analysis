@@ -2,7 +2,44 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.universe_model import ensure_universe_files, infer_asset_type, refresh_universe
+from src.universe_model import build_universe_coverage_report, ensure_universe_files, infer_asset_type, refresh_universe
+
+
+def _file_manifest(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+
+
+def test_ensure_universe_files_no_write_builds_frames_without_creating_canonical_files(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [{"Ticker": "NVDA", "CompanyName": "NVIDIA", "DefaultPurpose": "Core Compounder"}]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    before = _file_manifest(tmp_path)
+
+    master, active = ensure_universe_files(tmp_path, write_outputs=False)
+
+    assert set(master["ticker"]) == {"NVDA"}
+    assert set(active["ticker"]) == {"NVDA"}
+    assert _file_manifest(tmp_path) == before
+
+
+def test_universe_coverage_no_write_creates_no_report_or_directory(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [{"Ticker": "NVDA", "CompanyName": "NVIDIA", "DefaultPurpose": "Core Compounder"}]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    before = _file_manifest(tmp_path)
+
+    report = build_universe_coverage_report(tmp_path, write_output=False)
+
+    assert set(report["ticker"]) == {"NVDA"}
+    assert _file_manifest(tmp_path) == before
 
 
 def test_ensure_universe_files_preserves_legacy_active_universe(tmp_path: Path):
