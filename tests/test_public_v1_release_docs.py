@@ -619,6 +619,24 @@ def test_commercial_beta_continuation_prompt_is_persistent_but_evidence_bound():
     assert "Keep the goal active whenever any applicable gate remains incomplete or unproven" in prompt
 
 
+def test_consensus_source_review_docs_keep_review_collection_and_activation_separate():
+    roadmap = _read("ROADMAP.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    pilot = _read("docs/EARNINGS_NOWCAST_PILOT.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, data_strategy, pilot, methodology, provenance, prompt):
+        assert "earnings-consensus-source-review" in text
+        assert "collection preview" in text.lower()
+        assert "read-only" in text.lower()
+    assert "explicit provider" in roadmap.lower()
+    assert "original one-based" in provenance.lower()
+    assert "auto_apply=false" in pilot
+    assert "source-review-before-preview" in prompt.lower()
+
+
 def test_quarterly_cash_generation_docs_preserve_no_file_and_market_maturity_boundaries():
     methodology = _read("docs/METHODOLOGY.md")
     provenance = _read("docs/PROVENANCE_CONTRACT.md")

@@ -2807,3 +2807,14 @@ def test_makefile_exposes_read_only_commercial_beta_release_check():
         "deploy",
     ):
         assert forbidden not in target
+
+
+def test_makefile_exposes_bytecode_free_consensus_source_review_target():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "earnings-consensus-source-review:" in makefile
+    assert "PYTHONDONTWRITEBYTECODE=1 python3 -m src.earnings_consensus_sources" in makefile
+    assert '--review-csv "$(INPUT)"' in makefile
+    assert '--provider "$(PROVIDER)"' in makefile
+    assert '--as-of "$(AS_OF)"' in makefile
+    assert "$(if $(JSON),--json,)" in makefile

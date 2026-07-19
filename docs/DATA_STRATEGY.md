@@ -28,6 +28,8 @@ For a reviewed multi-row consensus file, preview simulates the complete input in
 
 Collection preview and upstream source-row validation use one immutable exact-source field-scope review for their registry decision. It preserves the caller's ordered, non-empty, unique required fields and reports rights approval, missing registered fields, and their conjunction without generating blocker copy or changing consumer-specific technical/write rules. This shared metadata decision does not prove the estimate payload, timestamps, comparability, reviewer intent, collection, activation, readiness, backtesting, or calibration. Price, DCF, fundamentals, and cash-generation reviews retain their separate domain requirements.
 
+When a reviewed consensus CSV becomes available, start with the read-only source gate: `make earnings-consensus-source-review INPUT=<reviewed.csv> PROVIDER=<source_id> AS_OF=<timestamp>`. It requires an explicit provider and cutoff, validates CSV shape, and prints technical rejections plus independent rights and Revenue/EPS scope evidence without writing. Review the payload and report separately before running collection preview with `make earnings-consensus-collection-preview INPUT=<reviewed.csv> AS_OF=<timestamp>`. Neither command supplies permission, collection, activation, readiness, backtesting, or calibration; the later confirmed record command remains a separate mutation boundary.
+
 ## Public Visitor FAQ
 
 The public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Use this data strategy as the explanation layer behind that path, not as a second navigation model.

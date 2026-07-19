@@ -3,7 +3,7 @@
 .PHONY: thesis-journal thesis-journal-preview thesis-journal-record
 .PHONY: refresh-operations-status refresh-operations-runbook
 .PHONY: earnings-nowcast-sec-actuals-stage
-.PHONY: earnings-nowcast-cohort-readiness earnings-consensus-source-status earnings-consensus-collection-plan earnings-consensus-collection-status earnings-consensus-collection-preview earnings-consensus-collection-record research-outcome-review research-outcome-review-preview research-outcome-review-record catalyst-evidence-timeline catalyst-evidence-preview catalyst-evidence-record
+.PHONY: earnings-nowcast-cohort-readiness earnings-consensus-source-status earnings-consensus-source-review earnings-consensus-collection-plan earnings-consensus-collection-status earnings-consensus-collection-preview earnings-consensus-collection-record research-outcome-review research-outcome-review-preview research-outcome-review-record catalyst-evidence-timeline catalyst-evidence-preview catalyst-evidence-record
 EARNINGS_NOWCAST_COHORT ?= NVDA,AMD,AVGO,MU,QCOM
 .PHONY: commercial-source-rights commercial-beta-check commercial-beta-release-check
 .PHONY: private-beta-readiness
@@ -1345,6 +1345,9 @@ earnings-nowcast-cohort-readiness:
 
 earnings-consensus-source-status:
 	@python3 -m src.earnings_consensus_sources $(if $(REVIEWED_CSV),--reviewed-csv "$(REVIEWED_CSV)",) $(if $(JSON),--json,)
+
+earnings-consensus-source-review:
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.earnings_consensus_sources --review-csv "$(INPUT)" --provider "$(PROVIDER)" --as-of "$(AS_OF)" $(if $(JSON),--json,)
 
 earnings-consensus-collection-plan:
 	@python3 -m src.earnings_consensus_collector plan --tickers "$(or $(TICKERS),$(EARNINGS_NOWCAST_COHORT))" --as-of "$(or $(AS_OF),2026-01-31T23:59:59Z)" --cadence "$(or $(CADENCE),weekly)"

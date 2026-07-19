@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 from dataclasses import asdict, dataclass
@@ -66,6 +67,93 @@ class SourceValidationResult:
     commercial_blockers: tuple[str, ...]
     commercial_review_rows: tuple[SourceCommercialReview, ...]
     auto_apply: bool = False
+
+
+def load_source_review_csv(path: Path | str) -> tuple[dict[str, object], ...]:
+    """Load supplied consensus source rows without normalizing or writing evidence."""
+
+    review_path = Path(path)
+    try:
+        with review_path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle, strict=True)
+            if reader.fieldnames is None:
+                raise ValueError("consensus source review CSV must contain a header row")
+            fieldnames = tuple(str(field or "") for field in reader.fieldnames)
+            if (
+                any(not field.strip() for field in fieldnames)
+                or len(set(fieldnames)) != len(fieldnames)
+            ):
+                raise ValueError(
+                    "consensus source review CSV headers must be non-blank unique column names"
+                )
+            rows: list[dict[str, object]] = []
+            for row_number, row in enumerate(reader, start=1):
+                if None in row:
+                    raise ValueError(
+                        f"consensus source review CSV row {row_number} has more values than the header"
+                    )
+                rows.append({str(key): value for key, value in row.items()})
+            return tuple(rows)
+    except ValueError:
+        raise
+    except (OSError, UnicodeError, csv.Error) as exc:
+        raise ValueError(
+            f"cannot read consensus source review CSV: {review_path}"
+        ) from exc
+
+
+def _joined(values: Sequence[object]) -> str:
+    return ",".join(str(value) for value in values) if values else "none"
+
+
+def render_source_validation_result(result: SourceValidationResult) -> str:
+    """Render a complete source review without converting it into activation."""
+
+    lines = [
+        "Consensus Source Review",
+        "Read-only: this command does not fetch, normalize, record, apply, rebuild readiness, or write artifacts.",
+        f"provider: {result.provider or '-'}",
+        f"review_cutoff: {result.review_cutoff}",
+        f"state: {result.state}",
+        f"accepted_count: {result.accepted_count}",
+        f"rejected_count: {result.rejected_count}",
+        f"historical_snapshot_count: {result.historical_snapshot_count}",
+        f"candidate_context_count: {result.candidate_context_count}",
+        f"rights_status: {result.rights_status}",
+        f"commercial_rights_approved: {str(result.commercial_rights_approved).lower()}",
+        f"commercial_ready_count: {result.commercial_ready_count}",
+        f"commercial_review_required_count: {result.commercial_review_required_count}",
+        f"commercial_evidence_ready: {str(result.commercial_evidence_ready).lower()}",
+        f"commercial_blockers: {_joined(result.commercial_blockers)}",
+        "rejected_rows:",
+    ]
+    if result.rejected_rows:
+        lines.extend(
+            f"- row {row['row_number']}: {row['reason']}"
+            for row in result.rejected_rows
+        )
+    else:
+        lines.append("- none")
+    lines.append("commercial_review_rows:")
+    if result.commercial_review_rows:
+        lines.extend(
+            "- row "
+            f"{row.row_number}: required={_joined(row.required_supported_fields)}; "
+            f"missing={_joined(row.missing_supported_fields)}; "
+            f"ready={str(row.commercial_evidence_ready).lower()}; "
+            f"blockers={_joined(row.commercial_blockers)}"
+            for row in result.commercial_review_rows
+        )
+    else:
+        lines.append("- none")
+    lines.extend(
+        [
+            f"auto_apply: {str(result.auto_apply).lower()}",
+            "next_gate: collection preview remains a separate reviewed gate after the payload and evidence are accepted.",
+            "Boundary: reviewability is not collection, activation, readiness, backtesting, calibration, or investment advice.",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def consensus_source_statuses(
@@ -249,8 +337,33 @@ def validate_source_rows(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Report fail-closed Earnings consensus source activation state.")
     parser.add_argument("--reviewed-csv")
+    parser.add_argument("--review-csv", type=Path)
+    parser.add_argument("--provider")
+    parser.add_argument("--as-of")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
+    if args.review_csv is not None:
+        if args.reviewed_csv is not None:
+            parser.error("--review-csv cannot be combined with --reviewed-csv")
+        if not str(args.provider or "").strip():
+            parser.error("--provider is required with --review-csv")
+        if not str(args.as_of or "").strip():
+            parser.error("--as-of is required with --review-csv")
+        try:
+            result = validate_source_rows(
+                args.provider,
+                load_source_review_csv(args.review_csv),
+                as_of=args.as_of,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        if args.json:
+            print(json.dumps(asdict(result), indent=2, sort_keys=True))
+        else:
+            print(render_source_validation_result(result))
+        return 0
+    if args.provider is not None or args.as_of is not None:
+        parser.error("--provider and --as-of require --review-csv")
     statuses = consensus_source_statuses(generic_csv=args.reviewed_csv)
     if args.json:
         print(json.dumps([asdict(row) for row in statuses], indent=2, sort_keys=True))
