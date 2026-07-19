@@ -72,6 +72,20 @@ def _rights_registry() -> dict[str, SourceRights]:
             supported_fields=("prices",),
             fallback_priority=90,
         ),
+        "approved_prices": SourceRights(
+            source_id="approved_prices",
+            display_name="Approved Price Evidence",
+            permitted_use="source_backed_market_data",
+            commercial_use="approved",
+            redistribution="derived_data_only",
+            storage_limits="reviewed local rows",
+            attribution="required",
+            rate_limits="provider terms",
+            authentication="provider specific",
+            expected_freshness="daily",
+            supported_fields=("prices",),
+            fallback_priority=2,
+        ),
     }
 
 
@@ -323,4 +337,80 @@ def test_preview_builds_in_memory_and_renders_non_unlock_boundary(tmp_path: Path
     assert "Read-only: no files were created, modified, or deleted." in rendered
     assert "This preview does not make saved readiness current." in rendered
     assert "An intentional reviewed make readiness run remains the separate rebuild boundary." in rendered
+    assert _file_manifest(tmp_path) == before
+
+
+def test_preview_integrates_dcf_price_lineage_without_writing(tmp_path: Path, monkeypatch):
+    reports_dir = tmp_path / "data" / "reports"
+    reports_dir.mkdir(parents=True)
+    pd.DataFrame([_row("AAA")]).to_csv(reports_dir / "ticker_readiness_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "source": "sec_companyfacts",
+                "as_of_date": "2025-12-31",
+                "sec_accession": "0001",
+            }
+        ]
+    ).to_csv(tmp_path / "data" / "fundamentals.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "date": "2026-01-03",
+                "close": 10.0,
+                "source": "approved_prices",
+                "source_ref": "https://example.test/prices/AAA/2026-01-03",
+                "retrieved_at": "2026-01-03T23:00:00Z",
+            }
+        ]
+    ).to_csv(tmp_path / "data" / "prices.csv", index=False)
+
+    def _build(*args: object, **kwargs: object) -> dict[str, pd.DataFrame]:
+        assert kwargs["write_outputs"] is False
+        return {
+            "ticker_readiness_report": pd.DataFrame(
+                [_row("AAA", fundamentals_ready=True, dcf_ready=True)]
+            )
+        }
+
+    monkeypatch.setattr(readiness_preview, "build_ticker_readiness_report", _build)
+    before = _file_manifest(tmp_path)
+
+    preview = build_readiness_impact_preview(tmp_path, top_n=5, rights_registry=_rights_registry())
+    rendered = render_readiness_impact_preview(preview)
+
+    assert preview.dcf_price_lineage_review is not None
+    assert preview.dcf_price_lineage_review.status == "price_lineage_review_complete"
+    assert preview.dcf_price_lineage_review.promotion_count == 1
+    assert preview.promotion_review is not None
+    assert preview.promotion_review.status == "evidence_review_required"
+    assert "DCF Price Lineage Review" in rendered
+    assert "Latest price rows: usable=1, missing=0, ambiguous=0" in rendered
+    assert "Price lineage: complete=1, review_required=0" in rendered
+    assert "Registered price scope: complete=1, review_required=0" in rendered
+    assert "File origin, observation date, and adapter availability are not provider provenance." in rendered
+    assert "This price review changes no readiness state and does not authorize the separate rebuild." in rendered
+    assert _file_manifest(tmp_path) == before
+
+
+def test_preview_fails_closed_when_dcf_promotes_without_price_file(tmp_path: Path, monkeypatch):
+    reports_dir = tmp_path / "data" / "reports"
+    reports_dir.mkdir(parents=True)
+    pd.DataFrame([_row("AAA")]).to_csv(reports_dir / "ticker_readiness_report.csv", index=False)
+
+    def _build(*args: object, **kwargs: object) -> dict[str, pd.DataFrame]:
+        assert kwargs["write_outputs"] is False
+        return {"ticker_readiness_report": pd.DataFrame([_row("AAA", dcf_ready=True)])}
+
+    monkeypatch.setattr(readiness_preview, "build_ticker_readiness_report", _build)
+    before = _file_manifest(tmp_path)
+
+    preview = build_readiness_impact_preview(tmp_path, top_n=5, rights_registry=_rights_registry())
+
+    assert preview.dcf_price_lineage_review is not None
+    assert preview.dcf_price_lineage_review.status == "price_lineage_review_required"
+    assert preview.dcf_price_lineage_review.missing_latest_row_count == 1
+    assert preview.dcf_price_lineage_review.evidence_rows[0].blockers == ("missing_latest_price_row",)
     assert _file_manifest(tmp_path) == before

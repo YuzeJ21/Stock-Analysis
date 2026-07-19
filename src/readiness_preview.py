@@ -15,6 +15,7 @@ from src.commercial_source_rights import (
     load_source_rights_registry,
 )
 from src.company_analysis_scope import company_dcf_exclusion_reasons
+from src.dcf_price_lineage import DcfPriceLineageReview, review_dcf_price_lineage
 from src.loader import normalize_columns
 from src.paths import resolve_data_dir, resolve_project_root
 from src.readiness_engine import build_ticker_readiness_report
@@ -118,6 +119,7 @@ class ReadinessImpactPreview:
     saved_path: str
     promotion_review: ReadinessPromotionReview | None = None
     change_review: ReadinessChangeReview | None = None
+    dcf_price_lineage_review: DcfPriceLineageReview | None = None
 
 
 def _truthy(value: object) -> bool:
@@ -476,7 +478,23 @@ def build_readiness_impact_preview(
         top_n=top_n,
     )
     change_review = review_readiness_changes(saved, proposed, fundamentals)
-    return replace(preview, promotion_review=promotion_review, change_review=change_review)
+    prices_path = data_path / "prices.csv"
+    prices = pd.read_csv(prices_path) if prices_path.exists() else pd.DataFrame()
+    if not prices.empty:
+        prices.columns = normalize_columns(list(prices.columns))
+    dcf_price_lineage_review = review_dcf_price_lineage(
+        saved,
+        proposed,
+        prices,
+        rights_registry=registry,
+        top_n=top_n,
+    )
+    return replace(
+        preview,
+        promotion_review=promotion_review,
+        change_review=change_review,
+        dcf_price_lineage_review=dcf_price_lineage_review,
+    )
 
 
 def _format_counts(counts: tuple[tuple[str, int], ...]) -> str:
@@ -582,8 +600,65 @@ def render_readiness_impact_preview(preview: ReadinessImpactPreview) -> str:
             lines.extend(
                 [
                     "Technical readiness movement is not source-rights or provenance approval.",
-                    "DCF price-source provenance is outside this fundamentals review and remains separately unproven.",
+                    "DCF price-source provenance is outside this fundamentals review; see the independent price-lineage review.",
                     "Even a complete promotion evidence review would not authorize the separate readiness rebuild.",
+                ]
+            )
+        price_review = preview.dcf_price_lineage_review
+        if price_review is not None:
+            lines.extend(
+                [
+                    "",
+                    "DCF Price Lineage Review",
+                    f"Status: {price_review.status}",
+                    f"Technical DCF promotions: {price_review.promotion_count}",
+                    (
+                        "Latest price rows: "
+                        f"usable={price_review.usable_latest_row_count}, "
+                        f"missing={price_review.missing_latest_row_count}, "
+                        f"ambiguous={price_review.ambiguous_latest_row_count}"
+                    ),
+                    (
+                        "Price lineage: "
+                        f"complete={price_review.lineage_complete_count}, "
+                        f"review_required={price_review.lineage_review_required_count}"
+                    ),
+                    (
+                        "Commercial price rights: "
+                        f"approved={price_review.rights_approved_count}, "
+                        f"review_required={price_review.rights_review_required_count}"
+                    ),
+                    (
+                        "Registered price scope: "
+                        f"complete={price_review.field_scope_complete_count}, "
+                        f"review_required={price_review.field_scope_review_required_count}"
+                    ),
+                    f"Exact price source values: {_format_counts(price_review.source_counts)}",
+                    f"Price rights statuses: {_format_counts(price_review.rights_status_counts)}",
+                ]
+            )
+            for item in price_review.evidence_rows:
+                missing_provenance = ",".join(item.missing_provenance_fields) or "none"
+                missing_scope = ",".join(item.missing_supported_fields) or "none"
+                blockers = ",".join(item.blockers) or "none"
+                lines.append(
+                    f"- {item.ticker}: observation_date={item.observation_date or '<missing>'}; "
+                    f"valid_rows={item.valid_row_count}; latest_rows={item.latest_row_count}; "
+                    f"source={item.source_id!r}; rights={item.rights_status}; "
+                    f"missing_provenance={missing_provenance}; "
+                    f"missing_registered_fields={missing_scope}; blockers={blockers}"
+                )
+            hidden_price_evidence = price_review.promotion_count - len(price_review.evidence_rows)
+            if hidden_price_evidence > 0:
+                lines.append(
+                    f"- ... {hidden_price_evidence} additional DCF price evidence row(s) hidden by "
+                    f"TOP_N={price_review.top_n}"
+                )
+            lines.extend(
+                [
+                    "File origin, observation date, and adapter availability are not provider provenance.",
+                    "Missing or composite source identifiers are not split, inferred, or granted borrowed rights.",
+                    "This price review changes no readiness state and does not authorize the separate rebuild.",
                 ]
             )
     lines.extend(
