@@ -596,6 +596,7 @@ def test_commercial_beta_continuation_prompt_is_persistent_but_evidence_bound():
     assert "codex/personal-research-mode-mvp" in prompt
     assert "pull/113" in prompt
     assert "commit `e0eea1f95` or a later verified descendant" in prompt
+    assert "commit `54f3977d7` or a later verified descendant" in prompt
     assert "classify it once" in prompt
     assert "avoid identical retry loops" in prompt
     assert "Continue automatically while any safe, meaningful, in-scope local task remains" in prompt

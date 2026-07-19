@@ -34,7 +34,7 @@ Expected lineage to verify, never assume:
 - Draft PR: https://github.com/YuzeJ21/Stock-Analysis/pull/113.
 - Evidence-quality lineage anchor: commit `e0eea1f95` or a later verified descendant.
 - No-write readiness-preview lineage anchor: commit `1f72a6d90` or a later verified descendant.
-- Stale readiness continuation gate lineage anchor: commit `560ba0377` or a later verified descendant.
+- Stale readiness continuation gate lineage anchor: commit `54f3977d7` or a later verified descendant.
 - The branch should be clean, pushed, and aligned with `origin/codex/personal-research-mode-mvp`.
 - PR #113 must remain open and draft. Do not merge it.
 - Generated CSV, JSON, readiness reports, stock reports, sample reports, screenshots, browser timing output, and other generated churn must remain excluded unless one exact artifact is intentionally reviewed and explicitly required.
