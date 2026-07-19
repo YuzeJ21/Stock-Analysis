@@ -51,6 +51,7 @@ class SourceCommercialReview:
 @dataclass(frozen=True)
 class SourceValidationResult:
     provider: str
+    review_cutoff: str
     state: str
     accepted_count: int
     rejected_count: int
@@ -103,8 +104,11 @@ def validate_source_rows(
     provider: str,
     rows: Sequence[Mapping[str, object]],
     *,
+    as_of: object,
     rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> SourceValidationResult:
+    cutoff = parse_utc_timestamp(as_of, label="review cutoff")
+    review_cutoff = cutoff.isoformat().replace("+00:00", "Z")
     source_id = str(provider).strip().lower()
     registry = load_source_rights_registry() if rights_registry is None else rights_registry
     rights = commercial_eligibility(registry, source_id)
@@ -122,14 +126,30 @@ def validate_source_rows(
             required = HISTORICAL_REQUIRED
         missing = [field for field in required if not str(row.get(field) or "").strip()]
         reasons: list[str] = []
+        if scope not in {"current_only", "point_in_time"}:
+            reasons.append("history_scope must be current_only or point_in_time")
         if missing:
             reasons.append("missing required fields: " + ", ".join(missing))
+        parsed_timestamps = {}
         for timestamp in ("snapshot_at", "retrieved_at"):
             if str(row.get(timestamp) or "").strip():
                 try:
-                    parse_utc_timestamp(row[timestamp], label=timestamp)
+                    parsed_timestamps[timestamp] = parse_utc_timestamp(
+                        row[timestamp], label=timestamp
+                    )
                 except ValueError as exc:
                     reasons.append(str(exc))
+        snapshot_at = parsed_timestamps.get("snapshot_at")
+        retrieved_at = parsed_timestamps.get("retrieved_at")
+        if (
+            snapshot_at is not None
+            and retrieved_at is not None
+            and snapshot_at > retrieved_at
+        ):
+            reasons.append("snapshot_at cannot be after retrieved_at")
+        for field, timestamp in parsed_timestamps.items():
+            if timestamp > cutoff:
+                reasons.append(f"{field} is after review cutoff")
         if not reasons:
             try:
                 ConsensusSnapshot(
@@ -204,6 +224,7 @@ def validate_source_rows(
                 aggregate_blockers.append(blocker)
     return SourceValidationResult(
         provider=source_id,
+        review_cutoff=review_cutoff,
         state=state,
         accepted_count=accepted,
         rejected_count=len(rejected),

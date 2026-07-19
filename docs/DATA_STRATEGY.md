@@ -22,6 +22,8 @@ Prospective point-in-time consensus uses the same exact-source principle with me
 
 Provider source-row validation also derives this evidence directly; it no longer accepts a caller-supplied rights status. Technical schema/comparability acceptance remains independent, while only technically accepted rows receive row-level exact-source rights and populated-metric scope review. `historical_evidence_reviewable` means a supplied point-in-time row can proceed to review, not that it is licensed, collected, activated, fresh, or nowcast-ready.
 
+Every source-row validation call must declare its review cutoff. Only explicit `current_only` and `point_in_time` scopes are recognized, and every accepted row proves `snapshot_at <= retrieved_at <= review_cutoff`. Candidate context receives no temporal exemption. The normalized cutoff is evidence of the local review boundary only; it cannot establish when a provider published a value or authorize collection and use.
+
 For a reviewed multi-row consensus file, preview simulates the complete input in order against the existing ledger plus earlier technically valid proposed rows. Record uses that same batch result and does not begin appending until every technical row passes and, in Commercial Research mode, every required rights/scope state passes. A later known rejection therefore leaves the existing ledger byte-identical. The collector does not reorder revisions or infer missing lineage. One append handle narrows the mutation boundary but does not provide process locking, crash recovery, or a filesystem transaction guarantee.
 
 ## Public Visitor FAQ

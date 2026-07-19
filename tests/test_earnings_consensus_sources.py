@@ -6,6 +6,9 @@ from src.commercial_source_rights import build_source_rights_registry
 from src.earnings_consensus_sources import consensus_source_statuses, validate_source_rows
 
 
+REVIEW_CUTOFF = "2026-07-18T06:00:00Z"
+
+
 def _rights_registry(
     *,
     source_id: str = "licensed_consensus",
@@ -76,9 +79,14 @@ def test_source_status_uses_deterministic_order_and_fails_closed_without_keys(tm
 
 
 def test_current_only_estimate_payload_is_candidate_context_not_history():
-    result = validate_source_rows("alpha_vantage", [_current_row()])
+    result = validate_source_rows(
+        "alpha_vantage",
+        [_current_row()],
+        as_of=REVIEW_CUTOFF,
+    )
 
     assert result.accepted_count == 1
+    assert result.review_cutoff == REVIEW_CUTOFF
     assert result.state == "candidate_context_only"
     assert result.historical_snapshot_count == 0
     assert result.rights_status == "unknown_source"
@@ -103,6 +111,7 @@ def test_caller_cannot_supply_a_source_rights_label():
         validate_source_rows(
             "alpha_vantage",
             (),
+            as_of=REVIEW_CUTOFF,
             rights_status="approved_for_project_use",  # type: ignore[call-arg]
         )
 
@@ -111,6 +120,7 @@ def test_historical_rows_require_source_and_comparability_fields():
     result = validate_source_rows(
         "reviewed_csv",
         [{"ticker": "NVDA", "fiscal_period": "2026-Q4", "history_scope": "point_in_time"}],
+        as_of=REVIEW_CUTOFF,
     )
 
     assert result.accepted_count == 0
@@ -126,6 +136,7 @@ def test_historical_rows_are_reviewable_and_not_declared_ready():
     result = validate_source_rows(
         "licensed_consensus",
         [_historical_row()],
+        as_of=REVIEW_CUTOFF,
         rights_registry=_rights_registry(),
     )
 
@@ -144,16 +155,19 @@ def test_source_rows_require_only_populated_revenue_and_eps_scope():
     revenue_only = validate_source_rows(
         "licensed_consensus",
         [_current_row(eps_consensus="")],
+        as_of=REVIEW_CUTOFF,
         rights_registry=revenue_registry,
     )
     eps_only = validate_source_rows(
         "licensed_consensus",
         [_current_row(revenue_consensus="")],
+        as_of=REVIEW_CUTOFF,
         rights_registry=eps_registry,
     )
     mixed = validate_source_rows(
         "licensed_consensus",
         [_current_row()],
+        as_of=REVIEW_CUTOFF,
         rights_registry=revenue_registry,
     )
 
@@ -184,6 +198,7 @@ def test_source_rows_do_not_split_or_infer_a_composite_provider():
     result = validate_source_rows(
         "licensed_consensus + reviewed_csv",
         [_current_row()],
+        as_of=REVIEW_CUTOFF,
         rights_registry=_rights_registry(),
     )
 
@@ -200,7 +215,110 @@ def test_source_rows_do_not_split_or_infer_a_composite_provider():
 
 def test_source_rows_reject_invalid_fiscal_period_even_when_fields_are_present():
     row = _historical_row(fiscal_period="next-quarter", eps_consensus="")
-    result = validate_source_rows("reviewed_csv", [row])
+    result = validate_source_rows("reviewed_csv", [row], as_of=REVIEW_CUTOFF)
 
     assert result.rejected_count == 1
     assert "fiscal_period" in result.rejected_rows[0]["reason"]
+
+
+def test_source_rows_require_a_valid_review_cutoff():
+    with pytest.raises(ValueError, match="review cutoff"):
+        validate_source_rows("reviewed_csv", (), as_of="not-a-cutoff")
+
+
+@pytest.mark.parametrize("scope", ["", "historical", "latest"])
+def test_source_rows_require_an_explicit_supported_history_scope(scope: str):
+    result = validate_source_rows(
+        "licensed_consensus",
+        [_current_row(history_scope=scope)],
+        as_of=REVIEW_CUTOFF,
+        rights_registry=_rights_registry(),
+    )
+
+    assert result.accepted_count == 0
+    assert result.state == "still_blocked"
+    assert "history_scope must be current_only or point_in_time" in result.rejected_rows[0]["reason"]
+    assert result.commercial_rights_approved is True
+    assert result.commercial_ready_count == 0
+    assert result.commercial_review_rows == ()
+
+
+def test_source_rows_reject_snapshot_after_retrieval():
+    result = validate_source_rows(
+        "licensed_consensus",
+        [_current_row(snapshot_at="2026-07-18T05:00:02Z")],
+        as_of=REVIEW_CUTOFF,
+        rights_registry=_rights_registry(),
+    )
+
+    assert result.accepted_count == 0
+    assert "snapshot_at cannot be after retrieved_at" in result.rejected_rows[0]["reason"]
+    assert result.commercial_rights_approved is True
+    assert result.commercial_ready_count == 0
+    assert result.commercial_review_rows == ()
+
+
+def test_source_rows_reject_snapshot_after_review_cutoff():
+    result = validate_source_rows(
+        "licensed_consensus",
+        [
+            _current_row(
+                snapshot_at="2026-07-18T06:00:01Z",
+                retrieved_at="2026-07-18T06:00:02Z",
+            )
+        ],
+        as_of=REVIEW_CUTOFF,
+        rights_registry=_rights_registry(),
+    )
+
+    assert result.accepted_count == 0
+    assert "snapshot_at is after review cutoff" in result.rejected_rows[0]["reason"]
+    assert result.commercial_review_rows == ()
+
+
+def test_source_rows_reject_retrieval_after_review_cutoff():
+    result = validate_source_rows(
+        "licensed_consensus",
+        [_current_row(retrieved_at="2026-07-18T06:00:01Z")],
+        as_of=REVIEW_CUTOFF,
+        rights_registry=_rights_registry(),
+    )
+
+    assert result.accepted_count == 0
+    assert "retrieved_at is after review cutoff" in result.rejected_rows[0]["reason"]
+    assert result.commercial_review_rows == ()
+
+
+def test_source_rows_accept_timestamp_equality_at_retrieval_and_cutoff():
+    result = validate_source_rows(
+        "licensed_consensus",
+        [
+            _current_row(
+                snapshot_at=REVIEW_CUTOFF,
+                retrieved_at=REVIEW_CUTOFF,
+            )
+        ],
+        as_of=REVIEW_CUTOFF,
+        rights_registry=_rights_registry(),
+    )
+
+    assert result.accepted_count == 1
+    assert result.state == "candidate_context_only"
+    assert result.commercial_ready_count == 1
+
+
+def test_source_rows_preserve_original_row_numbers_after_temporal_rejection():
+    result = validate_source_rows(
+        "licensed_consensus",
+        [
+            _current_row(retrieved_at="2026-07-18T06:00:01Z"),
+            _current_row(source_ref="provider://consensus/current/NVDA/2027-Q1/second"),
+        ],
+        as_of=REVIEW_CUTOFF,
+        rights_registry=_rights_registry(),
+    )
+
+    assert result.accepted_count == 1
+    assert result.rejected_count == 1
+    assert result.rejected_rows[0]["row_number"] == 1
+    assert result.commercial_review_rows[0].row_number == 2
