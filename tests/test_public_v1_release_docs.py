@@ -668,6 +668,8 @@ def test_pilot_freshness_docs_fail_closed_on_declared_source_dates():
     for text in (data_strategy, roadmap, prompt):
         assert "declared source dates" in text.lower()
         assert "file mtimes" in text.lower()
+        assert "make readiness-preview TOP_N=20" in text
+        assert "does not make saved readiness current" in text.lower()
     assert "does not rebuild readiness" in data_strategy.lower()
     assert "make readiness" in prompt
 

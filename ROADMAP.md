@@ -11,6 +11,7 @@ Use live, read-only commands instead of static counts:
 - Master universe rows: use `make project-status` or `make status-check TOP_N=5`.
 - Active research rows: use `make project-status` or the dashboard Home page.
 - Lane readiness: use `make readiness-ops-center`.
+- Stale-readiness impact: use `make readiness-preview TOP_N=20`; it computes proposed stable states in memory, writes no files, and does not make saved readiness current.
 - Source/provider state: use `make session-source-preflight` and `make provider-setup-checklist`.
 - Package/share state: use `make pilot-readiness-check TOP_N=10` and `make public-check`.
 - Commercial-beta contract state: use `make commercial-beta-check`; this is local contract evidence, not hosted or operated proof.
@@ -46,6 +47,7 @@ Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> 
 17. **Next external validation:** after one repeatable permitted source path and a controlled delivery boundary exist, run 10-20 task-based beta sessions; measure time to first answer, readiness comprehension, misuse risk, trust, performance, and repeat-use intent.
 18. **Implemented locally:** phone first-action density now keeps the five profile facts in two rows, removes only duplicated route-card freshness on phone, exposes Discover search and Monitor's weekly state sooner, and keeps Company Workbench's complete review path in a collapsed disclosure before the detailed report. Desktop profile and route metadata remain unchanged.
 19. **Implemented locally:** shared pilot and reviewed-batch freshness now fail closed when declared source dates are newer than the saved readiness build, even when file mtimes look current after a checkout or restore. The current saved snapshot is therefore honestly stale until an intentional reviewed `make readiness` run; the read-only gate does not rebuild readiness or create CSV/JSON artifacts.
+20. **Implemented locally:** `make readiness-preview TOP_N=20` now runs the production universe and readiness logic in explicit no-write mode, compares only stable saved-versus-proposed readiness fields, caps ticker detail, and routes stale pilot inspection to stdout without creating CSV, JSON, report, sample-report, screenshot, timing, or bytecode churn. It does not make saved readiness current, prove source correctness, or authorize the separate reviewed rebuild.
 
 **Maturity assessment:** the quarterly cash-generation slice improves **methodology maturity**, cash-conversion transparency, adapter extensibility, fail-closed reliability, and reviewer trust. It makes Company Workbench more useful for understanding operating profitability versus cash generation without inventing missing facts. It **does not prove real-company coverage or market validation**, licensed source operation, hosted reliability, reviewer adoption, commercial demand, calibration quality, or product-market fit. The product therefore remains a local Commercial Research Beta release candidate, not a market-validated platform.
 
@@ -54,6 +56,8 @@ The acceptance harness closes a local adapter-governance gap, but it **does not 
 The phone first-action slice improves **local usability maturity** and reviewer comprehension. It does not change readiness, source evidence, coverage, forecasts, or research conclusions, and it does not prove hosted reliability, external reviewer demand, commercial demand, or product-market fit.
 
 The declared-date freshness alignment improves **operating reliability** by making pilot packaging, reviewed batches, project status, and the selected-profile context agree on the same fail-closed boundary. It does not refresh source data, rebuild readiness, or make stale counts current; file mtimes remain a second check rather than a substitute for declared source dates.
+
+The readiness-impact preview improves **operating maturity** by making the effect of a future reviewed rebuild inspectable before generated artifacts are written. The current preview detects substantial proposed fundamentals and DCF readiness movement, but those in-memory counts are not current product claims and do not prove source rights, methodology correctness, reviewer acceptance, hosted operation, market demand, or product-market fit.
 
 **Exit gate:** local release gates pass; one permitted source path demonstrates repeatable provenance and freshness; a controlled host enforces the claimed access boundary; and 10-20 reviewers can complete the primary workflow without mistaking it for advice or live-market certainty.
 

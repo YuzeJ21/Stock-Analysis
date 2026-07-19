@@ -33,6 +33,7 @@ Expected lineage to verify, never assume:
 - Branch: `codex/personal-research-mode-mvp`.
 - Draft PR: https://github.com/YuzeJ21/Stock-Analysis/pull/113.
 - Evidence-quality lineage anchor: commit `e0eea1f95` or a later verified descendant.
+- No-write readiness-preview lineage anchor: commit `1f72a6d90` or a later verified descendant.
 - The branch should be clean, pushed, and aligned with `origin/codex/personal-research-mode-mvp`.
 - PR #113 must remain open and draft. Do not merge it.
 - Generated CSV, JSON, readiness reports, stock reports, sample reports, screenshots, browser timing output, and other generated churn must remain excluded unless one exact artifact is intentionally reviewed and explicitly required.
@@ -49,6 +50,7 @@ Current locally implemented capabilities to verify:
 - Forward View, Scenario Lab, Source Freshness Timeline, Research Comparison, Peer Read-Through Map, and Decision-Process Scorecard.
 - Fail-closed provenance, source-rights, freshness, candidate-context, and synthetic-fixture controls.
 - Shared pilot and reviewed-batch freshness that treats declared source dates newer than the saved readiness build as stale even when file mtimes look current; the read-only gate never runs `make readiness` or writes generated artifacts.
+- No-write readiness impact preview via `make readiness-preview TOP_N=20`; it runs production readiness logic in memory, compares stable saved-versus-proposed states, writes nothing, and does not make saved readiness current.
 - Peer evidence-quality contract separating relationship provenance, peer role, economic comparability, result context, trend readiness, and valuation-anchor eligibility.
 - In-memory quarterly cash-generation evidence contract with independent operating-margin, free-cash-flow, and FCF-margin states, explicit filed-Q4 enforcement, Advanced-only source lineage, and no supplemental data file, writer, template, report, or generated artifact.
 - Quarterly adapter acceptance harness for one in-memory company batch, with deterministic identity, commercial-rights, supported-field, cutoff, revision, component, compatibility, complete-period, and Q4 blockers; `accepted_for_review` always leaves production activation false and readiness promotions empty.
@@ -67,6 +69,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Operating margin, free cash flow, and FCF margin remain withheld for real companies until a reviewed quarterly source adapter supplies compatible explicit observations. Their readiness cannot promote Revenue, EPS, DCF, consensus, peer, catalyst, outcome, backtest, or calibration states.
 - Quarterly adapter acceptance is a local review-routing decision only. It cannot change source rights, load or write an adapter file, supply Company Workbench production observations, or promote readiness.
 - Declared source dates newer than the saved readiness build must keep pilot, reviewed-batch, project-status, and profile-context freshness stale. File mtimes cannot override that evidence; only an intentional reviewed `make readiness` run can rebuild the generated snapshot.
+- `make readiness-preview TOP_N=20` is inspection evidence only. It must not create or modify CSV, JSON, report, sample-report, screenshot, timing, directory, or bytecode artifacts; it cannot authorize a rebuild, promote readiness, or make stale counts current.
 
 Current external dependency classifications to verify once, then avoid looping:
 
