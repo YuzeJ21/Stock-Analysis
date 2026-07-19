@@ -8,6 +8,7 @@ from src.readiness_preview import (
     build_readiness_impact_preview,
     compare_readiness_frames,
     render_readiness_impact_preview,
+    review_readiness_changes,
     review_readiness_promotions,
 )
 
@@ -213,6 +214,58 @@ def test_promotion_review_reports_no_promotions_without_source_rows():
     assert review.status == "no_promotions"
     assert review.promotion_count == 0
     assert review.evidence_rows == ()
+
+
+def test_change_review_summarizes_semantic_transitions_and_dcf_reasons():
+    saved = pd.DataFrame(
+        [
+            _row("AAA", ready_features="price"),
+            _row("BBB"),
+            _row("CCC"),
+            _row("DDD"),
+            _row("FFF"),
+        ]
+    )
+    proposed = pd.DataFrame(
+        [
+            _row("AAA", ready_features="price, fundamentals", fundamentals_ready=True),
+            _row("BBB", partial_features="fundamentals"),
+            _row("CCC", excluded_features="dcf", name="Example Bank Corp", asset_type="company"),
+            _row("EEE", name="Added Company", asset_type="company"),
+            _row("FFF", excluded_features="dcf", name="Example Software", asset_type="company"),
+        ]
+    )
+    fundamentals = pd.DataFrame(
+        [
+            {"ticker": "CCC", "revenue": 100, "free_cash_flow": 10, "fcf_margin": 0.1, "shares_outstanding": 10},
+            {"ticker": "FFF", "revenue": 100, "free_cash_flow": 10, "fcf_margin": 0.1, "shares_outstanding": 10},
+        ]
+    )
+
+    review = review_readiness_changes(saved, proposed, fundamentals)
+
+    assert review.status == "unexplained_changes"
+    assert review.added_ticker_count == 1
+    assert review.removed_ticker_count == 1
+    assert review.newly_ready_counts == (("fundamentals", 1),)
+    assert review.newly_partial_counts == (("fundamentals", 1),)
+    assert review.newly_excluded_counts == (("dcf", 2),)
+    assert review.dcf_exclusion_reason_counts == (("bank_or_bancorp", 1),)
+    assert review.unexplained_dcf_exclusion_count == 1
+    assert review.unexplained_dcf_exclusion_tickers == ("FFF",)
+
+
+def test_change_review_reports_all_dcf_exclusions_explained():
+    saved = pd.DataFrame([_row("AAA")])
+    proposed = pd.DataFrame(
+        [_row("AAA", excluded_features="dcf", name="Example Acquisition Corp", asset_type="company")]
+    )
+
+    review = review_readiness_changes(saved, proposed, pd.DataFrame())
+
+    assert review.status == "changes_explained"
+    assert review.dcf_exclusion_reason_counts == (("acquisition_or_spac", 1),)
+    assert review.unexplained_dcf_exclusion_count == 0
 
 
 def test_missing_saved_snapshot_fails_closed_without_building_or_writing(tmp_path: Path, monkeypatch):

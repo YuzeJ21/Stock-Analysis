@@ -93,6 +93,8 @@ The stdout-only readiness preview treats a false-to-true fundamentals or DCF fla
 
 Source identifiers are exact. A composite or unregistered value is not split, normalized to a registered component, or granted inferred rights. Missing or duplicate canonical rows, missing source/as-of/reference fields, unapproved exact sources, and missing registered field support fail closed in the evidence review without changing the technical readiness frame. The review also does not establish price-source provenance required by DCF. Even a complete review is inspection evidence only; it cannot write an artifact, mark stale readiness current, edit the rights registry, or authorize the separate reviewed make readiness rebuild.
 
+The preview also preserves the method reason for newly excluded DCF transitions. Named reasons are a deterministic explanation of the existing scope decision; absent metadata remains unexplained instead of inferred. Ready, partial, excluded, added, and removed transition counts are independent and may overlap. They are not current readiness totals, evidence of company quality, a ranking, or a recommendation.
+
 ## Research Change Event Contract
 
 A research change event requires two comparable generated snapshots from the same selected profile. Each event preserves a deterministic event ID, ticker, event family/subtype, prior/current values, source and source reference, source publication time when available, retrieval and detection time, selected profile, prior/current snapshot identities, evidence status, materiality, and a research-only review task.

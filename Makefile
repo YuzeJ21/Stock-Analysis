@@ -313,7 +313,7 @@ help-full:
 	@echo "  make import-staging   Write header-only staging CSV files under data/imports"
 	@echo "  make validate-data    Validate local CSV datasets"
 	@echo "  make readiness-snapshot Save current ticker readiness as data/reports/ticker_readiness_report.previous.csv before a refresh"
-	@echo "  make readiness-preview [TOP_N=20] Preview stable readiness impact and promotion evidence in memory without writing files"
+	@echo "  make readiness-preview [TOP_N=20] Preview stable readiness impact, change causes, and promotion evidence in memory without writing files"
 	@echo "  make readiness        Write central data/reports/ticker_readiness_report.csv"
 	@echo ""
 	@echo "Price fallback:"

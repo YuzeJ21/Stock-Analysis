@@ -21,6 +21,8 @@ When saved readiness is stale, `make readiness-preview TOP_N=20` runs the produc
 
 Composite or unregistered source values remain unknown exact identifiers; the method does not split them or borrow the rights decision of one component. Numerical completeness can therefore produce a proposed technical promotion while the evidence review remains blocked. DCF also depends on price evidence, and the current canonical price rows do not establish row-level provider provenance, so the fundamentals review never claims complete DCF commercial provenance. The preview writes nothing, does not edit source rights, does not make saved readiness current, and cannot authorize the separately reviewed `make readiness` boundary.
 
+The same preview summarizes newly ready, partial, and excluded feature transitions plus added or removed ticker rows. New DCF exclusions use the exact existing company-scope method and report a deterministic primary reason: non-operating asset type, acquisition/SPAC, closed-end fund, bank/bancorp, financial/insurance/mortgage, REIT, realty-trust/BDC, capital corporation, or nonpositive-revenue margin model. Reasons explain method fit; they are not company-quality labels. Transition counts can overlap for one ticker and are not current readiness totals.
+
 Use this quick model card before relying on a page or report:
 
 | Check | What to verify | Boundary |

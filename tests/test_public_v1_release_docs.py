@@ -16,7 +16,7 @@ def test_makefile_exposes_stdout_only_readiness_preview_contract():
 
     assert "readiness-preview" in makefile.splitlines()[0]
     assert (
-        "make readiness-preview [TOP_N=20] Preview stable readiness impact and promotion evidence in memory without writing files"
+        "make readiness-preview [TOP_N=20] Preview stable readiness impact, change causes, and promotion evidence in memory without writing files"
         in makefile
     )
     assert (
@@ -731,6 +731,23 @@ def test_readiness_promotion_evidence_docs_keep_technical_and_rights_states_inde
     assert "does not establish price-source provenance" in provenance
     assert "local_evidence_review_required" in prompt
     assert "not current readiness counts or rebuild approval" in roadmap
+
+
+def test_readiness_change_cause_docs_explain_method_fit_without_company_judgment():
+    roadmap = _read("ROADMAP.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, data_strategy, methodology, provenance, prompt):
+        lowered = text.lower()
+        assert "transition" in lowered
+        assert "method" in lowered
+        assert "current readiness totals" in lowered
+    assert "acquisition/spac" in methodology.lower()
+    assert "not a negative company signal" in roadmap.lower()
+    assert "cannot alter scope" in prompt.lower()
 
 
 def test_thesis_journal_docs_preserve_append_only_research_boundary():

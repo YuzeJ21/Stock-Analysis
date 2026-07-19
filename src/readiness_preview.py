@@ -14,6 +14,7 @@ from src.commercial_source_rights import (
     commercial_eligibility,
     load_source_rights_registry,
 )
+from src.company_analysis_scope import company_dcf_exclusion_reasons
 from src.loader import normalize_columns
 from src.paths import resolve_data_dir, resolve_project_root
 from src.readiness_engine import build_ticker_readiness_report
@@ -92,6 +93,19 @@ class ReadinessPromotionReview:
 
 
 @dataclass(frozen=True)
+class ReadinessChangeReview:
+    status: str
+    added_ticker_count: int
+    removed_ticker_count: int
+    newly_ready_counts: tuple[tuple[str, int], ...]
+    newly_partial_counts: tuple[tuple[str, int], ...]
+    newly_excluded_counts: tuple[tuple[str, int], ...]
+    dcf_exclusion_reason_counts: tuple[tuple[str, int], ...]
+    unexplained_dcf_exclusion_count: int
+    unexplained_dcf_exclusion_tickers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ReadinessImpactPreview:
     status: str
     saved_ticker_count: int
@@ -103,6 +117,7 @@ class ReadinessImpactPreview:
     top_n: int
     saved_path: str
     promotion_review: ReadinessPromotionReview | None = None
+    change_review: ReadinessChangeReview | None = None
 
 
 def _truthy(value: object) -> bool:
@@ -189,6 +204,72 @@ def _count_values(values: list[str]) -> tuple[tuple[str, int], ...]:
         key=lambda item: (-item[1], item[0]),
     )
     return tuple(ordered)
+
+
+def _feature_set(value: object) -> set[str]:
+    text = _text(value)
+    return {part.strip() for part in text.split(",") if part.strip()}
+
+
+def review_readiness_changes(
+    saved: pd.DataFrame,
+    proposed: pd.DataFrame,
+    fundamentals: pd.DataFrame,
+) -> ReadinessChangeReview:
+    """Summarize semantic feature transitions without changing readiness decisions."""
+
+    saved_rows = _index_readiness(saved)
+    proposed_rows = _index_readiness(proposed)
+    fundamentals_rows = _fundamentals_rows_by_ticker(fundamentals)
+    newly_ready: list[str] = []
+    newly_partial: list[str] = []
+    newly_excluded: list[str] = []
+    dcf_reasons: list[str] = []
+    unexplained_dcf: list[str] = []
+
+    for ticker in sorted(set(saved_rows) & set(proposed_rows)):
+        saved_row = saved_rows[ticker]
+        proposed_row = proposed_rows[ticker]
+        newly_ready.extend(_feature_set(proposed_row.get("ready_features")) - _feature_set(saved_row.get("ready_features")))
+        newly_partial.extend(
+            _feature_set(proposed_row.get("partial_features")) - _feature_set(saved_row.get("partial_features"))
+        )
+        ticker_newly_excluded = _feature_set(proposed_row.get("excluded_features")) - _feature_set(
+            saved_row.get("excluded_features")
+        )
+        newly_excluded.extend(ticker_newly_excluded)
+        if "dcf" not in ticker_newly_excluded:
+            continue
+        candidates = fundamentals_rows.get(ticker, [])
+        fundamentals_row = candidates[0] if len(candidates) == 1 else pd.Series(dtype=object)
+        reasons = company_dcf_exclusion_reasons(
+            proposed_row.get("asset_type"),
+            proposed_row,
+            fundamentals_row,
+        )
+        if reasons:
+            dcf_reasons.append(reasons[0])
+        else:
+            unexplained_dcf.append(ticker)
+
+    has_changes = bool(
+        set(saved_rows) ^ set(proposed_rows)
+        or newly_ready
+        or newly_partial
+        or newly_excluded
+    )
+    status = "unexplained_changes" if unexplained_dcf else "changes_explained" if has_changes else "no_changes"
+    return ReadinessChangeReview(
+        status=status,
+        added_ticker_count=len(set(proposed_rows) - set(saved_rows)),
+        removed_ticker_count=len(set(saved_rows) - set(proposed_rows)),
+        newly_ready_counts=_count_values(newly_ready),
+        newly_partial_counts=_count_values(newly_partial),
+        newly_excluded_counts=_count_values(newly_excluded),
+        dcf_exclusion_reason_counts=_count_values(dcf_reasons),
+        unexplained_dcf_exclusion_count=len(unexplained_dcf),
+        unexplained_dcf_exclusion_tickers=tuple(unexplained_dcf),
+    )
 
 
 def review_readiness_promotions(
@@ -394,7 +475,8 @@ def build_readiness_impact_preview(
         rights_registry=registry,
         top_n=top_n,
     )
-    return replace(preview, promotion_review=promotion_review)
+    change_review = review_readiness_changes(saved, proposed, fundamentals)
+    return replace(preview, promotion_review=promotion_review, change_review=change_review)
 
 
 def _format_counts(counts: tuple[tuple[str, int], ...]) -> str:
@@ -426,6 +508,34 @@ def render_readiness_impact_preview(preview: ReadinessImpactPreview) -> str:
         hidden = preview.changed_ticker_count - len(preview.changed_tickers)
         if hidden > 0:
             lines.append(f"- ... {hidden} additional changed ticker(s) hidden by TOP_N={preview.top_n}")
+        change_review = preview.change_review
+        if change_review is not None:
+            lines.extend(
+                [
+                    "",
+                    "Readiness Change Cause Review",
+                    f"Status: {change_review.status}",
+                    (
+                        "Ticker rows: "
+                        f"added={change_review.added_ticker_count}, removed={change_review.removed_ticker_count}"
+                    ),
+                    f"Newly ready features: {_format_counts(change_review.newly_ready_counts)}",
+                    f"Newly partial features: {_format_counts(change_review.newly_partial_counts)}",
+                    f"Newly excluded features: {_format_counts(change_review.newly_excluded_counts)}",
+                    f"Primary DCF exclusion reasons: {_format_counts(change_review.dcf_exclusion_reason_counts)}",
+                    (
+                        "Unexplained new DCF exclusions: "
+                        f"{change_review.unexplained_dcf_exclusion_count}"
+                    ),
+                    "Transition counts are independent and can overlap for one ticker; they are not current readiness totals.",
+                    "A DCF exclusion is a method-fit state, not a negative company signal or investment conclusion.",
+                ]
+            )
+            if change_review.unexplained_dcf_exclusion_tickers:
+                lines.append(
+                    "- Unexplained DCF exclusions: "
+                    + ", ".join(change_review.unexplained_dcf_exclusion_tickers[: preview.top_n])
+                )
         review = preview.promotion_review
         if review is not None:
             lines.extend(
