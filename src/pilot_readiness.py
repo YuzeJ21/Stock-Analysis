@@ -304,14 +304,17 @@ def _hygiene_check(root: Path) -> PilotReadinessCheck:
 def _freshness_check(root: Path) -> PilotReadinessCheck:
     freshness = readiness_freshness_status(root)
     status = "green" if freshness.status == "current" else "blocked"
-    command = "make status-check TOP_N=5" if freshness.status == "current" else "make readiness"
+    command = "make status-check TOP_N=5" if freshness.status == "current" else "make readiness-preview TOP_N=20"
     return PilotReadinessCheck(
         area="Readiness freshness",
         status=status,
         title=f"Readiness artifacts are {freshness.status}",
         detail=freshness.message,
         command=command,
-        stop_rule="Stop before quoting final counts or proof deltas if readiness artifacts are stale or missing.",
+        stop_rule=(
+            "Stop before quoting final counts or proof deltas if readiness artifacts are stale or missing. "
+            "The preview is inspection evidence only; an intentional reviewed make readiness run remains the separate rebuild boundary."
+        ),
     )
 
 

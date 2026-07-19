@@ -11,6 +11,17 @@ def _read(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
 
 
+def test_makefile_exposes_stdout_only_readiness_preview_contract():
+    makefile = _read("Makefile")
+
+    assert "readiness-preview" in makefile.splitlines()[0]
+    assert "make readiness-preview [TOP_N=20] Preview stable readiness impact in memory without writing files" in makefile
+    assert (
+        "readiness-preview:\n\t@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_preview --top-n $(or $(TOP_N),20)"
+        in makefile
+    )
+
+
 def test_readme_product_tour_matches_v1_public_route_model():
     readme = _read("README.md")
 

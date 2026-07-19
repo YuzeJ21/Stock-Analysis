@@ -474,7 +474,9 @@ def test_pilot_readiness_blocks_product_dirty_and_stale_readiness(tmp_path: Path
     assert by_area["Generated artifact hygiene"].status == "blocked"
     assert "product/code/docs/test" in by_area["Generated artifact hygiene"].detail
     assert by_area["Readiness freshness"].status == "blocked"
-    assert by_area["Readiness freshness"].command == "make readiness"
+    assert by_area["Readiness freshness"].command == "make readiness-preview TOP_N=20"
+    assert "preview" in by_area["Readiness freshness"].stop_rule.lower()
+    assert "final counts" in by_area["Readiness freshness"].stop_rule.lower()
     assert pilot_readiness_verdict(checks) == "blocked"
 
 
