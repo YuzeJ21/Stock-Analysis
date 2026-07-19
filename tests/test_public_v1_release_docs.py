@@ -701,8 +701,10 @@ def test_stale_readiness_continuation_gate_docs_keep_rankings_non_executable():
     assert "does not refresh data" in roadmap.lower()
     assert "does not prove market validation" in roadmap.lower()
     assert "auto-refresh status" in roadmap.lower()
+    assert "session source preflight" in roadmap.lower()
     assert "commercial-beta release" in roadmap.lower()
     assert "auto-refresh status" in prompt.lower()
+    assert "session source preflight" in prompt.lower()
 
 
 def test_thesis_journal_docs_preserve_append_only_research_boundary():

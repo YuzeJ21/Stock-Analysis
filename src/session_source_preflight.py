@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import importlib
 import json
 import os
 import socket
 from datetime import datetime, timezone
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
@@ -14,7 +16,9 @@ from urllib.request import Request, urlopen
 
 import pandas as pd
 
+from src.continuation_gate import ContinuationGate, build_continuation_gate
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.profile_context import build_profile_context
 from src.provider_env import load_provider_environment
 from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FMP_API_KEY_ENV, FINNHUB_API_KEY_ENV
 from src.data_update import DEFAULT_IBKR_CLIENT_ID, DEFAULT_IBKR_HOST, DEFAULT_IBKR_PORT, IBKR_CLIENT_ID_ENV, IBKR_HOST_ENV, IBKR_PORT_ENV
@@ -1119,6 +1123,49 @@ def build_session_source_preflight(
     }
 
 
+def apply_continuation_gate(
+    preflight: dict[str, Any],
+    continuation_gate: ContinuationGate,
+) -> dict[str, Any]:
+    """Overlay continuation routing without changing source availability evidence."""
+
+    overlaid = copy.deepcopy(preflight)
+    overlaid["continuation_gate"] = asdict(continuation_gate)
+    if not continuation_gate.suppress_execution:
+        return overlaid
+
+    console = overlaid.get("source_activation_console_v2", {})
+    if not isinstance(console, dict):
+        console = {}
+        overlaid["source_activation_console_v2"] = console
+    console["next_executable_lane"] = continuation_gate.state
+    console["next_executable_command"] = continuation_gate.next_safe_command
+    operator_summary = console.get("operator_summary", {})
+    if not isinstance(operator_summary, dict):
+        operator_summary = {}
+        console["operator_summary"] = operator_summary
+    existing_avoid = operator_summary.get("avoid_repeating", [])
+    if not isinstance(existing_avoid, list):
+        existing_avoid = [str(existing_avoid)] if str(existing_avoid).strip() else []
+    avoid_repeating = _dedupe_preserve_order(
+        [
+            *[str(item) for item in existing_avoid if str(item).strip()],
+            "broad_refresh",
+            "source_proof",
+            "readiness_rebuild",
+        ]
+    )
+    operator_summary.update(
+        {
+            "can_run_now": [continuation_gate.state],
+            "avoid_repeating": avoid_repeating,
+            "next_step": continuation_gate.next_safe_command,
+            "next_step_reason": continuation_gate.reason,
+        }
+    )
+    return overlaid
+
+
 def render_session_source_preflight(preflight: dict[str, Any]) -> str:
     sources = preflight["sources"]
     categories = preflight.get("source_categories", {})
@@ -1138,6 +1185,16 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
         f"  paid_or_locked: {', '.join(categories.get('paid_or_locked', [])) or '-'}",
         "source_status:",
     ]
+    continuation_gate = preflight.get("continuation_gate", {})
+    if isinstance(continuation_gate, dict) and continuation_gate.get("suppress_execution"):
+        lines[1:1] = [
+            f"Stale readiness continuation gate: {continuation_gate.get('state', '-')}",
+            f"- Next safe preview: {continuation_gate.get('next_safe_command', '-')}",
+            f"- Reason: {continuation_gate.get('reason', '-')}",
+            "- Source availability and lane details below are planning context only; they do not authorize execution.",
+            f"- Rebuild boundary: {continuation_gate.get('rebuild_command', 'make readiness')} is a separate intentional reviewed write.",
+            f"- Stop rule: {continuation_gate.get('stop_rule', '-')}",
+        ]
     for source_name in (
         "sec",
         "sec_submissions",
@@ -1392,6 +1449,16 @@ def main() -> None:
         sec_probe=probe_sec_access,
         yfinance_import_probe=probe_yfinance_import,
         sample_ticker=args.sample_ticker,
+    )
+    preflight = apply_continuation_gate(
+        preflight,
+        build_continuation_gate(
+            build_profile_context(
+                project_root=root,
+                data_dir=data_path,
+                output_dir=resolve_outputs_dir(project_root=root),
+            )
+        ),
     )
     if args.write_output:
         write_session_source_preflight_output(preflight, root)

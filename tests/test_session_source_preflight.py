@@ -6,6 +6,8 @@ from urllib.error import URLError
 
 import pandas as pd
 
+import src.session_source_preflight as session_source_preflight
+from src.continuation_gate import ContinuationGate
 from src.session_source_preflight import (
     build_source_actionability,
     build_session_source_preflight,
@@ -17,6 +19,45 @@ from src.session_source_preflight import (
     render_session_source_preflight,
     session_source_preflight_output_path,
 )
+
+
+def test_session_source_preflight_overlays_stale_routing_without_changing_source_evidence():
+    preflight = {
+        "sources": {"sec": {"status": "available"}},
+        "source_activation_console_v2": {
+            "next_executable_lane": "sec_fundamentals_share_count",
+            "next_executable_command": "make coverage-frontier TOP_N=10",
+            "operator_summary": {
+                "can_run_now": ["sec_fundamentals_share_count"],
+                "needs_setup": ["fmp"],
+                "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                "next_step": "make coverage-frontier TOP_N=10",
+                "next_step_reason": "Use the next source lane.",
+            },
+        },
+    }
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Selected-profile source dates are newer than saved readiness.",
+        rebuild_command="make readiness",
+        stop_rule="Do not start broad refresh or source-proof work.",
+        suppress_execution=True,
+    )
+
+    overlaid = session_source_preflight.apply_continuation_gate(preflight, gate)
+    assert preflight["source_activation_console_v2"]["next_executable_command"] == "make coverage-frontier TOP_N=10"
+    assert overlaid["sources"] == preflight["sources"]
+    assert overlaid["continuation_gate"]["state"] == "inspection_only"
+    assert overlaid["source_activation_console_v2"]["next_executable_lane"] == "inspection_only"
+    assert overlaid["source_activation_console_v2"]["next_executable_command"] == "make readiness-preview TOP_N=20"
+    assert overlaid["source_activation_console_v2"]["operator_summary"]["needs_setup"] == ["fmp"]
+    assert overlaid["source_activation_console_v2"]["operator_summary"]["avoid_repeating"] == [
+        "fundamentals_share_count_source_ladder",
+        "broad_refresh",
+        "source_proof",
+        "readiness_rebuild",
+    ]
 
 
 def _write_fundamentals(root: Path, rows: list[dict[str, object]]) -> None:

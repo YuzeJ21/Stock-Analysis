@@ -491,7 +491,7 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     assert "one safe smoke test" not in rendered
     assert "no broad coverage batch should run from setup alone" in rendered
     assert "provider setup only makes a source executable" in rendered
-    assert "do not retry fundamentals/share-count source ladder" in rendered
+    assert "do not retry broad_refresh, source_proof, readiness_rebuild" in rendered
     assert "fundamentals_share_count_source_ladder" not in rendered
     assert "coverage_workflow_evidence" not in rendered
     assert "project-status -> provider setup -> reviewed one-ticker smoke command -> validate/preview" in rendered
