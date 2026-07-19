@@ -2618,6 +2618,13 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot" in makefile
     assert "make trusted-data-pilot-lane LANE=fundamentals_dcf [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only lane-group runbook and evidence summary" in makefile
     assert "price-normalize:\nifndef INPUT\n\t$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)\nendif" in makefile
+    price_normalize_target = makefile.split("price-normalize:", 1)[1].split("daily:", 1)[0]
+    assert '$(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",)' in price_normalize_target
+    assert '$(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",)' in price_normalize_target
+    assert (
+        "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=<source_id> "
+        "SOURCE_REF=<durable_reference> RETRIEVED_AT=<timestamp>"
+    ) in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "stock-report-md:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report-md TICKER=NVDA)\nendif\n\t@python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) --quiet $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile

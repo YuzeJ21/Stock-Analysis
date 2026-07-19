@@ -101,6 +101,8 @@ The selected row must carry an exact `source`, durable `source_ref`, and parseab
 
 The market observation date, `as_of_date`, local file name or modification time, adapter/provider availability, refresh warning text, and numerical row shape are not substitutes for provider identity, retrieval time, or a durable source reference. The audit changes no technical readiness, canonical row, valuation result, source-rights record, freshness state, or reviewer decision. A complete result would still be inspection evidence, not authorization for `make readiness`; an incomplete result does not by itself invalidate the row for local research context.
 
+The prospective manual price path can preserve explicit `source_ref` and `retrieved_at` values alongside `source`. These values must be reviewer supplied; the normalizer generates no fallback reference or retrieval timestamp. Validation normalizes a valid retrieval timestamp to UTC and reports lineage completeness separately from technical row validity. Preview retains the summary, while apply remains a distinct reviewed mutation with the existing backup and merge boundary. Preserved lineage is necessary but not sufficient: exact-source rights, registered `prices` scope, payload review, freshness, apply intent, and rebuilt readiness remain independently required.
+
 The preview also preserves the method reason for newly excluded DCF transitions. Named reasons are a deterministic explanation of the existing scope decision; absent metadata remains unexplained instead of inferred. Ready, partial, excluded, added, and removed transition counts are independent and may overlap. They are not current readiness totals, evidence of company quality, a ranking, or a recommendation.
 
 ## Research Change Event Contract

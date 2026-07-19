@@ -26,8 +26,30 @@ from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FM
 
 PRICE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
 PRICE_IMPORT_REQUIRED_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "volume"]
-PRICE_IMPORT_OPTIONAL_COLUMNS = ["adjusted_close", "adj_close", "source", "as_of_date", "notes"]
-PRICE_IMPORT_OUTPUT_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "adj_close", "volume", "source", "as_of_date", "notes"]
+PRICE_IMPORT_OPTIONAL_COLUMNS = [
+    "adjusted_close",
+    "adj_close",
+    "source",
+    "source_ref",
+    "retrieved_at",
+    "as_of_date",
+    "notes",
+]
+PRICE_IMPORT_OUTPUT_COLUMNS = [
+    "date",
+    "ticker",
+    "open",
+    "high",
+    "low",
+    "close",
+    "adj_close",
+    "volume",
+    "source",
+    "source_ref",
+    "retrieved_at",
+    "as_of_date",
+    "notes",
+]
 PRICE_STATUS_COLUMNS = [
     "run_timestamp",
     "ticker",
@@ -1365,6 +1387,43 @@ def _serialize_price_date(value: Any) -> str:
     return timestamp.date().isoformat()
 
 
+def _serialize_retrieved_at(value: Any) -> str:
+    if pd.isna(value) or not str(value).strip():
+        return ""
+    timestamp = pd.to_datetime(value, errors="coerce", utc=True)
+    if pd.isna(timestamp):
+        return ""
+    return timestamp.isoformat()
+
+
+def _price_lineage_summary(frame: pd.DataFrame) -> dict[str, Any]:
+    if frame.empty:
+        return {
+            "lineage_status": "no_valid_rows",
+            "lineage_complete_rows": 0,
+            "lineage_review_required_rows": 0,
+            "lineage_missing_fields": [],
+        }
+
+    present: dict[str, pd.Series] = {}
+    for field in ("source", "source_ref", "retrieved_at"):
+        if field not in frame.columns:
+            present[field] = pd.Series(False, index=frame.index, dtype=bool)
+            continue
+        values = frame[field].astype("string").str.strip()
+        present[field] = values.notna() & values.ne("")
+
+    complete_mask = present["source"] & present["source_ref"] & present["retrieved_at"]
+    complete_rows = int(complete_mask.sum())
+    missing_fields = sorted(field for field, field_present in present.items() if not bool(field_present.all()))
+    return {
+        "lineage_status": "lineage_complete" if complete_rows == len(frame) else "lineage_review_required",
+        "lineage_complete_rows": complete_rows,
+        "lineage_review_required_rows": len(frame) - complete_rows,
+        "lineage_missing_fields": missing_fields,
+    }
+
+
 def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
     warnings: list[str] = []
     unknown_columns = sorted(set(frame.columns) - set(PRICE_IMPORT_REQUIRED_COLUMNS) - set(PRICE_IMPORT_OPTIONAL_COLUMNS) - {"adj_close"})
@@ -1385,12 +1444,18 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
                 "skipped_rows": len(frame),
                 "duplicate_rows": 0,
                 "affected_tickers": [],
+                **_price_lineage_summary(pd.DataFrame()),
             },
         )
 
     normalized = frame.copy()
     normalized["ticker"] = _normalize_ticker_series(normalized["ticker"])
     normalized["date"] = pd.to_datetime(normalized["date"], errors="coerce", format="mixed")
+    for text_column in ("source", "source_ref"):
+        if text_column in normalized.columns:
+            normalized[text_column] = normalized[text_column].astype("string").str.strip()
+    if "retrieved_at" in normalized.columns:
+        normalized["retrieved_at"] = normalized["retrieved_at"].apply(_serialize_retrieved_at)
     if "as_of_date" in normalized.columns:
         normalized["as_of_date"] = pd.to_datetime(normalized["as_of_date"], errors="coerce", format="mixed")
     for numeric_column in ("open", "high", "low", "close", "adj_close", "volume"):
@@ -1430,6 +1495,7 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
                 "skipped_rows": skipped_invalid,
                 "duplicate_rows": 0,
                 "affected_tickers": [],
+                **_price_lineage_summary(pd.DataFrame()),
             },
         )
 
@@ -1442,11 +1508,19 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
     if "as_of_date" in valid.columns:
         valid["as_of_date"] = valid["as_of_date"].apply(_serialize_price_date)
     output_columns = ["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
-    for optional_column in ("source", "as_of_date", "notes"):
+    for optional_column in ("source", "source_ref", "retrieved_at", "as_of_date", "notes"):
         if optional_column in valid.columns:
             output_columns.append(optional_column)
     valid = valid.reindex(columns=output_columns)
 
+    lineage_summary = _price_lineage_summary(valid)
+    if lineage_summary["lineage_review_required_rows"]:
+        warnings.append(
+            "Price lineage review required for "
+            f"{lineage_summary['lineage_review_required_rows']} valid row(s); missing or invalid fields: "
+            + ", ".join(lineage_summary["lineage_missing_fields"])
+            + "."
+        )
     status = "valid_with_warnings" if warnings else "valid"
     return (
         valid,
@@ -1460,6 +1534,7 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
             "skipped_rows": skipped_invalid + duplicate_rows,
             "duplicate_rows": duplicate_rows,
             "affected_tickers": sorted(valid["ticker"].dropna().unique().tolist()),
+            **lineage_summary,
         },
     )
 
@@ -1487,6 +1562,7 @@ def validate_price_imports(
             "missing_required_columns": PRICE_IMPORT_REQUIRED_COLUMNS,
             "unknown_columns": [],
             "warnings": ["No price import file found at data/imports/prices.csv."],
+            **_price_lineage_summary(pd.DataFrame()),
         }
     staged_frame, read_warnings = _read_price_import(staged_path)
     valid_frame, summary = _normalize_price_import_frame(staged_frame)

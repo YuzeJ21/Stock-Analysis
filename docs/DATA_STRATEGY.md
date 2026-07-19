@@ -12,6 +12,8 @@ Run `python3 -m src.commercial_source_rights` to inspect the read-only registry,
 
 Price availability and price provenance are separate. `make readiness-preview TOP_N=20` audits the exact latest usable price row for every proposed DCF promotion without writing files. Commercially reviewable row lineage requires `source`, `source_ref`, and `retrieved_at`, plus exact-source approval and registered `prices` scope. A market date, `as_of_date`, local CSV label or file timestamp, configured adapter, refresh warning, or recognizable OHLCV series cannot reconstruct missing provider identity. The current canonical gap should be solved prospectively with reviewed row-level evidence; do not mass-rewrite historical price rows or assign a guessed provider.
 
+When one permitted reviewed price export exists, normalize only that bounded file with explicit evidence metadata: `make price-normalize INPUT=<reviewed.csv> TICKER=<ticker> SOURCE=<source_id> SOURCE_REF=<durable_reference> RETRIEVED_AT=<timestamp>`. Then run `make price-validate` and `make price-preview`. A `lineage_complete` result proves field preservation only; verify exact-source commercial rights and registered `prices` scope before any reviewed apply. Missing metadata remains `lineage_review_required` without being generated automatically.
+
 ## Public Visitor FAQ
 
 The public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Use this data strategy as the explanation layer behind that path, not as a second navigation model.

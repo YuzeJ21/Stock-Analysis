@@ -1213,11 +1213,11 @@ def _write_price_import_fixture(root: Path) -> None:
         encoding="utf-8",
     )
     (import_dir / "prices.csv").write_text(
-        "date,ticker,open,high,low,close,volume,adjusted_close,source,as_of_date,notes,extra\n"
-        "2026-01-02,nvda,100,103,99,102,1500,102,manual,2026-01-03,updated,row-extra\n"
-        "2026-01-03,NVDA,102,104,101,103,1600,103,manual,2026-01-03,new,row-extra\n"
-        "2026-01-02,NVDA,100,103,99,102,1500,102,manual,2026-01-03,duplicate,row-extra\n"
-        "2026-01-04,BAD,10,9,11,10,100,10,manual,2026-01-03,bad-high-low,row-extra\n",
+        "date,ticker,open,high,low,close,volume,adjusted_close,source,source_ref,retrieved_at,as_of_date,notes,extra\n"
+        "2026-01-02,nvda,100,103,99,102,1500,102,manual,https://example.test/NVDA/2026-01-02,2026-01-03T23:00:00Z,2026-01-03,updated,row-extra\n"
+        "2026-01-03,NVDA,102,104,101,103,1600,103,manual,https://example.test/NVDA/2026-01-03,2026-01-04T23:00:00Z,2026-01-03,new,row-extra\n"
+        "2026-01-02,NVDA,100,103,99,102,1500,102,manual,https://example.test/NVDA/2026-01-02,2026-01-03T23:00:00Z,2026-01-03,duplicate,row-extra\n"
+        "2026-01-04,BAD,10,9,11,10,100,10,manual,https://example.test/BAD/2026-01-04,2026-01-05T23:00:00Z,2026-01-03,bad-high-low,row-extra\n",
         encoding="utf-8",
     )
 
@@ -1234,6 +1234,43 @@ def test_price_import_validation_valid_fixture_and_duplicates(tmp_path: Path):
     assert "extra" in summary["unknown_columns"]
     assert "price import draft" not in " ".join(summary["warnings"]).lower()
     assert "invalid price import file row" in " ".join(summary["warnings"]).lower()
+    assert summary["lineage_status"] == "lineage_complete"
+    assert summary["lineage_complete_rows"] == 2
+    assert summary["lineage_review_required_rows"] == 0
+    assert summary["lineage_missing_fields"] == []
+    assert set(summary["valid_frame"]["source_ref"]) == {
+        "https://example.test/NVDA/2026-01-02",
+        "https://example.test/NVDA/2026-01-03",
+    }
+    assert set(summary["valid_frame"]["retrieved_at"]) == {
+        "2026-01-03T23:00:00+00:00",
+        "2026-01-04T23:00:00+00:00",
+    }
+
+
+def test_price_import_validation_keeps_technical_validity_independent_from_lineage(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    import_dir = data_dir / "imports"
+    import_dir.mkdir(parents=True)
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (import_dir / "prices.csv").write_text(
+        "date,ticker,open,high,low,close,volume,adjusted_close,source,source_ref,retrieved_at\n"
+        "2026-01-02,NVDA,100,103,99,102,1500,102,manual,,not-a-timestamp\n",
+        encoding="utf-8",
+    )
+
+    summary = validate_price_imports(tmp_path)
+
+    assert summary["status"] == "valid_with_warnings"
+    assert summary["valid_rows"] == 1
+    assert summary["lineage_status"] == "lineage_review_required"
+    assert summary["lineage_complete_rows"] == 0
+    assert summary["lineage_review_required_rows"] == 1
+    assert summary["lineage_missing_fields"] == ["retrieved_at", "source_ref"]
+    assert summary["valid_frame"].iloc[0]["source"] == "manual"
+    assert pd.isna(summary["valid_frame"].iloc[0]["source_ref"])
+    assert summary["valid_frame"].iloc[0]["retrieved_at"] == ""
+    assert "lineage review" in " ".join(summary["warnings"]).lower()
 
 
 def test_price_import_validation_missing_file_uses_plain_import_file_language(tmp_path: Path):
@@ -1270,6 +1307,9 @@ def test_preview_price_import_merge_reports_new_updated_and_skipped(tmp_path: Pa
     assert preview["updated_rows"] == 1
     assert preview["skipped_rows"] == 2
     assert preview["unchanged_rows"] == 0
+    assert preview["lineage_status"] == "lineage_complete"
+    assert preview["lineage_complete_rows"] == 2
+    assert preview["lineage_review_required_rows"] == 0
 
 
 def test_apply_price_import_merge_backs_up_and_never_deletes_rows(tmp_path: Path):
@@ -1285,3 +1325,11 @@ def test_apply_price_import_merge_backs_up_and_never_deletes_rows(tmp_path: Path
     assert set(prices["ticker"]) == {"NVDA", "MSFT"}
     updated = prices.loc[(prices["ticker"] == "NVDA") & (prices["date"] == "2026-01-02")].iloc[0]
     assert updated["close"] == 102
+    assert updated["source_ref"] == "https://example.test/NVDA/2026-01-02"
+    assert updated["retrieved_at"] == "2026-01-03T23:00:00+00:00"
+    new_row = prices.loc[(prices["ticker"] == "NVDA") & (prices["date"] == "2026-01-03")].iloc[0]
+    assert new_row["source_ref"] == "https://example.test/NVDA/2026-01-03"
+    assert new_row["retrieved_at"] == "2026-01-04T23:00:00+00:00"
+    msft = prices.loc[prices["ticker"] == "MSFT"].iloc[0]
+    assert pd.isna(msft["source_ref"])
+    assert pd.isna(msft["retrieved_at"])

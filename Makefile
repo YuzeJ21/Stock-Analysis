@@ -327,6 +327,7 @@ help-full:
 	@echo "  make price-coverage   Write data/price_coverage_report.csv with rows per universe ticker"
 	@echo "  Start with make status, then the printed price check or guided batch"
 	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
+	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=<source_id> SOURCE_REF=<durable_reference> RETRIEVED_AT=<timestamp>"
 	@echo "  make price-validate && make price-preview && make price-apply"
 	@echo ""
 	@echo "Preview-first fundamentals and universe imports:"
@@ -1094,9 +1095,9 @@ ifndef INPUT
 	$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)
 endif
 ifdef TICKER
-	python3 -m src.price_import_normalizer --input $(INPUT) --ticker $(TICKER) --source $(or $(SOURCE),generic_manual)
+	python3 -m src.price_import_normalizer --input $(INPUT) --ticker $(TICKER) --source $(or $(SOURCE),generic_manual) $(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",) $(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",)
 else
-	python3 -m src.price_import_normalizer --input $(INPUT) --source $(or $(SOURCE),generic_manual)
+	python3 -m src.price_import_normalizer --input $(INPUT) --source $(or $(SOURCE),generic_manual) $(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",) $(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",)
 endif
 
 daily:

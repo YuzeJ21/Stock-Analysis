@@ -22,6 +22,8 @@ STAGED_PRICE_COLUMNS = [
     "volume",
     "adjusted_close",
     "source",
+    "source_ref",
+    "retrieved_at",
     "as_of_date",
     "notes",
 ]
@@ -112,6 +114,8 @@ def _normalize_one_file(
     *,
     ticker: str | None,
     source: str,
+    source_ref: str | None,
+    retrieved_at: str | None,
     as_of_date: str,
     explicit_mapping: dict[str, str],
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
@@ -188,6 +192,8 @@ def _normalize_one_file(
     output = output.drop_duplicates(subset=["date", "ticker"], keep="last")
     output["date"] = output["date"].dt.date.astype(str)
     output["source"] = source
+    output["source_ref"] = source_ref or ""
+    output["retrieved_at"] = retrieved_at or ""
     output["as_of_date"] = as_of_date
     output["notes"] = f"Normalized from {path.name}"
     output = output.reindex(columns=STAGED_PRICE_COLUMNS)
@@ -223,6 +229,8 @@ def normalize_price_imports(
     output_path: Path,
     ticker: str | None = None,
     source: str = "generic_manual",
+    source_ref: str | None = None,
+    retrieved_at: str | None = None,
     as_of_date: str | None = None,
     column_mapping: dict[str, str] | None = None,
 ) -> PriceNormalizationResult:
@@ -242,6 +250,8 @@ def normalize_price_imports(
             path,
             ticker=ticker,
             source=source,
+            source_ref=source_ref,
+            retrieved_at=retrieved_at,
             as_of_date=as_of_date,
             explicit_mapping=column_mapping,
         )
@@ -290,6 +300,8 @@ def main() -> None:
     parser.add_argument("--output", default="data/imports/prices.csv", help="Staged output CSV path.")
     parser.add_argument("--ticker", help="Ticker to use when the input file has no ticker column.")
     parser.add_argument("--source", default="generic_manual", help="Source label to write into the import CSV.")
+    parser.add_argument("--source-ref", help="Durable reviewed reference for the exact source payload or row batch.")
+    parser.add_argument("--retrieved-at", help="Explicit source retrieval timestamp; no default is generated.")
     parser.add_argument("--as-of-date", help="As-of date metadata. Defaults to today.")
     parser.add_argument("--date-col")
     parser.add_argument("--ticker-col")
@@ -319,6 +331,8 @@ def main() -> None:
         output_path=output_path,
         ticker=args.ticker,
         source=args.source,
+        source_ref=args.source_ref,
+        retrieved_at=args.retrieved_at,
         as_of_date=args.as_of_date,
         column_mapping=_column_map_from_args(args),
     )
