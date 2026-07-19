@@ -58,6 +58,12 @@ The weekly summary is derived from deduplicated, source-backed Change Monitor ev
 
 Quarterly business trend is descriptive evidence, not a forecast. Revenue and EPS comparisons require explicit versioned quarterly actuals with compatible definitions. Operating margin, free cash flow, and FCF margin now have a separate in-memory evidence contract and independent states, but production values remain withheld until a **reviewed quarterly source adapter** supplies explicit compatible observations. Sequential and year-over-year changes are withheld when matching periods or definitions are unavailable. Q4 is never derived from annual results; every Q4 component requires explicit filed-quarter evidence. Primary cards show the research answer only; component values, formulas, and source references stay in the collapsed Advanced quarterly evidence table. The local acceptance harness evaluates in-memory candidates only: **no adapter file is loaded or written**, and an accepted candidate is not supplied to Company Workbench or promoted into readiness.
 
+## Mobile First-Action Density
+
+At phone width, the compact profile context keeps Data profile, Sources through, Freshness, Price-ready, and DCF-ready visible in two rows. The route card omits only its duplicate freshness row while preserving the page, selected scope or ticker, next action, and research-only boundary. Discover therefore shows its search task and first review row sooner; Monitor shows the weekly state sooner; and Company Workbench shows `Selected Company`, a collapsed `Review path`, and the first-read answer without the full sequence consuming the viewport.
+
+This mobile first-action density improvement does not change readiness, source dates, coverage, evidence, forecasts, valuation, or research conclusions. Desktop profile and route metadata remain unchanged. Company Workbench keeps the complete review path available through the same collapsed disclosure at desktop and phone widths.
+
 ## Repeated Review Routine
 
 - **Daily or after a source refresh:** open Research Desk, review traceable changes, then use Monitor for unresolved source tasks.

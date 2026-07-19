@@ -33,7 +33,7 @@ Keep the current components and information architecture. Add semantic classes t
 Benefits:
 
 - smallest behavioral surface;
-- desktop remains unchanged;
+- desktop profile and route metadata remain unchanged; Workbench keeps the same path content in a collapsed disclosure;
 - no new route or component system;
 - all readiness and source boundaries remain present;
 - directly improves the audited phone bottleneck.
@@ -111,7 +111,7 @@ Screenshot evidence can confirm visible hierarchy and responsive reflow. It cann
 Behavior changes use test-first coverage:
 
 1. Extend the research workspace HTML contract test to require semantic freshness and next-action classes.
-2. Add a dashboard contract test proving the Workbench selected-company answer precedes the collapsed review path and the report details remain after the answer.
+2. Add a dashboard contract test proving the Workbench `Selected Company` heading precedes the collapsed review path and the report details remain after the disclosure.
 3. Add a style contract test for phone-only three-column profile context, hidden duplicated route freshness, and compact route spacing.
 4. Run focused research workspace and dashboard contract tests.
 5. Run the full suite and all required dashboard, render, public, commercial-beta, release, pilot, hygiene, whitespace, and staged checks.
@@ -126,5 +126,5 @@ Behavior changes use test-first coverage:
 - Company Workbench shows the `Selected Company` first-read within the first phone viewport.
 - Monitor shows at least the start of its weekly summary within the first phone viewport.
 - Company Workbench keeps its complete review path in a collapsed disclosure after the `Selected Company` heading and before the detailed report.
-- Desktop information and behavior remain unchanged.
+- Desktop profile and route metadata remain unchanged; Company Workbench keeps the complete path available through the same collapsed disclosure.
 - No readiness state, data input, generated artifact, or external dependency changes.

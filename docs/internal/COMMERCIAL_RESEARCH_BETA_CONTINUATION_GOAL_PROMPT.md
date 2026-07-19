@@ -41,6 +41,7 @@ Current locally implemented capabilities to verify:
 
 - Personal Research Mode with Research Desk -> Discover -> Company Workbench -> Monitor.
 - Answer-first hierarchy on all four Personal Research routes at desktop and phone widths.
+- Mobile first-action density that keeps all five profile facts visible in two phone rows, removes only duplicated route-card freshness on phone, exposes route tasks sooner, and preserves the complete Company Workbench review path in a collapsed disclosure without changing readiness.
 - SEC quarterly actual lineage with explicit Q4-table and EPS split-basis boundaries.
 - Earnings Nowcast readiness and five-company cohort board.
 - Prospective append-only point-in-time consensus collection contracts.
@@ -94,7 +95,7 @@ Stage gates:
 
 Stage 1 — Answer-first workflow hardening
 - Exit only when all four Personal Research routes show the primary answer and one next action before technical evidence at desktop and phone widths.
-- Current expected state: locally completed; reverify render, browser, wording, performance, and regression evidence.
+- Current expected state: locally completed, including the verified mobile first-action density slice; reverify render, browser, wording, performance, and regression evidence.
 
 Stage 2 — Permitted source activation
 - Acquire one permitted append-only prospective point-in-time consensus snapshot for one reviewed ticker.

@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Desktop information and behavior remain unchanged.
+- Desktop profile and route metadata remain unchanged; Company Workbench keeps the complete path available through the same collapsed disclosure.
 - Data profile, Sources through, Freshness, Price-ready, DCF-ready, next action, and the research-only boundary remain visible or equivalently available.
 - No readiness state, source date, source right, research input, forecast, valuation, peer, catalyst, outcome, backtest, or calibration state changes.
 - No CSV, JSON, report, sample-report, committed screenshot, or timing artifact is created or staged.
@@ -263,7 +263,7 @@ Expected: FAIL because the documentation does not yet describe this slice.
 Document:
 
 - the four-route phone compaction is implemented locally;
-- desktop behavior and all evidence boundaries are unchanged;
+- desktop profile and route metadata plus all evidence boundaries are unchanged; the Workbench path remains available in its collapsed disclosure;
 - this improves usability and reviewer comprehension only;
 - it does not change readiness or prove source activation, hosted operation, reviewer demand, calibration, commercial demand, or product-market fit;
 - the next stage remains one permitted source path followed by controlled hosting and external reviewer validation.
@@ -303,7 +303,7 @@ Expected: only the four intentional documentation/test files are staged and gene
 ```bash
 git commit -m "Document mobile research first-action maturity"
 git push origin codex/personal-research-mode-mvp
-gh pr comment 113 --body "Verified mobile Personal Research first-action density update: desktop behavior and all readiness boundaries remain unchanged; phone routes expose their first task sooner; full local release gates passed; no generated CSV, JSON, report, sample-report, screenshot, or timing churn was staged. PR remains draft."
+gh pr comment 113 --body "Verified mobile Personal Research first-action density update: desktop profile and route metadata plus all readiness boundaries remain unchanged; the Workbench path stays available in a collapsed disclosure; phone routes expose their first task sooner; full local release gates passed; no generated CSV, JSON, report, sample-report, screenshot, or timing churn was staged. PR remains draft."
 ```
 
 Expected: branch aligns with its remote, PR #113 remains open and draft, and the new comment records the verified boundary.

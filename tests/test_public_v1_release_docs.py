@@ -638,6 +638,17 @@ def test_quarterly_adapter_acceptance_docs_keep_review_and_activation_separate()
     assert "accepted_for_review" in prompt
 
 
+def test_mobile_research_first_action_docs_preserve_readiness_and_market_boundaries():
+    personal_mode = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "mobile first-action density" in personal_mode.lower()
+    assert "does not change readiness" in personal_mode.lower()
+    assert "phone first-action" in roadmap.lower()
+    assert "mobile first-action density" in prompt.lower()
+
+
 def test_thesis_journal_docs_preserve_append_only_research_boundary():
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
