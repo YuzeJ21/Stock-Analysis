@@ -1,0 +1,44 @@
+name: Commercial Research Beta
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  local-engineering-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out pull request revision
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python3 -m pip install -r requirements.txt
+
+      - name: Run full test suite
+        run: python3 -m pytest tests -q
+
+      - name: Smoke-test dashboard startup
+        run: make dashboard-smoke
+
+      - name: Render Personal Research routes
+        run: make research-dashboard-render-smoke
+
+      - name: Check public wording
+        run: make public-wording-check
+
+      - name: Check generated-artifact hygiene
+        run: make diff-hygiene-summary
+
+      - name: Check whitespace
+        run: git diff --check

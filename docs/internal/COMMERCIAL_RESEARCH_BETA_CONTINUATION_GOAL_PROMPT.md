@@ -76,6 +76,7 @@ Current locally implemented capabilities to verify:
 - Consensus source temporal integrity: every validation call supplies a UTC review cutoff, every row declares exactly `current_only` or `point_in_time`, and technical acceptance requires `snapshot_at <= retrieved_at <= review_cutoff`. Candidate context receives no cutoff exemption, and rejected rows never enter commercial review.
 - Shared consensus commercial field-scope review: prospective collection and upstream source validation use one immutable exact-source rights/scope decision with ordered required and missing metric fields; blank or duplicate requirements fail locally, composite IDs remain unknown, and consumer technical/write states stay independent.
 - Read-only consensus source-review command: set `SOURCE_INPUT=<reviewed_source_export.csv>` and run `make earnings-consensus-source-review INPUT=$SOURCE_INPUT PROVIDER=<source_id> AS_OF=<timestamp>`; it requires explicit provider/cutoff, rejects ambiguous CSV shape, and exposes ordered technical, temporal, rights, and Revenue/EPS scope evidence before collection preview without writing an artifact. Source review and prospective collection are distinct input contracts; set `COLLECTION_INPUT=<prospective_consensus.csv>` only after separate human review and explicit evidence-preserving mapping into the existing collection schema.
+- Pull-request engineering gate: `.github/workflows/commercial-research-beta.yml` runs the full tests plus the minimal dashboard, Personal Research render, wording, hygiene, and whitespace contract only for pull requests to `main`, with `contents: read` and no provider, readiness, deployment, secret, schedule, or artifact-upload path. The checked-in contract is local evidence until GitHub completes a run, and automation never substitutes for human review.
 - Same-mode Advanced Evidence continuity: Data Health and Proof History stay inside Personal Research mode, preserve the selected ticker, and expose Return to Company Workbench before evidence content. The navigation does not change readiness or evidence state.
 - Stale readiness continuation gate across project status, Session Source Preflight, provider setup, coverage frontier, Auto-Refresh Status, its runbook, Advanced Data Health cards, and the commercial-beta release path: while readiness is stale or incomplete, `make readiness-preview TOP_N=20` is the only continuation-safe command; source availability, provider, scheduled-operation, and ranked coverage details remain planning context only, and `make readiness` is a separate intentional reviewed write.
 - Peer evidence-quality contract separating relationship provenance, peer role, economic comparability, result context, trend readiness, and valuation-anchor eligibility.
@@ -108,6 +109,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Consensus source cutoff passage proves only local timestamp ordering against the supplied review boundary. It cannot infer provider publication time, establish availability, validate a payload or source reference, grant rights, create freshness, collect evidence, or promote readiness, backtesting, or calibration.
 - Shared commercial field-scope review proves only consistent checked-in registry metadata for one exact source and ordered required fields. It cannot prove a payload, timestamp, comparability, reviewer intent, collection, activation, readiness, backtesting, calibration, or any non-consensus evidence domain.
 - Consensus source review is a read-only local contract evaluation, not provider entitlement, payload approval, collection, activation, readiness, backtesting, or calibration. Human or JSON output and `auto_apply=false` cannot promote a row or satisfy an external gate.
+- A checked-in GitHub Actions workflow proves only the intended automation contract. Independent hosted CI requires a completed GitHub result on the current commit; a green automated check is not independent human review and proves no source, hosted-product, reviewer, calibration, adoption, or market claim.
 - Named change causes explain existing method decisions only. They cannot alter scope, upgrade partial data, establish current readiness totals, create a company-quality judgment, or authorize a rebuild.
 - The stale readiness continuation gate must suppress broad refresh, source-proof, apply, and readiness-rebuild routing from status surfaces. It does not change provider availability or ranking calculations; those remain planning context only until readiness is current or the separate intentional reviewed write is authorized.
 
@@ -124,6 +126,7 @@ Current external dependency classifications to verify once, then avoid looping:
 - DCF price lineage: `external_source_and_review_required_for_commercial_use`; the current no-write inspection finds one usable unambiguous latest row for all 146 proposed DCF promotions but 0 complete row-level lineage, 0 approved exact-source rights, and 0 registered price scope because canonical source IDs are absent. The local staged path can preserve future lineage, report exact-source rights/scope, and block an incomplete commercial apply, but no real row was added. Do not infer historical providers or mass-rewrite price history. Resume only when one permitted reviewed export exists: normalize one ticker with explicit `SOURCE`, `SOURCE_REF`, and `RETRIEVED_AT`, run no-write validate/preview, review the exact rights/scope result and payload, then make a separate explicit apply decision.
 - Numerical calibration: `external_evidence_required`; keep probability withheld until the valid-event threshold and quality gates pass.
 - Operated platform controls: `external_account_and_operations_required`; authentication, workspace isolation, audit, retention, entitlements, monitoring, and health checks must be directly proven in the actual environment.
+- Independent engineering legitimacy: `hosted_ci_result_pending` until GitHub completes the pull-request gate on the current revision; independent human review remains `external_reviewer_required` until a reviewer submits evidence on PR #113.
 
 Execution order for each continuation:
 
@@ -140,6 +143,12 @@ Execution order for each continuation:
 11. Continue to the next safe executable item rather than ending merely because one slice is complete.
 
 Stage gates:
+
+Stage 0 — Independent engineering legitimacy
+- Keep the minimal PR-only workflow read-only, least privilege, and free of providers, readiness generation, schedules, secrets, deployment, and artifact uploads.
+- Require a completed GitHub Actions result for the current PR revision; do not infer hosted execution from local workflow tests.
+- Request and classify independent human review separately from automated checks.
+- Exit only when the current revision has direct hosted CI evidence and the review state is explicitly known; a green check does not satisfy later source, hosted-preview, beta, evidence-depth, calibration, or operating gates.
 
 Stage 1 — Answer-first workflow hardening
 - Exit only when all four Personal Research routes show the primary answer and one next action before technical evidence at desktop and phone widths.
