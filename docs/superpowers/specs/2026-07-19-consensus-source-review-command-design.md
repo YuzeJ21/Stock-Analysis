@@ -37,7 +37,7 @@ The new command is:
 
 ```bash
 make earnings-consensus-source-review \
-  INPUT=<reviewed.csv> \
+  INPUT=<reviewed_source_export.csv> \
   PROVIDER=<exact_source_id> \
   AS_OF=<UTC_timestamp>
 ```
@@ -49,7 +49,7 @@ At the Python layer:
 
 ```bash
 python3 -m src.earnings_consensus_sources \
-  --review-csv <reviewed.csv> \
+  --review-csv <reviewed_source_export.csv> \
   --provider <exact_source_id> \
   --as-of <UTC_timestamp> \
   [--json]
@@ -67,6 +67,8 @@ When `--review-csv` is absent, `--provider` and `--as-of` are invalid rather tha
 6. Render the immutable `SourceValidationResult` in human or JSON form.
 
 The existing validator remains the sole owner of history scope, required fields, timestamp ordering, fiscal/comparability validation, candidate versus historical routing, exact registry evidence, and row-level commercial scope decisions.
+
+The reviewed source export and the prospective collection CSV are distinct input contracts. The source export must declare `history_scope`; the checked-in prospective schema declares `review_state`. A reviewer must explicitly preserve accepted evidence while mapping between them. This command does not infer that mapping, transform a file, or write an output for collection preview.
 
 ## Human Output
 

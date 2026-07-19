@@ -539,11 +539,13 @@ Add roadmap item 34: one supplied consensus CSV can now enter a read-only, expli
 Document the command sequence:
 
 ```bash
-make earnings-consensus-source-review INPUT=<reviewed.csv> PROVIDER=<source_id> AS_OF=<timestamp>
-make earnings-consensus-collection-preview INPUT=<reviewed.csv> AS_OF=<timestamp>
+SOURCE_INPUT=<reviewed_source_export.csv>
+make earnings-consensus-source-review INPUT=$SOURCE_INPUT PROVIDER=<source_id> AS_OF=<timestamp>
+COLLECTION_INPUT=<prospective_consensus.csv>
+make earnings-consensus-collection-preview INPUT=$COLLECTION_INPUT AS_OF=<timestamp>
 ```
 
-Clarify that the second command is appropriate only after separate payload/evidence review and that neither writes without the explicit later record command.
+Clarify that these are distinct input contracts: the second command is appropriate only after separate payload/evidence review and explicit evidence-preserving mapping into the checked-in prospective schema. No command infers or writes that mapping, and neither gate writes without the explicit later record command.
 
 - [ ] **Step 2: Update data strategy, pilot, provenance, and continuation contract**
 

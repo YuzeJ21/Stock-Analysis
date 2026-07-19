@@ -637,6 +637,18 @@ def test_consensus_source_review_docs_keep_review_collection_and_activation_sepa
     assert "source-review-before-preview" in prompt.lower()
 
 
+def test_consensus_source_review_docs_use_distinct_source_and_collection_inputs():
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    pilot = _read("docs/EARNINGS_NOWCAST_PILOT.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (data_strategy, pilot, prompt):
+        assert "SOURCE_INPUT=<reviewed_source_export.csv>" in text
+        assert "COLLECTION_INPUT=<prospective_consensus.csv>" in text
+        assert "distinct input contracts" in text.lower()
+        assert "earnings-consensus-source-review INPUT=<reviewed.csv>" not in text
+
+
 def test_quarterly_cash_generation_docs_preserve_no_file_and_market_maturity_boundaries():
     methodology = _read("docs/METHODOLOGY.md")
     provenance = _read("docs/PROVENANCE_CONTRACT.md")
