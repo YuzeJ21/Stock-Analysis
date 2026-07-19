@@ -102,6 +102,100 @@ def test_explicitly_approved_source_is_accepted():
     assert decision.status == "approved"
 
 
+def test_commercial_field_scope_review_accepts_approved_complete_scope():
+    module = _module()
+
+    review = module.review_commercial_field_scope(
+        _registry(),
+        " sec_companyfacts ",
+        (" revenue ", "shares_outstanding "),
+    )
+
+    assert review.source_id == "sec_companyfacts"
+    assert review.rights_status == "approved"
+    assert review.commercial_rights_approved is True
+    assert review.required_supported_fields == ("revenue", "shares_outstanding")
+    assert review.missing_supported_fields == ()
+    assert review.commercial_evidence_ready is True
+
+
+def test_commercial_field_scope_review_reports_missing_scope_in_order():
+    module = _module()
+
+    review = module.review_commercial_field_scope(
+        _registry(),
+        "sec_companyfacts",
+        ("revenue", "free_cash_flow"),
+    )
+
+    assert review.commercial_rights_approved is True
+    assert review.required_supported_fields == ("revenue", "free_cash_flow")
+    assert review.missing_supported_fields == ("free_cash_flow",)
+    assert review.commercial_evidence_ready is False
+
+
+def test_commercial_field_scope_review_keeps_rights_independent_from_scope():
+    module = _module()
+
+    review = module.review_commercial_field_scope(_registry(), "yfinance", ("prices",))
+
+    assert review.rights_status == "commercial_rights_unverified"
+    assert review.commercial_rights_approved is False
+    assert review.missing_supported_fields == ()
+    assert review.commercial_evidence_ready is False
+
+
+def test_commercial_field_scope_review_does_not_expand_composite_source_ids():
+    module = _module()
+
+    review = module.review_commercial_field_scope(
+        _registry(),
+        "sec_companyfacts + yfinance",
+        ("revenue", "prices"),
+    )
+
+    assert review.rights_status == "unknown_source"
+    assert review.commercial_rights_approved is False
+    assert review.missing_supported_fields == ("revenue", "prices")
+    assert review.commercial_evidence_ready is False
+
+
+def test_commercial_field_scope_review_allows_rights_only_decision():
+    module = _module()
+
+    review = module.review_commercial_field_scope(_registry(), "sec_companyfacts", ())
+
+    assert review.required_supported_fields == ()
+    assert review.missing_supported_fields == ()
+    assert review.commercial_evidence_ready is True
+
+
+def test_commercial_field_scope_review_is_immutable():
+    module = _module()
+    review = module.review_commercial_field_scope(_registry(), "sec_companyfacts", ())
+
+    with pytest.raises(FrozenInstanceError):
+        review.commercial_evidence_ready = False
+
+
+@pytest.mark.parametrize(
+    "required_fields",
+    [
+        ("revenue", ""),
+        ("revenue", "revenue"),
+    ],
+)
+def test_commercial_field_scope_review_rejects_invalid_required_fields(required_fields):
+    module = _module()
+
+    with pytest.raises(ValueError, match="non-empty unique strings"):
+        module.review_commercial_field_scope(
+            _registry(),
+            "sec_companyfacts",
+            required_fields,
+        )
+
+
 def test_commercial_source_rights_cli_reports_unverified_yfinance():
     result = subprocess.run(
         [sys.executable, "-m", MODULE_NAME, "--source", "yfinance"],

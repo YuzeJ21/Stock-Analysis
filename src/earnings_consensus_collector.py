@@ -13,9 +13,9 @@ from typing import Mapping, Sequence
 
 from src.commercial_source_rights import (
     SourceRights,
-    commercial_eligibility,
     commercial_mode_enabled,
     load_source_rights_registry,
+    review_commercial_field_scope,
 )
 from src.earnings_nowcast_contract import ConsensusSnapshot, parse_utc_timestamp
 
@@ -166,31 +166,33 @@ def _collection_preview(
         for field in ("revenue_consensus", "eps_consensus")
         if str(getattr(proposed, field) or "").strip()
     )
-    rights = commercial_eligibility(rights_registry, proposed.source)
-    rights_record = rights_registry.get(str(proposed.source or "").strip())
-    supported_fields = set(rights_record.supported_fields) if rights_record is not None else set()
-    missing_supported_fields = tuple(
-        field for field in required_supported_fields if field not in supported_fields
+    commercial_review = review_commercial_field_scope(
+        rights_registry,
+        proposed.source,
+        required_supported_fields,
     )
     commercial_blockers: list[str] = []
-    if not rights.allowed:
-        commercial_blockers.append(f"commercial_rights:{rights.status}")
+    if not commercial_review.commercial_rights_approved:
+        commercial_blockers.append(
+            f"commercial_rights:{commercial_review.rights_status}"
+        )
     commercial_blockers.extend(
         f"registered_consensus_scope_missing:{field}"
-        for field in missing_supported_fields
+        for field in commercial_review.missing_supported_fields
     )
-    commercial_evidence_ready = rights.allowed and not missing_supported_fields
     return CollectionPreview(
         state=state,
         reason=reason,
         write_allowed=write_allowed,
         snapshot_identity=snapshot_identity(proposed),
-        rights_status=rights.status,
-        commercial_rights_approved=rights.allowed,
-        required_supported_fields=required_supported_fields,
-        missing_supported_fields=missing_supported_fields,
-        commercial_evidence_ready=commercial_evidence_ready,
-        commercial_write_allowed=write_allowed and commercial_evidence_ready,
+        rights_status=commercial_review.rights_status,
+        commercial_rights_approved=commercial_review.commercial_rights_approved,
+        required_supported_fields=commercial_review.required_supported_fields,
+        missing_supported_fields=commercial_review.missing_supported_fields,
+        commercial_evidence_ready=commercial_review.commercial_evidence_ready,
+        commercial_write_allowed=(
+            write_allowed and commercial_review.commercial_evidence_ready
+        ),
         commercial_blockers=tuple(commercial_blockers),
     )
 

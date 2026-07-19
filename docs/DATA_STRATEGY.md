@@ -26,6 +26,8 @@ Every source-row validation call must declare its review cutoff. Only explicit `
 
 For a reviewed multi-row consensus file, preview simulates the complete input in order against the existing ledger plus earlier technically valid proposed rows. Record uses that same batch result and does not begin appending until every technical row passes and, in Commercial Research mode, every required rights/scope state passes. A later known rejection therefore leaves the existing ledger byte-identical. The collector does not reorder revisions or infer missing lineage. One append handle narrows the mutation boundary but does not provide process locking, crash recovery, or a filesystem transaction guarantee.
 
+Collection preview and upstream source-row validation use one immutable exact-source field-scope review for their registry decision. It preserves the caller's ordered, non-empty, unique required fields and reports rights approval, missing registered fields, and their conjunction without generating blocker copy or changing consumer-specific technical/write rules. This shared metadata decision does not prove the estimate payload, timestamps, comparability, reviewer intent, collection, activation, readiness, backtesting, or calibration. Price, DCF, fundamentals, and cash-generation reviews retain their separate domain requirements.
+
 ## Public Visitor FAQ
 
 The public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Use this data strategy as the explanation layer behind that path, not as a second navigation model.

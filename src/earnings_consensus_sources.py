@@ -11,8 +11,8 @@ from typing import Mapping, Sequence
 
 from src.commercial_source_rights import (
     SourceRights,
-    commercial_eligibility,
     load_source_rights_registry,
+    review_commercial_field_scope,
 )
 from src.earnings_nowcast_contract import ConsensusSnapshot, parse_utc_timestamp
 
@@ -111,9 +111,7 @@ def validate_source_rows(
     review_cutoff = cutoff.isoformat().replace("+00:00", "Z")
     source_id = str(provider).strip().lower()
     registry = load_source_rights_registry() if rights_registry is None else rights_registry
-    rights = commercial_eligibility(registry, source_id)
-    rights_record = registry.get(source_id)
-    supported_fields = set(rights_record.supported_fields) if rights_record is not None else set()
+    source_review = review_commercial_field_scope(registry, source_id, ())
     accepted = 0
     historical = 0
     candidate = 0
@@ -182,22 +180,26 @@ def validate_source_rows(
             for field in ("revenue_consensus", "eps_consensus")
             if str(row.get(field) or "").strip()
         )
-        missing_supported_fields = tuple(
-            field for field in required_supported_fields if field not in supported_fields
+        commercial_review = review_commercial_field_scope(
+            registry,
+            source_id,
+            required_supported_fields,
         )
         commercial_blockers: list[str] = []
-        if not rights.allowed:
-            commercial_blockers.append(f"commercial_rights:{rights.status}")
+        if not commercial_review.commercial_rights_approved:
+            commercial_blockers.append(
+                f"commercial_rights:{commercial_review.rights_status}"
+            )
         commercial_blockers.extend(
             f"registered_consensus_scope_missing:{field}"
-            for field in missing_supported_fields
+            for field in commercial_review.missing_supported_fields
         )
         commercial_reviews.append(
             SourceCommercialReview(
                 row_number=index,
-                required_supported_fields=required_supported_fields,
-                missing_supported_fields=missing_supported_fields,
-                commercial_evidence_ready=rights.allowed and not missing_supported_fields,
+                required_supported_fields=commercial_review.required_supported_fields,
+                missing_supported_fields=commercial_review.missing_supported_fields,
+                commercial_evidence_ready=commercial_review.commercial_evidence_ready,
                 commercial_blockers=tuple(commercial_blockers),
             )
         )
@@ -216,8 +218,10 @@ def validate_source_rows(
         review.commercial_evidence_ready for review in commercial_reviews
     )
     aggregate_blockers: list[str] = []
-    if not rights.allowed:
-        aggregate_blockers.append(f"commercial_rights:{rights.status}")
+    if not source_review.commercial_rights_approved:
+        aggregate_blockers.append(
+            f"commercial_rights:{source_review.rights_status}"
+        )
     for review in commercial_reviews:
         for blocker in review.commercial_blockers:
             if blocker not in aggregate_blockers:
@@ -231,8 +235,8 @@ def validate_source_rows(
         historical_snapshot_count=historical,
         candidate_context_count=candidate,
         rejected_rows=tuple(rejected),
-        rights_status=rights.status,
-        commercial_rights_approved=rights.allowed,
+        rights_status=source_review.rights_status,
+        commercial_rights_approved=source_review.commercial_rights_approved,
         commercial_ready_count=commercial_ready_count,
         commercial_review_required_count=accepted - commercial_ready_count,
         commercial_evidence_ready=bool(commercial_reviews)

@@ -45,6 +45,7 @@ Expected lineage to verify, never assume:
 - Prospective consensus batch-preflight design/plan anchor: commit `b2d5f85fe` or a later verified descendant.
 - Consensus source-validation rights design/plan anchor: commit `d03cd572f` or a later verified descendant.
 - Consensus source temporal-integrity design/plan anchor: commit `e48cab7e6` or a later verified descendant.
+- Shared consensus commercial field-scope design/plan anchor: commit `b7013f161` or a later verified descendant.
 - The branch should be clean, pushed, and aligned with `origin/codex/personal-research-mode-mvp`.
 - PR #113 must remain open and draft. Do not merge it.
 - Generated CSV, JSON, readiness reports, stock reports, sample reports, screenshots, browser timing output, and other generated churn must remain excluded unless one exact artifact is intentionally reviewed and explicitly required.
@@ -72,6 +73,7 @@ Current locally implemented capabilities to verify:
 - Prospective consensus whole-batch preflight: preview and record simulate rows in supplied order against saved plus earlier technically reviewable evidence, reject empty or technically invalid batches before mutation, apply the commercial conjunction only in explicit Commercial Research mode, and append a valid batch through one handle. Deterministic later rejections cannot leave partial proposed rows.
 - Registry-derived consensus source validation: caller labels cannot grant rights; technically accepted rows retain independent candidate or historical-reviewable state while exact-source commercial rights and each populated Revenue/EPS scope come only from the checked-in registry. Invalid rows do not enter commercial-ready counts, and composite provider IDs remain unknown.
 - Consensus source temporal integrity: every validation call supplies a UTC review cutoff, every row declares exactly `current_only` or `point_in_time`, and technical acceptance requires `snapshot_at <= retrieved_at <= review_cutoff`. Candidate context receives no cutoff exemption, and rejected rows never enter commercial review.
+- Shared consensus commercial field-scope review: prospective collection and upstream source validation use one immutable exact-source rights/scope decision with ordered required and missing metric fields; blank or duplicate requirements fail locally, composite IDs remain unknown, and consumer technical/write states stay independent.
 - Same-mode Advanced Evidence continuity: Data Health and Proof History stay inside Personal Research mode, preserve the selected ticker, and expose Return to Company Workbench before evidence content. The navigation does not change readiness or evidence state.
 - Stale readiness continuation gate across project status, Session Source Preflight, provider setup, coverage frontier, Auto-Refresh Status, its runbook, Advanced Data Health cards, and the commercial-beta release path: while readiness is stale or incomplete, `make readiness-preview TOP_N=20` is the only continuation-safe command; source availability, provider, scheduled-operation, and ranked coverage details remain planning context only, and `make readiness` is a separate intentional reviewed write.
 - Peer evidence-quality contract separating relationship provenance, peer role, economic comparability, result context, trend readiness, and valuation-anchor eligibility.
@@ -102,6 +104,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Consensus batch preflight is not a database transaction, concurrent-writer lock, crash-recovery mechanism, scheduler, or evidence source. It aligns deterministic preview and record decisions only; it cannot supply or approve a provider, repair lineage, reorder revisions, change rights, create readiness, or satisfy calibration.
 - Consensus source validation is a review-routing contract, not permission, collection, or activation. `historical_evidence_reviewable` cannot prove payload correctness, source rights, freshness, point-in-time depth, nowcast readiness, backtesting, or calibration, and no caller-provided label can upgrade those states.
 - Consensus source cutoff passage proves only local timestamp ordering against the supplied review boundary. It cannot infer provider publication time, establish availability, validate a payload or source reference, grant rights, create freshness, collect evidence, or promote readiness, backtesting, or calibration.
+- Shared commercial field-scope review proves only consistent checked-in registry metadata for one exact source and ordered required fields. It cannot prove a payload, timestamp, comparability, reviewer intent, collection, activation, readiness, backtesting, calibration, or any non-consensus evidence domain.
 - Named change causes explain existing method decisions only. They cannot alter scope, upgrade partial data, establish current readiness totals, create a company-quality judgment, or authorize a rebuild.
 - The stale readiness continuation gate must suppress broad refresh, source-proof, apply, and readiness-rebuild routing from status surfaces. It does not change provider availability or ranking calculations; those remain planning context only until readiness is current or the separate intentional reviewed write is authorized.
 
@@ -147,6 +150,7 @@ Stage 2 — Permitted source activation
 - Treat every supplied consensus CSV as one ordered batch: review batch-level technical and commercial blockers before record, and do not interpret a preflight pass as source, payload, readiness, or calibration proof.
 - Treat upstream source validation as technical review plus independent registry evidence: a caller label is never rights proof, and historical-reviewable state is never activation.
 - Require an explicit validation cutoff and exact history scope before source review; reject reversed or post-cutoff timestamps for candidate and historical rows alike.
+- Require collection preview and upstream validation to retain parity through the shared exact-source field-scope decision; keep their technical acceptance, blocker wording, and write controls independently testable.
 - Exit only when one repeatable source path demonstrates deterministic provenance, rights, freshness, failure handling, and append-only collection.
 
 Stage 3 — Controlled hosted preview

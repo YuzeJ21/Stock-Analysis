@@ -57,6 +57,16 @@ class CommercialEligibility:
     reason: str
 
 
+@dataclass(frozen=True)
+class CommercialFieldScopeReview:
+    source_id: str
+    rights_status: str
+    commercial_rights_approved: bool
+    required_supported_fields: tuple[str, ...]
+    missing_supported_fields: tuple[str, ...]
+    commercial_evidence_ready: bool
+
+
 def _missing_fields(record: Mapping[str, Any]) -> list[str]:
     missing: list[str] = []
     for field in REQUIRED_FIELDS:
@@ -153,6 +163,36 @@ def commercial_eligibility(
         allowed=True,
         status="approved",
         reason="Commercial rights are explicitly approved in the checked-in registry.",
+    )
+
+
+def review_commercial_field_scope(
+    registry: Mapping[str, SourceRights],
+    source_id: str,
+    required_fields: Sequence[str],
+) -> CommercialFieldScopeReview:
+    """Review exact-source rights and registered field scope without fetching data."""
+
+    normalized_source_id = str(source_id or "").strip()
+    normalized_fields = tuple(str(field or "").strip() for field in required_fields)
+    if any(not field for field in normalized_fields) or len(set(normalized_fields)) != len(
+        normalized_fields
+    ):
+        raise ValueError("required fields must be non-empty unique strings")
+
+    rights = commercial_eligibility(registry, normalized_source_id)
+    record = registry.get(normalized_source_id)
+    supported_fields = set(record.supported_fields) if record is not None else set()
+    missing_fields = tuple(
+        field for field in normalized_fields if field not in supported_fields
+    )
+    return CommercialFieldScopeReview(
+        source_id=normalized_source_id,
+        rights_status=rights.status,
+        commercial_rights_approved=rights.allowed,
+        required_supported_fields=normalized_fields,
+        missing_supported_fields=missing_fields,
+        commercial_evidence_ready=rights.allowed and not missing_fields,
     )
 
 
