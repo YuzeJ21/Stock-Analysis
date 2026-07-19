@@ -120,6 +120,24 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         query_params=(("mode", "research"), ("page", "monitor")),
         required_markers=("Monitor", "Research change monitor", "Research-only"),
     ),
+    DashboardRenderRoute(
+        name="Research Data Health",
+        query_params=(("mode", "research"), ("page", "data-health"), ("ticker", "NVDA")),
+        required_markers=(
+            "Data Health",
+            "Continue the selected-company review without changing evidence state.",
+            "Research-only",
+        ),
+    ),
+    DashboardRenderRoute(
+        name="Research Proof History",
+        query_params=(("mode", "research"), ("page", "proof-history"), ("ticker", "NVDA")),
+        required_markers=(
+            "Proof History",
+            "Continue the selected-company review without changing evidence state.",
+            "Research-only",
+        ),
+    ),
 )
 
 

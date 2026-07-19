@@ -27,6 +27,8 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         "Discover",
         "Company Workbench",
         "Monitor",
+        "Research Data Health",
+        "Research Proof History",
     ]
     results = render_public_routes(Path("."), routes=RESEARCH_RENDER_ROUTES)
 

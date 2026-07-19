@@ -337,6 +337,24 @@ def test_monitor_renders_change_answer_before_advanced_readiness():
     assert 'tone="success"' not in monitor[empty:discover]
 
 
+def test_research_evidence_detours_offer_return_before_evidence_content():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    data_start = source.index('elif content_page == "Data Health":')
+    data_end = source.index('elif content_page == PROOF_HISTORY_PATH_TITLE:', data_start)
+    data = source[data_start:data_end]
+    proof_start = data_end
+    proof_end = source.index('elif content_page == "Universe Manager":', proof_start)
+    proof = source[proof_start:proof_end]
+
+    for branch, renderer in ((data, "render_data_health("), (proof, "render_proof_history(")):
+        header = branch.index("render_research_workspace_header(")
+        return_link = branch.index("research_evidence_return_link(", header)
+        button = branch.index("st.link_button(", return_link)
+        purpose = branch.index('st.caption(return_link["purpose"])', button)
+        content = branch.index(renderer, purpose)
+        assert header < return_link < button < purpose < content
+
+
 def test_dashboard_theme_keeps_primary_link_button_text_white():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
 

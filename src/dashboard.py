@@ -344,6 +344,7 @@ from src.research_workspace import (
     quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
+    research_evidence_return_link,
     research_monitor_frame,
     research_workspace_header_html,
     weekly_summary_cards,
@@ -34472,21 +34473,29 @@ def main() -> None:
         )
     elif content_page == "Data Health":
         if research_mode:
+            ticker = str(st.query_params.get("ticker") or "").strip().upper()
             render_research_workspace_header(
                 "Data Health",
                 profile_context,
-                ticker=str(st.query_params.get("ticker") or ""),
+                ticker=ticker,
                 primary_action="Inspect the blocked lane, then return to Company Workbench",
             )
+            return_link = research_evidence_return_link(ticker)
+            st.link_button(return_link["label"], return_link["href"], type="primary")
+            st.caption(return_link["purpose"])
         render_data_health(provider, project_status_payload, show_reason_details, public_mode=not operator_mode)
     elif content_page == PROOF_HISTORY_PATH_TITLE:
         if research_mode:
+            ticker = str(st.query_params.get("ticker") or "").strip().upper()
             render_research_workspace_header(
                 "Proof History",
                 profile_context,
-                ticker=str(st.query_params.get("ticker") or ""),
+                ticker=ticker,
                 primary_action="Confirm what evidence changed, then return to Company Workbench",
             )
+            return_link = research_evidence_return_link(ticker)
+            st.link_button(return_link["label"], return_link["href"], type="primary")
+            st.caption(return_link["purpose"])
         render_proof_history(public_mode=not operator_mode)
     elif content_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
