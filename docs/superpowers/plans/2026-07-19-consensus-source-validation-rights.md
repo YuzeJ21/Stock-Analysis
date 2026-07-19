@@ -194,11 +194,11 @@ Run:
 
 ```bash
 make dashboard-smoke
-make dashboard-render-smoke
+make research-dashboard-render-smoke
 make public-wording-check
 make public-check
 make commercial-beta-check
-make commercial-release-check
+make commercial-beta-release-check
 make pilot-readiness-check TOP_N=10
 make diff-hygiene-summary
 git diff --check
