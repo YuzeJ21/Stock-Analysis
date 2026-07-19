@@ -5,12 +5,14 @@ import json
 import os
 import re
 import subprocess
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from src.artifact_freshness import generated_artifact_stale_warning
+from src.continuation_gate import ContinuationGate, build_continuation_gate
 from src.data_onboarding import build_onboarding_payload
 from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame, refresh_price_update_status_output
@@ -1924,7 +1926,11 @@ def write_project_status_output(
     }
 
 
-def _print_human(payload: dict[str, Any]) -> None:
+def _print_human(
+    payload: dict[str, Any],
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> None:
     summary = payload["summary"]
     warnings = list(payload.get("warnings", []))
     has_stale_snapshot_warning = any(
@@ -1933,6 +1939,19 @@ def _print_human(payload: dict[str, Any]) -> None:
     )
     print("Read-only project snapshot.")
     print("Commands below are copy-only local research helpers; this status view does not run them.")
+    suppress_execution = bool(continuation_gate and continuation_gate.suppress_execution)
+    if continuation_gate is not None:
+        print(f"Continuation gate: {continuation_gate.state}")
+        if continuation_gate.next_safe_command:
+            print(f"- Continuation-safe next action: {continuation_gate.next_safe_command}")
+        if continuation_gate.reason:
+            print(f"- Reason: {continuation_gate.reason}")
+        if continuation_gate.rebuild_command:
+            print(
+                f"- Rebuild boundary: {continuation_gate.rebuild_command} requires an intentional reviewed write."
+            )
+        if continuation_gate.stop_rule:
+            print(f"- Stop rule: {continuation_gate.stop_rule}")
     if has_stale_snapshot_warning:
         print("Snapshot freshness: generated snapshot may be stale; refresh before relying on exact counts.")
     for warning in warnings:
@@ -1964,10 +1983,19 @@ def _print_human(payload: dict[str, Any]) -> None:
         {"Step": f"Next {index}", "Command": command}
         for index, command in enumerate(payload.get("recommended_next_commands", []), start=1)
     ]
+    if suppress_execution:
+        command_rows = [
+            {
+                "Step": "Inspect stale readiness impact",
+                "Command": continuation_gate.next_safe_command,
+                "Reason": "Compare saved and proposed stable readiness states in memory before any reviewed rebuild decision.",
+                "FreshnessContext": "Inspection only; this does not make saved readiness current.",
+            }
+        ]
     first_command = str(command_rows[0].get("Command") or "").strip() if command_rows else ""
     print("First read:")
     ready_label = "Ready now"
-    if has_stale_snapshot_warning:
+    if has_stale_snapshot_warning or suppress_execution:
         ready_label = "Ready in saved snapshot"
     print(
         f"- {ready_label}: {summary['tickers_with_prices']} with price rows, "
@@ -1981,7 +2009,12 @@ def _print_human(payload: dict[str, Any]) -> None:
         "- Still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates "
         "stay locked where source-backed rows are missing."
     )
-    if first_command == "make provider-setup-checklist":
+    if suppress_execution:
+        print(
+            f"- Best next proof: {continuation_gate.next_safe_command} for no-write readiness impact inspection; "
+            "source and coverage execution stays paused until readiness is current or a separate reviewed rebuild is authorized."
+        )
+    elif first_command == "make provider-setup-checklist":
         print(
             "- Best next proof: make provider-setup-checklist for provider setup and source-boundary evidence; "
             "current source-proof queues have no unreviewed executable company candidates, so wait for new "
@@ -2055,27 +2088,28 @@ def _print_human(payload: dict[str, Any]) -> None:
             print(f"  evidence: {evidence}")
         if next_action:
             print(f"  next: {next_action}")
-    print("Top locked inputs to review:")
-    price_complete = _price_coverage_complete(summary)
-    for row in payload["top_onboarding_actions"]:
-        ticker = f" {row['ticker']}" if row.get("ticker") else ""
-        raw_dataset_label = str(row.get("dataset") or "data")
-        dataset_label = raw_dataset_label
-        if dataset_label == "prices" and price_complete:
-            dataset_label = "price history"
-        print(f"- P{row['priority']} {dataset_label}{ticker}")
-        if row.get("focus_command"):
-            print(f"  suggested check: {row['focus_command']}")
-        if row.get("recommended_action"):
-            print(f"  guidance: {_friendly_cli_guidance(row['recommended_action'])}")
-        if row.get("example_command"):
-            example_label = "last manual fallback" if raw_dataset_label == "prices" else "trusted import/fallback"
-            print(f"  {example_label}: {row['example_command']}")
-        if row.get("credential_required"):
-            present = "present" if bool(row.get("credential_present")) else "missing"
-            print(f"  credential: {row['credential_required']} ({present})")
-        if row.get("manual_fallback_command"):
-            print(f"  fallback: {row['manual_fallback_command']}")
+    if not suppress_execution:
+        print("Top locked inputs to review:")
+        price_complete = _price_coverage_complete(summary)
+        for row in payload["top_onboarding_actions"]:
+            ticker = f" {row['ticker']}" if row.get("ticker") else ""
+            raw_dataset_label = str(row.get("dataset") or "data")
+            dataset_label = raw_dataset_label
+            if dataset_label == "prices" and price_complete:
+                dataset_label = "price history"
+            print(f"- P{row['priority']} {dataset_label}{ticker}")
+            if row.get("focus_command"):
+                print(f"  suggested check: {row['focus_command']}")
+            if row.get("recommended_action"):
+                print(f"  guidance: {_friendly_cli_guidance(row['recommended_action'])}")
+            if row.get("example_command"):
+                example_label = "last manual fallback" if raw_dataset_label == "prices" else "trusted import/fallback"
+                print(f"  {example_label}: {row['example_command']}")
+            if row.get("credential_required"):
+                present = "present" if bool(row.get("credential_present")) else "missing"
+                print(f"  credential: {row['credential_required']} ({present})")
+            if row.get("manual_fallback_command"):
+                print(f"  fallback: {row['manual_fallback_command']}")
     print("Recommended next local steps:")
     for row in command_rows:
         print(f"- {row.get('Step', 'Next')}: {row.get('Command', '')}")
@@ -2161,21 +2195,20 @@ def main(argv: list[str] | None = None) -> None:
             tickers=explicit_tickers,
         )
 
+    profile_context = build_profile_context(
+        project_root=root,
+        data_dir=data_path,
+        output_dir=output_path,
+    )
+    continuation_gate = build_continuation_gate(profile_context)
+    payload["continuation_gate"] = asdict(continuation_gate)
     if args.json:
         print(json.dumps(payload, indent=2))
         return
 
-    print(
-        render_profile_context_text(
-            build_profile_context(
-                project_root=root,
-                data_dir=data_path,
-                output_dir=output_path,
-            )
-        )
-    )
+    print(render_profile_context_text(profile_context))
     print(_format_operator_path_context(root, data_path, output_path))
-    _print_human(payload)
+    _print_human(payload, continuation_gate=continuation_gate)
     if args.write_output:
         print("Wrote:")
         for path in payload.get("written_files", {}).values():

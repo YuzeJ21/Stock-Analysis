@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import src.project_status as project_status
+from src.continuation_gate import ContinuationGate
 from src.project_status import build_project_status_payload, main, write_project_status_output
 
 
@@ -600,26 +601,21 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     finally:
         sys.argv = argv_before
 
-    assert "top locked inputs to review" in output
+    assert "continuation gate: inspection_required" in output
+    assert "continuation-safe next action: make readiness-preview top_n=20" in output
+    assert "top locked inputs to review" not in output
     assert "first read:" in output
-    assert "ready now:" in output
+    assert "ready in saved snapshot:" in output
     assert "still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates" in output
-    assert "best next proof: make trusted-data-pilot-candidates top_n=10" in output
+    assert "best next proof: make readiness-preview top_n=20" in output
     assert "details below are capped and copy-only" in output
-    assert "last manual fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
-    assert "trusted import/fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" not in output
-    assert "suggested check: make focus-fundamentals ticker=nvda" in output
-    assert "trusted import/fallback: make sec-stage tickers=nvda" in output
-    assert "guidance: use make" in output
-    assert "command: make price-normalize" not in output
-    assert "review short price-history blocker (nvda): make focus-price ticker=nvda" in output
-    assert (
-        "no verified local price history is present for this ticker yet." in output
-        or "this ticker has only" in output
-    )
-    assert "source:" in output
+    assert "make price-normalize" not in output
+    assert "make focus-fundamentals" not in output
+    assert "make sec-stage" not in output
+    assert "make focus-price" not in output
+    assert "source:" not in output
     assert "source readiness:" in output
-    assert "open price coverage guided data batch: make runbook-prices" in output
+    assert "make runbook-prices" not in output
 
 
 def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -635,8 +631,8 @@ def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: py
 
     assert "project status summary" in output
     assert "first read:" in output
-    assert "ready now:" in output
-    assert "best next proof: make trusted-data-pilot-candidates top_n=10" in output
+    assert "ready in saved snapshot:" in output
+    assert "best next proof: make readiness-preview top_n=20" in output
     assert "missing-data steps:" in output
     assert "research-purpose groups:" in output
     assert "onboarding actions:" not in output
@@ -799,15 +795,16 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
 
     assert "Project status summary:" in output
     assert "First read:" in output
-    assert "Ready now: 1 with price rows, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready." in output
+    assert "Ready in saved snapshot: 1 with price rows, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready." in output
     assert "Fundamentals/input-ready tickers: 1/2" in output
     assert "Operating-company DCF-ready tickers: 1/2" in output
-    assert "Best next proof: make trusted-data-pilot-candidates TOP_N=10" in output
+    assert "Best next proof: make readiness-preview TOP_N=20" in output
     assert "Read-only project snapshot." in output
     assert "Read-only operator snapshot." not in output
     assert "Commands below are copy-only local research helpers" in output
     assert "Recommended next local steps:" in output
-    assert "rank trusted data pilot candidates: make trusted-data-pilot-candidates top_n=10" in output.lower()
+    assert "inspect stale readiness impact: make readiness-preview top_n=20" in output.lower()
+    assert "make trusted-data-pilot-candidates" not in output
     assert "Local folders:" in output
     assert "data: data" in output
     assert "outputs: outputs" in output
@@ -816,7 +813,7 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "Operating-company DCF-ready tickers: 1/2" in output
     assert "Required data sources needing attention: 0" in output
     assert "Optional/manual lanes locked: 2" in output
-    assert "make focus-fundamentals TICKER=AMD" in output
+    assert "make focus-fundamentals TICKER=AMD" not in output
     assert "generated CSV churn" not in output
     assert "Wrote:" not in output
 
@@ -1860,3 +1857,55 @@ def test_project_status_prefers_holdings_first_price_blockers_when_priority_matc
     assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot-candidates TOP_N=10"
     assert payload["recommended_next_command_rows"][2]["Step"] == "Open Price Coverage Guided Data Batch"
     assert payload["recommended_next_command_rows"][2]["Command"] == "make runbook-prices"
+
+
+def test_project_status_stale_gate_suppresses_broad_next_steps(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+    assert payload is not None
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Selected-profile source dates are newer than saved readiness.",
+        rebuild_command="make readiness",
+        stop_rule="Do not start broad refresh, source-proof, apply, or readiness-rebuild work.",
+        suppress_execution=True,
+    )
+
+    project_status._print_human(payload, continuation_gate=gate)
+    output = capsys.readouterr().out
+
+    assert "Continuation gate: inspection_only" in output
+    assert "Continuation-safe next action: make readiness-preview TOP_N=20" in output
+    assert "Rebuild boundary: make readiness requires an intentional reviewed write." in output
+    assert "Top locked inputs to review:" not in output
+    assert "make price-refresh-loop DRY_RUN=1" not in output
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in output
+
+
+def test_project_status_json_includes_fail_closed_continuation_gate(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+
+    main(
+        [
+            "--check",
+            "--json",
+            "--project-root",
+            str(tmp_path),
+            "--data-dir",
+            "data",
+            "--output-dir",
+            "outputs",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["continuation_gate"]["state"] == "inspection_required"
+    assert payload["continuation_gate"]["next_safe_command"] == "make readiness-preview TOP_N=20"
+    assert payload["continuation_gate"]["suppress_execution"] is True
