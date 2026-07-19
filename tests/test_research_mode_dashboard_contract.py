@@ -233,6 +233,22 @@ def test_research_workspace_phone_styles_compact_profile_and_hide_only_duplicate
     assert "@media (max-width: 640px)" in styles
 
 
+def test_company_workbench_keeps_selected_company_before_collapsed_review_path_and_details():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    start = source.index("def render_company_workbench(")
+    end = source.index("\ndef main()", start)
+    workbench = source[start:end]
+
+    selected = workbench.index('st.markdown("### Selected Company")')
+    review = workbench.index('with st.expander("Review path", expanded=False):', selected)
+    path = workbench.index('st.caption(" -> ".join(section_names[:-1]))', review)
+    coverage = workbench.index('with st.expander("Advanced: selected-company lane coverage", expanded=False):', path)
+    report = workbench.index("render_single_stock_report(", coverage)
+
+    assert selected < review < path < coverage < report
+    assert 'st.caption("Review path: "' not in workbench
+
+
 def test_company_workbench_uses_composed_forward_view_and_keeps_details_advanced():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     render_start = source.index("def render_single_stock_report(")

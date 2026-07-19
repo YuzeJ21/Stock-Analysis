@@ -34186,9 +34186,10 @@ def render_company_workbench(
         ticker=ticker,
         primary_action="Review usable evidence, then record what remains uncertain",
     )
-    section_names = [section["title"] for section in company_workbench_section_contract()]
-    st.caption("Review path: " + " -> ".join(section_names[:-1]))
     st.markdown("### Selected Company")
+    section_names = [section["title"] for section in company_workbench_section_contract()]
+    with st.expander("Review path", expanded=False):
+        st.caption(" -> ".join(section_names[:-1]))
     with st.expander("Advanced: selected-company lane coverage", expanded=False):
         render_signal_cards(
             focused_ticker_coverage_cards(coverage, ticker),
