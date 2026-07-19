@@ -71,6 +71,21 @@ class CollectionPreview:
 
 
 @dataclass(frozen=True)
+class BatchCollectionPreview:
+    mode: str
+    write_performed: bool
+    state: str
+    row_count: int
+    reviewable_count: int
+    technical_write_allowed: bool
+    commercial_evidence_ready: bool
+    commercial_write_allowed: bool
+    technical_blockers: tuple[str, ...]
+    commercial_blockers: tuple[str, ...]
+    rows: tuple[CollectionPreview, ...]
+
+
+@dataclass(frozen=True)
 class CollectionPlan:
     mode: str
     cadence: str
@@ -251,9 +266,76 @@ def preview_collection(
     )
 
 
-def append_reviewed_snapshot(
+def preview_collection_batch(
+    existing: Sequence[ProspectiveConsensusRecord],
+    proposed: Sequence[ProspectiveConsensusRecord],
+    *,
+    as_of: str | None = None,
+    cooldown_hours: int = 0,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+) -> BatchCollectionPreview:
+    rights_registry = rights_registry or load_source_rights_registry()
+    proposed_rows = tuple(proposed)
+    if not proposed_rows:
+        return BatchCollectionPreview(
+            mode="preview_only",
+            write_performed=False,
+            state="empty_batch",
+            row_count=0,
+            reviewable_count=0,
+            technical_write_allowed=False,
+            commercial_evidence_ready=False,
+            commercial_write_allowed=False,
+            technical_blockers=("batch:empty_input",),
+            commercial_blockers=("batch:empty_input",),
+            rows=(),
+        )
+
+    virtual_ledger = list(existing)
+    row_previews: list[CollectionPreview] = []
+    technical_blockers: list[str] = []
+    commercial_blockers: list[str] = []
+    for index, row in enumerate(proposed_rows, start=1):
+        row_preview = preview_collection(
+            virtual_ledger,
+            row,
+            as_of=as_of or row.retrieved_at,
+            cooldown_hours=cooldown_hours,
+            rights_registry=rights_registry,
+        )
+        row_previews.append(row_preview)
+        if row_preview.write_allowed:
+            virtual_ledger.append(row)
+        else:
+            technical_blockers.append(
+                f"row_{index}:{row_preview.state}:{row_preview.reason}"
+            )
+        commercial_blockers.extend(
+            f"row_{index}:{blocker}" for blocker in row_preview.commercial_blockers
+        )
+
+    technical_write_allowed = not technical_blockers
+    commercial_evidence_ready = all(
+        row_preview.commercial_evidence_ready for row_preview in row_previews
+    )
+    return BatchCollectionPreview(
+        mode="preview_only",
+        write_performed=False,
+        state="reviewable_batch" if technical_write_allowed else "rejected_batch",
+        row_count=len(proposed_rows),
+        reviewable_count=sum(row_preview.write_allowed for row_preview in row_previews),
+        technical_write_allowed=technical_write_allowed,
+        commercial_evidence_ready=commercial_evidence_ready,
+        commercial_write_allowed=technical_write_allowed and commercial_evidence_ready,
+        technical_blockers=tuple(technical_blockers),
+        commercial_blockers=tuple(commercial_blockers),
+        rows=tuple(row_previews),
+    )
+
+
+def append_reviewed_batch(
     path: Path | str,
-    record: ProspectiveConsensusRecord,
+    records: Sequence[ProspectiveConsensusRecord],
     *,
     confirm_reviewed: bool,
     commercial_mode: bool | None = None,
@@ -263,19 +345,22 @@ def append_reviewed_snapshot(
         raise ValueError("confirm_reviewed is required before append")
     destination = Path(path)
     existing = load_snapshots(destination)
+    proposed = tuple(records)
     rights_registry = rights_registry or load_source_rights_registry()
-    preview = preview_collection(
+    preview = preview_collection_batch(
         existing,
-        record,
-        as_of=record.retrieved_at,
+        proposed,
         rights_registry=rights_registry,
     )
-    if not preview.write_allowed:
-        raise ValueError(preview.state + ": " + preview.reason)
+    if not preview.technical_write_allowed:
+        raise ValueError(
+            f"{preview.state}: " + "; ".join(preview.technical_blockers)
+        )
     commercial_mode = commercial_mode if commercial_mode is not None else commercial_mode_enabled()
     if commercial_mode and not preview.commercial_write_allowed:
         raise ValueError(
-            "commercial_evidence_review_required: " + ", ".join(preview.commercial_blockers)
+            "batch_commercial_evidence_review_required: "
+            + "; ".join(preview.commercial_blockers)
         )
     destination.parent.mkdir(parents=True, exist_ok=True)
     exists = destination.exists() and destination.stat().st_size > 0
@@ -283,8 +368,25 @@ def append_reviewed_snapshot(
         writer = csv.DictWriter(handle, fieldnames=FIELDS)
         if not exists:
             writer.writeheader()
-        writer.writerow(asdict(record))
+        writer.writerows(asdict(record) for record in proposed)
     return destination
+
+
+def append_reviewed_snapshot(
+    path: Path | str,
+    record: ProspectiveConsensusRecord,
+    *,
+    confirm_reviewed: bool,
+    commercial_mode: bool | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+) -> Path:
+    return append_reviewed_batch(
+        path,
+        (record,),
+        confirm_reviewed=confirm_reviewed,
+        commercial_mode=commercial_mode,
+        rights_registry=rights_registry,
+    )
 
 
 def collection_plan(*, tickers: Sequence[str], as_of: str, cadence: str) -> CollectionPlan:
@@ -333,13 +435,16 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "preview":
         existing = load_snapshots(args.ledger)
         proposed = load_snapshots(args.input)
-        results = [asdict(preview_collection(existing, row, as_of=args.as_of)) for row in proposed]
-        print(json.dumps({"mode": "preview_only", "write_performed": False, "rows": results}, indent=2, sort_keys=True))
+        result = preview_collection_batch(existing, proposed, as_of=args.as_of)
+        print(json.dumps(asdict(result), indent=2, sort_keys=True))
     else:
         if not args.confirm_reviewed:
             raise ValueError("record requires --confirm-reviewed after preview and source review")
-        for row in load_snapshots(args.input):
-            append_reviewed_snapshot(args.ledger, row, confirm_reviewed=True)
+        append_reviewed_batch(
+            args.ledger,
+            load_snapshots(args.input),
+            confirm_reviewed=True,
+        )
         print(f"Appended reviewed prospective snapshots to {args.ledger}")
     return 0
 

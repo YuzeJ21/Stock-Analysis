@@ -20,6 +20,8 @@ If `COMMERCIAL_RESEARCH_MODE` is explicitly enabled, `price-apply` now enforces 
 
 Prospective point-in-time consensus uses the same exact-source principle with metric-specific scope. Collection preview reports append-only technical validity independently from commercial rights; non-empty Revenue and EPS values require literal `revenue_consensus` and `eps_consensus` support respectively. Explicit Commercial Research mode blocks an incomplete record before ledger or directory mutation, while ordinary research mode preserves the explicit reviewed local append path. The current registry contains no approved consensus source or either consensus scope. Do not add a provider record, infer an alias, or treat a configured key as permission without reviewed rights evidence.
 
+For a reviewed multi-row consensus file, preview simulates the complete input in order against the existing ledger plus earlier technically valid proposed rows. Record uses that same batch result and does not begin appending until every technical row passes and, in Commercial Research mode, every required rights/scope state passes. A later known rejection therefore leaves the existing ledger byte-identical. The collector does not reorder revisions or infer missing lineage. One append handle narrows the mutation boundary but does not provide process locking, crash recovery, or a filesystem transaction guarantee.
+
 ## Public Visitor FAQ
 
 The public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Use this data strategy as the explanation layer behind that path, not as a second navigation model.

@@ -1,13 +1,18 @@
-from dataclasses import replace
+import csv
+import json
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import pytest
 
 from src.earnings_consensus_collector import (
+    FIELDS,
     ProspectiveConsensusRecord,
+    append_reviewed_batch,
     append_reviewed_snapshot,
     collection_plan,
     load_snapshots,
+    main,
     preview_collection,
 )
 from src.commercial_source_rights import build_source_rights_registry
@@ -59,6 +64,26 @@ def _rights_registry(*, source_id: str = "licensed_consensus", commercial_use: s
                 "fallback_priority": 1,
             }
         ]
+    )
+
+
+def _write_records(path: Path, records: tuple[ProspectiveConsensusRecord, ...]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=FIELDS)
+        writer.writeheader()
+        writer.writerows(asdict(record) for record in records)
+
+
+def _revision(record: ProspectiveConsensusRecord, *, snapshot_id: str = "snap-002") -> ProspectiveConsensusRecord:
+    return replace(
+        record,
+        snapshot_id=snapshot_id,
+        snapshot_at="2026-07-25T05:00:00Z",
+        retrieved_at="2026-07-25T05:00:01Z",
+        source_ref=f"file://reviewed/{record.ticker}/{record.fiscal_period}/20260725",
+        revenue_consensus="102",
+        supersedes_snapshot_id=record.snapshot_id,
     )
 
 
@@ -243,3 +268,172 @@ def test_approved_commercial_append_uses_exact_metric_scopes(tmp_path: Path):
     )
 
     assert load_snapshots(ledger) == (record,)
+
+
+def test_record_preflights_whole_batch_before_any_append(tmp_path: Path):
+    input_path = tmp_path / "input.csv"
+    ledger = tmp_path / "ledger.csv"
+    first = _record()
+    _write_records(input_path, (first, first))
+
+    with pytest.raises(ValueError, match="duplicate"):
+        main(["record", "--input", str(input_path), "--ledger", str(ledger), "--confirm-reviewed"])
+
+    assert not ledger.exists()
+
+
+def test_preview_uses_ordered_virtual_ledger_for_revision(tmp_path: Path, capsys):
+    input_path = tmp_path / "input.csv"
+    first = _record()
+    _write_records(input_path, (first, _revision(first)))
+
+    main(
+        [
+            "preview",
+            "--input",
+            str(input_path),
+            "--ledger",
+            str(tmp_path / "missing.csv"),
+            "--as-of",
+            "2026-07-26T00:00:00Z",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload.get("state") == "reviewable_batch"
+    assert [row["state"] for row in payload["rows"]] == ["reviewable_new", "reviewable_revision"]
+    assert payload["technical_write_allowed"] is True
+
+
+def test_preview_detects_intra_batch_duplicate(tmp_path: Path, capsys):
+    input_path = tmp_path / "input.csv"
+    first = _record()
+    _write_records(input_path, (first, first))
+
+    main(
+        [
+            "preview",
+            "--input",
+            str(input_path),
+            "--ledger",
+            str(tmp_path / "missing.csv"),
+            "--as-of",
+            "2026-07-26T00:00:00Z",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload.get("state") == "rejected_batch"
+    assert [row["state"] for row in payload["rows"]] == ["reviewable_new", "duplicate"]
+    assert payload["technical_write_allowed"] is False
+
+
+def test_preview_does_not_reorder_reversed_revision_chain(tmp_path: Path, capsys):
+    input_path = tmp_path / "input.csv"
+    first = _record()
+    revision = _revision(first)
+    _write_records(input_path, (revision, first))
+
+    main(
+        [
+            "preview",
+            "--input",
+            str(input_path),
+            "--ledger",
+            str(tmp_path / "missing.csv"),
+            "--as-of",
+            "2026-07-26T00:00:00Z",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload.get("state") == "rejected_batch"
+    assert payload["rows"][0]["state"] == "rejected"
+    assert "supersedes_snapshot_id does not exist" in payload["rows"][0]["reason"]
+    assert payload["rows"][1]["state"] == "reviewable_new"
+
+
+def test_record_rejects_empty_batch_without_creating_destination(tmp_path: Path):
+    input_path = tmp_path / "input.csv"
+    ledger = tmp_path / "missing-parent" / "ledger.csv"
+    _write_records(input_path, ())
+
+    with pytest.raises(ValueError, match="empty_batch"):
+        main(["record", "--input", str(input_path), "--ledger", str(ledger), "--confirm-reviewed"])
+
+    assert not ledger.parent.exists()
+
+
+def test_batch_append_preserves_existing_bytes_when_later_row_is_invalid(tmp_path: Path):
+    ledger = tmp_path / "ledger.csv"
+    append_reviewed_snapshot(ledger, _record(), confirm_reviewed=True)
+    original_bytes = ledger.read_bytes()
+    first = _record(
+        snapshot_id="snap-010",
+        ticker="AMD",
+        source_ref="file://reviewed/AMD/2027-Q1/20260718",
+    )
+    conflict = replace(
+        first,
+        snapshot_id="snap-011",
+        snapshot_at="2026-07-19T05:00:00Z",
+        retrieved_at="2026-07-19T05:00:01Z",
+        source_ref="file://reviewed/AMD/2027-Q1/20260719",
+    )
+
+    with pytest.raises(ValueError, match="later same-period"):
+        append_reviewed_batch(ledger, (first, conflict), confirm_reviewed=True)
+
+    assert ledger.read_bytes() == original_bytes
+
+
+def test_batch_append_blocks_later_commercial_rights_failure_before_mutation(tmp_path: Path):
+    ledger = tmp_path / "missing-parent" / "ledger.csv"
+    first = _record(source="licensed_consensus")
+    revision = replace(_revision(first), source="unregistered_consensus")
+
+    with pytest.raises(ValueError, match="batch_commercial_evidence_review_required"):
+        append_reviewed_batch(
+            ledger,
+            (first, revision),
+            confirm_reviewed=True,
+            commercial_mode=True,
+            rights_registry=_rights_registry(),
+        )
+
+    assert not ledger.parent.exists()
+
+
+def test_batch_append_records_valid_ordered_research_revision_chain(tmp_path: Path):
+    ledger = tmp_path / "ledger.csv"
+    first = _record()
+    revision = _revision(first)
+
+    append_reviewed_batch(ledger, (first, revision), confirm_reviewed=True, commercial_mode=False)
+
+    assert load_snapshots(ledger) == (first, revision)
+
+
+def test_batch_append_records_valid_ordered_commercial_revision_chain(tmp_path: Path):
+    ledger = tmp_path / "ledger.csv"
+    first = _record(source="licensed_consensus")
+    revision = _revision(first)
+
+    append_reviewed_batch(
+        ledger,
+        (first, revision),
+        confirm_reviewed=True,
+        commercial_mode=True,
+        rights_registry=_rights_registry(),
+    )
+
+    assert load_snapshots(ledger) == (first, revision)
+
+
+def test_batch_append_rejects_empty_sequence_without_mutation(tmp_path: Path):
+    ledger = tmp_path / "missing-parent" / "ledger.csv"
+
+    with pytest.raises(ValueError, match="empty_batch"):
+        append_reviewed_batch(ledger, (), confirm_reviewed=True)
+
+    assert not ledger.parent.exists()
