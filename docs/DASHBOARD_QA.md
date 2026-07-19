@@ -8,6 +8,10 @@ Read-only AppTest coverage now verifies six Personal Research surfaces: Research
 
 The same-mode detour does not change readiness or evidence state, add a route, expose Operator commands, refresh data, record a review outcome, or treat Proof History as an unlock. The active continuation contract prohibited new screenshots, so this pass proves route and render continuity only; it does not prove visual spacing, focus order, contrast, assistive-technology behavior, hosted behavior, or accessibility compliance.
 
+## Stale Readiness Continuation Gate
+
+When the selected profile is stale or incomplete, the stale readiness continuation gate makes `make readiness-preview TOP_N=20` the only continuation-safe action. Project-status next steps are suppressed, while provider setup details and coverage rankings remain planning context only. `make readiness` is a separate intentional reviewed write; the UI and CLI must not imply that the preview refreshes data, makes saved readiness current, or authorizes source execution.
+
 ## 2026-07-18 Monitor Answer-First Live Review
 
 The default-profile Monitor route was reviewed before and after the hierarchy

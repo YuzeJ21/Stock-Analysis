@@ -34,6 +34,7 @@ Expected lineage to verify, never assume:
 - Draft PR: https://github.com/YuzeJ21/Stock-Analysis/pull/113.
 - Evidence-quality lineage anchor: commit `e0eea1f95` or a later verified descendant.
 - No-write readiness-preview lineage anchor: commit `1f72a6d90` or a later verified descendant.
+- Stale readiness continuation gate lineage anchor: commit `560ba0377` or a later verified descendant.
 - The branch should be clean, pushed, and aligned with `origin/codex/personal-research-mode-mvp`.
 - PR #113 must remain open and draft. Do not merge it.
 - Generated CSV, JSON, readiness reports, stock reports, sample reports, screenshots, browser timing output, and other generated churn must remain excluded unless one exact artifact is intentionally reviewed and explicitly required.
@@ -52,6 +53,7 @@ Current locally implemented capabilities to verify:
 - Shared pilot and reviewed-batch freshness that treats declared source dates newer than the saved readiness build as stale even when file mtimes look current; the read-only gate never runs `make readiness` or writes generated artifacts.
 - No-write readiness impact preview via `make readiness-preview TOP_N=20`; it runs production readiness logic in memory, compares stable saved-versus-proposed states, writes nothing, and does not make saved readiness current.
 - Same-mode Advanced Evidence continuity: Data Health and Proof History stay inside Personal Research mode, preserve the selected ticker, and expose Return to Company Workbench before evidence content. The navigation does not change readiness or evidence state.
+- Stale readiness continuation gate across project status, provider setup, and coverage frontier: while readiness is stale or incomplete, `make readiness-preview TOP_N=20` is the only continuation-safe command; provider and ranked coverage details remain planning context only, and `make readiness` is a separate intentional reviewed write.
 - Peer evidence-quality contract separating relationship provenance, peer role, economic comparability, result context, trend readiness, and valuation-anchor eligibility.
 - In-memory quarterly cash-generation evidence contract with independent operating-margin, free-cash-flow, and FCF-margin states, explicit filed-Q4 enforcement, Advanced-only source lineage, and no supplemental data file, writer, template, report, or generated artifact.
 - Quarterly adapter acceptance harness for one in-memory company batch, with deterministic identity, commercial-rights, supported-field, cutoff, revision, component, compatibility, complete-period, and Q4 blockers; `accepted_for_review` always leaves production activation false and readiness promotions empty.
@@ -71,6 +73,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Quarterly adapter acceptance is a local review-routing decision only. It cannot change source rights, load or write an adapter file, supply Company Workbench production observations, or promote readiness.
 - Declared source dates newer than the saved readiness build must keep pilot, reviewed-batch, project-status, and profile-context freshness stale. File mtimes cannot override that evidence; only an intentional reviewed `make readiness` run can rebuild the generated snapshot.
 - `make readiness-preview TOP_N=20` is inspection evidence only. It must not create or modify CSV, JSON, report, sample-report, screenshot, timing, directory, or bytecode artifacts; it cannot authorize a rebuild, promote readiness, or make stale counts current.
+- The stale readiness continuation gate must suppress broad refresh, source-proof, apply, and readiness-rebuild routing from status surfaces. It does not change provider availability or ranking calculations; those remain planning context only until readiness is current or the separate intentional reviewed write is authorized.
 
 Current external dependency classifications to verify once, then avoid looping:
 

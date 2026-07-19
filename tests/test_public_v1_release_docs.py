@@ -686,6 +686,22 @@ def test_pilot_freshness_docs_fail_closed_on_declared_source_dates():
     assert "make readiness" in prompt
 
 
+def test_stale_readiness_continuation_gate_docs_keep_rankings_non_executable():
+    roadmap = _read("ROADMAP.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, data_strategy, dashboard_qa, prompt):
+        lowered = text.lower()
+        assert "stale readiness continuation gate" in lowered
+        assert "make readiness-preview TOP_N=20" in text
+        assert "planning context only" in lowered
+        assert "separate intentional reviewed write" in lowered
+    assert "does not refresh data" in roadmap.lower()
+    assert "does not prove market validation" in roadmap.lower()
+
+
 def test_thesis_journal_docs_preserve_append_only_research_boundary():
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
