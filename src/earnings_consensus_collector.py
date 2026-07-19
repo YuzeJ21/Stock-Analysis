@@ -9,8 +9,14 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Sequence
+from typing import Mapping, Sequence
 
+from src.commercial_source_rights import (
+    SourceRights,
+    commercial_eligibility,
+    commercial_mode_enabled,
+    load_source_rights_registry,
+)
 from src.earnings_nowcast_contract import ConsensusSnapshot, parse_utc_timestamp
 
 
@@ -55,6 +61,13 @@ class CollectionPreview:
     reason: str
     write_allowed: bool
     snapshot_identity: str
+    rights_status: str
+    commercial_rights_approved: bool
+    required_supported_fields: tuple[str, ...]
+    missing_supported_fields: tuple[str, ...]
+    commercial_evidence_ready: bool
+    commercial_write_allowed: bool
+    commercial_blockers: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -126,22 +139,73 @@ def _validate(record: ProspectiveConsensusRecord) -> None:
     )
 
 
+def _collection_preview(
+    state: str,
+    reason: str,
+    write_allowed: bool,
+    proposed: ProspectiveConsensusRecord,
+    rights_registry: Mapping[str, SourceRights],
+) -> CollectionPreview:
+    required_supported_fields = tuple(
+        field
+        for field in ("revenue_consensus", "eps_consensus")
+        if str(getattr(proposed, field) or "").strip()
+    )
+    rights = commercial_eligibility(rights_registry, proposed.source)
+    rights_record = rights_registry.get(str(proposed.source or "").strip())
+    supported_fields = set(rights_record.supported_fields) if rights_record is not None else set()
+    missing_supported_fields = tuple(
+        field for field in required_supported_fields if field not in supported_fields
+    )
+    commercial_blockers: list[str] = []
+    if not rights.allowed:
+        commercial_blockers.append(f"commercial_rights:{rights.status}")
+    commercial_blockers.extend(
+        f"registered_consensus_scope_missing:{field}"
+        for field in missing_supported_fields
+    )
+    commercial_evidence_ready = rights.allowed and not missing_supported_fields
+    return CollectionPreview(
+        state=state,
+        reason=reason,
+        write_allowed=write_allowed,
+        snapshot_identity=snapshot_identity(proposed),
+        rights_status=rights.status,
+        commercial_rights_approved=rights.allowed,
+        required_supported_fields=required_supported_fields,
+        missing_supported_fields=missing_supported_fields,
+        commercial_evidence_ready=commercial_evidence_ready,
+        commercial_write_allowed=write_allowed and commercial_evidence_ready,
+        commercial_blockers=tuple(commercial_blockers),
+    )
+
+
 def preview_collection(
     existing: Sequence[ProspectiveConsensusRecord],
     proposed: ProspectiveConsensusRecord,
     *,
     as_of: str,
     cooldown_hours: int = 0,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> CollectionPreview:
+    rights_registry = rights_registry or load_source_rights_registry()
     try:
         _validate(proposed)
     except ValueError as exc:
-        return CollectionPreview("rejected", str(exc), False, snapshot_identity(proposed))
+        return _collection_preview("rejected", str(exc), False, proposed, rights_registry)
     boundary = parse_utc_timestamp(as_of, label="collection cutoff")
     if parse_utc_timestamp(proposed.snapshot_at) > boundary or parse_utc_timestamp(proposed.retrieved_at) > boundary:
-        return CollectionPreview("rejected", "snapshot or retrieval timestamp is after the collection cutoff", False, snapshot_identity(proposed))
+        return _collection_preview(
+            "rejected",
+            "snapshot or retrieval timestamp is after the collection cutoff",
+            False,
+            proposed,
+            rights_registry,
+        )
     if any(row.snapshot_id == proposed.snapshot_id or snapshot_identity(row) == snapshot_identity(proposed) for row in existing):
-        return CollectionPreview("duplicate", "identical immutable snapshot already exists", False, snapshot_identity(proposed))
+        return _collection_preview(
+            "duplicate", "identical immutable snapshot already exists", False, proposed, rights_registry
+        )
     same_scope = [
         row for row in existing
         if row.ticker.upper() == proposed.ticker.upper() and row.fiscal_period.upper() == proposed.fiscal_period.upper()
@@ -150,17 +214,41 @@ def preview_collection(
         latest = max(parse_utc_timestamp(row.retrieved_at) for row in same_scope)
         elapsed = (parse_utc_timestamp(proposed.retrieved_at) - latest).total_seconds() / 3600
         if elapsed < cooldown_hours:
-            return CollectionPreview("cooldown", f"latest snapshot is only {elapsed:.1f} hours old", False, snapshot_identity(proposed))
+            return _collection_preview(
+                "cooldown",
+                f"latest snapshot is only {elapsed:.1f} hours old",
+                False,
+                proposed,
+                rights_registry,
+            )
     if proposed.supersedes_snapshot_id:
         target = next((row for row in existing if row.snapshot_id == proposed.supersedes_snapshot_id), None)
         if target is None:
-            return CollectionPreview("rejected", "supersedes_snapshot_id does not exist", False, snapshot_identity(proposed))
+            return _collection_preview(
+                "rejected", "supersedes_snapshot_id does not exist", False, proposed, rights_registry
+            )
         if (target.ticker.upper(), target.fiscal_period.upper()) != (proposed.ticker.upper(), proposed.fiscal_period.upper()):
-            return CollectionPreview("rejected", "revision must preserve ticker and fiscal period", False, snapshot_identity(proposed))
-        return CollectionPreview("reviewable_revision", "append-only revision preserves the prior snapshot", True, snapshot_identity(proposed))
+            return _collection_preview(
+                "rejected", "revision must preserve ticker and fiscal period", False, proposed, rights_registry
+            )
+        return _collection_preview(
+            "reviewable_revision",
+            "append-only revision preserves the prior snapshot",
+            True,
+            proposed,
+            rights_registry,
+        )
     if same_scope:
-        return CollectionPreview("rejected", "later same-period snapshots must identify supersedes_snapshot_id", False, snapshot_identity(proposed))
-    return CollectionPreview("reviewable_new", "new reviewed point-in-time snapshot", True, snapshot_identity(proposed))
+        return _collection_preview(
+            "rejected",
+            "later same-period snapshots must identify supersedes_snapshot_id",
+            False,
+            proposed,
+            rights_registry,
+        )
+    return _collection_preview(
+        "reviewable_new", "new reviewed point-in-time snapshot", True, proposed, rights_registry
+    )
 
 
 def append_reviewed_snapshot(
@@ -168,14 +256,27 @@ def append_reviewed_snapshot(
     record: ProspectiveConsensusRecord,
     *,
     confirm_reviewed: bool,
+    commercial_mode: bool | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> Path:
     if not confirm_reviewed:
         raise ValueError("confirm_reviewed is required before append")
     destination = Path(path)
     existing = load_snapshots(destination)
-    preview = preview_collection(existing, record, as_of=record.retrieved_at)
+    rights_registry = rights_registry or load_source_rights_registry()
+    preview = preview_collection(
+        existing,
+        record,
+        as_of=record.retrieved_at,
+        rights_registry=rights_registry,
+    )
     if not preview.write_allowed:
         raise ValueError(preview.state + ": " + preview.reason)
+    commercial_mode = commercial_mode if commercial_mode is not None else commercial_mode_enabled()
+    if commercial_mode and not preview.commercial_write_allowed:
+        raise ValueError(
+            "commercial_evidence_review_required: " + ", ".join(preview.commercial_blockers)
+        )
     destination.parent.mkdir(parents=True, exist_ok=True)
     exists = destination.exists() and destination.stat().st_size > 0
     with destination.open("a", newline="", encoding="utf-8") as handle:

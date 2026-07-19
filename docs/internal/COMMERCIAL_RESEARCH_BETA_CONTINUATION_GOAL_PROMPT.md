@@ -41,6 +41,7 @@ Expected lineage to verify, never assume:
 - Prospective price-lineage preservation design/plan anchor: commit `85495b088` or a later verified descendant.
 - Staged price rights/scope review design/plan anchor: commit `b1970004d` or a later verified descendant.
 - Commercial price-apply guard design/plan anchor: commit `aa12d0e5f` or a later verified descendant.
+- Prospective consensus source-rights guard design/plan anchor: commit `9b15fafac` or a later verified descendant.
 - The branch should be clean, pushed, and aligned with `origin/codex/personal-research-mode-mvp`.
 - PR #113 must remain open and draft. Do not merge it.
 - Generated CSV, JSON, readiness reports, stock reports, sample reports, screenshots, browser timing output, and other generated churn must remain excluded unless one exact artifact is intentionally reviewed and explicitly required.
@@ -64,6 +65,7 @@ Current locally implemented capabilities to verify:
 - Prospective price-lineage preservation through manual normalization, validation, preview, and later reviewed apply: explicit `source_ref` and `retrieved_at` survive the staged path, while missing/invalid lineage remains independently review-required and is never generated from local file or processing metadata.
 - Independent staged-price source review in validation and preview: each exact retained `source` value keeps commercial-rights and registered `prices` scope states separate from technical validity and lineage; unknown, blank, unverified, scope-incomplete, and mixed batches fail closed without aliases or provider inference.
 - Explicit Commercial Research mode staged-price apply guard: incomplete lineage, unapproved exact-source rights, or missing registered `prices` scope returns before backup or canonical mutation; ordinary research mode retains the existing separately reviewed local path.
+- Prospective consensus source-rights guard: preview keeps append-only technical validity, exact-source rights, and required `revenue_consensus` / `eps_consensus` scope independent; explicit Commercial Research mode blocks before ledger or directory mutation when rights or populated-metric scope is incomplete, while ordinary research mode retains explicit reviewed append compatibility.
 - Same-mode Advanced Evidence continuity: Data Health and Proof History stay inside Personal Research mode, preserve the selected ticker, and expose Return to Company Workbench before evidence content. The navigation does not change readiness or evidence state.
 - Stale readiness continuation gate across project status, Session Source Preflight, provider setup, coverage frontier, Auto-Refresh Status, its runbook, Advanced Data Health cards, and the commercial-beta release path: while readiness is stale or incomplete, `make readiness-preview TOP_N=20` is the only continuation-safe command; source availability, provider, scheduled-operation, and ranked coverage details remain planning context only, and `make readiness` is a separate intentional reviewed write.
 - Peer evidence-quality contract separating relationship provenance, peer role, economic comparability, result context, trend readiness, and valuation-anchor eligibility.
@@ -90,12 +92,14 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Prospective lineage preservation is not evidence activation. A `lineage_complete` staged row still requires exact-source rights, registered `prices` support, payload review, explicit apply intent, rebuilt readiness, and proof. Do not treat temporary fixtures or schema support as a real provider row.
 - Staged rights/scope review is not source approval or apply authorization. An approved registry result only reports current checked-in rights and field-scope metadata for the exact source ID; it cannot prove the payload, reviewer decision, freshness, canonical activation, rebuilt readiness, or market validation.
 - Commercial apply-guard passage is not evidence activation or automatic mutation. It is a necessary pre-write condition after an explicit apply request; payload review, reviewer intent, freshness, readiness rebuild, proof recording, and downstream use remain separate.
+- Consensus commercial-guard passage is not point-in-time evidence activation. Technical append eligibility, commercial rights, Revenue scope, EPS scope, payload review, historical availability, comparability, nowcast readiness, backtesting, and calibration remain independent. The checked-in registry currently has no approved prospective-consensus source or consensus scope, and temporary fixtures cannot change that state.
 - Named change causes explain existing method decisions only. They cannot alter scope, upgrade partial data, establish current readiness totals, create a company-quality judgment, or authorize a rebuild.
 - The stale readiness continuation gate must suppress broad refresh, source-proof, apply, and readiness-rebuild routing from status surfaces. It does not change provider availability or ranking calculations; those remain planning context only until readiness is current or the separate intentional reviewed write is authorized.
 
 Current external dependency classifications to verify once, then avoid looping:
 
 - Point-in-time consensus: `external_data_required`; the prospective ledger had 0 snapshots at the last verified check. Resume only when a permitted provider is configured or a reviewed CSV is supplied.
+- Prospective consensus commercial rights: `external_source_and_rights_review_required`; the local preview and write guard are implemented, but no checked-in source is approved for `revenue_consensus` or `eps_consensus`. Resume only with reviewed rights evidence for the exact supplied source and only the populated metric scopes; do not infer a provider from a composite label or configured key.
 - Hosted preview: `external_account_required`; repository-side entrypoint, deterministic demo profile, runtime guidance, and checks exist, but no hosted URL or enforced access boundary has been proven.
 - Controlled beta: `external_reviewers_required`; no 10-20 session reviewer cohort has been completed.
 - Trusted-peer pilot: `external_source_and_review_required`; the local contract is implemented, but the existing legacy relationships have no inferred roles or anchor decisions. Resume with one bounded reviewed relationship, not a broad sourcing loop.
@@ -129,6 +133,7 @@ Stage 1 — Answer-first workflow hardening
 Stage 2 — Permitted source activation
 - Acquire one permitted append-only prospective point-in-time consensus snapshot for one reviewed ticker.
 - Require exact fiscal period, independent Revenue/EPS comparability, durable source reference, publication and retrieval timestamps, provenance, freshness, revision handling, and suitable usage rights.
+- Require the exact source-rights record to approve commercial use and list each populated metric scope independently before a Commercial Research append; research-only collection does not satisfy this stage gate.
 - Run validate, preview, rejection review, readiness, and provenance checks before any apply decision.
 - Exit only when one repeatable source path demonstrates deterministic provenance, rights, freshness, failure handling, and append-only collection.
 

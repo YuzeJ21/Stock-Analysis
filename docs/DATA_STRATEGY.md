@@ -18,6 +18,8 @@ The same validation and preview now perform that registry join directly for tech
 
 If `COMMERCIAL_RESEARCH_MODE` is explicitly enabled, `price-apply` now enforces the joined evidence before mutation. Any lineage, rights, or registered-price-scope gap returns a non-writing blocked result before backup creation. Research mode keeps the existing local reviewed apply behavior. Passing the commercial guard only permits the requested mutation step; it does not validate the payload, rebuild readiness, or record proof.
 
+Prospective point-in-time consensus uses the same exact-source principle with metric-specific scope. Collection preview reports append-only technical validity independently from commercial rights; non-empty Revenue and EPS values require literal `revenue_consensus` and `eps_consensus` support respectively. Explicit Commercial Research mode blocks an incomplete record before ledger or directory mutation, while ordinary research mode preserves the explicit reviewed local append path. The current registry contains no approved consensus source or either consensus scope. Do not add a provider record, infer an alias, or treat a configured key as permission without reviewed rights evidence.
+
 ## Public Visitor FAQ
 
 The public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Use this data strategy as the explanation layer behind that path, not as a second navigation model.

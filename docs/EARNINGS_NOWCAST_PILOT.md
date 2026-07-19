@@ -58,6 +58,8 @@ Use `make earnings-consensus-collection-plan AS_OF=<timestamp>` for a weekly or 
 
 Start from `docs/templates/earnings_nowcast/prospective_consensus.csv`. Preview with `make earnings-consensus-collection-preview INPUT=<reviewed.csv> AS_OF=<timestamp>`. Recording requires the separately reviewed `CONFIRM_REVIEWED=1 make earnings-consensus-collection-record INPUT=<reviewed.csv>` command; it appends evidence only and does not create a forecast or promote readiness automatically.
 
+Preview keeps the append-only technical decision separate from commercial evidence. Each exact source is checked without aliases or composite-source inference; a populated Revenue value requires registered `revenue_consensus` scope and a populated EPS value independently requires `eps_consensus` scope. In ordinary research mode, the existing explicit reviewed append path remains available. In explicit Commercial Research mode, unapproved rights or any required missing scope blocks before the ledger or its parent directory is changed. The checked-in registry currently approves no prospective-consensus source or scope, so this guard does not unlock a real-company packet.
+
 ## Signals
 
 Company news, industry indicators, macro evidence, and trusted peer earnings may provide directional explanation. Candidate peers remain `candidate_context_only`. Trusted signals require reviewed source evidence and can move the lane to `signal_context_ready`; they cannot mutate Revenue/EPS ranges or create a numeric adjustment.
