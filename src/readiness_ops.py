@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.continuation_gate import ContinuationGate, build_continuation_gate
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_queue_from_files, summarize_missing_input_families
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.profile_context import build_profile_context, render_profile_context_text
@@ -1574,13 +1575,29 @@ def render_readiness_ops_center(lanes: list[ReadinessLane]) -> str:
     return "\n".join(lines)
 
 
-def render_coverage_frontier(frontier: list[CoverageFrontierOpportunity]) -> str:
+def render_coverage_frontier(
+    frontier: list[CoverageFrontierOpportunity],
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> str:
     lines = [
         "Coverage Frontier Planner",
         "Read-only: ranks batch data-readiness opportunities by unlock impact. It does not imply data is available.",
         "Research-only: this is an operations queue, not investment advice or trade instruction.",
         "",
     ]
+    if continuation_gate is not None and continuation_gate.suppress_execution:
+        lines.extend(
+            [
+                f"Stale readiness continuation gate: {continuation_gate.state}",
+                f"- Next safe preview: {continuation_gate.next_safe_command}",
+                f"- Reason: {continuation_gate.reason}",
+                "- Ranked rows below are planning context only; do not execute their source or coverage commands from stale readiness.",
+                f"- Rebuild boundary: {continuation_gate.rebuild_command} is a separate intentional reviewed write.",
+                f"- Stop rule: {continuation_gate.stop_rule}",
+                "",
+            ]
+        )
     if not frontier:
         lines.append("No coverage frontier rows are available. Run make readiness first if saved reports are missing.")
         return "\n".join(lines)
@@ -1670,7 +1687,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.coverage_frontier:
         lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
         frontier = build_coverage_frontier(lanes, top_n=args.top_n)
-        print(render_coverage_frontier(frontier))
+        print(render_coverage_frontier(frontier, continuation_gate=build_continuation_gate(context)))
     else:
         lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
         print(render_readiness_ops_center(lanes))

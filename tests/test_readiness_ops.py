@@ -21,6 +21,7 @@ from src.readiness_ops import (
     render_readiness_ops_evidence,
 )
 from src.dcf_input_proof_queue import DcfInputProofRow
+from src.continuation_gate import ContinuationGate
 
 
 def _write(path: Path, text: str) -> None:
@@ -588,6 +589,27 @@ def test_coverage_frontier_ranks_batch_lanes_without_implying_data_available(tmp
     assert "does not imply data is available" in rendered
     assert "make price-refresh-loop DRY_RUN=1" in rendered
     assert "make optional-context-source-ladder-queue TOP_N=10" in rendered
+
+
+def test_coverage_frontier_marks_ranked_rows_planning_only_when_readiness_is_stale(tmp_path: Path):
+    lanes = build_readiness_ops_lanes(_sample_root(tmp_path))
+    frontier = build_coverage_frontier(lanes, top_n=2)
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Selected-profile source dates are newer than saved readiness.",
+        rebuild_command="make readiness",
+        stop_rule="Do not start broad refresh or source-proof work.",
+        suppress_execution=True,
+    )
+
+    rendered = render_coverage_frontier(frontier, continuation_gate=gate)
+
+    assert "Stale readiness continuation gate: inspection_only" in rendered
+    assert "Next safe preview: make readiness-preview TOP_N=20" in rendered
+    assert "Ranked rows below are planning context only" in rendered
+    assert "make readiness is a separate intentional reviewed write" in rendered
+    assert rendered.index("Stale readiness continuation gate") < rendered.index("1.")
 
 
 def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tmp_path: Path):
