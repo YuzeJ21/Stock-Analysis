@@ -11,13 +11,18 @@ from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 from time import sleep
-from typing import Any, Callable, Protocol
+from typing import Any, Callable, Mapping, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import pandas as pd
 
+from src.commercial_source_rights import (
+    SourceRights,
+    commercial_eligibility,
+    load_source_rights_registry,
+)
 from src.config import AppConfig
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.provider_env import load_provider_environment
@@ -1424,6 +1429,98 @@ def _price_lineage_summary(frame: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+def _price_source_evidence_summary(
+    frame: pd.DataFrame,
+    rights_registry: Mapping[str, SourceRights],
+) -> dict[str, Any]:
+    if frame.empty:
+        return {
+            "commercial_rights_status": "no_valid_rows",
+            "rights_approved_rows": 0,
+            "rights_review_required_rows": 0,
+            "rights_status_counts": {},
+            "price_scope_status": "no_valid_rows",
+            "price_scope_complete_rows": 0,
+            "price_scope_review_required_rows": 0,
+            "source_review_rows": [],
+            "commercial_evidence_warnings": [],
+        }
+
+    if "source" in frame.columns:
+        source_ids = frame["source"].astype("string").fillna("").str.strip()
+    else:
+        source_ids = pd.Series("", index=frame.index, dtype="string")
+
+    rights_approved_rows = 0
+    price_scope_complete_rows = 0
+    rights_status_counts: dict[str, int] = {}
+    source_review_rows: list[dict[str, Any]] = []
+    for source_id in sorted(source_ids.unique().tolist()):
+        row_count = int(source_ids.eq(source_id).sum())
+        rights = commercial_eligibility(rights_registry, source_id)
+        rights_status_counts[rights.status] = rights_status_counts.get(rights.status, 0) + row_count
+        rights_approved_rows += row_count if rights.allowed else 0
+        rights_record = rights_registry.get(source_id)
+        price_scope_complete = bool(
+            rights_record is not None and "prices" in rights_record.supported_fields
+        )
+        price_scope_complete_rows += row_count if price_scope_complete else 0
+        blockers: list[str] = []
+        if not rights.allowed:
+            blockers.append(f"commercial_rights:{rights.status}")
+        if not price_scope_complete:
+            blockers.append("registered_price_scope_incomplete")
+        source_review_rows.append(
+            {
+                "source_id": source_id or "<missing>",
+                "row_count": row_count,
+                "rights_status": rights.status,
+                "commercial_rights_approved": rights.allowed,
+                "price_scope_complete": price_scope_complete,
+                "blockers": blockers,
+            }
+        )
+
+    valid_rows = len(frame)
+    rights_review_required_rows = valid_rows - rights_approved_rows
+    price_scope_review_required_rows = valid_rows - price_scope_complete_rows
+    if rights_approved_rows == valid_rows:
+        commercial_rights_status = "rights_approved"
+    elif rights_approved_rows == 0:
+        commercial_rights_status = "rights_review_required"
+    else:
+        commercial_rights_status = "mixed_rights"
+    if price_scope_complete_rows == valid_rows:
+        price_scope_status = "price_scope_complete"
+    elif price_scope_complete_rows == 0:
+        price_scope_status = "price_scope_review_required"
+    else:
+        price_scope_status = "mixed_price_scope"
+
+    commercial_evidence_warnings: list[str] = []
+    if rights_review_required_rows:
+        commercial_evidence_warnings.append(
+            "Commercial rights review required for "
+            f"{rights_review_required_rows} valid staged price row(s)."
+        )
+    if price_scope_review_required_rows:
+        commercial_evidence_warnings.append(
+            "Registered prices scope review required for "
+            f"{price_scope_review_required_rows} valid staged price row(s)."
+        )
+    return {
+        "commercial_rights_status": commercial_rights_status,
+        "rights_approved_rows": rights_approved_rows,
+        "rights_review_required_rows": rights_review_required_rows,
+        "rights_status_counts": dict(sorted(rights_status_counts.items())),
+        "price_scope_status": price_scope_status,
+        "price_scope_complete_rows": price_scope_complete_rows,
+        "price_scope_review_required_rows": price_scope_review_required_rows,
+        "source_review_rows": source_review_rows,
+        "commercial_evidence_warnings": commercial_evidence_warnings,
+    }
+
+
 def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
     warnings: list[str] = []
     unknown_columns = sorted(set(frame.columns) - set(PRICE_IMPORT_REQUIRED_COLUMNS) - set(PRICE_IMPORT_OPTIONAL_COLUMNS) - {"adj_close"})
@@ -1544,10 +1641,12 @@ def validate_price_imports(
     *,
     data_dir: Path | None = None,
     import_dir: Path | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> dict[str, Any]:
     base_dir = resolve_project_root(base_dir)
     data_dir = resolve_data_dir(data_dir, base_dir)
     import_dir = _resolve_import_dir(data_dir, import_dir)
+    rights_registry = rights_registry if rights_registry is not None else load_source_rights_registry()
     staged_path = import_dir / "prices.csv"
     if not staged_path.exists():
         return {
@@ -1563,11 +1662,13 @@ def validate_price_imports(
             "unknown_columns": [],
             "warnings": ["No price import file found at data/imports/prices.csv."],
             **_price_lineage_summary(pd.DataFrame()),
+            **_price_source_evidence_summary(pd.DataFrame(), rights_registry),
         }
     staged_frame, read_warnings = _read_price_import(staged_path)
     valid_frame, summary = _normalize_price_import_frame(staged_frame)
     return {
         **summary,
+        **_price_source_evidence_summary(valid_frame, rights_registry),
         "staged_path": str(staged_path),
         "canonical_path": str(data_dir / "prices.csv"),
         "warnings": read_warnings + summary["warnings"],
@@ -1595,10 +1696,16 @@ def preview_price_import_merge(
     *,
     data_dir: Path | None = None,
     import_dir: Path | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> dict[str, Any]:
     base_dir = resolve_project_root(base_dir)
     data_dir = resolve_data_dir(data_dir, base_dir)
-    validation = validate_price_imports(base_dir, data_dir=data_dir, import_dir=import_dir)
+    validation = validate_price_imports(
+        base_dir,
+        data_dir=data_dir,
+        import_dir=import_dir,
+        rights_registry=rights_registry,
+    )
     valid_frame = validation.pop("valid_frame", pd.DataFrame())
     if validation["status"] == "no_staged_file":
         return {**validation, "new_rows": 0, "updated_rows": 0, "unchanged_rows": 0, "skipped_rows": 0}

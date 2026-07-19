@@ -103,6 +103,8 @@ The market observation date, `as_of_date`, local file name or modification time,
 
 The prospective manual price path can preserve explicit `source_ref` and `retrieved_at` values alongside `source`. These values must be reviewer supplied; the normalizer generates no fallback reference or retrieval timestamp. Validation normalizes a valid retrieval timestamp to UTC and reports lineage completeness separately from technical row validity. Preview retains the summary, while apply remains a distinct reviewed mutation with the existing backup and merge boundary. Preserved lineage is necessary but not sufficient: exact-source rights, registered `prices` scope, payload review, freshness, apply intent, and rebuilt readiness remain independently required.
 
+Validation and preview join every exact retained source ID to the checked-in rights record without splitting composite IDs or inferring aliases. They report commercial eligibility and literal `prices` field support separately for approved, unverified, unknown, blank, and mixed batches. Technically invalid rows do not enter these counts. The result is review evidence only: it cannot edit the registry, prove the payload, authorize apply, or promote readiness.
+
 The preview also preserves the method reason for newly excluded DCF transitions. Named reasons are a deterministic explanation of the existing scope decision; absent metadata remains unexplained instead of inferred. Ready, partial, excluded, added, and removed transition counts are independent and may overlap. They are not current readiness totals, evidence of company quality, a ranking, or a recommendation.
 
 ## Research Change Event Contract

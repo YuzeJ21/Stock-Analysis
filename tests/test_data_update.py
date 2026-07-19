@@ -23,6 +23,7 @@ from src.data_update import (
     update_local_price_data,
     validate_price_imports,
 )
+from src.commercial_source_rights import build_source_rights_registry
 from src.provider_env import reset_provider_environment_cache
 
 
@@ -1222,6 +1223,55 @@ def _write_price_import_fixture(root: Path) -> None:
     )
 
 
+def _price_rights_registry():
+    return build_source_rights_registry(
+        [
+            {
+                "source_id": "approved_prices",
+                "display_name": "Approved Prices",
+                "permitted_use": "reviewed_price_research",
+                "commercial_use": "approved",
+                "redistribution": "derived_data_only",
+                "storage_limits": "reviewed rows only",
+                "attribution": "durable source reference required",
+                "rate_limits": "manual reviewed export",
+                "authentication": "reviewed account",
+                "expected_freshness": "payload timestamp",
+                "supported_fields": ["prices"],
+                "fallback_priority": 1,
+            },
+            {
+                "source_id": "approved_fundamentals",
+                "display_name": "Approved Fundamentals",
+                "permitted_use": "reviewed_fundamentals_research",
+                "commercial_use": "approved",
+                "redistribution": "derived_data_only",
+                "storage_limits": "reviewed rows only",
+                "attribution": "durable source reference required",
+                "rate_limits": "manual reviewed export",
+                "authentication": "reviewed account",
+                "expected_freshness": "filing driven",
+                "supported_fields": ["revenue"],
+                "fallback_priority": 2,
+            },
+            {
+                "source_id": "unverified_prices",
+                "display_name": "Unverified Prices",
+                "permitted_use": "research_only",
+                "commercial_use": "unverified",
+                "redistribution": "not_permitted",
+                "storage_limits": "local research only",
+                "attribution": "source attribution required",
+                "rate_limits": "manual reviewed export",
+                "authentication": "none",
+                "expected_freshness": "not guaranteed",
+                "supported_fields": ["prices"],
+                "fallback_priority": 90,
+            },
+        ]
+    )
+
+
 def test_price_import_validation_valid_fixture_and_duplicates(tmp_path: Path):
     _write_price_import_fixture(tmp_path)
 
@@ -1246,6 +1296,23 @@ def test_price_import_validation_valid_fixture_and_duplicates(tmp_path: Path):
         "2026-01-03T23:00:00+00:00",
         "2026-01-04T23:00:00+00:00",
     }
+    assert summary["commercial_rights_status"] == "rights_review_required"
+    assert summary["rights_approved_rows"] == 0
+    assert summary["rights_review_required_rows"] == 2
+    assert summary["rights_status_counts"] == {"unknown_source": 2}
+    assert summary["price_scope_status"] == "price_scope_review_required"
+    assert summary["price_scope_complete_rows"] == 0
+    assert summary["price_scope_review_required_rows"] == 2
+    assert summary["source_review_rows"] == [
+        {
+            "source_id": "manual",
+            "row_count": 2,
+            "rights_status": "unknown_source",
+            "commercial_rights_approved": False,
+            "price_scope_complete": False,
+            "blockers": ["commercial_rights:unknown_source", "registered_price_scope_incomplete"],
+        }
+    ]
 
 
 def test_price_import_validation_keeps_technical_validity_independent_from_lineage(tmp_path: Path):
@@ -1271,6 +1338,95 @@ def test_price_import_validation_keeps_technical_validity_independent_from_linea
     assert pd.isna(summary["valid_frame"].iloc[0]["source_ref"])
     assert summary["valid_frame"].iloc[0]["retrieved_at"] == ""
     assert "lineage review" in " ".join(summary["warnings"]).lower()
+
+
+def test_price_import_validation_keeps_rights_and_scope_independent(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    import_dir = data_dir / "imports"
+    import_dir.mkdir(parents=True)
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (import_dir / "prices.csv").write_text(
+        "date,ticker,open,high,low,close,volume,source,source_ref,retrieved_at\n"
+        "2026-01-02,NVDA,100,103,99,102,1500,approved_prices,https://example.test/approved,2026-01-03T23:00:00Z\n"
+        "2026-01-02,MSFT,200,203,199,202,2500,unverified_prices,https://example.test/unverified,2026-01-03T23:00:00Z\n"
+        "2026-01-02,META,300,303,299,302,3500,approved_fundamentals,https://example.test/fundamentals,2026-01-03T23:00:00Z\n"
+        "2026-01-02,GOOG,400,403,399,402,4500,,https://example.test/missing,2026-01-03T23:00:00Z\n"
+        "2026-01-02,BAD,10,9,11,10,100,approved_prices,https://example.test/invalid,2026-01-03T23:00:00Z\n",
+        encoding="utf-8",
+    )
+
+    summary = validate_price_imports(tmp_path, rights_registry=_price_rights_registry())
+
+    assert summary["status"] == "valid_with_warnings"
+    assert summary["valid_rows"] == 4
+    assert summary["commercial_rights_status"] == "mixed_rights"
+    assert summary["rights_approved_rows"] == 2
+    assert summary["rights_review_required_rows"] == 2
+    assert summary["rights_status_counts"] == {
+        "approved": 2,
+        "commercial_rights_unverified": 1,
+        "unknown_source": 1,
+    }
+    assert summary["price_scope_status"] == "mixed_price_scope"
+    assert summary["price_scope_complete_rows"] == 2
+    assert summary["price_scope_review_required_rows"] == 2
+    assert [row["source_id"] for row in summary["source_review_rows"]] == [
+        "<missing>",
+        "approved_fundamentals",
+        "approved_prices",
+        "unverified_prices",
+    ]
+    assert summary["source_review_rows"][0]["rights_status"] == "unknown_source"
+    assert summary["source_review_rows"][0]["price_scope_complete"] is False
+    assert summary["source_review_rows"][1]["commercial_rights_approved"] is True
+    assert summary["source_review_rows"][1]["price_scope_complete"] is False
+    assert summary["source_review_rows"][2]["blockers"] == []
+    assert summary["source_review_rows"][3]["blockers"] == [
+        "commercial_rights:commercial_rights_unverified"
+    ]
+    assert "BAD" not in {row["ticker"] for row in summary["valid_frame"].to_dict(orient="records")}
+
+
+def test_price_import_validation_keeps_yfinance_technical_status_valid(tmp_path: Path):
+    import_dir = tmp_path / "data" / "imports"
+    import_dir.mkdir(parents=True)
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (import_dir / "prices.csv").write_text(
+        "date,ticker,open,high,low,close,volume,source,source_ref,retrieved_at\n"
+        "2026-01-02,NVDA,100,103,99,102,1500,yfinance,https://example.test/yfinance,2026-01-03T23:00:00Z\n",
+        encoding="utf-8",
+    )
+
+    summary = validate_price_imports(tmp_path)
+
+    assert summary["status"] == "valid"
+    assert summary["warnings"] == []
+    assert summary["lineage_status"] == "lineage_complete"
+    assert summary["commercial_rights_status"] == "rights_review_required"
+    assert summary["rights_status_counts"] == {"commercial_rights_unverified": 1}
+    assert summary["price_scope_status"] == "price_scope_complete"
+    assert summary["commercial_evidence_warnings"] == [
+        "Commercial rights review required for 1 valid staged price row(s)."
+    ]
+
+
+def test_price_import_preview_inherits_injected_rights_and_scope_review(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.to_csv(staged_path, index=False)
+
+    preview = preview_price_import_merge(tmp_path, rights_registry=_price_rights_registry())
+
+    assert preview["new_rows"] == 1
+    assert preview["updated_rows"] == 1
+    assert preview["commercial_rights_status"] == "rights_approved"
+    assert preview["rights_approved_rows"] == 2
+    assert preview["rights_review_required_rows"] == 0
+    assert preview["price_scope_status"] == "price_scope_complete"
+    assert preview["price_scope_complete_rows"] == 2
+    assert preview["price_scope_review_required_rows"] == 0
 
 
 def test_price_import_validation_missing_file_uses_plain_import_file_language(tmp_path: Path):
@@ -1310,6 +1466,8 @@ def test_preview_price_import_merge_reports_new_updated_and_skipped(tmp_path: Pa
     assert preview["lineage_status"] == "lineage_complete"
     assert preview["lineage_complete_rows"] == 2
     assert preview["lineage_review_required_rows"] == 0
+    assert preview["commercial_rights_status"] == "rights_review_required"
+    assert preview["price_scope_status"] == "price_scope_review_required"
 
 
 def test_apply_price_import_merge_backs_up_and_never_deletes_rows(tmp_path: Path):

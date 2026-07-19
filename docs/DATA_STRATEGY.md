@@ -14,6 +14,8 @@ Price availability and price provenance are separate. `make readiness-preview TO
 
 When one permitted reviewed price export exists, normalize only that bounded file with explicit evidence metadata: `make price-normalize INPUT=<reviewed.csv> TICKER=<ticker> SOURCE=<source_id> SOURCE_REF=<durable_reference> RETRIEVED_AT=<timestamp>`. Then run `make price-validate` and `make price-preview`. A `lineage_complete` result proves field preservation only; verify exact-source commercial rights and registered `prices` scope before any reviewed apply. Missing metadata remains `lineage_review_required` without being generated automatically.
 
+The same validation and preview now perform that registry join directly for technically valid staged rows. They report exact-source rights and registered `prices` scope as separate states and retain deterministic distinct-source blockers. Unknown, blank, or unverified source IDs remain review-required; a rights-approved source without `prices` scope also remains scope-review-required. These read-only results do not change row validity or authorize apply.
+
 ## Public Visitor FAQ
 
 The public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Use this data strategy as the explanation layer behind that path, not as a second navigation model.
