@@ -15,7 +15,10 @@ def test_makefile_exposes_stdout_only_readiness_preview_contract():
     makefile = _read("Makefile")
 
     assert "readiness-preview" in makefile.splitlines()[0]
-    assert "make readiness-preview [TOP_N=20] Preview stable readiness impact in memory without writing files" in makefile
+    assert (
+        "make readiness-preview [TOP_N=20] Preview stable readiness impact and promotion evidence in memory without writing files"
+        in makefile
+    )
     assert (
         "readiness-preview:\n\t@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_preview --top-n $(or $(TOP_N),20)"
         in makefile
@@ -709,6 +712,25 @@ def test_stale_readiness_continuation_gate_docs_keep_rankings_non_executable():
     assert "advanced data health cards" in roadmap.lower()
     assert "advanced data health cards" in dashboard_qa.lower()
     assert "advanced data health cards" in prompt.lower()
+
+
+def test_readiness_promotion_evidence_docs_keep_technical_and_rights_states_independent():
+    roadmap = _read("ROADMAP.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, data_strategy, methodology, provenance, prompt):
+        lowered = text.lower()
+        assert "technical" in lowered
+        assert "commercial" in lowered
+        assert "field" in lowered
+        assert "make readiness" in text
+    assert "composite or unregistered source values" in data_strategy.lower()
+    assert "does not establish price-source provenance" in provenance
+    assert "local_evidence_review_required" in prompt
+    assert "not current readiness counts or rebuild approval" in roadmap
 
 
 def test_thesis_journal_docs_preserve_append_only_research_boundary():

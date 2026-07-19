@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Mapping
 
 import pandas as pd
 
+from src.commercial_source_rights import (
+    SourceRights,
+    commercial_eligibility,
+    load_source_rights_registry,
+)
+from src.loader import normalize_columns
 from src.paths import resolve_data_dir, resolve_project_root
 from src.readiness_engine import build_ticker_readiness_report
 
@@ -38,12 +45,50 @@ BOOLEAN_READINESS_FIELDS = (
 )
 
 OVERALL_STATES = ("ready", "partial", "blocked", "excluded")
+PROMOTION_FIELDS = ("fundamentals_ready", "dcf_ready")
+REQUIRED_FUNDAMENTALS_FIELDS = (
+    "revenue",
+    "free_cash_flow",
+    "fcf_margin",
+    "shares_outstanding",
+)
 
 
 @dataclass(frozen=True)
 class ReadinessTickerChange:
     ticker: str
     fields: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ReadinessPromotionEvidence:
+    ticker: str
+    promoted_fields: tuple[str, ...]
+    source_id: str
+    as_of_date: str
+    source_reference: str
+    rights_status: str
+    missing_provenance_fields: tuple[str, ...]
+    missing_supported_fields: tuple[str, ...]
+    blockers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ReadinessPromotionReview:
+    status: str
+    promotion_count: int
+    fundamentals_promotion_count: int
+    dcf_promotion_count: int
+    rights_approved_count: int
+    rights_review_required_count: int
+    provenance_complete_count: int
+    provenance_review_required_count: int
+    field_scope_complete_count: int
+    field_scope_review_required_count: int
+    source_counts: tuple[tuple[str, int], ...]
+    rights_status_counts: tuple[tuple[str, int], ...]
+    evidence_rows: tuple[ReadinessPromotionEvidence, ...]
+    top_n: int
 
 
 @dataclass(frozen=True)
@@ -57,6 +102,7 @@ class ReadinessImpactPreview:
     changed_tickers: tuple[ReadinessTickerChange, ...]
     top_n: int
     saved_path: str
+    promotion_review: ReadinessPromotionReview | None = None
 
 
 def _truthy(value: object) -> bool:
@@ -106,6 +152,161 @@ def _count_summary(frame: pd.DataFrame) -> tuple[tuple[str, int], ...]:
     return tuple(counts)
 
 
+def _promotion_map(saved: pd.DataFrame, proposed: pd.DataFrame) -> dict[str, tuple[str, ...]]:
+    saved_rows = _index_readiness(saved)
+    proposed_rows = _index_readiness(proposed)
+    promotions: dict[str, tuple[str, ...]] = {}
+    for ticker in sorted(set(proposed_rows)):
+        proposed_row = proposed_rows[ticker]
+        saved_row = saved_rows.get(ticker, pd.Series(dtype=object))
+        fields = tuple(
+            field
+            for field in PROMOTION_FIELDS
+            if not _truthy(saved_row.get(field)) and _truthy(proposed_row.get(field))
+        )
+        if fields:
+            promotions[ticker] = fields
+    return promotions
+
+
+def _fundamentals_rows_by_ticker(frame: pd.DataFrame) -> dict[str, list[pd.Series]]:
+    if frame.empty or "ticker" not in frame.columns:
+        return {}
+    rows: dict[str, list[pd.Series]] = {}
+    for _, row in frame.iterrows():
+        ticker = _text(row.get("ticker")).upper()
+        if ticker:
+            rows.setdefault(ticker, []).append(row)
+    return rows
+
+
+def _count_values(values: list[str]) -> tuple[tuple[str, int], ...]:
+    if not values:
+        return ()
+    counts = pd.Series(values, dtype="string").value_counts()
+    ordered = sorted(
+        ((str(name), int(value)) for name, value in counts.items()),
+        key=lambda item: (-item[1], item[0]),
+    )
+    return tuple(ordered)
+
+
+def review_readiness_promotions(
+    saved: pd.DataFrame,
+    proposed: pd.DataFrame,
+    fundamentals: pd.DataFrame,
+    *,
+    rights_registry: Mapping[str, SourceRights],
+    top_n: int = 20,
+) -> ReadinessPromotionReview:
+    """Review proposed technical promotions without changing either readiness frame."""
+
+    if top_n < 1:
+        raise ValueError("top_n must be at least 1")
+    promotions = _promotion_map(saved, proposed)
+    if not promotions:
+        return ReadinessPromotionReview(
+            status="no_promotions",
+            promotion_count=0,
+            fundamentals_promotion_count=0,
+            dcf_promotion_count=0,
+            rights_approved_count=0,
+            rights_review_required_count=0,
+            provenance_complete_count=0,
+            provenance_review_required_count=0,
+            field_scope_complete_count=0,
+            field_scope_review_required_count=0,
+            source_counts=(),
+            rights_status_counts=(),
+            evidence_rows=(),
+            top_n=top_n,
+        )
+
+    fundamentals_rows = _fundamentals_rows_by_ticker(fundamentals)
+    evidence: list[ReadinessPromotionEvidence] = []
+    for ticker, promoted_fields in promotions.items():
+        candidates = fundamentals_rows.get(ticker, [])
+        if len(candidates) != 1:
+            blocker = "missing_fundamentals_row" if not candidates else "duplicate_fundamentals_rows"
+            evidence.append(
+                ReadinessPromotionEvidence(
+                    ticker=ticker,
+                    promoted_fields=promoted_fields,
+                    source_id="<missing>" if not candidates else "<ambiguous>",
+                    as_of_date="",
+                    source_reference="",
+                    rights_status="not_evaluated_missing_evidence" if not candidates else "not_evaluated_ambiguous_evidence",
+                    missing_provenance_fields=("source", "as_of_date", "source_reference"),
+                    missing_supported_fields=REQUIRED_FUNDAMENTALS_FIELDS,
+                    blockers=(blocker,),
+                )
+            )
+            continue
+
+        row = candidates[0]
+        source_id = _text(row.get("source"))
+        as_of_date = _text(row.get("as_of_date"))
+        source_reference = _text(row.get("source_ref")) or _text(row.get("sec_accession"))
+        missing_provenance = tuple(
+            field
+            for field, value in (
+                ("source", source_id),
+                ("as_of_date", as_of_date),
+                ("source_reference", source_reference),
+            )
+            if not value
+        )
+        rights = commercial_eligibility(rights_registry, source_id)
+        rights_record = rights_registry.get(source_id)
+        supported = set(rights_record.supported_fields) if rights_record is not None else set()
+        missing_supported = tuple(field for field in REQUIRED_FUNDAMENTALS_FIELDS if field not in supported)
+        blockers: list[str] = []
+        blockers.extend(f"missing_provenance:{field}" for field in missing_provenance)
+        if not rights.allowed:
+            blockers.append(f"commercial_rights:{rights.status}")
+        if missing_supported:
+            blockers.append("registered_field_scope_incomplete")
+        evidence.append(
+            ReadinessPromotionEvidence(
+                ticker=ticker,
+                promoted_fields=promoted_fields,
+                source_id=source_id or "<missing>",
+                as_of_date=as_of_date,
+                source_reference=source_reference,
+                rights_status=rights.status,
+                missing_provenance_fields=missing_provenance,
+                missing_supported_fields=missing_supported,
+                blockers=tuple(blockers),
+            )
+        )
+
+    rights_approved = sum(item.rights_status == "approved" for item in evidence)
+    provenance_complete = sum(not item.missing_provenance_fields for item in evidence)
+    field_scope_complete = sum(not item.missing_supported_fields for item in evidence)
+    review_complete = all(
+        item.rights_status == "approved"
+        and not item.missing_provenance_fields
+        and not item.missing_supported_fields
+        for item in evidence
+    )
+    return ReadinessPromotionReview(
+        status="evidence_review_complete" if review_complete else "evidence_review_required",
+        promotion_count=len(evidence),
+        fundamentals_promotion_count=sum("fundamentals_ready" in fields for fields in promotions.values()),
+        dcf_promotion_count=sum("dcf_ready" in fields for fields in promotions.values()),
+        rights_approved_count=rights_approved,
+        rights_review_required_count=len(evidence) - rights_approved,
+        provenance_complete_count=provenance_complete,
+        provenance_review_required_count=len(evidence) - provenance_complete,
+        field_scope_complete_count=field_scope_complete,
+        field_scope_review_required_count=len(evidence) - field_scope_complete,
+        source_counts=_count_values([item.source_id for item in evidence]),
+        rights_status_counts=_count_values([item.rights_status for item in evidence]),
+        evidence_rows=tuple(evidence[:top_n]),
+        top_n=top_n,
+    )
+
+
 def compare_readiness_frames(
     saved: pd.DataFrame,
     proposed: pd.DataFrame,
@@ -147,6 +348,7 @@ def build_readiness_impact_preview(
     *,
     data_dir: Path | str | None = None,
     top_n: int = 20,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> ReadinessImpactPreview:
     project_root = resolve_project_root(root)
     data_path = resolve_data_dir(data_dir, project_root)
@@ -170,12 +372,29 @@ def build_readiness_impact_preview(
         write_outputs=False,
     )
     proposed = reports["ticker_readiness_report"]
-    return compare_readiness_frames(
+    preview = compare_readiness_frames(
         saved,
         proposed,
         top_n=top_n,
         saved_path=str(saved_path),
     )
+    fundamentals_path = data_path / "fundamentals.csv"
+    fundamentals = pd.read_csv(fundamentals_path) if fundamentals_path.exists() else pd.DataFrame()
+    if not fundamentals.empty:
+        fundamentals.columns = normalize_columns(list(fundamentals.columns))
+    registry = (
+        rights_registry
+        if rights_registry is not None
+        else load_source_rights_registry(project_root / "config" / "source_rights.yml")
+    )
+    promotion_review = review_readiness_promotions(
+        saved,
+        proposed,
+        fundamentals,
+        rights_registry=registry,
+        top_n=top_n,
+    )
+    return replace(preview, promotion_review=promotion_review)
 
 
 def _format_counts(counts: tuple[tuple[str, int], ...]) -> str:
@@ -207,6 +426,56 @@ def render_readiness_impact_preview(preview: ReadinessImpactPreview) -> str:
         hidden = preview.changed_ticker_count - len(preview.changed_tickers)
         if hidden > 0:
             lines.append(f"- ... {hidden} additional changed ticker(s) hidden by TOP_N={preview.top_n}")
+        review = preview.promotion_review
+        if review is not None:
+            lines.extend(
+                [
+                    "",
+                    "Promotion Evidence Review",
+                    f"Status: {review.status}",
+                    (
+                        "Technical promotions: "
+                        f"unique={review.promotion_count}, fundamentals={review.fundamentals_promotion_count}, "
+                        f"DCF={review.dcf_promotion_count}"
+                    ),
+                    (
+                        "Commercial rights: "
+                        f"approved={review.rights_approved_count}, review_required={review.rights_review_required_count}"
+                    ),
+                    (
+                        "Provenance: "
+                        f"complete={review.provenance_complete_count}, "
+                        f"review_required={review.provenance_review_required_count}"
+                    ),
+                    (
+                        "Registered field scope: "
+                        f"complete={review.field_scope_complete_count}, "
+                        f"review_required={review.field_scope_review_required_count}"
+                    ),
+                    f"Exact source values: {_format_counts(review.source_counts)}",
+                    f"Rights statuses: {_format_counts(review.rights_status_counts)}",
+                ]
+            )
+            for item in review.evidence_rows:
+                missing_provenance = ",".join(item.missing_provenance_fields) or "none"
+                missing_scope = ",".join(item.missing_supported_fields) or "none"
+                lines.append(
+                    f"- {item.ticker}: promotes={','.join(item.promoted_fields)}; source={item.source_id!r}; "
+                    f"rights={item.rights_status}; missing_provenance={missing_provenance}; "
+                    f"missing_registered_fields={missing_scope}"
+                )
+            hidden_evidence = review.promotion_count - len(review.evidence_rows)
+            if hidden_evidence > 0:
+                lines.append(
+                    f"- ... {hidden_evidence} additional promotion evidence row(s) hidden by TOP_N={review.top_n}"
+                )
+            lines.extend(
+                [
+                    "Technical readiness movement is not source-rights or provenance approval.",
+                    "DCF price-source provenance is outside this fundamentals review and remains separately unproven.",
+                    "Even a complete promotion evidence review would not authorize the separate readiness rebuild.",
+                ]
+            )
     lines.extend(
         [
             "",

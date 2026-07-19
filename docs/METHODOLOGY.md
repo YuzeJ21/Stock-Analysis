@@ -15,6 +15,12 @@ Current public method version: **Methodology v1 - readiness-first deterministic 
 
 This method is useful for a controlled research/demo product because it makes the data gate visible before analysis. It is not a complete valuation terminal, not investment advice, and not a recommendation engine.
 
+### Readiness Promotion Evidence Review
+
+When saved readiness is stale, `make readiness-preview TOP_N=20` runs the production readiness logic in memory and keeps the proposed technical state separate from the evidence needed to review a rebuild. False-to-true fundamentals and DCF changes are checked against the exact canonical source value, source/as-of/durable-reference provenance, the checked-in commercial-rights decision, and the registered field list for Revenue, free cash flow, FCF margin, and shares outstanding.
+
+Composite or unregistered source values remain unknown exact identifiers; the method does not split them or borrow the rights decision of one component. Numerical completeness can therefore produce a proposed technical promotion while the evidence review remains blocked. DCF also depends on price evidence, and the current canonical price rows do not establish row-level provider provenance, so the fundamentals review never claims complete DCF commercial provenance. The preview writes nothing, does not edit source rights, does not make saved readiness current, and cannot authorize the separately reviewed `make readiness` boundary.
+
 Use this quick model card before relying on a page or report:
 
 | Check | What to verify | Boundary |
