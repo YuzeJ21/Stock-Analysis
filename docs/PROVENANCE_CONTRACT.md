@@ -105,6 +105,8 @@ The prospective manual price path can preserve explicit `source_ref` and `retrie
 
 Validation and preview join every exact retained source ID to the checked-in rights record without splitting composite IDs or inferring aliases. They report commercial eligibility and literal `prices` field support separately for approved, unverified, unknown, blank, and mixed batches. Technically invalid rows do not enter these counts. The result is review evidence only: it cannot edit the registry, prove the payload, authorize apply, or promote readiness.
 
+Explicit Commercial Research mode enforces lineage completeness, exact-source rights approval, and registered `prices` scope immediately before staged-price mutation. A failed gate returns without backup creation or canonical write and retains the preview evidence for review. Research mode preserves its separate local apply contract. Guard passage does not certify the payload, reviewer decision, source freshness, readiness build, or proof record.
+
 The preview also preserves the method reason for newly excluded DCF transitions. Named reasons are a deterministic explanation of the existing scope decision; absent metadata remains unexplained instead of inferred. Ready, partial, excluded, added, and removed transition counts are independent and may overlap. They are not current readiness totals, evidence of company quality, a ranking, or a recommendation.
 
 ## Research Change Event Contract

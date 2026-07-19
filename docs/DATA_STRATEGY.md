@@ -16,6 +16,8 @@ When one permitted reviewed price export exists, normalize only that bounded fil
 
 The same validation and preview now perform that registry join directly for technically valid staged rows. They report exact-source rights and registered `prices` scope as separate states and retain deterministic distinct-source blockers. Unknown, blank, or unverified source IDs remain review-required; a rights-approved source without `prices` scope also remains scope-review-required. These read-only results do not change row validity or authorize apply.
 
+If `COMMERCIAL_RESEARCH_MODE` is explicitly enabled, `price-apply` now enforces the joined evidence before mutation. Any lineage, rights, or registered-price-scope gap returns a non-writing blocked result before backup creation. Research mode keeps the existing local reviewed apply behavior. Passing the commercial guard only permits the requested mutation step; it does not validate the payload, rebuild readiness, or record proof.
+
 ## Public Visitor FAQ
 
 The public workflow is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Use this data strategy as the explanation layer behind that path, not as a second navigation model.

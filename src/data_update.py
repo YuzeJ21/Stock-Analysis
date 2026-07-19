@@ -21,6 +21,7 @@ import pandas as pd
 from src.commercial_source_rights import (
     SourceRights,
     commercial_eligibility,
+    commercial_mode_enabled,
     load_source_rights_registry,
 )
 from src.config import AppConfig
@@ -1774,14 +1775,50 @@ def apply_price_import_merge(
     data_dir: Path | None = None,
     import_dir: Path | None = None,
     backup: bool = True,
+    commercial_mode: bool | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> dict[str, Any]:
     base_dir = resolve_project_root(base_dir)
     data_dir = resolve_data_dir(data_dir, base_dir)
-    preview = preview_price_import_merge(base_dir, data_dir=data_dir, import_dir=import_dir)
+    commercial_mode = commercial_mode if commercial_mode is not None else commercial_mode_enabled()
+    preview = preview_price_import_merge(
+        base_dir,
+        data_dir=data_dir,
+        import_dir=import_dir,
+        rights_registry=rights_registry,
+    )
     if preview["status"] in {"no_staged_file", "invalid"}:
-        return {**preview, "applied": False, "backup_path": None}
+        return {
+            **preview,
+            "applied": False,
+            "apply_status": "technical_validation_required",
+            "apply_blockers": [],
+            "backup_path": None,
+        }
 
-    validation = validate_price_imports(base_dir, data_dir=data_dir, import_dir=import_dir)
+    apply_blockers: list[str] = []
+    if commercial_mode:
+        if preview["lineage_status"] != "lineage_complete":
+            apply_blockers.append("price_lineage_review_required")
+        if preview["commercial_rights_status"] != "rights_approved":
+            apply_blockers.append("commercial_rights_review_required")
+        if preview["price_scope_status"] != "price_scope_complete":
+            apply_blockers.append("registered_price_scope_review_required")
+    if apply_blockers:
+        return {
+            **preview,
+            "applied": False,
+            "apply_status": "commercial_evidence_review_required",
+            "apply_blockers": apply_blockers,
+            "backup_path": None,
+        }
+
+    validation = validate_price_imports(
+        base_dir,
+        data_dir=data_dir,
+        import_dir=import_dir,
+        rights_registry=rights_registry,
+    )
     staged = validation.pop("valid_frame", pd.DataFrame())
     canonical_path = Path(preview["canonical_path"])
     canonical = _load_canonical_price_frame(canonical_path)
@@ -1813,6 +1850,8 @@ def apply_price_import_merge(
     return {
         **preview,
         "applied": True,
+        "apply_status": "applied",
+        "apply_blockers": [],
         "backup_path": backup_path,
         "rows_written": len(merged),
     }

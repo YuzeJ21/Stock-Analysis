@@ -1470,10 +1470,88 @@ def test_preview_price_import_merge_reports_new_updated_and_skipped(tmp_path: Pa
     assert preview["price_scope_status"] == "price_scope_review_required"
 
 
+def test_commercial_price_apply_blocks_before_backup_or_canonical_write(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    canonical_path = tmp_path / "data" / "prices.csv"
+    before = canonical_path.read_bytes()
+
+    result = apply_price_import_merge(tmp_path, commercial_mode=True)
+
+    assert result["applied"] is False
+    assert result["apply_status"] == "commercial_evidence_review_required"
+    assert result["apply_blockers"] == [
+        "commercial_rights_review_required",
+        "registered_price_scope_review_required",
+    ]
+    assert result["backup_path"] is None
+    assert canonical_path.read_bytes() == before
+    assert not (tmp_path / "data" / "backups").exists()
+
+
+def test_commercial_price_apply_blocks_incomplete_lineage_independently(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.loc[staged["ticker"].astype(str).str.upper() == "NVDA", "source_ref"] = ""
+    staged.to_csv(staged_path, index=False)
+
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+    )
+
+    assert result["applied"] is False
+    assert result["apply_blockers"] == ["price_lineage_review_required"]
+    assert result["commercial_rights_status"] == "rights_approved"
+    assert result["price_scope_status"] == "price_scope_complete"
+
+
+def test_commercial_price_apply_blocks_missing_registered_price_scope(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_fundamentals"
+    staged.to_csv(staged_path, index=False)
+
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+    )
+
+    assert result["applied"] is False
+    assert result["apply_blockers"] == ["registered_price_scope_review_required"]
+    assert result["commercial_rights_status"] == "rights_approved"
+    assert result["price_scope_status"] == "price_scope_review_required"
+
+
+def test_commercial_price_apply_allows_complete_approved_batch(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.to_csv(staged_path, index=False)
+
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+    )
+
+    assert result["applied"] is True
+    assert result["apply_status"] == "applied"
+    assert result["apply_blockers"] == []
+    assert result["backup_path"] is not None
+    assert result["commercial_rights_status"] == "rights_approved"
+    assert result["price_scope_status"] == "price_scope_complete"
+
+
 def test_apply_price_import_merge_backs_up_and_never_deletes_rows(tmp_path: Path):
     _write_price_import_fixture(tmp_path)
 
-    result = apply_price_import_merge(tmp_path)
+    result = apply_price_import_merge(tmp_path, commercial_mode=False)
     prices = pd.read_csv(tmp_path / "data" / "prices.csv")
 
     assert result["applied"] is True
