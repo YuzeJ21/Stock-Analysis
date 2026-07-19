@@ -34050,10 +34050,33 @@ def render_research_workspace_styles() -> None:
         }
         .research-evidence-link span { color: #52615c; font-size: .86rem; }
         @media (max-width: 640px) {
-            .research-desk-grid, .research-workspace-meta { grid-template-columns: 1fr; }
+            .research-desk-grid { grid-template-columns: 1fr; }
+            .research-workspace-header {
+                padding: .72rem .78rem;
+                margin-bottom: .65rem;
+            }
             .research-workspace-heading h1 { font-size: 1.4rem; }
-            .profile-trust-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .profile-trust-strip > :nth-child(odd) { border-left: 0; }
+            .research-workspace-meta {
+                grid-template-columns: 1fr;
+                gap: 0;
+                margin: .5rem 0 .4rem;
+            }
+            .research-workspace-freshness { display: none; }
+            .research-workspace-action {
+                border-top: 1px solid #e5e9e7;
+                padding-top: .45rem;
+            }
+            .profile-trust-strip.compact {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: .3rem;
+                margin: .12rem 0 .6rem;
+                padding: .45rem 0;
+            }
+            .profile-trust-strip.compact > span,
+            .profile-trust-strip.compact .profile-trust-primary {
+                padding: 0 .35rem;
+            }
+            .profile-trust-strip.compact > :nth-child(3n + 1) { border-left: 0; }
         }
         </style>
         """,

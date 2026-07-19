@@ -364,6 +364,8 @@ def test_research_workspace_header_keeps_scope_freshness_action_and_boundary_vis
     assert "Local Research" in rendered
     assert "Current through 2026-07-16" in rendered
     assert "Review source-backed sections" in rendered
+    assert "class='research-workspace-meta-item research-workspace-freshness'" in rendered
+    assert "class='research-workspace-meta-item research-workspace-action'" in rendered
     assert "Research-only" in rendered
     assert "investment advice" in rendered
 

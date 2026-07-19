@@ -220,6 +220,19 @@ def test_research_desk_renders_answers_before_advanced_cohort_context():
     assert advanced < cohort < coverage < cohort_frame < coverage_frame
 
 
+def test_research_workspace_phone_styles_compact_profile_and_hide_only_duplicate_freshness():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    start = source.index("def render_research_workspace_styles()")
+    end = source.index("\ndef render_research_workspace_header(", start)
+    styles = source[start:end]
+
+    assert ".profile-trust-strip.compact" in styles
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr));" in styles
+    assert ".research-workspace-freshness { display: none; }" in styles
+    assert ".research-workspace-action" in styles
+    assert "@media (max-width: 640px)" in styles
+
+
 def test_company_workbench_uses_composed_forward_view_and_keeps_details_advanced():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     render_start = source.index("def render_single_stock_report(")
