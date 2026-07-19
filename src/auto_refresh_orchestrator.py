@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.continuation_gate import ContinuationGate, build_continuation_gate
+from src.profile_context import build_profile_context
 from src.refresh_operations import (
     ProviderAttempt,
     RefreshOperationPlan,
@@ -382,20 +384,44 @@ def _human_source_gate(value: object) -> str:
     return text
 
 
-def render_scheduler_runbook(plan: SchedulerPlan, preflight: dict[str, object] | None = None) -> str:
+def render_scheduler_runbook(
+    plan: SchedulerPlan,
+    preflight: dict[str, object] | None = None,
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> str:
     schedule_label = plan.schedule.replace("_", " ").title()
     lines = [
         f"Auto Refresh {schedule_label} Runbook",
         "Compact unattended checklist. Research-only; no broker integration, no auto-trading, no order routing.",
         "",
-        "Start:",
-        "- make session-source-preflight",
-        "- make readiness-ops-center",
-        "- make coverage-frontier TOP_N=10",
-        "",
     ]
+    if continuation_gate is not None and continuation_gate.suppress_execution:
+        lines.extend(
+            [
+                f"Stale readiness continuation gate: {continuation_gate.state}",
+                f"- Reason: {continuation_gate.reason}",
+                "- Lane policies below are planning context only.",
+                f"- Rebuild boundary: {continuation_gate.rebuild_command} is a separate intentional reviewed write.",
+                f"- Stop rule: {continuation_gate.stop_rule}",
+                "",
+                "Start:",
+                f"- {continuation_gate.next_safe_command}",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "Start:",
+                "- make session-source-preflight",
+                "- make readiness-ops-center",
+                "- make coverage-frontier TOP_N=10",
+                "",
+            ]
+        )
     if preflight is not None:
-        payload = build_auto_refresh_status_payload(preflight, plan)
+        payload = build_auto_refresh_status_payload(preflight, plan, continuation_gate=continuation_gate)
         lines.extend(
             [
                 "Current source gate:",
@@ -458,13 +484,33 @@ def _join_values(value: object) -> str:
     return text or "-"
 
 
-def render_auto_refresh_status(preflight: dict[str, object], plan: SchedulerPlan) -> str:
-    payload = build_auto_refresh_status_payload(preflight, plan)
+def render_auto_refresh_status(
+    preflight: dict[str, object],
+    plan: SchedulerPlan,
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> str:
+    payload = build_auto_refresh_status_payload(preflight, plan, continuation_gate=continuation_gate)
     categories = payload["source_categories"]
     lines = [
         "Auto Refresh Status",
         "Read-only scheduler summary. It does not refresh, import, apply, or rewrite local data.",
         "Research-only: no investment advice, broker actions, auto-trading, order routing, or direct buy/sell instructions.",
+    ]
+    if continuation_gate is not None and continuation_gate.suppress_execution:
+        lines.extend(
+            [
+                "",
+                f"Stale readiness continuation gate: {continuation_gate.state}",
+                f"- Next safe preview: {continuation_gate.next_safe_command}",
+                f"- Reason: {continuation_gate.reason}",
+                "- refresh_operations below are planning context only; they are not executable routing.",
+                f"- Rebuild boundary: {continuation_gate.rebuild_command} is a separate intentional reviewed write.",
+                f"- Stop rule: {continuation_gate.stop_rule}",
+            ]
+        )
+    lines.extend(
+        [
         "",
         f"source_activation: {payload['source_activation']}",
         f"source_activation_reason: {_human_source_gate(payload['source_activation_reason'])}",
@@ -486,7 +532,8 @@ def render_auto_refresh_status(preflight: dict[str, object], plan: SchedulerPlan
         f"artifact_policy: {payload['artifact_policy']}",
         "",
         "refresh_operations:",
-    ]
+        ]
+    )
     for operation in payload["refresh_operations"]:
         lines.append(
             f"- {operation['lane']}: status={operation['status']}; "
@@ -496,7 +543,12 @@ def render_auto_refresh_status(preflight: dict[str, object], plan: SchedulerPlan
     return "\n".join(lines)
 
 
-def build_auto_refresh_status_payload(preflight: dict[str, object], plan: SchedulerPlan) -> dict[str, object]:
+def build_auto_refresh_status_payload(
+    preflight: dict[str, object],
+    plan: SchedulerPlan,
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> dict[str, object]:
     if not plan.provider_availability_proven:
         plan = build_scheduler_plan(
             plan.policies,
@@ -516,7 +568,7 @@ def build_auto_refresh_status_payload(preflight: dict[str, object], plan: Schedu
 
     next_command = _join_values(console.get("next_executable_command") or operator_summary.get("next_step"))
     schedule = plan.schedule
-    return {
+    payload = {
         "source_activation": _join_values(activation.get("status")),
         "source_activation_reason": _join_values(activation.get("reason")),
         "can_run_now": _join_values(operator_summary.get("can_run_now") or console.get("next_executable_lane")),
@@ -536,6 +588,18 @@ def build_auto_refresh_status_payload(preflight: dict[str, object], plan: Schedu
         "artifact_policy": "generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
         "refresh_operations": [asdict(operation) for operation in plan.refresh_operations],
     }
+    if continuation_gate is not None:
+        payload["continuation_gate"] = asdict(continuation_gate)
+        if continuation_gate.suppress_execution:
+            payload.update(
+                {
+                    "can_run_now": continuation_gate.state,
+                    "avoid_repeating": "broad_refresh, source_proof, readiness_rebuild",
+                    "next_executable_command": continuation_gate.next_safe_command,
+                    "next_step_reason": continuation_gate.reason,
+                }
+            )
+    return payload
 
 
 def _build_gate_from_args(args: argparse.Namespace) -> AutoGateInput:
@@ -636,20 +700,31 @@ def main(argv: list[str] | None = None) -> int:
         retry_cap=args.retry_cap,
         session_id=args.session_id,
     )
+    continuation_gate = build_continuation_gate(build_profile_context(project_root=root))
     if args.status:
         if preflight is None:
             preflight = build_session_source_preflight(root)
         if args.json:
-            print(json.dumps(build_auto_refresh_status_payload(preflight, plan), indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    build_auto_refresh_status_payload(
+                        preflight,
+                        plan,
+                        continuation_gate=continuation_gate,
+                    ),
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         else:
-            print(render_auto_refresh_status(preflight, plan))
+            print(render_auto_refresh_status(preflight, plan, continuation_gate=continuation_gate))
         return 0
     if args.json:
         print(json.dumps(asdict(plan), indent=2, sort_keys=True))
     elif args.runbook:
         if preflight is None:
             preflight = build_session_source_preflight(root)
-        print(render_scheduler_runbook(plan, preflight))
+        print(render_scheduler_runbook(plan, preflight, continuation_gate=continuation_gate))
     else:
         print(render_scheduler_plan(plan))
     return 0

@@ -15,6 +15,40 @@ from src.auto_refresh_orchestrator import (
     render_scheduler_plan,
 )
 from src.refresh_operations import ProviderAttempt
+from src.continuation_gate import ContinuationGate
+
+
+def test_auto_refresh_status_routes_stale_readiness_to_inspection_only():
+    preflight = {
+        "source_activation": {"status": "not_required", "reason": "executable_source_available"},
+        "source_categories": {"free_public_available": ["sec"]},
+        "source_activation_console_v2": {
+            "next_executable_lane": "sec_fundamentals_share_count",
+            "next_executable_command": "make coverage-frontier TOP_N=10",
+        },
+    }
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Selected-profile source dates are newer than saved readiness.",
+        rebuild_command="make readiness",
+        stop_rule="Do not start broad refresh or source-proof work.",
+        suppress_execution=True,
+    )
+    plan = build_scheduler_plan(schedule="daily")
+
+    payload = build_auto_refresh_status_payload(preflight, plan, continuation_gate=gate)
+    status = render_auto_refresh_status(preflight, plan, continuation_gate=gate)
+    runbook = render_scheduler_runbook(plan, preflight, continuation_gate=gate)
+
+    assert payload["can_run_now"] == "inspection_only"
+    assert payload["next_executable_command"] == "make readiness-preview TOP_N=20"
+    assert payload["continuation_gate"]["suppress_execution"] is True
+    assert "Stale readiness continuation gate: inspection_only" in status
+    assert "refresh_operations below are planning context only" in status
+    assert "next_executable_command: make coverage-frontier TOP_N=10" not in status
+    assert "Start:\n- make readiness-preview TOP_N=20" in runbook
+    assert "- make coverage-frontier TOP_N=10" not in runbook.split("Lane loop:", 1)[0]
 
 
 def test_auto_gate_allows_source_backed_narrow_valid_preview():
