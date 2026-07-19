@@ -644,6 +644,20 @@ def auto_refresh_status_cards(status_payload: dict[str, object] | None) -> list[
         "Generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
         max_chars=190,
     )
+    continuation_gate = payload.get("continuation_gate", {})
+    inspection_only = bool(
+        isinstance(continuation_gate, dict) and continuation_gate.get("suppress_execution")
+    )
+    next_card_command = next_command if inspection_only else next_runbook
+    next_card_body = (
+        "Inspect the saved-versus-proposed readiness impact without writing files. Scheduled operations remain "
+        "planning context until readiness is current or a separate reviewed rebuild is authorized."
+        if inspection_only
+        else (
+            "Use the compact runbook for the selected schedule. It keeps validation, preview, apply boundary, "
+            "proof, and pivot rules visible before any data-changing step."
+        )
+    )
 
     return [
         {
@@ -669,12 +683,9 @@ def auto_refresh_status_cards(status_payload: dict[str, object] | None) -> list[
         {
             "kicker": "NEXT SCHEDULER STEP",
             "title": next_command,
-            "body": (
-                "Use the compact runbook for the selected schedule. It keeps validation, preview, apply boundary, "
-                "proof, and pivot rules visible before any data-changing step."
-            ),
+            "body": next_card_body,
             "badges": ["runbook", "no broad retry loops"],
-            "command": next_runbook,
+            "command": next_card_command,
         },
     ]
 

@@ -705,6 +705,9 @@ def test_stale_readiness_continuation_gate_docs_keep_rankings_non_executable():
     assert "commercial-beta release" in roadmap.lower()
     assert "auto-refresh status" in prompt.lower()
     assert "session source preflight" in prompt.lower()
+    assert "advanced data health cards" in roadmap.lower()
+    assert "advanced data health cards" in dashboard_qa.lower()
+    assert "advanced data health cards" in prompt.lower()
 
 
 def test_thesis_journal_docs_preserve_append_only_research_boundary():

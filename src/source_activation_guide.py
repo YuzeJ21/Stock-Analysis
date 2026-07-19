@@ -623,10 +623,13 @@ def build_provider_setup_checklist(
             )
         )
         if continuation_gate.suppress_execution:
+            existing_avoid = str(current_gate.get("avoid_repeating") or "").strip()
+            avoid_parts = [] if existing_avoid in {"", "-"} else [existing_avoid]
+            avoid_parts.extend(["broad_refresh", "source_proof", "readiness_rebuild"])
             current_gate.update(
                 {
                     "can_run_now": continuation_gate.state,
-                    "avoid_repeating": "broad_refresh, source_proof, readiness_rebuild",
+                    "avoid_repeating": ", ".join(dict.fromkeys(avoid_parts)),
                     "next_step": continuation_gate.next_safe_command,
                     "next_step_reason": continuation_gate.reason,
                 }

@@ -37,7 +37,9 @@ def test_provider_setup_checklist_routes_stale_readiness_to_inspection_only(monk
 
     assert checklist["current_gate"]["can_run_now"] == "inspection_only"
     assert checklist["current_gate"]["needs_setup"] == "fmp"
-    assert checklist["current_gate"]["avoid_repeating"] == "broad_refresh, source_proof, readiness_rebuild"
+    assert checklist["current_gate"]["avoid_repeating"] == (
+        "fundamentals_share_count_source_ladder, broad_refresh, source_proof, readiness_rebuild"
+    )
     assert checklist["current_gate"]["next_step"] == "make readiness-preview TOP_N=20"
     assert checklist["continuation_gate"]["state"] == "inspection_only"
     assert "Stale readiness continuation gate: inspection_only" in rendered

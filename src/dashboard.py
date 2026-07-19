@@ -16,6 +16,7 @@ import streamlit as st
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
+from src.continuation_gate import build_continuation_gate
 from src.source_activation_guide import build_provider_setup_checklist, build_source_activation_guide
 from src.data_onboarding import write_onboarding_outputs
 from src.data_health_console import (
@@ -11850,7 +11851,12 @@ def data_health_auto_refresh_status_cards(
                 "artifact_policy": "generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
             }
         )
-    status_payload = build_auto_refresh_status_payload(preflight, build_scheduler_plan(schedule=schedule))
+    project_root = root or BASE_DIR
+    status_payload = build_auto_refresh_status_payload(
+        preflight,
+        build_scheduler_plan(schedule=schedule),
+        continuation_gate=build_continuation_gate(build_profile_context(project_root=project_root)),
+    )
     return overview_console.auto_refresh_status_cards(status_payload)
 
 
@@ -11860,13 +11866,19 @@ def data_health_source_activation_setup_cards() -> list[dict[str, object]]:
 
 def data_health_provider_setup_checklist_cards(root: Path | None = None) -> list[dict[str, object]]:
     return overview_console.provider_setup_checklist_cards(
-        build_provider_setup_checklist(_cached_session_source_preflight_payload(root))
+        build_provider_setup_checklist(
+            _cached_session_source_preflight_payload(root),
+            root=root or BASE_DIR,
+        )
     )
 
 
 def data_health_provider_setup_first_answer_frame(root: Path | None = None) -> pd.DataFrame:
     return overview_console.provider_setup_first_answer_frame(
-        build_provider_setup_checklist(_cached_session_source_preflight_payload(root))
+        build_provider_setup_checklist(
+            _cached_session_source_preflight_payload(root),
+            root=root or BASE_DIR,
+        )
     )
 
 

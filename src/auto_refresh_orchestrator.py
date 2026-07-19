@@ -591,10 +591,13 @@ def build_auto_refresh_status_payload(
     if continuation_gate is not None:
         payload["continuation_gate"] = asdict(continuation_gate)
         if continuation_gate.suppress_execution:
+            existing_avoid = str(payload.get("avoid_repeating") or "").strip()
+            avoid_parts = [] if existing_avoid in {"", "-"} else [existing_avoid]
+            avoid_parts.extend(["broad_refresh", "source_proof", "readiness_rebuild"])
             payload.update(
                 {
                     "can_run_now": continuation_gate.state,
-                    "avoid_repeating": "broad_refresh, source_proof, readiness_rebuild",
+                    "avoid_repeating": ", ".join(dict.fromkeys(avoid_parts)),
                     "next_executable_command": continuation_gate.next_safe_command,
                     "next_step_reason": continuation_gate.reason,
                 }

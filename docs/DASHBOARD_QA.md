@@ -10,7 +10,7 @@ The same-mode detour does not change readiness or evidence state, add a route, e
 
 ## Stale Readiness Continuation Gate
 
-When the selected profile is stale or incomplete, the stale readiness continuation gate makes `make readiness-preview TOP_N=20` the only continuation-safe action. Project-status next steps are suppressed, while provider setup details and coverage rankings remain planning context only. `make readiness` is a separate intentional reviewed write; the UI and CLI must not imply that the preview refreshes data, makes saved readiness current, or authorizes source execution.
+When the selected profile is stale or incomplete, the stale readiness continuation gate makes `make readiness-preview TOP_N=20` the only continuation-safe action. Project-status next steps are suppressed, while provider setup details, coverage rankings, scheduled-operation details, and Advanced Data Health cards remain planning context only. Advanced Data Health cards derive the gate from the selected profile even when their cached preflight predates the gate. `make readiness` is a separate intentional reviewed write; the UI and CLI must not imply that the preview refreshes data, makes saved readiness current, or authorizes source execution.
 
 ## 2026-07-18 Monitor Answer-First Live Review
 

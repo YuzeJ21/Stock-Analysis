@@ -412,8 +412,9 @@ def test_data_health_auto_refresh_status_cards_read_cached_preflight(tmp_path: P
         "SOURCE SETUP",
         "NEXT SCHEDULER STEP",
     ]
-    assert cards[2]["command"] == "make auto-refresh-runbook SCHEDULE=weekly"
-    assert "can run now: workflow evidence only; current source-proof queues are exhausted" in rendered
+    assert cards[2]["title"] == "make readiness-preview TOP_N=20"
+    assert cards[2]["command"] == "make readiness-preview TOP_N=20"
+    assert "can run now: inspection_required" in rendered
     assert "needs setup: fmp, alpha vantage, finnhub" in rendered
     assert "avoid repeating: fundamentals/share-count source ladder" in rendered
     assert "coverage_workflow_evidence" not in rendered
@@ -492,6 +493,8 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     assert "no broad coverage batch should run from setup alone" in rendered
     assert "provider setup only makes a source executable" in rendered
     assert "do not retry broad_refresh, source_proof, readiness_rebuild" in rendered
+    assert "current gate says inspection_only" in rendered
+    assert "next: make readiness-preview top_n=20" in rendered
     assert "fundamentals_share_count_source_ladder" not in rendered
     assert "coverage_workflow_evidence" not in rendered
     assert "project-status -> provider setup -> reviewed one-ticker smoke command -> validate/preview" in rendered
@@ -542,12 +545,12 @@ def test_data_health_provider_setup_checklist_cards_surface_cached_current_gate(
     cards = dashboard.data_health_provider_setup_checklist_cards(root=tmp_path)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "can run now: workflow evidence only; current source-proof queues are exhausted" in rendered
+    assert "can run now: inspection_required" in rendered
     assert "needs setup: fmp, alpha_vantage, finnhub" in rendered
     assert "avoid repeating: fundamentals/share-count source ladder" in rendered
     assert "coverage_workflow_evidence" not in rendered
     assert "fundamentals_share_count_source_ladder" not in rendered
-    assert "wait for new provider data before repeating the source ladder" in rendered
+    assert "selected-profile readiness artifacts are missing" in rendered
 
 
 def test_data_health_provider_setup_first_answer_frame_summarizes_current_source_boundary(tmp_path, monkeypatch):
@@ -585,7 +588,7 @@ def test_data_health_provider_setup_first_answer_frame_summarizes_current_source
         "What boundary stays true?",
         "What should I do next?",
     ]
-    assert "workflow evidence only; current source-proof queues are exhausted" in rendered
+    assert "inspection_required" in rendered
     assert "free public sources: usable now" in rendered
     assert "keyed free-tier fallbacks: configured: fmp free tier; missing: alpha vantage free tier, finnhub free tier" in rendered
     assert "metadata-only evidence: context only" in rendered
@@ -595,6 +598,7 @@ def test_data_health_provider_setup_first_answer_frame_summarizes_current_source
     assert "alpha_vantage, finnhub" in rendered
     assert "keyed setup is not required for pilot/demo sharing" in rendered
     assert "fundamentals/share-count source ladder" in rendered
+    assert "broad_refresh, source_proof, readiness_rebuild" in rendered
     assert "fundamentals_share_count_source_ladder" not in rendered
     assert "make " not in rendered
     assert "one-ticker smoke stays in source setup details" in rendered
