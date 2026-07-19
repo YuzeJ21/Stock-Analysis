@@ -27,7 +27,7 @@ Separate jobs could reduce elapsed time, but they would repeat checkout and depe
 - Trigger only on `pull_request` targeting `main`.
 - Grant only `contents: read` permission.
 - Run on GitHub-hosted Ubuntu with Python 3.12.
-- Install dependencies from `requirements.txt` without adding a cache or generated artifact upload.
+- Install the checked-in package in editable mode from `pyproject.toml` plus `pytest`, without adding a cache or generated artifact upload. This makes repository imports available to direct script entrypoints just as they are in the verified local environment.
 - Set `PYTHONDONTWRITEBYTECODE=1` for the job.
 - Run, in order:
   1. `python3 -m pytest tests -q`
@@ -41,7 +41,7 @@ Separate jobs could reduce elapsed time, but they would repeat checkout and depe
 
 ## Test Contract
 
-A repository test reads the workflow as text and verifies the trigger, least-privilege permission, Python version, dependency installation, required commands, and prohibited capabilities. The test fails while the workflow is absent, then passes when the minimal file is present.
+A repository test reads the workflow as text and verifies the trigger, least-privilege permission, Python version, editable package and test-runner installation, required commands, and prohibited capabilities. The test fails while the workflow is absent or lacks the package install, then passes when the minimal file is present.
 
 The test intentionally does not claim that a local YAML parse proves GitHub-hosted execution. The first successful Actions run on PR #113 remains the direct hosted CI evidence.
 

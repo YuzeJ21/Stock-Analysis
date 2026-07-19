@@ -28,12 +28,12 @@
 - Modify: `docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md`
 
 **Interfaces:**
-- Consumes: the existing `requirements.txt` and Make targets `dashboard-smoke`, `research-dashboard-render-smoke`, `public-wording-check`, and `diff-hygiene-summary`.
+- Consumes: the existing `pyproject.toml` package contract and Make targets `dashboard-smoke`, `research-dashboard-render-smoke`, `public-wording-check`, and `diff-hygiene-summary`.
 - Produces: one GitHub pull-request status check named `Commercial Research Beta / local-engineering-gate`.
 
 - [ ] **Step 1: Write the failing workflow contract test**
 
-Create `tests/test_github_actions_workflow.py` with assertions that the workflow exists, targets pull requests to `main`, uses `contents: read`, selects Python 3.12, installs `requirements.txt`, contains every required command, and contains none of the prohibited trigger or action strings.
+Create `tests/test_github_actions_workflow.py` with assertions that the workflow exists, targets pull requests to `main`, uses `contents: read`, selects Python 3.12, installs the checked-in package plus `pytest`, contains every required command, and contains none of the prohibited trigger or action strings.
 
 - [ ] **Step 2: Run the focused test and verify the intended red state**
 
@@ -47,7 +47,7 @@ Expected: fail because `.github/workflows/commercial-research-beta.yml` does not
 
 - [ ] **Step 3: Add the minimal workflow**
 
-Create `.github/workflows/commercial-research-beta.yml` with `pull_request` as its only trigger, `contents: read`, one Ubuntu job, Python 3.12, requirement installation, and the six approved commands in order. Do not add caching, uploads, provider access, readiness, deployment, or schedules.
+Create `.github/workflows/commercial-research-beta.yml` with `pull_request` as its only trigger, `contents: read`, one Ubuntu job, Python 3.12, editable installation of the checked-in package plus `pytest`, and the six approved commands in order. Do not add caching, uploads, provider access, readiness, deployment, or schedules.
 
 - [ ] **Step 4: Run the focused test and verify green**
 

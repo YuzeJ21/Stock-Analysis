@@ -13,7 +13,7 @@ def test_commercial_research_beta_workflow_is_minimal_pr_only_gate():
     assert "permissions:\n  contents: read" in workflow
     assert "runs-on: ubuntu-latest" in workflow
     assert "python-version: \"3.12\"" in workflow
-    assert "python3 -m pip install -r requirements.txt pytest" in workflow
+    assert "python3 -m pip install -e . pytest" in workflow
     assert "PYTHONDONTWRITEBYTECODE: \"1\"" in workflow
 
     required_commands = (
