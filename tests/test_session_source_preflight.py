@@ -418,6 +418,12 @@ def test_session_source_preflight_reports_ibkr_read_only_price_provider(tmp_path
             "detail": "dns failed",
             "next_action": "Do not retry SEC-backed fundamentals in this session.",
         },
+        sec_submissions_probe=lambda _user_agent: {
+            "status": "available",
+            "reason_code": "ok",
+            "detail": "Deterministic SEC submissions fixture.",
+            "next_action": "",
+        },
         yfinance_import_probe=lambda: {
             "status": "unavailable",
             "reason_code": "missing_dependency",
