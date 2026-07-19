@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from src.data_update import (
     AlphaVantageDailyPriceSource,
@@ -28,8 +29,14 @@ from src.provider_env import reset_provider_environment_cache
 
 
 class FakePriceSource:
-    def __init__(self, payloads: dict[str, pd.DataFrame | None]) -> None:
+    def __init__(
+        self,
+        payloads: dict[str, pd.DataFrame | None],
+        *,
+        source_id: str = "fake_price_source",
+    ) -> None:
         self.payloads = payloads
+        self.source_id = source_id
         self.calls: list[str] = []
 
     def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
@@ -88,6 +95,32 @@ class FakeIBKRBar:
         self.low = low
         self.close = close
         self.volume = volume
+
+
+def _commercial_price_registry(
+    source_id: str,
+    *,
+    commercial_use: str = "approved",
+    supported_fields: list[str] | None = None,
+):
+    return build_source_rights_registry(
+        [
+            {
+                "source_id": source_id,
+                "display_name": f"{source_id} test source",
+                "permitted_use": "reviewed_price_research",
+                "commercial_use": commercial_use,
+                "redistribution": "derived_data_only",
+                "storage_limits": "reviewed rows only",
+                "attribution": "durable source reference required",
+                "rate_limits": "test fixture only",
+                "authentication": "test fixture only",
+                "expected_freshness": "fixture timestamp",
+                "supported_fields": supported_fields or ["prices"],
+                "fallback_priority": 1,
+            }
+        ]
+    )
 
 
 def test_stooq_source_reports_api_key_page_without_parser_failure():
@@ -365,7 +398,7 @@ def test_ibkr_price_source_exposes_no_trading_methods():
 
 
 def test_price_source_ladder_tries_stooq_after_yahoo_has_no_rows():
-    yahoo = FakePriceSource({"META": None})
+    yahoo = FakePriceSource({"META": None}, source_id="yahoo")
     stooq = FakePriceSource(
         {
             "META": pd.DataFrame(
@@ -382,7 +415,8 @@ def test_price_source_ladder_tries_stooq_after_yahoo_has_no_rows():
                     }
                 ]
             )
-        }
+        },
+        source_id="stooq",
     )
 
     frame, warnings = PriceSourceLadder([("yahoo", yahoo), ("stooq", stooq)]).fetch_history("META")
@@ -397,7 +431,7 @@ def test_price_source_ladder_tries_stooq_after_yahoo_has_no_rows():
 def test_update_local_price_data_records_auto_price_ladder_provider(tmp_path: Path):
     (tmp_path / "data").mkdir()
     (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
-    yahoo = FakePriceSource({"META": None})
+    yahoo = FakePriceSource({"META": None}, source_id="yahoo")
     stooq = FakePriceSource(
         {
             "META": pd.DataFrame(
@@ -414,7 +448,8 @@ def test_update_local_price_data_records_auto_price_ladder_provider(tmp_path: Pa
                     }
                 ]
             )
-        }
+        },
+        source_id="stooq",
     )
     source = PriceSourceLadder([("yahoo", yahoo), ("stooq", stooq)])
 
@@ -464,6 +499,182 @@ def test_make_price_source_auto_adds_configured_ibkr_before_keyed_price_fallback
 
     assert isinstance(source, PriceSourceLadder)
     assert source.provider_names == ["stooq", "yahoo", "ibkr", "fmp"]
+
+
+def test_price_sources_expose_exact_source_ids():
+    assert StooqDailyPriceSource.source_id == "stooq"
+    assert YahooChartDailyPriceSource.source_id == "yahoo"
+    assert FMPDailyPriceSource.source_id == "fmp"
+    assert AlphaVantageDailyPriceSource.source_id == "alpha_vantage"
+    assert FinnhubDailyPriceSource.source_id == "finnhub"
+    assert IBKRDailyPriceSource.source_id == "ibkr"
+
+
+def test_price_source_ladder_rejects_label_that_does_not_match_exact_source_id():
+    source = FakePriceSource({}, source_id="stooq")
+
+    with pytest.raises(ValueError, match="price source label/source_id mismatch"):
+        PriceSourceLadder([("yahoo", source)])
+
+
+def test_make_price_source_blocks_unapproved_exact_provider_in_commercial_mode():
+    registry = _commercial_price_registry("stooq", commercial_use="unverified")
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_review_required.*stooq"):
+        make_price_source("stooq", commercial_mode=True, rights_registry=registry)
+
+
+def test_make_price_source_blocks_provider_without_registered_price_scope():
+    registry = _commercial_price_registry("stooq", supported_fields=["revenue"])
+
+    with pytest.raises(RuntimeError, match="commercial_price_scope_review_required.*stooq"):
+        make_price_source("stooq", commercial_mode=True, rights_registry=registry)
+
+
+def test_make_price_source_commercial_auto_keeps_only_independently_eligible_legs(monkeypatch):
+    for key in ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY", "IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"):
+        monkeypatch.delenv(key, raising=False)
+    reset_provider_environment_cache()
+    registry = _commercial_price_registry("stooq")
+
+    source = make_price_source("auto", commercial_mode=True, rights_registry=registry)
+
+    assert isinstance(source, PriceSourceLadder)
+    assert source.provider_names == ["stooq"]
+    assert source.source_ids == ("stooq",)
+
+
+def test_make_price_source_commercial_auto_fails_when_no_leg_is_eligible(monkeypatch):
+    for key in ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY", "IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"):
+        monkeypatch.delenv(key, raising=False)
+    reset_provider_environment_cache()
+    registry = _commercial_price_registry("unrelated_source")
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_review_required.*stooq.*yahoo"):
+        make_price_source("auto", commercial_mode=True, rights_registry=registry)
+
+
+def test_commercial_price_update_blocks_missing_identity_before_fetch_or_output(tmp_path: Path):
+    class MissingIdentitySource:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def fetch_history(self, _ticker: str):
+            self.calls += 1
+            return pd.DataFrame(), []
+
+    source = MissingIdentitySource()
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_id_required"):
+        update_local_price_data(
+            tmp_path,
+            source=source,
+            tickers=["META"],
+            commercial_mode=True,
+            rights_registry=_commercial_price_registry("approved_prices"),
+        )
+
+    assert source.calls == 0
+    assert not (tmp_path / "data" / "prices.csv").exists()
+    assert not (tmp_path / "outputs" / "price_update_status.csv").exists()
+
+
+def test_commercial_price_update_blocks_unapproved_source_before_fetch_or_output(tmp_path: Path):
+    source = FakePriceSource({"META": None}, source_id="unverified_prices")
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_review_required.*unverified_prices"):
+        update_local_price_data(
+            tmp_path,
+            source=source,
+            tickers=["META"],
+            commercial_mode=True,
+            rights_registry=_commercial_price_registry(
+                "unverified_prices", commercial_use="unverified"
+            ),
+        )
+
+    assert source.calls == []
+    assert not (tmp_path / "data" / "prices.csv").exists()
+    assert not (tmp_path / "outputs" / "price_update_status.csv").exists()
+
+
+def test_commercial_price_update_allows_approved_scoped_source(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    source = FakePriceSource(
+        {
+            "META": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "META",
+                        "open": 100.0,
+                        "high": 102.0,
+                        "low": 99.0,
+                        "close": 101.0,
+                        "adj_close": 101.0,
+                        "volume": 12345,
+                    }
+                ]
+            )
+        },
+        source_id="approved_prices",
+    )
+
+    result = update_local_price_data(
+        tmp_path,
+        source=source,
+        tickers=["META"],
+        commercial_mode=True,
+        rights_registry=_commercial_price_registry("approved_prices"),
+    )
+
+    assert result.tickers_updated == ["META"]
+    assert result.path.exists()
+    assert result.status_path is not None and result.status_path.exists()
+
+
+def test_commercial_price_update_blocks_changed_identity_before_mutation(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+
+    class ChangedIdentitySource(FakePriceSource):
+        def fetch_history(self, ticker: str):
+            frame, warnings = super().fetch_history(ticker)
+            self.source_id = "unreviewed_after_fetch"
+            return frame, warnings
+
+    source = ChangedIdentitySource(
+        {
+            "META": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "META",
+                        "open": 100.0,
+                        "high": 102.0,
+                        "low": 99.0,
+                        "close": 101.0,
+                        "adj_close": 101.0,
+                        "volume": 12345,
+                    }
+                ]
+            )
+        },
+        source_id="approved_prices",
+    )
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_changed"):
+        update_local_price_data(
+            tmp_path,
+            source=source,
+            tickers=["META"],
+            commercial_mode=True,
+            rights_registry=_commercial_price_registry("approved_prices"),
+        )
+
+    assert not (tmp_path / "data" / "prices.csv").exists()
+    assert not (tmp_path / "outputs" / "price_update_status.csv").exists()
 
 
 def test_price_refresh_cli_accepts_direct_finnhub_provider(tmp_path: Path, monkeypatch):

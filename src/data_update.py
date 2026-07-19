@@ -23,6 +23,7 @@ from src.commercial_source_rights import (
     commercial_eligibility,
     commercial_mode_enabled,
     load_source_rights_registry,
+    review_commercial_field_scope,
 )
 from src.config import AppConfig
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
@@ -169,6 +170,8 @@ def _ibkr_bars_to_price_frame(ticker: str, bars: Any) -> pd.DataFrame:
 
 
 class PriceHistorySource(Protocol):
+    source_id: str
+
     def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
         ...
 
@@ -188,6 +191,8 @@ class PriceUpdateResult:
 
 
 class StooqDailyPriceSource:
+    source_id = "stooq"
+
     def __init__(
         self,
         base_url: str = "https://stooq.com/q/d/l/",
@@ -250,6 +255,8 @@ class StooqDailyPriceSource:
 
 class YahooChartDailyPriceSource:
     """Unofficial research-grade daily OHLCV source using Yahoo's chart endpoint."""
+
+    source_id = "yahoo"
 
     def __init__(
         self,
@@ -341,6 +348,8 @@ class YahooChartDailyPriceSource:
 class FMPDailyPriceSource:
     """Research-grade daily OHLCV fallback using FMP's historical price endpoint."""
 
+    source_id = "fmp"
+
     def __init__(
         self,
         base_url: str = "https://financialmodelingprep.com/api/v3/historical-price-full",
@@ -412,6 +421,8 @@ class FMPDailyPriceSource:
 
 class AlphaVantageDailyPriceSource:
     """Research-grade daily OHLCV fallback using Alpha Vantage daily adjusted prices."""
+
+    source_id = "alpha_vantage"
 
     def __init__(
         self,
@@ -498,6 +509,8 @@ class AlphaVantageDailyPriceSource:
 
 class FinnhubDailyPriceSource:
     """Research-grade daily OHLCV fallback using Finnhub's stock candle endpoint."""
+
+    source_id = "finnhub"
 
     def __init__(
         self,
@@ -591,6 +604,7 @@ class FinnhubDailyPriceSource:
 class IBKRDailyPriceSource:
     """Read-only daily OHLCV source using IBKR Gateway/TWS historical bars."""
 
+    source_id = "ibkr"
     provider_name = "ibkr"
 
     def __init__(
@@ -700,17 +714,29 @@ class IBKRDailyPriceSource:
 
 
 class PriceSourceLadder:
+    source_id = "price_source_ladder"
+
     def __init__(self, sources: list[tuple[str, PriceHistorySource]]) -> None:
         if not sources:
             raise ValueError("PriceSourceLadder requires at least one source.")
+        for label, source in sources:
+            exact_source_id = _price_source_id(source)
+            if label != exact_source_id:
+                raise ValueError(
+                    "price source label/source_id mismatch: "
+                    f"label={label!r}, source_id={exact_source_id!r}"
+                )
         self.sources = sources
         self.provider_names = [name for name, _source in sources]
+        self.source_ids = tuple(self.provider_names)
         self.provider_name = "auto"
         self.last_provider_name = self.provider_name
+        self.last_source_id = ""
 
     def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
         warnings: list[str] = []
         self.last_provider_name = f"auto:{','.join(self.provider_names)}"
+        self.last_source_id = ""
         for index, (provider_name, source) in enumerate(self.sources):
             try:
                 frame, provider_warnings = source.fetch_history(ticker)
@@ -720,6 +746,7 @@ class PriceSourceLadder:
             warnings.extend(provider_warnings)
             if not frame.empty:
                 self.last_provider_name = provider_name
+                self.last_source_id = _price_source_id(source)
                 if index > 0:
                     warnings.append(
                         f"{ticker}: source ladder resolved price rows from {provider_name} after "
@@ -739,24 +766,120 @@ def _price_source_status_name(source: PriceHistorySource) -> str:
     return source.__class__.__name__
 
 
-def make_price_source(provider: str) -> PriceHistorySource:
+def _price_source_id(source: PriceHistorySource) -> str:
+    source_id = str(getattr(source, "source_id", "") or "").strip()
+    if not source_id:
+        raise RuntimeError("commercial_price_source_id_required: exact source_id is missing")
+    return source_id
+
+
+def _require_commercial_price_source(
+    registry: Mapping[str, SourceRights],
+    source_id: str,
+) -> None:
+    review = review_commercial_field_scope(registry, source_id, ("prices",))
+    if not review.commercial_rights_approved:
+        raise RuntimeError(
+            "commercial_price_source_review_required: "
+            f"source_id={source_id}, rights_status={review.rights_status}"
+        )
+    if review.missing_supported_fields:
+        raise RuntimeError(
+            "commercial_price_scope_review_required: "
+            f"source_id={source_id}, missing_supported_fields="
+            f"{','.join(review.missing_supported_fields)}"
+        )
+
+
+def _commercial_price_source_is_allowed(
+    registry: Mapping[str, SourceRights],
+    source_id: str,
+) -> bool:
+    return review_commercial_field_scope(
+        registry, source_id, ("prices",)
+    ).commercial_evidence_ready
+
+
+def _reachable_price_source_ids(source: PriceHistorySource) -> tuple[str, ...]:
+    if isinstance(source, PriceSourceLadder):
+        return source.source_ids
+    return (_price_source_id(source),)
+
+
+def _selected_price_source_id(source: PriceHistorySource) -> str:
+    if isinstance(source, PriceSourceLadder):
+        selected = str(source.last_source_id or "").strip()
+        if not selected:
+            raise RuntimeError(
+                "commercial_price_source_id_required: ladder selected source_id is missing"
+            )
+        return selected
+    return _price_source_id(source)
+
+
+def make_price_source(
+    provider: str,
+    *,
+    commercial_mode: bool | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+) -> PriceHistorySource:
     load_provider_environment()
     normalized = str(provider or "auto").strip().lower()
+    commercial = commercial_mode_enabled() if commercial_mode is None else commercial_mode
+    registry = rights_registry
+    if commercial and registry is None:
+        registry = load_source_rights_registry()
+
+    exact_provider_ids = {
+        "stooq": "stooq",
+        "yahoo": "yahoo",
+        "fmp": "fmp",
+        "financial_modeling_prep": "fmp",
+        "alpha_vantage": "alpha_vantage",
+        "alphavantage": "alpha_vantage",
+        "finnhub": "finnhub",
+        "ibkr": "ibkr",
+    }
+    if commercial and normalized not in {"auto", "ladder", "source_ladder"}:
+        exact_source_id = exact_provider_ids.get(normalized)
+        if exact_source_id is not None:
+            assert registry is not None
+            _require_commercial_price_source(registry, exact_source_id)
+
     if normalized in {"auto", "ladder", "source_ladder"}:
-        sources: list[tuple[str, PriceHistorySource]] = [
-            ("stooq", StooqDailyPriceSource()),
-            ("yahoo", YahooChartDailyPriceSource()),
+        source_factories: list[tuple[str, bool, Callable[[], PriceHistorySource]]] = [
+            ("stooq", True, StooqDailyPriceSource),
+            ("yahoo", True, YahooChartDailyPriceSource),
+            ("ibkr", _ibkr_auto_configured(), IBKRDailyPriceSource),
+            ("fmp", bool(os.environ.get(FMP_API_KEY_ENV, "").strip()), FMPDailyPriceSource),
+            (
+                "alpha_vantage",
+                bool(os.environ.get(ALPHA_VANTAGE_API_KEY_ENV, "").strip()),
+                AlphaVantageDailyPriceSource,
+            ),
+            (
+                "finnhub",
+                bool(os.environ.get(FINNHUB_API_KEY_ENV, "").strip()),
+                FinnhubDailyPriceSource,
+            ),
         ]
-        if _ibkr_auto_configured():
-            sources.append(("ibkr", IBKRDailyPriceSource()))
-        if os.environ.get(FMP_API_KEY_ENV, "").strip():
-            sources.append(("fmp", FMPDailyPriceSource()))
-        if os.environ.get(ALPHA_VANTAGE_API_KEY_ENV, "").strip():
-            sources.append(("alpha_vantage", AlphaVantageDailyPriceSource()))
-        if os.environ.get(FINNHUB_API_KEY_ENV, "").strip():
-            sources.append(("finnhub", FinnhubDailyPriceSource()))
+        configured_factories = [item for item in source_factories if item[1]]
+        if commercial:
+            assert registry is not None
+            allowed_factories = [
+                item
+                for item in configured_factories
+                if _commercial_price_source_is_allowed(registry, item[0])
+            ]
+            if not allowed_factories:
+                configured_ids = ",".join(item[0] for item in configured_factories)
+                raise RuntimeError(
+                    "commercial_price_source_review_required: no configured automatic "
+                    f"price source has approved rights and prices scope; sources={configured_ids}"
+                )
+            configured_factories = allowed_factories
         return PriceSourceLadder(
-            sources
+            [(source_id, factory()) for source_id, _configured, factory in configured_factories]
         )
     if normalized == "stooq":
         return StooqDailyPriceSource()
@@ -1179,13 +1302,28 @@ def update_local_price_data(
     retry_attempts: int = 1,
     retry_backoff_seconds: float = 0.25,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
+    commercial_mode: bool | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> PriceUpdateResult:
     base_dir = resolve_project_root(base_dir)
     data_dir = resolve_data_dir(data_dir, base_dir)
     output_dir = resolve_outputs_dir(output_dir, base_dir)
+    commercial = commercial_mode_enabled() if commercial_mode is None else commercial_mode
+    registry = rights_registry
+    if commercial and registry is None:
+        registry = load_source_rights_registry()
+    source = source or make_price_source(
+        "auto", commercial_mode=commercial, rights_registry=registry
+    )
+    reviewed_source_ids: tuple[str, ...] = ()
+    if commercial:
+        assert registry is not None
+        reviewed_source_ids = _reachable_price_source_ids(source)
+        for source_id in reviewed_source_ids:
+            _require_commercial_price_source(registry, source_id)
+
     config = AppConfig.load(base_dir / "config.yaml")
     prices_path = data_dir / "prices.csv"
-    source = source or make_price_source("auto")
     provider_name = _price_source_status_name(source)
     run_timestamp = datetime.now(timezone.utc).isoformat()
     requested_end = pd.Timestamp.now(tz="UTC").date().isoformat()
@@ -1264,6 +1402,23 @@ def update_local_price_data(
                 except Exception as exc:  # pragma: no cover - defensive runtime path
                     fetch_warnings = [f"{ticker}: update failed ({exc})"]
                     frame = pd.DataFrame(columns=PRICE_COLUMNS)
+                if commercial:
+                    assert registry is not None
+                    if frame.empty and not isinstance(source, PriceSourceLadder):
+                        current_source_id = _price_source_id(source)
+                        if current_source_id not in reviewed_source_ids:
+                            raise RuntimeError(
+                                "commercial_price_source_changed: "
+                                f"reviewed={','.join(reviewed_source_ids)}, selected={current_source_id}"
+                            )
+                    if not frame.empty:
+                        selected_source_id = _selected_price_source_id(source)
+                        if selected_source_id not in reviewed_source_ids:
+                            raise RuntimeError(
+                                "commercial_price_source_changed: "
+                                f"reviewed={','.join(reviewed_source_ids)}, selected={selected_source_id}"
+                            )
+                        _require_commercial_price_source(registry, selected_source_id)
                 if frame.empty and attempt < retry_attempts:
                     sleep(retry_backoff_seconds * (attempt + 1))
                     continue

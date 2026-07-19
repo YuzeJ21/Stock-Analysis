@@ -284,6 +284,8 @@ Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`; 
 
 Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optional IBKR read-only when explicitly configured, then keyed FMP, Alpha Vantage, and Finnhub fallbacks. This maintenance lane is finite and read-only until a separately reviewed source-backed change is eligible for the import gate.
 
+**Commercial refresh enforcement implemented:** every concrete price provider now has one exact source ID, automatic-ladder labels must match child identity, and explicit Commercial Research mode reviews each reachable provider for approved rights plus registered `prices` scope before fetch. It rechecks the selected provider before merge or status mutation and fails closed on missing or changed identity. Ordinary research mode retains the existing ladder. No provider was approved or called, no canonical price lineage was added, and readiness remains unchanged.
+
 1. Run the default executable queue: `make price-history-proof-queue TOP_N=25`.
    - `momentum-not-ready` rows describe a readiness state, not a refresh instruction.
    - `unreviewed preferred-history candidates` are the only default queue rows eligible for a narrow reviewed investigation.
@@ -338,6 +340,7 @@ Use `docs/PRODUCT_DIRECTION_DECISION.md` after hosted-preview, controlled-pilot,
 | Operated controls | contract-ready | independent fail-closed states for account controls, incident response, rollback, and owner capacity | hosted accounts, named coverage, and supervised operating rehearsal |
 | FMP fallback | optional key missing | one-ticker smoke, validation, preview, provenance gate | `FMP_API_KEY` outside Git |
 | Alpha Vantage / Finnhub | optional keys missing | capped fallback interfaces and source-state checks | provider keys and a reviewed use case |
+| Direct commercial price refresh | fail-closed locally | exact provider identity plus pre-fetch and pre-mutation rights/`prices`-scope enforcement | one reviewed exact provider with approved rights and registered `prices` scope; row-level lineage and payload review remain separate |
 | Trusted peers | source-gated | candidate/trusted separation, role/comparability/anchor contract, and proof workflow | licensed or otherwise trustworthy reviewed relationships, roles, rationales, and comparability decisions |
 | Earnings / estimates | intentionally locked | optional-context states and import gates | trusted provider/manual rows with supported fields |
 
