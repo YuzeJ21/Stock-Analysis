@@ -13,9 +13,14 @@ jobs:
     timeout-minutes: 30
     env:
       PYTHONDONTWRITEBYTECODE: "1"
+      PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Check out pull request revision
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,7 +43,7 @@ jobs:
         run: make public-wording-check
 
       - name: Check generated-artifact hygiene
-        run: make diff-hygiene-summary
+        run: make pr-range-hygiene-check BASE_SHA="$PR_BASE_SHA" HEAD_SHA="$PR_HEAD_SHA"
 
       - name: Check whitespace
-        run: git diff --check
+        run: git diff --check "$PR_BASE_SHA...$PR_HEAD_SHA"

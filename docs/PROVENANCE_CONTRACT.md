@@ -145,6 +145,8 @@ Publication time, retrieval time, and detection time are different facts and mus
 
 Event review outcomes are append-only evidence. The latest valid outcome controls whether an event remains in the open queue, but historical rows are retained. Review resolution never mutates canonical sources or readiness. Candidate context, provider reachability, or a detected event cannot become trusted evidence without the existing source review, validation, preview, rejected-row, apply, readiness rebuild, and proof gates.
 
+GitHub pull-request hygiene evidence is bound to the event's explicit base and head commit SHAs. Generated-artifact classification and whitespace must inspect that same three-dot commit range after sufficient history is fetched; a clean checkout working tree is not an acceptable substitute. The gate has read-only repository permission and does not establish source rights, data correctness, human review, deployment approval, or merge safety by itself.
+
 ## Research Thesis Journal Contract
 
 `data/research_thesis_journal.csv` is the canonical reviewed, append-only journal ledger. Every row identifies schema version, entry ID, selected profile, ticker, thesis ID, entry type, recorded/effective timestamps, reviewer, summary, evidence direction, source, durable source reference, source publication timestamp, confidence, review due date, and `supersedes_entry_id`.

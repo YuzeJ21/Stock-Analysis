@@ -164,6 +164,7 @@ def test_makefile_contains_convenience_targets():
         "decision-proof-queue",
         "metric-readiness-board",
         "diff-hygiene-summary",
+        "pr-range-hygiene-check",
         "diff-hygiene-files",
         "data-release-decision",
         "public-release-package",

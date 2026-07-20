@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +28,42 @@ def test_diff_hygiene_classifies_generated_csv_churn_separately():
     assert module.classify_path("outputs/decision_proof_queue.md") == "generated_csv_churn"
 
 
+def test_pr_range_hygiene_inspects_committed_range_not_clean_worktree(tmp_path: Path):
+    module = load_diff_hygiene_module()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> str:
+        result = subprocess.run(
+            ["git", *args], cwd=repo, check=True, capture_output=True, text=True
+        )
+        return result.stdout.strip()
+
+    git("init", "-b", "main")
+    git("config", "user.name", "Range Test")
+    git("config", "user.email", "range@example.invalid")
+    (repo / "README.md").write_text("base\n", encoding="utf-8")
+    git("add", "README.md")
+    git("commit", "-m", "base")
+    base_sha = git("rev-parse", "HEAD")
+    generated = repo / "data" / "reports" / "readiness.json"
+    generated.parent.mkdir(parents=True)
+    generated.write_text("{}\n", encoding="utf-8")
+    git("add", "data/reports/readiness.json")
+    git("commit", "-m", "generated")
+    head_sha = git("rev-parse", "HEAD")
+
+    assert git("status", "--porcelain") == ""
+    entries = module.load_range_status(repo, base_sha, head_sha)
+    report = module.build_range_check_report(entries, base_sha, head_sha)
+
+    assert entries == [module.StatusEntry("A", "data/reports/readiness.json")]
+    assert module.range_hygiene_has_blockers(entries) is True
+    assert "Pull Request Range Hygiene Check" in report
+    assert "data/reports/readiness.json" in report
+    assert "failed" in report.lower()
+
+
 def test_diff_hygiene_keeps_markdown_reports_as_reviewable_examples():
     module = load_diff_hygiene_module()
 
@@ -39,6 +76,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
 
     for path in (
         ".gitignore",
+        ".github/workflows/commercial-research-beta.yml",
         ".streamlit/config.toml",
         ".streamlit/secrets.toml.example",
         "README.md",
@@ -46,6 +84,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "requirements.txt",
         "config/hosted_demo.env.example",
         "config/provider_keys.env.example",
+        "config/source_rights.yml",
         "docs/DIFF_HYGIENE_AUDIT.md",
         "src/dashboard.py",
         "tests/test_launchers.py",

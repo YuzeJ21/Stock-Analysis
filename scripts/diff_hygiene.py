@@ -21,6 +21,7 @@ SOURCE_PREFIXES = (
 )
 
 ROOT_PRODUCT_FILES = {
+    ".github/workflows/commercial-research-beta.yml",
     ".gitignore",
     ".streamlit/config.toml",
     ".streamlit/secrets.toml.example",
@@ -33,6 +34,7 @@ ROOT_PRODUCT_FILES = {
     "Makefile",
     "requirements.txt",
     "config.yaml",
+    "config/source_rights.yml",
     "config/hosted_demo.env.example",
     "config/provider_keys.env.example",
     "pyproject.toml",
@@ -150,6 +152,44 @@ def load_staged_status(repo_root: Path) -> list[StatusEntry]:
         text=True,
     )
     return [parse_name_status_line(line) for line in result.stdout.splitlines() if line]
+
+
+def resolve_commit(repo_root: Path, revision: str, *, label: str) -> str:
+    value = str(revision or "").strip()
+    if not value:
+        raise ValueError(f"{label} is required")
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{value}^{{commit}}"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(f"{label} does not resolve to a commit: {value}") from exc
+    return result.stdout.strip()
+
+
+def load_range_status(
+    repo_root: Path, base_revision: str, head_revision: str
+) -> list[StatusEntry]:
+    """Load committed path changes from one explicit pull-request range."""
+
+    base_sha = resolve_commit(repo_root, base_revision, label="range base")
+    head_sha = resolve_commit(repo_root, head_revision, label="range head")
+    result = subprocess.run(
+        ["git", "diff", "--name-status", "--find-renames", f"{base_sha}...{head_sha}"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return [
+        parse_name_status_line(line)
+        for line in result.stdout.splitlines()
+        if line
+    ]
 
 
 def load_staged_added_lines(repo_root: Path, path: str) -> list[str]:
@@ -497,6 +537,54 @@ def build_summary_report(entries: list[StatusEntry]) -> str:
             "options recommendation, or direct buy/sell instruction language.",
         ]
     )
+    return "\n".join(lines)
+
+
+def range_hygiene_has_blockers(entries: list[StatusEntry]) -> bool:
+    """Generated CSV/JSON churn is never accepted silently in a PR range."""
+
+    return bool(group_entries(entries)["generated_csv_churn"])
+
+
+def build_range_check_report(
+    entries: list[StatusEntry], base_revision: str, head_revision: str
+) -> str:
+    groups = group_entries(entries)
+    lines = [
+        "Pull Request Range Hygiene Check",
+        "Read-only: this command inspects committed paths and does not modify the working tree.",
+        f"Range: {base_revision}...{head_revision}",
+        "",
+        format_count_line("Product/code/docs/test files", groups["product_candidate"]),
+        format_count_line("Markdown sample reports", groups["sample_report_candidate"]),
+        format_count_line("Generated CSV/JSON churn", groups["generated_csv_churn"]),
+        format_count_line("Manual-review paths", groups["review_manually"]),
+    ]
+    if range_hygiene_has_blockers(entries):
+        lines.extend(
+            [
+                "",
+                "Pull-request range hygiene failed.",
+                "Generated CSV/JSON churn is present in the explicit base/head range:",
+                *format_paths(groups["generated_csv_churn"], limit=80),
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "",
+                "Pull-request range hygiene passed.",
+                "No generated CSV/JSON churn is present in the explicit base/head range.",
+            ]
+        )
+    if groups["review_manually"]:
+        lines.extend(
+            [
+                "",
+                "Manual-review paths in the range (reported, not reclassified):",
+                *format_paths(groups["review_manually"], limit=80),
+            ]
+        )
     return "\n".join(lines)
 
 
@@ -1141,6 +1229,8 @@ def main() -> int:
         action="store_true",
         help="Fail if the staged diff includes generated CSV/JSON churn or manual-review paths.",
     )
+    parser.add_argument("--range-base", help="Explicit pull-request base commit SHA.")
+    parser.add_argument("--range-head", help="Explicit pull-request head commit SHA.")
     parser.add_argument(
         "--data-release-decision",
         action="store_true",
@@ -1158,6 +1248,15 @@ def main() -> int:
     )
     args = parser.parse_args()
     repo_root = Path(__file__).resolve().parents[1]
+    if bool(args.range_base) != bool(args.range_head):
+        parser.error("--range-base and --range-head are required together")
+    if args.range_base and args.range_head:
+        try:
+            entries = load_range_status(repo_root, args.range_base, args.range_head)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(build_range_check_report(entries, args.range_base, args.range_head))
+        return 1 if range_hygiene_has_blockers(entries) else 0
     if args.staged_check:
         entries = load_staged_status(repo_root)
         print(build_staged_check_report(entries, repo_root))

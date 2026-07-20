@@ -239,6 +239,7 @@ help-full:
 	@echo "  make metric-readiness-board [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARKS=SPY,QQQ] [OUTPUT=outputs/metric_readiness_board.csv] Print or optionally export the combined benchmark metric-readiness board"
 	@echo "  make diff-hygiene     Print a read-only staging guide that separates product files from local data changes"
 	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
+	@echo "  make pr-range-hygiene-check BASE_SHA=<sha> HEAD_SHA=<sha> Inspect committed PR paths for generated churn"
 	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"
 	@echo "  make data-release-decision Print read-only post-batch keep-local, reviewed-data-release, and cleanup guidance"
 	@echo "  make public-release-package Print read-only product staging, generated exclusion, final checks, commit, and push guidance"
@@ -774,6 +775,10 @@ diff-hygiene:
 
 diff-hygiene-summary:
 	@python3 scripts/diff_hygiene.py --summary
+
+.PHONY: pr-range-hygiene-check
+pr-range-hygiene-check:
+	@python3 scripts/diff_hygiene.py --range-base "$(BASE_SHA)" --range-head "$(HEAD_SHA)"
 
 diff-hygiene-files:
 	@python3 scripts/diff_hygiene.py --write-files

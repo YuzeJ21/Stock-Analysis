@@ -15,14 +15,18 @@ def test_commercial_research_beta_workflow_is_minimal_pr_only_gate():
     assert "python-version: \"3.12\"" in workflow
     assert "python3 -m pip install -e . pytest" in workflow
     assert "PYTHONDONTWRITEBYTECODE: \"1\"" in workflow
+    assert "fetch-depth: 0" in workflow
+    assert "ref: ${{ github.event.pull_request.head.sha }}" in workflow
+    assert "PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}" in workflow
+    assert "PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}" in workflow
 
     required_commands = (
         "python3 -m pytest tests -q",
         "make dashboard-smoke",
         "make research-dashboard-render-smoke",
         "make public-wording-check",
-        "make diff-hygiene-summary",
-        "git diff --check",
+        'make pr-range-hygiene-check BASE_SHA="$PR_BASE_SHA" HEAD_SHA="$PR_HEAD_SHA"',
+        'git diff --check "$PR_BASE_SHA...$PR_HEAD_SHA"',
     )
     positions = [workflow.index(command) for command in required_commands]
     assert positions == sorted(positions)
