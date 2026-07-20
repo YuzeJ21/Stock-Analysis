@@ -13,6 +13,9 @@ sources:
       - revenue
       - shares_outstanding
       - filing_dates
+      - operating_income
+      - cash_from_operations
+      - capital_expenditures
     fallback_priority: 1
   - source_id: yfinance
     display_name: yfinance / Yahoo Finance

@@ -331,13 +331,16 @@ def test_q4_without_explicit_filed_quarter_is_rejected_before_acceptance():
         _observation("2025-Q4", q4_evidence_state="not_q4")
 
 
-def test_checked_in_sec_rights_do_not_silently_claim_component_support():
+def test_checked_in_sec_rights_explicitly_support_reviewed_cash_components():
     rows = [
         _observation(
             metric=row.metric,
             value=row.value,
             source="sec_companyfacts",
-            source_ref=f"sec:{row.fiscal_period}:{row.metric}",
+            source_ref=(
+                "https://www.sec.gov/Archives/edgar/data/1/example.htm"
+                f"#{row.metric}"
+            ),
         )
         for row in _complete_rows()
     ]
@@ -348,10 +351,11 @@ def test_checked_in_sec_rights_do_not_silently_claim_component_support():
         rights_registry=load_source_rights_registry(),
     )
 
-    assert result.blockers == (
-        "source_fields_missing:capital_expenditures,cash_from_operations,operating_income",
-    )
-    assert result.status == "blocked"
+    assert result.status == "accepted_for_review"
+    assert result.blockers == ()
+    assert result.rights_status == "approved"
+    assert result.production_activation is False
+    assert result.readiness_promotions == ()
 
 
 def test_adapter_acceptance_module_has_no_file_network_or_cli_surface():
