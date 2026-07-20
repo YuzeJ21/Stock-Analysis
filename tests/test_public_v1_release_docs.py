@@ -661,8 +661,11 @@ def test_quarterly_cash_generation_docs_preserve_no_file_and_market_maturity_bou
     assert "no new data file, writer, template, or generated artifact" in provenance
     assert "reviewed quarterly source adapter" in personal_mode
     assert "methodology maturity" in roadmap
-    assert "does not prove real-company coverage or market validation" in roadmap
-    assert "Quarterly cash-generation source adapter: `external_source_and_review_required`" in prompt
+    assert "does not prove broad real-company coverage or market validation" in roadmap
+    assert (
+        "Quarterly cash-generation source adapter: `one_company_source_preview_accepted_for_review`"
+        in prompt
+    )
     assert "no supplemental data file" in prompt
 
 
@@ -678,7 +681,8 @@ def test_quarterly_adapter_acceptance_docs_keep_review_and_activation_separate()
     assert "readiness_promotions=()" in provenance
     assert "no adapter file is loaded or written" in personal_mode
     assert "one-company adapter acceptance harness" in roadmap
-    assert "does not prove a real-company source payload" in roadmap
+    assert "now prove one real-company source payload" in roadmap
+    assert "They do **not** prove production activation" in roadmap
     assert "Quarterly adapter acceptance" in prompt
     assert "accepted_for_review" in prompt
 
@@ -837,3 +841,21 @@ def test_research_comparison_docs_preserve_non_ranking_boundary():
     assert "never calculates a score or winner" in methodology
     assert "Research Comparison Contract" in provenance
     assert "candidate peer context cannot satisfy trusted-peer readiness" in provenance
+
+
+def test_sec_cash_generation_pilot_docs_preserve_review_boundary():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    strategy = _read("docs/DATA_STRATEGY.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "explicit_filed_table_outflow" in methodology
+    assert "acceptanceDateTime" in provenance
+    assert "sec_companyfacts" in strategy
+    assert "accepted_for_review is not production activation" in personal
+    assert "NVIDIA Q1 FY2027" in roadmap
+    assert "does not activate Company Workbench" in roadmap
+    assert "sec-quarterly-cash-preview" in prompt
+    assert "do not repeat the NVIDIA pilot" in prompt

@@ -66,6 +66,12 @@ At phone width, the compact profile context keeps Data profile, Sources through,
 
 This mobile first-action density improvement does not change readiness, source dates, coverage, evidence, forecasts, valuation, or research conclusions. Desktop profile and route metadata remain unchanged. Company Workbench keeps the complete review path available through the same collapsed disclosure at desktop and phone widths.
 
+## SEC Quarterly Cash-Generation Pilot
+
+The read-only NVIDIA Q1 FY2027 pilot proves that one exact SEC accession can supply compatible Revenue, operating income, cash from operations, and explicitly signed capital expenditures for adapter review. Run `make sec-quarterly-cash-preview AS_OF=<timezone-aware-cutoff>` only when `SEC_USER_AGENT` is configured. The command fetches three exact SEC endpoints in memory and writes no cache or generated artifact.
+
+Its success state is deliberately narrow: **accepted_for_review is not production activation**. Company Workbench continues to withhold real-company operating margin, free cash flow, and FCF margin until a separate activation review connects compatible observations. The pilot does not change saved readiness, Earnings Nowcast, consensus, valuation, catalysts, outcomes, backtesting, calibration, or another company or quarter.
+
 ## Repeated Review Routine
 
 - **Daily or after a source refresh:** open Research Desk, review traceable changes, then use Monitor for unresolved source tasks.
