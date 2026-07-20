@@ -9,6 +9,16 @@ from src.catalyst_evidence_timeline import (
     load_catalyst_events,
     preview_event,
 )
+from src.commercial_source_rights import SourceRights
+
+
+def _registry(*supported_fields: str):
+    return {
+        "company_ir": SourceRights(
+            "company_ir", "Company IR", "evidence", "approved", "derived_only",
+            "reviewed", "required", "n/a", "none", "reviewed", supported_fields, 1,
+        )
+    }
 
 
 def _event(**overrides) -> CatalystEvent:
@@ -89,3 +99,29 @@ def test_same_underlying_event_cannot_be_duplicated_under_a_new_id():
     duplicate = preview_event(_event(event_id="event-002"), existing=(_event(),))
     assert duplicate.state == "rejected"
     assert "duplicate catalyst evidence" in duplicate.reason
+
+
+def test_commercial_supported_catalyst_requires_exact_source_lane_scope():
+    blocked = build_catalyst_timeline(
+        (_event(),),
+        profile_key="default",
+        ticker="NVDA",
+        as_of="2026-07-18T06:00:00Z",
+        commercial_mode=True,
+        rights_registry=_registry("earnings_dates"),
+    )
+    supported = build_catalyst_timeline(
+        (_event(),),
+        profile_key="default",
+        ticker="NVDA",
+        as_of="2026-07-18T06:00:00Z",
+        commercial_mode=True,
+        rights_registry=_registry("catalyst_evidence"),
+    )
+
+    assert blocked.state == "blocked"
+    assert blocked.upcoming == ()
+    assert blocked.commercial_blocker_count == 1
+    assert "catalyst_evidence" in blocked.commercial_blockers[0]
+    assert supported.state == "supported"
+    assert [row.event_id for row in supported.upcoming] == ["event-001"]

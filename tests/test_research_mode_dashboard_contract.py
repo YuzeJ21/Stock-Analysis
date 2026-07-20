@@ -508,3 +508,15 @@ def test_new_evidence_loaders_fail_closed_on_invalid_local_ledgers(tmp_path, mon
     assert valuation.state == "insufficient_history"
     assert outcome.state == "not_started"
     assert catalyst.state == "blocked"
+
+
+def test_optional_dashboard_evidence_loaders_enable_commercial_composition():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    valuation_start = source.index("def load_dashboard_valuation_regime(")
+    outcome_start = source.index("def load_dashboard_outcome_status(", valuation_start)
+    catalyst_start = source.index("def load_dashboard_catalyst_timeline(", outcome_start)
+    scenario_start = source.index("def scenario_lab_input_from_report(", catalyst_start)
+
+    assert "commercial_mode=True" in source[valuation_start:outcome_start]
+    assert "commercial_mode=True" in source[outcome_start:catalyst_start]
+    assert "commercial_mode=True" in source[catalyst_start:scenario_start]

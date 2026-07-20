@@ -9,6 +9,17 @@ from src.research_outcome_review import (
     load_outcomes,
     preview_outcome,
 )
+from src.commercial_source_rights import SourceRights
+
+
+def _registry(*supported_fields: str):
+    return {
+        "reviewed_research_record": SourceRights(
+            "reviewed_research_record", "Research Record", "evidence", "approved",
+            "derived_only", "reviewed", "required", "n/a", "none", "reviewed",
+            supported_fields, 1,
+        )
+    }
 
 
 def _outcome(**overrides) -> ResearchOutcome:
@@ -81,3 +92,27 @@ def test_same_underlying_outcome_cannot_be_duplicated_under_a_new_id():
     duplicate = preview_outcome(_outcome(outcome_id="outcome-002"), existing=(_outcome(),))
     assert duplicate.state == "rejected"
     assert "duplicate outcome evidence" in duplicate.reason
+
+
+def test_commercial_reviewed_outcome_requires_exact_source_lane_scope():
+    blocked = derive_outcome_status(
+        (_outcome(),),
+        profile_key="default",
+        ticker="NVDA",
+        commercial_mode=True,
+        rights_registry=_registry("catalyst_evidence"),
+    )
+    reviewed = derive_outcome_status(
+        (_outcome(),),
+        profile_key="default",
+        ticker="NVDA",
+        commercial_mode=True,
+        rights_registry=_registry("research_outcomes"),
+    )
+
+    assert blocked.state == "commercial_evidence_blocked"
+    assert blocked.review_count == 0
+    assert blocked.commercial_blocker_count == 1
+    assert "research_outcomes" in blocked.commercial_blockers[0]
+    assert reviewed.state == "reviewed"
+    assert reviewed.review_count == 1

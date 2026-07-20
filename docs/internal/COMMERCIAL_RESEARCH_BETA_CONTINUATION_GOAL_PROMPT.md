@@ -32,7 +32,7 @@ Expected lineage to verify, never assume:
 
 - Branch: `codex/personal-research-mode-mvp`.
 - Draft PR: https://github.com/YuzeJ21/Stock-Analysis/pull/113.
-- Evidence-quality lineage anchor: commit `0ede3aa62` or a later verified descendant.
+- Evidence-quality lineage anchor: commit `7ba5e7612` or a later verified descendant.
 - No-write readiness-preview lineage anchor: commit `1f72a6d90` or a later verified descendant.
 - Stale readiness continuation gate lineage anchor: commit `54f3977d7` or a later verified descendant.
 - Readiness promotion evidence lineage anchor: commit `5e6e01d1a` or a later verified descendant.
@@ -120,6 +120,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Daily-price temporal passage proves only conservative local ordering against one supplied cutoff. It does not establish exchange close, provider publication time, payload correctness, source rights, reviewer approval, canonical freshness, readiness, or safe concurrent operation. Atomic replacement narrows partial-file risk only; backup plus replace is not a database transaction or crash-recovery system.
 - Cohort saved-row, adjusted-price, or quarterly metric scope passage is display eligibility for one exact lane only. It cannot validate the payload or retrieval chronology, approve a source, repair rejected rows, resolve revisions, verify EPS split basis, establish Q4 proof, change readiness, activate consensus or nowcast, promote a peer role, or grant another lane.
 - Canonical quarterly dashboard consumption is whole-ledger fail-closed: any rejected CSV row blocks accepted-subset Business Trend and focused-cohort quarterly packets. Row-numbered reasons remain under Advanced; no rejected row is repaired, inferred, or promoted.
+- Non-empty historical valuation, supported catalyst, and reviewed outcome packets require approved rights for every exact source plus literal `valuation_history`, `catalyst_evidence`, or `research_outcomes` scope in Commercial Research composition. One failed row blocks that scoped result; research-mode review stays independent and empty ledgers remain empty.
 - Consensus commercial-guard passage is not point-in-time evidence activation. Technical append eligibility, commercial rights, Revenue scope, EPS scope, payload review, historical availability, comparability, nowcast readiness, backtesting, and calibration remain independent. The checked-in registry currently has no approved prospective-consensus source or consensus scope, and temporary fixtures cannot change that state.
 - Consensus batch preflight is not a database transaction, concurrent-writer lock, crash-recovery mechanism, scheduler, or evidence source. It aligns deterministic preview and record decisions only; it cannot supply or approve a provider, repair lineage, reorder revisions, change rights, create readiness, or satisfy calibration.
 - Consensus preview receipts prove only that the exact locally reviewed cutoff, mode, input bytes-as-records, and saved ledger state were re-evaluated consistently. Any change requires a fresh preview; a matching receipt does not prove payload truth, publication availability, rights, reviewer judgment, readiness, backtesting, calibration, or safe concurrent operation.

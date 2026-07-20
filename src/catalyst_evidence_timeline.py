@@ -7,8 +7,13 @@ import csv
 from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 
+from src.commercial_source_rights import (
+    SourceRights,
+    load_source_rights_registry,
+    review_commercial_field_scope,
+)
 from src.earnings_nowcast_contract import parse_utc_timestamp
 
 
@@ -52,6 +57,8 @@ class CatalystTimeline:
     upcoming: tuple[CatalystEvent, ...]
     recent: tuple[CatalystEvent, ...]
     rejected_count: int
+    commercial_blocker_count: int
+    commercial_blockers: tuple[str, ...]
     boundary: str
 
 
@@ -140,10 +147,13 @@ def build_catalyst_timeline(
     ticker: str,
     as_of: str,
     recent_days: int = 90,
+    commercial_mode: bool = False,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> CatalystTimeline:
     cutoff = parse_utc_timestamp(as_of, label="timeline cutoff")
     accepted: list[CatalystEvent] = []
     rejected = 0
+    commercial_blockers: list[str] = []
     for row in rows:
         if row.profile_key != profile_key or row.ticker.upper() != ticker.upper():
             continue
@@ -155,6 +165,30 @@ def build_catalyst_timeline(
     upcoming = tuple(sorted((row for row in accepted if parse_utc_timestamp(row.effective_at) >= cutoff), key=lambda row: parse_utc_timestamp(row.effective_at)))
     recent_boundary = cutoff - timedelta(days=recent_days)
     recent = tuple(sorted((row for row in accepted if recent_boundary <= parse_utc_timestamp(row.effective_at) < cutoff), key=lambda row: parse_utc_timestamp(row.effective_at), reverse=True))
+    if commercial_mode and (upcoming or recent):
+        registry = rights_registry if rights_registry is not None else load_source_rights_registry()
+
+        def commercially_visible(events: tuple[CatalystEvent, ...]) -> tuple[CatalystEvent, ...]:
+            visible: list[CatalystEvent] = []
+            for row in events:
+                if row.evidence_state != "supported":
+                    visible.append(row)
+                    continue
+                review = review_commercial_field_scope(
+                    registry, row.source, ("catalyst_evidence",)
+                )
+                if review.commercial_evidence_ready:
+                    visible.append(row)
+                    continue
+                missing = ", ".join(review.missing_supported_fields) or "catalyst_evidence"
+                commercial_blockers.append(
+                    f"{row.event_id}: exact source {row.source or '-'} is {review.rights_status}; "
+                    f"registered scope missing: {missing}"
+                )
+            return tuple(visible)
+
+        upcoming = commercially_visible(upcoming)
+        recent = commercially_visible(recent)
     visible = (*upcoming, *recent)
     state = "supported" if any(row.evidence_state == "supported" for row in visible) else "candidate_context_only" if visible else "blocked"
     return CatalystTimeline(
@@ -163,6 +197,8 @@ def build_catalyst_timeline(
         upcoming=upcoming,
         recent=recent,
         rejected_count=rejected,
+        commercial_blocker_count=len(commercial_blockers),
+        commercial_blockers=tuple(commercial_blockers),
         boundary="Catalyst evidence is research context only and cannot change forecasts, valuation inputs, readiness, or recommendations.",
     )
 
@@ -170,7 +206,11 @@ def build_catalyst_timeline(
 def catalyst_timeline_cards(packet: CatalystTimeline) -> list[dict[str, object]]:
     if packet.state == "blocked":
         title = "No cutoff-safe catalyst evidence is available"
-        body = "Add a reviewed source reference and publication, retrieval, and effective timestamps before showing an event."
+        body = (
+            f"{packet.commercial_blocker_count} supported event(s) lack approved exact-source rights or registered catalyst-evidence scope."
+            if packet.commercial_blocker_count
+            else "Add a reviewed source reference and publication, retrieval, and effective timestamps before showing an event."
+        )
     else:
         title = f"{len(packet.upcoming)} upcoming and {len(packet.recent)} recent reviewed event(s)"
         body = packet.boundary

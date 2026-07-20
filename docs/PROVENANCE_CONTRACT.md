@@ -73,6 +73,8 @@ A multi-row prospective input is one ordered review batch. Preview builds a virt
 
 Historical valuation observations preserve the numerator timestamp, denominator period end, denominator availability timestamp, metric definition ID, retrieval time, and source reference. A denominator unavailable at the historical price timestamp is rejected. Definition changes create separate history segments instead of a mixed regime.
 
+Commercial Research historical valuation, supported catalyst events, and reviewed research outcomes add a separate exact-source eligibility boundary. Every used row must have approved rights and literal `valuation_history`, `catalyst_evidence`, or `research_outcomes` scope respectively. Permission is never inferred across sources or lanes. Any failed row withholds the scoped supported/reviewed result while preserving a blocker reason under Advanced. Research-mode technical review remains independent, candidate catalyst rows remain candidate-only, and empty ledgers remain empty.
+
 Research outcome and catalyst ledgers are append-only reviewed evidence. Outcomes retain the original thesis entry, observation window, review time, source, and learning; they contain no return or skill score. Catalysts retain publication, retrieval, effective time, event type, evidence state, and reviewer. Neither ledger mutates source data, readiness, forecasts, probabilities, DCF assumptions, or recommendations.
 
 ## Freshness Rules

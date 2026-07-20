@@ -5805,6 +5805,7 @@ def load_dashboard_valuation_regime(ticker: str, *, as_of: str | None = None):
         ticker=ticker,
         metric="price_to_fcf_per_share",
         as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+        commercial_mode=True,
     )
 
 
@@ -5819,6 +5820,7 @@ def load_dashboard_outcome_status(context: ProfileContext, *, ticker: str):
         outcomes,
         profile_key=context.profile_key,
         ticker=ticker,
+        commercial_mode=True,
     )
 
 
@@ -5834,6 +5836,7 @@ def load_dashboard_catalyst_timeline(context: ProfileContext, *, ticker: str, as
         profile_key=context.profile_key,
         ticker=ticker,
         as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+        commercial_mode=True,
     )
 
 
@@ -30333,6 +30336,12 @@ def render_single_stock_report(
                             width="stretch",
                             hide_index=True,
                         )
+                    if valuation_regime.commercial_blockers:
+                        st.dataframe(
+                            pd.DataFrame({"Commercial blocker": list(valuation_regime.commercial_blockers)}),
+                            width="stretch",
+                            hide_index=True,
+                        )
                     st.caption(valuation_regime.boundary)
                 st.markdown("### Forward View")
                 render_signal_cards(forward_view_cards(forward_view_packet), show_commands=False, variant="queue")
@@ -30342,6 +30351,12 @@ def render_single_stock_report(
                     if catalyst_timeline.upcoming or catalyst_timeline.recent:
                         st.dataframe(
                             pd.DataFrame([asdict(row) for row in (*catalyst_timeline.upcoming, *catalyst_timeline.recent)]),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    if catalyst_timeline.commercial_blockers:
+                        st.dataframe(
+                            pd.DataFrame({"Commercial blocker": list(catalyst_timeline.commercial_blockers)}),
                             width="stretch",
                             hide_index=True,
                         )
@@ -30406,6 +30421,12 @@ def render_single_stock_report(
                 )
             else:
                 st.caption("No verified journal history is available for this selected profile and ticker.")
+            if outcome_status.commercial_blockers:
+                st.dataframe(
+                    pd.DataFrame({"Commercial blocker": list(outcome_status.commercial_blockers)}),
+                    width="stretch",
+                    hide_index=True,
+                )
         with st.expander("Decision-process scorecard", expanded=False):
             if journal_state is None:
                 st.caption("The decision-process checks remain unavailable until the selected-profile journal can be verified.")

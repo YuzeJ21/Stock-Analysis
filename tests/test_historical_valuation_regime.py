@@ -1,6 +1,17 @@
 from dataclasses import replace
 
 from src.historical_valuation_regime import ValuationObservation, build_valuation_regime
+from src.commercial_source_rights import SourceRights
+
+
+def _registry(*supported_fields: str):
+    return {
+        "reviewed_local_evidence": SourceRights(
+            "reviewed_local_evidence", "Reviewed", "evidence", "approved",
+            "derived_only", "reviewed", "required", "n/a", "none", "reviewed",
+            supported_fields, 1,
+        )
+    }
 
 
 def _observation(index: int, **overrides) -> ValuationObservation:
@@ -78,3 +89,31 @@ def test_definition_change_splits_history_and_does_not_mix_regimes():
     assert packet.state == "insufficient_history"
     assert packet.observation_count == 4
     assert packet.definition_id == "forward_fcf_per_share_v2"
+
+
+def test_commercial_valuation_requires_exact_source_lane_scope():
+    rows = tuple(_observation(index) for index in range(8))
+
+    blocked = build_valuation_regime(
+        rows,
+        ticker="NVDA",
+        metric="price_to_fcf_per_share",
+        as_of="2025-09-01T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=_registry("revenue"),
+    )
+    ready = build_valuation_regime(
+        rows,
+        ticker="NVDA",
+        metric="price_to_fcf_per_share",
+        as_of="2025-09-01T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=_registry("valuation_history"),
+    )
+
+    assert blocked.state == "commercial_evidence_blocked"
+    assert blocked.observation_count == 0
+    assert blocked.commercial_blocker_count == 8
+    assert "valuation_history" in blocked.commercial_blockers[0]
+    assert ready.state == "ready"
+    assert ready.observation_count == 8

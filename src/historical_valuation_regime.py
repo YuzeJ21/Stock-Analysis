@@ -6,8 +6,13 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
-from typing import Iterable
+from typing import Iterable, Mapping
 
+from src.commercial_source_rights import (
+    SourceRights,
+    load_source_rights_registry,
+    review_commercial_field_scope,
+)
 from src.earnings_nowcast_contract import parse_utc_timestamp
 
 
@@ -43,6 +48,8 @@ class ValuationRegimePacket:
     freshness_state: str
     rejected_reasons: tuple[str, ...]
     source_refs: tuple[str, ...]
+    commercial_blocker_count: int
+    commercial_blockers: tuple[str, ...]
     boundary: str
 
 
@@ -102,6 +109,8 @@ def build_valuation_regime(
     as_of: str,
     minimum_observations: int = 8,
     stale_after_days: int = 120,
+    commercial_mode: bool = False,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> ValuationRegimePacket:
     symbol = str(ticker or "").strip().upper()
     metric_name = str(metric or "").strip().lower()
@@ -122,6 +131,7 @@ def build_valuation_regime(
         return ValuationRegimePacket(
             symbol, metric_name, "insufficient_history", "", 0, len(rejected), 0,
             None, None, None, None, None, "stale_or_unknown", tuple(rejected), (),
+            0, (),
             "Historical valuation is withheld until aligned point-in-time observations exist; current denominators are never backfilled over old prices.",
         )
     latest_definition = max(
@@ -129,6 +139,27 @@ def build_valuation_regime(
         key=lambda definition: max(parse_utc_timestamp(row.numerator_as_of) for row in segments[definition]),
     )
     active = sorted(segments[latest_definition], key=lambda row: parse_utc_timestamp(row.numerator_as_of))
+    commercial_blockers: list[str] = []
+    if commercial_mode:
+        registry = rights_registry if rights_registry is not None else load_source_rights_registry()
+        for row in active:
+            review = review_commercial_field_scope(
+                registry, row.source, ("valuation_history",)
+            )
+            if not review.commercial_evidence_ready:
+                missing = ", ".join(review.missing_supported_fields) or "valuation_history"
+                commercial_blockers.append(
+                    f"{row.source_ref}: exact source {row.source or '-'} is {review.rights_status}; "
+                    f"registered scope missing: {missing}"
+                )
+    if commercial_blockers:
+        return ValuationRegimePacket(
+            symbol, metric_name, "commercial_evidence_blocked", latest_definition,
+            0, len(rejected), len(segments), None, None, None, None, None,
+            "stale_or_unknown", tuple(rejected), (), len(commercial_blockers),
+            tuple(commercial_blockers),
+            "Historical valuation is withheld until every used row has approved exact-source rights and registered valuation_history scope.",
+        )
     multiples = [row.numerator / row.denominator for row in active]
     latest = multiples[-1]
     percentile = round(sum(value <= latest for value in multiples) / len(multiples) * 100.0, 2)
@@ -151,12 +182,20 @@ def build_valuation_regime(
         freshness_state="current" if age_days <= stale_after_days else "stale",
         rejected_reasons=tuple(rejected),
         source_refs=tuple(row.source_ref for row in active),
+        commercial_blocker_count=0,
+        commercial_blockers=(),
         boundary="This is descriptive point-in-time valuation context, not a cheap/expensive label, forecast, recommendation, or action.",
     )
 
 
 def valuation_regime_cards(packet: ValuationRegimePacket) -> list[dict[str, object]]:
-    if packet.state != "ready":
+    if packet.state == "commercial_evidence_blocked":
+        title = "Historical valuation commercial evidence is blocked"
+        body = (
+            f"{packet.commercial_blocker_count} observation(s) lack approved exact-source "
+            "rights or registered valuation-history scope. Technical rows cannot override that gate."
+        )
+    elif packet.state != "ready":
         title = "Historical valuation context is withheld"
         body = (
             f"{packet.observation_count} compatible point-in-time observation(s) are available in the latest definition segment. "

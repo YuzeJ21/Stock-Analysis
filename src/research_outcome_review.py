@@ -6,8 +6,13 @@ import argparse
 import csv
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 
+from src.commercial_source_rights import (
+    SourceRights,
+    load_source_rights_registry,
+    review_commercial_field_scope,
+)
 from src.earnings_nowcast_contract import parse_utc_timestamp
 
 
@@ -53,6 +58,8 @@ class OutcomeStatus:
     latest_outcome_state: str
     latest_learning: str
     next_action: str
+    commercial_blocker_count: int
+    commercial_blockers: tuple[str, ...]
 
 
 def _validation_error(row: ResearchOutcome, existing: Iterable[ResearchOutcome]) -> str:
@@ -136,14 +143,35 @@ def append_reviewed_outcome(path: Path | str, row: ResearchOutcome, *, confirm_r
 
 
 def derive_outcome_status(
-    rows: Iterable[ResearchOutcome], *, profile_key: str, ticker: str
+    rows: Iterable[ResearchOutcome], *, profile_key: str, ticker: str,
+    commercial_mode: bool = False,
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> OutcomeStatus:
     scoped = sorted(
         (row for row in rows if row.profile_key == profile_key and row.ticker.upper() == ticker.upper()),
         key=lambda row: parse_utc_timestamp(row.reviewed_at),
     )
     if not scoped:
-        return OutcomeStatus("not_started", 0, "", "", "Record an outcome only after the observation window closes and evidence is reviewed.")
+        return OutcomeStatus("not_started", 0, "", "", "Record an outcome only after the observation window closes and evidence is reviewed.", 0, ())
+    commercial_blockers: list[str] = []
+    if commercial_mode:
+        registry = rights_registry if rights_registry is not None else load_source_rights_registry()
+        for row in scoped:
+            review = review_commercial_field_scope(
+                registry, row.source, ("research_outcomes",)
+            )
+            if not review.commercial_evidence_ready:
+                missing = ", ".join(review.missing_supported_fields) or "research_outcomes"
+                commercial_blockers.append(
+                    f"{row.outcome_id}: exact source {row.source or '-'} is {review.rights_status}; "
+                    f"registered scope missing: {missing}"
+                )
+    if commercial_blockers:
+        return OutcomeStatus(
+            "commercial_evidence_blocked", 0, "", "",
+            "Review exact-source rights and registered research_outcomes scope before using this learning record.",
+            len(commercial_blockers), tuple(commercial_blockers),
+        )
     latest = scoped[-1]
     return OutcomeStatus(
         "reviewed",
@@ -151,6 +179,8 @@ def derive_outcome_status(
         latest.outcome_state,
         latest.learning,
         "Use the recorded learning when the thesis is next reviewed.",
+        0,
+        (),
     )
 
 
@@ -158,6 +188,12 @@ def outcome_status_cards(status: OutcomeStatus) -> list[dict[str, object]]:
     if status.state == "not_started":
         title = "No research outcome review is due yet"
         body = status.next_action
+    elif status.state == "commercial_evidence_blocked":
+        title = "Research outcome commercial evidence is blocked"
+        body = (
+            f"{status.commercial_blocker_count} outcome row(s) lack approved exact-source "
+            "rights or registered research-outcomes scope."
+        )
     else:
         title = f"Latest reviewed outcome: {status.latest_outcome_state.replace('_', ' ')}"
         body = f"{status.review_count} reviewed learning record(s). Latest learning: {status.latest_learning}"

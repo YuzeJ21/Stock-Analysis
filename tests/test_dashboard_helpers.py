@@ -33702,6 +33702,22 @@ def test_company_workbench_cash_generation_uses_no_supplemental_file_and_keeps_e
     assert "cash-generation-report" not in makefile
 
 
+def test_optional_commercial_evidence_blockers_stay_under_advanced_surfaces():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    valuation = render_source.index('st.expander("Advanced: historical valuation evidence", expanded=False)')
+    valuation_blockers = render_source.index("valuation_regime.commercial_blockers", valuation)
+    forward = render_source.index('st.expander("Advanced: Forward View evidence", expanded=False)')
+    catalyst_blockers = render_source.index("catalyst_timeline.commercial_blockers", forward)
+    thesis = render_source.index('st.expander("Advanced: thesis and evidence history", expanded=False)')
+    outcome_blockers = render_source.index("outcome_status.commercial_blockers", thesis)
+
+    assert valuation < valuation_blockers < forward < catalyst_blockers < thesis < outcome_blockers
+
+
 def test_scenario_lab_input_from_report_preserves_source_backed_fields():
     payload = {
         "ticker": "SYN1",
