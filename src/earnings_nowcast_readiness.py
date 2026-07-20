@@ -4,16 +4,17 @@ from dataclasses import asdict, dataclass
 from typing import Iterable, Sequence
 
 from src.earnings_nowcast_contract import (
+    COMPANYFACTS_SPLIT_BASIS_UNVERIFIED,
     ConsensusSnapshot,
     FreshnessState,
     NowcastState,
     QuarterlyActual,
+    eps_split_basis_verified,
     parse_utc_timestamp,
 )
 
 
 EXCLUDED_ASSET_TYPES = {"etf", "index", "fund", "mutual_fund"}
-COMPANYFACTS_SPLIT_BASIS_UNVERIFIED = "companyfacts_split_basis_unverified"
 
 
 @dataclass(frozen=True)
@@ -193,7 +194,7 @@ def canonicalize_actuals(
                     row
                     for row in compatible
                     if not consensus_unverified
-                    and row.split_adjustment_basis != COMPANYFACTS_SPLIT_BASIS_UNVERIFIED
+                    and eps_split_basis_verified(row.split_adjustment_basis)
                 ]
             if not compatible:
                 incompatible[metric].append(period)

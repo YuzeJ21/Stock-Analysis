@@ -45,6 +45,7 @@ Expected lineage to verify, never assume:
 - Cohort saved-row field-scope enforcement design/plan anchor: commit `474445d17` or a later verified descendant.
 - Cohort adjusted-price history scope design/plan anchor: commit `e466d083f` or a later verified descendant.
 - Cohort quarterly Revenue/EPS field-scope design/plan anchor: commit `20f973f62` or a later verified descendant.
+- EPS split-basis downstream enforcement design/plan anchor: commit `dc7ed7c18` or a later verified descendant.
 - Prospective consensus source-rights guard design/plan anchor: commit `9b15fafac` or a later verified descendant.
 - Prospective consensus batch-preflight design/plan anchor: commit `b2d5f85fe` or a later verified descendant.
 - Consensus source-validation rights design/plan anchor: commit `d03cd572f` or a later verified descendant.
@@ -79,6 +80,7 @@ Current locally implemented capabilities to verify:
 - Field-specific focused-cohort saved-row review: margins, free cash flow, cash, debt, shares, filing dates, earnings dates, populated Revenue/EPS consensus, and every trusted-peer row keep technical availability, provenance, exact-source rights, and literal registered scope independent. Cash/debt and Revenue/EPS consensus cannot borrow sibling permission; candidate peers remain context-only and blockers stay under Advanced.
 - Focused-cohort adjusted-price review: saved price readiness is necessary but not sufficient in Commercial Research mode; every retained canonical history row needs technical date/positive-close validity, exact `source`/`source_ref`/`retrieved_at` provenance, approved exact-source rights, and registered `prices` scope. Mixed or unlined history fails closed.
 - Focused-cohort quarterly Revenue/EPS review: technical trend state is conjunctive with a metric-specific review of every populated accepted canonical row. Exact source/reference/retrieval provenance, approved rights, and literal `revenue` or `eps` scope remain independent; one mixed or unapproved row blocks only its metric, SEC Companyfacts Revenue scope cannot unlock EPS, and Research mode retains packet behavior.
+- Central EPS split-basis sentinel enforcement: `companyfacts_split_basis_unverified` EPS observations cannot enter Business Trend values/comparisons, commercial cohort EPS usability, target or prior-year backtest outcomes, or consensus EPS benchmark math. Mixed verified/unverified trend history remains partial with named withheld periods, EPS-only sentinel targets are excluded, and Revenue remains independent.
 - Prospective consensus source-rights guard: preview keeps append-only technical validity, exact-source rights, and required `revenue_consensus` / `eps_consensus` scope independent; explicit Commercial Research mode blocks before ledger or directory mutation when rights or populated-metric scope is incomplete, while ordinary research mode retains explicit reviewed append compatibility.
 - Prospective consensus whole-batch preflight: preview and record simulate rows in supplied order against saved plus earlier technically reviewable evidence, reject empty or technically invalid batches before mutation, apply the commercial conjunction only in explicit Commercial Research mode, and append a valid batch through one handle. Deterministic later rejections cannot leave partial proposed rows.
 - Registry-derived consensus source validation: caller labels cannot grant rights; technically accepted rows retain independent candidate or historical-reviewable state while exact-source commercial rights and each populated Revenue/EPS scope come only from the checked-in registry. Invalid rows do not enter commercial-ready counts, and composite provider IDs remain unknown.
@@ -97,7 +99,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Research-only; no investment advice, broker integration, order routing, auto-trading, direct buy/sell instructions, or post-earnings price prediction.
 - Real-company Earnings Nowcast remains blocked until compatible quarterly actuals and exact-period point-in-time consensus independently pass.
 - Numerical Beat/Miss probability remains withheld until at least 100 valid leakage-safe events pass Brier-score, calibration-bin, and benchmark-improvement gates.
-- EPS split basis remains unverified without explicit primary proof.
+- EPS split basis remains unverified without explicit primary proof. The Companyfacts unverified sentinel must remain blocked from display comparisons, model eligibility, backtest outcomes, and benchmark math; matching sentinel labels or commercial field scope are not proof.
 - Q4 actuals require explicit SEC-filed Q4 result-table evidence; do not derive Q4.
 - Synthetic fixtures are test-only.
 - Empty valuation, catalyst, outcome, and consensus ledgers remain visibly empty.

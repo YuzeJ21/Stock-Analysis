@@ -8,12 +8,13 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
 
-from src.earnings_nowcast_contract import ConsensusSnapshot, QuarterlyActual
-from src.earnings_nowcast_onboarding import validate_onboarding
-from src.earnings_nowcast_readiness import (
-    COMPANYFACTS_SPLIT_BASIS_UNVERIFIED,
-    assess_nowcast_readiness,
+from src.earnings_nowcast_contract import (
+    ConsensusSnapshot,
+    QuarterlyActual,
+    eps_split_basis_verified,
 )
+from src.earnings_nowcast_onboarding import validate_onboarding
+from src.earnings_nowcast_readiness import assess_nowcast_readiness
 
 
 @dataclass(frozen=True)
@@ -116,7 +117,7 @@ def build_cohort_readiness(
         split_ready = bool(
             any(row.eps_actual is not None for row in ticker_actuals)
             and all(
-                row.split_adjustment_basis != COMPANYFACTS_SPLIT_BASIS_UNVERIFIED
+                eps_split_basis_verified(row.split_adjustment_basis)
                 for row in ticker_actuals
                 if row.eps_actual is not None
             )

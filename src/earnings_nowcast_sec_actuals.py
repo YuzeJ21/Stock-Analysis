@@ -14,7 +14,10 @@ from math import isfinite
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
-from src.earnings_nowcast_contract import QuarterlyActual
+from src.earnings_nowcast_contract import (
+    COMPANYFACTS_SPLIT_BASIS_UNVERIFIED,
+    QuarterlyActual,
+)
 from src.earnings_nowcast_onboarding import EVIDENCE_SCHEMA_VERSION, SCHEMAS
 from src.providers.sec_companyfacts import (
     fetch_companyfacts,
@@ -60,7 +63,6 @@ REJECTED_AUDIT_STATES = frozenset(
         "ticker_unresolved",
     )
 )
-COMPANYFACTS_SPLIT_BASIS_UNVERIFIED = "companyfacts_split_basis_unverified"
 _STAGE_OUTPUT_NAMES = frozenset(
     (
         ".sec-cache",

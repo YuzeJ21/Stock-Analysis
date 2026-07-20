@@ -240,3 +240,38 @@ def test_benchmark_non_improvement_is_an_explicit_failed_gate():
     assert report.verdict == "failed"
     assert "revenue_model_did_not_improve_consensus" in report.benchmark_failures
     assert "eps_model_did_not_improve_consensus" in report.benchmark_failures
+
+
+def test_backtest_withholds_unverified_target_and_prior_year_eps_outcomes():
+    rows = _history_with_target()
+    rows[-1] = replace(
+        rows[-1], split_adjustment_basis="companyfacts_split_basis_unverified"
+    )
+    rows[4] = replace(
+        rows[4], split_adjustment_basis="companyfacts_split_basis_unverified"
+    )
+
+    report = walk_forward_backtest(rows, _consensus(), NowcastConfig())
+    event = report.events[0]
+
+    assert event.revenue_actual == 112.0
+    assert event.eps_actual is None
+    assert event.prior_year_eps is None
+    assert report.revenue_mae is not None
+    assert report.eps_mae is None
+    assert "consensus_eps_mae" not in report.benchmark_metrics
+    assert "prior_year_eps_mae" not in report.benchmark_metrics
+
+
+def test_backtest_excludes_eps_only_target_when_split_basis_is_unverified():
+    rows = _history_with_target()
+    rows[-1] = replace(
+        rows[-1],
+        revenue_actual=None,
+        split_adjustment_basis="companyfacts_split_basis_unverified",
+    )
+
+    report = walk_forward_backtest(rows, _consensus(), NowcastConfig())
+
+    assert report.event_count == 0
+    assert report.exclusion_reasons["no_comparable_target_actual"] == 1

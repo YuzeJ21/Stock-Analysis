@@ -20,6 +20,7 @@ def _actual(
     revenue_currency: str = "USD",
     revenue_basis: str = "reported",
     eps_basis: str = "gaap",
+    split_adjustment_basis: str = "as_reported",
 ) -> QuarterlyActual:
     year = int(period[:4])
     quarter = int(period[-1])
@@ -41,7 +42,7 @@ def _actual(
         eps_basis=eps_basis,
         eps_share_basis="diluted",
         eps_operations_basis="reported",
-        split_adjustment_basis="as_reported",
+        split_adjustment_basis=split_adjustment_basis,
         supersedes_source_ref=supersedes,
     )
 
@@ -244,6 +245,60 @@ def test_quarterly_trend_withholds_incompatible_metric_definitions_and_missing_c
     assert "incompatible" in packet.revenue.withheld_reason
     assert packet.eps.sequential_change_pct is None
     assert "incompatible" in packet.eps.withheld_reason
+
+
+def test_quarterly_trend_blocks_companyfacts_unverified_eps_but_keeps_revenue():
+    packet = build_quarterly_trend_packet(
+        "SYN1",
+        [
+            _actual(
+                "2024-Q1",
+                revenue=80,
+                eps=0.8,
+                split_adjustment_basis="companyfacts_split_basis_unverified",
+            ),
+            _actual(
+                "2024-Q4",
+                revenue=100,
+                eps=1.0,
+                split_adjustment_basis="companyfacts_split_basis_unverified",
+            ),
+            _actual(
+                "2025-Q1",
+                revenue=120,
+                eps=1.2,
+                split_adjustment_basis="companyfacts_split_basis_unverified",
+            ),
+        ],
+    )
+
+    assert packet.status == "partial"
+    assert packet.revenue.status == "ready"
+    assert packet.revenue.latest_value == 120
+    assert packet.eps.status == "blocked"
+    assert packet.eps.latest_value is None
+    assert "split basis" in packet.eps.withheld_reason.lower()
+
+
+def test_quarterly_trend_never_uses_mixed_unverified_eps_periods():
+    packet = build_quarterly_trend_packet(
+        "SYN1",
+        [
+            _actual("2024-Q1", revenue=80, eps=0.8),
+            _actual("2024-Q4", revenue=100, eps=1.0),
+            _actual(
+                "2025-Q1",
+                revenue=120,
+                eps=99.0,
+                split_adjustment_basis="companyfacts_split_basis_unverified",
+            ),
+        ],
+    )
+
+    assert packet.eps.status == "partial"
+    assert packet.eps.latest_fiscal_period == "2024-Q4"
+    assert packet.eps.latest_value == 1.0
+    assert "2025-Q1" in packet.eps.withheld_reason
 
 
 def test_quarterly_trend_does_not_derive_missing_q4_or_invent_unsupported_metrics():

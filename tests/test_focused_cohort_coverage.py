@@ -19,6 +19,7 @@ def _actual(
     eps: float | None,
     *,
     source: str = "reviewed_fixture",
+    split_adjustment_basis: str = "as_reported",
 ) -> QuarterlyActual:
     year, quarter = period.split("-Q")
     return QuarterlyActual(
@@ -38,7 +39,7 @@ def _actual(
         eps_basis="gaap_diluted",
         eps_share_basis="diluted",
         eps_operations_basis="continuing",
-        split_adjustment_basis="as_reported",
+        split_adjustment_basis=split_adjustment_basis,
     )
 
 
@@ -619,6 +620,52 @@ def test_research_quarterly_coverage_keeps_packet_state_without_commercial_revie
     states = {row.lane: row.state for row in coverage.rows}
     assert states["quarterly_revenue"] == "usable_now"
     assert states["quarterly_eps"] == "usable_now"
+
+
+def test_commercial_quarterly_eps_scope_cannot_override_unverified_split_basis():
+    cohort, readiness = _cohort()
+    actuals = (
+        _actual(
+            "2024-Q1",
+            100.0,
+            1.0,
+            source="licensed_source",
+            split_adjustment_basis="companyfacts_split_basis_unverified",
+        ),
+        _actual(
+            "2024-Q4",
+            130.0,
+            1.3,
+            source="licensed_source",
+            split_adjustment_basis="companyfacts_split_basis_unverified",
+        ),
+        _actual(
+            "2025-Q1",
+            150.0,
+            1.5,
+            source="licensed_source",
+            split_adjustment_basis="companyfacts_split_basis_unverified",
+        ),
+    )
+    evidence = derive_cohort_evidence(
+        ("AAA",),
+        quarterly_actuals=actuals,
+        commercial_mode=True,
+        rights_registry=_rights_registry("revenue", "eps"),
+    )
+
+    coverage = build_focused_cohort_coverage(
+        cohort,
+        readiness,
+        quarterly_packets={"AAA": build_quarterly_trend_packet("AAA", actuals)},
+        evidence_by_ticker=evidence,
+    )
+    states = {row.lane: row.state for row in coverage.rows}
+    eps = next(row for row in coverage.rows if row.lane == "quarterly_eps")
+
+    assert states["quarterly_revenue"] == "usable_now"
+    assert states["quarterly_eps"] == "blocked"
+    assert "split basis" in eps.boundary.lower()
 
 
 def test_candidate_peer_rows_remain_candidate_context_only():

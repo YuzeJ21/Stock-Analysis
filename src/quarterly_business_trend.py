@@ -7,7 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from src.earnings_nowcast_contract import QuarterlyActual, parse_utc_timestamp
+from src.earnings_nowcast_contract import (
+    QuarterlyActual,
+    eps_split_basis_verified,
+    parse_utc_timestamp,
+)
 from src.quarterly_cash_generation import (
     QuarterlyBusinessMetricPoint,
     QuarterlyBusinessObservation,
@@ -201,19 +205,44 @@ def _metric_trend(
     value_field: str,
     definition,
 ) -> QuarterlyMetricTrend:
+    unverified_eps_periods = tuple(
+        sorted(
+            (
+                period
+                for period, row in rows_by_period.items()
+                if metric == "eps"
+                and row.eps_actual is not None
+                and not eps_split_basis_verified(row.split_adjustment_basis)
+            ),
+            key=_period_key,
+        )
+    )
     available = {
         period: row
         for period, row in rows_by_period.items()
         if getattr(row, value_field) is not None
+        and not (
+            metric == "eps"
+            and not eps_split_basis_verified(row.split_adjustment_basis)
+        )
     }
     if not available:
+        if unverified_eps_periods:
+            return _blocked_metric(
+                metric,
+                "Quarterly EPS split basis is unverified; explicit primary-source proof is required.",
+            )
         return _blocked_metric(metric, f"No explicit source-backed quarterly {metric} observation is available.")
     periods = tuple(sorted(available, key=_period_key))
     latest_period = periods[-1]
     latest = available[latest_period]
     latest_value = getattr(latest, value_field)
     missing: list[str] = []
-    withheld: list[str] = []
+    withheld: list[str] = (
+        [f"unverified EPS split basis withheld for {', '.join(unverified_eps_periods)}"]
+        if unverified_eps_periods
+        else []
+    )
 
     previous_period = _previous_period(latest_period)
     previous = available.get(previous_period)
@@ -239,7 +268,11 @@ def _metric_trend(
         if year_over_year is None:
             withheld.append("year-over-year comparison denominator is unavailable or zero")
 
-    status = "ready" if sequential is not None and year_over_year is not None else "partial"
+    status = (
+        "ready"
+        if sequential is not None and year_over_year is not None and not unverified_eps_periods
+        else "partial"
+    )
     return QuarterlyMetricTrend(
         metric=metric,
         status=status,

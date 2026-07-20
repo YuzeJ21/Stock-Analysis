@@ -5,7 +5,13 @@ import statistics
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
-from src.earnings_nowcast_contract import ConsensusSnapshot, NowcastState, QuarterlyActual, parse_utc_timestamp
+from src.earnings_nowcast_contract import (
+    ConsensusSnapshot,
+    NowcastState,
+    QuarterlyActual,
+    eps_split_basis_verified,
+    parse_utc_timestamp,
+)
 from src.earnings_nowcast_model import NowcastConfig, build_baseline_nowcast
 
 
@@ -156,6 +162,17 @@ def walk_forward_backtest(
 
     targets = sorted(actuals, key=lambda row: (row.reported_at, row.ticker, row.fiscal_period))
     for target in targets:
+        target_eps_actual = (
+            target.eps_actual
+            if eps_split_basis_verified(target.split_adjustment_basis)
+            else None
+        )
+        if target.revenue_actual is None and target_eps_actual is None:
+            exclude(
+                "no_comparable_target_actual",
+                f"{target.ticker} {target.fiscal_period}: no target metric has verified comparable evidence",
+            )
+            continue
         matching_snapshots = [
             row
             for row in consensus_snapshots
@@ -233,6 +250,17 @@ def walk_forward_backtest(
         if parse_utc_timestamp(latest_input) > parse_utc_timestamp(cutoff):
             leakage_failures.append(f"{target.ticker} {target.fiscal_period}: input after cutoff")
         prior = actual_lookup.get((target.ticker, _prior_year(target.fiscal_period)))
+        prior_year_eps = (
+            prior.eps_actual
+            if prior is not None
+            and eps_split_basis_verified(prior.split_adjustment_basis)
+            else None
+        )
+        consensus_eps = (
+            snapshot.eps_consensus
+            if eps_split_basis_verified(snapshot.split_adjustment_basis)
+            else None
+        )
         events.append(
             BacktestEvent(
                 ticker=target.ticker,
@@ -248,11 +276,11 @@ def walk_forward_backtest(
                 eps_forecast=forecast.eps_midpoint,
                 eps_low=forecast.eps_low,
                 eps_high=forecast.eps_high,
-                eps_actual=target.eps_actual,
+                eps_actual=target_eps_actual,
                 consensus_revenue=snapshot.revenue_consensus,
-                consensus_eps=snapshot.eps_consensus,
+                consensus_eps=consensus_eps,
                 prior_year_revenue=prior.revenue_actual if prior else None,
-                prior_year_eps=prior.eps_actual if prior else None,
+                prior_year_eps=prior_year_eps,
                 relative_classification=forecast.relative_classification,
             )
         )
