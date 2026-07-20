@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from src.earnings_nowcast_contract import (
+    PRIMARY_SPLIT_BASIS_UNVERIFIED,
     COMPANYFACTS_SPLIT_BASIS_UNVERIFIED,
     QuarterlyActual,
 )
@@ -412,11 +413,11 @@ def _split_adjustment_basis(document_text: str) -> str:
         text,
     )
     if not match:
-        return "as_reported"
+        return PRIMARY_SPLIT_BASIS_UNVERIFIED
     try:
         effective_date = datetime.strptime(match.group(1), "%B %d, %Y").date()
     except ValueError:
-        return "as_reported"
+        return PRIMARY_SPLIT_BASIS_UNVERIFIED
     return f"split_adjusted_{effective_date.isoformat().replace('-', '_')}"
 
 

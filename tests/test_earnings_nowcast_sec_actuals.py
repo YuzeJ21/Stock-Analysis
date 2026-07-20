@@ -9,7 +9,12 @@ from pathlib import Path
 import pytest
 
 import src.earnings_nowcast_sec_actuals as sec_actuals
-from src.earnings_nowcast_contract import ConsensusSnapshot, QuarterlyActual
+from src.earnings_nowcast_contract import (
+    PRIMARY_SPLIT_BASIS_UNVERIFIED,
+    ConsensusSnapshot,
+    QuarterlyActual,
+    eps_split_basis_verified,
+)
 from src.earnings_nowcast_readiness import assess_nowcast_readiness
 from src.earnings_nowcast_sec_actuals import (
     ExtractionAuditRow,
@@ -331,7 +336,7 @@ def test_extract_explicit_q4_actual_rejects_plural_and_numeric_annual_minus_nine
     assert "derived_q4_rejected" in {row.state for row in result.audit_rows}
 
 
-def test_extract_explicit_q4_actual_rejects_post_cutoff_but_keeps_as_reported_split_basis():
+def test_extract_explicit_q4_actual_rejects_post_cutoff_and_withholds_unproven_split_basis():
     post_cutoff = extract_explicit_q4_actual(
         "SYN1",
         Q4_EXHIBIT,
@@ -341,7 +346,7 @@ def test_extract_explicit_q4_actual_rejects_post_cutoff_but_keeps_as_reported_sp
         retrieved_at=RETRIEVED_AT,
         cutoff=CUTOFF,
     )
-    as_reported = extract_explicit_q4_actual(
+    missing_proof = extract_explicit_q4_actual(
         "SYN1",
         Q4_EXHIBIT,
         Q4_RELEASE_HTML.replace(
@@ -355,7 +360,18 @@ def test_extract_explicit_q4_actual_rejects_post_cutoff_but_keeps_as_reported_sp
 
     assert post_cutoff.rows == ()
     assert "post_cutoff_rejected" in {row.state for row in post_cutoff.audit_rows}
-    assert as_reported.rows[0].split_adjustment_basis == "as_reported"
+    malformed_proof = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        Q4_RELEASE_HTML.replace("June 7, 2024", "Smarch 99, 2024"),
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    assert missing_proof.rows[0].split_adjustment_basis == PRIMARY_SPLIT_BASIS_UNVERIFIED
+    assert malformed_proof.rows[0].split_adjustment_basis == PRIMARY_SPLIT_BASIS_UNVERIFIED
+    assert eps_split_basis_verified(missing_proof.rows[0].split_adjustment_basis) is False
 
 
 def _fact(
@@ -1546,6 +1562,67 @@ def test_explicit_filed_q4_keeps_revenue_ready_while_companyfacts_eps_is_withhel
     assert {
         row.split_adjustment_basis for row in history[1:4]
     } == {"companyfacts_split_basis_unverified"}
+
+
+def test_unproven_filed_q4_split_basis_keeps_revenue_ready_and_withholds_eps():
+    extracted = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        Q4_RELEASE_HTML.replace(
+            "All per-share amounts are retrospectively adjusted for the ten-for-one split effective June 7, 2024.",
+            "",
+        ),
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+    seed = extracted.rows[0]
+    periods = (
+        ("2024-Q1", "2024-03-31", 20.0, 0.50),
+        ("2024-Q2", "2024-06-30", 22.0, 0.55),
+        ("2024-Q3", "2024-09-30", 24.0, 0.60),
+        ("2024-Q4", "2024-12-31", 26.0, 0.65),
+        ("2025-Q1", "2025-03-31", 28.0, 0.70),
+    )
+    history = [
+        replace(
+            seed,
+            fiscal_period=period,
+            period_end_date=period_end,
+            reported_at=f"{period_end}T20:00:00Z",
+            retrieved_at=f"{period_end}T21:00:00Z",
+            revenue_actual=revenue,
+            eps_actual=eps,
+            source_ref=f"{seed.source_ref}#{period}",
+        )
+        for period, period_end, revenue, eps in periods
+    ]
+    consensus = ConsensusSnapshot(
+        ticker="SYN1",
+        fiscal_period="2025-Q2",
+        snapshot_at="2025-04-15T00:00:00Z",
+        retrieved_at="2025-04-15T01:00:00Z",
+        revenue_consensus=30.0,
+        eps_consensus=0.75,
+        source="synthetic_test_fixture",
+        source_ref="fixture:consensus:2025-Q2",
+        split_adjustment_basis=PRIMARY_SPLIT_BASIS_UNVERIFIED,
+    )
+
+    readiness = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2025-Q2",
+        as_of_timestamp="2025-04-16T00:00:00Z",
+        actuals=history,
+        consensus=[consensus],
+    )
+
+    assert readiness.revenue_ready is True
+    assert readiness.eps_ready is False
+    assert "incompatible_eps_definition" in readiness.missing_evidence
+    assert {row.split_adjustment_basis for row in history} == {
+        PRIMARY_SPLIT_BASIS_UNVERIFIED
+    }
 
 
 def test_missing_frame_keeps_uniquely_aligned_quarter():

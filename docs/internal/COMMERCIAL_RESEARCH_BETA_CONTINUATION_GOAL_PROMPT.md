@@ -32,7 +32,7 @@ Expected lineage to verify, never assume:
 
 - Branch: `codex/personal-research-mode-mvp`.
 - Draft PR: https://github.com/YuzeJ21/Stock-Analysis/pull/113.
-- Evidence-quality lineage anchor: commit `9d267041c` or a later verified descendant.
+- Evidence-quality lineage anchor: commit `781ba2481` or a later verified descendant.
 - No-write readiness-preview lineage anchor: commit `1f72a6d90` or a later verified descendant.
 - Stale readiness continuation gate lineage anchor: commit `54f3977d7` or a later verified descendant.
 - Readiness promotion evidence lineage anchor: commit `5e6e01d1a` or a later verified descendant.
@@ -63,6 +63,7 @@ Current locally implemented capabilities to verify:
 - Answer-first hierarchy on all four Personal Research routes at desktop and phone widths.
 - Mobile first-action density that keeps all five profile facts visible in two phone rows, removes only duplicated route-card freshness on phone, exposes route tasks sooner, and preserves the complete Company Workbench review path in a collapsed disclosure without changing readiness.
 - SEC quarterly actual lineage with explicit Q4-table and EPS split-basis boundaries.
+- Filed-Q4 EPS uses `primary_split_basis_unverified` when primary split language is absent or malformed; an explicit Q4 table never supplies split proof by itself. Revenue remains independent and arbitrary nonempty basis labels do not unlock EPS.
 - Earnings Nowcast readiness and five-company cohort board.
 - Prospective append-only point-in-time consensus collection contracts.
 - Historical Valuation Regime, Research Outcome Review, and Catalyst Evidence Timeline.

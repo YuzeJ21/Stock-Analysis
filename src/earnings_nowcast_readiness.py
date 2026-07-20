@@ -4,7 +4,6 @@ from dataclasses import asdict, dataclass
 from typing import Iterable, Sequence
 
 from src.earnings_nowcast_contract import (
-    COMPANYFACTS_SPLIT_BASIS_UNVERIFIED,
     ConsensusSnapshot,
     FreshnessState,
     NowcastState,
@@ -188,7 +187,7 @@ def canonicalize_actuals(
             if metric == "eps":
                 consensus_unverified = (
                     consensus is not None
-                    and consensus.split_adjustment_basis == COMPANYFACTS_SPLIT_BASIS_UNVERIFIED
+                    and not eps_split_basis_verified(consensus.split_adjustment_basis)
                 )
                 compatible = [
                     row

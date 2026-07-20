@@ -13,13 +13,26 @@ from typing import Any, Iterable
 _FISCAL_PERIOD_PATTERN = re.compile(r"^\d{4}-Q[1-4]$")
 _HEX_64_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 COMPANYFACTS_SPLIT_BASIS_UNVERIFIED = "companyfacts_split_basis_unverified"
+PRIMARY_SPLIT_BASIS_UNVERIFIED = "primary_split_basis_unverified"
 
 
 def eps_split_basis_verified(value: object) -> bool:
-    """Return false for the explicit Companyfacts unverified-basis sentinel."""
+    """Accept only declared basis states; explicit unverified sentinels fail closed."""
 
     normalized = str(value or "").strip().lower()
-    return bool(normalized) and normalized != COMPANYFACTS_SPLIT_BASIS_UNVERIFIED
+    if normalized in {
+        COMPANYFACTS_SPLIT_BASIS_UNVERIFIED,
+        PRIMARY_SPLIT_BASIS_UNVERIFIED,
+    }:
+        return False
+    if normalized in {"as_reported", "pre_split"}:
+        return True
+    return bool(
+        re.fullmatch(
+            r"(?:post_split|split_adjusted)_20\d{2}(?:_|-)\d{2}(?:_|-)\d{2}",
+            normalized,
+        )
+    )
 
 
 class NowcastState(StrEnum):
