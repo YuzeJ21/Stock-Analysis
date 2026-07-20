@@ -362,7 +362,7 @@ def test_preview_integrates_dcf_price_lineage_without_writing(tmp_path: Path, mo
                 "close": 10.0,
                 "source": "approved_prices",
                 "source_ref": "https://example.test/prices/AAA/2026-01-03",
-                "retrieved_at": "2026-01-03T23:00:00Z",
+                "retrieved_at": "2026-01-04T23:00:00Z",
             }
         ]
     ).to_csv(tmp_path / "data" / "prices.csv", index=False)
@@ -378,7 +378,12 @@ def test_preview_integrates_dcf_price_lineage_without_writing(tmp_path: Path, mo
     monkeypatch.setattr(readiness_preview, "build_ticker_readiness_report", _build)
     before = _file_manifest(tmp_path)
 
-    preview = build_readiness_impact_preview(tmp_path, top_n=5, rights_registry=_rights_registry())
+    preview = build_readiness_impact_preview(
+        tmp_path,
+        top_n=5,
+        rights_registry=_rights_registry(),
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
     rendered = render_readiness_impact_preview(preview)
 
     assert preview.dcf_price_lineage_review is not None
@@ -389,6 +394,7 @@ def test_preview_integrates_dcf_price_lineage_without_writing(tmp_path: Path, mo
     assert "DCF Price Lineage Review" in rendered
     assert "Latest price rows: usable=1, missing=0, ambiguous=0" in rendered
     assert "Price lineage: complete=1, review_required=0" in rendered
+    assert "Price retrieval timing: complete=1, review_required=0" in rendered
     assert "Registered price scope: complete=1, review_required=0" in rendered
     assert "File origin, observation date, and adapter availability are not provider provenance." in rendered
     assert "This price review changes no readiness state and does not authorize the separate rebuild." in rendered

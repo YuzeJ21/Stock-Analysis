@@ -5,6 +5,7 @@ import importlib
 import os
 import re
 import shutil
+import tempfile
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -27,6 +28,7 @@ from src.commercial_source_rights import (
 )
 from src.config import AppConfig
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.price_lineage_temporal import review_daily_price_retrieval
 from src.provider_env import load_provider_environment
 from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FMP_API_KEY_ENV, FINNHUB_API_KEY_ENV
 
@@ -1548,13 +1550,55 @@ def _serialize_price_date(value: Any) -> str:
     return timestamp.date().isoformat()
 
 
-def _serialize_retrieved_at(value: Any) -> str:
-    if pd.isna(value) or not str(value).strip():
-        return ""
-    timestamp = pd.to_datetime(value, errors="coerce", utc=True)
-    if pd.isna(timestamp):
-        return ""
-    return timestamp.isoformat()
+def _price_temporal_summary(
+    frame: pd.DataFrame,
+    *,
+    review_cutoff: str | None,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    if frame.empty:
+        return frame.copy(), {
+            "price_temporal_status": "no_valid_rows",
+            "price_temporal_complete_rows": 0,
+            "price_temporal_review_required_rows": 0,
+            "price_temporal_invalid_rows": 0,
+            "price_temporal_blocker_counts": {},
+            "price_review_cutoff": "",
+        }
+
+    reviewed = frame.copy()
+    blocker_counts: dict[str, int] = {}
+    complete_rows = 0
+    invalid_rows = 0
+    normalized_cutoff = ""
+    for index, row in reviewed.iterrows():
+        temporal = review_daily_price_retrieval(
+            row.get("date"),
+            row.get("retrieved_at"),
+            review_cutoff=review_cutoff,
+        )
+        if temporal.review_cutoff:
+            normalized_cutoff = temporal.review_cutoff
+        if not temporal.blockers:
+            complete_rows += 1
+            reviewed.at[index, "retrieved_at"] = temporal.retrieved_at
+            continue
+        reviewed.at[index, "retrieved_at"] = temporal.retrieved_at
+        if temporal.blockers != ("missing_retrieved_at",):
+            invalid_rows += 1
+        for blocker in temporal.blockers:
+            blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
+
+    required_rows = len(reviewed) - complete_rows
+    return reviewed, {
+        "price_temporal_status": (
+            "temporal_complete" if required_rows == 0 else "temporal_review_required"
+        ),
+        "price_temporal_complete_rows": complete_rows,
+        "price_temporal_review_required_rows": required_rows,
+        "price_temporal_invalid_rows": invalid_rows,
+        "price_temporal_blocker_counts": dict(sorted(blocker_counts.items())),
+        "price_review_cutoff": normalized_cutoff,
+    }
 
 
 def _price_lineage_summary(frame: pd.DataFrame) -> dict[str, Any]:
@@ -1677,7 +1721,11 @@ def _price_source_evidence_summary(
     }
 
 
-def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
+def _normalize_price_import_frame(
+    frame: pd.DataFrame,
+    *,
+    review_cutoff: str | None = None,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
     warnings: list[str] = []
     unknown_columns = sorted(set(frame.columns) - set(PRICE_IMPORT_REQUIRED_COLUMNS) - set(PRICE_IMPORT_OPTIONAL_COLUMNS) - {"adj_close"})
     if unknown_columns:
@@ -1698,6 +1746,9 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
                 "duplicate_rows": 0,
                 "affected_tickers": [],
                 **_price_lineage_summary(pd.DataFrame()),
+                **_price_temporal_summary(
+                    pd.DataFrame(), review_cutoff=review_cutoff
+                )[1],
             },
         )
 
@@ -1708,7 +1759,7 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
         if text_column in normalized.columns:
             normalized[text_column] = normalized[text_column].astype("string").str.strip()
     if "retrieved_at" in normalized.columns:
-        normalized["retrieved_at"] = normalized["retrieved_at"].apply(_serialize_retrieved_at)
+        normalized["retrieved_at"] = normalized["retrieved_at"].astype("string").fillna("").str.strip()
     if "as_of_date" in normalized.columns:
         normalized["as_of_date"] = pd.to_datetime(normalized["as_of_date"], errors="coerce", format="mixed")
     for numeric_column in ("open", "high", "low", "close", "adj_close", "volume"):
@@ -1749,6 +1800,9 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
                 "duplicate_rows": 0,
                 "affected_tickers": [],
                 **_price_lineage_summary(pd.DataFrame()),
+                **_price_temporal_summary(
+                    pd.DataFrame(), review_cutoff=review_cutoff
+                )[1],
             },
         )
 
@@ -1756,6 +1810,11 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
     if duplicate_rows:
         warnings.append(f"Deduplicated {duplicate_rows} duplicate date+ticker staged row(s), keeping the last row.")
     valid = valid.drop_duplicates(subset=["date", "ticker"], keep="last").copy()
+
+    valid, temporal_summary = _price_temporal_summary(
+        valid,
+        review_cutoff=review_cutoff,
+    )
 
     valid["date"] = valid["date"].apply(_serialize_price_date)
     if "as_of_date" in valid.columns:
@@ -1788,6 +1847,7 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
             "duplicate_rows": duplicate_rows,
             "affected_tickers": sorted(valid["ticker"].dropna().unique().tolist()),
             **lineage_summary,
+            **temporal_summary,
         },
     )
 
@@ -1798,6 +1858,7 @@ def validate_price_imports(
     data_dir: Path | None = None,
     import_dir: Path | None = None,
     rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
 ) -> dict[str, Any]:
     base_dir = resolve_project_root(base_dir)
     data_dir = resolve_data_dir(data_dir, base_dir)
@@ -1818,10 +1879,14 @@ def validate_price_imports(
             "unknown_columns": [],
             "warnings": ["No price import file found at data/imports/prices.csv."],
             **_price_lineage_summary(pd.DataFrame()),
+            **_price_temporal_summary(pd.DataFrame(), review_cutoff=review_cutoff)[1],
             **_price_source_evidence_summary(pd.DataFrame(), rights_registry),
         }
     staged_frame, read_warnings = _read_price_import(staged_path)
-    valid_frame, summary = _normalize_price_import_frame(staged_frame)
+    valid_frame, summary = _normalize_price_import_frame(
+        staged_frame,
+        review_cutoff=review_cutoff,
+    )
     return {
         **summary,
         **_price_source_evidence_summary(valid_frame, rights_registry),
@@ -1853,7 +1918,26 @@ def preview_price_import_merge(
     data_dir: Path | None = None,
     import_dir: Path | None = None,
     rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
 ) -> dict[str, Any]:
+    preview, _ = _prepare_price_import_merge(
+        base_dir,
+        data_dir=data_dir,
+        import_dir=import_dir,
+        rights_registry=rights_registry,
+        review_cutoff=review_cutoff,
+    )
+    return preview
+
+
+def _prepare_price_import_merge(
+    base_dir: Path | None = None,
+    *,
+    data_dir: Path | None = None,
+    import_dir: Path | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
+) -> tuple[dict[str, Any], pd.DataFrame]:
     base_dir = resolve_project_root(base_dir)
     data_dir = resolve_data_dir(data_dir, base_dir)
     validation = validate_price_imports(
@@ -1861,12 +1945,13 @@ def preview_price_import_merge(
         data_dir=data_dir,
         import_dir=import_dir,
         rights_registry=rights_registry,
+        review_cutoff=review_cutoff,
     )
     valid_frame = validation.pop("valid_frame", pd.DataFrame())
     if validation["status"] == "no_staged_file":
-        return {**validation, "new_rows": 0, "updated_rows": 0, "unchanged_rows": 0, "skipped_rows": 0}
+        return ({**validation, "new_rows": 0, "updated_rows": 0, "unchanged_rows": 0, "skipped_rows": 0}, valid_frame)
     if validation["status"] == "invalid":
-        return {**validation, "new_rows": 0, "updated_rows": 0, "unchanged_rows": 0}
+        return ({**validation, "new_rows": 0, "updated_rows": 0, "unchanged_rows": 0}, valid_frame)
 
     canonical = _load_canonical_price_frame(Path(validation["canonical_path"]))
     canonical_keys = _price_key_series(canonical) if not canonical.empty and {"date", "ticker"}.issubset(canonical.columns) else pd.Series(dtype="object")
@@ -1903,14 +1988,17 @@ def preview_price_import_merge(
         else:
             unchanged_rows += 1
 
-    return {
-        **validation,
-        "new_rows": new_rows,
-        "updated_rows": updated_rows,
-        "unchanged_rows": unchanged_rows,
-        "overwrite_keys": overwrite_keys,
-        "new_keys": new_keys,
-    }
+    return (
+        {
+            **validation,
+            "new_rows": new_rows,
+            "updated_rows": updated_rows,
+            "unchanged_rows": unchanged_rows,
+            "overwrite_keys": overwrite_keys,
+            "new_keys": new_keys,
+        },
+        valid_frame,
+    )
 
 
 def _backup_price_file(path: Path, data_dir: Path) -> str | None:
@@ -1924,6 +2012,25 @@ def _backup_price_file(path: Path, data_dir: Path) -> str | None:
     return str(backup_path)
 
 
+def _atomic_write_price_frame(frame: pd.DataFrame, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", newline="", encoding="utf-8") as handle:
+            frame.to_csv(handle, index=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path.exists():
+            temporary_path.unlink()
+
+
 def apply_price_import_merge(
     base_dir: Path | None = None,
     *,
@@ -1932,15 +2039,17 @@ def apply_price_import_merge(
     backup: bool = True,
     commercial_mode: bool | None = None,
     rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
 ) -> dict[str, Any]:
     base_dir = resolve_project_root(base_dir)
     data_dir = resolve_data_dir(data_dir, base_dir)
     commercial_mode = commercial_mode if commercial_mode is not None else commercial_mode_enabled()
-    preview = preview_price_import_merge(
+    preview, staged = _prepare_price_import_merge(
         base_dir,
         data_dir=data_dir,
         import_dir=import_dir,
         rights_registry=rights_registry,
+        review_cutoff=review_cutoff,
     )
     if preview["status"] in {"no_staged_file", "invalid"}:
         return {
@@ -1952,9 +2061,16 @@ def apply_price_import_merge(
         }
 
     apply_blockers: list[str] = []
+    if preview["price_temporal_invalid_rows"]:
+        apply_blockers.append("price_temporal_review_required")
     if commercial_mode:
         if preview["lineage_status"] != "lineage_complete":
             apply_blockers.append("price_lineage_review_required")
+        if (
+            preview["price_temporal_status"] != "temporal_complete"
+            and "price_temporal_review_required" not in apply_blockers
+        ):
+            apply_blockers.append("price_temporal_review_required")
         if preview["commercial_rights_status"] != "rights_approved":
             apply_blockers.append("commercial_rights_review_required")
         if preview["price_scope_status"] != "price_scope_complete":
@@ -1963,18 +2079,15 @@ def apply_price_import_merge(
         return {
             **preview,
             "applied": False,
-            "apply_status": "commercial_evidence_review_required",
+            "apply_status": (
+                "technical_temporal_validation_required"
+                if preview["price_temporal_invalid_rows"]
+                else "commercial_evidence_review_required"
+            ),
             "apply_blockers": apply_blockers,
             "backup_path": None,
         }
 
-    validation = validate_price_imports(
-        base_dir,
-        data_dir=data_dir,
-        import_dir=import_dir,
-        rights_registry=rights_registry,
-    )
-    staged = validation.pop("valid_frame", pd.DataFrame())
     canonical_path = Path(preview["canonical_path"])
     canonical = _load_canonical_price_frame(canonical_path)
     output_columns = list(canonical.columns)
@@ -2000,8 +2113,7 @@ def apply_price_import_merge(
         merged = pd.concat([canonical_indexed, new_rows], axis=0).reset_index(drop=True)
     if {"ticker", "date"}.issubset(merged.columns):
         merged = merged.sort_values(["ticker", "date"]).reset_index(drop=True)
-    canonical_path.parent.mkdir(parents=True, exist_ok=True)
-    merged.to_csv(canonical_path, index=False)
+    _atomic_write_price_frame(merged, canonical_path)
     return {
         **preview,
         "applied": True,
@@ -2079,6 +2191,7 @@ def main() -> None:
     parser.add_argument("--validate-price-imports", action="store_true", help="Validate data/imports/prices.csv without mutating data/prices.csv.")
     parser.add_argument("--preview-price-import-merge", action="store_true", help="Preview price import file changes without mutating data/prices.csv.")
     parser.add_argument("--apply-price-import-merge", action="store_true", help="Apply price import file rows into data/prices.csv with a backup.")
+    parser.add_argument("--review-cutoff", help="Explicit timezone-aware cutoff for staged price retrieval review.")
     parser.add_argument("--price-status", action="store_true", help="Display outputs/price_update_status.csv if present.")
     parser.add_argument("--top-n", type=int, help="Optional cap for human-readable price status rows.")
     parser.add_argument("--json", action="store_true", help="Print JSON for import/status commands.")
@@ -2094,7 +2207,11 @@ def main() -> None:
     output_dir = resolve_outputs_dir(args.output_dir, project_root)
 
     if args.validate_price_imports:
-        summary = validate_price_imports(project_root, data_dir=data_dir)
+        summary = validate_price_imports(
+            project_root,
+            data_dir=data_dir,
+            review_cutoff=args.review_cutoff,
+        )
         if args.json:
             print(json.dumps({key: value for key, value in summary.items() if key != "valid_frame"}, indent=2))
         else:
@@ -2103,7 +2220,11 @@ def main() -> None:
         return
 
     if args.preview_price_import_merge:
-        summary = preview_price_import_merge(project_root, data_dir=data_dir)
+        summary = preview_price_import_merge(
+            project_root,
+            data_dir=data_dir,
+            review_cutoff=args.review_cutoff,
+        )
         if args.json:
             print(json.dumps(summary, indent=2))
         else:
@@ -2112,7 +2233,11 @@ def main() -> None:
         return
 
     if args.apply_price_import_merge:
-        summary = apply_price_import_merge(project_root, data_dir=data_dir)
+        summary = apply_price_import_merge(
+            project_root,
+            data_dir=data_dir,
+            review_cutoff=args.review_cutoff,
+        )
         if args.json:
             print(json.dumps(summary, indent=2))
         else:

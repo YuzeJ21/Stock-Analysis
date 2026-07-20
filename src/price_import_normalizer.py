@@ -10,6 +10,7 @@ from typing import Any
 import pandas as pd
 
 from src.paths import format_path_context, resolve_project_root
+from src.price_lineage_temporal import review_daily_price_retrieval
 
 
 STAGED_PRICE_COLUMNS = [
@@ -116,6 +117,7 @@ def _normalize_one_file(
     source: str,
     source_ref: str | None,
     retrieved_at: str | None,
+    review_cutoff: str | None,
     as_of_date: str,
     explicit_mapping: dict[str, str],
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
@@ -190,10 +192,31 @@ def _normalize_one_file(
     if duplicate_rows:
         warnings.append(f"{path.name}: deduplicated {duplicate_rows} duplicate date+ticker row(s), keeping the last row.")
     output = output.drop_duplicates(subset=["date", "ticker"], keep="last")
+    normalized_retrieved_at = retrieved_at or ""
+    if retrieved_at:
+        temporal_failures: list[str] = []
+        normalized_values: set[str] = set()
+        for row_number, observation_date in output["date"].items():
+            temporal = review_daily_price_retrieval(
+                observation_date,
+                retrieved_at,
+                review_cutoff=review_cutoff,
+            )
+            if temporal.blockers:
+                temporal_failures.append(
+                    f"{path.name} row {row_number + 2}: " + ", ".join(temporal.blockers)
+                )
+            else:
+                normalized_values.add(temporal.retrieved_at)
+        if temporal_failures:
+            raise ValueError("; ".join(temporal_failures))
+        if len(normalized_values) != 1:
+            raise ValueError(f"{path.name}: retrieval normalization was not deterministic")
+        normalized_retrieved_at = normalized_values.pop()
     output["date"] = output["date"].dt.date.astype(str)
     output["source"] = source
     output["source_ref"] = source_ref or ""
-    output["retrieved_at"] = retrieved_at or ""
+    output["retrieved_at"] = normalized_retrieved_at
     output["as_of_date"] = as_of_date
     output["notes"] = f"Normalized from {path.name}"
     output = output.reindex(columns=STAGED_PRICE_COLUMNS)
@@ -231,6 +254,7 @@ def normalize_price_imports(
     source: str = "generic_manual",
     source_ref: str | None = None,
     retrieved_at: str | None = None,
+    review_cutoff: str | None = None,
     as_of_date: str | None = None,
     column_mapping: dict[str, str] | None = None,
 ) -> PriceNormalizationResult:
@@ -252,6 +276,7 @@ def normalize_price_imports(
             source=source,
             source_ref=source_ref,
             retrieved_at=retrieved_at,
+            review_cutoff=review_cutoff,
             as_of_date=as_of_date,
             explicit_mapping=column_mapping,
         )
@@ -302,6 +327,7 @@ def main() -> None:
     parser.add_argument("--source", default="generic_manual", help="Source label to write into the import CSV.")
     parser.add_argument("--source-ref", help="Durable reviewed reference for the exact source payload or row batch.")
     parser.add_argument("--retrieved-at", help="Explicit source retrieval timestamp; no default is generated.")
+    parser.add_argument("--review-cutoff", help="Explicit timezone-aware cutoff for retrieval review.")
     parser.add_argument("--as-of-date", help="As-of date metadata. Defaults to today.")
     parser.add_argument("--date-col")
     parser.add_argument("--ticker-col")
@@ -333,6 +359,7 @@ def main() -> None:
         source=args.source,
         source_ref=args.source_ref,
         retrieved_at=args.retrieved_at,
+        review_cutoff=args.review_cutoff,
         as_of_date=args.as_of_date,
         column_mapping=_column_map_from_args(args),
     )

@@ -9,6 +9,7 @@ import pandas as pd
 
 from src.commercial_source_rights import SourceRights, commercial_eligibility
 from src.loader import normalize_columns
+from src.price_lineage_temporal import review_daily_price_retrieval
 
 
 REQUIRED_PRICE_PROVENANCE_FIELDS = ("source", "source_ref", "retrieved_at")
@@ -24,6 +25,9 @@ class DcfPriceLineageEvidence:
     source_id: str
     source_reference: str
     retrieved_at: str
+    availability_at: str
+    review_cutoff: str
+    temporal_status: str
     rights_status: str
     missing_provenance_fields: tuple[str, ...]
     missing_supported_fields: tuple[str, ...]
@@ -39,6 +43,8 @@ class DcfPriceLineageReview:
     ambiguous_latest_row_count: int
     lineage_complete_count: int
     lineage_review_required_count: int
+    temporal_complete_count: int
+    temporal_review_required_count: int
     rights_approved_count: int
     rights_review_required_count: int
     field_scope_complete_count: int
@@ -67,13 +73,6 @@ def _text(value: object) -> str:
     except (TypeError, ValueError):
         return ""
     return str(value).strip()
-
-
-def _valid_timestamp_text(value: object) -> str:
-    text = _text(value)
-    if not text:
-        return ""
-    return text if not pd.isna(pd.to_datetime(text, errors="coerce", utc=True)) else ""
 
 
 def _readiness_index(frame: pd.DataFrame) -> dict[str, pd.Series]:
@@ -145,6 +144,9 @@ def _selection_failure(
         source_id="<ambiguous>" if ambiguous else "<missing>",
         source_reference="",
         retrieved_at="",
+        availability_at="",
+        review_cutoff="",
+        temporal_status="not_evaluated_missing_or_ambiguous_evidence",
         rights_status=(
             "not_evaluated_ambiguous_evidence" if ambiguous else "not_evaluated_missing_evidence"
         ),
@@ -160,6 +162,7 @@ def review_dcf_price_lineage(
     prices: pd.DataFrame,
     *,
     rights_registry: Mapping[str, SourceRights],
+    review_cutoff: str | None = None,
     top_n: int = 20,
 ) -> DcfPriceLineageReview:
     """Review the selected latest price row without changing technical readiness."""
@@ -177,6 +180,8 @@ def review_dcf_price_lineage(
             ambiguous_latest_row_count=0,
             lineage_complete_count=0,
             lineage_review_required_count=0,
+            temporal_complete_count=0,
+            temporal_review_required_count=0,
             rights_approved_count=0,
             rights_review_required_count=0,
             field_scope_complete_count=0,
@@ -223,7 +228,12 @@ def review_dcf_price_lineage(
         row = latest_rows.iloc[0]
         source_id = _text(row.get("source"))
         source_reference = _text(row.get("source_ref"))
-        retrieved_at = _valid_timestamp_text(row.get("retrieved_at"))
+        temporal = review_daily_price_retrieval(
+            observation_date,
+            row.get("retrieved_at"),
+            review_cutoff=review_cutoff,
+        )
+        retrieved_at = temporal.retrieved_at
         missing_provenance = tuple(
             field
             for field, value in (
@@ -241,6 +251,7 @@ def review_dcf_price_lineage(
         )
         blockers: list[str] = []
         blockers.extend(f"missing_provenance:{field}" for field in missing_provenance)
+        blockers.extend(temporal.blockers)
         if not rights.allowed:
             blockers.append(f"commercial_rights:{rights.status}")
         if missing_supported:
@@ -254,6 +265,9 @@ def review_dcf_price_lineage(
                 source_id=source_id or "<missing>",
                 source_reference=source_reference,
                 retrieved_at=retrieved_at,
+                availability_at=temporal.availability_at,
+                review_cutoff=temporal.review_cutoff,
+                temporal_status=temporal.status,
                 rights_status=rights.status,
                 missing_provenance_fields=missing_provenance,
                 missing_supported_fields=missing_supported,
@@ -265,6 +279,7 @@ def review_dcf_price_lineage(
     missing_latest = sum(item.latest_row_count == 0 for item in evidence)
     ambiguous_latest = sum(item.latest_row_count > 1 for item in evidence)
     lineage_complete = sum(not item.missing_provenance_fields for item in evidence)
+    temporal_complete = sum(item.temporal_status == "temporal_complete" for item in evidence)
     rights_approved = sum(item.rights_status == "approved" for item in evidence)
     field_scope_complete = sum(not item.missing_supported_fields for item in evidence)
     complete = all(not item.blockers for item in evidence)
@@ -276,6 +291,8 @@ def review_dcf_price_lineage(
         ambiguous_latest_row_count=ambiguous_latest,
         lineage_complete_count=lineage_complete,
         lineage_review_required_count=len(evidence) - lineage_complete,
+        temporal_complete_count=temporal_complete,
+        temporal_review_required_count=len(evidence) - temporal_complete,
         rights_approved_count=rights_approved,
         rights_review_required_count=len(evidence) - rights_approved,
         field_scope_complete_count=field_scope_complete,

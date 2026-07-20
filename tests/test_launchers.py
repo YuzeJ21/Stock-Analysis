@@ -90,6 +90,17 @@ def test_price_mutation_targets_use_the_ignored_local_profile():
         assert "STOCK_RESEARCH_DATA_PROFILE=local" in block
 
 
+def test_price_review_targets_forward_one_explicit_temporal_cutoff():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    for target in ("price-validate", "price-preview", "price-apply"):
+        block = makefile.split(f"{target}:", 1)[1].split("\n\n", 1)[0]
+        assert '--review-cutoff "$(AS_OF)"' in block
+    normalize = makefile.split("price-normalize:", 1)[1].split("\n\n", 1)[0]
+    assert "AS_OF is required when RETRIEVED_AT is supplied" in normalize
+    assert '--review-cutoff "$(AS_OF)"' in normalize
+
+
 def test_demo_data_check_only_runs_the_manifest_verifier():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
@@ -2623,7 +2634,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert '$(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",)' in price_normalize_target
     assert (
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=<source_id> "
-        "SOURCE_REF=<durable_reference> RETRIEVED_AT=<timestamp>"
+        "SOURCE_REF=<durable_reference> RETRIEVED_AT=<timezone-aware-timestamp> "
+        "AS_OF=<review-cutoff>"
     ) in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "stock-report-md:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report-md TICKER=NVDA)\nendif\n\t@python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) --quiet $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile

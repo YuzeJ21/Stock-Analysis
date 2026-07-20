@@ -432,6 +432,7 @@ def build_readiness_impact_preview(
     data_dir: Path | str | None = None,
     top_n: int = 20,
     rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
 ) -> ReadinessImpactPreview:
     project_root = resolve_project_root(root)
     data_path = resolve_data_dir(data_dir, project_root)
@@ -487,6 +488,7 @@ def build_readiness_impact_preview(
         proposed,
         prices,
         rights_registry=registry,
+        review_cutoff=review_cutoff,
         top_n=top_n,
     )
     return replace(
@@ -624,6 +626,11 @@ def render_readiness_impact_preview(preview: ReadinessImpactPreview) -> str:
                         f"review_required={price_review.lineage_review_required_count}"
                     ),
                     (
+                        "Price retrieval timing: "
+                        f"complete={price_review.temporal_complete_count}, "
+                        f"review_required={price_review.temporal_review_required_count}"
+                    ),
+                    (
                         "Commercial price rights: "
                         f"approved={price_review.rights_approved_count}, "
                         f"review_required={price_review.rights_review_required_count}"
@@ -645,6 +652,7 @@ def render_readiness_impact_preview(preview: ReadinessImpactPreview) -> str:
                     f"- {item.ticker}: observation_date={item.observation_date or '<missing>'}; "
                     f"valid_rows={item.valid_row_count}; latest_rows={item.latest_row_count}; "
                     f"source={item.source_id!r}; rights={item.rights_status}; "
+                    f"temporal={item.temporal_status}; "
                     f"missing_provenance={missing_provenance}; "
                     f"missing_registered_fields={missing_scope}; blockers={blockers}"
                 )

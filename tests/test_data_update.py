@@ -5,6 +5,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+import src.data_update as data_update
+
 from src.data_update import (
     AlphaVantageDailyPriceSource,
     FMPDailyPriceSource,
@@ -1486,7 +1488,10 @@ def _price_rights_registry():
 def test_price_import_validation_valid_fixture_and_duplicates(tmp_path: Path):
     _write_price_import_fixture(tmp_path)
 
-    summary = validate_price_imports(tmp_path)
+    summary = validate_price_imports(
+        tmp_path,
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
 
     assert summary["status"] == "valid_with_warnings"
     assert summary["valid_rows"] == 2
@@ -1686,7 +1691,11 @@ def test_commercial_price_apply_blocks_before_backup_or_canonical_write(tmp_path
     canonical_path = tmp_path / "data" / "prices.csv"
     before = canonical_path.read_bytes()
 
-    result = apply_price_import_merge(tmp_path, commercial_mode=True)
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
 
     assert result["applied"] is False
     assert result["apply_status"] == "commercial_evidence_review_required"
@@ -1711,6 +1720,7 @@ def test_commercial_price_apply_blocks_incomplete_lineage_independently(tmp_path
         tmp_path,
         commercial_mode=True,
         rights_registry=_price_rights_registry(),
+        review_cutoff="2026-01-05T00:00:00Z",
     )
 
     assert result["applied"] is False
@@ -1730,6 +1740,7 @@ def test_commercial_price_apply_blocks_missing_registered_price_scope(tmp_path: 
         tmp_path,
         commercial_mode=True,
         rights_registry=_price_rights_registry(),
+        review_cutoff="2026-01-05T00:00:00Z",
     )
 
     assert result["applied"] is False
@@ -1749,6 +1760,7 @@ def test_commercial_price_apply_allows_complete_approved_batch(tmp_path: Path):
         tmp_path,
         commercial_mode=True,
         rights_registry=_price_rights_registry(),
+        review_cutoff="2026-01-05T00:00:00Z",
     )
 
     assert result["applied"] is True
@@ -1759,10 +1771,95 @@ def test_commercial_price_apply_allows_complete_approved_batch(tmp_path: Path):
     assert result["price_scope_status"] == "price_scope_complete"
 
 
+@pytest.mark.parametrize(
+    ("retrieved_at", "cutoff", "blocker"),
+    [
+        ("2026-01-03T23:00:00", "2026-01-05T00:00:00Z", "retrieved_at_timezone_required"),
+        ("2026-01-02T23:59:59Z", "2026-01-05T00:00:00Z", "retrieved_before_observation_available"),
+        ("2026-01-05T00:00:01Z", "2026-01-05T00:00:00Z", "retrieved_after_review_cutoff"),
+    ],
+)
+def test_staged_price_preview_and_apply_share_temporal_blockers_without_mutation(
+    tmp_path: Path,
+    retrieved_at: str,
+    cutoff: str,
+    blocker: str,
+):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.loc[:, "retrieved_at"] = retrieved_at
+    staged.to_csv(staged_path, index=False)
+    canonical_path = tmp_path / "data" / "prices.csv"
+    before = canonical_path.read_bytes()
+
+    preview = preview_price_import_merge(
+        tmp_path,
+        rights_registry=_price_rights_registry(),
+        review_cutoff=cutoff,
+    )
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+        review_cutoff=cutoff,
+    )
+
+    assert preview["price_temporal_status"] == "temporal_review_required"
+    assert blocker in preview["price_temporal_blocker_counts"]
+    assert result["applied"] is False
+    assert result["apply_blockers"][0] == "price_temporal_review_required"
+    assert canonical_path.read_bytes() == before
+    assert not (tmp_path / "data" / "backups").exists()
+
+
+def test_price_apply_uses_one_validated_staged_frame_and_atomic_replace(tmp_path: Path, monkeypatch):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.to_csv(staged_path, index=False)
+    read_calls = 0
+    replace_calls: list[tuple[Path, Path]] = []
+    original_read = data_update._read_price_import
+    original_replace = data_update.os.replace
+
+    def _read_once(path: Path):
+        nonlocal read_calls
+        read_calls += 1
+        return original_read(path)
+
+    def _replace(source: Path, destination: Path):
+        replace_calls.append((Path(source), Path(destination)))
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(data_update, "_read_price_import", _read_once)
+    monkeypatch.setattr(data_update.os, "replace", _replace)
+
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
+
+    assert result["applied"] is True
+    assert read_calls == 1
+    assert len(replace_calls) == 1
+    temporary, destination = replace_calls[0]
+    assert temporary.parent == destination.parent
+    assert destination == tmp_path / "data" / "prices.csv"
+
+
 def test_apply_price_import_merge_backs_up_and_never_deletes_rows(tmp_path: Path):
     _write_price_import_fixture(tmp_path)
 
-    result = apply_price_import_merge(tmp_path, commercial_mode=False)
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=False,
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
     prices = pd.read_csv(tmp_path / "data" / "prices.csv")
 
     assert result["applied"] is True

@@ -42,7 +42,7 @@ def _price_row(
     *,
     source: object = "approved_prices",
     source_ref: object = "https://example.test/price-row",
-    retrieved_at: object = "2026-01-03T23:00:00Z",
+    retrieved_at: object = "2026-01-04T23:00:00Z",
 ) -> dict[str, object]:
     return {
         "ticker": ticker,
@@ -83,6 +83,7 @@ def test_review_selects_only_false_to_true_dcf_promotions_and_can_complete():
         proposed,
         prices,
         rights_registry={"approved_prices": _rights("approved_prices")},
+        review_cutoff="2026-01-05T00:00:00Z",
         top_n=5,
     )
 
@@ -183,6 +184,7 @@ def test_review_reports_each_missing_provenance_field_independently(field: str, 
         proposed,
         pd.DataFrame([row]),
         rights_registry={"approved_prices": _rights("approved_prices")},
+        review_cutoff="2026-01-05T00:00:00Z",
     )
 
     evidence = review.evidence_rows[0]
@@ -190,6 +192,39 @@ def test_review_reports_each_missing_provenance_field_independently(field: str, 
     assert review.lineage_complete_count == 0
     assert field in evidence.missing_provenance_fields
     assert f"missing_provenance:{field}" in evidence.blockers
+
+
+@pytest.mark.parametrize(
+    ("retrieved_at", "cutoff", "blocker"),
+    [
+        ("2026-01-03T23:00:00", "2026-01-05T00:00:00Z", "retrieved_at_timezone_required"),
+        ("2026-01-03T23:59:59Z", "2026-01-05T00:00:00Z", "retrieved_before_observation_available"),
+        ("2026-01-05T00:00:01Z", "2026-01-05T00:00:00Z", "retrieved_after_review_cutoff"),
+        ("2026-01-04T23:00:00Z", None, "review_cutoff_required"),
+    ],
+)
+def test_review_uses_shared_price_temporal_gate(
+    retrieved_at: str,
+    cutoff: str | None,
+    blocker: str,
+):
+    saved = pd.DataFrame([_readiness_row("AAA")])
+    proposed = pd.DataFrame([_readiness_row("AAA", dcf_ready=True)])
+    prices = pd.DataFrame(
+        [_price_row("AAA", "2026-01-03", 10.0, retrieved_at=retrieved_at)]
+    )
+
+    review = review_dcf_price_lineage(
+        saved,
+        proposed,
+        prices,
+        rights_registry={"approved_prices": _rights("approved_prices")},
+        review_cutoff=cutoff,
+    )
+
+    evidence = review.evidence_rows[0]
+    assert review.status == "price_lineage_review_required"
+    assert blocker in evidence.blockers
 
 
 @pytest.mark.parametrize(
@@ -217,6 +252,7 @@ def test_review_evaluates_exact_source_without_inference(
         proposed,
         pd.DataFrame([_price_row("AAA", "2026-01-03", 10.0, source=source_id)]),
         rights_registry=registry,
+        review_cutoff="2026-01-05T00:00:00Z",
     )
 
     assert review.rights_approved_count == 0
@@ -234,6 +270,7 @@ def test_review_keeps_approved_rights_separate_from_registered_price_scope():
         proposed,
         pd.DataFrame([_price_row("AAA", "2026-01-03", 10.0)]),
         rights_registry={"approved_prices": _rights("approved_prices", supported_fields=("revenue",))},
+        review_cutoff="2026-01-05T00:00:00Z",
     )
 
     assert review.status == "price_lineage_review_required"
@@ -254,6 +291,7 @@ def test_review_caps_evidence_without_changing_totals_and_validates_top_n():
         proposed,
         prices,
         rights_registry={"approved_prices": _rights("approved_prices")},
+        review_cutoff="2026-01-05T00:00:00Z",
         top_n=1,
     )
 

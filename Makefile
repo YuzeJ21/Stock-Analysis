@@ -327,8 +327,8 @@ help-full:
 	@echo "  make price-coverage   Write data/price_coverage_report.csv with rows per universe ticker"
 	@echo "  Start with make status, then the printed price check or guided batch"
 	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
-	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=<source_id> SOURCE_REF=<durable_reference> RETRIEVED_AT=<timestamp>"
-	@echo "  make price-validate && make price-preview && make price-apply"
+	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=<source_id> SOURCE_REF=<durable_reference> RETRIEVED_AT=<timezone-aware-timestamp> AS_OF=<review-cutoff>"
+	@echo "  make price-validate AS_OF=<review-cutoff> && make price-preview AS_OF=<same-cutoff> && make price-apply AS_OF=<same-cutoff>"
 	@echo ""
 	@echo "Preview-first fundamentals and universe imports:"
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
@@ -1072,13 +1072,13 @@ peer-mapping-queue:
 	python3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 price-validate:
-	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --validate-price-imports
+	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --validate-price-imports $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 
 price-preview:
-	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --preview-price-import-merge
+	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --preview-price-import-merge $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 
 price-apply:
-	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --apply-price-import-merge
+	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --apply-price-import-merge $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 
 price-refresh:
 ifdef TICKERS
@@ -1094,10 +1094,15 @@ price-normalize:
 ifndef INPUT
 	$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)
 endif
+ifdef RETRIEVED_AT
+ifndef AS_OF
+	$(error AS_OF is required when RETRIEVED_AT is supplied)
+endif
+endif
 ifdef TICKER
-	python3 -m src.price_import_normalizer --input $(INPUT) --ticker $(TICKER) --source $(or $(SOURCE),generic_manual) $(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",) $(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",)
+	python3 -m src.price_import_normalizer --input $(INPUT) --ticker $(TICKER) --source $(or $(SOURCE),generic_manual) $(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",) $(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",) $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 else
-	python3 -m src.price_import_normalizer --input $(INPUT) --source $(or $(SOURCE),generic_manual) $(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",) $(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",)
+	python3 -m src.price_import_normalizer --input $(INPUT) --source $(or $(SOURCE),generic_manual) $(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",) $(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",) $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 endif
 
 daily:
