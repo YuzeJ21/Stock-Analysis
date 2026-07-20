@@ -50,6 +50,7 @@ class QuarterlyTrendPacket:
     source_confidence: str
     q4_policy: str
     message: str
+    canonical_rejected_rows: tuple[dict[str, object], ...]
 
 
 @dataclass(frozen=True)
@@ -465,6 +466,7 @@ def build_quarterly_trend_packet(
                 )
                 else reason
             ),
+            canonical_rejected_rows=(),
         )
 
     periods = tuple(sorted(resolved, key=_period_key))
@@ -491,6 +493,53 @@ def build_quarterly_trend_packet(
             if status == "ready"
             else "Quarterly evidence is partial; unavailable comparisons remain withheld."
         ),
+        canonical_rejected_rows=(),
+    )
+
+
+def build_quarterly_trend_packet_from_load(
+    ticker: str,
+    loaded: QuarterlyActualLoadResult,
+    *,
+    as_of: str | None = None,
+    business_observations: Iterable[QuarterlyBusinessObservation] = (),
+) -> QuarterlyTrendPacket:
+    """Build only when the complete canonical ledger passes row validation."""
+
+    if loaded.rejected_count:
+        reason = (
+            "The canonical quarterly ledger is partially rejected; correct and "
+            "review every invalid row before using any quarterly trend."
+        )
+        return QuarterlyTrendPacket(
+            ticker=str(ticker or "").strip().upper(),
+            status="blocked",
+            latest_fiscal_period="",
+            available_periods=(),
+            revenue=_blocked_metric("revenue", reason),
+            eps=_blocked_metric("eps", reason),
+            operating_margin=_blocked_metric("operating_margin", reason),
+            free_cash_flow=_blocked_metric("free_cash_flow", reason),
+            fcf_margin=_blocked_metric("fcf_margin", reason),
+            withheld_metrics=(
+                "revenue",
+                "eps",
+                "operating_margin",
+                "free_cash_flow",
+                "fcf_margin",
+            ),
+            ambiguous_periods=(),
+            revision_count=0,
+            source_confidence="withheld",
+            q4_policy="explicit_filed_quarter_only",
+            message=reason,
+            canonical_rejected_rows=loaded.rejected_rows,
+        )
+    return build_quarterly_trend_packet(
+        ticker,
+        loaded.actuals,
+        as_of=as_of,
+        business_observations=business_observations,
     )
 
 

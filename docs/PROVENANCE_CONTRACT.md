@@ -131,6 +131,8 @@ Focused-cohort adjusted price history conjuncts saved readiness with canonical r
 
 Focused-cohort quarterly Revenue/EPS display eligibility conjuncts the existing technical trend state with a metric-specific commercial review of every populated accepted canonical row. Each row needs exact source, durable reference, retrieval timestamp, approved commercial rights, and literal `revenue` or `eps` scope. One unapproved, unknown, or scope-incomplete populated row blocks only that metric. Revenue permission never grants EPS permission. This review does not repair rejected rows, resolve revision conflicts, verify EPS split basis, establish explicit-Q4 evidence, change readiness, or activate Earnings Nowcast.
 
+Before that metric-specific review, dashboard consumption treats the canonical quarterly-actual CSV as one integrity unit. If any row fails the canonical contract, accepted sibling rows cannot build a Business Trend or focused-cohort quarterly packet. The blocked packet carries the original CSV row number and validation reason for Advanced display only. This boundary does not delete, rewrite, infer, or repair canonical evidence.
+
 The preview also preserves the method reason for newly excluded DCF transitions. Named reasons are a deterministic explanation of the existing scope decision; absent metadata remains unexplained instead of inferred. Ready, partial, excluded, added, and removed transition counts are independent and may overlap. They are not current readiness totals, evidence of company quality, a ranking, or a recommendation.
 
 ## Research Change Event Contract

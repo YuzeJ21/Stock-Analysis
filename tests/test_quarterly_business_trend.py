@@ -4,6 +4,7 @@ import csv
 from src.quarterly_cash_generation import QuarterlyBusinessObservation
 
 from src.quarterly_business_trend import (
+    build_quarterly_trend_packet_from_load,
     build_quarterly_trend_packet,
     load_quarterly_actuals_csv,
     quarterly_trend_rows,
@@ -348,3 +349,32 @@ def test_quarterly_actual_csv_loader_validates_rows_and_reports_rejections(tmp_p
     assert result.rejected_count == 1
     assert result.rejected_rows[0]["row_number"] == 3
     assert "fiscal_period" in result.rejected_rows[0]["reason"]
+
+
+def test_partially_rejected_canonical_load_blocks_all_quarterly_trends(tmp_path):
+    path = tmp_path / "quarterly_actuals.csv"
+    fields = list(_actual("2025-Q1", revenue=100, eps=1.0).__dict__)
+    valid = {key: getattr(_actual("2025-Q1", revenue=100, eps=1.0), key) for key in fields}
+    invalid = {**valid, "fiscal_period": "2025-FY", "source_ref": "fixture:invalid"}
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerow(valid)
+        writer.writerow(invalid)
+
+    packet = build_quarterly_trend_packet_from_load(
+        "SYN1", load_quarterly_actuals_csv(path)
+    )
+
+    assert packet.status == "blocked"
+    assert packet.available_periods == ()
+    assert packet.revenue.status == "blocked"
+    assert packet.eps.status == "blocked"
+    assert packet.operating_margin.status == "blocked"
+    assert packet.free_cash_flow.status == "blocked"
+    assert packet.fcf_margin.status == "blocked"
+    assert packet.canonical_rejected_rows == (
+        {"row_number": 3, "reason": packet.canonical_rejected_rows[0]["reason"]},
+    )
+    assert "fiscal_period" in packet.canonical_rejected_rows[0]["reason"]
+    assert "partially rejected" in packet.message.lower()

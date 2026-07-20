@@ -295,6 +295,7 @@ from src.focused_cohort_coverage import (
 from src.forward_view import build_forward_view, forward_view_cards, forward_view_rows
 from src.quarterly_business_trend import (
     QuarterlyTrendPacket,
+    build_quarterly_trend_packet_from_load,
     build_quarterly_trend_packet,
     load_quarterly_actuals_csv,
     quarterly_trend_rows,
@@ -5514,12 +5515,12 @@ def load_dashboard_focused_cohort_coverage(cohort: FocusedCohort) -> FocusedCoho
         earnings=earnings,
         peers=peers,
         peer_candidates=peer_candidates,
-        quarterly_actuals=actuals.actuals,
+        quarterly_actuals=actuals.actuals if not actuals.rejected_count else None,
         as_of=pd.Timestamp.now(tz="UTC").isoformat(),
         commercial_mode=True,
     )
     packets = {
-        ticker: build_quarterly_trend_packet(ticker, actuals.actuals)
+        ticker: build_quarterly_trend_packet_from_load(ticker, actuals)
         for ticker in tickers
     }
     return build_focused_cohort_coverage(
@@ -5534,9 +5535,9 @@ def load_dashboard_quarterly_trend(ticker: str) -> QuarterlyTrendPacket:
     """Load real canonical quarterly actuals; absent evidence fails closed."""
 
     loaded = load_quarterly_actuals_csv(DATA_DIR / "earnings_nowcast" / "quarterly_actuals.csv")
-    return build_quarterly_trend_packet(
+    return build_quarterly_trend_packet_from_load(
         ticker,
-        loaded.actuals,
+        loaded,
         as_of=pd.Timestamp.now(tz="UTC").isoformat(),
     )
 
@@ -30300,6 +30301,23 @@ def render_single_stock_report(
                 render_signal_cards(quarterly_trend_cards(trend_packet), show_commands=False, variant="queue")
                 with st.expander("Advanced: quarterly trend evidence", expanded=False):
                     st.dataframe(pd.DataFrame(quarterly_trend_rows(trend_packet)), width="stretch", hide_index=True)
+                    if trend_packet.canonical_rejected_rows:
+                        st.dataframe(
+                            pd.DataFrame(
+                                {
+                                    "Canonical row": [
+                                        row["row_number"]
+                                        for row in trend_packet.canonical_rejected_rows
+                                    ],
+                                    "Rejection reason": [
+                                        row["reason"]
+                                        for row in trend_packet.canonical_rejected_rows
+                                    ],
+                                }
+                            ),
+                            width="stretch",
+                            hide_index=True,
+                        )
                     st.caption("Q4 is never derived. Only explicit versioned quarterly source rows can unlock a comparison.")
                 st.markdown("### Valuation")
                 render_signal_cards(

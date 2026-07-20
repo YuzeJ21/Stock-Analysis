@@ -263,6 +263,65 @@ def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_pa
     assert price_read_nrows == [0]
 
 
+def test_dashboard_blocks_partially_rejected_canonical_quarterly_ledger(tmp_path, monkeypatch):
+    import pandas as pd
+
+    data_dir = tmp_path / "data"
+    (data_dir / "reports").mkdir(parents=True)
+    (data_dir / "earnings_nowcast").mkdir(parents=True)
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": False,
+                "peer_ready": False,
+            }
+        ]
+    )
+    universe = pd.DataFrame(
+        [{"ticker": "AAA", "name": "Alpha", "asset_type": "company", "is_active_listing": True}]
+    )
+    readiness.to_csv(data_dir / "reports" / "ticker_readiness_report.csv", index=False)
+    universe.to_csv(data_dir / "universe_master.csv", index=False)
+    base = {
+        "ticker": "AAA",
+        "fiscal_period": "2025-Q1",
+        "period_end_date": "2025-03-31",
+        "reported_at": "2025-05-01T00:00:00Z",
+        "revenue_actual": 100.0,
+        "eps_actual": 1.0,
+        "source": "sec_companyfacts",
+        "source_ref": "sec:AAA:2025-Q1",
+        "retrieved_at": "2025-05-02T00:00:00Z",
+        "revenue_currency": "USD",
+        "revenue_unit_scale": 1.0,
+        "revenue_basis": "gaap",
+        "eps_currency": "USD",
+        "eps_basis": "gaap",
+        "eps_share_basis": "diluted",
+        "eps_operations_basis": "continuing",
+        "split_adjustment_basis": "as_reported",
+        "supersedes_source_ref": "",
+    }
+    pd.DataFrame(
+        [base, {**base, "fiscal_period": "2025-FY", "source_ref": "sec:AAA:invalid"}]
+    ).to_csv(data_dir / "earnings_nowcast" / "quarterly_actuals.csv", index=False)
+    cohort = build_focused_cohort(readiness, universe, target_size=1, minimum_size=1)
+    monkeypatch.setattr(dashboard, "DATA_DIR", data_dir)
+
+    packet = dashboard.load_dashboard_quarterly_trend("AAA")
+    coverage = dashboard.load_dashboard_focused_cohort_coverage(cohort)
+    states = {row.lane: row.state for row in coverage.rows}
+
+    assert packet.status == "blocked"
+    assert packet.available_periods == ()
+    assert packet.canonical_rejected_rows[0]["row_number"] == 3
+    assert states["quarterly_revenue"] == "blocked"
+    assert states["quarterly_eps"] == "blocked"
+
+
 def test_research_desk_renders_answers_before_advanced_cohort_context():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     desk_start = source.index("def render_research_desk(")

@@ -33694,6 +33694,8 @@ def test_company_workbench_cash_generation_uses_no_supplemental_file_and_keeps_e
     evidence_rows_index = render_source.index("quarterly_trend_rows(trend_packet)", evidence_drawer_index)
 
     assert business_trend_index < primary_cards_index < evidence_drawer_index < evidence_rows_index
+    assert "trend_packet.canonical_rejected_rows" in render_source
+    assert "Canonical row" in render_source
     assert "quarterly_cash_generation.csv" not in source
     assert "quarterly_business_observations.csv" not in source
     assert "quarterly-cash-generation" not in makefile
