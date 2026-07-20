@@ -443,6 +443,105 @@ def test_commercial_consensus_requires_a_populated_metric_not_only_a_date():
     assert "value" in evidence["point_in_time_consensus_evidence"].lower()
 
 
+def _price_rows(*, complete_lineage: bool = True, mixed: bool = False) -> pd.DataFrame:
+    rows = [
+        {
+            "date": "2026-07-15",
+            "ticker": "AAA",
+            "close": 100.0,
+            "adj_close": 100.0,
+            "source": "licensed_source" if complete_lineage else "",
+            "source_ref": "licensed:price:AAA:2026-07-15" if complete_lineage else "",
+            "retrieved_at": "2026-07-16T00:00:00Z" if complete_lineage else "",
+        }
+    ]
+    if mixed:
+        rows.append(
+            {
+                "date": "2026-07-16",
+                "ticker": "AAA",
+                "close": 101.0,
+                "adj_close": 101.0,
+                "source": "",
+                "source_ref": "",
+                "retrieved_at": "",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def test_commercial_price_coverage_requires_rows_and_complete_lineage():
+    cohort, readiness = _cohort()
+    missing_evidence = derive_cohort_evidence(
+        ("AAA",), commercial_mode=True, rights_registry=_rights_registry("prices")
+    )
+    unlined_evidence = derive_cohort_evidence(
+        ("AAA",),
+        prices=_price_rows(complete_lineage=False),
+        commercial_mode=True,
+        rights_registry=_rights_registry("prices"),
+    )
+
+    missing = build_focused_cohort_coverage(
+        cohort, readiness, evidence_by_ticker=missing_evidence
+    )
+    unlined = build_focused_cohort_coverage(
+        cohort, readiness, evidence_by_ticker=unlined_evidence
+    )
+
+    assert next(row for row in missing.rows if row.lane == "adjusted_daily_price_history").state == "blocked"
+    unlined_price = next(row for row in unlined.rows if row.lane == "adjusted_daily_price_history")
+    assert unlined_price.state == "blocked"
+    assert "provenance" in unlined_price.evidence.lower()
+
+
+def test_commercial_price_coverage_requires_prices_scope_for_every_history_row():
+    cohort, readiness = _cohort()
+    scoped_evidence = derive_cohort_evidence(
+        ("AAA",),
+        prices=_price_rows(),
+        commercial_mode=True,
+        rights_registry=_rights_registry("prices"),
+    )
+    missing_scope_evidence = derive_cohort_evidence(
+        ("AAA",),
+        prices=_price_rows(),
+        commercial_mode=True,
+        rights_registry=_rights_registry("revenue"),
+    )
+    mixed_evidence = derive_cohort_evidence(
+        ("AAA",),
+        prices=_price_rows(mixed=True),
+        commercial_mode=True,
+        rights_registry=_rights_registry("prices"),
+    )
+
+    scoped = build_focused_cohort_coverage(cohort, readiness, evidence_by_ticker=scoped_evidence)
+    missing_scope = build_focused_cohort_coverage(
+        cohort, readiness, evidence_by_ticker=missing_scope_evidence
+    )
+    mixed = build_focused_cohort_coverage(cohort, readiness, evidence_by_ticker=mixed_evidence)
+
+    assert next(row for row in scoped.rows if row.lane == "adjusted_daily_price_history").state == "usable_now"
+    missing_scope_price = next(row for row in missing_scope.rows if row.lane == "adjusted_daily_price_history")
+    assert missing_scope_price.state == "blocked"
+    assert "prices" in missing_scope_price.evidence
+    assert next(row for row in mixed.rows if row.lane == "adjusted_daily_price_history").state == "blocked"
+
+
+def test_research_price_coverage_keeps_saved_readiness_without_commercial_lineage():
+    cohort, readiness = _cohort()
+    evidence = derive_cohort_evidence(
+        ("AAA",), prices=_price_rows(complete_lineage=False), commercial_mode=False
+    )
+
+    coverage = build_focused_cohort_coverage(
+        cohort, readiness, evidence_by_ticker=evidence
+    )
+
+    assert next(row for row in coverage.rows if row.lane == "adjusted_daily_price_history").state == "usable_now"
+
+
 def test_candidate_peer_rows_remain_candidate_context_only():
     candidates = pd.DataFrame(
         [

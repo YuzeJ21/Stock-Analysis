@@ -234,6 +234,62 @@ def _commercial_blocked_evidence(
     )
 
 
+def _price_history_review(
+    rows: tuple[pd.Series, ...],
+    *,
+    technical_available_hint: bool,
+    lineage_columns_missing: tuple[str, ...],
+    commercial_mode: bool,
+    rights_registry: Mapping[str, SourceRights] | None,
+) -> CohortSavedFieldReview:
+    valid_rows: list[pd.Series] = []
+    for row in rows:
+        date = pd.to_datetime(row.get("date"), errors="coerce")
+        close = pd.to_numeric(
+            row.get("adj_close") if _has_value(row, "adj_close") else row.get("close"),
+            errors="coerce",
+        )
+        if pd.notna(date) and pd.notna(close) and float(close) > 0:
+            valid_rows.append(row)
+    if not valid_rows and not (technical_available_hint and lineage_columns_missing):
+        return CohortSavedFieldReview(False, False, False, ("prices",), (), False)
+    if not commercial_mode:
+        return CohortSavedFieldReview(True, True, True, ("prices",), (), True)
+
+    if not valid_rows and lineage_columns_missing:
+        return CohortSavedFieldReview(True, False, False, ("prices",), (), False)
+
+    registry = rights_registry if rights_registry is not None else load_source_rights_registry()
+    provenance_complete = all(
+        _has_value(row, "source")
+        and _has_value(row, "source_ref")
+        and _has_value(row, "retrieved_at")
+        for row in valid_rows
+    )
+    source_reviews = tuple(
+        review_commercial_field_scope(
+            registry, _text(row.get("source")), ("prices",)
+        )
+        for row in valid_rows
+    )
+    rights_approved = all(review.commercial_rights_approved for review in source_reviews)
+    missing_scope = tuple(
+        dict.fromkeys(
+            field
+            for review in source_reviews
+            for field in review.missing_supported_fields
+        )
+    )
+    return CohortSavedFieldReview(
+        technical_available=True,
+        provenance_complete=provenance_complete,
+        commercial_rights_approved=rights_approved,
+        required_supported_fields=("prices",),
+        missing_supported_fields=missing_scope,
+        usable=provenance_complete and rights_approved and not missing_scope,
+    )
+
+
 def _latest_consensus_by_cutoff(frame: pd.DataFrame | None, *, as_of: str | None) -> dict[str, pd.Series]:
     if frame is None or frame.empty or not as_of or "ticker" not in frame.columns:
         return {}
@@ -275,6 +331,8 @@ def derive_cohort_evidence(
     tickers: tuple[str, ...],
     *,
     fundamentals: pd.DataFrame | None = None,
+    prices: pd.DataFrame | None = None,
+    price_lineage_missing_fields: tuple[str, ...] = (),
     readiness: pd.DataFrame | None = None,
     universe: pd.DataFrame | None = None,
     consensus: pd.DataFrame | None = None,
@@ -288,6 +346,7 @@ def derive_cohort_evidence(
     """Derive display states only from saved rows that retain provenance."""
 
     fundamentals_rows = _row_map(fundamentals)
+    price_rows = _grouped_rows(prices)
     readiness_rows = _row_map(readiness)
     universe_rows = _row_map(universe)
     consensus_rows = _latest_consensus_by_cutoff(consensus, as_of=as_of)
@@ -309,6 +368,14 @@ def derive_cohort_evidence(
         universe_row = universe_rows.get(ticker)
         consensus_row = consensus_rows.get(ticker)
         earnings_row = earnings_rows.get(ticker)
+        saved_price_ready = bool(ready is not None and _truthy(ready.get("price_ready")))
+        price_review = _price_history_review(
+            price_rows.get(ticker, ()),
+            technical_available_hint=saved_price_ready,
+            lineage_columns_missing=price_lineage_missing_fields,
+            commercial_mode=commercial_mode,
+            rights_registry=registry,
+        )
         margin_review = _alternative_field_review(
             fundamental,
             (
@@ -420,6 +487,12 @@ def derive_cohort_evidence(
         earnings_ready = earnings_review.usable
         result[ticker] = {
             "asset_type": _text(universe_row.get("asset_type")) if universe_row is not None else "company",
+            "price_history_state": "usable_now" if price_review.usable else "blocked",
+            "price_history_evidence": _commercial_blocked_evidence(
+                price_review,
+                available="Saved adjusted daily price history has complete commercial evidence.",
+                missing="No technically usable adjusted daily price rows are available.",
+            ),
             "margin_state": "usable_now" if margin_ready else "blocked",
             "margin_evidence": _commercial_blocked_evidence(
                 margin_review,
@@ -563,7 +636,11 @@ def build_focused_cohort_coverage(
                 )
             continue
 
-        price_ready = bool(saved is not None and _truthy(saved.get("price_ready")))
+        saved_price_ready = bool(saved is not None and _truthy(saved.get("price_ready")))
+        reviewed_price_state = _text(evidence.get("price_history_state"))
+        price_ready = saved_price_ready and (
+            reviewed_price_state == "usable_now" if reviewed_price_state else True
+        )
         price_state = "usable_now" if price_ready else "blocked"
         rows.append(
             FocusedCohortCoverageRow(
@@ -571,7 +648,14 @@ def build_focused_cohort_coverage(
                 member.company_name,
                 "adjusted_daily_price_history",
                 price_state,
-                "Saved adjusted daily price history is readiness-backed." if price_ready else "Adjusted daily price history is unavailable.",
+                (
+                    _text(evidence.get("price_history_evidence"))
+                    if reviewed_price_state
+                    else "Saved adjusted daily price history is readiness-backed."
+                )
+                if price_ready
+                else _text(evidence.get("price_history_evidence"))
+                or "Adjusted daily price history is unavailable.",
                 "Price history supports trend context only; it does not create fundamentals or a recommendation.",
             )
         )

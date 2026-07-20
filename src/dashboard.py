@@ -5482,6 +5482,21 @@ def load_dashboard_focused_cohort_coverage(cohort: FocusedCohort) -> FocusedCoho
     readiness = optional_csv(DATA_DIR / "reports" / "ticker_readiness_report.csv")
     universe = optional_csv(DATA_DIR / "universe_master.csv")
     fundamentals = optional_csv(DATA_DIR / "fundamentals.csv")
+    price_path = DATA_DIR / "prices.csv"
+    try:
+        price_columns = tuple(pd.read_csv(price_path, nrows=0).columns)
+    except (FileNotFoundError, OSError, UnicodeError, pd.errors.ParserError):
+        price_columns = ()
+    price_lineage_missing_fields = tuple(
+        field
+        for field in ("source", "source_ref", "retrieved_at")
+        if field not in price_columns
+    )
+    prices = (
+        pd.DataFrame(columns=price_columns)
+        if price_columns and price_lineage_missing_fields
+        else optional_csv(price_path)
+    )
     consensus = optional_csv(DATA_DIR / "earnings_nowcast" / "consensus_snapshots.csv")
     earnings = optional_csv(DATA_DIR / "earnings.csv")
     peers = optional_csv(DATA_DIR / "peers.csv")
@@ -5491,6 +5506,8 @@ def load_dashboard_focused_cohort_coverage(cohort: FocusedCohort) -> FocusedCoho
     evidence = derive_cohort_evidence(
         tickers,
         fundamentals=fundamentals,
+        prices=prices,
+        price_lineage_missing_fields=price_lineage_missing_fields,
         readiness=readiness,
         universe=universe,
         consensus=consensus,

@@ -194,16 +194,29 @@ def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_pa
             }
         ]
     )
+    prices = pd.DataFrame(
+        [{"date": "2026-07-15", "ticker": "AAA", "close": 100, "adj_close": 100}]
+    )
     readiness.to_csv(data_dir / "reports" / "ticker_readiness_report.csv", index=False)
     universe.to_csv(data_dir / "universe_master.csv", index=False)
     fundamentals.to_csv(data_dir / "fundamentals.csv", index=False)
+    prices.to_csv(data_dir / "prices.csv", index=False)
     cohort = build_focused_cohort(readiness, universe, target_size=1, minimum_size=1)
     monkeypatch.setattr(dashboard, "DATA_DIR", data_dir)
+    real_read_csv = pd.read_csv
+    price_read_nrows: list[object] = []
+
+    def tracked_read_csv(path, *args, **kwargs):
+        if dashboard.Path(path) == data_dir / "prices.csv":
+            price_read_nrows.append(kwargs.get("nrows"))
+        return real_read_csv(path, *args, **kwargs)
+
+    monkeypatch.setattr(dashboard.pd, "read_csv", tracked_read_csv)
 
     coverage = dashboard.load_dashboard_focused_cohort_coverage(cohort)
 
     states = {row.lane: row.state for row in coverage.rows}
-    assert states["adjusted_daily_price_history"] == "usable_now"
+    assert states["adjusted_daily_price_history"] == "blocked"
     assert states["free_cash_flow"] == "blocked"
     assert states["shares_outstanding"] == "usable_now"
     assert states["trusted_peers"] == "blocked"
@@ -211,6 +224,9 @@ def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_pa
     fcf = next(row for row in coverage.rows if row.lane == "free_cash_flow")
     assert "registered field scope" in fcf.evidence
     assert "free_cash_flow" in fcf.evidence
+    price = next(row for row in coverage.rows if row.lane == "adjusted_daily_price_history")
+    assert "provenance" in price.evidence.lower()
+    assert price_read_nrows == [0]
 
 
 def test_research_desk_renders_answers_before_advanced_cohort_context():
