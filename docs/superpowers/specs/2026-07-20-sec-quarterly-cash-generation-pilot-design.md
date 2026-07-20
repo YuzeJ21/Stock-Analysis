@@ -79,10 +79,12 @@ requests with `SEC_USER_AGENT` and respect SEC fair-access behavior.
 
 Add a focused SEC quarterly pilot module with two pure layers:
 
-1. A parser accepts already-retrieved Companyfacts and filing HTML payloads,
-   exact company and fiscal-quarter identity, retrieval time, and a cutoff. It
-   returns immutable `QuarterlyBusinessObservation` and compatible Revenue
-   actual objects or deterministic blockers.
+1. A parser accepts already-retrieved Companyfacts, submissions, and filing
+   HTML payloads, exact company and fiscal-quarter identity, retrieval time,
+   and a cutoff. It returns immutable `QuarterlyBusinessObservation` and
+   compatible Revenue actual objects or deterministic blockers. The
+   submissions payload supplies the exact UTC `acceptanceDateTime`; filing date
+   midnight and retrieval time are not substitutes for publication time.
 2. A preview function composes the parsed evidence with
    `assess_quarterly_cash_generation_adapter` and returns an immutable result
    containing the pilot identity, source references, extraction blockers, and
@@ -113,6 +115,8 @@ The parser must require all of the following:
 2. One exact start and end date representing the requested three-month fiscal
    quarter. YTD facts cannot be differenced to create a quarter.
 3. A filing date and publication timestamp no later than the requested cutoff.
+   The publication timestamp must equal the matching accession's SEC
+   submissions `acceptanceDateTime` and must be timezone-aware.
 4. Supported concepts selected through an explicit ordered concept map rather
    than fuzzy text matching.
 5. Matching USD currency, unit scale, period end, accounting basis, and duration
@@ -197,11 +201,13 @@ Implementation begins with failing tests for:
    blocking;
 5. YTD-only and derived-Q4 candidates blocking;
 6. cutoff and amended-filing ambiguity blocking;
-7. missing `SEC_USER_AGENT` and retrieval failures blocking without fallback;
-8. exact SEC field scope accepted and incomplete/unknown scope rejected;
-9. successful composition returning `accepted_for_review` while keeping
+7. missing, malformed, mismatched, or post-cutoff submissions acceptance time
+   blocking without substituting filing date or retrieval time;
+8. missing `SEC_USER_AGENT` and retrieval failures blocking without fallback;
+9. exact SEC field scope accepted and incomplete/unknown scope rejected;
+10. successful composition returning `accepted_for_review` while keeping
    activation false and readiness promotions empty;
-10. no filesystem writes, generated artifacts, broad refreshes, or network calls
+11. no filesystem writes, generated artifacts, broad refreshes, or network calls
     in unit tests.
 
 Focused tests cover the new parser/client boundary, quarterly adapter
