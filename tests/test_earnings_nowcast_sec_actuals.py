@@ -3,12 +3,14 @@ from __future__ import annotations
 import csv
 import json
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 import src.earnings_nowcast_sec_actuals as sec_actuals
-from src.earnings_nowcast_contract import QuarterlyActual
+from src.earnings_nowcast_contract import ConsensusSnapshot, QuarterlyActual
+from src.earnings_nowcast_readiness import assess_nowcast_readiness
 from src.earnings_nowcast_sec_actuals import (
     ExtractionAuditRow,
     ExtractionResult,
@@ -1439,6 +1441,111 @@ def test_companyfacts_eps_split_basis_is_unverified_for_split_restatement():
         "companyfacts_split_basis_unverified"
     }
     assert "split_basis_unverified" in {row.state for row in result.audit_rows}
+
+
+def test_explicit_filed_q4_keeps_revenue_ready_while_companyfacts_eps_is_withheld():
+    companyfacts = extract_q1_q3_lineage(
+        "SYN1",
+        companyfacts_fixture(
+            revenue=[_fact(val=36_000_000_000, start="2026-02-27", end="2026-05-28")],
+            eps=[_fact(val=0.8, start="2026-02-27", end="2026-05-28")],
+        ),
+        cutoff=CUTOFF,
+        retrieved_at=RETRIEVED_AT,
+    )
+    filed_q4 = extract_explicit_q4_actual(
+        "SYN1",
+        Q4_EXHIBIT,
+        Q4_RELEASE_HTML,
+        fiscal_period="2025-Q4",
+        filed_at="2026-02-25T00:00:00Z",
+        retrieved_at=RETRIEVED_AT,
+    )
+
+    companyfacts_seed = companyfacts.rows[0]
+    q4_seed = filed_q4.rows[0]
+    history = [
+        replace(
+            q4_seed,
+            fiscal_period="2024-Q4",
+            period_end_date="2024-12-31",
+            reported_at="2025-02-20T00:00:00Z",
+            retrieved_at="2025-02-21T00:00:00Z",
+            revenue_actual=30_000_000_000,
+            eps_actual=0.70,
+            source_ref=f"{q4_seed.source_ref}#2024-Q4",
+        ),
+        replace(
+            companyfacts_seed,
+            fiscal_period="2025-Q1",
+            period_end_date="2025-03-31",
+            reported_at="2025-05-20T00:00:00Z",
+            retrieved_at="2025-05-21T00:00:00Z",
+            revenue_actual=32_000_000_000,
+            eps_actual=0.72,
+            source_ref=f"{companyfacts_seed.source_ref}#2025-Q1",
+        ),
+        replace(
+            companyfacts_seed,
+            fiscal_period="2025-Q2",
+            period_end_date="2025-06-30",
+            reported_at="2025-08-20T00:00:00Z",
+            retrieved_at="2025-08-21T00:00:00Z",
+            revenue_actual=34_000_000_000,
+            eps_actual=0.76,
+            source_ref=f"{companyfacts_seed.source_ref}#2025-Q2",
+        ),
+        replace(
+            companyfacts_seed,
+            fiscal_period="2025-Q3",
+            period_end_date="2025-09-30",
+            reported_at="2025-11-20T00:00:00Z",
+            retrieved_at="2025-11-21T00:00:00Z",
+            revenue_actual=36_000_000_000,
+            eps_actual=0.80,
+            source_ref=f"{companyfacts_seed.source_ref}#2025-Q3",
+        ),
+        replace(
+            q4_seed,
+            fiscal_period="2025-Q4",
+            period_end_date="2025-12-31",
+            reported_at="2026-02-20T00:00:00Z",
+            retrieved_at="2026-02-21T00:00:00Z",
+            revenue_actual=39_331_000_000,
+            source_ref=f"{q4_seed.source_ref}#2025-Q4",
+        ),
+    ]
+    consensus = ConsensusSnapshot(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        snapshot_at="2026-02-25T00:00:00Z",
+        retrieved_at="2026-02-25T01:00:00Z",
+        revenue_consensus=41_000_000_000,
+        eps_consensus=0.90,
+        source="synthetic_test_fixture",
+        source_ref="fixture:consensus:2026-Q1",
+        revenue_basis=history[0].revenue_basis,
+        eps_basis=history[-1].eps_basis,
+        eps_share_basis=history[-1].eps_share_basis,
+        eps_operations_basis=history[-1].eps_operations_basis,
+        split_adjustment_basis=history[-1].split_adjustment_basis,
+    )
+
+    readiness = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp="2026-03-01T00:00:00Z",
+        actuals=history,
+        consensus=[consensus],
+    )
+
+    assert readiness.revenue_ready is True
+    assert readiness.eps_ready is False
+    assert "incompatible_eps_definition" in readiness.missing_evidence
+    assert history[-1].split_adjustment_basis == "split_adjusted_2024_06_07"
+    assert {
+        row.split_adjustment_basis for row in history[1:4]
+    } == {"companyfacts_split_basis_unverified"}
 
 
 def test_missing_frame_keeps_uniquely_aligned_quarter():
