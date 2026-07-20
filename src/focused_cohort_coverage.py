@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Iterable, Mapping
 
 import pandas as pd
 
@@ -13,6 +13,7 @@ from src.commercial_source_rights import (
     review_commercial_field_scope,
 )
 from src.focused_research_cohort import FocusedCohort
+from src.earnings_nowcast_contract import QuarterlyActual
 from src.quarterly_business_trend import QuarterlyTrendPacket
 
 
@@ -290,6 +291,47 @@ def _price_history_review(
     )
 
 
+def _quarterly_metric_review(
+    rows: Iterable[QuarterlyActual],
+    *,
+    metric: str,
+    commercial_mode: bool,
+    rights_registry: Mapping[str, SourceRights] | None,
+) -> CohortSavedFieldReview:
+    value_field = "revenue_actual" if metric == "revenue" else "eps_actual"
+    populated_rows = tuple(row for row in rows if getattr(row, value_field) is not None)
+    if not populated_rows:
+        return CohortSavedFieldReview(False, False, False, (metric,), (), False)
+    if not commercial_mode:
+        return CohortSavedFieldReview(True, True, True, (metric,), (), True)
+
+    registry = rights_registry if rights_registry is not None else load_source_rights_registry()
+    provenance_complete = all(
+        bool(_text(row.source) and _text(row.source_ref) and _text(row.retrieved_at))
+        for row in populated_rows
+    )
+    source_reviews = tuple(
+        review_commercial_field_scope(registry, row.source, (metric,))
+        for row in populated_rows
+    )
+    rights_approved = all(review.commercial_rights_approved for review in source_reviews)
+    missing_scope = tuple(
+        dict.fromkeys(
+            field
+            for review in source_reviews
+            for field in review.missing_supported_fields
+        )
+    )
+    return CohortSavedFieldReview(
+        technical_available=True,
+        provenance_complete=provenance_complete,
+        commercial_rights_approved=rights_approved,
+        required_supported_fields=(metric,),
+        missing_supported_fields=missing_scope,
+        usable=provenance_complete and rights_approved and not missing_scope,
+    )
+
+
 def _latest_consensus_by_cutoff(frame: pd.DataFrame | None, *, as_of: str | None) -> dict[str, pd.Series]:
     if frame is None or frame.empty or not as_of or "ticker" not in frame.columns:
         return {}
@@ -339,6 +381,7 @@ def derive_cohort_evidence(
     earnings: pd.DataFrame | None = None,
     peers: pd.DataFrame | None = None,
     peer_candidates: pd.DataFrame | None = None,
+    quarterly_actuals: Iterable[QuarterlyActual] | None = None,
     as_of: str | None = None,
     commercial_mode: bool = False,
     rights_registry: Mapping[str, SourceRights] | None = None,
@@ -353,6 +396,14 @@ def derive_cohort_evidence(
     earnings_rows = _row_map(earnings)
     peer_rows = _grouped_rows(peers)
     candidate_rows = _grouped_rows(peer_candidates)
+    actual_rows_by_ticker: dict[str, tuple[QuarterlyActual, ...]] = {}
+    if quarterly_actuals is not None:
+        grouped_actuals: dict[str, list[QuarterlyActual]] = {}
+        for actual in quarterly_actuals:
+            grouped_actuals.setdefault(actual.ticker, []).append(actual)
+        actual_rows_by_ticker = {
+            ticker: tuple(rows) for ticker, rows in grouped_actuals.items()
+        }
     registry = (
         rights_registry
         if rights_registry is not None
@@ -485,7 +536,7 @@ def derive_cohort_evidence(
             rights_registry=registry,
         )
         earnings_ready = earnings_review.usable
-        result[ticker] = {
+        ticker_evidence: dict[str, object] = {
             "asset_type": _text(universe_row.get("asset_type")) if universe_row is not None else "company",
             "price_history_state": "usable_now" if price_review.usable else "blocked",
             "price_history_evidence": _commercial_blocked_evidence(
@@ -560,6 +611,28 @@ def derive_cohort_evidence(
                 ),
             ),
         }
+        if quarterly_actuals is not None:
+            ticker_actuals = actual_rows_by_ticker.get(ticker, ())
+            for metric in ("revenue", "eps"):
+                review = _quarterly_metric_review(
+                    ticker_actuals,
+                    metric=metric,
+                    commercial_mode=commercial_mode,
+                    rights_registry=registry,
+                )
+                ticker_evidence[f"quarterly_{metric}_commercial_state"] = (
+                    "usable_now" if review.usable else "blocked"
+                )
+                ticker_evidence[f"quarterly_{metric}_commercial_evidence"] = (
+                    _commercial_blocked_evidence(
+                        review,
+                        available=(
+                            f"Every populated quarterly {metric} row has complete permitted source evidence."
+                        ),
+                        missing=f"No populated quarterly {metric} row is available.",
+                    )
+                )
+        result[ticker] = ticker_evidence
     return result
 
 
@@ -570,7 +643,21 @@ def _validated_state(value: object, *, default: str = "blocked") -> str:
     return state
 
 
-def _quarterly_state(packet: QuarterlyTrendPacket | None, metric: str) -> tuple[str, str, str]:
+def _quarterly_state(
+    packet: QuarterlyTrendPacket | None,
+    metric: str,
+    evidence: Mapping[str, object],
+) -> tuple[str, str, str]:
+    commercial_state_key = f"quarterly_{metric}_commercial_state"
+    if commercial_state_key in evidence:
+        commercial_state = _validated_state(evidence.get(commercial_state_key))
+        if commercial_state != "usable_now":
+            return (
+                "blocked",
+                _text(evidence.get(f"quarterly_{metric}_commercial_evidence"))
+                or f"Quarterly {metric} commercial evidence is unavailable.",
+                "Technical quarterly observations cannot override exact-source rights or field scope.",
+            )
     if packet is None:
         return "blocked", "No canonical quarterly actuals are available.", "Source-backed quarterly rows are required."
     trend = packet.revenue if metric == "revenue" else packet.eps
@@ -661,7 +748,9 @@ def build_focused_cohort_coverage(
         )
 
         for lane, metric in (("quarterly_revenue", "revenue"), ("quarterly_eps", "eps")):
-            state, evidence_text, boundary = _quarterly_state(packets.get(ticker), metric)
+            state, evidence_text, boundary = _quarterly_state(
+                packets.get(ticker), metric, evidence
+            )
             rows.append(FocusedCohortCoverageRow(ticker, member.company_name, lane, state, evidence_text, boundary))
 
         explicit_specs = (

@@ -13,7 +13,13 @@ from src.quarterly_business_trend import build_quarterly_trend_packet
 from src.earnings_nowcast_contract import QuarterlyActual
 
 
-def _actual(period: str, revenue: float, eps: float) -> QuarterlyActual:
+def _actual(
+    period: str,
+    revenue: float | None,
+    eps: float | None,
+    *,
+    source: str = "reviewed_fixture",
+) -> QuarterlyActual:
     year, quarter = period.split("-Q")
     return QuarterlyActual(
         ticker="AAA",
@@ -22,8 +28,8 @@ def _actual(period: str, revenue: float, eps: float) -> QuarterlyActual:
         reported_at=f"{int(year) + (1 if quarter == '4' else 0)}-02-01T00:00:00Z",
         revenue_actual=revenue,
         eps_actual=eps,
-        source="reviewed_fixture",
-        source_ref=f"fixture:{period}",
+        source=source,
+        source_ref=f"{source}:{period}",
         retrieved_at="2026-07-17T00:00:00Z",
         revenue_currency="USD",
         revenue_unit_scale=1.0,
@@ -540,6 +546,79 @@ def test_research_price_coverage_keeps_saved_readiness_without_commercial_lineag
     )
 
     assert next(row for row in coverage.rows if row.lane == "adjusted_daily_price_history").state == "usable_now"
+
+
+def test_commercial_quarterly_revenue_and_eps_require_independent_field_scope():
+    cohort, readiness = _cohort()
+    actuals = (
+        _actual("2024-Q1", 100.0, 1.0, source="licensed_source"),
+        _actual("2024-Q4", 130.0, 1.3, source="licensed_source"),
+        _actual("2025-Q1", 150.0, 1.5, source="licensed_source"),
+    )
+    evidence = derive_cohort_evidence(
+        ("AAA",),
+        quarterly_actuals=actuals,
+        commercial_mode=True,
+        rights_registry=_rights_registry("revenue"),
+    )
+
+    coverage = build_focused_cohort_coverage(
+        cohort,
+        readiness,
+        quarterly_packets={"AAA": build_quarterly_trend_packet("AAA", actuals)},
+        evidence_by_ticker=evidence,
+    )
+    revenue = next(row for row in coverage.rows if row.lane == "quarterly_revenue")
+    eps = next(row for row in coverage.rows if row.lane == "quarterly_eps")
+
+    assert revenue.state == "usable_now"
+    assert eps.state == "blocked"
+    assert "eps" in eps.evidence
+
+
+def test_commercial_quarterly_metric_fails_closed_when_any_populated_row_is_unapproved():
+    cohort, readiness = _cohort()
+    actuals = (
+        _actual("2024-Q1", 100.0, None, source="licensed_source"),
+        _actual("2025-Q1", 150.0, None, source="unknown_source"),
+    )
+    evidence = derive_cohort_evidence(
+        ("AAA",),
+        quarterly_actuals=actuals,
+        commercial_mode=True,
+        rights_registry=_rights_registry("revenue"),
+    )
+
+    coverage = build_focused_cohort_coverage(
+        cohort,
+        readiness,
+        quarterly_packets={"AAA": build_quarterly_trend_packet("AAA", actuals)},
+        evidence_by_ticker=evidence,
+    )
+    revenue = next(row for row in coverage.rows if row.lane == "quarterly_revenue")
+
+    assert revenue.state == "blocked"
+    assert "commercial rights" in revenue.evidence.lower()
+
+
+def test_research_quarterly_coverage_keeps_packet_state_without_commercial_review():
+    cohort, readiness = _cohort()
+    actuals = (
+        _actual("2024-Q1", 100.0, 1.0),
+        _actual("2024-Q4", 130.0, 1.3),
+        _actual("2025-Q1", 150.0, 1.5),
+    )
+
+    coverage = build_focused_cohort_coverage(
+        cohort,
+        readiness,
+        quarterly_packets={"AAA": build_quarterly_trend_packet("AAA", actuals)},
+        evidence_by_ticker=derive_cohort_evidence(("AAA",), quarterly_actuals=actuals),
+    )
+
+    states = {row.lane: row.state for row in coverage.rows}
+    assert states["quarterly_revenue"] == "usable_now"
+    assert states["quarterly_eps"] == "usable_now"
 
 
 def test_candidate_peer_rows_remain_candidate_context_only():

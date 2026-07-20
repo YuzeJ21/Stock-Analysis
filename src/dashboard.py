@@ -5514,6 +5514,7 @@ def load_dashboard_focused_cohort_coverage(cohort: FocusedCohort) -> FocusedCoho
         earnings=earnings,
         peers=peers,
         peer_candidates=peer_candidates,
+        quarterly_actuals=actuals.actuals,
         as_of=pd.Timestamp.now(tz="UTC").isoformat(),
         commercial_mode=True,
     )

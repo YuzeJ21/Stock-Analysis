@@ -175,6 +175,7 @@ def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_pa
 
     data_dir = tmp_path / "data"
     (data_dir / "reports").mkdir(parents=True)
+    (data_dir / "earnings_nowcast").mkdir(parents=True)
     readiness = pd.DataFrame(
         [{"ticker": "AAA", "price_ready": True, "fundamentals_ready": True, "dcf_ready": True, "peer_ready": False}]
     )
@@ -201,6 +202,36 @@ def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_pa
     universe.to_csv(data_dir / "universe_master.csv", index=False)
     fundamentals.to_csv(data_dir / "fundamentals.csv", index=False)
     prices.to_csv(data_dir / "prices.csv", index=False)
+    quarterly_rows = []
+    for period, revenue, eps in (
+        ("2024-Q1", 100.0, 1.0),
+        ("2024-Q4", 130.0, 1.3),
+        ("2025-Q1", 150.0, 1.5),
+    ):
+        quarterly_rows.append(
+            {
+                "ticker": "AAA",
+                "fiscal_period": period,
+                "period_end_date": f"{period[:4]}-{int(period[-1]) * 3:02d}-28",
+                "reported_at": "2026-05-01T00:00:00Z",
+                "revenue_actual": revenue,
+                "eps_actual": eps,
+                "source": "sec_companyfacts",
+                "source_ref": f"sec:AAA:{period}",
+                "retrieved_at": "2026-05-02T00:00:00Z",
+                "revenue_currency": "USD",
+                "revenue_unit_scale": 1.0,
+                "revenue_basis": "gaap",
+                "eps_currency": "USD",
+                "eps_basis": "gaap",
+                "eps_share_basis": "diluted",
+                "eps_operations_basis": "continuing",
+                "split_adjustment_basis": "as_reported",
+            }
+        )
+    pd.DataFrame(quarterly_rows).to_csv(
+        data_dir / "earnings_nowcast" / "quarterly_actuals.csv", index=False
+    )
     cohort = build_focused_cohort(readiness, universe, target_size=1, minimum_size=1)
     monkeypatch.setattr(dashboard, "DATA_DIR", data_dir)
     real_read_csv = pd.read_csv
@@ -220,10 +251,13 @@ def test_dashboard_loads_saved_focused_cohort_coverage_without_refreshing(tmp_pa
     assert states["free_cash_flow"] == "blocked"
     assert states["shares_outstanding"] == "usable_now"
     assert states["trusted_peers"] == "blocked"
-    assert states["quarterly_revenue"] == "blocked"
+    assert states["quarterly_revenue"] == "usable_now"
+    assert states["quarterly_eps"] == "blocked"
     fcf = next(row for row in coverage.rows if row.lane == "free_cash_flow")
     assert "registered field scope" in fcf.evidence
     assert "free_cash_flow" in fcf.evidence
+    eps = next(row for row in coverage.rows if row.lane == "quarterly_eps")
+    assert "eps" in eps.evidence
     price = next(row for row in coverage.rows if row.lane == "adjusted_daily_price_history")
     assert "provenance" in price.evidence.lower()
     assert price_read_nrows == [0]
