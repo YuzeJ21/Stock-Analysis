@@ -260,8 +260,7 @@ def _match_inline_fact(
                 if before != "(" or after != ")":
                     continue
             matches.append(fact)
-    unique = {fact.fact_id: fact for fact in matches if fact.fact_id}
-    return next(iter(unique.values())) if len(unique) == 1 else None
+    return next((fact for fact in matches if fact.fact_id), None)
 
 
 def _blocked_extraction(
@@ -299,6 +298,7 @@ def extract_sec_quarterly_cash_generation(
     period_start_date: str,
     period_end_date: str,
     accession: str,
+    primary_document: str | None = None,
     companyfacts_payload: Mapping[str, Any],
     submissions_payload: Mapping[str, Any],
     filing_html: str,
@@ -350,6 +350,18 @@ def extract_sec_quarterly_cash_generation(
     submission = _submission_for_accession(submissions_payload, accession)
     if submission is None:
         blockers.append("submissions:accession_missing")
+        return _blocked_extraction(
+            ticker=symbol,
+            cik=normalized_cik,
+            fiscal_period=normalized_period,
+            period_start_date=period_start_date,
+            period_end_date=period_end_date,
+            accession=accession,
+            blockers=blockers,
+        )
+    requested_document = str(primary_document or "").strip()
+    if requested_document and submission["primaryDocument"] != requested_document:
+        blockers.append("filing:primary_document_mismatch")
         return _blocked_extraction(
             ticker=symbol,
             cik=normalized_cik,

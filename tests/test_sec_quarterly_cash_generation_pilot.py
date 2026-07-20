@@ -186,6 +186,24 @@ def test_conflicting_exact_companyfacts_values_are_ambiguous():
     assert result.blockers == ("cash_from_operations:fact_ambiguous",)
 
 
+def test_identical_inline_duplicates_collapse_to_first_document_fact():
+    filing = _filing_fixture().replace(
+        "</table>",
+        (
+            '<tr><td>Repeated Revenue disclosure</td><td><ix:nonFraction '
+            'id="f-revenue-duplicate" '
+            'name="us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax" '
+            'contextRef="c-q1" scale="6">81,615</ix:nonFraction></td></tr>'
+            "</table>"
+        ),
+    )
+
+    result = _extract(filing_html=filing)
+
+    assert result.blockers == ()
+    assert result.revenue_actuals[0].source_ref.endswith("#f-revenue")
+
+
 @pytest.mark.parametrize(
     ("acceptance_time", "as_of", "blocker"),
     [
@@ -211,6 +229,26 @@ def test_missing_accession_in_submissions_blocks_all_values():
     result = _extract(submissions_payload=submissions)
 
     assert result.blockers == ("submissions:accession_missing",)
+    assert result.observations == ()
+
+
+def test_submissions_primary_document_must_match_requested_filing():
+    result = extract_sec_quarterly_cash_generation(
+        ticker="NVDA",
+        cik="0001045810",
+        fiscal_period="2027-Q1",
+        period_start_date=START,
+        period_end_date=END,
+        accession=ACCESSION,
+        primary_document="different-filing.htm",
+        companyfacts_payload=_companyfacts_fixture(),
+        submissions_payload=_submissions_fixture(),
+        filing_html=_filing_fixture(),
+        retrieved_at="2026-07-20T15:00:00+00:00",
+        as_of="2026-07-20T15:00:00+00:00",
+    )
+
+    assert result.blockers == ("filing:primary_document_mismatch",)
     assert result.observations == ()
 
 

@@ -1138,6 +1138,21 @@ dashboard-render-smoke:
 research-dashboard-render-smoke:
 	@python3 -m src.dashboard_render_smoke --routes research
 
+.PHONY: sec-quarterly-cash-preview
+sec-quarterly-cash-preview:
+ifndef AS_OF
+	$(error AS_OF is required, for example: make sec-quarterly-cash-preview AS_OF=2026-07-20T23:59:59-04:00)
+endif
+	@python3 -m src.sec_quarterly_cash_generation_preview \
+		--ticker "$(or $(TICKER),NVDA)" \
+		--cik "$(or $(CIK),0001045810)" \
+		--fiscal-period "$(or $(FISCAL_PERIOD),2027-Q1)" \
+		--period-start "$(or $(PERIOD_START),2026-01-26)" \
+		--period-end "$(or $(PERIOD_END),2026-04-26)" \
+		--accession "$(or $(ACCESSION),0001045810-26-000052)" \
+		--primary-document "$(or $(PRIMARY_DOCUMENT),nvda-20260426.htm)" \
+		--as-of "$(AS_OF)"
+
 demo-dashboard-render-smoke:
 	@STOCK_RESEARCH_DATA_PROFILE=demo python3 -m src.dashboard_render_smoke
 
