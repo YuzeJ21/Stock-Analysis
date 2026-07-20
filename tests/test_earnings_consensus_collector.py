@@ -14,6 +14,7 @@ from src.earnings_consensus_collector import (
     load_snapshots,
     main,
     preview_collection,
+    preview_collection_batch,
 )
 from src.commercial_source_rights import build_source_rights_registry
 
@@ -87,6 +88,56 @@ def _revision(record: ProspectiveConsensusRecord, *, snapshot_id: str = "snap-00
     )
 
 
+def _append_with_preview(
+    ledger: Path,
+    records: tuple[ProspectiveConsensusRecord, ...],
+    *,
+    cutoff: str = "2026-08-02T00:00:00Z",
+    confirm_reviewed: bool = True,
+    commercial_mode: bool | None = False,
+    rights_registry=None,
+) -> Path:
+    existing = load_snapshots(ledger)
+    preview = preview_collection_batch(
+        existing,
+        records,
+        as_of=cutoff,
+        commercial_mode=commercial_mode,
+        rights_registry=rights_registry,
+    )
+    return append_reviewed_batch(
+        ledger,
+        records,
+        confirm_reviewed=confirm_reviewed,
+        commercial_mode=commercial_mode,
+        rights_registry=rights_registry,
+        review_cutoff=cutoff,
+        preview_receipt=preview.preview_receipt,
+    )
+
+
+def _record_cli_args(
+    input_path: Path,
+    ledger: Path,
+    records: tuple[ProspectiveConsensusRecord, ...],
+    *,
+    cutoff: str = "2026-08-02T00:00:00Z",
+) -> list[str]:
+    preview = preview_collection_batch(load_snapshots(ledger), records, as_of=cutoff)
+    return [
+        "record",
+        "--input",
+        str(input_path),
+        "--ledger",
+        str(ledger),
+        "--as-of",
+        cutoff,
+        "--preview-receipt",
+        preview.preview_receipt,
+        "--confirm-reviewed",
+    ]
+
+
 def test_preview_detects_duplicate_and_preserves_revision_lineage():
     first = _record()
     duplicate = preview_collection((first,), first, as_of="2026-07-18T06:00:00Z")
@@ -145,9 +196,9 @@ def test_append_requires_explicit_review_confirmation_and_never_overwrites(tmp_p
     with pytest.raises(ValueError, match="confirm_reviewed"):
         append_reviewed_snapshot(ledger, _record(), confirm_reviewed=False)
 
-    append_reviewed_snapshot(ledger, _record(), confirm_reviewed=True)
+    _append_with_preview(ledger, (_record(),))
     with pytest.raises(ValueError, match="duplicate"):
-        append_reviewed_snapshot(ledger, _record(), confirm_reviewed=True)
+        _append_with_preview(ledger, (_record(),))
 
     assert ledger.read_text(encoding="utf-8").count("snap-001") == 1
 
@@ -245,10 +296,10 @@ def test_commercial_append_blocks_before_filesystem_mutation(tmp_path: Path, mon
     monkeypatch.setenv("COMMERCIAL_RESEARCH_MODE", "1")
 
     with pytest.raises(ValueError, match="commercial_evidence_review_required"):
-        append_reviewed_snapshot(
+        _append_with_preview(
             ledger,
-            _record(),
-            confirm_reviewed=True,
+            (_record(),),
+            commercial_mode=None,
             rights_registry=_rights_registry(),
         )
 
@@ -259,10 +310,9 @@ def test_approved_commercial_append_uses_exact_metric_scopes(tmp_path: Path):
     ledger = tmp_path / "snapshots.csv"
     record = _record(source="licensed_consensus")
 
-    append_reviewed_snapshot(
+    _append_with_preview(
         ledger,
-        record,
-        confirm_reviewed=True,
+        (record,),
         commercial_mode=True,
         rights_registry=_rights_registry(),
     )
@@ -277,9 +327,36 @@ def test_record_preflights_whole_batch_before_any_append(tmp_path: Path):
     _write_records(input_path, (first, first))
 
     with pytest.raises(ValueError, match="duplicate"):
-        main(["record", "--input", str(input_path), "--ledger", str(ledger), "--confirm-reviewed"])
+        main(_record_cli_args(input_path, ledger, (first, first)))
 
     assert not ledger.exists()
+
+
+def test_record_cli_appends_only_the_exact_reviewed_preview(tmp_path: Path):
+    input_path = tmp_path / "input.csv"
+    ledger = tmp_path / "ledger.csv"
+    proposed = (_record(),)
+    _write_records(input_path, proposed)
+
+    main(_record_cli_args(input_path, ledger, proposed))
+
+    assert load_snapshots(ledger) == proposed
+
+
+def test_append_requires_cutoff_and_preview_receipt_before_mutation(tmp_path: Path):
+    ledger = tmp_path / "missing-parent" / "ledger.csv"
+
+    with pytest.raises(ValueError, match="review_cutoff"):
+        append_reviewed_batch(ledger, (_record(),), confirm_reviewed=True)
+    with pytest.raises(ValueError, match="preview_receipt"):
+        append_reviewed_batch(
+            ledger,
+            (_record(),),
+            confirm_reviewed=True,
+            review_cutoff="2026-07-18T06:00:00Z",
+        )
+
+    assert not ledger.parent.exists()
 
 
 def test_preview_uses_ordered_virtual_ledger_for_revision(tmp_path: Path, capsys):
@@ -359,14 +436,14 @@ def test_record_rejects_empty_batch_without_creating_destination(tmp_path: Path)
     _write_records(input_path, ())
 
     with pytest.raises(ValueError, match="empty_batch"):
-        main(["record", "--input", str(input_path), "--ledger", str(ledger), "--confirm-reviewed"])
+        main(_record_cli_args(input_path, ledger, ()))
 
     assert not ledger.parent.exists()
 
 
 def test_batch_append_preserves_existing_bytes_when_later_row_is_invalid(tmp_path: Path):
     ledger = tmp_path / "ledger.csv"
-    append_reviewed_snapshot(ledger, _record(), confirm_reviewed=True)
+    _append_with_preview(ledger, (_record(),))
     original_bytes = ledger.read_bytes()
     first = _record(
         snapshot_id="snap-010",
@@ -382,7 +459,7 @@ def test_batch_append_preserves_existing_bytes_when_later_row_is_invalid(tmp_pat
     )
 
     with pytest.raises(ValueError, match="later same-period"):
-        append_reviewed_batch(ledger, (first, conflict), confirm_reviewed=True)
+        _append_with_preview(ledger, (first, conflict))
 
     assert ledger.read_bytes() == original_bytes
 
@@ -393,10 +470,9 @@ def test_batch_append_blocks_later_commercial_rights_failure_before_mutation(tmp
     revision = replace(_revision(first), source="unregistered_consensus")
 
     with pytest.raises(ValueError, match="batch_commercial_evidence_review_required"):
-        append_reviewed_batch(
+        _append_with_preview(
             ledger,
             (first, revision),
-            confirm_reviewed=True,
             commercial_mode=True,
             rights_registry=_rights_registry(),
         )
@@ -409,7 +485,7 @@ def test_batch_append_records_valid_ordered_research_revision_chain(tmp_path: Pa
     first = _record()
     revision = _revision(first)
 
-    append_reviewed_batch(ledger, (first, revision), confirm_reviewed=True, commercial_mode=False)
+    _append_with_preview(ledger, (first, revision), commercial_mode=False)
 
     assert load_snapshots(ledger) == (first, revision)
 
@@ -419,10 +495,9 @@ def test_batch_append_records_valid_ordered_commercial_revision_chain(tmp_path: 
     first = _record(source="licensed_consensus")
     revision = _revision(first)
 
-    append_reviewed_batch(
+    _append_with_preview(
         ledger,
         (first, revision),
-        confirm_reviewed=True,
         commercial_mode=True,
         rights_registry=_rights_registry(),
     )
@@ -434,6 +509,232 @@ def test_batch_append_rejects_empty_sequence_without_mutation(tmp_path: Path):
     ledger = tmp_path / "missing-parent" / "ledger.csv"
 
     with pytest.raises(ValueError, match="empty_batch"):
-        append_reviewed_batch(ledger, (), confirm_reviewed=True)
+        _append_with_preview(ledger, ())
 
     assert not ledger.parent.exists()
+
+
+def test_existing_ledger_rows_are_validated_with_row_numbers_before_status(tmp_path: Path):
+    ledger = tmp_path / "ledger.csv"
+    _write_records(ledger, (_record(expected_report_date="not-a-date"),))
+
+    with pytest.raises(ValueError, match=r"ledger row 2:.*expected_report_date"):
+        main(["status", "--ledger", str(ledger)])
+
+
+def test_existing_ledger_rejects_duplicate_ids_and_evidence_identities(tmp_path: Path):
+    duplicate_id = tmp_path / "duplicate-id.csv"
+    duplicate_identity = tmp_path / "duplicate-identity.csv"
+    first = _record()
+    _write_records(
+        duplicate_id,
+        (
+            first,
+            replace(
+                first,
+                ticker="AMD",
+                source_ref="file://reviewed/AMD/2027-Q1/20260718",
+            ),
+        ),
+    )
+    _write_records(
+        duplicate_identity,
+        (first, replace(first, snapshot_id="snap-duplicate-evidence")),
+    )
+
+    with pytest.raises(ValueError, match="duplicate snapshot_id"):
+        load_snapshots(duplicate_id)
+    with pytest.raises(ValueError, match="duplicate snapshot identity"):
+        load_snapshots(duplicate_identity)
+
+
+@pytest.mark.parametrize(
+    ("rows", "reason"),
+    [
+        (
+            lambda first: (
+                first,
+                replace(
+                    _revision(first),
+                    supersedes_snapshot_id="missing-parent",
+                ),
+            ),
+            "missing parent",
+        ),
+        (
+            lambda first: (
+                first,
+                _revision(first),
+                replace(
+                    _revision(first, snapshot_id="snap-003"),
+                    snapshot_at="2026-08-01T05:00:00Z",
+                    retrieved_at="2026-08-01T05:00:01Z",
+                    source_ref="file://reviewed/NVDA/2027-Q1/20260801",
+                ),
+            ),
+            "fork",
+        ),
+        (
+            lambda first: (
+                replace(first, supersedes_snapshot_id="snap-002"),
+                replace(_revision(first), supersedes_snapshot_id="snap-001"),
+            ),
+            "cycle",
+        ),
+        (
+            lambda first: (
+                first,
+                replace(
+                    _revision(first),
+                    snapshot_at="2026-07-17T05:00:00Z",
+                    retrieved_at="2026-07-17T05:00:01Z",
+                ),
+            ),
+            "later than parent",
+        ),
+        (
+            lambda first: (
+                first,
+                replace(
+                    first,
+                    snapshot_id="snap-second-root",
+                    snapshot_at="2026-07-25T05:00:00Z",
+                    retrieved_at="2026-07-25T05:00:01Z",
+                    source_ref="file://reviewed/NVDA/2027-Q1/20260725",
+                    revenue_consensus="102",
+                ),
+            ),
+            "one root",
+        ),
+    ],
+)
+def test_existing_ledger_requires_one_linear_revision_chain(tmp_path: Path, rows, reason: str):
+    ledger = tmp_path / "ledger.csv"
+    _write_records(ledger, rows(_record()))
+
+    with pytest.raises(ValueError, match=reason):
+        load_snapshots(ledger)
+
+
+def test_preview_rejects_superseding_a_non_leaf_snapshot():
+    first = _record()
+    second = _revision(first)
+    proposed = replace(
+        _revision(first, snapshot_id="snap-003"),
+        snapshot_at="2026-08-01T05:00:00Z",
+        retrieved_at="2026-08-01T05:00:01Z",
+        source_ref="file://reviewed/NVDA/2027-Q1/20260801",
+    )
+
+    preview = preview_collection(
+        (first, second),
+        proposed,
+        as_of="2026-08-01T06:00:00Z",
+    )
+
+    assert preview.state == "rejected"
+    assert "current leaf" in preview.reason
+
+
+def test_record_is_bound_to_exact_preview_cutoff_input_and_ledger_state(tmp_path: Path):
+    cutoff = "2026-07-18T06:00:00Z"
+    ledger = tmp_path / "ledger.csv"
+    proposed = (_record(),)
+    preview = preview_collection_batch(
+        (),
+        proposed,
+        as_of=cutoff,
+        commercial_mode=False,
+    )
+
+    assert preview.review_cutoff == "2026-07-18T06:00:00+00:00"
+    assert len(preview.input_digest) == 64
+    assert len(preview.ledger_digest) == 64
+    assert len(preview.preview_receipt) == 64
+
+    with pytest.raises(ValueError, match="preview receipt mismatch"):
+        append_reviewed_batch(
+            ledger,
+            proposed,
+            confirm_reviewed=True,
+            commercial_mode=False,
+            review_cutoff="2026-07-18T07:00:00Z",
+            preview_receipt=preview.preview_receipt,
+        )
+    assert not ledger.exists()
+
+    append_reviewed_batch(
+        ledger,
+        proposed,
+        confirm_reviewed=True,
+        commercial_mode=False,
+        review_cutoff=cutoff,
+        preview_receipt=preview.preview_receipt,
+    )
+    assert load_snapshots(ledger) == proposed
+
+
+def test_changed_existing_ledger_invalidates_preview_receipt_without_mutation(tmp_path: Path):
+    cutoff = "2026-07-26T00:00:00Z"
+    ledger = tmp_path / "ledger.csv"
+    first = _record()
+    proposed = (_revision(first),)
+    preview = preview_collection_batch(
+        (first,),
+        proposed,
+        as_of=cutoff,
+        commercial_mode=False,
+    )
+    append_reviewed_batch(
+        ledger,
+        (first,),
+        confirm_reviewed=True,
+        commercial_mode=False,
+        review_cutoff="2026-07-18T06:00:00Z",
+        preview_receipt=preview_collection_batch(
+            (),
+            (first,),
+            as_of="2026-07-18T06:00:00Z",
+            commercial_mode=False,
+        ).preview_receipt,
+    )
+    original = ledger.read_bytes()
+    append_reviewed_batch(
+        ledger,
+        (
+            replace(
+                proposed[0],
+                snapshot_id="intervening",
+                source_ref="file://reviewed/NVDA/2027-Q1/intervening",
+            ),
+        ),
+        confirm_reviewed=True,
+        commercial_mode=False,
+        review_cutoff=cutoff,
+        preview_receipt=preview_collection_batch(
+            (first,),
+            (
+                replace(
+                    proposed[0],
+                    snapshot_id="intervening",
+                    source_ref="file://reviewed/NVDA/2027-Q1/intervening",
+                ),
+            ),
+            as_of=cutoff,
+            commercial_mode=False,
+        ).preview_receipt,
+    )
+    changed = ledger.read_bytes()
+
+    with pytest.raises(ValueError, match="preview receipt mismatch"):
+        append_reviewed_batch(
+            ledger,
+            proposed,
+            confirm_reviewed=True,
+            commercial_mode=False,
+            review_cutoff=cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+
+    assert changed != original
+    assert ledger.read_bytes() == changed

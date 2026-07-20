@@ -75,6 +75,11 @@ class BatchCollectionPreview:
     mode: str
     write_performed: bool
     state: str
+    review_cutoff: str
+    commercial_mode: bool
+    ledger_digest: str
+    input_digest: str
+    preview_receipt: str
     row_count: int
     reviewable_count: int
     technical_write_allowed: bool
@@ -96,14 +101,47 @@ class CollectionPlan:
 
 
 def snapshot_identity(record: ProspectiveConsensusRecord) -> str:
-    parts = (
-        record.ticker.upper(), record.fiscal_period.upper(), record.snapshot_at,
-        record.source, record.source_ref, record.revenue_consensus, record.eps_consensus,
-    )
-    return hashlib.sha256("\x1f".join(parts).encode("utf-8")).hexdigest()
+    payload = {
+        field: getattr(record, field)
+        for field in FIELDS
+        if field not in {"snapshot_id", "supersedes_snapshot_id"}
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
-def load_snapshots(path: Path | str) -> tuple[ProspectiveConsensusRecord, ...]:
+def _records_digest(records: Sequence[ProspectiveConsensusRecord]) -> str:
+    payload = [asdict(record) for record in records]
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _normalized_cutoff(as_of: str) -> str:
+    return parse_utc_timestamp(as_of, label="collection cutoff").isoformat()
+
+
+def _preview_receipt(
+    *,
+    review_cutoff: str,
+    commercial_mode: bool,
+    ledger_digest: str,
+    input_digest: str,
+) -> str:
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "review_cutoff": review_cutoff,
+        "commercial_mode": commercial_mode,
+        "ledger_digest": ledger_digest,
+        "input_digest": input_digest,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _read_snapshot_rows(path: Path | str) -> tuple[ProspectiveConsensusRecord, ...]:
     source = Path(path)
     if not source.is_file():
         return ()
@@ -115,6 +153,22 @@ def load_snapshots(path: Path | str) -> tuple[ProspectiveConsensusRecord, ...]:
             ProspectiveConsensusRecord(**{field: str(row.get(field) or "").strip() for field in FIELDS})
             for row in reader
         )
+
+
+def load_snapshots(path: Path | str) -> tuple[ProspectiveConsensusRecord, ...]:
+    rows = _read_snapshot_rows(path)
+    _validate_ledger_integrity(rows)
+    return rows
+
+
+def load_proposed_snapshots(path: Path | str) -> tuple[ProspectiveConsensusRecord, ...]:
+    rows = _read_snapshot_rows(path)
+    for row_number, row in enumerate(rows, start=2):
+        try:
+            _validate(row)
+        except ValueError as exc:
+            raise ValueError(f"input row {row_number}: {exc}") from exc
+    return rows
 
 
 def _validate(record: ProspectiveConsensusRecord) -> None:
@@ -152,6 +206,104 @@ def _validate(record: ProspectiveConsensusRecord) -> None:
         split_adjustment_basis=record.split_adjustment_basis,
         expected_report_date=record.expected_report_date,
     )
+
+
+def _validate_ledger_integrity(rows: Sequence[ProspectiveConsensusRecord]) -> None:
+    records = tuple(rows)
+    for row_number, row in enumerate(records, start=2):
+        try:
+            _validate(row)
+        except ValueError as exc:
+            raise ValueError(f"ledger row {row_number}: {exc}") from exc
+
+    by_id: dict[str, tuple[int, ProspectiveConsensusRecord]] = {}
+    identities: dict[str, int] = {}
+    for index, row in enumerate(records):
+        if row.snapshot_id in by_id:
+            prior_index = by_id[row.snapshot_id][0]
+            raise ValueError(
+                f"ledger row {index + 2}: duplicate snapshot_id {row.snapshot_id} "
+                f"already appears at ledger row {prior_index + 2}"
+            )
+        identity = snapshot_identity(row)
+        if identity in identities:
+            raise ValueError(
+                f"ledger row {index + 2}: duplicate snapshot identity already appears "
+                f"at ledger row {identities[identity] + 2}"
+            )
+        by_id[row.snapshot_id] = (index, row)
+        identities[identity] = index
+
+    scopes: dict[tuple[str, str], list[tuple[int, ProspectiveConsensusRecord]]] = {}
+    for index, row in enumerate(records):
+        scope = (row.ticker.upper(), row.fiscal_period.upper())
+        scopes.setdefault(scope, []).append((index, row))
+
+    for scope, scoped_rows in scopes.items():
+        scoped_ids = {row.snapshot_id for _, row in scoped_rows}
+        children: dict[str, list[str]] = {snapshot_id: [] for snapshot_id in scoped_ids}
+        roots: list[str] = []
+        for index, row in scoped_rows:
+            parent_id = row.supersedes_snapshot_id
+            if not parent_id:
+                roots.append(row.snapshot_id)
+                continue
+            parent_entry = by_id.get(parent_id)
+            if parent_entry is None:
+                raise ValueError(
+                    f"ledger row {index + 2}: missing parent snapshot {parent_id}"
+                )
+            parent_index, parent = parent_entry
+            if (parent.ticker.upper(), parent.fiscal_period.upper()) != scope:
+                raise ValueError(
+                    f"ledger row {index + 2}: revision parent must preserve ticker and fiscal period"
+                )
+            children[parent_id].append(row.snapshot_id)
+
+        if not roots:
+            raise ValueError(
+                f"ledger scope {scope[0]} {scope[1]} contains a revision cycle and has no root"
+            )
+        if len(roots) != 1:
+            raise ValueError(
+                f"ledger scope {scope[0]} {scope[1]} must contain exactly one root"
+            )
+        for parent_id, child_ids in children.items():
+            if len(child_ids) > 1:
+                raise ValueError(
+                    f"ledger scope {scope[0]} {scope[1]} contains a revision fork at {parent_id}"
+                )
+
+        visited: set[str] = set()
+        current_id = roots[0]
+        while current_id:
+            if current_id in visited:
+                raise ValueError(
+                    f"ledger scope {scope[0]} {scope[1]} contains a revision cycle"
+                )
+            visited.add(current_id)
+            current_children = children[current_id]
+            current_id = current_children[0] if current_children else ""
+        if visited != scoped_ids:
+            raise ValueError(
+                f"ledger scope {scope[0]} {scope[1]} contains a disconnected revision cycle"
+            )
+
+        for index, row in scoped_rows:
+            if not row.supersedes_snapshot_id:
+                continue
+            parent_index, parent = by_id[row.supersedes_snapshot_id]
+            if parent_index >= index:
+                raise ValueError(
+                    f"ledger row {index + 2}: revision parent must appear earlier in append order"
+                )
+            if (
+                parse_utc_timestamp(row.snapshot_at) <= parse_utc_timestamp(parent.snapshot_at)
+                or parse_utc_timestamp(row.retrieved_at) <= parse_utc_timestamp(parent.retrieved_at)
+            ):
+                raise ValueError(
+                    f"ledger row {index + 2}: revision timestamps must be later than parent"
+                )
 
 
 def _collection_preview(
@@ -207,6 +359,16 @@ def preview_collection(
 ) -> CollectionPreview:
     rights_registry = rights_registry or load_source_rights_registry()
     try:
+        _validate_ledger_integrity(existing)
+    except ValueError as exc:
+        return _collection_preview(
+            "rejected",
+            f"existing ledger invalid: {exc}",
+            False,
+            proposed,
+            rights_registry,
+        )
+    try:
         _validate(proposed)
     except ValueError as exc:
         return _collection_preview("rejected", str(exc), False, proposed, rights_registry)
@@ -248,6 +410,27 @@ def preview_collection(
             return _collection_preview(
                 "rejected", "revision must preserve ticker and fiscal period", False, proposed, rights_registry
             )
+        if any(
+            row.supersedes_snapshot_id == target.snapshot_id for row in existing
+        ):
+            return _collection_preview(
+                "rejected",
+                "supersedes_snapshot_id must identify the current leaf snapshot",
+                False,
+                proposed,
+                rights_registry,
+            )
+        if (
+            parse_utc_timestamp(proposed.snapshot_at) <= parse_utc_timestamp(target.snapshot_at)
+            or parse_utc_timestamp(proposed.retrieved_at) <= parse_utc_timestamp(target.retrieved_at)
+        ):
+            return _collection_preview(
+                "rejected",
+                "revision snapshot and retrieval timestamps must be later than parent",
+                False,
+                proposed,
+                rights_registry,
+            )
         return _collection_preview(
             "reviewable_revision",
             "append-only revision preserves the prior snapshot",
@@ -272,17 +455,34 @@ def preview_collection_batch(
     existing: Sequence[ProspectiveConsensusRecord],
     proposed: Sequence[ProspectiveConsensusRecord],
     *,
-    as_of: str | None = None,
+    as_of: str,
     cooldown_hours: int = 0,
+    commercial_mode: bool | None = None,
     rights_registry: Mapping[str, SourceRights] | None = None,
 ) -> BatchCollectionPreview:
     rights_registry = rights_registry or load_source_rights_registry()
+    commercial_mode = commercial_mode if commercial_mode is not None else commercial_mode_enabled()
+    _validate_ledger_integrity(existing)
+    review_cutoff = _normalized_cutoff(as_of)
     proposed_rows = tuple(proposed)
+    ledger_digest = _records_digest(existing)
+    input_digest = _records_digest(proposed_rows)
+    receipt = _preview_receipt(
+        review_cutoff=review_cutoff,
+        commercial_mode=commercial_mode,
+        ledger_digest=ledger_digest,
+        input_digest=input_digest,
+    )
     if not proposed_rows:
         return BatchCollectionPreview(
             mode="preview_only",
             write_performed=False,
             state="empty_batch",
+            review_cutoff=review_cutoff,
+            commercial_mode=commercial_mode,
+            ledger_digest=ledger_digest,
+            input_digest=input_digest,
+            preview_receipt=receipt,
             row_count=0,
             reviewable_count=0,
             technical_write_allowed=False,
@@ -301,7 +501,7 @@ def preview_collection_batch(
         row_preview = preview_collection(
             virtual_ledger,
             row,
-            as_of=as_of or row.retrieved_at,
+            as_of=review_cutoff,
             cooldown_hours=cooldown_hours,
             rights_registry=rights_registry,
         )
@@ -324,6 +524,11 @@ def preview_collection_batch(
         mode="preview_only",
         write_performed=False,
         state="reviewable_batch" if technical_write_allowed else "rejected_batch",
+        review_cutoff=review_cutoff,
+        commercial_mode=commercial_mode,
+        ledger_digest=ledger_digest,
+        input_digest=input_digest,
+        preview_receipt=receipt,
         row_count=len(proposed_rows),
         reviewable_count=sum(row_preview.write_allowed for row_preview in row_previews),
         technical_write_allowed=technical_write_allowed,
@@ -342,23 +547,33 @@ def append_reviewed_batch(
     confirm_reviewed: bool,
     commercial_mode: bool | None = None,
     rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
+    preview_receipt: str | None = None,
 ) -> Path:
     if not confirm_reviewed:
         raise ValueError("confirm_reviewed is required before append")
+    if not review_cutoff:
+        raise ValueError("review_cutoff is required and must match the reviewed preview")
+    if not preview_receipt:
+        raise ValueError("preview_receipt is required and must match the reviewed preview")
     destination = Path(path)
     existing = load_snapshots(destination)
     proposed = tuple(records)
     rights_registry = rights_registry or load_source_rights_registry()
+    commercial_mode = commercial_mode if commercial_mode is not None else commercial_mode_enabled()
     preview = preview_collection_batch(
         existing,
         proposed,
+        as_of=review_cutoff,
+        commercial_mode=commercial_mode,
         rights_registry=rights_registry,
     )
+    if preview.preview_receipt != preview_receipt:
+        raise ValueError("preview receipt mismatch: input, cutoff, ledger, or commercial mode changed")
     if not preview.technical_write_allowed:
         raise ValueError(
             f"{preview.state}: " + "; ".join(preview.technical_blockers)
         )
-    commercial_mode = commercial_mode if commercial_mode is not None else commercial_mode_enabled()
     if commercial_mode and not preview.commercial_write_allowed:
         raise ValueError(
             "batch_commercial_evidence_review_required: "
@@ -381,6 +596,8 @@ def append_reviewed_snapshot(
     confirm_reviewed: bool,
     commercial_mode: bool | None = None,
     rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
+    preview_receipt: str | None = None,
 ) -> Path:
     return append_reviewed_batch(
         path,
@@ -388,6 +605,8 @@ def append_reviewed_snapshot(
         confirm_reviewed=confirm_reviewed,
         commercial_mode=commercial_mode,
         rights_registry=rights_registry,
+        review_cutoff=review_cutoff,
+        preview_receipt=preview_receipt,
     )
 
 
@@ -422,6 +641,8 @@ def main(argv: list[str] | None = None) -> int:
     record = subparsers.add_parser("record")
     record.add_argument("--input", required=True)
     record.add_argument("--ledger", default="data/imports/earnings_nowcast/prospective_consensus.csv")
+    record.add_argument("--as-of", required=True)
+    record.add_argument("--preview-receipt", required=True)
     record.add_argument("--confirm-reviewed", action="store_true")
     args = parser.parse_args(argv)
     if args.command == "plan":
@@ -436,16 +657,23 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"mode": "read_only", "snapshot_count": len(rows), "ledger": args.ledger}, indent=2))
     elif args.command == "preview":
         existing = load_snapshots(args.ledger)
-        proposed = load_snapshots(args.input)
-        result = preview_collection_batch(existing, proposed, as_of=args.as_of)
+        proposed = load_proposed_snapshots(args.input)
+        result = preview_collection_batch(
+            existing,
+            proposed,
+            as_of=args.as_of,
+            commercial_mode=commercial_mode_enabled(),
+        )
         print(json.dumps(asdict(result), indent=2, sort_keys=True))
     else:
         if not args.confirm_reviewed:
             raise ValueError("record requires --confirm-reviewed after preview and source review")
         append_reviewed_batch(
             args.ledger,
-            load_snapshots(args.input),
+            load_proposed_snapshots(args.input),
             confirm_reviewed=True,
+            review_cutoff=args.as_of,
+            preview_receipt=args.preview_receipt,
         )
         print(f"Appended reviewed prospective snapshots to {args.ledger}")
     return 0

@@ -2817,4 +2817,18 @@ def test_makefile_exposes_bytecode_free_consensus_source_review_target():
     assert '--review-csv "$(INPUT)"' in makefile
     assert '--provider "$(PROVIDER)"' in makefile
     assert '--as-of "$(AS_OF)"' in makefile
+
+
+def test_consensus_record_requires_the_exact_reviewed_preview_receipt():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    target = makefile.split("earnings-consensus-collection-record:", 1)[1].split(
+        "research-outcome-review:", 1
+    )[0]
+
+    assert 'test -n "$(AS_OF)"' in target
+    assert 'test -n "$(PREVIEW_RECEIPT)"' in target
+    assert 'test "$(CONFIRM_REVIEWED)" = "1"' in target
+    assert '--as-of "$(AS_OF)"' in target
+    assert '--preview-receipt "$(PREVIEW_RECEIPT)"' in target
+    assert target.count("--confirm-reviewed") == 1
     assert "$(if $(JSON),--json,)" in makefile

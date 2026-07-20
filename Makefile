@@ -1359,7 +1359,10 @@ earnings-consensus-collection-preview:
 	@python3 -m src.earnings_consensus_collector preview --input "$(INPUT)" --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)" --as-of "$(AS_OF)"
 
 earnings-consensus-collection-record:
-	@python3 -m src.earnings_consensus_collector record --input "$(INPUT)" --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)" $(if $(CONFIRM_REVIEWED),--confirm-reviewed,)
+	@test -n "$(AS_OF)" || (echo "AS_OF is required and must match the reviewed preview cutoff" >&2; exit 2)
+	@test -n "$(PREVIEW_RECEIPT)" || (echo "PREVIEW_RECEIPT is required from the exact reviewed preview" >&2; exit 2)
+	@test "$(CONFIRM_REVIEWED)" = "1" || (echo "CONFIRM_REVIEWED=1 is required after reviewing the exact preview" >&2; exit 2)
+	@python3 -m src.earnings_consensus_collector record --input "$(INPUT)" --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)" --as-of "$(AS_OF)" --preview-receipt "$(PREVIEW_RECEIPT)" --confirm-reviewed
 
 research-outcome-review:
 	@python3 -m src.research_outcome_review --ledger "$(or $(LEDGER),data/research_outcome_reviews.csv)" --profile-key "$(or $(PROFILE_KEY),default)" --ticker "$(or $(TICKER),NVDA)"
