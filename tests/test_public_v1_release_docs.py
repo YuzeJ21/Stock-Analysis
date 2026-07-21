@@ -11,6 +11,24 @@ def _read(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
 
 
+def test_two_company_cash_preview_docs_preserve_bounded_portability_boundary():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (methodology, provenance, personal, roadmap, prompt):
+        assert "AMD Q1 FY2026" in text
+        assert "0000002488-26-000076" in text
+        assert "bounded two-company portability" in text.lower()
+    assert "cash_preview=1" in personal
+    assert "production_activation=false" in provenance
+    assert "readiness_promotions=()" in provenance
+    assert "does not prove broad company coverage" in roadmap.lower()
+    assert "do not add a third company" in prompt.lower()
+
+
 def test_makefile_exposes_stdout_only_readiness_preview_contract():
     makefile = _read("Makefile")
 

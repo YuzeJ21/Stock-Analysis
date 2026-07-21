@@ -76,7 +76,9 @@ Its success state is deliberately narrow: **accepted_for_review is not productio
 
 The bounded route `?mode=research&page=company-workbench&ticker=NVDA&open=1&cash_preview=1` adds one explicit, read-only **Cash-generation review preview — not production evidence** below the canonical Business Trend answer. The fixed review cutoff is `2026-07-20T23:59:59-04:00`. The normal Company Workbench route does not call the preview loader and continues to show only canonical production evidence and its existing withheld states.
 
-The preview is all-or-nothing: operating margin, free cash flow, and FCF margin appear only when the accepted NVIDIA Q1 FY2027 SEC evidence passes the complete identity, source-rights, cutoff, accession, acceptance-time, component, capex-sign, and compatibility contract. Any required failure withholds all three preview metrics. Accession, source URL, timestamps, component values, definitions, and blockers stay in the collapsed Advanced evidence section. The route writes no cache or canonical data, creates no readiness or generated artifact, and cannot promote any product lane.
+AMD Q1 FY2026 accession `0000002488-26-000076` is the second exact filing available through the explicit `cash_preview=1` route. NVIDIA and AMD now provide bounded two-company portability through the same immutable loader, complete-withholding contract, preview-only cards, and Advanced lineage. Normal Company Workbench routes remain canonical and never load the preview.
+
+The preview is all-or-nothing: operating margin, free cash flow, and FCF margin appear only when an accepted NVIDIA Q1 FY2027 or AMD Q1 FY2026 SEC evidence packet passes the complete identity, source-rights, cutoff, accession, acceptance-time, component, capex-sign, and compatibility contract. Any required failure withholds all three preview metrics. Accession, source URL, timestamps, component values, definitions, and blockers stay in the collapsed Advanced evidence section. The route writes no cache or canonical data, creates no readiness or generated artifact, and cannot promote any product lane.
 
 ## Repeated Review Routine
 
