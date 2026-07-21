@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 import html
 import pandas as pd
 from urllib.parse import quote
@@ -152,6 +153,46 @@ def company_change_answer(ticker: str, review_items) -> dict[str, object]:
         ),
         "next_task": first_task,
         "source_refs": source_refs,
+    }
+
+
+def company_next_research_task(
+    change_answer: Mapping[str, object] | None,
+    conclusion_cards: Iterable[Mapping[str, object]] | None,
+) -> dict[str, object]:
+    change = dict(change_answer or {})
+    if str(change.get("state") or "").strip() == "review_now":
+        title = str(change.get("next_task") or "").strip()
+        if title:
+            return {
+                "title": title,
+                "body": "Complete this source-backed evidence review before starting another research task.",
+                "state": "review_now",
+                "badges": ["source-backed change", "research-only"],
+            }
+
+    for raw_card in tuple(conclusion_cards or ()):
+        card = dict(raw_card or {})
+        title = str(card.get("title") or "").strip()
+        if not title:
+            continue
+        badges = [str(value).strip() for value in tuple(card.get("badges") or ()) if str(value).strip()]
+        return {
+            "title": title,
+            "body": str(card.get("body") or "").strip(),
+            "state": (
+                str(card.get("state") or "").strip()
+                if str(card.get("state") or "").strip() in RESEARCH_ROUTING_STATES
+                else "wait_for_evidence"
+            ),
+            "badges": list(dict.fromkeys([*badges, "research-only"])),
+        }
+
+    return {
+        "title": "Wait for reviewed evidence or choose another company",
+        "body": "No source-backed change or executable company task is available. Do not infer one from missing data.",
+        "state": "wait_for_evidence",
+        "badges": ["monitor", "research-only"],
     }
 
 

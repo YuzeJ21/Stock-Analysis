@@ -8,6 +8,7 @@ from src.research_workspace import (
     cash_generation_preview_rows,
     company_workbench_section_contract,
     company_change_answer,
+    company_next_research_task,
     focused_cohort_cards,
     focused_cohort_coverage_cards,
     focused_ticker_coverage_cards,
@@ -82,6 +83,37 @@ def _quarterly_business_observation(
         retrieved_at="2026-07-18T12:00:00+00:00",
         q4_evidence_state="explicit_filed_quarter" if quarter == 4 else "not_q4",
     )
+
+
+def test_company_next_research_task_prioritizes_unresolved_source_change():
+    task = company_next_research_task(
+        {"state": "review_now", "next_task": "Review the filed evidence."},
+        [{"title": "Add peer mappings", "body": "Peer context is partial.", "state": "wait_for_evidence", "badges": ["peers"]}],
+    )
+    assert task == {
+        "title": "Review the filed evidence.",
+        "body": "Complete this source-backed evidence review before starting another research task.",
+        "state": "review_now",
+        "badges": ["source-backed change", "research-only"],
+    }
+
+
+def test_company_next_research_task_uses_ordered_conclusion_priority_without_change():
+    task = company_next_research_task(
+        {"state": "monitor", "next_task": "Continue the current review or wait."},
+        [{"title": "Add peer mappings", "body": "Peer context is partial.", "badges": ["peers"]}],
+    )
+    assert task["title"] == "Add peer mappings"
+    assert task["body"] == "Peer context is partial."
+    assert task["state"] == "wait_for_evidence"
+    assert task["badges"] == ["peers", "research-only"]
+
+
+def test_company_next_research_task_fails_closed_to_neutral_wait():
+    task = company_next_research_task({}, [])
+    assert task["title"] == "Wait for reviewed evidence or choose another company"
+    assert task["state"] == "wait_for_evidence"
+    assert task["badges"] == ["monitor", "research-only"]
 
 
 def _cash_preview() -> CompanyWorkbenchCashGenerationPreview:
