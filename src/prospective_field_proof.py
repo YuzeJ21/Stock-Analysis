@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import csv
+import fcntl
 import hashlib
+import io
 import json
+import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import BinaryIO, Mapping, Sequence
 
 from src.commercial_source_rights import (
     SourceRights,
@@ -47,6 +50,29 @@ _PAYLOAD_STATUSES = frozenset({"reviewed", "unavailable", "rejected"})
 _REVIEWER_DECISIONS = frozenset({"accepted", "rejected", "needs_follow_up"})
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _PLACEHOLDERS = frozenset({"-", "na", "n/a", "not available", "unknown", "none"})
+_BASE_REQUIRED_FIELDS = frozenset(
+    {
+        "schema_version",
+        "proof_id",
+        "ticker",
+        "field_key",
+        "readiness_contract_version",
+        "observed_at",
+        "retrieved_at",
+        "source_status",
+        "rights_status",
+        "payload_status",
+        "reviewer_decision",
+        "reviewed_at",
+    }
+)
+_OPTIONAL_EVIDENCE_FIELDS = (
+    "source_id",
+    "source_ref",
+    "rights_decision_ref",
+    "payload_sha256",
+    "reviewer_id",
+)
 
 
 @dataclass(frozen=True)
@@ -199,11 +225,13 @@ def load_proposed_field_proofs(path: Path | str) -> tuple[ProspectiveFieldProofR
 def _validate_record(record: ProspectiveFieldProofRecord) -> None:
     if _text(record.schema_version) != SCHEMA_VERSION:
         raise ValueError(f"schema_version must be {SCHEMA_VERSION}")
-    for field in FIELDS:
-        if field == "supersedes_proof_id":
-            continue
+    for field in _BASE_REQUIRED_FIELDS:
         if _is_placeholder(getattr(record, field)):
             raise ValueError(f"{field} is required and cannot be a placeholder")
+    for field in _OPTIONAL_EVIDENCE_FIELDS:
+        value = _text(getattr(record, field))
+        if value and _is_placeholder(value):
+            raise ValueError(f"{field} cannot be a placeholder when provided")
 
     if record.source_status not in _SOURCE_STATUSES:
         raise ValueError("source_status is not an allowed value")
@@ -213,7 +241,17 @@ def _validate_record(record: ProspectiveFieldProofRecord) -> None:
         raise ValueError("payload_status is not an allowed value")
     if record.reviewer_decision not in _REVIEWER_DECISIONS:
         raise ValueError("reviewer_decision is not an allowed value")
-    if not _SHA256.fullmatch(record.payload_sha256):
+    if record.source_status == "identified":
+        for field in ("source_id", "source_ref"):
+            if _is_placeholder(getattr(record, field)):
+                raise ValueError(
+                    f"source_status=identified requires a non-placeholder {field}"
+                )
+    if record.payload_status == "reviewed" and _is_placeholder(record.payload_sha256):
+        raise ValueError(
+            "payload_status=reviewed requires a lowercase SHA-256 payload_sha256"
+        )
+    if _text(record.payload_sha256) and not _SHA256.fullmatch(record.payload_sha256):
         raise ValueError("payload_sha256 must be a lowercase SHA-256 digest")
 
     observed_at = parse_utc_timestamp(record.observed_at, label="observed_at")
@@ -229,8 +267,12 @@ def _validate_record(record: ProspectiveFieldProofRecord) -> None:
             raise ValueError("accepted records require source_status=identified")
         if record.payload_status != "reviewed":
             raise ValueError("accepted records require payload_status=reviewed")
+        if _is_placeholder(record.source_id):
+            raise ValueError("accepted records require a non-placeholder source_id")
         if _is_placeholder(record.source_ref):
             raise ValueError("accepted records require a non-placeholder source_ref")
+        if not _SHA256.fullmatch(record.payload_sha256):
+            raise ValueError("accepted records require a lowercase SHA-256 payload_sha256")
         if _is_placeholder(record.reviewer_id):
             raise ValueError("accepted records require a non-placeholder reviewer_id")
 
@@ -356,7 +398,10 @@ def _records_digest(records: Sequence[ProspectiveFieldProofRecord]) -> str:
 def _source_rights_registry_digest(
     rights_registry: Mapping[str, SourceRights],
 ) -> str:
-    payload = [asdict(rights_registry[source_id]) for source_id in sorted(rights_registry)]
+    payload = [
+        {"lookup_key": source_id, "rights": asdict(rights_registry[source_id])}
+        for source_id in sorted(rights_registry)
+    ]
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -552,6 +597,90 @@ def preview_field_proof_batch(
     )
 
 
+def _validate_append_preview(
+    existing: Sequence[ProspectiveFieldProofRecord],
+    proposed: Sequence[ProspectiveFieldProofRecord],
+    *,
+    review_cutoff: str,
+    commercial_mode: bool,
+    rights_registry: Mapping[str, SourceRights],
+    expected_receipt: str,
+) -> None:
+    preview = preview_field_proof_batch(
+        existing,
+        proposed,
+        as_of=review_cutoff,
+        commercial_mode=commercial_mode,
+        rights_registry=rights_registry,
+    )
+    if preview.preview_receipt != expected_receipt:
+        raise ValueError(
+            "preview receipt mismatch: input, cutoff, ledger, commercial mode, "
+            "or source-rights registry changed"
+        )
+    if not preview.technical_write_eligible:
+        raise ValueError(f"{preview.state}: " + "; ".join(preview.technical_blockers))
+    if commercial_mode and not preview.commercial_evidence_eligible:
+        raise ValueError(
+            "batch_commercial_evidence_review_required: "
+            + "; ".join(preview.commercial_blockers)
+        )
+
+
+def _encode_append_payload(
+    records: Sequence[ProspectiveFieldProofRecord],
+    *,
+    include_header: bool,
+    leading_newline: bool,
+) -> bytes:
+    buffer = io.StringIO(newline="")
+    if leading_newline:
+        buffer.write("\n")
+    writer = csv.DictWriter(buffer, fieldnames=FIELDS)
+    if include_header:
+        writer.writeheader()
+    writer.writerows(asdict(record) for record in records)
+    return buffer.getvalue().encode("utf-8")
+
+
+def _open_new_ledger_exclusive(destination: Path) -> BinaryIO:
+    return destination.open("x+b", buffering=0)
+
+
+def _write_append_payload(handle: BinaryIO, payload: bytes) -> None:
+    written = handle.write(payload)
+    if written != len(payload):
+        raise OSError(
+            f"short field proof ledger write: wrote {written} of {len(payload)} bytes"
+        )
+
+
+def _flush_and_fsync(handle: BinaryIO) -> None:
+    handle.flush()
+    os.fsync(handle.fileno())
+
+
+def _append_payload_with_rollback(
+    handle: BinaryIO, payload: bytes, *, original_size: int
+) -> None:
+    handle.seek(original_size)
+    try:
+        _write_append_payload(handle, payload)
+        _flush_and_fsync(handle)
+    except BaseException:
+        handle.seek(original_size)
+        handle.truncate()
+        _flush_and_fsync(handle)
+        raise
+
+
+def _existing_ledger_needs_delimiter(handle: BinaryIO, *, original_size: int) -> bool:
+    if original_size == 0:
+        return False
+    handle.seek(-1, os.SEEK_END)
+    return handle.read(1) not in {b"\n", b"\r"}
+
+
 def append_reviewed_field_proof_batch(
     path: Path | str,
     records: Sequence[ProspectiveFieldProofRecord],
@@ -572,7 +701,6 @@ def append_reviewed_field_proof_batch(
         raise ValueError("preview_receipt is required and must match the reviewed preview")
 
     destination = Path(path)
-    existing = load_field_proofs(destination)
     proposed = tuple(records)
     resolved_registry = (
         load_source_rights_registry() if rights_registry is None else rights_registry
@@ -580,31 +708,61 @@ def append_reviewed_field_proof_batch(
     resolved_commercial_mode = (
         commercial_mode_enabled() if commercial_mode is None else commercial_mode
     )
-    preview = preview_field_proof_batch(
-        existing,
+    if destination.exists():
+        if not destination.is_file():
+            raise ValueError(f"field proof path is not a regular file: {destination}")
+        with destination.open("r+b", buffering=0) as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                existing = load_field_proofs(destination)
+                _validate_append_preview(
+                    existing,
+                    proposed,
+                    review_cutoff=review_cutoff,
+                    commercial_mode=resolved_commercial_mode,
+                    rights_registry=resolved_registry,
+                    expected_receipt=preview_receipt,
+                )
+                original_size = handle.seek(0, os.SEEK_END)
+                payload = _encode_append_payload(
+                    proposed,
+                    include_header=False,
+                    leading_newline=_existing_ledger_needs_delimiter(
+                        handle, original_size=original_size
+                    ),
+                )
+                _append_payload_with_rollback(
+                    handle, payload, original_size=original_size
+                )
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        return destination
+
+    _validate_append_preview(
+        (),
         proposed,
-        as_of=review_cutoff,
+        review_cutoff=review_cutoff,
         commercial_mode=resolved_commercial_mode,
         rights_registry=resolved_registry,
+        expected_receipt=preview_receipt,
     )
-    if preview.preview_receipt != preview_receipt:
-        raise ValueError(
-            "preview receipt mismatch: input, cutoff, ledger, commercial mode, "
-            "or source-rights registry changed"
-        )
-    if not preview.technical_write_eligible:
-        raise ValueError(f"{preview.state}: " + "; ".join(preview.technical_blockers))
-    if resolved_commercial_mode and not preview.commercial_evidence_eligible:
-        raise ValueError(
-            "batch_commercial_evidence_review_required: "
-            + "; ".join(preview.commercial_blockers)
-        )
-
+    payload = _encode_append_payload(
+        proposed,
+        include_header=True,
+        leading_newline=False,
+    )
     destination.parent.mkdir(parents=True, exist_ok=True)
-    ledger_exists = destination.exists()
-    with destination.open("a", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDS)
-        if not ledger_exists:
-            writer.writeheader()
-        writer.writerows(asdict(record) for record in proposed)
+    try:
+        handle = _open_new_ledger_exclusive(destination)
+    except FileExistsError as exc:
+        raise ValueError(
+            "preview receipt mismatch: field proof ledger was created concurrently; "
+            "a new preview is required"
+        ) from exc
+    with handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            _append_payload_with_rollback(handle, payload, original_size=0)
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
     return destination

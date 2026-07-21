@@ -1,4 +1,5 @@
 import csv
+import fcntl
 import hashlib
 import json
 from dataclasses import asdict, replace
@@ -6,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import src.prospective_field_proof as field_proof
 from src.commercial_source_rights import SourceRights
 from src.prospective_field_proof import (
     BatchFieldProofPreview,
@@ -177,21 +179,34 @@ def test_loaders_normalize_scope_for_semantic_proof_identity(tmp_path: Path):
 
 
 @pytest.mark.parametrize(
-    ("field", "value", "message"),
+    "field",
     [
-        ("source_ref", "<source-ref>", "source_ref"),
-        ("reviewer_id", "unknown", "reviewer_id"),
-        ("rights_decision_ref", "-", "rights_decision_ref"),
-        ("payload_sha256", "", "payload_sha256"),
+        "schema_version",
+        "proof_id",
+        "ticker",
+        "field_key",
+        "readiness_contract_version",
+        "observed_at",
+        "retrieved_at",
+        "source_status",
+        "rights_status",
+        "payload_status",
+        "reviewer_decision",
+        "reviewed_at",
     ],
 )
-def test_required_values_reject_missing_and_placeholder_content(
-    tmp_path: Path, field: str, value: str, message: str
+def test_base_identity_scope_status_and_timestamps_remain_required(
+    tmp_path: Path, field: str
 ):
     ledger = tmp_path / "proofs.csv"
-    _write_csv(ledger, (_reidentified(_record(), **{field: value}),))
+    record = (
+        replace(_record(), proof_id="")
+        if field == "proof_id"
+        else _reidentified(_record(), **{field: ""})
+    )
+    _write_csv(ledger, (record,))
 
-    with pytest.raises(ValueError, match=rf"ledger row 2: .*{message}"):
+    with pytest.raises(ValueError, match=rf"ledger row 2: .*{field}"):
         load_field_proofs(ledger)
 
 
@@ -267,7 +282,10 @@ def test_accepted_record_requires_identified_source_reviewed_payload_and_non_pla
     accepted = _record()
     for field, value in (
         ("source_status", "unavailable"),
+        ("source_id", ""),
+        ("source_ref", ""),
         ("payload_status", "unavailable"),
+        ("payload_sha256", ""),
         ("reviewer_id", "<reviewer>"),
     ):
         invalid = _reidentified(accepted, **{field: value})
@@ -275,6 +293,83 @@ def test_accepted_record_requires_identified_source_reviewed_payload_and_non_pla
             validate_field_proof_ledger((invalid,))
 
     assert validate_field_proof_ledger((accepted,)) is None
+
+
+@pytest.mark.parametrize(
+    ("reviewer_decision", "source_status", "payload_status"),
+    [
+        ("rejected", "unavailable", "rejected"),
+        ("needs_follow_up", "disputed", "unavailable"),
+    ],
+)
+def test_unresolved_records_preserve_blank_optional_evidence_without_collapsing_states(
+    reviewer_decision: str,
+    source_status: str,
+    payload_status: str,
+):
+    proposed = _reidentified(
+        _record(),
+        source_id="",
+        source_ref="",
+        source_status=source_status,
+        rights_status="unverified",
+        rights_decision_ref="",
+        payload_status=payload_status,
+        payload_sha256="",
+        reviewer_id="",
+        reviewer_decision=reviewer_decision,
+    )
+
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=_rights_registry(),
+    )
+
+    assert preview.technical_write_eligible is True
+    assert preview.rows[0].state == "reviewable_new"
+    assert preview.commercial_evidence_eligible is False
+    assert preview.rows[0].commercial_evidence_eligible is False
+    assert f"row_1:reviewer_decision:{reviewer_decision}" in preview.commercial_blockers
+    assert f"row_1:source_status:{source_status}" in preview.commercial_blockers
+    assert f"row_1:payload_status:{payload_status}" in preview.commercial_blockers
+    assert "row_1:record_rights_status:unverified" in preview.commercial_blockers
+    assert "row_1:rights_decision_ref_required" in preview.commercial_blockers
+
+
+def test_identified_source_and_reviewed_payload_require_their_own_evidence_identity():
+    follow_up = _reidentified(
+        _record(),
+        reviewer_decision="needs_follow_up",
+        reviewer_id="",
+    )
+
+    for field in ("source_id", "source_ref", "payload_sha256"):
+        invalid = _reidentified(follow_up, **{field: ""})
+        with pytest.raises(ValueError, match=field):
+            validate_field_proof_ledger((invalid,))
+
+
+def test_blank_rights_decision_reference_is_technical_evidence_but_not_commercial_evidence():
+    proposed = _reidentified(
+        _record(),
+        rights_status="approved",
+        rights_decision_ref="",
+    )
+
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=_rights_registry(),
+    )
+
+    assert preview.technical_write_eligible is True
+    assert preview.commercial_evidence_eligible is False
+    assert preview.commercial_blockers == ("row_1:rights_decision_ref_required",)
 
 
 def test_ledger_rejects_duplicate_ids_and_semantic_identities():
@@ -513,7 +608,10 @@ def _records_digest(records: tuple[ProspectiveFieldProofRecord, ...]) -> str:
 
 
 def _registry_digest(registry: dict[str, SourceRights]) -> str:
-    payload = [asdict(registry[source_id]) for source_id in sorted(registry)]
+    payload = [
+        {"lookup_key": source_id, "rights": asdict(registry[source_id])}
+        for source_id in sorted(registry)
+    ]
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -617,6 +715,48 @@ def test_preview_receipt_changes_with_input_cutoff_mode_or_registry():
             changed_registry.preview_receipt,
         }
     ) == 5
+
+
+def test_registry_digest_is_order_independent_and_binds_lookup_keys():
+    proposed = _reidentified(_record(), rights_status="approved")
+    reviewed = _rights_registry()["reviewed_csv"]
+    second = replace(
+        reviewed,
+        source_id="second_source",
+        display_name="Second Source",
+        fallback_priority=2,
+    )
+    registry = {"second_source": second, "reviewed_csv": reviewed}
+    reordered = dict(reversed(tuple(registry.items())))
+    renamed = {"second_source": second, "renamed_lookup": reviewed}
+
+    baseline = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+    reordered_preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=reordered,
+    )
+    renamed_preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=renamed,
+    )
+
+    assert baseline.source_rights_registry_digest == _registry_digest(registry)
+    assert reordered_preview.source_rights_registry_digest == baseline.source_rights_registry_digest
+    assert reordered_preview.preview_receipt == baseline.preview_receipt
+    assert renamed_preview.source_rights_registry_digest != baseline.source_rights_registry_digest
+    assert renamed_preview.preview_receipt != baseline.preview_receipt
 
 
 def test_append_requires_confirmation_receipt_and_a_nonempty_batch(tmp_path: Path):
@@ -831,6 +971,215 @@ def test_append_writes_one_header_and_rows_once_in_reviewed_order(tmp_path: Path
     assert ledger.read_bytes().startswith(prior_bytes)
     assert load_field_proofs(ledger) == (root, child, grandchild)
     assert ledger.read_text(encoding="utf-8").count(",".join(FIELDS)) == 1
+
+
+def test_append_adds_a_delimiter_after_valid_ledger_without_terminal_newline(
+    tmp_path: Path,
+):
+    ledger = tmp_path / "proofs.csv"
+    root = _reidentified(_record(), rights_status="approved")
+    child = _reidentified(_revision(root), rights_status="approved")
+    registry = _rights_registry()
+    _write_csv(ledger, (root,))
+    prior_bytes = ledger.read_bytes().rstrip(b"\r\n")
+    ledger.write_bytes(prior_bytes)
+    preview = preview_field_proof_batch(
+        (root,),
+        (child,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+
+    append_reviewed_field_proof_batch(
+        ledger,
+        (child,),
+        confirm_reviewed=True,
+        commercial_mode=True,
+        rights_registry=registry,
+        review_cutoff=preview.review_cutoff,
+        preview_receipt=preview.preview_receipt,
+    )
+
+    appended = ledger.read_bytes()
+    assert appended.startswith(prior_bytes)
+    assert appended[len(prior_bytes) :].startswith(b"\n")
+    assert load_field_proofs(ledger) == (root, child)
+
+
+def test_existing_ledger_is_locked_while_receipt_is_revalidated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    ledger = tmp_path / "proofs.csv"
+    root = _reidentified(_record(), rights_status="approved")
+    child = _reidentified(_revision(root), rights_status="approved")
+    registry = _rights_registry()
+    _write_csv(ledger, (root,))
+    preview = preview_field_proof_batch(
+        (root,),
+        (child,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+    original_preview = field_proof.preview_field_proof_batch
+    lock_observed = False
+
+    def preview_while_probing_lock(*args, **kwargs):
+        nonlocal lock_observed
+        with ledger.open("r+b") as probe:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        lock_observed = True
+        return original_preview(*args, **kwargs)
+
+    monkeypatch.setattr(field_proof, "preview_field_proof_batch", preview_while_probing_lock)
+
+    append_reviewed_field_proof_batch(
+        ledger,
+        (child,),
+        confirm_reviewed=True,
+        commercial_mode=True,
+        rights_registry=registry,
+        review_cutoff=preview.review_cutoff,
+        preview_receipt=preview.preview_receipt,
+    )
+
+    assert lock_observed is True
+
+
+def test_absent_ledger_uses_exclusive_creation(tmp_path: Path):
+    ledger = tmp_path / "proofs.csv"
+    opener = getattr(field_proof, "_open_new_ledger_exclusive", None)
+
+    assert opener is not None
+    with opener(ledger) as first:
+        assert first.fileno() >= 0
+        with pytest.raises(FileExistsError):
+            opener(ledger)
+
+
+def test_encoding_failure_occurs_before_missing_destination_is_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    ledger = tmp_path / "proofs.csv"
+    proposed = _reidentified(_record(), rights_status="approved")
+    registry = _rights_registry()
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+
+    def fail_encoding(*args, **kwargs):
+        raise UnicodeError("injected encoding failure")
+
+    monkeypatch.setattr(
+        field_proof, "_encode_append_payload", fail_encoding, raising=False
+    )
+
+    with pytest.raises(UnicodeError, match="injected encoding failure"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (proposed,),
+            confirm_reviewed=True,
+            commercial_mode=True,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+
+    assert not ledger.exists()
+
+
+def test_partial_write_failure_rolls_existing_ledger_back_to_exact_prior_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    ledger = tmp_path / "proofs.csv"
+    root = _reidentified(_record(), rights_status="approved")
+    child = _reidentified(_revision(root), rights_status="approved")
+    registry = _rights_registry()
+    _write_csv(ledger, (root,))
+    prior_bytes = ledger.read_bytes()
+    preview = preview_field_proof_batch(
+        (root,),
+        (child,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+
+    def write_part_then_fail(handle, payload: bytes):
+        handle.write(payload[: max(1, len(payload) // 2)])
+        raise OSError("injected partial write failure")
+
+    monkeypatch.setattr(
+        field_proof, "_write_append_payload", write_part_then_fail, raising=False
+    )
+
+    with pytest.raises(OSError, match="injected partial write failure"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (child,),
+            confirm_reviewed=True,
+            commercial_mode=True,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+
+    assert ledger.read_bytes() == prior_bytes
+    assert load_field_proofs(ledger) == (root,)
+
+
+def test_flush_failure_rolls_existing_ledger_back_and_syncs_the_rollback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    ledger = tmp_path / "proofs.csv"
+    root = _reidentified(_record(), rights_status="approved")
+    child = _reidentified(_revision(root), rights_status="approved")
+    registry = _rights_registry()
+    _write_csv(ledger, (root,))
+    prior_bytes = ledger.read_bytes()
+    preview = preview_field_proof_batch(
+        (root,),
+        (child,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+    original_flush = getattr(field_proof, "_flush_and_fsync", None)
+    calls = 0
+
+    def fail_once_then_sync(handle):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            handle.flush()
+            raise OSError("injected flush failure")
+        assert original_flush is not None
+        original_flush(handle)
+
+    monkeypatch.setattr(
+        field_proof, "_flush_and_fsync", fail_once_then_sync, raising=False
+    )
+
+    with pytest.raises(OSError, match="injected flush failure"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (child,),
+            confirm_reviewed=True,
+            commercial_mode=True,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+
+    assert calls == 2
+    assert ledger.read_bytes() == prior_bytes
+    assert load_field_proofs(ledger) == (root,)
 
 
 def test_research_append_can_record_technical_proof_while_commercial_mode_fails_closed(
