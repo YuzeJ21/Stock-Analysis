@@ -1,3 +1,5 @@
+import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -7,7 +9,11 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _make(*arguments: str, dry_run: bool = False) -> subprocess.CompletedProcess[str]:
+def _make(
+    *arguments: str,
+    dry_run: bool = False,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     command = ["make", "--no-print-directory"]
     if dry_run:
         command.append("--just-print")
@@ -18,34 +24,86 @@ def _make(*arguments: str, dry_run: bool = False) -> subprocess.CompletedProcess
         check=False,
         capture_output=True,
         text=True,
+        env=env,
     )
+
+
+def _phony_targets(makefile: str) -> set[str]:
+    targets: set[str] = set()
+    for line in makefile.splitlines():
+        if line.startswith(".PHONY:"):
+            targets.update(line.partition(":")[2].split())
+    return targets
+
+
+def _argv_capture_environment(tmp_path: Path) -> dict[str, str]:
+    shim = tmp_path / "python3"
+    shim.write_text(
+        "#!/bin/sh\nprintf '%s\\n' \"$@\"\n",
+        encoding="utf-8",
+    )
+    shim.chmod(0o755)
+    return {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
 
 
 def test_prospective_field_proof_targets_are_phony_and_default_ledger_is_explicit():
     makefile = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
+    phony_targets = _phony_targets(makefile)
 
     for target in (
         "prospective-field-proof-status",
         "prospective-field-proof-preview",
         "prospective-field-proof-record",
     ):
-        assert target in makefile.split(".PHONY:", 1)[1]
+        assert target in phony_targets
 
-    result = _make("prospective-field-proof-status", "JSON=1", dry_run=True)
+
+def test_default_status_target_runs_live_without_creating_or_changing_scoped_files():
+    ledger = PROJECT_ROOT / "data" / "prospective_field_proofs.csv"
+    scoped_files = (
+        PROJECT_ROOT / "data" / "earnings_readiness.csv",
+        PROJECT_ROOT / "data" / "universe_master.csv",
+        PROJECT_ROOT / "data" / "reviewed_data_proof.csv",
+        PROJECT_ROOT / "outputs" / "feature_readiness_summary.csv",
+    )
+    assert not ledger.exists()
+    before = {path: path.read_bytes() for path in scoped_files if path.is_file()}
+
+    result = _make("prospective-field-proof-status", "JSON=1")
+    payload = json.loads(result.stdout)
+    after = {path: path.read_bytes() for path in scoped_files if path.is_file()}
 
     assert result.returncode == 0
-    assert (
-        'python3 -m src.prospective_field_proof status '
-        '--ledger "data/prospective_field_proofs.csv" --json'
-    ) in result.stdout
-    assert not (PROJECT_ROOT / "data" / "prospective_field_proofs.csv").exists()
+    assert payload["ledger"] == "data/prospective_field_proofs.csv"
+    assert payload["state"] == "absent"
+    assert payload["write_performed"] is False
+    assert not ledger.exists()
+    assert after == before
 
 
-def test_prospective_field_proof_make_targets_forward_exact_paths_cutoff_and_receipt():
-    input_path = "review inputs/proposed.csv"
-    ledger_path = "review ledgers/proofs.csv"
-    cutoff = "2026-07-20T00:00:00Z"
-    receipt = "b" * 64
+def test_prospective_field_proof_make_targets_forward_adversarial_values_literally(
+    tmp_path: Path,
+):
+    marker = tmp_path / "make-injection-marker"
+    command_substitution = f"$(touch {marker})"
+    backtick_substitution = f"`touch {marker}`"
+    input_path = (
+        "review inputs/quote'\"-"
+        f"{backtick_substitution}-{command_substitution}-back\\slash.csv"
+    )
+    ledger_path = (
+        "review ledgers/quote'\"-"
+        f"{backtick_substitution}-{command_substitution}-back\\slash.csv"
+    )
+    cutoff = (
+        "2026-07-20T00:00:00Z quote'\"-"
+        f"{backtick_substitution}-{command_substitution}-back\\slash"
+    )
+    receipt = (
+        "receipt quote'\"-"
+        f"{backtick_substitution}-{command_substitution}-back\\slash"
+    )
+    capture_env = _argv_capture_environment(tmp_path)
 
     preview = _make(
         "prospective-field-proof-preview",
@@ -53,7 +111,7 @@ def test_prospective_field_proof_make_targets_forward_exact_paths_cutoff_and_rec
         f"LEDGER={ledger_path}",
         f"AS_OF={cutoff}",
         "JSON=1",
-        dry_run=True,
+        env=capture_env,
     )
     record = _make(
         "prospective-field-proof-record",
@@ -63,21 +121,40 @@ def test_prospective_field_proof_make_targets_forward_exact_paths_cutoff_and_rec
         f"PREVIEW_RECEIPT={receipt}",
         "CONFIRM_REVIEWED=1",
         "JSON=1",
-        dry_run=True,
+        env=capture_env,
     )
+    marker_created = marker.exists()
+    marker.unlink(missing_ok=True)
 
     assert preview.returncode == record.returncode == 0
-    assert (
-        'python3 -m src.prospective_field_proof preview '
-        f'--input "{input_path}" --ledger "{ledger_path}" '
-        f'--as-of "{cutoff}" --json'
-    ) in preview.stdout
-    assert (
-        'python3 -m src.prospective_field_proof record '
-        f'--input "{input_path}" --ledger "{ledger_path}" '
-        f'--as-of "{cutoff}" --preview-receipt "{receipt}" '
-        '--confirm-reviewed --json'
-    ) in record.stdout
+    assert preview.stdout.splitlines() == [
+        "-m",
+        "src.prospective_field_proof",
+        "preview",
+        "--input",
+        input_path,
+        "--ledger",
+        ledger_path,
+        "--as-of",
+        cutoff,
+        "--json",
+    ]
+    assert record.stdout.splitlines() == [
+        "-m",
+        "src.prospective_field_proof",
+        "record",
+        "--input",
+        input_path,
+        "--ledger",
+        ledger_path,
+        "--as-of",
+        cutoff,
+        "--preview-receipt",
+        receipt,
+        "--confirm-reviewed",
+        "--json",
+    ]
+    assert marker_created is False
 
 
 @pytest.mark.parametrize(

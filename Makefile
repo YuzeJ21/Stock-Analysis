@@ -1396,18 +1396,42 @@ earnings-consensus-collection-record:
 	@test "$(CONFIRM_REVIEWED)" = "1" || (echo "CONFIRM_REVIEWED=1 is required after reviewing the exact preview" >&2; exit 2)
 	@python3 -m src.earnings_consensus_collector record --input "$(INPUT)" --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)" --as-of "$(AS_OF)" --preview-receipt "$(PREVIEW_RECEIPT)" --confirm-reviewed
 
+prospective-field-proof-status: export FIELD_PROOF_LEDGER := $(if $(strip $(value LEDGER)),$(value LEDGER),data/prospective_field_proofs.csv)
+prospective-field-proof-status: export FIELD_PROOF_JSON := $(value JSON)
 prospective-field-proof-status:
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof status --ledger "$(or $(LEDGER),data/prospective_field_proofs.csv)" $(if $(filter 1,$(JSON)),--json,)
+	@if [ "$${FIELD_PROOF_JSON}" = "1" ]; then \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof status --ledger "$${FIELD_PROOF_LEDGER}" --json; \
+	else \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof status --ledger "$${FIELD_PROOF_LEDGER}"; \
+	fi
 
+prospective-field-proof-preview: export FIELD_PROOF_INPUT := $(value INPUT)
+prospective-field-proof-preview: export FIELD_PROOF_LEDGER := $(if $(strip $(value LEDGER)),$(value LEDGER),data/prospective_field_proofs.csv)
+prospective-field-proof-preview: export FIELD_PROOF_AS_OF := $(value AS_OF)
+prospective-field-proof-preview: export FIELD_PROOF_JSON := $(value JSON)
 prospective-field-proof-preview:
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof preview --input "$(INPUT)" --ledger "$(or $(LEDGER),data/prospective_field_proofs.csv)" --as-of "$(AS_OF)" $(if $(filter 1,$(JSON)),--json,)
+	@if [ "$${FIELD_PROOF_JSON}" = "1" ]; then \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof preview --input "$${FIELD_PROOF_INPUT}" --ledger "$${FIELD_PROOF_LEDGER}" --as-of "$${FIELD_PROOF_AS_OF}" --json; \
+	else \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof preview --input "$${FIELD_PROOF_INPUT}" --ledger "$${FIELD_PROOF_LEDGER}" --as-of "$${FIELD_PROOF_AS_OF}"; \
+	fi
 
+prospective-field-proof-record: export FIELD_PROOF_INPUT := $(value INPUT)
+prospective-field-proof-record: export FIELD_PROOF_LEDGER := $(if $(strip $(value LEDGER)),$(value LEDGER),data/prospective_field_proofs.csv)
+prospective-field-proof-record: export FIELD_PROOF_AS_OF := $(value AS_OF)
+prospective-field-proof-record: export FIELD_PROOF_PREVIEW_RECEIPT := $(value PREVIEW_RECEIPT)
+prospective-field-proof-record: export FIELD_PROOF_CONFIRM_REVIEWED := $(value CONFIRM_REVIEWED)
+prospective-field-proof-record: export FIELD_PROOF_JSON := $(value JSON)
 prospective-field-proof-record:
-	@test -n "$(strip $(INPUT))" || (echo "INPUT is required for the exact reviewed field proof batch" >&2; exit 2)
-	@test -n "$(strip $(AS_OF))" || (echo "AS_OF is required and must match the reviewed preview cutoff" >&2; exit 2)
-	@test -n "$(strip $(PREVIEW_RECEIPT))" || (echo "PREVIEW_RECEIPT is required from the exact reviewed preview" >&2; exit 2)
-	@test "$(CONFIRM_REVIEWED)" = "1" || (echo "CONFIRM_REVIEWED=1 is required after reviewing the exact preview" >&2; exit 2)
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof record --input "$(INPUT)" --ledger "$(or $(LEDGER),data/prospective_field_proofs.csv)" --as-of "$(AS_OF)" --preview-receipt "$(PREVIEW_RECEIPT)" --confirm-reviewed $(if $(filter 1,$(JSON)),--json,)
+	@case "$${FIELD_PROOF_INPUT}" in *[![:space:]]*) ;; *) echo "INPUT is required for the exact reviewed field proof batch" >&2; exit 2;; esac
+	@case "$${FIELD_PROOF_AS_OF}" in *[![:space:]]*) ;; *) echo "AS_OF is required and must match the reviewed preview cutoff" >&2; exit 2;; esac
+	@case "$${FIELD_PROOF_PREVIEW_RECEIPT}" in *[![:space:]]*) ;; *) echo "PREVIEW_RECEIPT is required from the exact reviewed preview" >&2; exit 2;; esac
+	@test "$${FIELD_PROOF_CONFIRM_REVIEWED}" = "1" || (echo "CONFIRM_REVIEWED=1 is required after reviewing the exact preview" >&2; exit 2)
+	@if [ "$${FIELD_PROOF_JSON}" = "1" ]; then \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof record --input "$${FIELD_PROOF_INPUT}" --ledger "$${FIELD_PROOF_LEDGER}" --as-of "$${FIELD_PROOF_AS_OF}" --preview-receipt "$${FIELD_PROOF_PREVIEW_RECEIPT}" --confirm-reviewed --json; \
+	else \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof record --input "$${FIELD_PROOF_INPUT}" --ledger "$${FIELD_PROOF_LEDGER}" --as-of "$${FIELD_PROOF_AS_OF}" --preview-receipt "$${FIELD_PROOF_PREVIEW_RECEIPT}" --confirm-reviewed; \
+	fi
 
 research-outcome-review:
 	@python3 -m src.research_outcome_review --ledger "$(or $(LEDGER),data/research_outcome_reviews.csv)" --profile-key "$(or $(PROFILE_KEY),default)" --ticker "$(or $(TICKER),NVDA)"

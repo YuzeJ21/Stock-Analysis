@@ -112,6 +112,21 @@ def _file_snapshot(root: Path) -> dict[str, bytes]:
     }
 
 
+def _write_csv_parse_failure(path: Path, *, oversized: bool) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if oversized:
+        first_cell = "x" * (csv.field_size_limit() + 1)
+        path.write_text(
+            ",".join(FIELDS) + "\n" + first_cell + "," * (len(FIELDS) - 1) + "\n",
+            encoding="utf-8",
+        )
+    else:
+        path.write_text(
+            ",".join(FIELDS) + '\n"unterminated',
+            encoding="utf-8",
+        )
+
+
 def test_schema_constants_and_record_are_immutable():
     record = _record()
 
@@ -1420,6 +1435,74 @@ def test_status_reports_valid_and_invalid_existing_ledgers_in_text_without_writi
     assert "state: invalid" in invalid_output
     assert "header" in invalid_output
     assert _file_snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize("oversized", [False, True])
+def test_loader_converts_malformed_or_oversized_csv_errors_to_controlled_value_error(
+    tmp_path: Path, oversized: bool
+):
+    ledger = tmp_path / "ledger.csv"
+    _write_csv_parse_failure(ledger, oversized=oversized)
+
+    with pytest.raises(ValueError, match="field proof CSV parse error"):
+        load_field_proofs(ledger)
+
+
+@pytest.mark.parametrize("oversized", [False, True])
+def test_status_reports_csv_parse_errors_nonzero_without_traceback_or_mutation(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    oversized: bool,
+):
+    ledger = tmp_path / "ledger.csv"
+    _write_csv_parse_failure(ledger, oversized=oversized)
+    before = ledger.read_bytes()
+
+    exit_code = field_proof.main(["status", "--ledger", str(ledger)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "field proof csv parse error" in captured.out.lower()
+    assert "traceback" not in (captured.out + captured.err).lower()
+    assert ledger.read_bytes() == before
+
+
+@pytest.mark.parametrize("command", ["preview", "record"])
+@pytest.mark.parametrize("oversized", [False, True])
+def test_preview_and_record_report_input_csv_parse_errors_nonzero_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    command: str,
+    oversized: bool,
+):
+    input_path = tmp_path / "input.csv"
+    ledger = tmp_path / "ledger.csv"
+    _write_csv_parse_failure(input_path, oversized=oversized)
+    before = input_path.read_bytes()
+    monkeypatch.setenv("COMMERCIAL_RESEARCH_MODE", "research")
+    args = [
+        command,
+        "--input",
+        str(input_path),
+        "--ledger",
+        str(ledger),
+        "--as-of",
+        "2026-07-20T00:00:00Z",
+    ]
+    if command == "record":
+        args.extend(
+            ["--preview-receipt", "e" * 64, "--confirm-reviewed"]
+        )
+
+    exit_code = field_proof.main(args)
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "field proof csv parse error" in captured.err.lower()
+    assert "traceback" not in (captured.out + captured.err).lower()
+    assert input_path.read_bytes() == before
+    assert not ledger.exists()
 
 
 def test_preview_json_is_stable_and_does_not_mutate_any_scoped_file_or_default_ledger(

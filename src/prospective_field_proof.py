@@ -188,18 +188,27 @@ def _read_rows(path: Path | str, *, missing_ok: bool) -> tuple[ProspectiveFieldP
     if not source.is_file():
         raise ValueError(f"field proof path is not a regular file: {source}")
     with source.open(newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        if tuple(reader.fieldnames or ()) != FIELDS:
-            raise ValueError("Field proof ledger header does not match the append-only contract.")
-        records = []
-        for row_number, row in enumerate(reader, start=2):
-            if row.get(None) is not None:
-                raise ValueError(f"field proof row {row_number}: contains surplus cells")
-            records.append(
-                ProspectiveFieldProofRecord(
-                    **{field: _text(row.get(field)) for field in FIELDS}
+        reader = csv.DictReader(handle, strict=True)
+        try:
+            if tuple(reader.fieldnames or ()) != FIELDS:
+                raise ValueError(
+                    "Field proof ledger header does not match the append-only contract."
                 )
-            )
+            records = []
+            for row_number, row in enumerate(reader, start=2):
+                if row.get(None) is not None:
+                    raise ValueError(
+                        f"field proof row {row_number}: contains surplus cells"
+                    )
+                records.append(
+                    ProspectiveFieldProofRecord(
+                        **{field: _text(row.get(field)) for field in FIELDS}
+                    )
+                )
+        except csv.Error as exc:
+            raise ValueError(
+                f"field proof CSV parse error at line {max(reader.line_num, 1)}: {exc}"
+            ) from exc
         if missing_ok and not records:
             raise ValueError("Field proof ledger must contain at least one data row.")
         return tuple(records)
