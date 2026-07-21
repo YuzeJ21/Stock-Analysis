@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from src.proof_readiness_reconciliation import (
     build_proof_readiness_reconciliation,
@@ -19,6 +20,7 @@ from src.reviewed_batch_proof import ReviewedBatchProof
 def _proof(
     *,
     tickers: str = "ARCT",
+    changed_tickers: str | None = None,
     lane: str = "fundamentals",
     outcome: str = "auto_supported",
     review_date: str = "2026-06-26",
@@ -38,7 +40,7 @@ def _proof(
         pre_run_readiness_snapshot="before",
         post_run_readiness_snapshot="after",
         changed_readiness_counts="one lane changed",
-        changed_tickers=tickers,
+        changed_tickers=tickers if changed_tickers is None else changed_tickers,
         source_files="reviewed source",
         generated_artifacts_reviewed="excluded",
         final_outcome=outcome,
@@ -66,17 +68,181 @@ def _peer_readiness(**rows: dict[str, str]) -> pd.DataFrame:
     return pd.DataFrame([{"ticker": ticker, "peer_valuation_ready": "False", **values} for ticker, values in rows.items()])
 
 
-def _summary(*, proofs: list[ReviewedBatchProof], ticker: pd.DataFrame, dcf=None, peer=None):
+def _fundamentals(**rows: dict[str, str]) -> pd.DataFrame:
+    return pd.DataFrame([{"ticker": ticker, **values} for ticker, values in rows.items()])
+
+
+def _summary(*, proofs, ticker, dcf=None, peer=None, fundamentals=None):
     return build_proof_readiness_reconciliation(
         proofs=proofs,
         ticker_readiness=ticker,
         dcf_readiness=dcf if dcf is not None else pd.DataFrame(),
         peer_readiness=peer if peer is not None else pd.DataFrame(),
+        fundamentals=fundamentals if fundamentals is not None else pd.DataFrame(),
     )
 
 
 def _row(summary, ticker: str, lane: str):
     return next(row for row in summary.rows if row.ticker == ticker and row.lane == lane)
+
+
+def test_scope_only_support_is_not_ticker_level_support():
+    summary = _summary(
+        proofs=[_proof(tickers="ARCT,ARDX", changed_tickers="ARDX")],
+        ticker=_ticker_readiness(
+            ARCT={"fundamentals_ready": "False"},
+            ARDX={"fundamentals_ready": "False"},
+        ),
+    )
+
+    arct = _row(summary, "ARCT", "fundamentals")
+    ardx = _row(summary, "ARDX", "fundamentals")
+
+    assert arct.proof_applicability == "scope_only_not_supported"
+    assert arct.state == "currently_blocked_with_non_supporting_history"
+    assert ardx.proof_applicability == "explicit_ticker_change"
+    assert ardx.state == "historical_supported_currently_blocked"
+    assert dict(summary.conflict_counts_by_lane) == {"fundamentals": 1}
+
+
+@pytest.mark.parametrize(
+    "changed_tickers",
+    ["", "-", "none", "n/a", "not available", "unknown", "3289 changed tickers"],
+)
+def test_placeholder_changed_tickers_cannot_support(changed_tickers):
+    summary = _summary(
+        proofs=[_proof(changed_tickers=changed_tickers)],
+        ticker=_ticker_readiness(ARCT={"fundamentals_ready": "False"}),
+    )
+
+    row = _row(summary, "ARCT", "fundamentals")
+    assert row.proof_applicability == "missing_ticker_change_detail"
+    assert row.state == "currently_blocked_with_non_supporting_history"
+
+
+def test_latest_non_supporting_proof_does_not_fall_back_to_older_explicit_support():
+    summary = _summary(
+        proofs=[
+            _proof(batch_id="RB-OLD", review_date="2026-06-25", changed_tickers="ARCT"),
+            _proof(batch_id="RB-NEW", review_date="2026-06-26", changed_tickers="-"),
+        ],
+        ticker=_ticker_readiness(ARCT={"fundamentals_ready": "False"}),
+    )
+
+    row = _row(summary, "ARCT", "fundamentals")
+    assert row.latest_batch_id == "RB-NEW"
+    assert row.proof_applicability == "missing_ticker_change_detail"
+    assert row.state == "currently_blocked_with_non_supporting_history"
+
+
+def test_missing_current_canonical_fundamentals_row_is_diagnosed_without_historical_cause_inference():
+    summary = _summary(
+        proofs=[_proof()],
+        ticker=_ticker_readiness(ARCT={"fundamentals_ready": "False"}),
+        dcf=_dcf_readiness(
+            ARCT={
+                "missing_dcf_fields": "free_cash_flow, shares_outstanding, revenue, fcf_margin, price"
+            }
+        ),
+        fundamentals=_fundamentals(ARDX={"source": "sec_companyfacts"}),
+    )
+
+    row = _row(summary, "ARCT", "fundamentals")
+    assert row.current_blocker_code == "current_canonical_row_missing"
+    assert row.current_blocker_fields == (
+        "free_cash_flow",
+        "shares_outstanding",
+        "revenue",
+        "fcf_margin",
+    )
+    assert row.historical_payload_status == "structured_payload_not_recorded"
+    assert "cannot distinguish" in row.historical_evidence_limit.lower()
+    assert "yfinance" not in row.current_blocker_detail.lower()
+
+
+def test_incomplete_current_canonical_fundamentals_row_reports_exact_current_fields():
+    summary = _summary(
+        proofs=[_proof()],
+        ticker=_ticker_readiness(ARCT={"fundamentals_ready": "False"}),
+        dcf=_dcf_readiness(
+            ARCT={"missing_dcf_fields": "free_cash_flow, revenue, fcf_margin, price"}
+        ),
+        fundamentals=_fundamentals(
+            ARCT={"shares_outstanding": "100", "source": "sec_companyfacts"}
+        ),
+    )
+
+    row = _row(summary, "ARCT", "fundamentals")
+    assert row.current_blocker_code == "current_required_fields_missing"
+    assert row.current_blocker_fields == ("free_cash_flow", "revenue", "fcf_margin")
+    assert "price" not in row.current_blocker_fields
+
+
+def test_share_count_diagnosis_reports_only_shares_outstanding():
+    summary = _summary(
+        proofs=[_proof(lane="share_count")],
+        ticker=_ticker_readiness(ARCT={}),
+        dcf=_dcf_readiness(
+            ARCT={
+                "has_shares_outstanding": "False",
+                "missing_dcf_fields": "free_cash_flow, shares_outstanding, revenue, fcf_margin, price",
+            }
+        ),
+    )
+
+    row = _row(summary, "ARCT", "share_count")
+    assert row.current_blocker_code == "current_required_fields_missing"
+    assert row.current_blocker_fields == ("shares_outstanding",)
+
+
+def test_price_and_peer_blockers_remain_independent():
+    summary = _summary(
+        proofs=[
+            _proof(lane="price_history", batch_id="RB-PRICE"),
+            _proof(lane="peer_mapping", batch_id="RB-PEER"),
+            _proof(lane="peer_valuation_inputs", batch_id="RB-PEER-VAL"),
+        ],
+        ticker=_ticker_readiness(
+            ARCT={"price_ready": "False", "peer_ready": "False"}
+        ),
+        peer=_peer_readiness(ARCT={"peer_valuation_ready": "False"}),
+    )
+
+    assert _row(summary, "ARCT", "price").current_blocker_code == "current_price_missing"
+    assert _row(summary, "ARCT", "peer_mapping").current_blocker_code == "current_peer_mapping_missing"
+    assert (
+        _row(summary, "ARCT", "peer_valuation_inputs").current_blocker_code
+        == "current_peer_valuation_inputs_missing"
+    )
+
+
+def test_missing_canonical_fundamentals_input_affects_only_dependent_diagnosis():
+    summary = _summary(
+        proofs=[
+            _proof(lane="fundamentals", batch_id="RB-FUND"),
+            _proof(lane="price", batch_id="RB-PRICE"),
+            _proof(lane="peer_mapping", batch_id="RB-PEER"),
+        ],
+        ticker=_ticker_readiness(
+            ARCT={
+                "fundamentals_ready": "False",
+                "price_ready": "False",
+                "peer_ready": "False",
+            }
+        ),
+        dcf=_dcf_readiness(
+            ARCT={"missing_dcf_fields": "free_cash_flow, shares_outstanding, revenue, fcf_margin"}
+        ),
+        peer=_peer_readiness(ARCT={"peer_valuation_ready": "False"}),
+        fundamentals=pd.DataFrame(),
+    )
+
+    assert (
+        _row(summary, "ARCT", "fundamentals").current_blocker_code
+        == "current_readiness_input_unavailable"
+    )
+    assert _row(summary, "ARCT", "price").current_blocker_code == "current_price_missing"
+    assert _row(summary, "ARCT", "peer_mapping").current_blocker_code == "current_peer_mapping_missing"
 
 
 def test_historical_supported_fundamentals_stays_blocked_when_current_readiness_is_false():

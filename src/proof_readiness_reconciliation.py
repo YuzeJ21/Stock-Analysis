@@ -21,6 +21,41 @@ from src.reviewed_batch_proof import ReviewedBatchProof, load_reviewed_batch_pro
 
 
 SUPPORTING_OUTCOMES = frozenset({"supported", "auto_supported", "human_reviewed_supported"})
+PLACEHOLDER_TICKER_VALUES = frozenset({"-", "none", "n/a", "na", "not available", "unknown"})
+CANONICAL_DCF_FIELDS = (
+    "free_cash_flow",
+    "shares_outstanding",
+    "revenue",
+    "fcf_margin",
+    "price",
+)
+FUNDAMENTALS_FIELDS = CANONICAL_DCF_FIELDS[:-1]
+HISTORICAL_EVIDENCE_LIMIT = (
+    "Historical batch proof cannot distinguish payload removal, readiness-contract change, "
+    "source-rights change, field-scope change, or another historical cause."
+)
+
+NEXT_SAFE_REVIEW = {
+    "current_canonical_row_missing": (
+        "Obtain and review a permitted source payload for the exact ticker before any import or readiness rebuild."
+    ),
+    "current_required_fields_missing": (
+        "Review the named current fields through the existing source-review and preview-first workflow."
+    ),
+    "current_price_missing": (
+        "Inspect the exact ticker's current price evidence without inferring a provider."
+    ),
+    "current_peer_mapping_missing": (
+        "Review a source-backed relationship through the existing peer evidence contract."
+    ),
+    "current_peer_valuation_inputs_missing": (
+        "Review current peer valuation inputs independently from mapping readiness."
+    ),
+    "current_readiness_input_unavailable": (
+        "Restore or inspect the current saved input before drawing a conclusion."
+    ),
+    "none": "No current blocker is reported for this lane.",
+}
 
 LANE_MAPPINGS: dict[str, tuple[str, str, str]] = {
     "fundamentals": ("fundamentals", "ticker", "fundamentals_ready"),
@@ -66,6 +101,13 @@ class ProofReadinessReconciliationRow:
     review_date_valid: bool
     state: str
     reason: str
+    proof_applicability: str = "no_applicable_proof"
+    current_blocker_code: str = "current_readiness_input_unavailable"
+    current_blocker_fields: tuple[str, ...] = ()
+    current_blocker_detail: str = "The authoritative current readiness input is unavailable or malformed."
+    next_safe_review: str = NEXT_SAFE_REVIEW["current_readiness_input_unavailable"]
+    historical_payload_status: str = ""
+    historical_evidence_limit: str = ""
 
 
 @dataclass(frozen=True)
@@ -75,6 +117,8 @@ class ProofReadinessReconciliationSummary:
     conflict_counts_by_lane: tuple[tuple[str, int], ...]
     input_status: str
     input_message: str
+    proof_applicability_counts: tuple[tuple[str, int], ...] = ()
+    current_blocker_counts: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -82,6 +126,14 @@ class _LatestProof:
     proof: ReviewedBatchProof
     review_date_valid: bool
     sort_key: tuple[int, int, int]
+
+
+@dataclass(frozen=True)
+class _CurrentBlocker:
+    code: str
+    fields: tuple[str, ...]
+    detail: str
+    next_safe_review: str
 
 
 def _normalized_columns(frame: pd.DataFrame | None) -> pd.DataFrame:
@@ -120,9 +172,134 @@ def _valid_tickers(frame: pd.DataFrame | None) -> tuple[str, ...]:
     return tuple(sorted(values))
 
 
-def _proof_tickers(value: object, valid_tickers: set[str]) -> tuple[str, ...]:
+def _ticker_tokens(value: object, valid_tickers: set[str]) -> tuple[str, ...]:
     tokens = (token.strip().upper() for token in re.split(r"[,;]", str(value or "")))
-    return tuple(dict.fromkeys(token for token in tokens if token and token in valid_tickers))
+    return tuple(
+        dict.fromkeys(
+            token
+            for token in tokens
+            if token
+            and token.lower() not in PLACEHOLDER_TICKER_VALUES
+            and token in valid_tickers
+        )
+    )
+
+
+def _proof_applicability(
+    latest_proof: _LatestProof | None,
+    *,
+    ticker: str,
+    valid_tickers: set[str],
+) -> str:
+    if latest_proof is None:
+        return "no_applicable_proof"
+    if not latest_proof.review_date_valid:
+        return "malformed_review_date"
+    outcome = str(latest_proof.proof.final_outcome or "").strip().lower()
+    if outcome not in SUPPORTING_OUTCOMES:
+        return "non_supporting_outcome"
+    changed = _ticker_tokens(latest_proof.proof.changed_tickers, valid_tickers)
+    if ticker in changed:
+        return "explicit_ticker_change"
+    if not changed:
+        return "missing_ticker_change_detail"
+    return "scope_only_not_supported"
+
+
+def _frame_has_columns(frame: pd.DataFrame | None, *columns: str) -> bool:
+    normalized = _normalized_columns(frame)
+    return not normalized.empty and all(column in normalized.columns for column in columns)
+
+
+def _missing_dcf_fields(frame: pd.DataFrame | None, ticker: str) -> tuple[str, ...] | None:
+    normalized = _normalized_columns(frame)
+    if not _frame_has_columns(frame, "ticker", "missing_dcf_fields"):
+        return None
+    matches = normalized[normalized["ticker"].astype(str).str.strip().str.upper() == ticker]
+    if matches.empty:
+        return None
+    value = matches.iloc[-1]["missing_dcf_fields"]
+    missing = {
+        token.strip().lower()
+        for token in re.split(r"[,;]", str(value) if pd.notna(value) else "")
+        if token.strip()
+    }
+    return tuple(field for field in CANONICAL_DCF_FIELDS if field in missing)
+
+
+def _blocker(code: str, fields: tuple[str, ...] = (), detail: str = "") -> _CurrentBlocker:
+    return _CurrentBlocker(
+        code=code,
+        fields=fields,
+        detail=detail,
+        next_safe_review=NEXT_SAFE_REVIEW[code],
+    )
+
+
+def _current_blocker(
+    *,
+    ticker: str,
+    lane: str,
+    current_ready: bool | None,
+    dcf_readiness: pd.DataFrame,
+    fundamentals: pd.DataFrame,
+) -> _CurrentBlocker:
+    if current_ready is None:
+        return _blocker(
+            "current_readiness_input_unavailable",
+            detail="The authoritative current readiness input is unavailable or malformed.",
+        )
+    if current_ready:
+        return _blocker("none", detail="No current blocker is reported for this lane.")
+    if lane == "price":
+        return _blocker("current_price_missing", detail="Current saved price readiness is false.")
+    if lane == "peer_mapping":
+        return _blocker("current_peer_mapping_missing", detail="Current saved peer mapping readiness is false.")
+    if lane == "peer_valuation_inputs":
+        return _blocker(
+            "current_peer_valuation_inputs_missing",
+            detail="Current saved peer valuation-input readiness is false.",
+        )
+
+    missing_dcf = _missing_dcf_fields(dcf_readiness, ticker)
+    if missing_dcf is None:
+        return _blocker(
+            "current_readiness_input_unavailable",
+            detail="The current DCF readiness input is unavailable or malformed.",
+        )
+    if lane == "share_count":
+        fields = tuple(field for field in missing_dcf if field == "shares_outstanding")
+        return _blocker(
+            "current_required_fields_missing",
+            fields,
+            "Current DCF readiness reports missing required fields.",
+        )
+
+    normalized_fundamentals = _normalized_columns(fundamentals)
+    if not _frame_has_columns(fundamentals, "ticker"):
+        return _blocker(
+            "current_readiness_input_unavailable",
+            detail="The current canonical fundamentals input is unavailable or malformed.",
+        )
+    canonical_tickers = {
+        str(value).strip().upper()
+        for value in normalized_fundamentals["ticker"]
+        if str(value).strip()
+    }
+    fields = missing_dcf if lane == "dcf" else tuple(
+        field for field in missing_dcf if field in FUNDAMENTALS_FIELDS
+    )
+    if ticker not in canonical_tickers and fields:
+        return _blocker(
+            "current_canonical_row_missing",
+            fields,
+            "No current canonical fundamentals row is present.",
+        )
+    return _blocker(
+        "current_required_fields_missing",
+        fields,
+        "Current DCF readiness reports missing required fields.",
+    )
 
 
 def _review_date_key(value: object, append_index: int) -> tuple[bool, tuple[int, int, int]]:
@@ -174,6 +351,7 @@ def build_proof_readiness_reconciliation(
     ticker_readiness: pd.DataFrame,
     dcf_readiness: pd.DataFrame,
     peer_readiness: pd.DataFrame,
+    fundamentals: pd.DataFrame,
 ) -> ProofReadinessReconciliationSummary:
     tickers = _valid_tickers(ticker_readiness)
     if not tickers:
@@ -181,6 +359,8 @@ def build_proof_readiness_reconciliation(
             rows=(),
             status_counts=(),
             conflict_counts_by_lane=(),
+            proof_applicability_counts=(),
+            current_blocker_counts=(),
             input_status="unavailable",
             input_message="Current ticker readiness is missing or has no valid ticker rows; reconciliation cannot infer state.",
         )
@@ -209,7 +389,7 @@ def build_proof_readiness_reconciliation(
         canonical_lane, _, _ = mapping
         review_date_valid, sort_key = _review_date_key(proof.review_date, append_index)
         candidate = _LatestProof(proof=proof, review_date_valid=review_date_valid, sort_key=sort_key)
-        for ticker in _proof_tickers(proof.tickers, valid_set):
+        for ticker in _ticker_tokens(proof.tickers, valid_set):
             key = (ticker, canonical_lane)
             existing = latest.get(key)
             if existing is None or candidate.sort_key > existing.sort_key:
@@ -224,16 +404,27 @@ def build_proof_readiness_reconciliation(
             latest_outcome = (
                 str(latest_proof.proof.final_outcome or "").strip().lower() if latest_proof is not None else ""
             )
-            supporting = bool(
-                latest_proof is not None
-                and latest_proof.review_date_valid
-                and latest_outcome in SUPPORTING_OUTCOMES
+            proof_applicability = _proof_applicability(
+                latest_proof,
+                ticker=ticker,
+                valid_tickers=valid_set,
             )
+            supporting = proof_applicability == "explicit_ticker_change"
             state = _reconciliation_state(
                 current_ready=current_ready,
                 proof_exists=proof_exists,
                 supporting=supporting,
             )
+            blocker = _current_blocker(
+                ticker=ticker,
+                lane=lane,
+                current_ready=current_ready,
+                dcf_readiness=dcf_readiness,
+                fundamentals=fundamentals,
+            )
+            next_safe_review = blocker.next_safe_review
+            if proof_applicability in {"scope_only_not_supported", "missing_ticker_change_detail"}:
+                next_safe_review = "Review the proof row; do not reuse it as ticker-level support. " + next_safe_review
             rows.append(
                 ProofReadinessReconciliationRow(
                     ticker=ticker,
@@ -246,6 +437,15 @@ def build_proof_readiness_reconciliation(
                     review_date_valid=latest_proof.review_date_valid if latest_proof is not None else False,
                     state=state,
                     reason=_state_reason(state),
+                    proof_applicability=proof_applicability,
+                    current_blocker_code=blocker.code,
+                    current_blocker_fields=blocker.fields,
+                    current_blocker_detail=blocker.detail,
+                    next_safe_review=next_safe_review,
+                    historical_payload_status=(
+                        "structured_payload_not_recorded" if proof_exists else ""
+                    ),
+                    historical_evidence_limit=HISTORICAL_EVIDENCE_LIMIT if proof_exists else "",
                 )
             )
 
@@ -254,6 +454,8 @@ def build_proof_readiness_reconciliation(
     conflict_counts = Counter(
         row.lane for row in rows if row.state == "historical_supported_currently_blocked"
     )
+    proof_applicability_counts = Counter(row.proof_applicability for row in rows)
+    current_blocker_counts = Counter(row.current_blocker_code for row in rows)
     input_status = "partial" if missing_inputs else "ready"
     input_message = (
         f"Missing current input(s): {', '.join(missing_inputs)}; affected lanes remain not_applicable."
@@ -264,6 +466,8 @@ def build_proof_readiness_reconciliation(
         rows=tuple(rows),
         status_counts=tuple(sorted(status_counts.items())),
         conflict_counts_by_lane=tuple(sorted(conflict_counts.items())),
+        proof_applicability_counts=tuple(sorted(proof_applicability_counts.items())),
+        current_blocker_counts=tuple(sorted(current_blocker_counts.items())),
         input_status=input_status,
         input_message=input_message,
     )
@@ -290,6 +494,7 @@ def load_proof_readiness_reconciliation(
         ticker_readiness=_read_csv(data / "reports" / "ticker_readiness_report.csv"),
         dcf_readiness=_read_csv(data / "reports" / "dcf_readiness_report.csv"),
         peer_readiness=_read_csv(data / "reports" / "peer_readiness_report.csv"),
+        fundamentals=_read_csv(data / "fundamentals.csv"),
     )
 
 
