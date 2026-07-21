@@ -25,6 +25,8 @@ The product deliberately separates the tracked master universe, active universe,
 
 Default personal-research flow: **Research Desk -> Discover -> Company Workbench -> Monitor**.
 
+Company Workbench now arbitrates one overall next task: an unresolved source-backed change wins; otherwise it preserves the existing ordered Research Conclusion priority. Forward View guidance remains lane-specific rather than a competing overall task, and readiness and evidence states remain independent and unchanged.
+
 Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History**. Operator mode remains the source/proof workflow. Data Health and Proof History are Advanced Evidence in Personal Research mode, not equal primary destinations.
 
 ## Now: Commercial Research Beta Foundation

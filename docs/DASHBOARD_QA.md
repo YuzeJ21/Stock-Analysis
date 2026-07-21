@@ -8,6 +8,10 @@ Read-only AppTest coverage now verifies six Personal Research surfaces: Research
 
 The same-mode detour does not change readiness or evidence state, add a route, expose Operator commands, refresh data, record a review outcome, or treat Proof History as an unlock. The active continuation contract prohibited new screenshots, so this pass proves route and render continuity only; it does not prove visual spacing, focus order, contrast, assistive-technology behavior, hosted behavior, or accessibility compliance.
 
+## Company Workbench Authoritative Task Contract
+
+Company Workbench renders one overall `ONE NEXT TASK` card. An unresolved source-backed change wins; otherwise the existing ordered Research Conclusion priority supplies the task. Forward View keeps lane-specific guidance and is not a competing overall task. This composition does not alter readiness or evidence states, which remain independent.
+
 ## Stale Readiness Continuation Gate
 
 When the selected profile is stale or incomplete, the stale readiness continuation gate makes `make readiness-preview TOP_N=20` the only continuation-safe action. Project-status next steps are suppressed, while provider setup details, coverage rankings, scheduled-operation details, and Advanced Data Health cards remain planning context only. Advanced Data Health cards derive the gate from the selected profile even when their cached preflight predates the gate. `make readiness` is a separate intentional reviewed write; the UI and CLI must not imply that the preview refreshes data, makes saved readiness current, or authorizes source execution.

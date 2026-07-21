@@ -348,6 +348,7 @@ from src.research_workspace import (
     cash_generation_preview_cards,
     cash_generation_preview_rows,
     company_change_answer,
+    company_next_research_task,
     company_workbench_section_contract,
     focused_cohort_cards,
     focused_cohort_coverage_cards,
@@ -30480,24 +30481,27 @@ def render_single_stock_report(
                     st.caption(f"Decision-process checks unavailable: {exc}")
         if research_mode:
             st.markdown("### Research Conclusion")
+            conclusion_cards = stock_report_next_step_cards(
+                report_payload,
+                coverage if provider is not None and ticker else None,
+                peer_summary if provider is not None and ticker else None,
+            )
             render_signal_cards(
-                stock_report_next_step_cards(
-                    report_payload,
-                    coverage if provider is not None and ticker else None,
-                    peer_summary if provider is not None and ticker else None,
-                ),
+                conclusion_cards,
                 show_commands=False,
                 variant="queue",
             )
             change_answer = company_change_answer(ticker, research_review_items)
-            st.markdown("### Next Research Task")
+            authoritative_task = company_next_research_task(change_answer, conclusion_cards)
+            st.markdown("### One Next Task")
             render_signal_cards(
                 [
                     {
                         "kicker": "ONE NEXT TASK",
-                        "title": str(change_answer["next_task"]),
-                        "body": "Complete only this evidence review, or wait when the required source has not changed.",
-                        "badges": [str(change_answer["state"]).replace("_", " "), "research-only"],
+                        "title": str(authoritative_task["title"]),
+                        "body": str(authoritative_task["body"]),
+                        "badges": list(authoritative_task["badges"]),
+                        "state": str(authoritative_task["state"]),
                         "command": "",
                     }
                 ],

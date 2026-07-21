@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from src import dashboard
 from src import dashboard_navigation as nav
 from src.focused_research_cohort import build_focused_cohort
@@ -576,3 +578,11 @@ def test_optional_dashboard_evidence_loaders_enable_commercial_composition():
     assert "commercial_mode=True" in source[valuation_start:outcome_start]
     assert "commercial_mode=True" in source[outcome_start:catalyst_start]
     assert "commercial_mode=True" in source[catalyst_start:scenario_start]
+
+
+def test_company_workbench_uses_one_authoritative_task_arbitration():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    assert "company_next_research_task(" in source
+    assert '"kicker": "ONE NEXT TASK"' in source
+    assert '"title": str(authoritative_task["title"])' in source
+    assert source.count('"kicker": "ONE NEXT TASK"') == 1
