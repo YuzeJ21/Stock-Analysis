@@ -525,6 +525,8 @@ def proof_readiness_reconciliation_payload(
         "total_rows": len(summary.rows),
         "status_counts": dict(summary.status_counts),
         "conflict_counts_by_lane": dict(summary.conflict_counts_by_lane),
+        "proof_applicability_counts": dict(summary.proof_applicability_counts),
+        "current_blocker_counts": dict(summary.current_blocker_counts),
         "displayed_tickers": [str(ticker).strip().upper() for ticker in tickers if str(ticker).strip()],
         "rows": [
             asdict(row)
@@ -532,7 +534,8 @@ def proof_readiness_reconciliation_payload(
         ],
         "boundary": (
             "Current saved readiness remains authoritative; reconciliation does not restore data, promote readiness, "
-            "or rewrite proof history."
+            "or rewrite proof history. Current blocker diagnosis describes observable saved inputs and does not establish "
+            "the historical cause."
         ),
     }
 
@@ -560,6 +563,18 @@ def render_proof_readiness_reconciliation(
     ]
     for state, count in summary.status_counts:
         lines.append(f"- {state}: {count:,}")
+    lines.extend(["", "Proof applicability counts:"])
+    if summary.proof_applicability_counts:
+        for applicability, count in summary.proof_applicability_counts:
+            lines.append(f"- {applicability}: {count:,}")
+    else:
+        lines.append("- none")
+    lines.extend(["", "Current blocker counts:"])
+    if summary.current_blocker_counts:
+        for blocker, count in summary.current_blocker_counts:
+            lines.append(f"- {blocker}: {count:,}")
+    else:
+        lines.append("- none")
     lines.extend(["", "Conflict counts by lane:"])
     if summary.conflict_counts_by_lane:
         for lane, count in summary.conflict_counts_by_lane:
@@ -570,16 +585,20 @@ def render_proof_readiness_reconciliation(
         [
             "",
             f"Rows shown: {len(rows):,}",
-            "Ticker | Lane | Current ready | Latest proof | Review date | Reconciliation state",
-            "--- | --- | --- | --- | --- | ---",
+            "Ticker | Lane | Current ready | Latest proof | Review date | Reconciliation state | Proof applicability | Current blocker | Next safe review",
+            "--- | --- | --- | --- | --- | --- | --- | --- | ---",
         ]
     )
     for row in rows:
         current = "unavailable" if row.current_ready is None else str(row.current_ready).lower()
         latest = f"{row.latest_batch_id}: {row.latest_outcome}" if row.latest_batch_id else "not recorded"
         review_date = row.latest_review_date or "not recorded"
+        blocker = row.current_blocker_code
+        if row.current_blocker_fields:
+            blocker += f" ({', '.join(row.current_blocker_fields)})"
         lines.append(
-            f"{row.ticker} | {row.lane} | {current} | {latest} | {review_date} | {row.state}"
+            f"{row.ticker} | {row.lane} | {current} | {latest} | {review_date} | {row.state} | "
+            f"{row.proof_applicability} | {blocker} | {row.next_safe_review}"
         )
     if not rows:
         lines.append("No rows match the requested display filter.")
@@ -587,7 +606,7 @@ def render_proof_readiness_reconciliation(
         [
             "",
             "Next safe command: make proof-readiness-reconciliation TOP_N=20",
-            "Boundary: a matching proof label does not prove source rights, field scope, provenance, payload truth, or commercial use.",
+            "Boundary: current blocker diagnosis describes observable saved inputs; it does not establish the historical cause, source rights, field scope, provenance, payload truth, or commercial use.",
         ]
     )
     return "\n".join(lines)

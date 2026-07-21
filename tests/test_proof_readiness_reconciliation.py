@@ -393,6 +393,49 @@ def test_render_names_conflicts_and_non_promotion_boundary():
     assert "Research-only" in rendered
 
 
+def test_payload_exposes_applicability_and_current_blocker_axes():
+    summary = _summary(
+        proofs=[_proof(tickers="ARCT,ARDX", changed_tickers="ARDX")],
+        ticker=_ticker_readiness(
+            ARCT={"fundamentals_ready": "False"},
+            ARDX={"fundamentals_ready": "False"},
+        ),
+        dcf=_dcf_readiness(
+            ARCT={"missing_dcf_fields": "free_cash_flow, shares_outstanding, revenue, fcf_margin"},
+            ARDX={"missing_dcf_fields": "free_cash_flow, shares_outstanding, revenue, fcf_margin"},
+        ),
+        fundamentals=_fundamentals(ARDX={"source": "sec_companyfacts"}),
+    )
+
+    payload = proof_readiness_reconciliation_payload(summary, top_n=20)
+
+    assert payload["proof_applicability_counts"]["scope_only_not_supported"] == 1
+    assert payload["proof_applicability_counts"]["explicit_ticker_change"] == 1
+    assert payload["current_blocker_counts"]["current_canonical_row_missing"] == 2
+    assert payload["rows"][0]["historical_payload_status"] == "structured_payload_not_recorded"
+    assert "historical cause" in payload["boundary"].lower()
+
+
+def test_render_exposes_two_axes_without_claiming_historical_cause():
+    summary = _summary(
+        proofs=[_proof()],
+        ticker=_ticker_readiness(ARCT={"fundamentals_ready": "False"}),
+        dcf=_dcf_readiness(
+            ARCT={"missing_dcf_fields": "free_cash_flow, shares_outstanding, revenue, fcf_margin"}
+        ),
+        fundamentals=_fundamentals(ARDX={"source": "sec_companyfacts"}),
+    )
+
+    rendered = render_proof_readiness_reconciliation(summary, top_n=10)
+
+    assert "Proof applicability counts:" in rendered
+    assert "Current blocker counts:" in rendered
+    assert "explicit_ticker_change" in rendered
+    assert "current_canonical_row_missing" in rendered
+    assert "Proof applicability | Current blocker | Next safe review" in rendered
+    assert "does not establish the historical cause" in rendered
+
+
 def _write_cli_inputs(root: Path) -> None:
     reports = root / "data" / "reports"
     reports.mkdir(parents=True)
