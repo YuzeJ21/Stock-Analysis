@@ -10445,7 +10445,7 @@ def stock_report_next_step_cards(
     if not has_prices:
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Fix price coverage",
                 "body": (
                     f"{ticker} still needs stronger verified local price history before broader trust. "
@@ -10453,26 +10453,28 @@ def stock_report_next_step_cards(
                     "fallbacks are tried before the last manual import-file path."
                 ),
                 "badges": ["prices", "data moat"],
+                "state": "wait_for_evidence",
                 "command": ticker_focus_command("prices", ticker, fallback=f"make price-refresh TICKERS={ticker} PROVIDER=auto"),
             }
         )
     elif is_etf_like:
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Review ETF / market proxy",
                 "body": (
                     f"{ticker} should be reviewed as market, theme, liquidity, or risk context. "
                     "Operating-company DCF and peer-relative valuation are excluded rather than failed."
                 ),
                 "badges": ["monitor context", "DCF excluded"],
+                "state": "review_now",
                 "command": f"make stock-report-md TICKER={ticker}",
             }
         )
     elif not readiness.get("dcf_ready") and not has_fundamentals:
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Review fundamentals import file" if staged_fundamentals_import else "Stage fundamentals",
                 "body": (
                     f"{ticker} already has fundamentals import file rows in {fundamentals_target_file}. "
@@ -10484,13 +10486,14 @@ def stock_report_next_step_cards(
                     )
                 ),
                 "badges": ["fundamentals", "import file" if staged_fundamentals_import else "sec queue"],
+                "state": "wait_for_evidence",
                 "command": fundamentals_command,
             }
         )
     elif not readiness.get("peer_ready") or not peer_summary.get("peer_dataset_present"):
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Review peer import file" if staged_peer_import else "Add peer mappings",
                 "body": (
                     f"{ticker} already has peer mapping import file rows in {peer_target_file}. "
@@ -10502,19 +10505,21 @@ def stock_report_next_step_cards(
                     )
                 ),
                 "badges": ["peers", "import file" if staged_peer_import else "manual research"],
+                "state": "wait_for_evidence",
                 "command": peer_command,
             }
         )
     else:
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Review full report",
                 "body": (
                     f"{ticker} already has the minimum local context for a deeper single-name pass. "
                     "Move through valuation, trend and risk context, and source readiness together."
                 ),
                 "badges": ["ready", "single name"],
+                "state": "review_now",
                 "command": f"make stock-report-md TICKER={ticker}",
             }
         )

@@ -215,7 +215,8 @@ def test_forward_view_rows_keep_technical_details_separate_and_research_only():
         "Reviewer Thesis Context",
         "Earnings Outlook",
     ]
-    assert cards[-1]["kicker"] == "NEXT RESEARCH TASK"
+    assert cards[-1]["kicker"] == "FORWARD-VIEW LANE UNBLOCK"
+    assert all(card["kicker"] != "NEXT RESEARCH TASK" for card in cards)
     rendered = str(cards).lower()
     for prohibited in ("buy now", "sell now", "position size", "will rise", "recommendation score"):
         assert prohibited not in rendered

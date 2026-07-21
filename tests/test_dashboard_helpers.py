@@ -17286,6 +17286,9 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["kicker"] == "RESEARCH PRIORITY"
+    assert cards[0]["state"] == "wait_for_evidence"
+    assert all(card["kicker"] != "NEXT STEP" for card in cards)
     assert cards[0]["title"] == "Stage fundamentals"
     assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
 
@@ -17302,6 +17305,9 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["kicker"] == "RESEARCH PRIORITY"
+    assert cards[0]["state"] == "wait_for_evidence"
+    assert all(card["kicker"] != "NEXT STEP" for card in cards)
     assert cards[0]["title"] == "Review fundamentals import file"
     assert cards[0]["command"] == "make imports-validate"
     assert "fundamentals import file" in cards[0]["body"].lower()
@@ -17315,6 +17321,9 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["kicker"] == "RESEARCH PRIORITY"
+    assert cards[0]["state"] == "wait_for_evidence"
+    assert all(card["kicker"] != "NEXT STEP" for card in cards)
     assert cards[0]["title"] == "Add peer mappings"
     assert cards[0]["command"] == "make focus-peers TICKER=NVDA"
 
@@ -17332,6 +17341,9 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["kicker"] == "RESEARCH PRIORITY"
+    assert cards[0]["state"] == "wait_for_evidence"
+    assert all(card["kicker"] != "NEXT STEP" for card in cards)
     assert cards[0]["title"] == "Review peer import file"
     assert cards[0]["command"] == "make imports-validate"
     assert "peer mapping import file" in cards[0]["body"].lower()
@@ -17339,6 +17351,9 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
 
     payload["valuation_readiness"]["peer_ready"] = True
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": True})
+    assert cards[0]["kicker"] == "RESEARCH PRIORITY"
+    assert cards[0]["state"] == "review_now"
+    assert all(card["kicker"] != "NEXT STEP" for card in cards)
     assert cards[0]["title"] == "Review full report"
     assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[-1]["kicker"] == "OPTIONAL CONTEXT"

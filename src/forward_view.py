@@ -388,7 +388,7 @@ def forward_view_cards(packet: ForwardViewPacket) -> list[dict[str, object]]:
     ]
     cards.append(
         {
-            "kicker": "NEXT RESEARCH TASK",
+            "kicker": "FORWARD-VIEW LANE UNBLOCK",
             "title": packet.next_research_task,
             "body": packet.boundary,
             "state": "review_now" if packet.status != "blocked" else "wait_for_evidence",
