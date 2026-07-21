@@ -5,13 +5,7 @@ import json
 from pathlib import Path
 
 from src.company_workbench_cash_generation_preview_loader import (
-    PREVIEW_ACCESSION,
-    PREVIEW_AS_OF,
-    PREVIEW_CIK,
-    PREVIEW_FISCAL_PERIOD,
-    PREVIEW_PERIOD_END,
-    PREVIEW_PERIOD_START,
-    PREVIEW_PRIMARY_DOCUMENT,
+    CASH_GENERATION_PREVIEW_FILINGS,
     load_company_workbench_cash_generation_preview,
 )
 
@@ -19,6 +13,9 @@ from src.company_workbench_cash_generation_preview_loader import (
 START = "2026-01-26"
 END = "2026-04-26"
 ACCESSION = "0001045810-26-000052"
+AMD_START = "2025-12-28"
+AMD_END = "2026-03-28"
+AMD_ACCESSION = "0000002488-26-000076"
 
 
 def _fact(value: float) -> dict[str, object]:
@@ -103,6 +100,89 @@ def _fetcher(calls: list[tuple[str, str]]):
     return fetch
 
 
+def _amd_fact(value: float) -> dict[str, object]:
+    return {
+        "start": AMD_START,
+        "end": AMD_END,
+        "val": value,
+        "accn": AMD_ACCESSION,
+        "fy": 2026,
+        "fp": "Q1",
+        "form": "10-Q",
+        "filed": "2026-05-06",
+    }
+
+
+def _amd_companyfacts() -> dict[str, object]:
+    return {
+        "cik": 2488,
+        "entityName": "ADVANCED MICRO DEVICES INC",
+        "facts": {"us-gaap": {
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {
+                "units": {"USD": [_amd_fact(10_253_000_000)]}
+            },
+            "OperatingIncomeLoss": {"units": {"USD": [_amd_fact(1_476_000_000)]}},
+            "NetCashProvidedByUsedInOperatingActivities": {
+                "units": {"USD": [_amd_fact(2_955_000_000)]}
+            },
+            "PaymentsToAcquirePropertyPlantAndEquipment": {
+                "units": {"USD": [_amd_fact(389_000_000)]}
+            },
+        }},
+    }
+
+
+def _amd_submissions() -> dict[str, object]:
+    return {"cik": "0000002488", "filings": {"recent": {
+        "accessionNumber": [AMD_ACCESSION],
+        "filingDate": ["2026-05-06"],
+        "acceptanceDateTime": ["2026-05-05T18:06:27.000-04:00"],
+        "form": ["10-Q"],
+        "primaryDocument": ["amd-20260328.htm"],
+    }}}
+
+
+def _amd_filing() -> str:
+    return f"""
+    <html><body><xbrli:context id="amd-q1"><xbrli:period>
+      <xbrli:startDate>{AMD_START}</xbrli:startDate>
+      <xbrli:endDate>{AMD_END}</xbrli:endDate>
+    </xbrli:period></xbrli:context><table>
+      <tr><td>Net revenue</td><td><ix:nonFraction id="amd-revenue" name="us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax" contextRef="amd-q1" scale="6">10,253</ix:nonFraction></td></tr>
+      <tr><td>Operating income</td><td><ix:nonFraction id="amd-operating" name="us-gaap:OperatingIncomeLoss" contextRef="amd-q1" scale="6">1,476</ix:nonFraction></td></tr>
+      <tr><td>Net cash provided by operating activities</td><td><ix:nonFraction id="amd-cfo" name="us-gaap:NetCashProvidedByUsedInOperatingActivities" contextRef="amd-q1" scale="6">2,955</ix:nonFraction></td></tr>
+      <tr><td>Purchases of property and equipment</td><td>(</td><td><ix:nonFraction id="amd-capex" name="us-gaap:PaymentsToAcquirePropertyPlantAndEquipment" contextRef="amd-q1" scale="6">389</ix:nonFraction></td><td>)</td></tr>
+    </table></body></html>
+    """
+
+
+def _amd_fetcher(calls: list[tuple[str, str]]):
+    def fetch(url: str, user_agent: str) -> bytes:
+        calls.append((url, user_agent))
+        if "companyfacts" in url:
+            return json.dumps(_amd_companyfacts()).encode("utf-8")
+        if "submissions" in url:
+            return json.dumps(_amd_submissions()).encode("utf-8")
+        return _amd_filing().encode("utf-8")
+
+    return fetch
+
+
+def test_registry_contains_only_two_exact_reviewed_filings():
+    assert tuple(CASH_GENERATION_PREVIEW_FILINGS) == ("NVDA", "AMD")
+    nvda = CASH_GENERATION_PREVIEW_FILINGS["NVDA"]
+    amd = CASH_GENERATION_PREVIEW_FILINGS["AMD"]
+    assert (nvda.cik, nvda.accession, nvda.primary_document) == (
+        "0001045810", "0001045810-26-000052", "nvda-20260426.htm"
+    )
+    assert (amd.cik, amd.fiscal_period, amd.period_start, amd.period_end) == (
+        "0000002488", "2026-Q1", "2025-12-28", "2026-03-28"
+    )
+    assert (amd.accession, amd.primary_document, amd.as_of) == (
+        "0000002488-26-000076", "amd-20260328.htm", "2026-07-20T23:59:59-04:00"
+    )
+
+
 def test_loader_uses_only_reviewed_nvidia_identity_and_composes_in_memory():
     calls: list[tuple[str, str]] = []
 
@@ -113,13 +193,6 @@ def test_loader_uses_only_reviewed_nvidia_identity_and_composes_in_memory():
         retrieved_at="2026-07-20T23:00:00+00:00",
     )
 
-    assert PREVIEW_CIK == "0001045810"
-    assert PREVIEW_ACCESSION == "0001045810-26-000052"
-    assert PREVIEW_PRIMARY_DOCUMENT == "nvda-20260426.htm"
-    assert PREVIEW_FISCAL_PERIOD == "2027-Q1"
-    assert PREVIEW_PERIOD_START == "2026-01-26"
-    assert PREVIEW_PERIOD_END == "2026-04-26"
-    assert PREVIEW_AS_OF == "2026-07-20T23:59:59-04:00"
     assert len(calls) == 3
     assert calls[0][0].endswith("/CIK0001045810.json")
     assert calls[1][0].endswith("/CIK0001045810.json")
@@ -137,7 +210,30 @@ def test_loader_uses_only_reviewed_nvidia_identity_and_composes_in_memory():
     assert result.persistence is False
 
 
-def test_non_nvidia_ticker_is_withheld_without_fetching():
+def test_amd_loader_uses_exact_reviewed_identity_and_composes_in_memory():
+    calls: list[tuple[str, str]] = []
+    result = load_company_workbench_cash_generation_preview(
+        "AMD",
+        user_agent="Researcher research@example.com",
+        fetcher=_amd_fetcher(calls),
+        retrieved_at="2026-07-20T23:00:00+00:00",
+    )
+    assert [url for url, _agent in calls] == [
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000002488.json",
+        "https://data.sec.gov/submissions/CIK0000002488.json",
+        "https://www.sec.gov/Archives/edgar/data/2488/000000248826000076/amd-20260328.htm",
+    ]
+    assert result.status == "accepted_for_review"
+    assert result.fiscal_period == "2026-Q1"
+    assert result.free_cash_flow.value == 2_566_000_000
+    assert result.operating_margin.status == "preview_available"
+    assert result.fcf_margin.status == "preview_available"
+    assert result.production_activation is False
+    assert result.readiness_promotions == ()
+    assert result.persistence is False
+
+
+def test_unsupported_ticker_is_withheld_without_fetching():
     def unexpected_fetch(_url: str, _user_agent: str) -> bytes:
         raise AssertionError("unsupported ticker must not fetch")
 
@@ -149,6 +245,10 @@ def test_non_nvidia_ticker_is_withheld_without_fetching():
 
     assert result.status == "withheld"
     assert result.blockers == ("unsupported_preview_ticker:OTHER",)
+    assert result.fiscal_period == ""
+    assert result.accession == ""
+    assert result.source_url == ""
+    assert result.cutoff == ""
     assert result.operating_margin.value is None
     assert result.components == ()
 
@@ -199,6 +299,31 @@ def test_blocked_exact_filing_never_returns_partial_values():
 
     assert result.status == "withheld"
     assert "pilot_status:blocked" in result.blockers
+    assert result.operating_margin.value is None
+    assert result.free_cash_flow.value is None
+    assert result.fcf_margin.value is None
+    assert result.components == ()
+
+
+def test_unsigned_amd_capex_withholds_complete_preview():
+    calls: list[tuple[str, str]] = []
+    base_fetcher = _amd_fetcher(calls)
+
+    def unsigned_fetch(url: str, user_agent: str) -> bytes:
+        payload = base_fetcher(url, user_agent)
+        if url.endswith("amd-20260328.htm"):
+            return payload.replace(b"<td>(</td>", b"<td></td>").replace(
+                b"<td>)</td>", b"<td></td>"
+            )
+        return payload
+
+    result = load_company_workbench_cash_generation_preview(
+        "AMD",
+        user_agent="Researcher research@example.com",
+        fetcher=unsigned_fetch,
+        retrieved_at="2026-07-20T23:00:00+00:00",
+    )
+    assert result.status == "withheld"
     assert result.operating_margin.value is None
     assert result.free_cash_flow.value is None
     assert result.fcf_margin.value is None

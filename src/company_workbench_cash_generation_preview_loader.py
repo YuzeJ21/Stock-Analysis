@@ -1,8 +1,11 @@
-"""Bounded live loader for the explicit NVIDIA Workbench preview route."""
+"""Bounded live loader for explicit reviewed Workbench preview filings."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from types import MappingProxyType
+from typing import Mapping
 
 from src.commercial_source_rights import load_source_rights_registry
 from src.company_workbench_cash_generation_preview import (
@@ -21,14 +24,42 @@ from src.sec_quarterly_cash_generation_preview import (
 )
 
 
-PREVIEW_TICKER = "NVDA"
-PREVIEW_CIK = "0001045810"
-PREVIEW_FISCAL_PERIOD = "2027-Q1"
-PREVIEW_PERIOD_START = "2026-01-26"
-PREVIEW_PERIOD_END = "2026-04-26"
-PREVIEW_ACCESSION = "0001045810-26-000052"
-PREVIEW_PRIMARY_DOCUMENT = "nvda-20260426.htm"
-PREVIEW_AS_OF = "2026-07-20T23:59:59-04:00"
+@dataclass(frozen=True)
+class CashGenerationPreviewFiling:
+    ticker: str
+    cik: str
+    fiscal_period: str
+    period_start: str
+    period_end: str
+    accession: str
+    primary_document: str
+    as_of: str
+
+
+CASH_GENERATION_PREVIEW_FILINGS: Mapping[str, CashGenerationPreviewFiling] = (
+    MappingProxyType({
+        "NVDA": CashGenerationPreviewFiling(
+            ticker="NVDA",
+            cik="0001045810",
+            fiscal_period="2027-Q1",
+            period_start="2026-01-26",
+            period_end="2026-04-26",
+            accession="0001045810-26-000052",
+            primary_document="nvda-20260426.htm",
+            as_of="2026-07-20T23:59:59-04:00",
+        ),
+        "AMD": CashGenerationPreviewFiling(
+            ticker="AMD",
+            cik="0000002488",
+            fiscal_period="2026-Q1",
+            period_start="2025-12-28",
+            period_end="2026-03-28",
+            accession="0000002488-26-000076",
+            primary_document="amd-20260328.htm",
+            as_of="2026-07-20T23:59:59-04:00",
+        ),
+    })
+)
 
 
 def load_company_workbench_cash_generation_preview(
@@ -41,30 +72,28 @@ def load_company_workbench_cash_generation_preview(
     """Load one exact filing in memory or return a fully withheld preview."""
 
     symbol = str(ticker or "").strip().upper()
-    if symbol != PREVIEW_TICKER:
+    filing = CASH_GENERATION_PREVIEW_FILINGS.get(symbol)
+    if filing is None:
         return blocked_company_workbench_cash_generation_preview(
             symbol,
-            fiscal_period=PREVIEW_FISCAL_PERIOD,
-            as_of=PREVIEW_AS_OF,
             blockers=(f"unsupported_preview_ticker:{symbol or 'missing'}",),
-            accession=PREVIEW_ACCESSION,
         )
     try:
         payloads = fetch_sec_quarterly_pilot_payloads(
-            cik=PREVIEW_CIK,
-            accession=PREVIEW_ACCESSION,
-            primary_document=PREVIEW_PRIMARY_DOCUMENT,
+            cik=filing.cik,
+            accession=filing.accession,
+            primary_document=filing.primary_document,
             user_agent=user_agent,
             fetcher=fetcher,
         )
         extraction = extract_sec_quarterly_cash_generation(
-            ticker=PREVIEW_TICKER,
-            cik=PREVIEW_CIK,
-            fiscal_period=PREVIEW_FISCAL_PERIOD,
-            period_start_date=PREVIEW_PERIOD_START,
-            period_end_date=PREVIEW_PERIOD_END,
-            accession=PREVIEW_ACCESSION,
-            primary_document=PREVIEW_PRIMARY_DOCUMENT,
+            ticker=filing.ticker,
+            cik=filing.cik,
+            fiscal_period=filing.fiscal_period,
+            period_start_date=filing.period_start,
+            period_end_date=filing.period_end,
+            accession=filing.accession,
+            primary_document=filing.primary_document,
             companyfacts_payload=payloads["companyfacts"],
             submissions_payload=payloads["submissions"],
             filing_html=payloads["filing_html"],
@@ -72,17 +101,17 @@ def load_company_workbench_cash_generation_preview(
                 retrieved_at
                 or datetime.now(timezone.utc).isoformat()
             ),
-            as_of=PREVIEW_AS_OF,
+            as_of=filing.as_of,
         )
         pilot = preview_sec_quarterly_cash_generation(
             extraction=extraction,
             rights_registry=load_source_rights_registry(),
-            as_of=PREVIEW_AS_OF,
+            as_of=filing.as_of,
         )
         return compose_company_workbench_cash_generation_preview(
             pilot,
             selected_ticker=symbol,
-            as_of=PREVIEW_AS_OF,
+            as_of=filing.as_of,
         )
     except (
         SECUserAgentError,
@@ -92,8 +121,8 @@ def load_company_workbench_cash_generation_preview(
     ) as exc:
         return blocked_company_workbench_cash_generation_preview(
             symbol,
-            fiscal_period=PREVIEW_FISCAL_PERIOD,
-            as_of=PREVIEW_AS_OF,
+            fiscal_period=filing.fiscal_period,
+            as_of=filing.as_of,
             blockers=(f"preview_load_blocked:{type(exc).__name__}",),
-            accession=PREVIEW_ACCESSION,
+            accession=filing.accession,
         )
