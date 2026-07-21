@@ -15,6 +15,10 @@ def test_commercial_research_beta_workflow_is_minimal_pr_only_gate():
     assert "python-version: \"3.12\"" in workflow
     assert "python3 -m pip install -e . pytest" in workflow
     assert "PYTHONDONTWRITEBYTECODE: \"1\"" in workflow
+    assert "uses: actions/checkout@v6" in workflow
+    assert "uses: actions/setup-python@v6" in workflow
+    assert "actions/checkout@v4" not in workflow
+    assert "actions/setup-python@v5" not in workflow
     assert "fetch-depth: 0" in workflow
     assert "ref: ${{ github.event.pull_request.head.sha }}" in workflow
     assert "PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}" in workflow
