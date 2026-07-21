@@ -29,6 +29,7 @@ def test_proof_readiness_reconciliation_docs_keep_historical_proof_separate_from
     assert "source rights" in prompt.lower()
     assert "field scope" in prompt.lower()
     assert "changed_tickers" in operator
+    assert "changed_tickers" in prompt
     assert "structured per-ticker" in prompt.lower()
     assert "future" in roadmap.lower()
 
