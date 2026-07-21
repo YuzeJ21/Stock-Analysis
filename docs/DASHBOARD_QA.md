@@ -158,6 +158,29 @@ exact current wording.
 
 Screenshot evidence is product evidence only. It does not refresh data, apply imports, unlock blocked fundamentals, peers, earnings, analyst estimates, valuation inputs, or prove current readiness counts.
 
+## 2026-07-21 Public Desktop And Phone Workflow Review
+
+A fresh local review covered all five public pages—Home, Stock Selector,
+Single-Stock Report, Data Health, and Proof History—at desktop and `390x844`
+phone viewports. Every page passed its current review with its first answer and
+primary handoff visible, Advanced/raw detail collapsed, no horizontal overflow,
+and no traceback.
+
+Only the Single-Stock Report needed a correction: its phone-only evidence
+handoff was too dense, leaving `Open Data Health` below the initial `844px`
+viewport. The accepted phone correction moves that handoff to about `842.53px`
+while preserving the reading order: Selected ticker -> `Use now` -> `Still
+withheld` -> `Open Data Health`. Desktop layout is unchanged.
+
+Data Health and Proof History remain answer/evidence destinations. This review
+adds no invented calls to action, does not turn either route into a readiness
+unlock, and does not change readiness, source, research, or generated-artifact
+state. The fresh screenshots and audit notes remain under
+`/tmp/stock-command-center-public-ux-review` and are intentionally unstaged.
+They are local product-layout evidence only, not proof of data freshness,
+source rights, hosted behavior, accessibility compliance, or predictive
+validity.
+
 ## V1 Public UI Replacement QA
 
 This is the current replacement-readiness browser QA contract for the public
