@@ -183,6 +183,17 @@ They are local product-layout evidence only, not proof of data freshness,
 source rights, hosted behavior, accessibility compliance, or predictive
 validity.
 
+The review-note gate preserves the corrective history without understating the
+finished audit. `resolved` is a direct successful review;
+`resolved_post_fix` is a successful fresh recapture after a correction. The
+current raw counts remain nine `resolved` rows and one `resolved_post_fix` row,
+while the aggregate gate reports `10/10` and `share_review_ready`. Only those
+two explicit labels are successful. Unknown labels—including values that merely
+start with `resolved`—and deferred, environment-limited, skipped, blocked, or
+pending rows remain fail closed. This is screenshot-based local workflow QA,
+not WCAG, keyboard, screen-reader, hosted, external-reviewer, freshness, or
+market-validation evidence.
+
 ## V1 Public UI Replacement QA
 
 This is the current replacement-readiness browser QA contract for the public
