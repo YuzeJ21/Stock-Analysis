@@ -30302,6 +30302,11 @@ def render_single_stock_report(
                 st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
             if research_mode:
                 change_answer = company_change_answer(ticker, research_review_items)
+                change_context_badge = {
+                    "none": "no queued change",
+                    "snapshot_only": "snapshot evidence only",
+                    "source_backed": "source-backed change",
+                }.get(str(change_answer["change_context_kind"]), "no queued change")
                 st.markdown("### What Changed")
                 render_signal_cards(
                     [
@@ -30311,11 +30316,7 @@ def render_single_stock_report(
                             "body": str(change_answer["next_task"]),
                             "badges": [
                                 str(change_answer["state"]).replace("_", " "),
-                                (
-                                    "source-backed change"
-                                    if change_answer["source_backed_eligible"] is True
-                                    else "snapshot evidence only"
-                                ),
+                                change_context_badge,
                             ],
                             "command": "",
                         }

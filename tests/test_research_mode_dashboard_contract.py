@@ -595,13 +595,14 @@ def test_company_workbench_uses_one_authoritative_task_arbitration():
     assert composition.count('"kicker": "ONE NEXT TASK"') == 1
 
 
-def test_company_workbench_change_badge_uses_explicit_source_backed_eligibility():
+def test_company_workbench_change_badge_uses_explicit_change_context_kind():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     change_start = source.index('change_answer = company_change_answer(ticker, research_review_items)')
     change_end = source.index('st.markdown("### Business Trend")', change_start)
     composition = source[change_start:change_end]
 
-    assert 'change_answer["source_backed_eligible"] is True' in composition
+    assert 'change_answer["change_context_kind"]' in composition
     assert '"source-backed change"' in composition
     assert '"snapshot evidence only"' in composition
+    assert '"no queued change"' in composition
     assert '"source-backed only"' not in composition

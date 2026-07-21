@@ -61,8 +61,13 @@ def test_avgo_company_workbench_renders_one_authoritative_peer_task():
     result = render_public_routes(Path("."), routes=(route,))[0]
     rendered = "\n".join(result.rendered_blocks)
     task_blocks = tuple(block for block in result.rendered_blocks if "ONE NEXT TASK" in block)
+    change_blocks = tuple(block for block in result.rendered_blocks if "EVIDENCE CHANGE" in block)
 
     assert result.exceptions == ()
+    assert len(change_blocks) == 1
+    assert "No unresolved source-backed change is queued for this company." in change_blocks[0]
+    assert "no queued change" in change_blocks[0]
+    assert "snapshot evidence only" not in change_blocks[0]
     assert len(task_blocks) == 1
     assert task_blocks[0].count("ONE NEXT TASK") == 1
     assert "<div class='signal-title'>Add peer mappings</div>" in task_blocks[0]

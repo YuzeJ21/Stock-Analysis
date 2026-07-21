@@ -23,7 +23,7 @@ Priority is deterministic:
 2. Otherwise the first existing Research Conclusion priority wins. That function already orders price, fundamentals, peer evidence, and full-report review without treating optional earnings or estimates as core readiness.
 3. If neither input provides a task, return a neutral wait condition without inventing evidence or an action.
 
-Snapshot-only items remain visible context, receive no source-backed badge, and never outrank Research Conclusion. The arbiter does not infer eligibility from state, text, source reference, or caller shape. It does not inspect candidate context, infer source availability, change deterministic scenarios, or upgrade blocked evidence.
+The change-answer mapping also carries an explicit context kind with exactly `none`, `snapshot_only`, or `source_backed`. `none` receives a neutral no-queued-change label, `snapshot_only` receives only the snapshot-evidence label, and `source_backed` receives the source-backed label. Snapshot-only items remain visible context, receive no source-backed badge, and never outrank Research Conclusion. The arbiter does not infer context or eligibility from state, text, source reference, or caller shape. It does not inspect candidate context, infer source availability, change deterministic scenarios, or upgrade blocked evidence.
 
 ## Presentation Contract
 
@@ -48,13 +48,14 @@ For the audited AVGO state, the result is one peer-evidence task. The absence of
 Tests must prove:
 
 - an explicitly eligible source-backed open change outranks the conclusion priority, while a snapshot-only open change does not;
+- no matching change maps to context kind `none`, snapshot-only matching change maps to `snapshot_only`, and eligible source-backed change maps to `source_backed`, with no badge crossover;
 - source-backed still-blocked and intentionally deferred changes preserve their routing and wait conditions;
 - with no change, the first ordered conclusion priority becomes the one task;
 - blocked-input priorities preserve `wait_for_evidence`, while directly reviewable priorities preserve `review_now`;
 - empty inputs produce the neutral wait condition;
 - Research Conclusion no longer emits a `NEXT STEP` kicker;
 - Forward View no longer emits a `NEXT RESEARCH TASK` kicker;
-- rendered AVGO Company Workbench contains exactly one `ONE NEXT TASK` marker with `Add peer mappings`, one `FORWARD-VIEW LANE UNBLOCK`, no retired uppercase `NEXT RESEARCH TASK` kicker, and zero exceptions;
+- rendered AVGO Company Workbench contains a scoped no-queued-change card without a snapshot-only badge, exactly one `ONE NEXT TASK` marker with `Add peer mappings`, one `FORWARD-VIEW LANE UNBLOCK`, no retired uppercase `NEXT RESEARCH TASK` kicker, and zero exceptions;
 - existing independent readiness and fail-closed tests remain unchanged.
 
 Run focused tests first, then the full repository and all required dashboard, research-render, public, commercial-beta, pilot, whitespace, and hygiene gates.

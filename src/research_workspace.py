@@ -148,6 +148,7 @@ def company_change_answer(ticker: str, review_items) -> dict[str, object]:
             "next_task": "Continue the current review or wait for changed source evidence.",
             "source_refs": (),
             "source_backed_eligible": False,
+            "change_context_kind": "none",
         }
     if not count:
         snapshot_item = matching[0]
@@ -172,6 +173,7 @@ def company_change_answer(ticker: str, review_items) -> dict[str, object]:
             "next_task": snapshot_task or "Continue the current review or wait for changed source evidence.",
             "source_refs": (),
             "source_backed_eligible": False,
+            "change_context_kind": "snapshot_only",
         }
 
     first = eligible[0]
@@ -200,6 +202,7 @@ def company_change_answer(ticker: str, review_items) -> dict[str, object]:
         "next_task": first_task,
         "source_refs": source_refs,
         "source_backed_eligible": True,
+        "change_context_kind": "source_backed",
     }
 
 

@@ -133,6 +133,7 @@ def test_company_change_answer_maps_source_backed_open_change_to_eligible_review
     assert answer["state"] == "review_now"
     assert answer["next_task"] == "NVDA: Review the changed evidence."
     assert answer["source_backed_eligible"] is True
+    assert answer["change_context_kind"] == "source_backed"
 
 
 def test_snapshot_only_open_change_never_outranks_conclusion_priority():
@@ -146,6 +147,7 @@ def test_snapshot_only_open_change_never_outranks_conclusion_priority():
     )
 
     assert answer["source_backed_eligible"] is False
+    assert answer["change_context_kind"] == "snapshot_only"
     assert task["title"] == "Add peer mappings"
     assert "source-backed change" not in task["badges"]
 
@@ -433,6 +435,7 @@ def test_company_change_answer_is_ticker_scoped_and_does_not_invent_change():
     assert unchanged["state"] == "monitor"
     assert unchanged["answer"] == "No unresolved source-backed change is queued for this company."
     assert unchanged["source_backed_eligible"] is False
+    assert unchanged["change_context_kind"] == "none"
 
 
 def test_cohort_trend_and_weekly_cards_keep_truthful_boundaries():

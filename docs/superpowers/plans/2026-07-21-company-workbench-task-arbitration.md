@@ -20,10 +20,11 @@
 ## Final-review contract clarification
 
 - `company_change_answer` carries an explicit boolean `source_backed_eligible`, set only when `event.evidence_status == "source_backed"`; the arbiter never infers eligibility from routing state, text, source references, or mapping shape.
+- `company_change_answer` independently carries `change_context_kind` with exactly `none`, `snapshot_only`, or `source_backed`. Dashboard badges map from this discriminator: empty queue to `no queued change`, snapshot-only context to `snapshot evidence only`, and source-backed context to `source-backed change`.
 - Eligible `open`, `still_blocked`, and `intentionally_deferred` items preserve `review_now`, `wait_for_evidence`, and `monitor` routing respectively. Blocked and deferred items preserve their non-empty wait condition, with the existing queue fallbacks when absent.
 - Snapshot-only items remain in change context without a source-backed badge and cannot outrank Research Conclusion.
 - Malformed arbitration inputs fail closed to the exact neutral wait task as a whole; no later card is selected after an earlier malformed card.
-- The focused normal AVGO AppTest render must have zero exceptions, exactly one `ONE NEXT TASK` marker whose card title is `Add peer mappings`, one `FORWARD-VIEW LANE UNBLOCK`, and no retired uppercase `NEXT RESEARCH TASK` kicker.
+- The focused normal AVGO AppTest render must have zero exceptions, a scoped no-queued-change Evidence Change card without a snapshot-only badge, exactly one `ONE NEXT TASK` marker whose card title is `Add peer mappings`, one `FORWARD-VIEW LANE UNBLOCK`, and no retired uppercase `NEXT RESEARCH TASK` kicker.
 
 ---
 

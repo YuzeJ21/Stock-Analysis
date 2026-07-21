@@ -25,7 +25,7 @@ The product deliberately separates the tracked master universe, active universe,
 
 Default personal-research flow: **Research Desk -> Discover -> Company Workbench -> Monitor**.
 
-Company Workbench now arbitrates one overall next task. A change can win only through the explicit source-backed eligibility flag: open items keep their suggested review task, still-blocked items keep `wait_for_evidence` and their wait condition, and intentionally deferred items keep `monitor` and their wait condition. Snapshot-only context is labeled as such and cannot outrank the existing ordered Research Conclusion priority. Forward View guidance remains lane-specific rather than a competing overall task, and readiness and evidence states remain independent and unchanged.
+Company Workbench now arbitrates one overall next task. Its change answer carries an explicit `none`, `snapshot_only`, or `source_backed` context kind: an empty queue gets a neutral no-queued-change label, snapshot-only context gets only its own label, and source-backed context gets the source-backed label. A change can win only through the separate strict source-backed eligibility flag: open items keep their suggested review task, still-blocked items keep `wait_for_evidence` and their wait condition, and intentionally deferred items keep `monitor` and their wait condition. Forward View guidance remains lane-specific rather than a competing overall task, and readiness and evidence states remain independent and unchanged.
 
 Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History**. Operator mode remains the source/proof workflow. Data Health and Proof History are Advanced Evidence in Personal Research mode, not equal primary destinations.
 
