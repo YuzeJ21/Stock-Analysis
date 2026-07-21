@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import asdict, replace
+import json
+from pathlib import Path
 
 import pandas as pd
 
 from src.proof_readiness_reconciliation import (
     build_proof_readiness_reconciliation,
     filter_reconciliation_rows,
+    main,
+    proof_readiness_reconciliation_payload,
+    render_proof_readiness_reconciliation,
 )
 from src.reviewed_batch_proof import ReviewedBatchProof
 
@@ -205,3 +210,89 @@ def test_valid_dated_proof_outranks_later_appended_malformed_date_and_filter_kee
 
     assert {row.ticker for row in filtered} == {"ARCT"}
     assert dict(summary.conflict_counts_by_lane) == {"fundamentals": 2}
+
+
+def test_render_names_conflicts_and_non_promotion_boundary():
+    summary = _summary(
+        proofs=[_proof()],
+        ticker=_ticker_readiness(ARCT={"fundamentals_ready": "False"}),
+    )
+
+    rendered = render_proof_readiness_reconciliation(summary, top_n=10)
+
+    assert "Proof-Readiness Reconciliation" in rendered
+    assert "historical_supported_currently_blocked" in rendered
+    assert "Current saved readiness remains authoritative" in rendered
+    assert "does not restore data, promote readiness, or rewrite proof history" in rendered
+    assert "Research-only" in rendered
+
+
+def _write_cli_inputs(root: Path) -> None:
+    reports = root / "data" / "reports"
+    reports.mkdir(parents=True)
+    pd.DataFrame(
+        [asdict(_proof(tickers="ARCT, ARDX"))]
+    ).to_csv(root / "data" / "reviewed_batch_proofs.csv", index=False)
+    _ticker_readiness(
+        ARCT={"fundamentals_ready": "False"},
+        ARDX={"fundamentals_ready": "False"},
+    ).to_csv(reports / "ticker_readiness_report.csv", index=False)
+    _dcf_readiness(ARCT={}, ARDX={}).to_csv(reports / "dcf_readiness_report.csv", index=False)
+    _peer_readiness(ARCT={}, ARDX={}).to_csv(reports / "peer_readiness_report.csv", index=False)
+
+
+def _file_snapshot(root: Path) -> dict[str, bytes]:
+    return {
+        str(path.relative_to(root)): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def test_main_is_read_only(tmp_path, capsys):
+    _write_cli_inputs(tmp_path)
+    before = _file_snapshot(tmp_path)
+
+    exit_code = main(["--root", str(tmp_path), "--top-n", "10"])
+
+    assert exit_code == 0
+    assert _file_snapshot(tmp_path) == before
+    output = capsys.readouterr().out
+    assert "Research-only" in output
+    assert "historical_supported_currently_blocked" in output
+
+
+def test_json_ticker_filter_keeps_global_counts(tmp_path, capsys):
+    _write_cli_inputs(tmp_path)
+
+    exit_code = main(
+        [
+            "--root",
+            str(tmp_path),
+            "--top-n",
+            "20",
+            "--tickers",
+            "ARCT",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["conflict_counts_by_lane"] == {"fundamentals": 2}
+    assert {row["ticker"] for row in payload["rows"]} == {"ARCT"}
+
+
+def test_payload_top_n_bounds_rows_without_changing_summary_counts():
+    summary = _summary(
+        proofs=[_proof(tickers="ARCT, ARDX")],
+        ticker=_ticker_readiness(
+            ARCT={"fundamentals_ready": "False"},
+            ARDX={"fundamentals_ready": "False"},
+        ),
+    )
+
+    payload = proof_readiness_reconciliation_payload(summary, top_n=1)
+
+    assert len(payload["rows"]) == 1
+    assert payload["conflict_counts_by_lane"] == {"fundamentals": 2}

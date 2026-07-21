@@ -6,9 +6,11 @@ rewrite proof history, or infer source rights, provenance, or payload truth.
 
 from __future__ import annotations
 
+import argparse
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date
+import json
 from pathlib import Path
 import re
 from typing import Sequence
@@ -296,3 +298,117 @@ def filter_reconciliation_rows(
     selected = {str(ticker).strip().upper() for ticker in tickers if str(ticker).strip()}
     rows = tuple(row for row in summary.rows if not selected or row.ticker in selected)
     return rows[: max(int(top_n), 0)]
+
+
+def _parse_ticker_filter(value: str) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(token.strip().upper() for token in str(value or "").split(",") if token.strip()))
+
+
+def proof_readiness_reconciliation_payload(
+    summary: ProofReadinessReconciliationSummary,
+    *,
+    tickers: Sequence[str] = (),
+    top_n: int = 20,
+) -> dict[str, object]:
+    return {
+        "input_status": summary.input_status,
+        "input_message": summary.input_message,
+        "total_rows": len(summary.rows),
+        "status_counts": dict(summary.status_counts),
+        "conflict_counts_by_lane": dict(summary.conflict_counts_by_lane),
+        "displayed_tickers": [str(ticker).strip().upper() for ticker in tickers if str(ticker).strip()],
+        "rows": [
+            asdict(row)
+            for row in filter_reconciliation_rows(summary, tickers=tickers, top_n=top_n)
+        ],
+        "boundary": (
+            "Current saved readiness remains authoritative; reconciliation does not restore data, promote readiness, "
+            "or rewrite proof history."
+        ),
+    }
+
+
+def render_proof_readiness_reconciliation(
+    summary: ProofReadinessReconciliationSummary,
+    *,
+    tickers: Sequence[str] = (),
+    top_n: int = 20,
+) -> str:
+    rows = filter_reconciliation_rows(summary, tickers=tickers, top_n=top_n)
+    conflict_total = sum(dict(summary.conflict_counts_by_lane).values())
+    lines = [
+        "Proof-Readiness Reconciliation",
+        "Read-only: compares append-only historical proof with current saved readiness; it writes no files.",
+        "Research-only: this is evidence interpretation, not investment advice, a ranking, recommendation, or trade instruction.",
+        "Current saved readiness remains authoritative; reconciliation does not restore data, promote readiness, or rewrite proof history.",
+        "",
+        f"Input status: {summary.input_status}",
+        f"Input detail: {summary.input_message}",
+        f"Reconciliation rows: {len(summary.rows):,}",
+        f"Historical-support/current-readiness conflicts: {conflict_total:,}",
+        "",
+        "State counts:",
+    ]
+    for state, count in summary.status_counts:
+        lines.append(f"- {state}: {count:,}")
+    lines.extend(["", "Conflict counts by lane:"])
+    if summary.conflict_counts_by_lane:
+        for lane, count in summary.conflict_counts_by_lane:
+            lines.append(f"- {lane}: {count:,}")
+    else:
+        lines.append("- none")
+    lines.extend(
+        [
+            "",
+            f"Rows shown: {len(rows):,}",
+            "Ticker | Lane | Current ready | Latest proof | Review date | Reconciliation state",
+            "--- | --- | --- | --- | --- | ---",
+        ]
+    )
+    for row in rows:
+        current = "unavailable" if row.current_ready is None else str(row.current_ready).lower()
+        latest = f"{row.latest_batch_id}: {row.latest_outcome}" if row.latest_batch_id else "not recorded"
+        review_date = row.latest_review_date or "not recorded"
+        lines.append(
+            f"{row.ticker} | {row.lane} | {current} | {latest} | {review_date} | {row.state}"
+        )
+    if not rows:
+        lines.append("No rows match the requested display filter.")
+    lines.extend(
+        [
+            "",
+            "Next safe command: make proof-readiness-reconciliation TOP_N=20",
+            "Boundary: a matching proof label does not prove source rights, field scope, provenance, payload truth, or commercial use.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Reconcile historical proof outcomes with current readiness.")
+    parser.add_argument("--root", default=".")
+    parser.add_argument("--top-n", type=int, default=20)
+    parser.add_argument("--tickers", default="")
+    parser.add_argument("--json", action="store_true")
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _build_parser().parse_args(argv)
+    summary = load_proof_readiness_reconciliation(root=Path(args.root))
+    tickers = _parse_ticker_filter(args.tickers)
+    if args.json:
+        print(
+            json.dumps(
+                proof_readiness_reconciliation_payload(summary, tickers=tickers, top_n=args.top_n),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    else:
+        print(render_proof_readiness_reconciliation(summary, tickers=tickers, top_n=args.top_n))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
