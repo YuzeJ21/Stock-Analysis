@@ -29346,11 +29346,17 @@ def test_public_single_stock_phone_keeps_evidence_handoff_in_first_view():
     mobile_end = source.index("</style>", mobile_start)
     mobile_css = source[mobile_start:mobile_end]
 
-    assert ".public-ticker-summary {" in mobile_css
-    assert "gap: 0.25rem;" in mobile_css
-    assert "padding: 0.5rem 0;" in mobile_css
-    assert ".public-ticker-action .public-primary-action {" in mobile_css
-    assert "order: -1;" in mobile_css
+    summary_start = mobile_css.index(".public-ticker-summary {")
+    summary_end = mobile_css.index("}", summary_start)
+    summary_rule = mobile_css[summary_start:summary_end]
+    action_start = mobile_css.index(".public-ticker-action .public-primary-action {")
+    action_end = mobile_css.index("}", action_start)
+    action_rule = mobile_css[action_start:action_end]
+
+    assert "grid-template-columns: 1fr;" in summary_rule
+    assert "gap: 0.25rem;" in summary_rule
+    assert "padding: 0.125rem 0 0.5rem;" in summary_rule
+    assert "order: -1;" in action_rule
 
 
 def test_public_workflow_controls_reserve_accessible_touch_targets():

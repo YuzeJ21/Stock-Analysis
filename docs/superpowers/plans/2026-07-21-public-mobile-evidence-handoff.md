@@ -40,11 +40,17 @@ def test_public_single_stock_phone_keeps_evidence_handoff_in_first_view():
     mobile_end = source.index("</style>", mobile_start)
     mobile_css = source[mobile_start:mobile_end]
 
-    assert ".public-ticker-summary {" in mobile_css
-    assert "gap: 0.25rem;" in mobile_css
-    assert "padding: 0.5rem 0;" in mobile_css
-    assert ".public-ticker-action .public-primary-action {" in mobile_css
-    assert "order: -1;" in mobile_css
+    summary_start = mobile_css.index(".public-ticker-summary {")
+    summary_end = mobile_css.index("}", summary_start)
+    summary_rule = mobile_css[summary_start:summary_end]
+    action_start = mobile_css.index(".public-ticker-action .public-primary-action {")
+    action_end = mobile_css.index("}", action_start)
+    action_rule = mobile_css[action_start:action_end]
+
+    assert "grid-template-columns: 1fr;" in summary_rule
+    assert "gap: 0.25rem;" in summary_rule
+    assert "padding: 0.125rem 0 0.5rem;" in summary_rule
+    assert "order: -1;" in action_rule
 ```
 
 - [ ] **Step 2: Run the test and confirm the current layout contract fails**
@@ -55,7 +61,9 @@ Run:
 PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/test_dashboard_helpers.py::test_public_single_stock_phone_keeps_evidence_handoff_in_first_view -q
 ```
 
-Expected: failure because the compact spacing and link-order rules are absent.
+Expected during the final-review correction: failure because the exact summary
+rule still uses `padding: 0.5rem 0`; declarations elsewhere in the mobile block
+must not satisfy the selector-local contract.
 
 - [ ] **Step 3: Add the minimal phone-only CSS**
 
@@ -65,7 +73,7 @@ In the existing `@media (max-width: 640px)` block, change only the ticker-summar
 .public-ticker-summary {
   grid-template-columns: 1fr;
   gap: 0.25rem;
-  padding: 0.5rem 0;
+  padding: 0.125rem 0 0.5rem;
 }
 .public-ticker-action .public-primary-action {
   order: -1;
@@ -95,6 +103,9 @@ Reload `http://localhost:8501/?mode=public&page=single-stock-report&ticker=NVDA&
 - Selected ticker, Use now, and Still withheld precede the link in document order.
 
 Save the accepted screenshot only under `/tmp/stock-command-center-public-ux-review`.
+The final accepted measurement is `top=792.53125px`, `bottom=836.53125px`,
+leaving `7.46875px` of clearance in the `844px` viewport. The computed summary
+spacing is `gap=4px`, `padding-top=2px`, and `padding-bottom=8px`.
 
 - [ ] **Step 6: Commit the tested product correction**
 

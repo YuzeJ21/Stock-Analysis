@@ -168,9 +168,11 @@ and no traceback.
 
 Only the Single-Stock Report needed a correction: its phone-only evidence
 handoff was too dense, leaving `Open Data Health` below the initial `844px`
-viewport. The accepted phone correction moves that handoff to about `842.53px`
-while preserving the reading order: Selected ticker -> `Use now` -> `Still
-withheld` -> `Open Data Health`. Desktop layout is unchanged.
+viewport. The accepted phone correction keeps `gap: 0.25rem` and uses
+`padding: 0.125rem 0 0.5rem`; the final handoff ends at `836.53125px`, leaving
+`7.46875px` of viewport clearance while preserving the reading order: Selected
+ticker -> `Use now` -> `Still withheld` -> `Open Data Health`. Desktop layout
+is unchanged.
 
 Data Health and Proof History remain answer/evidence destinations. This review
 adds no invented calls to action, does not turn either route into a readiness
