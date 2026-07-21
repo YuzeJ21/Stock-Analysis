@@ -275,3 +275,123 @@ def test_backtest_excludes_eps_only_target_when_split_basis_is_unverified():
 
     assert report.event_count == 0
     assert report.exclusion_reasons["no_comparable_target_actual"] == 1
+
+
+def test_identical_target_duplicates_produce_one_fiscal_period_event():
+    rows = _history_with_target()
+    rows.append(replace(rows[-1]))
+
+    report = walk_forward_backtest(rows, [_consensus()[0]], NowcastConfig())
+
+    assert report.event_count == 1
+    assert tuple(event.fiscal_period for event in report.events) == ("2026-Q1",)
+
+
+@pytest.mark.parametrize(
+    ("conflicting_field", "conflicting_value", "expected_revenue", "expected_eps"),
+    [
+        ("revenue_actual", 999.0, None, 1.0),
+        ("eps_actual", 9.99, 112.0, None),
+    ],
+)
+def test_conflicting_target_metric_is_excluded_independently(
+    conflicting_field,
+    conflicting_value,
+    expected_revenue,
+    expected_eps,
+):
+    rows = _history_with_target()
+    target = rows[-1]
+    other_field = "eps_actual" if conflicting_field == "revenue_actual" else "revenue_actual"
+    conflict = replace(
+        target,
+        **{
+            conflicting_field: conflicting_value,
+            other_field: None,
+            "source_ref": f"fixture://conflict/{conflicting_field}",
+        },
+    )
+
+    report = walk_forward_backtest([*rows, conflict], [_consensus()[0]], NowcastConfig())
+
+    assert report.event_count == 1
+    assert report.events[0].revenue_actual == expected_revenue
+    assert report.events[0].eps_actual == expected_eps
+
+
+def test_explicit_target_revision_chains_select_each_metric_canonically():
+    rows = _history_with_target()
+    target = rows[-1]
+    revenue_revision = replace(
+        target,
+        revenue_actual=120.0,
+        eps_actual=None,
+        source_ref="fixture://revision/2026-Q1/revenue",
+        retrieved_at="2026-04-20T22:00:00Z",
+        supersedes_source_ref=target.source_ref,
+    )
+    eps_revision = replace(
+        target,
+        revenue_actual=None,
+        eps_actual=1.2,
+        source_ref="fixture://revision/2026-Q1/eps",
+        retrieved_at="2026-04-20T23:00:00Z",
+        supersedes_source_ref=target.source_ref,
+    )
+
+    report = walk_forward_backtest(
+        [*rows, revenue_revision, eps_revision],
+        [_consensus()[0]],
+        NowcastConfig(),
+    )
+
+    assert report.event_count == 1
+    assert report.events[0].revenue_actual == 120.0
+    assert report.events[0].eps_actual == 1.2
+
+
+def test_prior_year_benchmarks_use_canonical_revisions_in_any_input_order():
+    rows = _history_with_target()
+    prior = rows[4]
+    revision = replace(
+        prior,
+        revenue_actual=125.0,
+        eps_actual=1.25,
+        source_ref="fixture://revision/2025-Q1",
+        reported_at="2025-04-21T21:00:00Z",
+        retrieved_at="2025-04-21T21:01:00Z",
+        supersedes_source_ref=prior.source_ref,
+    )
+
+    appended = walk_forward_backtest([*rows, revision], [_consensus()[0]], NowcastConfig())
+    prepended = walk_forward_backtest([revision, *rows], [_consensus()[0]], NowcastConfig())
+
+    assert appended.events[0].prior_year_revenue == 125.0
+    assert appended.events[0].prior_year_eps == 1.25
+    assert prepended.events[0].prior_year_revenue == 125.0
+    assert prepended.events[0].prior_year_eps == 1.25
+
+
+def test_prior_year_benchmark_excludes_revision_reported_after_event_cutoff():
+    rows = _history_with_target()
+    prior = rows[4]
+    future_revision = replace(
+        prior,
+        revenue_actual=125.0,
+        eps_actual=1.25,
+        source_ref="fixture://revision/2025-Q1/future",
+        reported_at="2026-02-01T21:00:00Z",
+        retrieved_at="2026-02-01T21:01:00Z",
+        supersedes_source_ref=prior.source_ref,
+    )
+
+    report = walk_forward_backtest(
+        [*rows, future_revision],
+        [_consensus()[0]],
+        NowcastConfig(),
+    )
+
+    assert report.events[0].as_of_timestamp == "2026-01-31T23:59:59+00:00"
+    assert report.events[0].prior_year_revenue == 96.0
+    assert report.events[0].prior_year_eps == 0.8
+    assert report.leakage_failures == ()

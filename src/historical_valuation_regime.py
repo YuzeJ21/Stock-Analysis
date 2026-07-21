@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import csv
+import math
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from statistics import median
 from typing import Iterable, Mapping
@@ -83,8 +85,16 @@ def _validate_observation(row: ValuationObservation, *, as_of: str) -> str | Non
         return "ticker, metric, and definition_id are required"
     if not row.source.strip() or not row.source_ref.strip():
         return "source and source_ref are required"
+    if not math.isfinite(row.numerator) or not math.isfinite(row.denominator):
+        return "numerator and denominator must be finite"
     if row.denominator == 0:
         return "denominator cannot be zero"
+    period_end = str(row.denominator_period_end or "").strip()
+    try:
+        if date.fromisoformat(period_end).isoformat() != period_end:
+            raise ValueError
+    except ValueError:
+        return "denominator_period_end must use YYYY-MM-DD"
     try:
         numerator_at = parse_utc_timestamp(row.numerator_as_of, label="numerator_as_of")
         denominator_at = parse_utc_timestamp(row.denominator_available_at, label="denominator_available_at")
@@ -96,7 +106,7 @@ def _validate_observation(row: ValuationObservation, *, as_of: str) -> str | Non
         return "denominator was not public at the price timestamp"
     if numerator_at > retrieved_at:
         return "numerator timestamp cannot be after retrieval"
-    if numerator_at > cutoff or denominator_at > cutoff:
+    if numerator_at > cutoff or denominator_at > cutoff or retrieved_at > cutoff:
         return "observation contains post-cutoff evidence"
     return None
 

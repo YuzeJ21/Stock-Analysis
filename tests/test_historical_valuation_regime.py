@@ -1,5 +1,7 @@
 from dataclasses import replace
 
+import pytest
+
 from src.historical_valuation_regime import ValuationObservation, build_valuation_regime
 from src.commercial_source_rights import SourceRights
 
@@ -117,3 +119,60 @@ def test_commercial_valuation_requires_exact_source_lane_scope():
     assert "valuation_history" in blocked.commercial_blockers[0]
     assert ready.state == "ready"
     assert ready.observation_count == 8
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("numerator", float("nan")),
+        ("numerator", float("inf")),
+        ("numerator", float("-inf")),
+        ("denominator", float("nan")),
+        ("denominator", float("inf")),
+        ("denominator", float("-inf")),
+    ],
+)
+def test_regime_rejects_non_finite_multiple_inputs(field, value):
+    packet = build_valuation_regime(
+        (replace(_observation(0), **{field: value}),),
+        ticker="NVDA",
+        metric="price_to_fcf_per_share",
+        as_of="2025-09-01T00:00:00Z",
+        minimum_observations=1,
+    )
+
+    assert packet.state == "insufficient_history"
+    assert packet.observation_count == 0
+    assert packet.rejected_count == 1
+    assert packet.rejected_reasons == ("numerator and denominator must be finite",)
+
+
+@pytest.mark.parametrize("period_end", ["", "2025-02-30", "2025/02/28"])
+def test_regime_rejects_invalid_denominator_period_end(period_end):
+    packet = build_valuation_regime(
+        (_observation(0, denominator_period_end=period_end),),
+        ticker="NVDA",
+        metric="price_to_fcf_per_share",
+        as_of="2025-09-01T00:00:00Z",
+        minimum_observations=1,
+    )
+
+    assert packet.state == "insufficient_history"
+    assert packet.observation_count == 0
+    assert packet.rejected_count == 1
+    assert packet.rejected_reasons == ("denominator_period_end must use YYYY-MM-DD",)
+
+
+def test_regime_rejects_evidence_retrieved_after_review_cutoff():
+    packet = build_valuation_regime(
+        (_observation(0, retrieved_at="2025-09-02T00:00:00Z"),),
+        ticker="NVDA",
+        metric="price_to_fcf_per_share",
+        as_of="2025-09-01T00:00:00Z",
+        minimum_observations=1,
+    )
+
+    assert packet.state == "insufficient_history"
+    assert packet.observation_count == 0
+    assert packet.rejected_count == 1
+    assert packet.rejected_reasons == ("observation contains post-cutoff evidence",)

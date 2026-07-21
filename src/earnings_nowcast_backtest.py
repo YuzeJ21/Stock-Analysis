@@ -13,6 +13,7 @@ from src.earnings_nowcast_contract import (
     parse_utc_timestamp,
 )
 from src.earnings_nowcast_model import NowcastConfig, build_baseline_nowcast
+from src.earnings_nowcast_readiness import canonicalize_actuals
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,15 @@ class BacktestReport:
     leakage_failures: tuple[str, ...]
     failures: tuple[str, ...]
     events: tuple[BacktestEvent, ...]
+
+
+@dataclass(frozen=True)
+class _CanonicalBacktestTarget:
+    ticker: str
+    fiscal_period: str
+    reported_at: str
+    revenue_actual: float | None
+    eps_actual: float | None
 
 
 @dataclass(frozen=True)
@@ -135,6 +145,54 @@ def _direction(actual: float, consensus: float, tolerance_pct: float) -> str:
     return "aligned"
 
 
+def _canonical_backtest_targets(
+    actuals: Sequence[QuarterlyActual],
+) -> tuple[_CanonicalBacktestTarget, ...]:
+    rows_by_ticker: dict[str, list[QuarterlyActual]] = {}
+    rows_by_period: dict[tuple[str, str], list[QuarterlyActual]] = {}
+    for row in actuals:
+        rows_by_ticker.setdefault(row.ticker, []).append(row)
+        rows_by_period.setdefault((row.ticker, row.fiscal_period), []).append(row)
+    reported_at_lookup = {
+        key: min((row.reported_at for row in rows), key=parse_utc_timestamp)
+        for key, rows in rows_by_period.items()
+    }
+
+    revenue_lookup: dict[tuple[str, str], QuarterlyActual] = {}
+    eps_lookup: dict[tuple[str, str], QuarterlyActual] = {}
+    for ticker, ticker_rows in rows_by_ticker.items():
+        canonical = canonicalize_actuals(ticker_rows, None)
+        revenue_lookup.update(
+            ((ticker, row.fiscal_period), row) for row in canonical.revenue_rows
+        )
+        eps_lookup.update(
+            ((ticker, row.fiscal_period), row) for row in canonical.eps_rows
+        )
+
+    targets = tuple(
+        _CanonicalBacktestTarget(
+            ticker=ticker,
+            fiscal_period=period,
+            reported_at=reported_at_lookup[(ticker, period)],
+            revenue_actual=(
+                revenue_lookup[(ticker, period)].revenue_actual
+                if (ticker, period) in revenue_lookup
+                else None
+            ),
+            eps_actual=(
+                eps_lookup[(ticker, period)].eps_actual
+                if (ticker, period) in eps_lookup
+                else None
+            ),
+        )
+        for ticker, period in sorted(
+            rows_by_period,
+            key=lambda key: (parse_utc_timestamp(reported_at_lookup[key]), key),
+        )
+    )
+    return targets
+
+
 def walk_forward_backtest(
     actuals: Sequence[QuarterlyActual],
     consensus_snapshots: Sequence[ConsensusSnapshot],
@@ -146,7 +204,7 @@ def walk_forward_backtest(
     config = config or NowcastConfig()
     if maximum_snapshot_age_days < 1:
         raise ValueError("maximum_snapshot_age_days must be positive")
-    actual_lookup = {(row.ticker, row.fiscal_period): row for row in actuals}
+    targets = _canonical_backtest_targets(actuals)
     events: list[BacktestEvent] = []
     failures: list[str] = []
     leakage_failures: list[str] = []
@@ -160,13 +218,8 @@ def walk_forward_backtest(
         exclusion_reasons[reason] = exclusion_reasons.get(reason, 0) + 1
         excluded_events.append(detail)
 
-    targets = sorted(actuals, key=lambda row: (row.reported_at, row.ticker, row.fiscal_period))
     for target in targets:
-        target_eps_actual = (
-            target.eps_actual
-            if eps_split_basis_verified(target.split_adjustment_basis)
-            else None
-        )
+        target_eps_actual = target.eps_actual
         if target.revenue_actual is None and target_eps_actual is None:
             exclude(
                 "no_comparable_target_actual",
@@ -249,13 +302,13 @@ def walk_forward_backtest(
         latest_input = max(input_timestamps, key=parse_utc_timestamp)
         if parse_utc_timestamp(latest_input) > parse_utc_timestamp(cutoff):
             leakage_failures.append(f"{target.ticker} {target.fiscal_period}: input after cutoff")
-        prior = actual_lookup.get((target.ticker, _prior_year(target.fiscal_period)))
-        prior_year_eps = (
-            prior.eps_actual
-            if prior is not None
-            and eps_split_basis_verified(prior.split_adjustment_basis)
-            else None
+        prior_period = _prior_year(target.fiscal_period)
+        canonical_prior = canonicalize_actuals(
+            [row for row in history if row.fiscal_period == prior_period],
+            None,
         )
+        prior_revenue = canonical_prior.revenue_rows[0] if canonical_prior.revenue_rows else None
+        prior_eps = canonical_prior.eps_rows[0] if canonical_prior.eps_rows else None
         consensus_eps = (
             snapshot.eps_consensus
             if eps_split_basis_verified(snapshot.split_adjustment_basis)
@@ -279,8 +332,8 @@ def walk_forward_backtest(
                 eps_actual=target_eps_actual,
                 consensus_revenue=snapshot.revenue_consensus,
                 consensus_eps=consensus_eps,
-                prior_year_revenue=prior.revenue_actual if prior else None,
-                prior_year_eps=prior_year_eps,
+                prior_year_revenue=prior_revenue.revenue_actual if prior_revenue else None,
+                prior_year_eps=prior_eps.eps_actual if prior_eps else None,
                 relative_classification=forecast.relative_classification,
             )
         )
