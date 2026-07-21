@@ -898,3 +898,29 @@ def test_company_workbench_cash_preview_docs_preserve_explicit_no_activation_bou
     assert "does not prove a second company" in roadmap
     assert "do not repeat the NVIDIA pilot" in prompt
     assert "bounded second-company proof" in prompt
+
+
+def test_evidence_integrity_docs_preserve_fail_closed_valuation_and_cutoff_backtest_boundary():
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    safeguards = (
+        "reject non-finite valuation inputs",
+        "require a canonical real `YYYY-MM-DD` denominator period end",
+        "reject blank, malformed, and non-calendar denominator period ends",
+        "reject post-cutoff retrieval evidence",
+        "canonicalize Revenue/EPS independently through explicit `supersedes_source_ref` lineage",
+        "retain one event per ticker/period",
+        "withhold ambiguous leaves per metric so one metric does not suppress the other",
+        "use cutoff-bounded prior-year benchmarks so post-cutoff revisions cannot leak",
+    )
+
+    for text in (roadmap, methodology, prompt):
+        for safeguard in safeguards:
+            assert safeguard in text
+
+    assert (
+        "Evidence-integrity hardening anchor: commit `7d463bae7` or a later verified descendant"
+        in prompt
+    )
