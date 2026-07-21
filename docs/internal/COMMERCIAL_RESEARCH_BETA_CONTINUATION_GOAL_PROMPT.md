@@ -101,6 +101,7 @@ Current locally implemented capabilities to verify:
 - Pull-request engineering gate: `.github/workflows/commercial-research-beta.yml` runs the full tests plus the minimal dashboard, Personal Research render, wording, range hygiene, and range whitespace contract only for pull requests to `main`, with `contents: read` and no provider, readiness, deployment, secret, schedule, or artifact-upload path. It fetches full history, checks out the exact event head, and binds both hygiene commands to the explicit event base/head SHAs. Direct GitHub evidence must pass on every current revision, and automation never substitutes for human review.
 - Same-mode Advanced Evidence continuity: Data Health and Proof History stay inside Personal Research mode, preserve the selected ticker, and expose Return to Company Workbench before evidence content. The navigation does not change readiness or evidence state.
 - Public mobile workflow audit: fresh desktop and `390x844` phone review passed for Home, Stock Selector, Single-Stock Report, Data Health, and Proof History with no overflow or traceback. Only the Single-Stock Report needed a phone-only evidence-handoff density correction: final `gap: 0.25rem` and `padding: 0.125rem 0 0.5rem` preserve Selected ticker -> `Use now` -> `Still withheld` -> `Open Data Health`, with the final handoff ending at `836.53125px` and leaving `7.46875px` of viewport clearance; desktop remains unchanged. Data Health and Proof History remain answer/evidence destinations without invented calls to action. The ten-row audit is `share_review_ready` with raw counts preserved as nine `resolved` and one verified `resolved_post_fix`; only those two explicit outcomes count as successful, and unknown or incomplete labels remain fail closed. This is screenshot-based local product-layout evidence only—not hosted, accessibility-conformance, external-reviewer, freshness, demand, or market evidence—and changes no readiness, source, research, or generated-artifact state.
+- Proof-readiness reconciliation: run `make proof-readiness-reconciliation TOP_N=20` before reusing a supporting proof outcome. It maps only explicit fundamentals, DCF, share-count, price, peer-mapping, and peer-valuation proof lanes to their independent current fields. `historical_supported_currently_blocked` means historical support cannot be treated as current support; current saved readiness remains authoritative. Advanced Proof History shows global and selected-ticker conflicts before raw ledger detail, while the four primary research routes remain unchanged. The command is read-only and does not restore canonical data, rewrite proof history, promote readiness, prove source rights, field scope, provenance, payload truth, commercial use, or any external gate. Any reported count is a current-snapshot audit finding, not a durable coverage total.
 - Stale readiness continuation gate across project status, Session Source Preflight, provider setup, coverage frontier, Auto-Refresh Status, its runbook, Advanced Data Health cards, and the commercial-beta release path: while readiness is stale or incomplete, `make readiness-preview TOP_N=20` is the only continuation-safe command; source availability, provider, scheduled-operation, and ranked coverage details remain planning context only, and `make readiness` is a separate intentional reviewed write.
 - Peer evidence-quality contract separating relationship provenance, peer role, economic comparability, result context, trend readiness, and valuation-anchor eligibility.
 - In-memory quarterly cash-generation evidence contract with independent operating-margin, free-cash-flow, and FCF-margin states, explicit filed-Q4 enforcement, Advanced-only source lineage, and no supplemental data file, writer, template, report, or generated artifact.
@@ -167,15 +168,16 @@ Execution order for each continuation:
 
 1. Verify current branch, worktree, latest commits, upstream alignment, PR #113 draft status, ROADMAP.md, generated-artifact hygiene, current tests, and current product gates.
 2. Review unresolved PR feedback and roadmap claims against live code and runtime behavior.
-3. Audit the complete user workflow: Research Desk -> Discover -> Company Workbench -> Monitor.
-4. Identify the highest-impact executable usability, methodology, evidence, reliability, or operating-readiness gap that moves an actual completion gate closer.
-5. Implement one coherent slice with failing tests first where behavior changes.
-6. Preserve independent readiness for actuals, consensus, Revenue, EPS, operating margin, free cash flow, FCF margin, valuation, trusted relationships, peer comparability, peer valuation anchors, catalysts, outcomes, backtesting, and calibration.
-7. Keep technical evidence under Advanced unless it is required to explain the primary research answer.
-8. Classify unavailable external dependencies once and move to the next executable local roadmap item.
-9. Update tests, methodology, provenance, runbooks, ROADMAP.md, and this prompt when the verified stage or continuation contract changes.
-10. Stage exact intentional paths only, commit the verified slice, push only the named branch, and update PR #113 while keeping it draft.
-11. Continue to the next safe executable item rather than ending merely because one slice is complete.
+3. Before reusing a supporting proof outcome, run `make proof-readiness-reconciliation TOP_N=20`; keep `historical_supported_currently_blocked` lanes blocked and move to fresh evidence or another executable lane.
+4. Audit the complete user workflow: Research Desk -> Discover -> Company Workbench -> Monitor.
+5. Identify the highest-impact executable usability, methodology, evidence, reliability, or operating-readiness gap that moves an actual completion gate closer.
+6. Implement one coherent slice with failing tests first where behavior changes.
+7. Preserve independent readiness for actuals, consensus, Revenue, EPS, operating margin, free cash flow, FCF margin, valuation, trusted relationships, peer comparability, peer valuation anchors, catalysts, outcomes, backtesting, and calibration.
+8. Keep technical evidence under Advanced unless it is required to explain the primary research answer.
+9. Classify unavailable external dependencies once and move to the next executable local roadmap item.
+10. Update tests, methodology, provenance, runbooks, ROADMAP.md, and this prompt when the verified stage or continuation contract changes.
+11. Stage exact intentional paths only, commit the verified slice, push only the named branch, and update PR #113 while keeping it draft.
+12. Continue to the next safe executable item rather than ending merely because one slice is complete.
 
 Stage gates:
 

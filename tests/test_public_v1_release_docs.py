@@ -11,6 +11,22 @@ def _read(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
 
 
+def test_proof_readiness_reconciliation_docs_keep_historical_proof_separate_from_current_state():
+    roadmap = _read("ROADMAP.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, operator, prompt):
+        assert "make proof-readiness-reconciliation TOP_N=20" in text
+        assert "historical_supported_currently_blocked" in text
+        assert "current saved readiness remains authoritative" in text.lower()
+    assert "current-snapshot audit" in roadmap.lower()
+    assert "does not restore canonical data" in operator.lower()
+    assert "before reusing a supporting proof outcome" in prompt.lower()
+    assert "source rights" in prompt.lower()
+    assert "field scope" in prompt.lower()
+
+
 def test_two_company_cash_preview_docs_preserve_bounded_portability_boundary():
     methodology = _read("docs/METHODOLOGY.md")
     provenance = _read("docs/PROVENANCE_CONTRACT.md")
