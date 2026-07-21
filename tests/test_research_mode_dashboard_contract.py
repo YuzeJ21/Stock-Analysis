@@ -582,7 +582,14 @@ def test_optional_dashboard_evidence_loaders_enable_commercial_composition():
 
 def test_company_workbench_uses_one_authoritative_task_arbitration():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    assert "company_next_research_task(" in source
-    assert '"kicker": "ONE NEXT TASK"' in source
-    assert '"title": str(authoritative_task["title"])' in source
-    assert source.count('"kicker": "ONE NEXT TASK"') == 1
+    workbench_start = source.index('st.markdown("### Research Conclusion")')
+    workbench_end = source.index("\n    if public_mode and report_payload", workbench_start)
+    composition = source[workbench_start:workbench_end]
+
+    assert "company_next_research_task(" in composition
+    assert 'st.markdown("### Next Research Task")' in composition
+    assert '"title": str(authoritative_task["title"])' in composition
+    assert '"body": str(authoritative_task["body"])' in composition
+    assert '"badges": list(authoritative_task["badges"])' in composition
+    assert '"state": str(authoritative_task["state"])' in composition
+    assert composition.count('"kicker": "ONE NEXT TASK"') == 1

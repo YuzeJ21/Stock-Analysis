@@ -30493,7 +30493,7 @@ def render_single_stock_report(
             )
             change_answer = company_change_answer(ticker, research_review_items)
             authoritative_task = company_next_research_task(change_answer, conclusion_cards)
-            st.markdown("### One Next Task")
+            st.markdown("### Next Research Task")
             render_signal_cards(
                 [
                     {
