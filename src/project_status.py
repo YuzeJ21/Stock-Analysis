@@ -24,7 +24,7 @@ from src.hosted_demo_readiness import read_hosted_demo_url
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.profile_context import build_profile_context, render_profile_context_text
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
-from src.public_ux_review_checklist import public_ux_review_notes_status
+from src.public_ux_review_checklist import SUCCESSFUL_REVIEW_CLASSIFICATIONS, public_ux_review_notes_status
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
 from src.readiness_ops import build_reviewed_batch_ledger_summaries
 from src.research_health import research_health_outputs_current
@@ -503,7 +503,9 @@ def _public_ux_stage_from_status(status: dict[str, Any] | None) -> dict[str, str
     gate = str(status.get("share_review_gate") or "").strip()
     if gate == "share_review_ready":
         counts = status.get("classification_counts") if isinstance(status.get("classification_counts"), dict) else {}
-        resolved = int(counts.get("resolved") or 0)
+        resolved = sum(
+            int(counts.get(classification) or 0) for classification in SUCCESSFUL_REVIEW_CLASSIFICATIONS
+        )
         total = int(status.get("expected_rows") or resolved)
         return {
             "State": "share_review_ready",

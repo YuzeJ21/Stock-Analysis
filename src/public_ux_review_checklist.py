@@ -94,6 +94,8 @@ REVIEW_NOTE_ARTIFACT = {
     "git_boundary": "local audit notes only; do not stage unless intentionally reviewed",
 }
 
+SUCCESSFUL_REVIEW_CLASSIFICATIONS = frozenset({"resolved", "resolved_post_fix"})
+
 LIVE_REVIEW_PROTOCOL = [
     "Create the suggested local audit folder before opening routes.",
     "Record one note row per page/viewport before changing code or screenshots.",
@@ -131,7 +133,7 @@ def public_ux_review_payload() -> dict[str, object]:
             "First answer visible: yes/no",
             "Primary next action visible: yes/no",
             "Advanced/raw details collapsed: yes/no",
-            "Issue classification: resolved, intentionally_deferred, environment_limited, skipped, or blocked_with_evidence",
+            "Issue classification: resolved, resolved_post_fix (fresh verified recapture after a fix), intentionally_deferred, environment_limited, skipped, or blocked_with_evidence",
         ],
         "stop_before_sharing": STOP_BEFORE_SHARING,
         "next_safe_commands": NEXT_SAFE_COMMANDS,
@@ -411,7 +413,7 @@ def public_ux_review_notes_status(notes_path: str | Path | None = None) -> dict[
     for row in rows:
         classification = row.get("Issue classification", "").strip() or "pending"
         classification_counts[classification] = classification_counts.get(classification, 0) + 1
-        if classification not in {"pending", "resolved"}:
+        if classification != "pending" and classification not in SUCCESSFUL_REVIEW_CLASSIFICATIONS:
             problem_rows.append(
                 {
                     "page": row.get("Page", ""),

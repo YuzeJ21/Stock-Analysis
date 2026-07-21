@@ -1338,7 +1338,7 @@ def test_project_status_stage_map_reports_completed_public_ux_review():
             "share_review_gate": "share_review_ready",
             "status": "review_complete",
             "pending_rows": 0,
-            "classification_counts": {"resolved": 10},
+            "classification_counts": {"resolved": 9, "resolved_post_fix": 1},
             "next_safe_command": "make public-ux-review-notes-check",
         },
     )
