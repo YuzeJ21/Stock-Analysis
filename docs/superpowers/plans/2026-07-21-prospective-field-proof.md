@@ -30,6 +30,7 @@
 - Modify `Makefile`: status, preview, and record targets.
 - Modify `tests/test_makefile_test_targets.py`: durable Make target contract.
 - Modify `ROADMAP.md`: completed Stage A evidence primitive and explicit non-activation boundary.
+- Modify `README.md`: correct artifact-writing and reviewer-cohort operating claims.
 - Modify `docs/OPERATOR_GUIDE.md`: preview-before-record operating contract.
 - Modify `docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md`: next executable stage and external classifications.
 - Modify `tests/test_public_v1_release_docs.py`: durable documentation contract.
@@ -190,6 +191,7 @@ git commit -m "Expose prospective field proof workflow"
 ### Task 4: Operating Documentation And Release Evidence
 
 **Files:**
+- Modify: `README.md`
 - Modify: `ROADMAP.md`
 - Modify: `docs/OPERATOR_GUIDE.md`
 - Modify: `docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md`
