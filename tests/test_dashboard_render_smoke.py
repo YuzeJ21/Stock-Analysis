@@ -65,50 +65,49 @@ def test_research_render_smoke_output_names_the_contract_and_failures():
     assert "expanded advanced sections: Advanced Evidence" in rendered
 
 
-def test_explicit_cash_preview_route_renders_accepted_answer_without_network():
+def test_explicit_amd_cash_preview_route_renders_accepted_answer_without_network():
     from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
 
     preview = CompanyWorkbenchCashGenerationPreview(
-        ticker="NVDA",
-        fiscal_period="2027-Q1",
+        ticker="AMD",
+        fiscal_period="2026-Q1",
         status="accepted_for_review",
         message="Accepted SEC evidence supports a cash-generation review preview.",
         operating_margin=CashGenerationPreviewMetric(
-            "operating_margin", "preview_available", 0.65595785, "2027-Q1", (), ""
+            "operating_margin", "preview_available", 1_476_000_000 / 10_253_000_000,
+            "2026-Q1", (), ""
         ),
         free_cash_flow=CashGenerationPreviewMetric(
-            "free_cash_flow", "preview_available", 48_587_000_000, "2027-Q1", (), ""
+            "free_cash_flow", "preview_available", 2_566_000_000, "2026-Q1", (), ""
         ),
         fcf_margin=CashGenerationPreviewMetric(
-            "fcf_margin", "preview_available", 0.59532439, "2027-Q1", (), ""
+            "fcf_margin", "preview_available", 2_566_000_000 / 10_253_000_000,
+            "2026-Q1", (), ""
         ),
         blockers=(),
         withheld_metrics=(),
-        accession="0001045810-26-000052",
-        source_url="https://www.sec.gov/Archives/edgar/data/1045810/filing.htm",
-        accepted_at="2026-05-20T20:35:52+00:00",
+        accession="0000002488-26-000076",
+        source_url="https://www.sec.gov/Archives/edgar/data/2488/000000248826000076/amd-20260328.htm",
+        accepted_at="2026-05-05T22:06:27+00:00",
         cutoff="2026-07-21T03:59:59+00:00",
         capex_sign_evidence="explicit_filed_table_outflow",
         components=(),
     )
     route = DashboardRenderRoute(
-        name="Company Workbench cash preview",
+        name="AMD Company Workbench cash preview",
         query_params=(
             ("mode", "research"),
             ("page", "company-workbench"),
-            ("ticker", "NVDA"),
+            ("ticker", "AMD"),
             ("open", "1"),
             ("cash_preview", "1"),
         ),
         required_markers=(
             "Cash-generation review preview",
             "not production evidence",
-            "OPERATING MARGIN",
-            "FREE CASH FLOW",
-            "FCF MARGIN",
-            "65.6%",
-            "48,587,000,000",
-            "59.5%",
+            "14.4%",
+            "2,566,000,000",
+            "25.0%",
         ),
     )
 
@@ -146,5 +145,28 @@ def test_normal_company_workbench_route_never_loads_cash_preview():
     ):
         result = render_public_routes(Path("."), routes=(route,))[0]
 
+    assert result.exceptions == ()
+    assert result.missing_markers == ()
+
+
+def test_normal_amd_company_workbench_route_never_loads_cash_preview():
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="Normal AMD Company Workbench",
+        query_params=(
+            ("mode", "research"),
+            ("page", "company-workbench"),
+            ("ticker", "AMD"),
+            ("open", "1"),
+        ),
+        required_markers=("Company Workbench", "Business Trend", "Research-only"),
+    )
+    with patch(
+        "src.company_workbench_cash_generation_preview_loader."
+        "load_company_workbench_cash_generation_preview",
+        side_effect=AssertionError("normal AMD Workbench must not load cash preview"),
+    ):
+        result = render_public_routes(Path("."), routes=(route,))[0]
     assert result.exceptions == ()
     assert result.missing_markers == ()

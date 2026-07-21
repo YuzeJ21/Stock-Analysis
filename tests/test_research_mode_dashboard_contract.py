@@ -155,6 +155,8 @@ def test_company_workbench_loads_cash_preview_only_for_explicit_flag():
     workbench_end = source.index("\ndef main()", workbench_start)
     workbench = source[workbench_start:workbench_end]
 
+    assert 'company_workbench_cash_preview_requested(st.query_params.get("cash_preview"))' in source
+    assert "load_company_workbench_cash_generation_preview(ticker)" in source
     gate = workbench.index(
         'company_workbench_cash_preview_requested(st.query_params.get("cash_preview"))'
     )
@@ -199,6 +201,8 @@ def test_default_research_navigation_never_enables_cash_preview():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
 
     assert "cash_preview=1" not in source
+    assert "ticker=NVDA&open=1&cash_preview=1" not in source
+    assert "ticker=AMD&open=1&cash_preview=1" not in source
 
 
 def test_research_workbench_data_health_handoff_stays_in_research_mode():
