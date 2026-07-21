@@ -6,10 +6,16 @@ import csv
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Mapping, Sequence
 
+from src.commercial_source_rights import (
+    SourceRights,
+    commercial_mode_enabled,
+    load_source_rights_registry,
+    review_commercial_field_scope,
+)
 from src.earnings_nowcast_contract import parse_utc_timestamp
 
 
@@ -63,6 +69,41 @@ class ProspectiveFieldProofRecord:
     reviewer_decision: str
     reviewed_at: str
     supersedes_proof_id: str
+
+
+@dataclass(frozen=True)
+class FieldProofPreview:
+    state: str
+    reason: str
+    technical_write_eligible: bool
+    proof_identity: str
+    rights_status: str
+    commercial_rights_approved: bool
+    required_supported_fields: tuple[str, ...]
+    missing_supported_fields: tuple[str, ...]
+    commercial_evidence_eligible: bool
+    technical_blockers: tuple[str, ...]
+    commercial_blockers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BatchFieldProofPreview:
+    mode: str
+    write_performed: bool
+    state: str
+    review_cutoff: str
+    commercial_mode: bool
+    ledger_digest: str
+    input_digest: str
+    source_rights_registry_digest: str
+    preview_receipt: str
+    row_count: int
+    reviewable_count: int
+    technical_write_eligible: bool
+    commercial_evidence_eligible: bool
+    technical_blockers: tuple[str, ...]
+    commercial_blockers: tuple[str, ...]
+    rows: tuple[FieldProofPreview, ...]
 
 
 def _text(value: object) -> str:
@@ -299,3 +340,271 @@ def validate_field_proof_ledger(records: Sequence[ProspectiveFieldProofRecord]) 
                 raise ValueError(
                     f"ledger row {index + 2}: reviewed_at must be strictly later than parent"
                 )
+
+
+def _normalized_cutoff(as_of: str) -> str:
+    return parse_utc_timestamp(as_of, label="field proof review cutoff").isoformat()
+
+
+def _records_digest(records: Sequence[ProspectiveFieldProofRecord]) -> str:
+    payload = [asdict(record) for record in records]
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _source_rights_registry_digest(
+    rights_registry: Mapping[str, SourceRights],
+) -> str:
+    payload = [asdict(rights_registry[source_id]) for source_id in sorted(rights_registry)]
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _preview_receipt(
+    *,
+    review_cutoff: str,
+    commercial_mode: bool,
+    ledger_digest: str,
+    input_digest: str,
+    source_rights_registry_digest: str,
+) -> str:
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "review_cutoff": review_cutoff,
+        "commercial_mode": commercial_mode,
+        "ledger_digest": ledger_digest,
+        "input_digest": input_digest,
+        "source_rights_registry_digest": source_rights_registry_digest,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _record_is_at_or_before_cutoff(
+    record: ProspectiveFieldProofRecord, review_cutoff: str
+) -> bool:
+    boundary = parse_utc_timestamp(review_cutoff, label="field proof review cutoff")
+    return all(
+        parse_utc_timestamp(getattr(record, field), label=field) <= boundary
+        for field in ("observed_at", "retrieved_at", "reviewed_at")
+    )
+
+
+def _commercial_preview(
+    proposed: ProspectiveFieldProofRecord,
+    rights_registry: Mapping[str, SourceRights],
+) -> tuple[str, bool, tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    required_fields = (_normalized_field_key(proposed.field_key),)
+    commercial_review = review_commercial_field_scope(
+        rights_registry,
+        _text(proposed.source_id),
+        required_fields,
+    )
+    blockers: list[str] = []
+    if proposed.reviewer_decision != "accepted":
+        blockers.append(f"reviewer_decision:{proposed.reviewer_decision}")
+    if proposed.source_status != "identified":
+        blockers.append(f"source_status:{proposed.source_status}")
+    if proposed.payload_status != "reviewed":
+        blockers.append(f"payload_status:{proposed.payload_status}")
+    if proposed.rights_status != "approved":
+        blockers.append(f"record_rights_status:{proposed.rights_status}")
+    if _is_placeholder(proposed.rights_decision_ref):
+        blockers.append("rights_decision_ref_required")
+    if not commercial_review.commercial_rights_approved:
+        blockers.append(f"commercial_rights:{commercial_review.rights_status}")
+    blockers.extend(
+        f"registered_field_scope_missing:{field}"
+        for field in commercial_review.missing_supported_fields
+    )
+    return (
+        commercial_review.rights_status,
+        commercial_review.commercial_rights_approved,
+        commercial_review.required_supported_fields,
+        commercial_review.missing_supported_fields,
+        tuple(blockers),
+    )
+
+
+def preview_field_proof_batch(
+    existing: Sequence[ProspectiveFieldProofRecord],
+    proposed: Sequence[ProspectiveFieldProofRecord],
+    *,
+    as_of: str,
+    commercial_mode: bool | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+) -> BatchFieldProofPreview:
+    """Preview technical recording and commercial eligibility without writing."""
+
+    current = tuple(existing)
+    validate_field_proof_ledger(current)
+    review_cutoff = _normalized_cutoff(as_of)
+    for row_number, record in enumerate(current, start=2):
+        if not _record_is_at_or_before_cutoff(record, review_cutoff):
+            raise ValueError(
+                f"ledger row {row_number}: proof timestamps must be at or before review cutoff"
+            )
+
+    resolved_registry = (
+        load_source_rights_registry() if rights_registry is None else rights_registry
+    )
+    resolved_commercial_mode = (
+        commercial_mode_enabled() if commercial_mode is None else commercial_mode
+    )
+    proposed_rows = tuple(proposed)
+    ledger_digest = _records_digest(current)
+    input_digest = _records_digest(proposed_rows)
+    registry_digest = _source_rights_registry_digest(resolved_registry)
+    preview_receipt = _preview_receipt(
+        review_cutoff=review_cutoff,
+        commercial_mode=resolved_commercial_mode,
+        ledger_digest=ledger_digest,
+        input_digest=input_digest,
+        source_rights_registry_digest=registry_digest,
+    )
+    virtual_ledger = list(current)
+    row_previews: list[FieldProofPreview] = []
+    technical_blockers: list[str] = []
+    commercial_blockers: list[str] = []
+
+    for index, record in enumerate(proposed_rows, start=1):
+        row_technical_blockers: list[str] = []
+        try:
+            validate_field_proof_ledger((*virtual_ledger, record))
+        except ValueError as exc:
+            row_technical_blockers.append(str(exc))
+        if not row_technical_blockers and not _record_is_at_or_before_cutoff(
+            record, review_cutoff
+        ):
+            row_technical_blockers.append(
+                "proof timestamps must be at or before review cutoff"
+            )
+
+        technical_write_eligible = not row_technical_blockers
+        if technical_write_eligible:
+            virtual_ledger.append(record)
+            state = "reviewable_revision" if record.supersedes_proof_id else "reviewable_new"
+            reason = "append-only field proof passes the technical contract"
+        else:
+            state = "rejected"
+            reason = row_technical_blockers[0]
+
+        (
+            rights_status,
+            commercial_rights_approved,
+            required_supported_fields,
+            missing_supported_fields,
+            row_commercial_blockers,
+        ) = _commercial_preview(record, resolved_registry)
+        row_preview = FieldProofPreview(
+            state=state,
+            reason=reason,
+            technical_write_eligible=technical_write_eligible,
+            proof_identity=field_proof_identity(record),
+            rights_status=rights_status,
+            commercial_rights_approved=commercial_rights_approved,
+            required_supported_fields=required_supported_fields,
+            missing_supported_fields=missing_supported_fields,
+            commercial_evidence_eligible=not row_commercial_blockers,
+            technical_blockers=tuple(row_technical_blockers),
+            commercial_blockers=row_commercial_blockers,
+        )
+        row_previews.append(row_preview)
+        technical_blockers.extend(
+            f"row_{index}:{blocker}" for blocker in row_technical_blockers
+        )
+        commercial_blockers.extend(
+            f"row_{index}:{blocker}" for blocker in row_commercial_blockers
+        )
+
+    technical_write_eligible = bool(row_previews) and not technical_blockers
+    commercial_evidence_eligible = bool(row_previews) and not commercial_blockers
+    if not row_previews:
+        technical_blockers.append("batch:empty_input")
+        commercial_blockers.append("batch:empty_input")
+
+    return BatchFieldProofPreview(
+        mode="preview_only",
+        write_performed=False,
+        state=(
+            "empty_batch"
+            if not row_previews
+            else "reviewable_batch"
+            if technical_write_eligible
+            else "rejected_batch"
+        ),
+        review_cutoff=review_cutoff,
+        commercial_mode=resolved_commercial_mode,
+        ledger_digest=ledger_digest,
+        input_digest=input_digest,
+        source_rights_registry_digest=registry_digest,
+        preview_receipt=preview_receipt,
+        row_count=len(row_previews),
+        reviewable_count=sum(row.technical_write_eligible for row in row_previews),
+        technical_write_eligible=technical_write_eligible,
+        commercial_evidence_eligible=commercial_evidence_eligible,
+        technical_blockers=tuple(technical_blockers),
+        commercial_blockers=tuple(commercial_blockers),
+        rows=tuple(row_previews),
+    )
+
+
+def append_reviewed_field_proof_batch(
+    path: Path | str,
+    records: Sequence[ProspectiveFieldProofRecord],
+    *,
+    confirm_reviewed: bool,
+    commercial_mode: bool | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
+    preview_receipt: str | None = None,
+) -> Path:
+    """Revalidate an exact reviewed preview and append the whole batch once."""
+
+    if not confirm_reviewed:
+        raise ValueError("confirm_reviewed is required before append")
+    if not review_cutoff:
+        raise ValueError("review_cutoff is required and must match the reviewed preview")
+    if not preview_receipt:
+        raise ValueError("preview_receipt is required and must match the reviewed preview")
+
+    destination = Path(path)
+    existing = load_field_proofs(destination)
+    proposed = tuple(records)
+    resolved_registry = (
+        load_source_rights_registry() if rights_registry is None else rights_registry
+    )
+    resolved_commercial_mode = (
+        commercial_mode_enabled() if commercial_mode is None else commercial_mode
+    )
+    preview = preview_field_proof_batch(
+        existing,
+        proposed,
+        as_of=review_cutoff,
+        commercial_mode=resolved_commercial_mode,
+        rights_registry=resolved_registry,
+    )
+    if preview.preview_receipt != preview_receipt:
+        raise ValueError(
+            "preview receipt mismatch: input, cutoff, ledger, commercial mode, "
+            "or source-rights registry changed"
+        )
+    if not preview.technical_write_eligible:
+        raise ValueError(f"{preview.state}: " + "; ".join(preview.technical_blockers))
+    if resolved_commercial_mode and not preview.commercial_evidence_eligible:
+        raise ValueError(
+            "batch_commercial_evidence_review_required: "
+            + "; ".join(preview.commercial_blockers)
+        )
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    ledger_exists = destination.exists()
+    with destination.open("a", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=FIELDS)
+        if not ledger_exists:
+            writer.writeheader()
+        writer.writerows(asdict(record) for record in proposed)
+    return destination

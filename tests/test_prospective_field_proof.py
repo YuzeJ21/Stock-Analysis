@@ -6,13 +6,18 @@ from pathlib import Path
 
 import pytest
 
+from src.commercial_source_rights import SourceRights
 from src.prospective_field_proof import (
+    BatchFieldProofPreview,
     FIELDS,
+    FieldProofPreview,
     SCHEMA_VERSION,
     ProspectiveFieldProofRecord,
+    append_reviewed_field_proof_batch,
     field_proof_identity,
     load_field_proofs,
     load_proposed_field_proofs,
+    preview_field_proof_batch,
     validate_field_proof_ledger,
 )
 
@@ -72,6 +77,29 @@ def _reidentified(record: ProspectiveFieldProofRecord, **overrides: str) -> Pros
     values["proof_id"] = ""
     candidate = replace(record, **values)
     return replace(candidate, proof_id=field_proof_identity(candidate))
+
+
+def _rights_registry(
+    *,
+    source_id: str = "reviewed_csv",
+    commercial_use: str = "approved",
+    supported_fields: tuple[str, ...] = ("revenue_consensus",),
+) -> dict[str, SourceRights]:
+    rights = SourceRights(
+        source_id=source_id,
+        display_name="Reviewed CSV",
+        permitted_use="reviewed research",
+        commercial_use=commercial_use,
+        redistribution="not approved",
+        storage_limits="reviewed payload digest only",
+        attribution="required",
+        rate_limits="not applicable",
+        authentication="local reviewed file",
+        expected_freshness="point in time",
+        supported_fields=supported_fields,
+        fallback_priority=1,
+    )
+    return {source_id: rights}
 
 
 def test_schema_constants_and_record_are_immutable():
@@ -323,3 +351,529 @@ def test_ledger_rejects_cycle_and_disconnected_cycle():
         validate_field_proof_ledger((cycle,))
     with pytest.raises(ValueError, match="revision cycle"):
         validate_field_proof_ledger((root, first, cycle))
+
+
+def test_preview_types_are_immutable_and_accepted_exact_scope_is_eligible():
+    proposed = _reidentified(_record(), rights_status="approved")
+
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=_rights_registry(),
+    )
+
+    assert isinstance(preview, BatchFieldProofPreview)
+    assert isinstance(preview.rows[0], FieldProofPreview)
+    assert preview.technical_write_eligible is True
+    assert preview.commercial_evidence_eligible is True
+    assert preview.technical_blockers == ()
+    assert preview.commercial_blockers == ()
+    assert preview.rows[0].state == "reviewable_new"
+    assert preview.rows[0].proof_identity == proposed.proof_id
+    with pytest.raises(Exception):
+        preview.rows = ()
+
+
+@pytest.mark.parametrize(
+    ("reviewer_decision", "source_status", "payload_status", "expected_state"),
+    [
+        ("accepted", "identified", "reviewed", "reviewable_new"),
+        ("rejected", "unavailable", "rejected", "reviewable_new"),
+        ("needs_follow_up", "disputed", "unavailable", "reviewable_new"),
+    ],
+)
+def test_review_dispositions_remain_technically_recordable_but_commercially_independent(
+    reviewer_decision: str,
+    source_status: str,
+    payload_status: str,
+    expected_state: str,
+):
+    proposed = _reidentified(
+        _record(),
+        reviewer_decision=reviewer_decision,
+        source_status=source_status,
+        payload_status=payload_status,
+        rights_status="approved",
+    )
+
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=_rights_registry(),
+    )
+
+    assert preview.rows[0].state == expected_state
+    assert preview.rows[0].technical_write_eligible is True
+    assert preview.technical_write_eligible is True
+    assert preview.rows[0].commercial_evidence_eligible is (
+        reviewer_decision == "accepted"
+    )
+
+
+@pytest.mark.parametrize(
+    ("overrides", "technical_blocker"),
+    [
+        ({"source_status": "unavailable"}, "accepted records require source_status=identified"),
+        ({"source_status": "disputed"}, "accepted records require source_status=identified"),
+        ({"payload_status": "unavailable"}, "accepted records require payload_status=reviewed"),
+        ({"payload_status": "rejected"}, "accepted records require payload_status=reviewed"),
+    ],
+)
+def test_accepted_record_with_unreviewable_source_or_payload_is_technically_rejected(
+    overrides: dict[str, str], technical_blocker: str
+):
+    proposed = _reidentified(_record(), **overrides)
+
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=_rights_registry(),
+    )
+
+    assert preview.technical_write_eligible is False
+    assert technical_blocker in preview.technical_blockers[0]
+
+
+@pytest.mark.parametrize(
+    ("record_overrides", "registry", "commercial_blocker"),
+    [
+        ({"source_id": "unknown"}, _rights_registry(), "commercial_rights:unknown_source"),
+        ({}, _rights_registry(commercial_use="unverified"), "commercial_rights:commercial_rights_unverified"),
+        ({"field_key": "unsupported_field"}, _rights_registry(), "registered_field_scope_missing:unsupported_field"),
+        ({"rights_status": "unverified"}, _rights_registry(), "record_rights_status:unverified"),
+        ({"rights_decision_ref": "<rights-decision>"}, _rights_registry(), "rights_decision_ref_required"),
+    ],
+)
+def test_commercial_eligibility_fails_closed_without_exact_approved_rights_scope(
+    record_overrides: dict[str, str],
+    registry: dict[str, SourceRights],
+    commercial_blocker: str,
+):
+    proposed = _reidentified(_record(rights_status="approved"), **record_overrides)
+
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+
+    assert preview.commercial_evidence_eligible is False
+    assert commercial_blocker in preview.commercial_blockers[0]
+
+
+def test_research_mode_keeps_technical_recording_independent_from_commercial_eligibility():
+    proposed = _record(rights_status="unverified")
+
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=_rights_registry(commercial_use="unverified"),
+    )
+
+    assert preview.technical_write_eligible is True
+    assert preview.commercial_evidence_eligible is False
+    assert preview.state == "reviewable_batch"
+
+
+def test_batch_preview_uses_a_virtual_ledger_for_same_batch_revision():
+    root = _reidentified(_record(), rights_status="approved")
+    child = _reidentified(_revision(root), rights_status="approved")
+
+    preview = preview_field_proof_batch(
+        (),
+        (root, child),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=_rights_registry(),
+    )
+
+    assert [row.state for row in preview.rows] == ["reviewable_new", "reviewable_revision"]
+    assert preview.technical_write_eligible is True
+    assert preview.commercial_evidence_eligible is True
+
+
+def _records_digest(records: tuple[ProspectiveFieldProofRecord, ...]) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            [asdict(record) for record in records],
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _registry_digest(registry: dict[str, SourceRights]) -> str:
+    payload = [asdict(registry[source_id]) for source_id in sorted(registry)]
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def test_preview_receipt_is_deterministic_and_binds_every_review_input():
+    existing = (_reidentified(_record(), rights_status="approved"),)
+    proposed = (
+        _reidentified(
+            _record(ticker="AMD", payload_sha256="c" * 64), rights_status="approved"
+        ),
+    )
+    registry = _rights_registry()
+
+    first = preview_field_proof_batch(
+        existing,
+        proposed,
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+    second = preview_field_proof_batch(
+        existing,
+        proposed,
+        as_of="2026-07-20T00:00:00+00:00",
+        commercial_mode=False,
+        rights_registry=dict(reversed(tuple(registry.items()))),
+    )
+
+    expected_ledger_digest = _records_digest(existing)
+    expected_input_digest = _records_digest(proposed)
+    expected_registry_digest = _registry_digest(registry)
+    expected_receipt = hashlib.sha256(
+        json.dumps(
+            {
+                "schema_version": SCHEMA_VERSION,
+                "review_cutoff": "2026-07-20T00:00:00+00:00",
+                "commercial_mode": False,
+                "ledger_digest": expected_ledger_digest,
+                "input_digest": expected_input_digest,
+                "source_rights_registry_digest": expected_registry_digest,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
+    assert first.ledger_digest == expected_ledger_digest
+    assert first.input_digest == expected_input_digest
+    assert first.source_rights_registry_digest == expected_registry_digest
+    assert first.preview_receipt == expected_receipt
+    assert second.preview_receipt == expected_receipt
+
+
+def test_preview_receipt_changes_with_input_cutoff_mode_or_registry():
+    proposed = _reidentified(_record(), rights_status="approved")
+    registry = _rights_registry()
+    baseline = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+
+    changed_input = preview_field_proof_batch(
+        (),
+        (_reidentified(proposed, payload_sha256="d" * 64),),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+    changed_cutoff = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-21T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+    changed_mode = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+    changed_registry = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=_rights_registry(supported_fields=("eps_consensus",)),
+    )
+
+    assert len(
+        {
+            baseline.preview_receipt,
+            changed_input.preview_receipt,
+            changed_cutoff.preview_receipt,
+            changed_mode.preview_receipt,
+            changed_registry.preview_receipt,
+        }
+    ) == 5
+
+
+def test_append_requires_confirmation_receipt_and_a_nonempty_batch(tmp_path: Path):
+    ledger = tmp_path / "proofs.csv"
+    proposed = _reidentified(_record(), rights_status="approved")
+    registry = _rights_registry()
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+
+    with pytest.raises(ValueError, match="confirm_reviewed"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (proposed,),
+            confirm_reviewed=False,
+            commercial_mode=False,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+    with pytest.raises(ValueError, match="preview_receipt"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (proposed,),
+            confirm_reviewed=True,
+            commercial_mode=False,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=None,
+        )
+
+    empty = preview_field_proof_batch(
+        (),
+        (),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+    with pytest.raises(ValueError, match="empty_batch"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (),
+            confirm_reviewed=True,
+            commercial_mode=False,
+            rights_registry=registry,
+            review_cutoff=empty.review_cutoff,
+            preview_receipt=empty.preview_receipt,
+        )
+    assert not ledger.exists()
+
+
+def test_append_rejects_stale_receipt_after_ledger_change_without_writing(tmp_path: Path):
+    ledger = tmp_path / "proofs.csv"
+    proposed = _reidentified(
+        _record(ticker="AMD", payload_sha256="c" * 64), rights_status="approved"
+    )
+    registry = _rights_registry()
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+    intervening = _reidentified(_record(), rights_status="approved")
+    _write_csv(ledger, (intervening,))
+    before = ledger.read_bytes()
+
+    with pytest.raises(ValueError, match="preview receipt mismatch"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (proposed,),
+            confirm_reviewed=True,
+            commercial_mode=False,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+
+    assert ledger.read_bytes() == before
+
+
+@pytest.mark.parametrize("change", ["input", "cutoff", "mode", "registry"])
+def test_append_rejects_receipt_after_any_other_bound_input_changes(
+    tmp_path: Path, change: str
+):
+    ledger = tmp_path / "proofs.csv"
+    proposed = _reidentified(_record(), rights_status="approved")
+    records = (proposed,)
+    cutoff = "2026-07-20T00:00:00Z"
+    commercial_mode = False
+    registry = _rights_registry()
+    preview = preview_field_proof_batch(
+        (),
+        records,
+        as_of=cutoff,
+        commercial_mode=commercial_mode,
+        rights_registry=registry,
+    )
+    if change == "input":
+        records = (_reidentified(proposed, payload_sha256="d" * 64),)
+    elif change == "cutoff":
+        cutoff = "2026-07-21T00:00:00Z"
+    elif change == "mode":
+        commercial_mode = True
+    else:
+        registry = _rights_registry(supported_fields=("eps_consensus",))
+
+    with pytest.raises(ValueError, match="preview receipt mismatch"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            records,
+            confirm_reviewed=True,
+            commercial_mode=commercial_mode,
+            rights_registry=registry,
+            review_cutoff=cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+    assert not ledger.exists()
+
+
+def test_mixed_validity_batch_is_all_or_nothing(tmp_path: Path):
+    ledger = tmp_path / "proofs.csv"
+    valid = _reidentified(_record(), rights_status="approved")
+    invalid = _reidentified(
+        _record(ticker="AMD", payload_sha256="c" * 64),
+        rights_status="approved",
+        source_status="unavailable",
+    )
+    registry = _rights_registry()
+    preview = preview_field_proof_batch(
+        (),
+        (valid, invalid),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+
+    assert preview.technical_write_eligible is False
+    with pytest.raises(ValueError, match="rejected_batch"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (valid, invalid),
+            confirm_reviewed=True,
+            commercial_mode=False,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+    assert not ledger.exists()
+
+
+def test_append_writes_one_header_and_rows_once_in_reviewed_order(tmp_path: Path):
+    ledger = tmp_path / "proofs.csv"
+    root = _reidentified(_record(), rights_status="approved")
+    child = _reidentified(_revision(root), rights_status="approved")
+    registry = _rights_registry()
+    preview = preview_field_proof_batch(
+        (),
+        (root, child),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+
+    result = append_reviewed_field_proof_batch(
+        ledger,
+        (root, child),
+        confirm_reviewed=True,
+        commercial_mode=True,
+        rights_registry=registry,
+        review_cutoff=preview.review_cutoff,
+        preview_receipt=preview.preview_receipt,
+    )
+
+    assert result == ledger
+    assert load_field_proofs(ledger) == (root, child)
+    assert ledger.read_text(encoding="utf-8").count(",".join(FIELDS)) == 1
+
+    prior_bytes = ledger.read_bytes()
+    grandchild = _reidentified(
+        _revision(
+            child,
+            observed_at="2026-07-20T05:00:00Z",
+            retrieved_at="2026-07-20T05:00:01Z",
+            reviewed_at="2026-07-20T05:00:02Z",
+            payload_sha256="c" * 64,
+        ),
+        rights_status="approved",
+    )
+    revision_preview = preview_field_proof_batch(
+        (root, child),
+        (grandchild,),
+        as_of="2026-07-21T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+    append_reviewed_field_proof_batch(
+        ledger,
+        (grandchild,),
+        confirm_reviewed=True,
+        commercial_mode=True,
+        rights_registry=registry,
+        review_cutoff=revision_preview.review_cutoff,
+        preview_receipt=revision_preview.preview_receipt,
+    )
+
+    assert ledger.read_bytes().startswith(prior_bytes)
+    assert load_field_proofs(ledger) == (root, child, grandchild)
+    assert ledger.read_text(encoding="utf-8").count(",".join(FIELDS)) == 1
+
+
+def test_research_append_can_record_technical_proof_while_commercial_mode_fails_closed(
+    tmp_path: Path,
+):
+    proposed = _record(rights_status="unverified")
+    registry = _rights_registry(commercial_use="unverified")
+    research_ledger = tmp_path / "research.csv"
+    commercial_ledger = tmp_path / "commercial.csv"
+    research_preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=registry,
+    )
+    commercial_preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+
+    append_reviewed_field_proof_batch(
+        research_ledger,
+        (proposed,),
+        confirm_reviewed=True,
+        commercial_mode=False,
+        rights_registry=registry,
+        review_cutoff=research_preview.review_cutoff,
+        preview_receipt=research_preview.preview_receipt,
+    )
+    with pytest.raises(ValueError, match="batch_commercial_evidence_review_required"):
+        append_reviewed_field_proof_batch(
+            commercial_ledger,
+            (proposed,),
+            confirm_reviewed=True,
+            commercial_mode=True,
+            rights_registry=registry,
+            review_cutoff=commercial_preview.review_cutoff,
+            preview_receipt=commercial_preview.preview_receipt,
+        )
+
+    assert load_field_proofs(research_ledger) == (proposed,)
+    assert not commercial_ledger.exists()
