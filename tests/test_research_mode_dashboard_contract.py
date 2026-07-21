@@ -149,6 +149,58 @@ def test_company_workbench_keeps_lane_coverage_collapsed_before_report_answer():
     assert selected < advanced < coverage < report
 
 
+def test_company_workbench_loads_cash_preview_only_for_explicit_flag():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    workbench_start = source.index("def render_company_workbench(")
+    workbench_end = source.index("\ndef main()", workbench_start)
+    workbench = source[workbench_start:workbench_end]
+
+    gate = workbench.index(
+        'company_workbench_cash_preview_requested(st.query_params.get("cash_preview"))'
+    )
+    load = workbench.index(
+        "load_company_workbench_cash_generation_preview(ticker)",
+        gate,
+    )
+    report = workbench.index("render_single_stock_report(", load)
+    canonical = workbench.index("load_dashboard_quarterly_trend(ticker)", report)
+
+    assert gate < load < report < canonical
+    assert workbench.index("cash_generation_preview = None") < gate
+    assert "cash_generation_preview=cash_generation_preview" in workbench[report:]
+
+
+def test_cash_preview_renders_after_business_trend_answer_and_before_advanced_lineage():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    report_start = source.index("def render_single_stock_report(")
+    report_end = source.index("\ndef render_data_health(", report_start)
+    report = source[report_start:report_end]
+
+    business = report.index('st.markdown("### Business Trend")')
+    canonical = report.index("quarterly_trend_cards(trend_packet)", business)
+    preview = report.index(
+        "cash_generation_preview_cards(cash_generation_preview)",
+        canonical,
+    )
+    advanced = report.index(
+        'st.expander("Advanced: cash-generation preview evidence", expanded=False)',
+        preview,
+    )
+    rows = report.index("cash_generation_preview_rows(cash_generation_preview)", advanced)
+    canonical_advanced = report.index(
+        'st.expander("Advanced: quarterly trend evidence", expanded=False)',
+        rows,
+    )
+
+    assert business < canonical < preview < advanced < rows < canonical_advanced
+
+
+def test_default_research_navigation_never_enables_cash_preview():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+
+    assert "cash_preview=1" not in source
+
+
 def test_research_workbench_data_health_handoff_stays_in_research_mode():
     import pandas as pd
 

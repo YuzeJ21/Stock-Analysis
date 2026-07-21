@@ -4,6 +4,8 @@ from src.research_workspace import (
     RESEARCH_ROUTING_STATES,
     advanced_evidence_links,
     advanced_evidence_links_html,
+    cash_generation_preview_cards,
+    cash_generation_preview_rows,
     company_workbench_section_contract,
     company_change_answer,
     focused_cohort_cards,
@@ -16,6 +18,12 @@ from src.research_workspace import (
     research_monitor_frame,
     research_workspace_header_html,
     weekly_summary_cards,
+)
+from src.company_workbench_cash_generation_preview import (
+    CashGenerationPreviewComponent,
+    CashGenerationPreviewMetric,
+    CompanyWorkbenchCashGenerationPreview,
+    blocked_company_workbench_cash_generation_preview,
 )
 from src.focused_cohort_coverage import FocusedCohortCoverage, FocusedCohortCoverageRow
 from src.focused_research_cohort import FocusedCohort, FocusedCohortMember
@@ -73,6 +81,137 @@ def _quarterly_business_observation(
         published_at=f"{year + (quarter == 4)}-05-15T12:00:00+00:00",
         retrieved_at="2026-07-18T12:00:00+00:00",
         q4_evidence_state="explicit_filed_quarter" if quarter == 4 else "not_q4",
+    )
+
+
+def _cash_preview() -> CompanyWorkbenchCashGenerationPreview:
+    source_url = "https://www.sec.gov/Archives/edgar/data/1045810/filing.htm"
+    return CompanyWorkbenchCashGenerationPreview(
+        ticker="NVDA",
+        fiscal_period="2027-Q1",
+        status="accepted_for_review",
+        message="Accepted SEC evidence supports a cash-generation review preview.",
+        operating_margin=CashGenerationPreviewMetric(
+            "operating_margin",
+            "preview_available",
+            53_536_000_000 / 81_615_000_000,
+            "2027-Q1",
+            (f"{source_url}#operating", f"{source_url}#revenue"),
+            "",
+        ),
+        free_cash_flow=CashGenerationPreviewMetric(
+            "free_cash_flow",
+            "preview_available",
+            48_587_000_000,
+            "2027-Q1",
+            (f"{source_url}#cfo", f"{source_url}#capex"),
+            "",
+        ),
+        fcf_margin=CashGenerationPreviewMetric(
+            "fcf_margin",
+            "preview_available",
+            48_587_000_000 / 81_615_000_000,
+            "2027-Q1",
+            (f"{source_url}#cfo", f"{source_url}#capex", f"{source_url}#revenue"),
+            "",
+        ),
+        blockers=(),
+        withheld_metrics=(),
+        accession="0001045810-26-000052",
+        source_url=source_url,
+        accepted_at="2026-05-20T20:35:52+00:00",
+        cutoff="2026-07-21T03:59:59+00:00",
+        capex_sign_evidence="explicit_filed_table_outflow",
+        components=(
+            CashGenerationPreviewComponent(
+                metric="capital_expenditures",
+                value=-1_757_000_000,
+                currency="USD",
+                fiscal_period="2027-Q1",
+                source_ref=f"{source_url}#capex",
+                published_at="2026-05-20T20:35:52+00:00",
+                retrieved_at="2026-07-20T23:00:00+00:00",
+                accounting_basis="reported",
+                duration_basis="three_months",
+                q4_evidence_state="not_q4",
+            ),
+        ),
+    )
+
+
+def test_cash_generation_preview_cards_are_answer_first_and_non_production():
+    cards = cash_generation_preview_cards(_cash_preview())
+
+    assert [card["kicker"] for card in cards] == [
+        "CASH-GENERATION REVIEW PREVIEW",
+        "OPERATING MARGIN",
+        "FREE CASH FLOW",
+        "FCF MARGIN",
+    ]
+    assert cards[0]["title"] == (
+        "Cash-generation review preview — not production evidence"
+    )
+    assert cards[1]["title"] == "65.6%"
+    assert cards[2]["title"] == "48,587,000,000"
+    assert cards[3]["title"] == "59.5%"
+    assert all(card["command"] == "" for card in cards)
+    assert all("preview" in " ".join(card["badges"]).lower() for card in cards)
+    rendered = str(cards)
+    assert "0001045810-26-000052" not in rendered
+    assert "sec.gov" not in rendered
+
+
+def test_cash_generation_preview_rows_keep_lineage_under_advanced():
+    rows = cash_generation_preview_rows(_cash_preview())
+
+    assert any(
+        row["Evidence"] == "Accession"
+        and row["Value"] == "0001045810-26-000052"
+        for row in rows
+    )
+    assert any(
+        row["Evidence"] == "Capex sign"
+        and row["Value"] == "explicit_filed_table_outflow"
+        for row in rows
+    )
+    assert any(
+        row["Evidence"] == "Component"
+        and "capital_expenditures" in row["Value"]
+        and row["Source Reference"].endswith("#capex")
+        for row in rows
+    )
+    assert any(
+        row["Evidence"] == "Boundary"
+        and "production activation false" in row["Value"]
+        and "readiness promotions none" in row["Value"]
+        and "no persistence" in row["Value"]
+        for row in rows
+    )
+
+
+def test_withheld_cash_preview_shows_no_numeric_or_component_evidence():
+    preview = blocked_company_workbench_cash_generation_preview(
+        "NVDA",
+        fiscal_period="2027-Q1",
+        as_of="2026-07-21T03:59:59+00:00",
+        blockers=("complete_cash_generation_preview_required",),
+    )
+
+    cards = cash_generation_preview_cards(preview)
+    rows = cash_generation_preview_rows(preview)
+
+    assert [card["title"] for card in cards[1:]] == [
+        "Withheld",
+        "Withheld",
+        "Withheld",
+    ]
+    assert all(card["state"] == "withheld" for card in cards[1:])
+    assert "complete_cash_generation_preview_required" in str(cards)
+    assert not any(row["Evidence"] == "Component" for row in rows)
+    assert any(
+        row["Evidence"] == "Blocker"
+        and row["Value"] == "complete_cash_generation_preview_required"
+        for row in rows
     )
 
 

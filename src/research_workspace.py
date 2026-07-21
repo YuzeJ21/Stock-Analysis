@@ -6,6 +6,9 @@ import html
 import pandas as pd
 from urllib.parse import quote
 
+from src.company_workbench_cash_generation_preview import (
+    CompanyWorkbenchCashGenerationPreview,
+)
 from src.focused_cohort_coverage import FocusedCohortCoverage
 from src.focused_research_cohort import FocusedCohort
 from src.quarterly_business_trend import QuarterlyTrendPacket
@@ -277,6 +280,110 @@ def quarterly_trend_cards(packet: QuarterlyTrendPacket) -> list[dict[str, object
             }
         )
     return cards
+
+
+def _cash_preview_display_value(metric: str, value: float | None) -> str:
+    if value is None:
+        return "Withheld"
+    if metric in {"operating_margin", "fcf_margin"}:
+        return f"{value * 100.0:.1f}%"
+    return f"{value:,.0f}"
+
+
+def cash_generation_preview_cards(
+    preview: CompanyWorkbenchCashGenerationPreview,
+) -> list[dict[str, object]]:
+    """Return answer-first preview cards without technical lineage."""
+
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "CASH-GENERATION REVIEW PREVIEW",
+            "title": "Cash-generation review preview — not production evidence",
+            "body": (
+                f"{preview.message} Production activation is false; readiness "
+                "promotions are none; no persistence or readiness rebuild occurs."
+            ),
+            "state": "preview_only" if preview.status == "accepted_for_review" else "withheld",
+            "badges": ["preview only", "not production evidence"],
+            "command": "",
+        }
+    ]
+    for label, metric in (
+        ("OPERATING MARGIN", preview.operating_margin),
+        ("FREE CASH FLOW", preview.free_cash_flow),
+        ("FCF MARGIN", preview.fcf_margin),
+    ):
+        cards.append(
+            {
+                "kicker": label,
+                "title": _cash_preview_display_value(metric.metric, metric.value),
+                "body": (
+                    f"{metric.fiscal_period} accepted packet preview."
+                    if metric.value is not None
+                    else metric.withheld_reason
+                    or "Complete compatible evidence is required."
+                ),
+                "state": metric.status,
+                "badges": ["preview only", metric.status.replace("_", " ")],
+                "command": "",
+            }
+        )
+    return cards
+
+
+def cash_generation_preview_rows(
+    preview: CompanyWorkbenchCashGenerationPreview,
+) -> list[dict[str, object]]:
+    """Return technical preview lineage for the collapsed Advanced surface."""
+
+    def evidence_row(
+        evidence: str,
+        value: object,
+        *,
+        definition: str = "",
+        source_ref: str = "",
+        published_at: str = "",
+        retrieved_at: str = "",
+    ) -> dict[str, object]:
+        return {
+            "Evidence": evidence,
+            "Value": value,
+            "Definition": definition,
+            "Source Reference": source_ref,
+            "Published At": published_at,
+            "Retrieved At": retrieved_at,
+        }
+
+    rows = [
+        evidence_row("Accession", preview.accession, source_ref=preview.source_url),
+        evidence_row("Source", preview.source_url, source_ref=preview.source_url),
+        evidence_row("Accepted at", preview.accepted_at, published_at=preview.accepted_at),
+        evidence_row("Cutoff", preview.cutoff),
+        evidence_row("Capex sign", preview.capex_sign_evidence),
+        evidence_row(
+            "Boundary",
+            "production activation false; readiness promotions none; no persistence; no readiness rebuild",
+        ),
+    ]
+    rows.extend(
+        evidence_row("Blocker", blocker)
+        for blocker in preview.blockers
+    )
+    rows.extend(
+        evidence_row(
+            "Component",
+            f"{component.metric}: {component.value:g} {component.currency}",
+            definition=(
+                f"{component.accounting_basis}; {component.duration_basis}; "
+                f"{component.fiscal_period}; {component.q4_evidence_state}"
+            ),
+            source_ref=component.source_ref,
+            published_at=component.published_at,
+            retrieved_at=component.retrieved_at,
+        )
+        for component in preview.components
+    )
+    return rows
 
 
 def weekly_summary_cards(summary: WeeklyResearchSummary) -> list[dict[str, object]]:

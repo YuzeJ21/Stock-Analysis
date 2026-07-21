@@ -336,8 +336,17 @@ from src.review_metrics import build_metric_readiness_summary, configured_risk_f
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
 from src.profile_context import ProfileContext, build_profile_context
+from src.company_workbench_cash_generation_preview import (
+    CompanyWorkbenchCashGenerationPreview,
+    company_workbench_cash_preview_requested,
+)
+from src.company_workbench_cash_generation_preview_loader import (
+    load_company_workbench_cash_generation_preview,
+)
 from src.research_workspace import (
     advanced_evidence_links_html,
+    cash_generation_preview_cards,
+    cash_generation_preview_rows,
     company_change_answer,
     company_workbench_section_contract,
     focused_cohort_cards,
@@ -30063,6 +30072,7 @@ def render_single_stock_report(
     research_mode: bool = False,
     research_review_items=(),
     quarterly_trend_packet: QuarterlyTrendPacket | None = None,
+    cash_generation_preview: CompanyWorkbenchCashGenerationPreview | None = None,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -30302,6 +30312,24 @@ def render_single_stock_report(
                 )
                 st.markdown("### Business Trend")
                 render_signal_cards(quarterly_trend_cards(trend_packet), show_commands=False, variant="queue")
+                if cash_generation_preview is not None:
+                    render_signal_cards(
+                        cash_generation_preview_cards(cash_generation_preview),
+                        show_commands=False,
+                        variant="queue",
+                    )
+                    with st.expander("Advanced: cash-generation preview evidence", expanded=False):
+                        st.dataframe(
+                            pd.DataFrame(
+                                cash_generation_preview_rows(cash_generation_preview)
+                            ),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                        st.caption(
+                            "Preview only: production activation is false; readiness promotions are none; "
+                            "no persistence or readiness rebuild occurs."
+                        )
                 with st.expander("Advanced: quarterly trend evidence", expanded=False):
                     st.dataframe(pd.DataFrame(quarterly_trend_rows(trend_packet)), width="stretch", hide_index=True)
                     if trend_packet.canonical_rejected_rows:
@@ -34250,6 +34278,9 @@ def render_company_workbench(
     coverage: FocusedCohortCoverage,
 ) -> None:
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
+    cash_generation_preview = None
+    if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
+        cash_generation_preview = load_company_workbench_cash_generation_preview(ticker)
     render_research_workspace_header(
         "Company Workbench",
         context,
@@ -34277,6 +34308,7 @@ def render_company_workbench(
         research_mode=True,
         research_review_items=state.get("queue") or (),
         quarterly_trend_packet=load_dashboard_quarterly_trend(ticker),
+        cash_generation_preview=cash_generation_preview,
     )
     st.markdown("### Advanced Evidence")
     with st.expander("Advanced Evidence", expanded=False):
