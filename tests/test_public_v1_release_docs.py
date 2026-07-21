@@ -20,11 +20,17 @@ def test_proof_readiness_reconciliation_docs_keep_historical_proof_separate_from
         assert "make proof-readiness-reconciliation TOP_N=20" in text
         assert "historical_supported_currently_blocked" in text
         assert "current saved readiness remains authoritative" in text.lower()
+        assert "explicit_ticker_change" in text
+        assert "current_canonical_row_missing" in text
+        assert "does not establish the historical cause" in text.lower()
     assert "current-snapshot audit" in roadmap.lower()
     assert "does not restore canonical data" in operator.lower()
     assert "before reusing a supporting proof outcome" in prompt.lower()
     assert "source rights" in prompt.lower()
     assert "field scope" in prompt.lower()
+    assert "changed_tickers" in operator
+    assert "structured per-ticker" in prompt.lower()
+    assert "future" in roadmap.lower()
 
 
 def test_two_company_cash_preview_docs_preserve_bounded_portability_boundary():

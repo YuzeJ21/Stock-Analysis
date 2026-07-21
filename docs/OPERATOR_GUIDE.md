@@ -134,7 +134,7 @@ make proof-readiness-reconciliation TOP_N=20
 make proof-readiness-reconciliation TICKERS=ARCT TOP_N=20
 ```
 
-`historical_supported_currently_blocked` means the older proof outcome and the current saved state disagree. Current saved readiness remains authoritative: inspect fresh source evidence before restarting that lane. The command is read-only and does not restore canonical data, rewrite proof history, promote readiness, fetch a provider, validate payload truth, or prove source rights, field scope, provenance, or commercial use. Its counts describe the current local snapshot only.
+`historical_supported_currently_blocked` means the older proof outcome and the current saved state disagree. Current saved readiness remains authoritative: inspect fresh source evidence before restarting that lane. `explicit_ticker_change` means the latest supporting proof explicitly names the ticker in `changed_tickers`. Scope membership alone is not ticker-level support. `current_canonical_row_missing` and other current blocker codes describe current saved inputs. Current blocker diagnosis does not establish the historical cause. The command is read-only and does not restore canonical data, rewrite proof history, promote readiness, fetch a provider, validate payload truth, or prove source rights, field scope, provenance, or commercial use. Its counts describe the current local snapshot only.
 
 Use targeted proof commands instead of broad refreshes by default:
 
