@@ -104,6 +104,14 @@ def _rights_registry(
     return {source_id: rights}
 
 
+def _file_snapshot(root: Path) -> dict[str, bytes]:
+    return {
+        str(path.relative_to(root)): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
 def test_schema_constants_and_record_are_immutable():
     record = _record()
 
@@ -1338,3 +1346,288 @@ def test_research_append_can_record_technical_proof_while_commercial_mode_fails_
 
     assert load_field_proofs(research_ledger) == (proposed,)
     assert not commercial_ledger.exists()
+
+
+def test_status_reports_absent_as_the_only_valid_empty_state_without_creating_files(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    ledger = tmp_path / "missing" / "proofs.csv"
+
+    exit_code = field_proof.main(
+        ["status", "--ledger", str(ledger), "--json"]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload == {
+        "empty": True,
+        "ledger": str(ledger),
+        "ledger_present": False,
+        "mode": "status_read_only",
+        "record_count": 0,
+        "state": "absent",
+        "valid": True,
+        "write_performed": False,
+    }
+    assert not ledger.exists()
+    assert not ledger.parent.exists()
+
+
+@pytest.mark.parametrize("contents", [b"", (",".join(FIELDS) + "\n").encode("utf-8")])
+def test_status_catches_present_empty_ledger_as_invalid_without_changing_it(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    contents: bytes,
+):
+    ledger = tmp_path / "proofs.csv"
+    ledger.write_bytes(contents)
+
+    exit_code = field_proof.main(
+        ["status", "--ledger", str(ledger), "--json"]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 2
+    assert payload["state"] == "invalid"
+    assert payload["valid"] is False
+    assert payload["empty"] is True
+    assert payload["ledger_present"] is True
+    assert payload["write_performed"] is False
+    assert "header" in payload["error"].lower() or "data row" in payload["error"].lower()
+    assert ledger.read_bytes() == contents
+
+
+def test_status_reports_valid_and_invalid_existing_ledgers_in_text_without_writing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    valid_ledger = tmp_path / "valid.csv"
+    invalid_ledger = tmp_path / "invalid.csv"
+    _write_csv(valid_ledger, (_record(),))
+    invalid_ledger.write_text("not,the,contract\n", encoding="utf-8")
+    before = _file_snapshot(tmp_path)
+
+    valid_exit = field_proof.main(["status", "--ledger", str(valid_ledger)])
+    valid_output = capsys.readouterr().out.lower()
+    invalid_exit = field_proof.main(["status", "--ledger", str(invalid_ledger)])
+    invalid_output = capsys.readouterr().out.lower()
+
+    assert valid_exit == 0
+    assert "read-only" in valid_output
+    assert "state: valid" in valid_output
+    assert "record_count: 1" in valid_output
+    assert invalid_exit == 2
+    assert "read-only" in invalid_output
+    assert "state: invalid" in invalid_output
+    assert "header" in invalid_output
+    assert _file_snapshot(tmp_path) == before
+
+
+def test_preview_json_is_stable_and_does_not_mutate_any_scoped_file_or_default_ledger(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    input_path = tmp_path / "review" / "field-proofs.csv"
+    _write_csv(input_path, (_record(),))
+    sentinels = (
+        tmp_path / "data" / "readiness.csv",
+        tmp_path / "data" / "canonical.csv",
+        tmp_path / "data" / "reviewed_data_proof.csv",
+        tmp_path / "outputs" / "field-proof-preview.json",
+        tmp_path / "generated" / "field-proof-report.csv",
+    )
+    for index, path in enumerate(sentinels):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"sentinel-{index}".encode("utf-8"))
+    before = _file_snapshot(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("COMMERCIAL_RESEARCH_MODE", "research")
+    args = [
+        "preview",
+        "--input",
+        str(input_path),
+        "--as-of",
+        "2026-07-20T00:00:00Z",
+        "--json",
+    ]
+
+    first_exit = field_proof.main(args)
+    first_output = capsys.readouterr().out
+    second_exit = field_proof.main(args)
+    second_output = capsys.readouterr().out
+    payload = json.loads(first_output)
+
+    assert first_exit == second_exit == 0
+    assert first_output == second_output
+    assert payload["mode"] == "preview_only"
+    assert payload["write_performed"] is False
+    assert payload["preview_receipt"]
+    assert payload["technical_write_eligible"] is True
+    assert isinstance(payload["commercial_evidence_eligible"], bool)
+    assert isinstance(payload["technical_blockers"], list)
+    assert isinstance(payload["commercial_blockers"], list)
+    assert not (tmp_path / "data" / "prospective_field_proofs.csv").exists()
+    assert _file_snapshot(tmp_path) == before
+
+
+def test_preview_text_states_read_only_boundary_and_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    input_path = tmp_path / "input.csv"
+    ledger = tmp_path / "missing.csv"
+    _write_csv(input_path, (_record(),))
+    monkeypatch.setenv("COMMERCIAL_RESEARCH_MODE", "research")
+
+    exit_code = field_proof.main(
+        [
+            "preview",
+            "--input",
+            str(input_path),
+            "--ledger",
+            str(ledger),
+            "--as-of",
+            "2026-07-20T00:00:00Z",
+        ]
+    )
+    output = capsys.readouterr().out.lower()
+
+    assert exit_code == 0
+    assert "read-only preview" in output
+    assert "write_performed: false" in output
+    assert "technical_write_eligible: true" in output
+    assert "commercial_evidence_eligible:" in output
+    assert "preview_receipt:" in output
+    assert not ledger.exists()
+
+
+def test_preview_reports_specific_input_and_existing_ledger_errors_nonzero_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    input_path = tmp_path / "input.csv"
+    ledger = tmp_path / "ledger.csv"
+    _write_csv(input_path, (_record(),))
+    ledger.write_bytes(b"")
+    before = _file_snapshot(tmp_path)
+    monkeypatch.setenv("COMMERCIAL_RESEARCH_MODE", "research")
+
+    ledger_exit = field_proof.main(
+        [
+            "preview",
+            "--input",
+            str(input_path),
+            "--ledger",
+            str(ledger),
+            "--as-of",
+            "2026-07-20T00:00:00Z",
+        ]
+    )
+    ledger_error = capsys.readouterr().err.lower()
+    missing_exit = field_proof.main(
+        [
+            "preview",
+            "--input",
+            str(tmp_path / "missing-input.csv"),
+            "--ledger",
+            str(tmp_path / "missing-ledger.csv"),
+            "--as-of",
+            "2026-07-20T00:00:00Z",
+        ]
+    )
+    input_error = capsys.readouterr().err.lower()
+
+    assert ledger_exit == 2
+    assert "field proof ledger header" in ledger_error
+    assert missing_exit == 2
+    assert "field proof input does not exist" in input_error
+    assert "traceback" not in ledger_error + input_error
+    assert _file_snapshot(tmp_path) == before
+
+
+def test_record_cli_requires_confirmation_and_receipt_before_any_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    input_path = tmp_path / "input.csv"
+    ledger = tmp_path / "ledger.csv"
+    _write_csv(input_path, (_record(),))
+    monkeypatch.setenv("COMMERCIAL_RESEARCH_MODE", "research")
+    common = [
+        "record",
+        "--input",
+        str(input_path),
+        "--ledger",
+        str(ledger),
+        "--as-of",
+        "2026-07-20T00:00:00Z",
+    ]
+
+    without_confirmation = field_proof.main(
+        [*common, "--preview-receipt", "a" * 64]
+    )
+    confirmation_error = capsys.readouterr().err.lower()
+    with pytest.raises(SystemExit) as missing_receipt:
+        field_proof.main([*common, "--confirm-reviewed"])
+    receipt_error = capsys.readouterr().err.lower()
+
+    assert without_confirmation == 2
+    assert "record requires --confirm-reviewed" in confirmation_error
+    assert missing_receipt.value.code != 0
+    assert "--preview-receipt" in receipt_error
+    assert not ledger.exists()
+
+
+def test_record_cli_revalidates_exact_preview_then_reports_explicit_append(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    input_path = tmp_path / "input.csv"
+    ledger = tmp_path / "ledger.csv"
+    proposed = _record()
+    _write_csv(input_path, (proposed,))
+    monkeypatch.setenv("COMMERCIAL_RESEARCH_MODE", "research")
+    preview_args = [
+        "preview",
+        "--input",
+        str(input_path),
+        "--ledger",
+        str(ledger),
+        "--as-of",
+        "2026-07-20T00:00:00Z",
+        "--json",
+    ]
+
+    assert field_proof.main(preview_args) == 0
+    receipt = json.loads(capsys.readouterr().out)["preview_receipt"]
+    exit_code = field_proof.main(
+        [
+            "record",
+            "--input",
+            str(input_path),
+            "--ledger",
+            str(ledger),
+            "--as-of",
+            "2026-07-20T00:00:00Z",
+            "--preview-receipt",
+            receipt,
+            "--confirm-reviewed",
+            "--json",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload == {
+        "ledger": str(ledger),
+        "mode": "explicit_record_append",
+        "preview_receipt": receipt,
+        "recorded_count": 1,
+        "state": "recorded",
+        "write_performed": True,
+    }
+    assert load_field_proofs(ledger) == (proposed,)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import csv
 import fcntl
 import hashlib
@@ -9,6 +10,7 @@ import io
 import json
 import os
 import re
+import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import BinaryIO, Mapping, Sequence
@@ -23,6 +25,7 @@ from src.earnings_nowcast_contract import parse_utc_timestamp
 
 
 SCHEMA_VERSION = "prospective-field-proof-v1"
+DEFAULT_LEDGER_PATH = "data/prospective_field_proofs.csv"
 FIELDS = (
     "schema_version",
     "proof_id",
@@ -800,3 +803,242 @@ def append_reviewed_field_proof_batch(
     else:
         handle.close()
     return destination
+
+
+def field_proof_ledger_status(path: Path | str) -> dict[str, object]:
+    """Describe ledger integrity without creating, repairing, or rewriting it."""
+
+    source = Path(path)
+    if not source.exists():
+        return {
+            "empty": True,
+            "ledger": str(source),
+            "ledger_present": False,
+            "mode": "status_read_only",
+            "record_count": 0,
+            "state": "absent",
+            "valid": True,
+            "write_performed": False,
+        }
+
+    try:
+        rows = load_field_proofs(source)
+    except (OSError, ValueError) as exc:
+        error = str(exc)
+        is_empty = False
+        if source.is_file():
+            try:
+                is_empty = source.stat().st_size == 0
+            except OSError:
+                pass
+        if "at least one data row" in error:
+            is_empty = True
+        return {
+            "empty": is_empty,
+            "error": error,
+            "ledger": str(source),
+            "ledger_present": True,
+            "mode": "status_read_only",
+            "record_count": 0,
+            "state": "invalid",
+            "valid": False,
+            "write_performed": False,
+        }
+
+    return {
+        "empty": False,
+        "ledger": str(source),
+        "ledger_present": True,
+        "mode": "status_read_only",
+        "record_count": len(rows),
+        "state": "valid",
+        "valid": True,
+        "write_performed": False,
+    }
+
+
+def render_field_proof_status(status: Mapping[str, object]) -> str:
+    """Render a human-readable status with its read-only boundary."""
+
+    lines = [
+        "Prospective Field Proof Ledger Status",
+        "Read-only: this command does not create, repair, or change any file.",
+        f"ledger: {status['ledger']}",
+        f"state: {status['state']}",
+        f"valid: {str(status['valid']).lower()}",
+        f"empty: {str(status['empty']).lower()}",
+        f"record_count: {status['record_count']}",
+        "write_performed: false",
+    ]
+    if status.get("error"):
+        lines.append(f"error: {status['error']}")
+    return "\n".join(lines)
+
+
+def render_field_proof_preview(preview: BatchFieldProofPreview) -> str:
+    """Render an exact preview without implying that a write occurred."""
+
+    lines = [
+        "Prospective Field Proof Read-only Preview",
+        "Read-only preview: no ledger, input, readiness, canonical, legacy proof, output, or generated file was changed.",
+        f"state: {preview.state}",
+        f"write_performed: {str(preview.write_performed).lower()}",
+        f"row_count: {preview.row_count}",
+        f"reviewable_count: {preview.reviewable_count}",
+        f"technical_write_eligible: {str(preview.technical_write_eligible).lower()}",
+        f"commercial_evidence_eligible: {str(preview.commercial_evidence_eligible).lower()}",
+        f"review_cutoff: {preview.review_cutoff}",
+        f"preview_receipt: {preview.preview_receipt}",
+        "technical_blockers: "
+        + ("; ".join(preview.technical_blockers) or "none"),
+        "commercial_blockers: "
+        + ("; ".join(preview.commercial_blockers) or "none"),
+    ]
+    return "\n".join(lines)
+
+
+def _render_record_result(payload: Mapping[str, object]) -> str:
+    return "\n".join(
+        [
+            "Prospective Field Proof Explicit Record Append",
+            "Explicit append: the exact reviewed preview was revalidated before writing.",
+            f"state: {payload['state']}",
+            f"ledger: {payload['ledger']}",
+            f"recorded_count: {payload['recorded_count']}",
+            f"preview_receipt: {payload['preview_receipt']}",
+            "write_performed: true",
+        ]
+    )
+
+
+def _print_payload(payload: object, *, json_output: bool, text: str) -> None:
+    if json_output:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(text)
+
+
+def _cli_error(command: str, exc: Exception, *, json_output: bool) -> int:
+    message = str(exc)
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "command": command,
+                    "error": message,
+                    "state": "invalid",
+                    "write_performed": False,
+                },
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
+    else:
+        print(f"error: {message}", file=sys.stderr)
+    return 2
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run read-only status/preview or an explicitly confirmed record append."""
+
+    parser = argparse.ArgumentParser(
+        description="Inspect or explicitly append prospective per-field proof."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    status_parser = subparsers.add_parser(
+        "status", help="Report ledger integrity without writing."
+    )
+    status_parser.add_argument("--ledger", default=DEFAULT_LEDGER_PATH)
+    status_parser.add_argument("--json", action="store_true")
+
+    preview_parser = subparsers.add_parser(
+        "preview", help="Validate an exact batch and emit a receipt without writing."
+    )
+    preview_parser.add_argument("--input", required=True)
+    preview_parser.add_argument("--ledger", default=DEFAULT_LEDGER_PATH)
+    preview_parser.add_argument("--as-of", required=True)
+    preview_parser.add_argument("--json", action="store_true")
+
+    record_parser = subparsers.add_parser(
+        "record", help="Explicitly append a fully revalidated reviewed batch."
+    )
+    record_parser.add_argument("--input", required=True)
+    record_parser.add_argument("--ledger", default=DEFAULT_LEDGER_PATH)
+    record_parser.add_argument("--as-of", required=True)
+    record_parser.add_argument("--preview-receipt", required=True)
+    record_parser.add_argument("--confirm-reviewed", action="store_true")
+    record_parser.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.command == "status":
+        status = field_proof_ledger_status(args.ledger)
+        _print_payload(
+            status,
+            json_output=args.json,
+            text=render_field_proof_status(status),
+        )
+        return 0 if status["valid"] else 2
+
+    if args.command == "record" and not args.confirm_reviewed:
+        return _cli_error(
+            "record",
+            ValueError(
+                "record requires --confirm-reviewed after reviewing the exact preview"
+            ),
+            json_output=args.json,
+        )
+
+    try:
+        if not _text(args.input):
+            raise ValueError("input path is required")
+        if not _text(args.as_of):
+            raise ValueError("as_of is required and must match the reviewed preview")
+        existing = load_field_proofs(args.ledger)
+        proposed = load_proposed_field_proofs(args.input)
+        if args.command == "preview":
+            preview = preview_field_proof_batch(
+                existing,
+                proposed,
+                as_of=args.as_of,
+                commercial_mode=commercial_mode_enabled(),
+            )
+            _print_payload(
+                asdict(preview),
+                json_output=args.json,
+                text=render_field_proof_preview(preview),
+            )
+            return 0
+
+        if not _text(args.preview_receipt):
+            raise ValueError(
+                "preview_receipt is required and must match the reviewed preview"
+            )
+        append_reviewed_field_proof_batch(
+            args.ledger,
+            proposed,
+            confirm_reviewed=True,
+            review_cutoff=args.as_of,
+            preview_receipt=args.preview_receipt,
+        )
+    except (OSError, ValueError) as exc:
+        return _cli_error(args.command, exc, json_output=args.json)
+
+    result = {
+        "ledger": str(args.ledger),
+        "mode": "explicit_record_append",
+        "preview_receipt": args.preview_receipt,
+        "recorded_count": len(proposed),
+        "state": "recorded",
+        "write_performed": True,
+    }
+    _print_payload(
+        result,
+        json_output=args.json,
+        text=_render_record_result(result),
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
