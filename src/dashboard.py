@@ -14308,6 +14308,9 @@ def proof_readiness_reconciliation_cards(
     *,
     ticker: str = "",
 ) -> list[dict[str, object]]:
+    def label(value: str) -> str:
+        return str(value or "").replace("_", " ")
+
     conflicts = [
         row
         for row in summary.rows
@@ -14316,10 +14319,24 @@ def proof_readiness_reconciliation_cards(
     selected = str(ticker or "").strip().upper()
     selected_conflicts = [row for row in conflicts if selected and row.ticker == selected]
     if conflicts:
+        blocker_counts = [
+            (blocker_code, int(count))
+            for blocker_code, count in summary.current_blocker_counts
+            if blocker_code != "none"
+        ]
+        largest_blocker_code, largest_blocker_count = max(
+            blocker_counts,
+            key=lambda item: item[1],
+            default=("none", 0),
+        )
+        largest_blocker_label = label(largest_blocker_code)
         title = f"{len(conflicts):,} historical-support/current-readiness conflict(s)"
         body = (
-            "Historical support is not current readiness. Current saved readiness remains authoritative; "
-            "reconciliation does not restore data, promote readiness, or rewrite proof history."
+            "Historical support is not current readiness. Current saved readiness remains authoritative. "
+            f"Largest observable current blocker: {largest_blocker_label} ({largest_blocker_count:,}). "
+            "Observable current blockers describe saved inputs; they do not establish the historical cause, "
+            "restore data, promote readiness, or rewrite proof history. Historical evidence does not establish "
+            "the historical cause."
         )
         badges = [summary.input_status, "current state wins"]
     else:
@@ -14339,14 +14356,37 @@ def proof_readiness_reconciliation_cards(
         }
     ]
     if selected_conflicts:
-        lanes = ", ".join(dict.fromkeys(row.lane.replace("_", " ") for row in selected_conflicts))
+        lanes = ", ".join(dict.fromkeys(label(row.lane) for row in selected_conflicts))
+        applicability = ", ".join(
+            dict.fromkeys(label(row.proof_applicability) for row in selected_conflicts)
+        )
+        blockers = ", ".join(
+            dict.fromkeys(
+                f"{label(row.current_blocker_code)}"
+                + (
+                    f" ({', '.join(label(field) for field in row.current_blocker_fields)})"
+                    if row.current_blocker_fields
+                    else ""
+                )
+                for row in selected_conflicts
+            )
+        )
+        next_safe_review = next(
+            (
+                row.next_safe_review
+                for row in selected_conflicts
+                if row.next_safe_review
+            ),
+            "No safe next review is recorded.",
+        )
         cards.append(
             {
                 "kicker": "SELECTED TICKER",
                 "title": f"{selected}: historical proof conflicts with current readiness",
                 "body": (
-                    f"Current blocked lane(s): {lanes}. Re-review source evidence before relying on the older "
-                    "supported outcome; reconciliation itself does not unlock the lane."
+                    f"Current blocked lane(s): {lanes}. Proof applicability: {applicability}. "
+                    f"Current blocker(s): {blockers}. Next safe review: {next_safe_review} "
+                    "Reconciliation itself does not unlock the lane."
                 ),
                 "badges": [selected, "currently blocked"],
                 "command": "",

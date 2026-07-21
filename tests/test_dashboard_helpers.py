@@ -15863,11 +15863,26 @@ def _proof_reconciliation_summary(*, conflict: bool = True) -> ProofReadinessRec
         review_date_valid=True,
         state=state,
         reason="Historical proof conflicts with current readiness." if conflict else "Current proof matches readiness.",
+        proof_applicability="explicit_ticker_change",
+        current_blocker_code="current_canonical_row_missing" if conflict else "none",
+        current_blocker_fields=("free_cash_flow", "shares_outstanding", "revenue", "fcf_margin") if conflict else (),
+        current_blocker_detail=(
+            "No current canonical fundamentals row is present." if conflict else "No current blocker."
+        ),
+        next_safe_review=(
+            "Obtain and review a permitted source payload for the exact ticker before any import or readiness rebuild."
+            if conflict
+            else "No current blocker is reported for this lane."
+        ),
+        historical_payload_status="structured_payload_not_recorded",
+        historical_evidence_limit="Historical proof cannot distinguish the historical cause.",
     )
     return ProofReadinessReconciliationSummary(
         rows=(row,),
         status_counts=((state, 1),),
         conflict_counts_by_lane=(("fundamentals", 1),) if conflict else (),
+        proof_applicability_counts=(("explicit_ticker_change", 1),),
+        current_blocker_counts=(("current_canonical_row_missing" if conflict else "none", 1),),
         input_status="ready",
         input_message="Current inputs are available.",
     )
@@ -15884,8 +15899,28 @@ def test_proof_reconciliation_cards_warn_when_historical_support_is_currently_bl
     assert "arct" in rendered
     assert "fundamentals" in rendered
     assert "current saved readiness remains authoritative" in rendered
+    assert "current canonical row missing" in rendered
+    assert "observable current blocker" in rendered
+    assert "does not establish the historical cause" in rendered
+    assert "obtain and review a permitted source payload" in rendered
     assert "make " not in rendered
     assert all(card["command"] == "" for card in cards)
+
+
+def test_proof_reconciliation_selected_card_does_not_infer_source_or_historical_cause():
+    cards = dashboard.proof_readiness_reconciliation_cards(
+        _proof_reconciliation_summary(),
+        ticker="ARCT",
+    )
+    selected = cards[1]
+    rendered = " ".join(str(value) for value in selected.values()).lower()
+
+    assert "explicit ticker change" in rendered
+    assert "free cash flow" in rendered
+    assert "current canonical row missing" in rendered
+    assert "yfinance" not in rendered
+    assert "source rights changed" not in rendered
+    assert selected["command"] == ""
 
 
 def test_proof_reconciliation_cards_keep_no_conflict_state_evidence_limited():
