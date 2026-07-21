@@ -41,8 +41,8 @@ def test_public_single_stock_phone_keeps_evidence_handoff_in_first_view():
     mobile_css = source[mobile_start:mobile_end]
 
     assert ".public-ticker-summary {" in mobile_css
-    assert "gap: 0.42rem;" in mobile_css
-    assert "padding: 0.6rem 0;" in mobile_css
+    assert "gap: 0.25rem;" in mobile_css
+    assert "padding: 0.5rem 0;" in mobile_css
     assert ".public-ticker-action .public-primary-action {" in mobile_css
     assert "order: -1;" in mobile_css
 ```
@@ -64,8 +64,8 @@ In the existing `@media (max-width: 640px)` block, change only the ticker-summar
 ```css
 .public-ticker-summary {
   grid-template-columns: 1fr;
-  gap: 0.42rem;
-  padding: 0.6rem 0;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
 }
 .public-ticker-action .public-primary-action {
   order: -1;
