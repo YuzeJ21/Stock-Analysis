@@ -128,24 +128,70 @@ def company_workbench_section_contract() -> list[dict[str, object]]:
 def company_change_answer(ticker: str, review_items) -> dict[str, object]:
     symbol = str(ticker or "").strip().upper()
     matching = [item for item in tuple(review_items or ()) if str(item.event.ticker or "").strip().upper() == symbol]
+    eligible = [
+        item
+        for item in matching
+        if str(getattr(item.event, "evidence_status", "") or "").strip() == "source_backed"
+    ]
     source_refs = tuple(
         dict.fromkeys(
             str(getattr(item.event, "source_ref", "") or "").strip()
-            for item in matching
+            for item in eligible
             if str(getattr(item.event, "source_ref", "") or "").strip()
         )
     )
-    count = len({str(getattr(item.event, "event_id", "") or id(item)) for item in matching})
-    if not count:
+    count = len({str(getattr(item.event, "event_id", "") or id(item)) for item in eligible})
+    if not matching:
         return {
             "state": "monitor",
             "answer": "No unresolved source-backed change is queued for this company.",
             "next_task": "Continue the current review or wait for changed source evidence.",
             "source_refs": (),
+            "source_backed_eligible": False,
         }
-    first_task = str(getattr(matching[0].event, "suggested_research_task", "") or "Review the changed evidence.")
+    if not count:
+        snapshot_item = matching[0]
+        snapshot_status = str(getattr(snapshot_item, "review_status", "") or "").strip()
+        snapshot_state = {
+            "open": "review_now",
+            "still_blocked": "wait_for_evidence",
+            "intentionally_deferred": "monitor",
+        }.get(snapshot_status, "monitor")
+        snapshot_task = str(getattr(snapshot_item.event, "suggested_research_task", "") or "").strip()
+        if snapshot_status == "still_blocked":
+            snapshot_task = str(getattr(snapshot_item, "wait_condition", "") or "").strip() or (
+                "Reviewed evidence remains blocked; wait for new source evidence."
+            )
+        elif snapshot_status == "intentionally_deferred":
+            snapshot_task = str(getattr(snapshot_item, "wait_condition", "") or "").strip() or (
+                "Review is intentionally deferred until the recorded condition changes."
+            )
+        return {
+            "state": snapshot_state,
+            "answer": "Snapshot-only change context is visible but cannot outrank a source-backed research priority.",
+            "next_task": snapshot_task or "Continue the current review or wait for changed source evidence.",
+            "source_refs": (),
+            "source_backed_eligible": False,
+        }
+
+    first = eligible[0]
+    review_status = str(getattr(first, "review_status", "") or "").strip()
+    state = {
+        "open": "review_now",
+        "still_blocked": "wait_for_evidence",
+        "intentionally_deferred": "monitor",
+    }.get(review_status, "monitor")
+    first_task = str(getattr(first.event, "suggested_research_task", "") or "Review the changed evidence.").strip()
+    if review_status == "still_blocked":
+        first_task = str(getattr(first, "wait_condition", "") or "").strip() or (
+            "Reviewed evidence remains blocked; wait for new source evidence."
+        )
+    elif review_status == "intentionally_deferred":
+        first_task = str(getattr(first, "wait_condition", "") or "").strip() or (
+            "Review is intentionally deferred until the recorded condition changes."
+        )
     return {
-        "state": "review_now",
+        "state": state,
         "answer": (
             "1 unresolved source-backed change needs review."
             if count == 1
@@ -153,6 +199,16 @@ def company_change_answer(ticker: str, review_items) -> dict[str, object]:
         ),
         "next_task": first_task,
         "source_refs": source_refs,
+        "source_backed_eligible": True,
+    }
+
+
+def _neutral_company_next_research_task() -> dict[str, object]:
+    return {
+        "title": "Wait for reviewed evidence or choose another company",
+        "body": "No source-backed change or executable company task is available. Do not infer one from missing data.",
+        "state": "wait_for_evidence",
+        "badges": ["monitor", "research-only"],
     }
 
 
@@ -160,23 +216,58 @@ def company_next_research_task(
     change_answer: Mapping[str, object] | None,
     conclusion_cards: Iterable[Mapping[str, object]] | None,
 ) -> dict[str, object]:
-    change = dict(change_answer or {})
-    if str(change.get("state") or "").strip() == "review_now":
-        title = str(change.get("next_task") or "").strip()
-        if title:
-            return {
-                "title": title,
-                "body": "Complete this source-backed evidence review before starting another research task.",
-                "state": "review_now",
-                "badges": ["source-backed change", "research-only"],
-            }
+    if not isinstance(change_answer, Mapping):
+        return _neutral_company_next_research_task()
+    if (
+        not isinstance(conclusion_cards, Iterable)
+        or isinstance(conclusion_cards, (str, bytes, Mapping))
+    ):
+        return _neutral_company_next_research_task()
+    try:
+        raw_cards = tuple(conclusion_cards)
+    except TypeError:
+        return _neutral_company_next_research_task()
 
-    for raw_card in tuple(conclusion_cards or ()):
-        card = dict(raw_card or {})
+    cards: list[tuple[Mapping[str, object], tuple[object, ...]]] = []
+    for raw_card in raw_cards:
+        if not isinstance(raw_card, Mapping):
+            return _neutral_company_next_research_task()
+        raw_badges = raw_card.get("badges", ())
+        if (
+            not isinstance(raw_badges, Iterable)
+            or isinstance(raw_badges, (str, bytes, Mapping))
+        ):
+            return _neutral_company_next_research_task()
+        try:
+            badges = tuple(raw_badges)
+        except TypeError:
+            return _neutral_company_next_research_task()
+        cards.append((raw_card, badges))
+
+    change_state = str(change_answer.get("state") or "").strip()
+    change_title = str(change_answer.get("next_task") or "").strip()
+    if (
+        change_answer.get("source_backed_eligible") is True
+        and change_state in RESEARCH_ROUTING_STATES
+        and change_title
+    ):
+        body = {
+            "review_now": "Complete this source-backed evidence review before starting another research task.",
+            "wait_for_evidence": "This source-backed change remains blocked; preserve its recorded wait condition.",
+            "monitor": "This source-backed change is intentionally deferred; preserve its recorded wait condition.",
+        }.get(change_state, "Preserve this source-backed change routing state before starting another research task.")
+        return {
+            "title": change_title,
+            "body": body,
+            "state": change_state,
+            "badges": ["source-backed change", "research-only"],
+        }
+
+    for card, raw_badges in cards:
         title = str(card.get("title") or "").strip()
         if not title:
             continue
-        badges = [str(value).strip() for value in tuple(card.get("badges") or ()) if str(value).strip()]
+        badges = [str(value).strip() for value in raw_badges if str(value).strip()]
         return {
             "title": title,
             "body": str(card.get("body") or "").strip(),
@@ -188,12 +279,7 @@ def company_next_research_task(
             "badges": list(dict.fromkeys([*badges, "research-only"])),
         }
 
-    return {
-        "title": "Wait for reviewed evidence or choose another company",
-        "body": "No source-backed change or executable company task is available. Do not infer one from missing data.",
-        "state": "wait_for_evidence",
-        "badges": ["monitor", "research-only"],
-    }
+    return _neutral_company_next_research_task()
 
 
 def focused_cohort_cards(cohort: FocusedCohort) -> list[dict[str, object]]:

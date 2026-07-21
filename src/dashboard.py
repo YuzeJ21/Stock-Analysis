@@ -30309,7 +30309,14 @@ def render_single_stock_report(
                             "kicker": "EVIDENCE CHANGE",
                             "title": str(change_answer["answer"]),
                             "body": str(change_answer["next_task"]),
-                            "badges": [str(change_answer["state"]).replace("_", " "), "source-backed only"],
+                            "badges": [
+                                str(change_answer["state"]).replace("_", " "),
+                                (
+                                    "source-backed change"
+                                    if change_answer["source_backed_eligible"] is True
+                                    else "snapshot evidence only"
+                                ),
+                            ],
                             "command": "",
                         }
                     ],

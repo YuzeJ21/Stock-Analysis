@@ -10,7 +10,9 @@ The same-mode detour does not change readiness or evidence state, add a route, e
 
 ## Company Workbench Authoritative Task Contract
 
-Company Workbench renders one overall `ONE NEXT TASK` card. An unresolved source-backed change wins; otherwise the existing ordered Research Conclusion priority supplies the task. Forward View keeps lane-specific guidance and is not a competing overall task. This composition does not alter readiness or evidence states, which remain independent.
+Company Workbench renders one overall `ONE NEXT TASK` card. A change can win only when its answer carries explicit source-backed eligibility. Open items keep their suggested review task; still-blocked and intentionally deferred items preserve their existing wait and monitor routing plus the recorded wait condition. Snapshot-only context receives a snapshot-only badge and cannot outrank the existing ordered Research Conclusion priority. Forward View keeps lane-specific guidance and is not a competing overall task. This composition does not alter readiness or evidence states, which remain independent.
+
+A focused Streamlit AppTest regression renders the normal AVGO Company Workbench route with zero exceptions, exactly one `ONE NEXT TASK` marker, the current peer-evidence priority `Add peer mappings`, and one `FORWARD-VIEW LANE UNBLOCK` marker. It rejects the retired uppercase `NEXT RESEARCH TASK` kicker while retaining the established title-case `Next Research Task` section heading. This is deterministic local render evidence only, not current-data, source-rights, hosted, or visual-browser evidence.
 
 ## Stale Readiness Continuation Gate
 

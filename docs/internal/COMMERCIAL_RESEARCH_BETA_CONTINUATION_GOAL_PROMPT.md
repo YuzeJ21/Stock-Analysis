@@ -64,7 +64,7 @@ Expected lineage to verify, never assume:
 Current locally implemented capabilities to verify:
 
 - Personal Research Mode with Research Desk -> Discover -> Company Workbench -> Monitor.
-- Company Workbench authoritative-task composition: one overall task gives unresolved source-backed change priority, then preserves the existing ordered Research Conclusion priority. Forward View guidance is lane-specific, not a competing overall task; readiness and evidence states remain independent and unchanged.
+- Company Workbench authoritative-task composition: one overall task gives priority only to a change with explicit source-backed eligibility. Open items keep their suggested task; still-blocked and intentionally deferred items preserve their existing wait/monitor routing and wait condition. Snapshot-only context is labeled separately and cannot outrank the ordered Research Conclusion priority. Forward View guidance is lane-specific, not a competing overall task; readiness and evidence states remain independent and unchanged.
 - Answer-first hierarchy on all four Personal Research routes at desktop and phone widths.
 - Mobile first-action density that keeps all five profile facts visible in two phone rows, removes only duplicated route-card freshness on phone, exposes route tasks sooner, and preserves the complete Company Workbench review path in a collapsed disclosure without changing readiness.
 - SEC quarterly actual lineage with explicit Q4-table and EPS split-basis boundaries.

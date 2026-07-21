@@ -44,6 +44,32 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     assert all(result.expanded_advanced == () for result in results)
 
 
+def test_avgo_company_workbench_renders_one_authoritative_peer_task():
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="AVGO Company Workbench task arbitration",
+        query_params=(
+            ("mode", "research"),
+            ("page", "company-workbench"),
+            ("ticker", "AVGO"),
+            ("open", "1"),
+        ),
+        required_markers=("Company Workbench", "Research-only"),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+    task_blocks = tuple(block for block in result.rendered_blocks if "ONE NEXT TASK" in block)
+
+    assert result.exceptions == ()
+    assert len(task_blocks) == 1
+    assert task_blocks[0].count("ONE NEXT TASK") == 1
+    assert "<div class='signal-title'>Add peer mappings</div>" in task_blocks[0]
+    assert rendered.count("FORWARD-VIEW LANE UNBLOCK") == 1
+    assert "NEXT RESEARCH TASK" not in rendered
+
+
 def test_research_render_smoke_output_names_the_contract_and_failures():
     from src.dashboard_render_smoke import DashboardRenderResult, render_dashboard_smoke
 

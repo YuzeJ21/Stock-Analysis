@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from src.research_workspace import (
     RESEARCH_ROUTING_STATES,
     advanced_evidence_links,
@@ -87,7 +89,11 @@ def _quarterly_business_observation(
 
 def test_company_next_research_task_prioritizes_unresolved_source_change():
     task = company_next_research_task(
-        {"state": "review_now", "next_task": "Review the filed evidence."},
+        {
+            "state": "review_now",
+            "next_task": "Review the filed evidence.",
+            "source_backed_eligible": True,
+        },
         [{"title": "Add peer mappings", "body": "Peer context is partial.", "state": "wait_for_evidence", "badges": ["peers"]}],
     )
     assert task == {
@@ -96,6 +102,119 @@ def test_company_next_research_task_prioritizes_unresolved_source_change():
         "state": "review_now",
         "badges": ["source-backed change", "research-only"],
     }
+
+
+def _review_change_item(
+    *,
+    evidence_status: str,
+    review_status: str,
+    wait_condition: str = "",
+):
+    event = SimpleNamespace(
+        event_id=f"evt-{evidence_status}-{review_status}",
+        ticker="NVDA",
+        source_ref="sec:accession" if evidence_status == "source_backed" else "snapshot:readiness",
+        evidence_status=evidence_status,
+        suggested_research_task="NVDA: Review the changed evidence.",
+    )
+    return SimpleNamespace(
+        event=event,
+        review_status=review_status,
+        wait_condition=wait_condition,
+    )
+
+
+def test_company_change_answer_maps_source_backed_open_change_to_eligible_review():
+    answer = company_change_answer(
+        "NVDA",
+        [_review_change_item(evidence_status="source_backed", review_status="open")],
+    )
+
+    assert answer["state"] == "review_now"
+    assert answer["next_task"] == "NVDA: Review the changed evidence."
+    assert answer["source_backed_eligible"] is True
+
+
+def test_snapshot_only_open_change_never_outranks_conclusion_priority():
+    answer = company_change_answer(
+        "NVDA",
+        [_review_change_item(evidence_status="snapshot_evidence", review_status="open")],
+    )
+    task = company_next_research_task(
+        answer,
+        [{"title": "Add peer mappings", "body": "Peer context is partial.", "badges": ["peers"]}],
+    )
+
+    assert answer["source_backed_eligible"] is False
+    assert task["title"] == "Add peer mappings"
+    assert "source-backed change" not in task["badges"]
+
+
+def test_source_backed_still_blocked_change_preserves_wait_routing():
+    wait_condition = "Wait for the amended filing to become available."
+    answer = company_change_answer(
+        "NVDA",
+        [
+            _review_change_item(
+                evidence_status="source_backed",
+                review_status="still_blocked",
+                wait_condition=wait_condition,
+            )
+        ],
+    )
+    task = company_next_research_task(answer, [{"title": "Add peer mappings", "badges": ["peers"]}])
+
+    assert answer["source_backed_eligible"] is True
+    assert answer["state"] == "wait_for_evidence"
+    assert answer["next_task"] == wait_condition
+    assert task["title"] == wait_condition
+    assert task["state"] == "wait_for_evidence"
+
+
+def test_source_backed_intentionally_deferred_change_preserves_wait_routing():
+    wait_condition = "Resume after the quarterly review window opens."
+    answer = company_change_answer(
+        "NVDA",
+        [
+            _review_change_item(
+                evidence_status="source_backed",
+                review_status="intentionally_deferred",
+                wait_condition=wait_condition,
+            )
+        ],
+    )
+    task = company_next_research_task(answer, [{"title": "Add peer mappings", "badges": ["peers"]}])
+
+    assert answer["source_backed_eligible"] is True
+    assert answer["state"] == "monitor"
+    assert answer["next_task"] == wait_condition
+    assert task["title"] == wait_condition
+    assert task["state"] == "monitor"
+
+
+@pytest.mark.parametrize(
+    ("change_answer", "conclusion_cards"),
+    [
+        ("not-a-mapping", []),
+        ({}, "not-a-card-collection"),
+        ({}, 7),
+        ({}, ["not-a-card", {"title": "Do not select this later card", "badges": []}]),
+        ({}, [{"title": "Malformed badges", "badges": "peers"}]),
+        ({}, [{"title": "Malformed badges", "badges": 7}]),
+    ],
+)
+def test_company_next_research_task_fails_closed_on_malformed_input(
+    change_answer,
+    conclusion_cards,
+):
+    neutral_task = {
+        "title": "Wait for reviewed evidence or choose another company",
+        "body": "No source-backed change or executable company task is available. Do not infer one from missing data.",
+        "state": "wait_for_evidence",
+        "badges": ["monitor", "research-only"],
+    }
+
+    assert company_next_research_task(change_answer, conclusion_cards) == neutral_task
 
 
 def test_company_next_research_task_uses_ordered_conclusion_priority_without_change():
@@ -299,6 +418,7 @@ def test_company_change_answer_is_ticker_scoped_and_does_not_invent_change():
         ticker="NVDA",
         subtype="sec_filing_arrived",
         source_ref="sec:accession",
+        evidence_status="source_backed",
         suggested_research_task="NVDA: Review the filing.",
     )
     item = SimpleNamespace(event=event, review_status="open", wait_condition="")
@@ -309,8 +429,10 @@ def test_company_change_answer_is_ticker_scoped_and_does_not_invent_change():
     assert changed["state"] == "review_now"
     assert changed["answer"] == "1 unresolved source-backed change needs review."
     assert changed["source_refs"] == ("sec:accession",)
+    assert changed["source_backed_eligible"] is True
     assert unchanged["state"] == "monitor"
     assert unchanged["answer"] == "No unresolved source-backed change is queued for this company."
+    assert unchanged["source_backed_eligible"] is False
 
 
 def test_cohort_trend_and_weekly_cards_keep_truthful_boundaries():

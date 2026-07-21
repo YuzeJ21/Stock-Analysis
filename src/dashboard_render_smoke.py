@@ -24,6 +24,7 @@ class DashboardRenderResult:
     missing_markers: tuple[str, ...]
     forbidden_markers: tuple[str, ...] = ()
     expanded_advanced: tuple[str, ...] = ()
+    rendered_blocks: tuple[str, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -141,7 +142,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
 )
 
 
-def _rendered_markdown(app: AppTest) -> str:
+def _rendered_blocks(app: AppTest) -> tuple[str, ...]:
     collections = (
         "markdown",
         "text",
@@ -158,7 +159,11 @@ def _rendered_markdown(app: AppTest) -> str:
             value = getattr(item, "value", "")
             if value:
                 values.append(str(value))
-    return "\n".join(values)
+    return tuple(values)
+
+
+def _rendered_markdown(app: AppTest) -> str:
+    return "\n".join(_rendered_blocks(app))
 
 
 def _expanded_advanced_sections(app: AppTest) -> tuple[str, ...]:
@@ -183,7 +188,8 @@ def render_public_routes(
         app = AppTest.from_file(str(dashboard_path), default_timeout=timeout)
         app.query_params.update(dict(route.query_params))
         app.run(timeout=timeout)
-        rendered = _rendered_markdown(app)
+        rendered_blocks = _rendered_blocks(app)
+        rendered = "\n".join(rendered_blocks)
         exceptions = tuple(str(item.value) for item in app.exception)
         missing_markers = tuple(marker for marker in route.required_markers if marker not in rendered)
         forbidden_markers = tuple(marker for marker in FORBIDDEN_RENDER_MARKERS if marker in rendered)
@@ -194,6 +200,7 @@ def render_public_routes(
                 missing_markers=missing_markers,
                 forbidden_markers=forbidden_markers,
                 expanded_advanced=_expanded_advanced_sections(app),
+                rendered_blocks=rendered_blocks,
             )
         )
 
