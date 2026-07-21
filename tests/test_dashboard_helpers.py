@@ -29339,6 +29339,20 @@ def test_public_app_shell_has_compact_mobile_rules():
     assert "flex-wrap: wrap" in mobile_chunk
 
 
+def test_public_single_stock_phone_keeps_evidence_handoff_in_first_view():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    shell_start = source.index("def render_public_shell_mode_styles")
+    mobile_start = source.index("@media (max-width: 640px)", shell_start)
+    mobile_end = source.index("</style>", mobile_start)
+    mobile_css = source[mobile_start:mobile_end]
+
+    assert ".public-ticker-summary {" in mobile_css
+    assert "gap: 0.42rem;" in mobile_css
+    assert "padding: 0.6rem 0;" in mobile_css
+    assert ".public-ticker-action .public-primary-action {" in mobile_css
+    assert "order: -1;" in mobile_css
+
+
 def test_public_workflow_controls_reserve_accessible_touch_targets():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
