@@ -650,7 +650,8 @@ def build_proof_readiness_reconciliation(
     input_status = "partial" if input_issues else "ready"
     input_message = (
         f"Current input issue(s): {'; '.join(dict.fromkeys(input_issues))}. "
-        "Affected lane diagnoses remain unavailable while independent lanes are preserved."
+        "Affected lane diagnoses are unavailable or limited to recognized canonical fields; "
+        "independent lanes are preserved."
         if input_issues
         else (
             "Current ticker, DCF, peer, and canonical fundamentals inputs are available for read-only "

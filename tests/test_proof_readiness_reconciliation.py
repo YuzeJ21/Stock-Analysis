@@ -389,6 +389,11 @@ def test_mixed_known_and_unknown_missing_dcf_fields_keep_only_canonical_fields()
     assert row.current_blocker_fields == ("free_cash_flow", "price")
     assert "mystery_metric" in row.current_blocker_detail
     assert "mystery_metric" not in row.current_blocker_fields
+    assert (
+        "Affected lane diagnoses are unavailable or limited to recognized canonical fields; "
+        "independent lanes are preserved."
+        in summary.input_message
+    )
 
 
 def test_false_share_count_without_shares_outstanding_field_fails_closed():
