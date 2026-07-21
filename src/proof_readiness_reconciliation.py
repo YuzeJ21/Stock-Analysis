@@ -278,9 +278,13 @@ def _read_csv(path: Path) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def load_proof_readiness_reconciliation(*, root: Path) -> ProofReadinessReconciliationSummary:
+def load_proof_readiness_reconciliation(
+    *,
+    root: Path,
+    data_dir: Path | None = None,
+) -> ProofReadinessReconciliationSummary:
     resolved = Path(root).expanduser().resolve()
-    data = resolved / "data"
+    data = Path(data_dir).expanduser().resolve() if data_dir is not None else resolved / "data"
     return build_proof_readiness_reconciliation(
         proofs=load_reviewed_batch_proofs(data / "reviewed_batch_proofs.csv"),
         ticker_readiness=_read_csv(data / "reports" / "ticker_readiness_report.csv"),

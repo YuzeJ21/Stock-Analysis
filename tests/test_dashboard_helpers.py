@@ -11,6 +11,10 @@ from src.profile_context import CoverageCounts, ProfileContext
 from src.research_change_monitor import ResearchChangeEvent
 from src.research_review_queue import ResearchReviewItem
 from src.public_home_workflow import public_home_current_data_coverage_cards, public_home_next_step_cards
+from src.proof_readiness_reconciliation import (
+    ProofReadinessReconciliationRow,
+    ProofReadinessReconciliationSummary,
+)
 import pandas as pd
 
 
@@ -15844,6 +15848,73 @@ def test_proof_history_operator_console_keeps_outcomes_evidence_only():
     assert "broker" not in html
     assert "order" not in html
     assert "trading" not in html
+
+
+def _proof_reconciliation_summary(*, conflict: bool = True) -> ProofReadinessReconciliationSummary:
+    state = "historical_supported_currently_blocked" if conflict else "current_supported_with_matching_proof"
+    row = ProofReadinessReconciliationRow(
+        ticker="ARCT",
+        lane="fundamentals",
+        current_field="fundamentals_ready",
+        current_ready=not conflict,
+        latest_batch_id="RB-ARCT",
+        latest_review_date="2026-06-26",
+        latest_outcome="auto_supported",
+        review_date_valid=True,
+        state=state,
+        reason="Historical proof conflicts with current readiness." if conflict else "Current proof matches readiness.",
+    )
+    return ProofReadinessReconciliationSummary(
+        rows=(row,),
+        status_counts=((state, 1),),
+        conflict_counts_by_lane=(("fundamentals", 1),) if conflict else (),
+        input_status="ready",
+        input_message="Current inputs are available.",
+    )
+
+
+def test_proof_reconciliation_cards_warn_when_historical_support_is_currently_blocked():
+    cards = dashboard.proof_readiness_reconciliation_cards(
+        _proof_reconciliation_summary(),
+        ticker="ARCT",
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "historical support is not current readiness" in rendered
+    assert "arct" in rendered
+    assert "fundamentals" in rendered
+    assert "current saved readiness remains authoritative" in rendered
+    assert "make " not in rendered
+    assert all(card["command"] == "" for card in cards)
+
+
+def test_proof_reconciliation_cards_keep_no_conflict_state_evidence_limited():
+    cards = dashboard.proof_readiness_reconciliation_cards(
+        _proof_reconciliation_summary(conflict=False),
+        ticker="ARCT",
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "no historical-support/current-readiness conflict" in rendered
+    assert "does not prove source rights, field scope, provenance, or payload truth" in rendered
+    assert "make " not in rendered
+
+
+def test_proof_history_renders_reconciliation_before_raw_ledger_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_proof_history(")
+    next_function_index = source.index("\ndef ", render_index + 1)
+    proof_history_chunk = source[render_index:next_function_index]
+
+    load_index = proof_history_chunk.index("load_proof_readiness_reconciliation(")
+    render_index = proof_history_chunk.index("proof_readiness_reconciliation_cards(", load_index)
+    ledger_index = proof_history_chunk.index('st.expander("Advanced: proof ledger details", expanded=False)')
+
+    assert load_index < render_index < ledger_index
+    assert "render_research_desk" not in proof_history_chunk
+    assert "render_discover" not in proof_history_chunk
+    assert "render_company_workbench" not in proof_history_chunk
+    assert "render_monitor" not in proof_history_chunk
 
 
 def test_data_health_proof_history_lane_answers_before_detail_toggle():

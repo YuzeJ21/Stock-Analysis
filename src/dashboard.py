@@ -323,6 +323,10 @@ from src.reviewed_batch_proof import (
     latest_reviewed_batch_proof,
     load_reviewed_batch_proofs,
 )
+from src.proof_readiness_reconciliation import (
+    ProofReadinessReconciliationSummary,
+    load_proof_readiness_reconciliation,
+)
 from src.peer_mapping_source_review import (
     PeerMappingSourceReviewPacket,
     build_peer_mapping_source_review_packet,
@@ -14299,6 +14303,58 @@ def data_health_reviewed_batch_proof_cards(ledger_path: Path | None = None) -> l
     ]
 
 
+def proof_readiness_reconciliation_cards(
+    summary: ProofReadinessReconciliationSummary,
+    *,
+    ticker: str = "",
+) -> list[dict[str, object]]:
+    conflicts = [
+        row
+        for row in summary.rows
+        if row.state == "historical_supported_currently_blocked"
+    ]
+    selected = str(ticker or "").strip().upper()
+    selected_conflicts = [row for row in conflicts if selected and row.ticker == selected]
+    if conflicts:
+        title = f"{len(conflicts):,} historical-support/current-readiness conflict(s)"
+        body = (
+            "Historical support is not current readiness. Current saved readiness remains authoritative; "
+            "reconciliation does not restore data, promote readiness, or rewrite proof history."
+        )
+        badges = [summary.input_status, "current state wins"]
+    else:
+        title = "No historical-support/current-readiness conflict found"
+        body = (
+            "The current reconciliation found no mapped conflict. This does not prove source rights, field scope, "
+            "provenance, or payload truth, and current saved readiness remains authoritative."
+        )
+        badges = [summary.input_status, "read-only"]
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "PROOF / CURRENT STATE",
+            "title": title,
+            "body": body,
+            "badges": badges,
+            "command": "",
+        }
+    ]
+    if selected_conflicts:
+        lanes = ", ".join(dict.fromkeys(row.lane.replace("_", " ") for row in selected_conflicts))
+        cards.append(
+            {
+                "kicker": "SELECTED TICKER",
+                "title": f"{selected}: historical proof conflicts with current readiness",
+                "body": (
+                    f"Current blocked lane(s): {lanes}. Re-review source evidence before relying on the older "
+                    "supported outcome; reconciliation itself does not unlock the lane."
+                ),
+                "badges": [selected, "currently blocked"],
+                "command": "",
+            }
+        )
+    return cards
+
+
 def _proof_history_first_text(frame: pd.DataFrame | None, *columns: str, fallback: str = "Not recorded") -> str:
     if frame is None or frame.empty:
         return fallback
@@ -14622,6 +14678,8 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         )
     proof_timeline = data_health_reviewed_proof_timeline_frame()
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
+    proof_reconciliation = load_proof_readiness_reconciliation(root=BASE_DIR, data_dir=DATA_DIR)
+    proof_ticker = str(st.query_params.get("ticker") or "").strip().upper()
     if public_mode:
         st.markdown(
             proof_history_public_timeline_html(proof_timeline, batch_proof_frame),
@@ -14645,6 +14703,11 @@ def render_proof_history(*, public_mode: bool = True) -> None:
                 proof_history_public_summary_html(proof_timeline, batch_proof_frame),
                 unsafe_allow_html=True,
             )
+    render_signal_cards(
+        proof_readiness_reconciliation_cards(proof_reconciliation, ticker=proof_ticker),
+        show_commands=False,
+        variant="queue",
+    )
     with st.expander("Advanced: proof ledger details", expanded=False):
         render_section_header("Reviewed Data Proof Ledger", "Durable lane proof rows, not generated CSV churn.")
         if proof_timeline.empty:
