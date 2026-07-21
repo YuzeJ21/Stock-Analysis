@@ -1094,6 +1094,118 @@ def test_encoding_failure_occurs_before_missing_destination_is_created(
     assert not ledger.exists()
 
 
+def test_partial_write_failure_removes_the_missing_ledger_it_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    ledger = tmp_path / "proofs.csv"
+    proposed = _reidentified(_record(), rights_status="approved")
+    registry = _rights_registry()
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+
+    def write_part_then_fail(handle, payload: bytes):
+        handle.write(payload[: max(1, len(payload) // 2)])
+        raise OSError("injected new-ledger partial write failure")
+
+    monkeypatch.setattr(field_proof, "_write_append_payload", write_part_then_fail)
+
+    with pytest.raises(OSError, match="injected new-ledger partial write failure"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (proposed,),
+            confirm_reviewed=True,
+            commercial_mode=True,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+
+    assert not ledger.exists()
+
+
+def test_first_flush_failure_removes_the_missing_ledger_after_rollback_sync(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    ledger = tmp_path / "proofs.csv"
+    proposed = _reidentified(_record(), rights_status="approved")
+    registry = _rights_registry()
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+    original_flush = field_proof._flush_and_fsync
+    calls = 0
+
+    def fail_once_then_sync(handle):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            handle.flush()
+            raise OSError("injected new-ledger flush failure")
+        original_flush(handle)
+
+    monkeypatch.setattr(field_proof, "_flush_and_fsync", fail_once_then_sync)
+
+    with pytest.raises(OSError, match="injected new-ledger flush failure"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (proposed,),
+            confirm_reviewed=True,
+            commercial_mode=True,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+
+    assert calls == 2
+    assert not ledger.exists()
+
+
+def test_failed_new_ledger_cleanup_preserves_a_concurrently_replaced_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    ledger = tmp_path / "proofs.csv"
+    proposed = _reidentified(_record(), rights_status="approved")
+    registry = _rights_registry()
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=True,
+        rights_registry=registry,
+    )
+    replacement = b"concurrent replacement"
+
+    def replace_path_then_fail(handle, payload: bytes):
+        handle.write(payload[:1])
+        ledger.unlink()
+        ledger.write_bytes(replacement)
+        raise OSError("injected write failure after replacement")
+
+    monkeypatch.setattr(field_proof, "_write_append_payload", replace_path_then_fail)
+
+    with pytest.raises(OSError, match="injected write failure after replacement"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (proposed,),
+            confirm_reviewed=True,
+            commercial_mode=True,
+            rights_registry=registry,
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+
+    assert ledger.read_bytes() == replacement
+
+
 def test_partial_write_failure_rolls_existing_ledger_back_to_exact_prior_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

@@ -647,6 +647,24 @@ def _open_new_ledger_exclusive(destination: Path) -> BinaryIO:
     return destination.open("x+b", buffering=0)
 
 
+def _remove_exclusively_created_ledger(
+    destination: Path, *, created_stat: os.stat_result
+) -> None:
+    try:
+        current_stat = os.stat(destination, follow_symlinks=False)
+    except OSError:
+        return
+    if (current_stat.st_dev, current_stat.st_ino) != (
+        created_stat.st_dev,
+        created_stat.st_ino,
+    ):
+        return
+    try:
+        destination.unlink()
+    except OSError:
+        pass
+
+
 def _write_append_payload(handle: BinaryIO, payload: bytes) -> None:
     written = handle.write(payload)
     if written != len(payload):
@@ -759,10 +777,26 @@ def append_reviewed_field_proof_batch(
             "preview receipt mismatch: field proof ledger was created concurrently; "
             "a new preview is required"
         ) from exc
-    with handle:
+    created_stat = os.fstat(handle.fileno())
+    try:
         fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
         try:
             _append_payload_with_rollback(handle, payload, original_size=0)
-        finally:
+        except BaseException:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+            raise
+        else:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    except BaseException:
+        try:
+            handle.close()
+        except OSError:
+            pass
+        _remove_exclusively_created_ledger(destination, created_stat=created_stat)
+        raise
+    else:
+        handle.close()
     return destination
