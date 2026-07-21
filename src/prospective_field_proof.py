@@ -111,20 +111,28 @@ def field_proof_identity(record: ProspectiveFieldProofRecord) -> str:
 
 def _read_rows(path: Path | str, *, missing_ok: bool) -> tuple[ProspectiveFieldProofRecord, ...]:
     source = Path(path)
-    if not source.is_file():
+    if not source.exists():
         if missing_ok:
             return ()
         raise ValueError(f"field proof input does not exist: {source}")
+    if not source.is_file():
+        raise ValueError(f"field proof path is not a regular file: {source}")
     with source.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         if tuple(reader.fieldnames or ()) != FIELDS:
             raise ValueError("Field proof ledger header does not match the append-only contract.")
-        return tuple(
-            ProspectiveFieldProofRecord(
-                **{field: _text(row.get(field)) for field in FIELDS}
+        records = []
+        for row_number, row in enumerate(reader, start=2):
+            if row.get(None) is not None:
+                raise ValueError(f"field proof row {row_number}: contains surplus cells")
+            records.append(
+                ProspectiveFieldProofRecord(
+                    **{field: _text(row.get(field)) for field in FIELDS}
+                )
             )
-            for row in reader
-        )
+        if missing_ok and not records:
+            raise ValueError("Field proof ledger must contain at least one data row.")
+        return tuple(records)
 
 
 def load_field_proofs(path: Path | str) -> tuple[ProspectiveFieldProofRecord, ...]:

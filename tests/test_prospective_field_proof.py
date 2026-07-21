@@ -107,6 +107,37 @@ def test_missing_ledger_is_empty_but_present_empty_ledger_fails_closed(tmp_path:
         load_field_proofs(empty)
 
 
+def test_present_exact_header_zero_row_ledger_fails_closed(tmp_path: Path):
+    ledger = tmp_path / "proofs.csv"
+    _write_csv(ledger, ())
+
+    with pytest.raises(ValueError, match="at least one data row"):
+        load_field_proofs(ledger)
+
+
+def test_non_regular_ledger_path_fails_closed_instead_of_looking_missing(tmp_path: Path):
+    ledger = tmp_path / "proofs.csv"
+    ledger.mkdir()
+
+    with pytest.raises(ValueError, match="not a regular file"):
+        load_field_proofs(ledger)
+
+
+@pytest.mark.parametrize("loader", [load_field_proofs, load_proposed_field_proofs])
+def test_loaders_reject_surplus_cells_beyond_the_exact_header(
+    tmp_path: Path, loader
+):
+    ledger = tmp_path / "proofs.csv"
+    record = _record()
+    with ledger.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(FIELDS)
+        writer.writerow([getattr(record, field) for field in FIELDS] + ["surplus"])
+
+    with pytest.raises(ValueError, match="row 2: contains surplus cells"):
+        loader(ledger)
+
+
 def test_loaders_normalize_scope_for_semantic_proof_identity(tmp_path: Path):
     canonical = _record()
     variant = _reidentified(canonical, ticker=" nvda ", field_key=" Revenue_Consensus ")
