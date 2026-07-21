@@ -79,6 +79,26 @@ CANONICAL_LANES: tuple[tuple[str, str, str], ...] = (
     ("peer_valuation_inputs", "peer", "peer_valuation_ready"),
 )
 
+INPUT_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
+    "ticker": ("ticker", "fundamentals_ready", "dcf_ready", "price_ready", "peer_ready"),
+    "dcf": ("ticker", "has_shares_outstanding", "missing_dcf_fields"),
+    "peer": ("ticker", "peer_valuation_ready"),
+    "fundamentals": ("ticker",),
+}
+
+INPUT_LABELS = {
+    "ticker": "ticker readiness",
+    "dcf": "DCF readiness",
+    "peer": "peer readiness",
+    "fundamentals": "canonical fundamentals",
+}
+
+INPUT_READINESS_FIELDS: dict[str, tuple[str, ...]] = {
+    "ticker": ("fundamentals_ready", "dcf_ready", "price_ready", "peer_ready"),
+    "dcf": ("has_shares_outstanding",),
+    "peer": ("peer_valuation_ready",),
+}
+
 STATE_PRIORITY = {
     "historical_supported_currently_blocked": 0,
     "current_ready_proof_not_supporting": 1,
@@ -101,13 +121,13 @@ class ProofReadinessReconciliationRow:
     review_date_valid: bool
     state: str
     reason: str
-    proof_applicability: str = "no_applicable_proof"
-    current_blocker_code: str = "current_readiness_input_unavailable"
-    current_blocker_fields: tuple[str, ...] = ()
-    current_blocker_detail: str = "The authoritative current readiness input is unavailable or malformed."
-    next_safe_review: str = NEXT_SAFE_REVIEW["current_readiness_input_unavailable"]
-    historical_payload_status: str = ""
-    historical_evidence_limit: str = ""
+    proof_applicability: str
+    current_blocker_code: str
+    current_blocker_fields: tuple[str, ...]
+    current_blocker_detail: str
+    next_safe_review: str
+    historical_payload_status: str
+    historical_evidence_limit: str
 
 
 @dataclass(frozen=True)
@@ -117,8 +137,8 @@ class ProofReadinessReconciliationSummary:
     conflict_counts_by_lane: tuple[tuple[str, int], ...]
     input_status: str
     input_message: str
-    proof_applicability_counts: tuple[tuple[str, int], ...] = ()
-    current_blocker_counts: tuple[tuple[str, int], ...] = ()
+    proof_applicability_counts: tuple[tuple[str, int], ...]
+    current_blocker_counts: tuple[tuple[str, int], ...]
 
 
 @dataclass(frozen=True)
@@ -136,6 +156,13 @@ class _CurrentBlocker:
     next_safe_review: str
 
 
+@dataclass(frozen=True)
+class _MissingDcfFields:
+    fields: tuple[str, ...]
+    unknown_tokens: tuple[str, ...]
+    valid: bool
+
+
 def _normalized_columns(frame: pd.DataFrame | None) -> pd.DataFrame:
     if frame is None or frame.empty:
         return pd.DataFrame()
@@ -145,7 +172,7 @@ def _normalized_columns(frame: pd.DataFrame | None) -> pd.DataFrame:
 
 
 def _explicit_bool(value: object) -> bool | None:
-    text = str(value or "").strip().lower()
+    text = "" if value is None or pd.isna(value) else str(value).strip().lower()
     if text == "true":
         return True
     if text == "false":
@@ -153,22 +180,20 @@ def _explicit_bool(value: object) -> bool | None:
     return None
 
 
-def _readiness_lookup(frame: pd.DataFrame | None, field: str) -> dict[str, bool | None]:
-    normalized = _normalized_columns(frame)
-    if normalized.empty or "ticker" not in normalized.columns or field not in normalized.columns:
+def _readiness_lookup(frame: pd.DataFrame, field: str) -> dict[str, bool | None]:
+    if frame.empty or "ticker" not in frame.columns or field not in frame.columns:
         return {}
     return {
         str(row["ticker"]).strip().upper(): _explicit_bool(row[field])
-        for _, row in normalized.iterrows()
+        for _, row in frame.iterrows()
         if str(row["ticker"]).strip()
     }
 
 
-def _valid_tickers(frame: pd.DataFrame | None) -> tuple[str, ...]:
-    normalized = _normalized_columns(frame)
-    if normalized.empty or "ticker" not in normalized.columns:
+def _valid_tickers(frame: pd.DataFrame) -> tuple[str, ...]:
+    if frame.empty or "ticker" not in frame.columns:
         return ()
-    values = {str(value).strip().upper() for value in normalized["ticker"] if str(value).strip()}
+    values = {str(value).strip().upper() for value in frame["ticker"] if str(value).strip()}
     return tuple(sorted(values))
 
 
@@ -206,25 +231,147 @@ def _proof_applicability(
     return "scope_only_not_supported"
 
 
-def _frame_has_columns(frame: pd.DataFrame | None, *columns: str) -> bool:
-    normalized = _normalized_columns(frame)
-    return not normalized.empty and all(column in normalized.columns for column in columns)
+def _frame_has_columns(frame: pd.DataFrame, *columns: str) -> bool:
+    return not frame.empty and all(column in frame.columns for column in columns)
 
 
-def _missing_dcf_fields(frame: pd.DataFrame | None, ticker: str) -> tuple[str, ...] | None:
-    normalized = _normalized_columns(frame)
+def _missing_dcf_fields(value: object) -> _MissingDcfFields:
+    text = "" if value is None or pd.isna(value) else str(value)
+    tokens = tuple(
+        dict.fromkeys(
+            token.strip().lower()
+            for token in re.split(r"[,;]", text)
+            if token.strip()
+        )
+    )
+    token_set = set(tokens)
+    canonical = tuple(field for field in CANONICAL_DCF_FIELDS if field in token_set)
+    unknown = tuple(token for token in tokens if token not in CANONICAL_DCF_FIELDS)
+    return _MissingDcfFields(
+        fields=canonical,
+        unknown_tokens=unknown,
+        valid=bool(canonical),
+    )
+
+
+def _missing_dcf_lookup(frame: pd.DataFrame) -> dict[str, _MissingDcfFields]:
     if not _frame_has_columns(frame, "ticker", "missing_dcf_fields"):
-        return None
-    matches = normalized[normalized["ticker"].astype(str).str.strip().str.upper() == ticker]
-    if matches.empty:
-        return None
-    value = matches.iloc[-1]["missing_dcf_fields"]
-    missing = {
-        token.strip().lower()
-        for token in re.split(r"[,;]", str(value) if pd.notna(value) else "")
-        if token.strip()
+        return {}
+    return {
+        str(row["ticker"]).strip().upper(): _missing_dcf_fields(row["missing_dcf_fields"])
+        for _, row in frame.iterrows()
+        if str(row["ticker"]).strip()
     }
-    return tuple(field for field in CANONICAL_DCF_FIELDS if field in missing)
+
+
+def _schema_issues(frames: dict[str, pd.DataFrame]) -> tuple[list[str], dict[str, bool]]:
+    issues: list[str] = []
+    schema_valid: dict[str, bool] = {}
+    for source, required_columns in INPUT_REQUIRED_COLUMNS.items():
+        frame = frames[source]
+        label = INPUT_LABELS[source]
+        if frame.empty:
+            issues.append(f"{label} input is missing or empty")
+            schema_valid[source] = False
+            continue
+        missing = tuple(column for column in required_columns if column not in frame.columns)
+        if missing:
+            issues.append(f"{label} is missing required column(s): {', '.join(missing)}")
+            schema_valid[source] = False
+            continue
+        schema_valid[source] = True
+    return issues, schema_valid
+
+
+def _readiness_value_issues(
+    frames: dict[str, pd.DataFrame],
+    schema_valid: dict[str, bool],
+) -> list[str]:
+    issues: list[str] = []
+    for source, readiness_fields in INPUT_READINESS_FIELDS.items():
+        if not schema_valid[source]:
+            continue
+        frame = frames[source]
+        malformed = tuple(
+            field
+            for field in readiness_fields
+            if any(_explicit_bool(value) is None for value in frame[field])
+        )
+        if malformed:
+            issues.append(
+                f"{INPUT_LABELS[source]} has malformed readiness field(s): {', '.join(malformed)}"
+            )
+    return issues
+
+
+def _lookup_coverage_issues(
+    *,
+    valid_tickers: set[str],
+    current_lookups: dict[tuple[str, str], dict[str, bool | None]],
+    schema_valid: dict[str, bool],
+) -> list[str]:
+    issues: list[str] = []
+    for _, source, field in CANONICAL_LANES:
+        if not schema_valid[source]:
+            continue
+        lookup = current_lookups[(source, field)]
+        unavailable = sum(1 for ticker in valid_tickers if lookup.get(ticker) is None)
+        if unavailable:
+            issues.append(
+                f"{INPUT_LABELS[source]} has unavailable {field} value(s) for {unavailable} ticker(s)"
+            )
+    return issues
+
+
+def _missing_field_parse_issues(
+    *,
+    valid_tickers: set[str],
+    current_lookups: dict[tuple[str, str], dict[str, bool | None]],
+    missing_dcf: dict[str, _MissingDcfFields],
+    dcf_schema_valid: bool,
+) -> list[str]:
+    if not dcf_schema_valid:
+        return []
+    inconsistent = 0
+    unknown = 0
+    for ticker in valid_tickers:
+        parse = missing_dcf.get(ticker)
+        required_by_lane = (
+            (
+                "fundamentals",
+                current_lookups[("ticker", "fundamentals_ready")].get(ticker),
+                FUNDAMENTALS_FIELDS,
+            ),
+            (
+                "dcf",
+                current_lookups[("ticker", "dcf_ready")].get(ticker),
+                CANONICAL_DCF_FIELDS,
+            ),
+            (
+                "share_count",
+                current_lookups[("dcf", "has_shares_outstanding")].get(ticker),
+                ("shares_outstanding",),
+            ),
+        )
+        for _, current_ready, required_fields in required_by_lane:
+            if current_ready is not False:
+                continue
+            if parse is None or not parse.valid or not any(field in parse.fields for field in required_fields):
+                inconsistent += 1
+            if parse is not None and parse.unknown_tokens:
+                unknown += 1
+    issues: list[str] = []
+    if inconsistent:
+        issues.append(
+            "DCF readiness has unavailable or lane-inconsistent missing_dcf_fields "
+            f"for {inconsistent} ticker-lane value(s)"
+        )
+    if unknown:
+        issues.append(
+            "DCF readiness has unrecognized missing_dcf_fields tokens in "
+            f"{unknown} blocked ticker-lane value(s)"
+        )
+    return issues
 
 
 def _blocker(code: str, fields: tuple[str, ...] = (), detail: str = "") -> _CurrentBlocker:
@@ -236,13 +383,24 @@ def _blocker(code: str, fields: tuple[str, ...] = (), detail: str = "") -> _Curr
     )
 
 
+def _unknown_missing_field_detail(parse: _MissingDcfFields) -> str:
+    if not parse.unknown_tokens:
+        return ""
+    return (
+        " Unrecognized missing-field token(s): "
+        f"{', '.join(parse.unknown_tokens)}; they are not reported as canonical blocker fields."
+    )
+
+
 def _current_blocker(
     *,
     ticker: str,
     lane: str,
     current_ready: bool | None,
-    dcf_readiness: pd.DataFrame,
-    fundamentals: pd.DataFrame,
+    missing_dcf: dict[str, _MissingDcfFields],
+    dcf_schema_valid: bool,
+    canonical_tickers: set[str],
+    fundamentals_schema_valid: bool,
 ) -> _CurrentBlocker:
     if current_ready is None:
         return _blocker(
@@ -261,44 +419,60 @@ def _current_blocker(
             detail="Current saved peer valuation-input readiness is false.",
         )
 
-    missing_dcf = _missing_dcf_fields(dcf_readiness, ticker)
-    if missing_dcf is None:
+    if not dcf_schema_valid:
         return _blocker(
             "current_readiness_input_unavailable",
             detail="The current DCF readiness input is unavailable or malformed.",
         )
+    missing = missing_dcf.get(ticker)
+    if missing is None:
+        return _blocker(
+            "current_readiness_input_unavailable",
+            detail="The current DCF readiness row for this ticker is unavailable.",
+        )
+    unknown_detail = _unknown_missing_field_detail(missing)
     if lane == "share_count":
-        fields = tuple(field for field in missing_dcf if field == "shares_outstanding")
+        if not missing.valid or "shares_outstanding" not in missing.fields:
+            return _blocker(
+                "current_readiness_input_unavailable",
+                detail=(
+                    "Current saved share-count readiness is false, but missing_dcf_fields does not name "
+                    f"shares_outstanding.{unknown_detail}"
+                ),
+            )
         return _blocker(
             "current_required_fields_missing",
-            fields,
-            "Current DCF readiness reports missing required fields.",
+            ("shares_outstanding",),
+            "Current DCF readiness reports missing required fields." + unknown_detail,
         )
 
-    normalized_fundamentals = _normalized_columns(fundamentals)
-    if not _frame_has_columns(fundamentals, "ticker"):
+    fields = missing.fields if lane == "dcf" else tuple(
+        field for field in missing.fields if field in FUNDAMENTALS_FIELDS
+    )
+    if not missing.valid or not fields:
+        lane_label = "DCF" if lane == "dcf" else "fundamentals"
+        return _blocker(
+            "current_readiness_input_unavailable",
+            detail=(
+                f"Current saved {lane_label} readiness is false, but missing_dcf_fields has no "
+                f"recognized field for this lane.{unknown_detail}"
+            ),
+        )
+    if not fundamentals_schema_valid:
         return _blocker(
             "current_readiness_input_unavailable",
             detail="The current canonical fundamentals input is unavailable or malformed.",
         )
-    canonical_tickers = {
-        str(value).strip().upper()
-        for value in normalized_fundamentals["ticker"]
-        if str(value).strip()
-    }
-    fields = missing_dcf if lane == "dcf" else tuple(
-        field for field in missing_dcf if field in FUNDAMENTALS_FIELDS
-    )
-    if ticker not in canonical_tickers and fields:
+    if ticker not in canonical_tickers:
         return _blocker(
             "current_canonical_row_missing",
             fields,
-            "No current canonical fundamentals row is present.",
+            "No current canonical fundamentals row is present." + unknown_detail,
         )
     return _blocker(
         "current_required_fields_missing",
         fields,
-        "Current DCF readiness reports missing required fields.",
+        "Current DCF readiness reports missing required fields." + unknown_detail,
     )
 
 
@@ -353,34 +527,49 @@ def build_proof_readiness_reconciliation(
     peer_readiness: pd.DataFrame,
     fundamentals: pd.DataFrame,
 ) -> ProofReadinessReconciliationSummary:
-    tickers = _valid_tickers(ticker_readiness)
+    frames = {
+        "ticker": _normalized_columns(ticker_readiness),
+        "dcf": _normalized_columns(dcf_readiness),
+        "peer": _normalized_columns(peer_readiness),
+        "fundamentals": _normalized_columns(fundamentals),
+    }
+    tickers = _valid_tickers(frames["ticker"])
     if not tickers:
         return ProofReadinessReconciliationSummary(
             rows=(),
             status_counts=(),
             conflict_counts_by_lane=(),
-            proof_applicability_counts=(),
-            current_blocker_counts=(),
             input_status="unavailable",
             input_message="Current ticker readiness is missing or has no valid ticker rows; reconciliation cannot infer state.",
+            proof_applicability_counts=(),
+            current_blocker_counts=(),
         )
 
-    frames = {
-        "ticker": ticker_readiness,
-        "dcf": dcf_readiness,
-        "peer": peer_readiness,
-    }
     current_lookups = {
         (source, field): _readiness_lookup(frames[source], field)
         for _, source, field in CANONICAL_LANES
     }
-    missing_inputs = [
-        label
-        for label, frame in (("DCF readiness", dcf_readiness), ("peer readiness", peer_readiness))
-        if frame is None or frame.empty
-    ]
-
     valid_set = set(tickers)
+    input_issues, schema_valid = _schema_issues(frames)
+    input_issues.extend(_readiness_value_issues(frames, schema_valid))
+    input_issues.extend(
+        _lookup_coverage_issues(
+            valid_tickers=valid_set,
+            current_lookups=current_lookups,
+            schema_valid=schema_valid,
+        )
+    )
+    missing_dcf = _missing_dcf_lookup(frames["dcf"])
+    input_issues.extend(
+        _missing_field_parse_issues(
+            valid_tickers=valid_set,
+            current_lookups=current_lookups,
+            missing_dcf=missing_dcf,
+            dcf_schema_valid=schema_valid["dcf"],
+        )
+    )
+    canonical_tickers = set(_valid_tickers(frames["fundamentals"]))
+
     latest: dict[tuple[str, str], _LatestProof] = {}
     for append_index, proof in enumerate(proofs):
         mapping = LANE_MAPPINGS.get(str(proof.lane or "").strip().lower())
@@ -419,8 +608,10 @@ def build_proof_readiness_reconciliation(
                 ticker=ticker,
                 lane=lane,
                 current_ready=current_ready,
-                dcf_readiness=dcf_readiness,
-                fundamentals=fundamentals,
+                missing_dcf=missing_dcf,
+                dcf_schema_valid=schema_valid["dcf"],
+                canonical_tickers=canonical_tickers,
+                fundamentals_schema_valid=schema_valid["fundamentals"],
             )
             next_safe_review = blocker.next_safe_review
             if proof_applicability in {"scope_only_not_supported", "missing_ticker_change_detail"}:
@@ -456,11 +647,15 @@ def build_proof_readiness_reconciliation(
     )
     proof_applicability_counts = Counter(row.proof_applicability for row in rows)
     current_blocker_counts = Counter(row.current_blocker_code for row in rows)
-    input_status = "partial" if missing_inputs else "ready"
+    input_status = "partial" if input_issues else "ready"
     input_message = (
-        f"Missing current input(s): {', '.join(missing_inputs)}; affected lanes remain not_applicable."
-        if missing_inputs
-        else "Current ticker, DCF, and peer readiness inputs are available for read-only reconciliation."
+        f"Current input issue(s): {'; '.join(dict.fromkeys(input_issues))}. "
+        "Affected lane diagnoses remain unavailable while independent lanes are preserved."
+        if input_issues
+        else (
+            "Current ticker, DCF, peer, and canonical fundamentals inputs are available for read-only "
+            "reconciliation."
+        )
     )
     return ProofReadinessReconciliationSummary(
         rows=tuple(rows),

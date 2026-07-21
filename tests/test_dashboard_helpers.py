@@ -1,3 +1,4 @@
+from dataclasses import replace
 import json
 import os
 import re
@@ -15921,6 +15922,38 @@ def test_proof_reconciliation_selected_card_does_not_infer_source_or_historical_
     assert "yfinance" not in rendered
     assert "source rights changed" not in rendered
     assert selected["command"] == ""
+
+
+def test_proof_reconciliation_selected_card_excludes_other_ticker_lanes_blockers_and_review_text():
+    summary = _proof_reconciliation_summary()
+    arct = summary.rows[0]
+    other = replace(
+        arct,
+        ticker="ARDX",
+        lane="peer_valuation_inputs",
+        current_blocker_code="ARDX_ONLY_BLOCKER",
+        current_blocker_fields=("ARDX_ONLY_FIELD",),
+        next_safe_review="ARDX_ONLY_REVIEW_TEXT",
+    )
+    summary = replace(
+        summary,
+        rows=(arct, other),
+        status_counts=(("historical_supported_currently_blocked", 2),),
+        conflict_counts_by_lane=(("fundamentals", 1), ("peer_valuation_inputs", 1)),
+        current_blocker_counts=(("current_canonical_row_missing", 1), ("ARDX_ONLY_BLOCKER", 1)),
+    )
+
+    cards = dashboard.proof_readiness_reconciliation_cards(summary, ticker="ARCT")
+    selected = " ".join(str(value) for value in cards[1].values())
+
+    assert "ARCT" in selected
+    assert "fundamentals" in selected
+    assert "ARDX" not in selected
+    assert "peer valuation inputs" not in selected.lower()
+    assert "ARDX_ONLY_BLOCKER" not in selected
+    assert "ARDX_ONLY_FIELD" not in selected
+    assert "ARDX_ONLY_REVIEW_TEXT" not in selected
+    assert cards[1]["command"] == ""
 
 
 def test_proof_reconciliation_cards_keep_no_conflict_state_evidence_limited():

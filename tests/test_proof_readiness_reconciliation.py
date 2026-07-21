@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import asdict, replace
+from collections import Counter
+from dataclasses import MISSING, asdict, fields, replace
 import json
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
+import src.proof_readiness_reconciliation as reconciliation
 from src.proof_readiness_reconciliation import (
+    ProofReadinessReconciliationRow,
+    ProofReadinessReconciliationSummary,
     build_proof_readiness_reconciliation,
     filter_reconciliation_rows,
+    load_proof_readiness_reconciliation,
     main,
     proof_readiness_reconciliation_payload,
     render_proof_readiness_reconciliation,
@@ -84,6 +89,145 @@ def _summary(*, proofs, ticker, dcf=None, peer=None, fundamentals=None):
 
 def _row(summary, ticker: str, lane: str):
     return next(row for row in summary.rows if row.ticker == ticker and row.lane == lane)
+
+
+def _complete_inputs():
+    return {
+        "ticker": _ticker_readiness(
+            ARCT={
+                "fundamentals_ready": "False",
+                "dcf_ready": "False",
+                "price_ready": "False",
+                "peer_ready": "False",
+            }
+        ),
+        "dcf": _dcf_readiness(
+            ARCT={
+                "has_shares_outstanding": "False",
+                "missing_dcf_fields": "free_cash_flow, shares_outstanding, revenue, fcf_margin",
+            }
+        ),
+        "peer": _peer_readiness(ARCT={"peer_valuation_ready": "False"}),
+        "fundamentals": _fundamentals(ARCT={"source": "sec_companyfacts"}),
+    }
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_label"),
+    [
+        ("dcf", "DCF readiness"),
+        ("peer", "peer readiness"),
+        ("fundamentals", "canonical fundamentals"),
+    ],
+)
+def test_missing_required_frame_marks_summary_partial_without_blocking_price_diagnosis(
+    source,
+    expected_label,
+):
+    inputs = _complete_inputs()
+    inputs[source] = pd.DataFrame()
+
+    summary = _summary(
+        proofs=[],
+        ticker=inputs["ticker"],
+        dcf=inputs["dcf"],
+        peer=inputs["peer"],
+        fundamentals=inputs["fundamentals"],
+    )
+
+    assert summary.input_status == "partial"
+    assert expected_label in summary.input_message
+    assert _row(summary, "ARCT", "price").current_blocker_code == "current_price_missing"
+
+
+@pytest.mark.parametrize(
+    ("source", "missing_column", "lane"),
+    [
+        ("ticker", "price_ready", "price"),
+        ("dcf", "missing_dcf_fields", "dcf"),
+        ("peer", "peer_valuation_ready", "peer_valuation_inputs"),
+        ("fundamentals", "ticker", "fundamentals"),
+    ],
+)
+def test_missing_required_column_marks_summary_partial_and_only_dependent_lane_unavailable(
+    source,
+    missing_column,
+    lane,
+):
+    inputs = _complete_inputs()
+    inputs[source] = inputs[source].drop(columns=[missing_column])
+
+    summary = _summary(
+        proofs=[],
+        ticker=inputs["ticker"],
+        dcf=inputs["dcf"],
+        peer=inputs["peer"],
+        fundamentals=inputs["fundamentals"],
+    )
+
+    assert summary.input_status == "partial"
+    assert missing_column in summary.input_message
+    assert _row(summary, "ARCT", lane).current_blocker_code == "current_readiness_input_unavailable"
+    assert _row(summary, "ARCT", "peer_mapping").current_blocker_code == "current_peer_mapping_missing"
+
+
+@pytest.mark.parametrize(
+    ("source", "field", "lane"),
+    [
+        ("ticker", "price_ready", "price"),
+        ("dcf", "has_shares_outstanding", "share_count"),
+        ("peer", "peer_valuation_ready", "peer_valuation_inputs"),
+    ],
+)
+def test_malformed_readiness_field_marks_summary_partial_and_preserves_independent_lanes(
+    source,
+    field,
+    lane,
+):
+    inputs = _complete_inputs()
+    inputs[source].loc[0, field] = "not-a-boolean"
+
+    summary = _summary(
+        proofs=[],
+        ticker=inputs["ticker"],
+        dcf=inputs["dcf"],
+        peer=inputs["peer"],
+        fundamentals=inputs["fundamentals"],
+    )
+
+    assert summary.input_status == "partial"
+    assert field in summary.input_message
+    assert _row(summary, "ARCT", lane).current_blocker_code == "current_readiness_input_unavailable"
+    assert _row(summary, "ARCT", "peer_mapping").current_blocker_code == "current_peer_mapping_missing"
+
+
+def test_reconciliation_dataclasses_require_every_invariant_field_explicitly():
+    for contract in (ProofReadinessReconciliationRow, ProofReadinessReconciliationSummary):
+        for contract_field in fields(contract):
+            assert contract_field.default is MISSING
+            assert contract_field.default_factory is MISSING
+
+
+def test_each_required_input_frame_is_normalized_once_before_row_construction(monkeypatch):
+    inputs = _complete_inputs()
+    calls: list[int] = []
+    original = reconciliation._normalized_columns
+
+    def tracked(frame):
+        calls.append(id(frame))
+        return original(frame)
+
+    monkeypatch.setattr(reconciliation, "_normalized_columns", tracked)
+
+    _summary(
+        proofs=[],
+        ticker=inputs["ticker"],
+        dcf=inputs["dcf"],
+        peer=inputs["peer"],
+        fundamentals=inputs["fundamentals"],
+    )
+
+    assert Counter(calls) == Counter({id(frame): 1 for frame in inputs.values()})
 
 
 def test_scope_only_support_is_not_ticker_level_support():
@@ -193,6 +337,79 @@ def test_share_count_diagnosis_reports_only_shares_outstanding():
     row = _row(summary, "ARCT", "share_count")
     assert row.current_blocker_code == "current_required_fields_missing"
     assert row.current_blocker_fields == ("shares_outstanding",)
+
+
+def test_blank_missing_dcf_fields_fail_closed_to_unavailable():
+    summary = _summary(
+        proofs=[],
+        ticker=_ticker_readiness(ARCT={"dcf_ready": "False"}),
+        dcf=_dcf_readiness(ARCT={"missing_dcf_fields": ""}),
+        peer=_peer_readiness(ARCT={}),
+        fundamentals=_fundamentals(ARCT={"source": "sec_companyfacts"}),
+    )
+
+    row = _row(summary, "ARCT", "dcf")
+    assert row.current_blocker_code == "current_readiness_input_unavailable"
+    assert row.current_blocker_fields == ()
+    assert summary.input_status == "partial"
+
+
+def test_unknown_only_missing_dcf_fields_fail_closed_and_surface_token_only_in_detail():
+    summary = _summary(
+        proofs=[],
+        ticker=_ticker_readiness(ARCT={"dcf_ready": "False"}),
+        dcf=_dcf_readiness(ARCT={"missing_dcf_fields": "mystery_metric"}),
+        peer=_peer_readiness(ARCT={}),
+        fundamentals=_fundamentals(ARCT={"source": "sec_companyfacts"}),
+    )
+
+    row = _row(summary, "ARCT", "dcf")
+    payload = proof_readiness_reconciliation_payload(summary, top_n=20)
+    assert row.current_blocker_code == "current_readiness_input_unavailable"
+    assert row.current_blocker_fields == ()
+    assert "mystery_metric" in row.current_blocker_detail
+    assert "mystery_metric" not in row.next_safe_review
+    assert "mystery_metric" not in summary.input_message
+    assert "mystery_metric" not in payload["current_blocker_counts"]
+
+
+def test_mixed_known_and_unknown_missing_dcf_fields_keep_only_canonical_fields():
+    summary = _summary(
+        proofs=[],
+        ticker=_ticker_readiness(ARCT={"dcf_ready": "False"}),
+        dcf=_dcf_readiness(
+            ARCT={"missing_dcf_fields": "mystery_metric, price, free_cash_flow"}
+        ),
+        peer=_peer_readiness(ARCT={}),
+        fundamentals=_fundamentals(ARCT={"source": "sec_companyfacts"}),
+    )
+
+    row = _row(summary, "ARCT", "dcf")
+    assert row.current_blocker_code == "current_required_fields_missing"
+    assert row.current_blocker_fields == ("free_cash_flow", "price")
+    assert "mystery_metric" in row.current_blocker_detail
+    assert "mystery_metric" not in row.current_blocker_fields
+
+
+def test_false_share_count_without_shares_outstanding_field_fails_closed():
+    summary = _summary(
+        proofs=[],
+        ticker=_ticker_readiness(ARCT={}),
+        dcf=_dcf_readiness(
+            ARCT={
+                "has_shares_outstanding": "False",
+                "missing_dcf_fields": "free_cash_flow, revenue",
+            }
+        ),
+        peer=_peer_readiness(ARCT={}),
+        fundamentals=_fundamentals(ARCT={"source": "sec_companyfacts"}),
+    )
+
+    row = _row(summary, "ARCT", "share_count")
+    assert row.current_blocker_code == "current_readiness_input_unavailable"
+    assert row.current_blocker_fields == ()
+    assert "shares_outstanding" in row.current_blocker_detail
+    assert summary.input_status == "partial"
 
 
 def test_price_and_peer_blockers_remain_independent():
@@ -347,6 +564,33 @@ def test_malformed_and_descriptive_proof_fields_fail_closed():
     assert {item.ticker for item in summary.rows} == {"ARCT"}
 
 
+def test_narrative_proof_values_cannot_change_applicability_blocker_or_history_limit():
+    proof = replace(
+        _proof(tickers="ARCT,ARDX", changed_tickers="ARDX"),
+        scope="NARRATIVE_ONLY_PROOF says ARCT changed and is ready",
+        command_run="NARRATIVE_ONLY_PROOF source rights and payload truth approved",
+        source_files="NARRATIVE_ONLY_PROOF ARCT canonical payload",
+        notes="NARRATIVE_ONLY_PROOF historical cause was payload removal",
+    )
+    summary = _summary(
+        proofs=[proof],
+        ticker=_ticker_readiness(ARCT={"fundamentals_ready": "False"}, ARDX={}),
+        dcf=_dcf_readiness(
+            ARCT={"missing_dcf_fields": "free_cash_flow, revenue, fcf_margin"},
+            ARDX={"missing_dcf_fields": "free_cash_flow, revenue, fcf_margin"},
+        ),
+        peer=_peer_readiness(ARCT={}, ARDX={}),
+        fundamentals=_fundamentals(ARDX={"source": "sec_companyfacts"}),
+    )
+
+    row = _row(summary, "ARCT", "fundamentals")
+    assert row.proof_applicability == "scope_only_not_supported"
+    assert row.state == "currently_blocked_with_non_supporting_history"
+    assert row.current_blocker_code == "current_canonical_row_missing"
+    assert row.historical_payload_status == "structured_payload_not_recorded"
+    assert "NARRATIVE_ONLY_PROOF" not in json.dumps(asdict(row))
+
+
 def test_valid_dated_proof_outranks_later_appended_malformed_date_and_filter_keeps_global_counts():
     summary = _summary(
         proofs=[
@@ -448,6 +692,16 @@ def _write_cli_inputs(root: Path) -> None:
     ).to_csv(reports / "ticker_readiness_report.csv", index=False)
     _dcf_readiness(ARCT={}, ARDX={}).to_csv(reports / "dcf_readiness_report.csv", index=False)
     _peer_readiness(ARCT={}, ARDX={}).to_csv(reports / "peer_readiness_report.csv", index=False)
+
+
+def test_loader_marks_missing_canonical_fundamentals_file_partial(tmp_path):
+    _write_cli_inputs(tmp_path)
+
+    summary = load_proof_readiness_reconciliation(root=tmp_path)
+
+    assert summary.input_status == "partial"
+    assert "canonical fundamentals" in summary.input_message
+    assert _row(summary, "ARCT", "price").current_blocker_code == "current_price_missing"
 
 
 def _file_snapshot(root: Path) -> dict[str, bytes]:
