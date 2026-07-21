@@ -859,3 +859,24 @@ def test_sec_cash_generation_pilot_docs_preserve_review_boundary():
     assert "does not activate Company Workbench" in roadmap
     assert "sec-quarterly-cash-preview" in prompt
     assert "do not repeat the NVIDIA pilot" in prompt
+
+
+def test_company_workbench_cash_preview_docs_preserve_explicit_no_activation_boundary():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "cash_preview=1" in personal
+    assert "Cash-generation review preview" in personal
+    assert "not production evidence" in personal
+    assert "production_activation=false" in provenance
+    assert "readiness_promotions=()" in provenance
+    assert "no canonical persistence" in provenance
+    assert "complete withholding" in methodology
+    assert "Advanced-only technical lineage" in methodology
+    assert "one explicit user-flow composition" in roadmap
+    assert "does not prove a second company" in roadmap
+    assert "do not repeat the NVIDIA pilot" in prompt
+    assert "bounded second-company proof" in prompt
