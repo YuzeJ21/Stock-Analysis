@@ -976,6 +976,10 @@ def test_prospective_field_proof_docs_preserve_stage_a_recording_boundary():
 
     assert "No sample field-proof rows are checked in" in readme
     assert "No sample field-proof rows are checked in" in roadmap
+    assert (
+        "The implemented structured per-ticker/per-field record is prospective-only"
+        in prompt
+    )
     assert "No sample field-proof rows are checked in" in operator
     assert not Path("data/prospective_field_proofs.csv").exists()
 
