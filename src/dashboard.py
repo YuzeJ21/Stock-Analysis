@@ -30256,7 +30256,14 @@ def render_single_stock_report(
     single_stock_loading_placeholder = None
     if public_mode and compact_public_open_report and not report_payload:
         fast_snapshot = single_stock_fast_readiness_snapshot(ticker)
-        render_signal_cards(single_stock_quick_read_cards(fast_snapshot)[:3], show_commands=False, variant="queue")
+        fast_answer_frame = single_stock_one_answer_frame(fast_snapshot)
+        if research_mode:
+            st.markdown(
+                single_stock_public_summary_html(fast_answer_frame, target_mode=RESEARCH_MODE),
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(single_stock_public_summary_html(fast_answer_frame), unsafe_allow_html=True)
         single_stock_loading_placeholder = st.empty()
         with single_stock_loading_placeholder.container():
             render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")

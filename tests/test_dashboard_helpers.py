@@ -30190,18 +30190,56 @@ def test_direct_public_single_stock_route_renders_loading_contract_before_provid
     assert loading_placeholder_index < loading_contract_index < coverage_lookup_index < clear_loading_index
 
 
-def test_direct_public_single_stock_route_renders_fast_saved_answer_before_report_build():
+def test_direct_public_single_stock_route_renders_fast_summary_before_loading_and_provider_work():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     render_index = source.index("def render_single_stock_report(")
     next_function_index = source.index("\ndef render_data_health(", render_index)
     report_chunk = source[render_index:next_function_index]
     fast_snapshot_index = report_chunk.index("fast_snapshot = single_stock_fast_readiness_snapshot(ticker)")
-    fast_cards_index = report_chunk.index("render_signal_cards(single_stock_quick_read_cards(fast_snapshot)", fast_snapshot_index)
-    loading_placeholder_index = report_chunk.index("single_stock_loading_placeholder = st.empty()", fast_cards_index)
-    open_report_index = report_chunk.index("open_selected_report()", loading_placeholder_index)
+    fast_frame_index = report_chunk.index("fast_answer_frame = single_stock_one_answer_frame(fast_snapshot)", fast_snapshot_index)
+    fast_summary_index = report_chunk.index("single_stock_public_summary_html(fast_answer_frame", fast_frame_index)
+    loading_placeholder_index = report_chunk.index("single_stock_loading_placeholder = st.empty()", fast_summary_index)
+    coverage_lookup_index = report_chunk.index("coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))")
+    direct_open_index = report_chunk.index("if query_open_review and not report_payload:", coverage_lookup_index)
+    open_report_index = report_chunk.index("open_selected_report()", direct_open_index)
 
-    assert fast_snapshot_index < fast_cards_index < loading_placeholder_index < open_report_index
+    assert (
+        fast_snapshot_index
+        < fast_frame_index
+        < fast_summary_index
+        < loading_placeholder_index
+        < coverage_lookup_index
+        < direct_open_index
+        < open_report_index
+    )
+    assert "render_signal_cards(single_stock_quick_read_cards(fast_snapshot)" not in report_chunk
+    assert "target_mode=RESEARCH_MODE" in report_chunk[fast_frame_index:loading_placeholder_index]
+
+
+def test_fast_public_single_stock_summary_keeps_answer_order_and_data_health_handoff():
+    fast_snapshot = {
+        "ticker": "NVDA",
+        "status": "partial",
+        "asset_type": "company",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+    }
+
+    rendered = dashboard.single_stock_public_summary_html(
+        dashboard.single_stock_one_answer_frame(fast_snapshot)
+    )
+
+    selected_index = rendered.index("Selected ticker")
+    use_now_index = rendered.index("Use now")
+    withheld_index = rendered.index("Still withheld")
+    handoff_index = rendered.index("Open Data Health")
+
+    assert selected_index < use_now_index < withheld_index < handoff_index
+    assert "?mode=public&amp;page=data-health&amp;ticker=NVDA" in rendered
 
 
 def test_single_stock_public_selector_uses_one_primary_ticker_control():
