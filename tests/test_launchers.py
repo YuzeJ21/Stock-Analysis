@@ -2834,9 +2834,13 @@ def test_makefile_exposes_bytecode_free_consensus_source_review_target():
 
 def test_consensus_record_requires_the_exact_reviewed_preview_receipt():
     makefile = Path("Makefile").read_text(encoding="utf-8")
-    target = makefile.split("earnings-consensus-collection-record:", 1)[1].split(
-        "research-outcome-review:", 1
-    )[0]
+    match = re.search(
+        r"^earnings-consensus-collection-record:\n(?P<body>(?:\t.*\n)+)",
+        makefile,
+        flags=re.MULTILINE,
+    )
+    assert match is not None
+    target = match.group("body")
 
     assert 'test -n "$(AS_OF)"' in target
     assert 'test -n "$(PREVIEW_RECEIPT)"' in target
