@@ -26642,6 +26642,28 @@ def test_single_stock_public_summary_keeps_the_data_health_handoff_visible():
     assert "Stop if peer proof is missing" in rendered
 
 
+def test_single_stock_research_summary_keeps_selected_ticker_readable_without_css():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "AVGO",
+                "Use Now": "Supported evidence is available.",
+                "Still Blocked": "Unsupported evidence remains withheld.",
+                "Context Only": "Research context only.",
+                "Next Safe Action": "Open Data Health.",
+                "Review Boundary": "Keep the review research-only.",
+            }
+        ]
+    )
+
+    rendered = dashboard.single_stock_public_summary_html(frame, target_mode="research")
+    unstyled_text = re.sub(r"<[^>]+>", "", rendered)
+
+    assert "Selected ticker AVGO" in unstyled_text
+    assert "Selected tickerAVGO" not in unstyled_text
+    assert "?mode=research&amp;page=data-health&amp;ticker=AVGO" in rendered
+
+
 def test_public_single_stock_optional_context_uses_a_visitor_boundary_not_an_operator_worklist():
     frame = dashboard.single_stock_one_answer_frame(
         {

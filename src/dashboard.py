@@ -7378,7 +7378,7 @@ def single_stock_public_summary_html(frame: pd.DataFrame, *, target_mode: str = 
     return (
         "<section class='public-ticker-summary' aria-label='Selected ticker answer'>"
         "<div class='public-ticker-name'>"
-        "<span>Selected ticker</span>"
+        "<span>Selected ticker</span> "
         f"<strong>{html.escape(ticker)}</strong>"
         "</div>"
         "<div class='public-ticker-answer use-now'>"
