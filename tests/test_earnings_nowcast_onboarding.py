@@ -119,10 +119,10 @@ def test_validation_accepts_source_backed_rows_without_writing_reports(tmp_path)
         item["value"] for item in result["accepted_rows"] if item["file"] == "consensus_snapshots.csv"
     )
     assert consensus_value.source_ref == CONSENSUS["source_ref"]
-    assert list(input_dir.iterdir()) == [
-        input_dir / "quarterly_actuals.csv",
-        input_dir / "consensus_snapshots.csv",
-    ]
+    assert {path.name for path in input_dir.iterdir()} == {
+        "quarterly_actuals.csv",
+        "consensus_snapshots.csv",
+    }
 
 
 def test_validation_rejects_missing_source_reference_and_post_cutoff_rows(tmp_path):
