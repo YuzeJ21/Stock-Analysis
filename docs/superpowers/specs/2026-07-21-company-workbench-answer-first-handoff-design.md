@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved by the user and implemented on the active feature branch. Focused test-first contracts, the full local release matrix, and desktop/phone browser acceptance pass; exact push, draft-PR update, and exact-head CI evidence remain required before the slice is safe for draft review.
+Approved by the user and implemented in commit `ca4772ffb` on the active feature branch. Focused test-first contracts, the full local release matrix, and desktop/phone browser acceptance pass; exact push, draft-PR update, and exact-head CI evidence remain required before the slice is safe for draft review.
 
 ## Problem
 
