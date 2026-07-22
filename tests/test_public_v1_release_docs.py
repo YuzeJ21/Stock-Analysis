@@ -651,11 +651,12 @@ def test_commercial_beta_continuation_prompt_is_persistent_but_evidence_bound():
     assert "Keep PR #113 draft" in prompt
     assert "Do not merge into main or deploy publicly without explicit approval" in prompt
     assert "Generated CSV, JSON" in prompt
-    assert "Point-in-time consensus: `external_data_required`" in prompt
-    assert "Hosted preview: `external_account_required`" in prompt
-    assert "Controlled beta: `external_reviewers_required`" in prompt
-    assert "Trusted-peer pilot: `external_source_and_review_required`" in prompt
-    assert "Numerical calibration: `external_evidence_required`" in prompt
+    assert "Point-in-time consensus and rights: `permitted_point_in_time_consensus_and_rights_required`" in prompt
+    assert "Hosted account and controls: `hosted_account_and_controls_required`" in prompt
+    assert "Independent reviewers: `independent_reviewers_required`" in prompt
+    assert "Trusted peer/source review: `trustworthy_peer_source_and_review_required`" in prompt
+    assert "Calibration cohort: `calibration_cohort_required`" in prompt
+    assert "Operated owner/incident/rollback capacity: `operated_owner_incident_rollback_capacity_required`" in prompt
     assert "Research-only; no investment advice" in prompt
     assert "Keep the goal active whenever any applicable gate remains incomplete or unproven" in prompt
 
@@ -947,3 +948,98 @@ def test_evidence_integrity_docs_preserve_fail_closed_valuation_and_cutoff_backt
         "Evidence-integrity hardening anchor: commit `7d463bae7` or a later verified descendant"
         in prompt
     )
+
+
+def test_prospective_field_proof_docs_preserve_stage_a_recording_boundary():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    commands = (
+        "make prospective-field-proof-status",
+        "make prospective-field-proof-preview",
+        "make prospective-field-proof-record",
+    )
+    for text in (readme, roadmap, operator, prompt):
+        for command in commands:
+            assert command in text
+        lowered = text.lower()
+        assert "prospective-only" in lowered
+        assert "legacy narrative proof is not upgraded" in lowered
+        assert "absent ledger is a valid empty state" in lowered
+        assert "technical_write_eligible" in text
+        assert "commercial_evidence_eligible" in text
+        assert "preview receipt" in lowered
+        assert "ledger, input, cutoff, commercial mode, and source-rights registry" in lowered
+        assert "does not activate readiness" in lowered
+
+    assert "No sample field-proof rows are checked in" in readme
+    assert "No sample field-proof rows are checked in" in roadmap
+    assert "No sample field-proof rows are checked in" in operator
+    assert not Path("data/prospective_field_proofs.csv").exists()
+
+    for text in (roadmap, operator, prompt):
+        lowered = text.lower()
+        assert "does not update canonical data" in lowered
+        assert "does not update proof-readiness reconciliation" in lowered
+        assert "does not activate company workbench" in lowered
+        assert "separate design" in lowered
+
+    assert "cooperative local locking" in operator.lower()
+    assert "not crash-safe" in operator.lower()
+    assert "not a database transaction" in operator.lower()
+    assert "writers that do not cooperate" in operator.lower()
+
+
+def test_release_docs_distinguish_tracked_and_excluded_readiness_snapshots():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+
+    assert "For 10-20 external reviewer sessions" in readme
+    assert "For 5-10 external reviewer sessions" not in readme
+    assert "`make pilot-readiness-packet` writes `outputs/pilot_readiness_packet.md`" in readme
+    assert "`make pilot-readiness-packet` is not read-only" in readme
+
+    assert "tracked June 7 readiness snapshot" in roadmap
+    assert "excluded July 21 local generated working-data snapshot" in roadmap
+    assert "remains stale under this roadmap's declared-date policy" in roadmap
+    assert "zero stable readiness changes" in roadmap
+    assert "not committed PR evidence" in roadmap
+    assert "does not authorize staging or a readiness rebuild" in roadmap
+    for stale_count in (
+        "current inspection finds 152",
+        "146/146 promotions",
+        "current-snapshot audit reports 3,506",
+        "read-only current snapshot reports 21,246",
+    ):
+        assert stale_count not in roadmap
+
+
+def test_continuation_docs_keep_maturity_lanes_and_external_unblocks_truthful():
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, prompt):
+        assert "Stage A-G labels are continuation maturity lanes only" in text
+        assert "do not replace the numbered Stage 0-6 exit gates" in text
+        assert "Stage B — local field-proof audit and operator hardening" in text
+        assert "no readiness mapping" in text.lower()
+        assert "separate design" in text.lower()
+
+    classifications = (
+        "permitted_point_in_time_consensus_and_rights_required",
+        "hosted_account_and_controls_required",
+        "independent_reviewers_required",
+        "trustworthy_peer_source_and_review_required",
+        "calibration_cohort_required",
+        "operated_owner_incident_rollback_capacity_required",
+    )
+    for classification in classifications:
+        assert prompt.count(classification) == 1
+
+    assert "Subagent review is engineering review only; no GitHub human reviews exist." in prompt
+    assert "10-20 independent task-based reviewers" in prompt
+    assert "one bounded reviewed peer relationship" in prompt
+    assert "at least 100 leakage-safe out-of-sample events" in prompt
+    assert "a named owner and directly rehearsed incident and rollback capacity" in prompt

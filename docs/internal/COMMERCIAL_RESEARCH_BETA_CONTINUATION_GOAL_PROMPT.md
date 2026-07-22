@@ -58,7 +58,8 @@ Expected lineage to verify, never assume:
 - Consensus source-review command implementation anchor: commit `c7e81d667` or a later verified descendant.
 - PR engineering gate hosted-verification anchor: commit `1fdcaaa78` or a later verified descendant; reverify the current revision's check instead of copying the earlier result forward.
 - Public UX post-fix outcome-contract implementation anchor: commit `74eb4055e` or a later verified descendant.
-- The branch should be clean, pushed, and aligned with `origin/codex/personal-research-mode-mvp`.
+- Prospective field-proof Stage A implementation anchor: commit `2c7398402` or a later verified descendant.
+- Do not assume branch cleanliness, push state, or upstream alignment. The tracked PR readiness snapshot remains the June 7 snapshot and is stale under the declared-date policy; an excluded July 21 local generated working-data snapshot may exist but is not committed PR evidence. Reverify with Git and `make readiness-preview TOP_N=20`; the verified local run reported zero stable readiness changes, which does not authorize staging or a readiness rebuild.
 - PR #113 must remain open and draft. Do not merge it.
 - Generated CSV, JSON, readiness reports, stock reports, sample reports, screenshots, browser timing output, and other generated churn must remain excluded unless one exact artifact is intentionally reviewed and explicitly required.
 
@@ -72,6 +73,7 @@ Current locally implemented capabilities to verify:
 - Filed-Q4 EPS uses `primary_split_basis_unverified` when primary split language is absent or malformed; an explicit Q4 table never supplies split proof by itself. Revenue remains independent and arbitrary nonempty basis labels do not unlock EPS.
 - Earnings Nowcast readiness and five-company cohort board.
 - Prospective append-only point-in-time consensus collection contracts.
+- Prospective-only per-field proof operations: `make prospective-field-proof-status`, `make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>`, and explicit `make prospective-field-proof-record INPUT=<same-file> AS_OF=<same-cutoff> PREVIEW_RECEIPT=<exact-receipt> CONFIRM_REVIEWED=1`. An absent ledger is a valid empty state; legacy narrative proof is not upgraded, and no sample rows are product evidence. Preview reports `technical_write_eligible` and `commercial_evidence_eligible` independently, and its preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. The ledger does not activate readiness, does not update canonical data, does not update proof-readiness reconciliation, and does not activate Company Workbench. Any mapping requires a separate design.
 - Historical Valuation Regime, Research Outcome Review, and Catalyst Evidence Timeline.
 - Forward View, Scenario Lab, Source Freshness Timeline, Research Comparison, Peer Read-Through Map, and Decision-Process Scorecard.
 - Fail-closed provenance, source-rights, freshness, candidate-context, and synthetic-fixture controls.
@@ -142,33 +144,30 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - Shared commercial field-scope review proves only consistent checked-in registry metadata for one exact source and ordered required fields. It cannot prove a payload, timestamp, comparability, reviewer intent, collection, activation, readiness, backtesting, calibration, or any non-consensus evidence domain.
 - Consensus source review is a read-only local contract evaluation, not provider entitlement, payload approval, collection, activation, readiness, backtesting, or calibration. Human or JSON output and `auto_apply=false` cannot promote a row or satisfy an external gate.
 - A checked-in GitHub Actions workflow proves only the intended automation contract. Independent hosted CI requires a completed GitHub result on the current commit; a green automated check is not independent human review and proves no source, hosted-product, reviewer, calibration, adoption, or market claim.
+- Subagent review is engineering review only; no GitHub human reviews exist.
 - Named change causes explain existing method decisions only. They cannot alter scope, upgrade partial data, establish current readiness totals, create a company-quality judgment, or authorize a rebuild.
 - The stale readiness continuation gate must suppress broad refresh, source-proof, apply, and readiness-rebuild routing from status surfaces. It does not change provider availability or ranking calculations; those remain planning context only until readiness is current or the separate intentional reviewed write is authorized.
 
+Current local status boundaries, not external-dependency classifications:
+
+- Quarterly cash-generation source adapter: `bounded_two_company_source_preview_accepted_for_review`; NVIDIA Q1 FY2027 and AMD Q1 FY2026 establish bounded two-company portability only. The superseded NVIDIA-only label was Quarterly cash-generation source adapter: `one_company_source_preview_accepted_for_review`. Production activation, broad coverage, historical depth, and Q4 coverage remain unproven; do not repeat the NVIDIA pilot or AMD pilot unless its exact filing changes or a regression is suspected.
+- Quarterly adapter composition remains explicit preview only. It is not canonical evidence activation; the completed bounded second-company proof does not authorize broader scope. Do not add a third company, persistence, or readiness promotion without a separate exact-source design and review.
+- Readiness promotion evidence: `local_evidence_review_required`. Continue only with local no-write lineage validation; do not authorize generated rebuilds or edit source rights without reviewed evidence.
+
 Current external dependency classifications to verify once, then avoid looping:
 
-- Point-in-time consensus: `external_data_required`; the prospective ledger had 0 snapshots at the last verified check. Resume only when a permitted provider is configured or a reviewed CSV is supplied.
-- Prospective consensus commercial rights: `external_source_and_rights_review_required`; the local preview and write guard are implemented, but no checked-in source is approved for `revenue_consensus` or `eps_consensus`. Resume only with reviewed rights evidence for the exact supplied source and only the populated metric scopes; do not infer a provider from a composite label or configured key.
-- Hosted preview: `external_account_required`; repository-side entrypoint, deterministic demo profile, runtime guidance, and checks exist, but no hosted URL or enforced access boundary has been proven.
-- Controlled beta: `external_reviewers_required`; no 10-20 session reviewer cohort has been completed.
-- Trusted-peer pilot: `external_source_and_review_required`; the local contract is implemented, but the existing legacy relationships have no inferred roles or anchor decisions. Resume with one bounded reviewed relationship, not a broad sourcing loop.
-- Quarterly cash-generation source adapter: `bounded_two_company_source_preview_accepted_for_review`; NVIDIA Q1 FY2027 and AMD Q1 FY2026 passed the exact SEC payload, acceptance-time, field-scope, inline-fact, capex-sign, and adapter contracts. Production activation, broad company coverage, historical depth, and Q4 coverage remain unproven; do not repeat the NVIDIA pilot or AMD pilot unless its source filing changes or a regression is suspected.
-- Superseded history: Quarterly cash-generation source adapter: `one_company_source_preview_accepted_for_review` described the NVIDIA-only stage before the AMD result and is not the current classification.
-- Quarterly adapter activation: `explicit_preview_only_composition_implemented`; bounded NVIDIA and AMD Company Workbench routes now render accepted results without production activation, persistence, readiness promotion, or normal-route changes. This is not canonical evidence activation.
-- Quarterly cash-generation portability: `bounded_two_company_preview_implemented`; NVIDIA Q1 FY2027 and AMD Q1 FY2026 use one immutable exact-filing loader and explicit preview-only Workbench path. This proves bounded two-company portability only. Do not add a third company, run broad coverage, infer filing identity, persist observations, or promote readiness without a separately justified exact-source design and review.
-- The AMD result completed the former bounded second-company proof; it did not authorize any broader coverage or readiness promotion.
-- Readiness promotion evidence: `local_evidence_review_required`; the current no-write inspection finds substantial proposed fundamentals/DCF movement, but exact-source rights, durable provenance, registered field scope, and complete DCF price-source provenance are not all satisfied. Continue with local lineage validation; do not authorize a generated rebuild or edit rights without reviewed evidence.
-- DCF price lineage: `external_source_and_review_required_for_commercial_use`; the current no-write inspection finds one usable unambiguous latest row for all 146 proposed DCF promotions but 0 complete row-level lineage, 0 approved exact-source rights, and 0 registered price scope because canonical source IDs are absent. The local staged path can preserve future lineage, report exact-source rights/scope, and block an incomplete commercial apply, but no real row was added. Do not infer historical providers or mass-rewrite price history. Resume only when one permitted reviewed export exists: normalize one ticker with explicit `SOURCE`, `SOURCE_REF`, and `RETRIEVED_AT`, run no-write validate/preview, review the exact rights/scope result and payload, then make a separate explicit apply decision.
-- Direct commercial price provider: `external_source_and_rights_review_required`; local construction and mutation now fail closed, but the checked-in registry approves no exact direct provider with literal `prices` scope. Resume only after reviewed rights evidence is recorded for one exact provider and keep payload review, row lineage, apply intent, readiness, and proof independent.
-- Numerical calibration: `external_evidence_required`; keep probability withheld until the valid-event threshold and quality gates pass.
-- Operated platform controls: `external_account_and_operations_required`; authentication, workspace isolation, audit, retention, entitlements, monitoring, and health checks must be directly proven in the actual environment.
-- Independent engineering legitimacy: hosted CI is `verified_on_recorded_lineage` and must be reverified on every later revision; independent human review remains `external_reviewer_required` until a reviewer submits evidence on PR #113.
+- Point-in-time consensus and rights: `permitted_point_in_time_consensus_and_rights_required`. Unblock only when a permitted point-in-time provider is configured or a reviewed CSV is supplied **and** reviewed rights evidence approves that exact source and each populated consensus field; then run source review and collection preview without inferring a provider or recording readiness.
+- Hosted account and controls: `hosted_account_and_controls_required`. Unblock only with an intentional host account, a directly verified URL, enforced claimed access controls, user/workspace isolation, health checks, and rollback evidence in that environment.
+- Independent reviewers: `independent_reviewers_required`. Unblock the engineering-review portion only when a human submits review evidence on PR #113, and unblock the beta-validation portion only after 10-20 independent task-based reviewers complete the controlled workflow with recorded reproducible observations. Subagent and automated review do not satisfy either condition.
+- Trusted peer/source review: `trustworthy_peer_source_and_review_required`. Unblock only with a trustworthy relationship source and review capacity sufficient to preserve one bounded reviewed peer relationship, including role, rationale, comparability, source/as-of evidence, and explicit valuation-anchor eligibility.
+- Calibration cohort: `calibration_cohort_required`. Unblock only after at least 100 leakage-safe out-of-sample events exist and the declared Brier-score, calibration-bin, and benchmark-improvement gates pass; keep numerical probability withheld before then.
+- Operated owner/incident/rollback capacity: `operated_owner_incident_rollback_capacity_required`. Unblock only with a named owner and directly rehearsed incident and rollback capacity, plus directly verified audit, retention, entitlements, monitoring, and health-check operation. A local runbook or hosted URL is insufficient.
 
 Execution order for each continuation:
 
 1. Verify current branch, worktree, latest commits, upstream alignment, PR #113 draft status, ROADMAP.md, generated-artifact hygiene, current tests, and current product gates.
 2. Review unresolved PR feedback and roadmap claims against live code and runtime behavior.
-3. Before reusing a supporting proof outcome, run `make proof-readiness-reconciliation TOP_N=20`; keep `historical_supported_currently_blocked` lanes blocked, keep scope-only outcomes non-supporting at ticker level, route each current blocker to its named safe review, and move to fresh evidence or another executable lane. Never infer historical source, rights, scope, or cause from narrative proof; a structured per-ticker/per-field proof record is prospective future work, not a retroactive upgrade.
+3. Before reusing a supporting proof outcome, run `make proof-readiness-reconciliation TOP_N=20`; keep `historical_supported_currently_blocked` lanes blocked, keep scope-only outcomes non-supporting at ticker level, route each current blocker to its named safe review, and move to fresh evidence or another executable lane. Never infer historical source, rights, scope, or cause from narrative proof; the implemented structured per-ticker/per-field record is prospective-only and does not retroactively upgrade narrative history.
 4. Audit the complete user workflow: Research Desk -> Discover -> Company Workbench -> Monitor.
 5. Identify the highest-impact executable usability, methodology, evidence, reliability, or operating-readiness gap that moves an actual completion gate closer.
 6. Implement one coherent slice with failing tests first where behavior changes.
@@ -179,7 +178,11 @@ Execution order for each continuation:
 11. Stage exact intentional paths only, commit the verified slice, push only the named branch, and update PR #113 while keeping it draft.
 12. Continue to the next safe executable item rather than ending merely because one slice is complete.
 
-Stage gates:
+Continuation maturity lanes:
+
+Stage A-G labels are continuation maturity lanes only; they do not replace the numbered Stage 0-6 exit gates below. Stage A is the implemented isolated prospective field-proof primitive. Stage B — local field-proof audit and operator hardening is the next safe local lane: improve read-only audit, error explanation, and operator review ergonomics only, with no readiness mapping. Mapping field proof into proof-readiness reconciliation, Company Workbench, canonical data, or any readiness lane requires a separate design and approval. Later lettered lanes remain planning labels until separately designed; they grant no release-stage exit.
+
+Numbered release stage gates:
 
 Stage 0 — Independent engineering legitimacy
 - Keep the minimal PR-only workflow read-only, least privilege, and free of providers, readiness generation, schedules, secrets, deployment, and artifact uploads.

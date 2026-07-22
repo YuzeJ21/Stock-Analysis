@@ -127,6 +127,29 @@ The dashboard and single-stock report use plain modes before showing detailed ta
 
 ## Data Proof Workflows
 
+### Prospective Per-Field Proof
+
+The Stage A ledger is prospective-only. It preserves one exact reviewed ticker/field identity and revision chain without treating older batch narratives as structured evidence: legacy narrative proof is not upgraded. No sample field-proof rows are checked in, and an absent ledger is a valid empty state. A present empty, header-only, malformed, forked, or otherwise invalid ledger fails closed.
+
+Inspect status first, then preview one separately supplied reviewed CSV:
+
+```bash
+make prospective-field-proof-status
+make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>
+```
+
+Both commands are read-only. Preview reports `technical_write_eligible` and `commercial_evidence_eligible` independently, so research-mode technical recording cannot be mistaken for commercial permission. The preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. Review the proposed identities, timestamps, revision chain, source reference, payload digest, reviewer disposition, rights decision, registered field scope, and both blocker lists before recording.
+
+Record only the exact reviewed preview:
+
+```bash
+make prospective-field-proof-record INPUT=<same-reviewed-field-proof.csv> AS_OF=<same-utc-cutoff> PREVIEW_RECEIPT=<exact-receipt> CONFIRM_REVIEWED=1
+```
+
+Record is an explicit append. It repeats validation and rejects any changed ledger, input, cutoff, commercial mode, or source-rights registry. Recording uses cooperative local locking for writers that follow this protocol. It is not crash-safe, not a database transaction, and does not protect against writers that do not cooperate or replace the path outside the protocol.
+
+This primitive does not activate readiness, does not update canonical data, does not update proof-readiness reconciliation, and does not activate Company Workbench, dashboards, reports, or legacy ledgers. A proof identity does not establish payload truth, source rights, commercial eligibility, freshness, or reviewer independence. Any readiness, reconciliation, canonical, or Workbench mapping requires a separate design.
+
 Before reusing any historical `supported`, `auto_supported`, or `human_reviewed_supported` batch outcome as evidence for current work, reconcile it with current saved readiness:
 
 ```bash
