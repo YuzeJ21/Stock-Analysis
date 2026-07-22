@@ -980,6 +980,7 @@ def test_prospective_field_proof_docs_preserve_stage_a_recording_boundary():
         "The implemented structured per-ticker/per-field record is prospective-only"
         in prompt
     )
+    assert "structured per-ticker/per-field proof record is prospective future work" not in prompt
     assert "No sample field-proof rows are checked in" in operator
     assert not Path("data/prospective_field_proofs.csv").exists()
 
