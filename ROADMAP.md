@@ -372,7 +372,9 @@ A blocked priority does not become complete, and skipping it does not weaken its
 
 ### Priority 1 — Legacy portfolio, ranking, and action-language quarantine
 
-**Current lane:** local and executable.
+**Status:** Priority 1 — completed locally.
+
+**Current lane:** locally implemented and verified; external product-maturity gates remain separate.
 
 1. Inventory every Personal Research, Public, Advanced, operator, report, test, and documentation surface that exposes legacy portfolio, ranking, or transaction-like language.
 2. Remove those concepts from primary research navigation and public product claims, or place them behind an explicit `Legacy research utility — not part of Personal Research Mode` boundary.
@@ -380,6 +382,8 @@ A blocked priority does not become complete, and skipping it does not weaken its
 4. Preserve any retained legacy calculation only when required for compatibility and prove it cannot feed Research Decision Lab, company conclusions, readiness, recommendations, sizing, or transaction behavior.
 
 **Exit gate:** route, wording, report, and no-trading tests directly prove that the supported Personal Research workflow remains research-only and that any retained legacy surface is unmistakably isolated.
+
+**Current evidence:** the exact five-page quarantine set is Operator-only; Public and Personal Research deep links fail closed; Operator labels and pages show `Legacy research utility — not part of Personal Research Mode`; detailed compatibility output requires an explicit collapsed control; and source-contract tests prove Company Workbench and Research Decision Lab do not consume legacy portfolio, monthly-pick, momentum, value/re-rating, or final-watchlist outputs. Retained calculations and filenames remain compatibility-only and create no readiness, recommendation, sizing, or transaction authority.
 
 ### Priority 2 — Stage B field-proof audit and operator hardening
 

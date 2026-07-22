@@ -20,6 +20,13 @@ RESEARCH_PATH_PAGE_TITLES = [
     "Company Workbench",
     "Monitor",
 ]
+LEGACY_RESEARCH_UTILITY_PAGES = (
+    "Monthly Picks",
+    "Momentum Leaders",
+    "Portfolio Review",
+    "Value / Re-rating",
+    "Final Watchlist",
+)
 PUBLIC_PATH_LABELS = {
     "Home": "Home",
     "Single-Stock Report": "Single-Stock Report",
@@ -182,6 +189,23 @@ def dashboard_mode_from_query(value: object, initial_page: str, advanced_titles:
 
 def dashboard_mode_label(mode: str) -> str:
     return DEMO_MODE_LABELS.get(mode, DEMO_MODE_LABELS[PUBLIC_DEMO_MODE])
+
+
+def legacy_research_utility_label(page_title: str) -> str:
+    if page_title in LEGACY_RESEARCH_UTILITY_PAGES:
+        return f"Legacy utility · {page_title}"
+    return page_title
+
+
+def workspace_page_for_mode(page_title: str, mode: str) -> str:
+    """Fail closed when a compatibility-only route is requested outside Operator."""
+    if page_title not in LEGACY_RESEARCH_UTILITY_PAGES:
+        return page_title
+    if mode == OPERATOR_DEMO_MODE:
+        return page_title
+    if mode == RESEARCH_MODE:
+        return "Research Desk"
+    return "Home"
 
 
 def sidebar_path_options(initial_page: str, advanced_titles: list[str]) -> list[str]:

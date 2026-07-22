@@ -66,7 +66,7 @@ Every quarantined page begins with the exact boundary:
 
 `Legacy research utility — not part of Personal Research Mode`
 
-The boundary explains that the retained view is compatibility-only and cannot provide recommendations, ranking for action, position sizing, transaction direction, readiness, or Decision Lab evidence. Detailed candidate cards, charts, track records, position/cost-basis fields, and tables render only inside a collapsed `Advanced: legacy compatibility output` disclosure.
+The boundary explains that the retained view is compatibility-only and cannot provide recommendations, ranking for action, position sizing, transaction direction, readiness, or Decision Lab evidence. Detailed candidate cards, charts, track records, position/cost-basis fields, and tables require expanding `Advanced: legacy compatibility output` and then selecting a separate load checkbox. Rendering occurs only after both deliberate Operator actions, which avoids unsupported nested Streamlit expanders while keeping the default page free of legacy output.
 
 The primary view contains only the legacy boundary and fail-closed availability state. It must not expose a ranked candidate, disposition, position percentage, cost basis, entry/exit zone, or transaction-like action.
 
@@ -96,7 +96,7 @@ The slice exits only when direct tests prove:
 1. the exact quarantine set and operator labels;
 2. Personal Research and Public deep links fail closed to their safe home pages;
 3. Operator deep links remain available;
-4. quarantined output is wrapped in one collapsed legacy disclosure;
+4. quarantined output requires one collapsed legacy disclosure plus explicit load confirmation;
 5. Research Decision Lab and Company Workbench do not import or consume legacy portfolio, monthly-pick, or final-watchlist contracts;
 6. public wording and no-trading checks remain green;
 7. full tests, dashboard render checks, release checks, and hygiene checks pass without staging generated churn.

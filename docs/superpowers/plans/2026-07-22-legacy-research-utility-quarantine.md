@@ -54,7 +54,7 @@ Run: `python3 -m pytest tests/test_dashboard_navigation.py tests/test_research_m
 
 - [ ] **Step 1: Write failing source and render-helper tests**
 
-Require the exact boundary copy and one collapsed `Advanced: legacy compatibility output` wrapper. Prove legacy page renderers use the wrapper and do not render their detailed tables before it.
+Require the exact boundary copy, one collapsed `Advanced: legacy compatibility output` disclosure, and a separate load checkbox. Prove legacy page renderers do not render details until the Operator deliberately uses both controls.
 
 - [ ] **Step 2: Run focused tests and verify RED**
 
@@ -62,7 +62,7 @@ Run: `python3 -m pytest tests/test_dashboard_helpers.py tests/test_research_mode
 
 - [ ] **Step 3: Implement the shared legacy shell**
 
-Render the compatibility boundary first. Move Monthly Picks details and the five quarantined output-tab branches inside the collapsed disclosure. Preserve explicit missing-output states without generating data.
+Render the compatibility boundary first. Gate Monthly Picks details and the five quarantined output-tab branches behind the collapsed disclosure and explicit load checkbox. Render after confirmation rather than nesting existing Streamlit expanders. Preserve explicit missing-output states without generating data.
 
 - [ ] **Step 4: Add and pass isolation tests**
 

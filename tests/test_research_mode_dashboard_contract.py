@@ -24,6 +24,64 @@ def test_dashboard_defaults_local_use_to_research_desk_and_preserves_explicit_mo
     ) == "Data Health"
 
 
+def test_dashboard_quarantines_legacy_deep_links_outside_operator_mode():
+    for page in nav.LEGACY_RESEARCH_UTILITY_PAGES:
+        assert dashboard.workspace_default_page(
+            page,
+            mode=nav.RESEARCH_MODE,
+            has_explicit_page_query=True,
+        ) == "Research Desk"
+        assert dashboard.workspace_default_page(
+            page,
+            mode=nav.PUBLIC_DEMO_MODE,
+            has_explicit_page_query=True,
+        ) == "Home"
+        assert dashboard.workspace_default_page(
+            page,
+            mode=nav.OPERATOR_DEMO_MODE,
+            has_explicit_page_query=True,
+        ) == page
+
+
+def test_legacy_renderers_use_one_collapsed_compatibility_boundary():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    shell_start = source.index("def render_legacy_research_utility_shell(")
+    shell_end = source.index("\ndef render_monthly_picks(", shell_start)
+    shell = source[shell_start:shell_end]
+    monthly_start = source.index("def render_monthly_picks(")
+    monthly_end = source.index("\ndef _render_monthly_picks_legacy_output(", monthly_start)
+    monthly = source[monthly_start:monthly_end]
+    output_start = source.index("def render_output_tab(")
+    output_end = source.index("\ndef _render_legacy_output_tab(", output_start)
+    output = source[output_start:output_end]
+
+    assert "Legacy research utility — not part of Personal Research Mode" in shell
+    assert "recommendations, company ranking for action, position sizing, transaction direction" in shell
+    assert 'st.expander("Advanced: legacy compatibility output", expanded=False)' in monthly
+    assert "_render_monthly_picks_legacy_output(catalog)" in monthly
+    assert 'st.expander("Advanced: legacy compatibility output", expanded=False)' in output
+    assert "_render_legacy_output_tab(title, output_frames, show_reason_details)" in output
+
+
+def test_decision_lab_and_company_workbench_do_not_consume_legacy_utility_outputs():
+    dashboard_source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    workbench_start = dashboard_source.index("def render_company_workbench(")
+    workbench_end = dashboard_source.index("\ndef main()", workbench_start)
+    workbench = dashboard_source[workbench_start:workbench_end]
+    lab_source = (Path(dashboard.__file__).parent / "research_decision_lab.py").read_text(encoding="utf-8")
+
+    forbidden = (
+        "portfolio_review",
+        "monthly_picks",
+        "final_watchlist",
+        "momentum_leaders",
+        "undervalued_candidates",
+    )
+    for token in forbidden:
+        assert token not in lab_source
+        assert token not in workbench
+
+
 def test_dashboard_research_paths_map_to_existing_renderers_without_changing_public_flow():
     assert dashboard.dashboard_page_from_query("research-desk") == "Research Desk"
     assert dashboard.dashboard_page_from_query("discover") == "Discover"

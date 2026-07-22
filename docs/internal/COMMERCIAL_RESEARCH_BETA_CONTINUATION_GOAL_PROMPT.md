@@ -183,12 +183,15 @@ This is the authoritative priority order after the completed Research Decision L
 A blocked priority does not become complete, and moving past it does not weaken its exit gate. Local contracts, fixtures, screenshots, subagent reviews, and green tests cannot substitute for direct source, hosted, accessibility, independent-user, or calibration evidence. Continue cycling through the ordered program while safe executable work exists; overall completion requires direct current evidence for every applicable priority.
 
 Priority 1 — Legacy portfolio, ranking, and action-language quarantine
+- Priority 1 is complete locally. The five retained compatibility pages are Operator-only, Public and Personal Research deep links fail closed, and every retained page is labeled `Legacy research utility — not part of Personal Research Mode` with details behind an explicit collapsed control.
+- Direct route, wording, and source-contract tests prove retained legacy output cannot feed Company Workbench, Research Decision Lab, readiness, recommendations, sizing, or transaction behavior. Historical calculations and filenames remain compatibility-only.
 - Inventory every Personal Research, Public, Advanced, operator, report, test, and documentation surface that exposes legacy portfolio, ranking, position, cost-basis, or transaction-like language.
 - Remove those concepts from supported primary flows and public claims, or isolate them behind an unmistakable `Legacy research utility — not part of Personal Research Mode` boundary.
 - Quarantine legacy picks, disposition, entry-zone, add-candidate, position-percentage, cost-basis, and ranked-company labels. Prove retained compatibility code cannot feed the Decision Lab, conclusions, readiness, recommendations, sizing, or transaction behavior.
 - Exit only when route, wording, report, and no-trading tests directly prove the isolation.
 
 Priority 2 — Stage B field-proof audit and operator hardening
+- Priority 2 is the next local executable lane.
 - Complete the approved read-only audit for prospective field-proof records, preview receipts, append-only history, blocker explanations, and operator review ergonomics.
 - Preserve no readiness mapping, no canonical-data change, no Company Workbench activation, and no automatic evidence recording.
 - Exit only when focused read-only evidence proves clearer deterministic review and errors with no ledger or generated-artifact write.

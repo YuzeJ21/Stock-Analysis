@@ -6,15 +6,17 @@ This project is a local, CSV-first stock research command center. It helps a use
 
 The product is not a trading bot. It does not place orders, connect to brokers, recommend options trades, or fabricate missing market, fundamentals, earnings, or analyst-estimate data.
 
+The supported workflow is `Research Desk -> Discover -> Company Workbench -> Monitor`. Operator-only legacy compatibility utilities are retained for deterministic regression and historical file contracts, not as current investing capability.
+
 ## Target User
 
 The target user is an individual investor or research reviewer who wants a deterministic local workflow for:
 
 - maintaining a broad market universe;
 - narrowing that universe into an active research list;
-- reviewing portfolio holdings;
+- reviewing one company and its source-backed research record;
 - tracking readiness by analysis feature;
-- generating watchlists only when the needed data exists;
+- monitoring a focused cohort without ranking companies for action;
 - seeing exact data blockers and next import actions.
 
 ## Non-Goals
@@ -98,6 +100,12 @@ The product is now organized around a few research-facing surfaces:
 - Markdown reports under `outputs/stock_reports/`: small visitor-readable examples of richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data modes.
 
 The primary public path is: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence.
+
+## Legacy Compatibility Boundary
+
+`Monthly Picks`, `Momentum Leaders`, `Portfolio Review`, `Value / Re-rating`, and `Final Watchlist` are Operator-only compatibility utilities. Every retained page is labeled **Legacy research utility — not part of Personal Research Mode**, and its detailed output is hidden behind an explicit collapsed compatibility control.
+
+These utilities preserve historical algorithms, regression checks, and output filenames only. They cannot feed Research Decision Lab, cannot change readiness, and cannot produce recommendations, sizing, or transaction behavior. Public and Personal Research routes cannot open them. Retained position, cost-basis, disposition, ranked-candidate, or action-like fields are not supported product claims.
 
 These surfaces must show supported, blocked, partial, and excluded states before showing detailed tables. Broad-universe tables, command blocks, route maps, and proof ledgers should stay filtered, row-limited, collapsed, or operator-scoped by default.
 

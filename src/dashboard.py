@@ -133,11 +133,13 @@ from src.dashboard_navigation import (
     RESEARCH_MODE,
     RESEARCH_PATH_PAGE_TITLES,
     STOCK_SELECTOR_PATH_TITLE,
+    LEGACY_RESEARCH_UTILITY_PAGES,
     advanced_page_titles as _advanced_page_titles,
     dashboard_mode_from_query as _dashboard_mode_from_query,
     dashboard_mode_label,
     dashboard_page_from_query as _dashboard_page_from_query,
     dashboard_page_slug,
+    legacy_research_utility_label,
     page_title_from_public_path,
     public_path_label,
     public_workflow_position,
@@ -148,6 +150,7 @@ from src.dashboard_navigation import (
     selected_page_from_route_rail,
     sidebar_path_index as _sidebar_path_index,
     sidebar_path_options as _sidebar_path_options,
+    workspace_page_for_mode,
 )
 from src.data_health_proof_checklist import (
     proof_checklist_summary_cards as data_health_proof_checklist_summary_cards,
@@ -456,6 +459,7 @@ def dashboard_mode_from_query(value: object, initial_page: str = "Home") -> str:
 
 
 def workspace_default_page(initial_page: str, *, mode: str, has_explicit_page_query: bool) -> str:
+    initial_page = workspace_page_for_mode(initial_page, mode)
     if has_explicit_page_query:
         return initial_page
     if mode == RESEARCH_MODE and initial_page == "Home":
@@ -30076,7 +30080,29 @@ def render_home_page(
         )
 
 
+def render_legacy_research_utility_shell(title: str) -> None:
+    render_section_header(title, "Retained only for deterministic compatibility and operator regression review.")
+    render_context_note(
+        "Legacy research utility — not part of Personal Research Mode",
+        "This retained view cannot provide recommendations, company ranking for action, position sizing, transaction direction, readiness, or Decision Lab evidence.",
+        tone="warning",
+    )
+
+
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
+    render_legacy_research_utility_shell("Monthly Picks")
+    with st.expander("Advanced: legacy compatibility output", expanded=False):
+        show_legacy_output = st.checkbox(
+            "Load legacy monthly candidate and track-record output",
+            value=False,
+            help="Compatibility review only. This output is excluded from Personal Research Mode and product conclusions.",
+            key="legacy-monthly-picks-output",
+        )
+    if show_legacy_output:
+        _render_monthly_picks_legacy_output(catalog)
+
+
+def _render_monthly_picks_legacy_output(catalog: LocalDataCatalog) -> None:
     render_advanced_page_shell(
         "Monthly Picks",
         "A compact, data-gated research-candidate list. Scores help decide what to review next; they are not advice, allocation guidance, or a conclusion list.",
@@ -30247,6 +30273,19 @@ def render_advanced_page_shell(title: str, caption: str) -> None:
 
 
 def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
+    render_legacy_research_utility_shell(title)
+    with st.expander("Advanced: legacy compatibility output", expanded=False):
+        show_legacy_output = st.checkbox(
+            f"Load legacy {title.lower()} output",
+            value=False,
+            help="Compatibility review only. This output is excluded from Personal Research Mode and product conclusions.",
+            key=f"legacy-output-{dashboard_page_slug(title)}",
+        )
+    if show_legacy_output:
+        _render_legacy_output_tab(title, output_frames, show_reason_details)
+
+
+def _render_legacy_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
     filename = TAB_TO_FILE[title]
     frame, message = output_frames[filename]
     render_advanced_page_shell(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
@@ -34837,6 +34876,7 @@ def main() -> None:
                     index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
                     if initial_page in ADVANCED_PAGE_TITLES
                     else 0,
+                    format_func=legacy_research_utility_label,
                     help="Additional research views remain available, but first-time visitors can stay with the main path.",
                 )
                 if advanced_page != "Keep current path":

@@ -141,6 +141,33 @@ def test_dashboard_navigation_mode_defaults_research_unless_explicit_or_advanced
     assert nav.dashboard_mode_label(nav.OPERATOR_DEMO_MODE) == "Operator mode"
 
 
+def test_legacy_research_utilities_have_an_exact_operator_only_contract():
+    assert nav.LEGACY_RESEARCH_UTILITY_PAGES == (
+        "Monthly Picks",
+        "Momentum Leaders",
+        "Portfolio Review",
+        "Value / Re-rating",
+        "Final Watchlist",
+    )
+
+    for page in nav.LEGACY_RESEARCH_UTILITY_PAGES:
+        assert nav.legacy_research_utility_label(page) == f"Legacy utility · {page}"
+        assert nav.workspace_page_for_mode(page, nav.PUBLIC_DEMO_MODE) == "Home"
+        assert nav.workspace_page_for_mode(page, nav.RESEARCH_MODE) == "Research Desk"
+        assert nav.workspace_page_for_mode(page, nav.OPERATOR_DEMO_MODE) == page
+
+    assert nav.legacy_research_utility_label("Data Health") == "Data Health"
+    assert nav.workspace_page_for_mode("Data Health", nav.RESEARCH_MODE) == "Data Health"
+
+
+def test_legacy_aliases_remain_available_for_operator_compatibility():
+    pages = nav.PUBLIC_PATH_PAGE_TITLES + list(nav.LEGACY_RESEARCH_UTILITY_PAGES)
+
+    assert nav.dashboard_page_from_query("monthly-picks", pages) == "Monthly Picks"
+    assert nav.dashboard_page_from_query("portfolio-review", pages) == "Portfolio Review"
+    assert nav.dashboard_page_from_query("final-watchlist", pages) == "Final Watchlist"
+
+
 def test_dashboard_navigation_supports_personal_research_mode_without_changing_public_paths():
     advanced = ["Overview", "Monthly Picks", "Universe Manager"]
 

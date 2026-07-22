@@ -1257,3 +1257,30 @@ def test_research_decision_lab_release_docs_bind_local_completion_to_current_evi
     )
     for text in (roadmap, decision_prompt, commercial_prompt):
         assert external_boundary in text
+
+
+def test_legacy_research_utility_quarantine_is_consistent_across_product_docs():
+    readme = _read("README.md")
+    product_spec = _read("PRODUCT_SPEC.md")
+    readiness = _read("READINESS_MODEL.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-legacy-research-utility-quarantine-design.md")
+
+    boundary = "Legacy research utility — not part of Personal Research Mode"
+    for text in (readme, product_spec, readiness, roadmap, prompt, design):
+        assert boundary in text
+
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in readme
+    assert "Operator-only legacy compatibility utilities" in product_spec
+    assert "compatibility-only readiness rows" in readiness
+    assert "Priority 1 — completed locally" in roadmap
+    assert "Priority 2 — Stage B field-proof audit and operator hardening" in roadmap
+    assert "Priority 1 is complete locally" in prompt
+    assert "Priority 2 is the next local executable lane" in prompt
+
+    for text in (readme, product_spec, readiness):
+        lowered = text.lower()
+        assert "cannot feed research decision lab" in lowered
+        assert "cannot change readiness" in lowered
+        assert "cannot produce recommendations, sizing, or transaction behavior" in lowered
