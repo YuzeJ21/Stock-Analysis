@@ -571,7 +571,9 @@ def preview_field_proof_batch(
             state=state,
             reason=reason,
             technical_write_eligible=technical_write_eligible,
-            proof_identity=field_proof_identity(record),
+            proof_identity=(
+                field_proof_identity(record) if technical_write_eligible else ""
+            ),
             rights_status=rights_status,
             commercial_rights_approved=commercial_rights_approved,
             required_supported_fields=required_supported_fields,

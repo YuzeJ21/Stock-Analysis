@@ -330,12 +330,31 @@ def test_timestamp_utc_zero_offset_forms_remain_valid(suffix: str):
     assert validate_field_proof_ledger((record,)) is None
 
 
-def test_preview_rejects_nonzero_offset_before_any_ledger_write(tmp_path: Path):
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("observed_at", "2026-07-18T06:00:00+01:00"),
+        ("retrieved_at", "2026-07-18T01:00:01-04:00"),
+        ("reviewed_at", "2026-07-18T10:30:02+05:30"),
+    ],
+)
+def test_preview_rejects_nonzero_offset_without_identity_or_ledger_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    value: str,
+):
     ledger = tmp_path / "proofs.csv"
-    proposed = _reidentified(
-        _record(),
-        reviewed_at="2026-07-18T06:00:02+01:00",
-    )
+    proposed = _reidentified(_record(), **{field: value})
+    identity_calls = 0
+    original_identity = field_proof_identity
+
+    def identity_spy(record: ProspectiveFieldProofRecord) -> str:
+        nonlocal identity_calls
+        identity_calls += 1
+        return original_identity(record)
+
+    monkeypatch.setattr(field_proof, "field_proof_identity", identity_spy)
 
     preview = preview_field_proof_batch(
         (),
@@ -346,8 +365,15 @@ def test_preview_rejects_nonzero_offset_before_any_ledger_write(tmp_path: Path):
     )
 
     assert preview.technical_write_eligible is False
-    assert "reviewed_at must use UTC" in " ".join(preview.technical_blockers)
-    with pytest.raises(ValueError, match="rejected_batch: .*reviewed_at must use UTC"):
+    assert preview.input_digest == _records_digest((proposed,))
+    assert preview.preview_receipt
+    assert f"{field} must use UTC" in " ".join(preview.technical_blockers)
+    assert preview.rows[0].proof_identity == ""
+    assert identity_calls == 0
+    assert preview.rows[0].commercial_blockers == (
+        "record_rights_status:unverified",
+    )
+    with pytest.raises(ValueError, match=rf"rejected_batch: .*{field} must use UTC"):
         append_reviewed_field_proof_batch(
             ledger,
             (proposed,),
@@ -357,6 +383,7 @@ def test_preview_rejects_nonzero_offset_before_any_ledger_write(tmp_path: Path):
             review_cutoff=preview.review_cutoff,
             preview_receipt=preview.preview_receipt,
         )
+    assert identity_calls == 0
     assert not ledger.exists()
 
 
