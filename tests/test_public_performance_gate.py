@@ -72,7 +72,7 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Research-only",
     )
     assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
-    assert RESEARCH_ROUTE_SPECS[2].first_useful_marker == "Company Workbench"
+    assert RESEARCH_ROUTE_SPECS[2].first_useful_marker == "USE NOW"
     assert "Selected Company" not in RESEARCH_ROUTE_SPECS[2].full_markers
     assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers
     assert "What Remains Withheld" in RESEARCH_ROUTE_SPECS[2].full_markers

@@ -170,19 +170,21 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
 def test_readme_has_compact_current_next_stages_for_external_reviewers():
     readme = _read("README.md")
 
-    assert "## Personal Research Start Here" in readme
+    assert readme.count("## External Reviewer Start Here") == 1
+    assert "## Personal Research Start Here" not in readme
+    assert "Primary product workflow" in readme
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in readme
-    assert "Public remains the controlled demo" in readme
+    assert "Secondary controlled demo" in readme
+    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in readme
     assert "Data Health and Proof History stay under **Advanced Evidence**" in readme
     assert "## Now / Next / Not Yet" in readme
     assert "| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, manual gates, and a locally passed performance gate. | Use `make public-check` before sharing; keep generated churn excluded and do not treat local timing as hosted proof. |" in readme
     assert "| Next | Optional controlled hosted preview and task-based external pilot review. | Hosting remains external until a URL is verified; reviewer feedback must remain anonymous workflow evidence, not investment opinion. |" in readme
     assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |" in readme
     assert "This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified." in readme
-    assert "The local fixed-demo performance gate has passed and remains a regression check" in readme
-    assert "The active evidence stage is a narrow, append-only Earnings Nowcast pilot" in readme
-    assert "hosting and external review remain separate external stages" in readme
-    assert readme.index("## Personal Research Start Here") < readme.index("## External Reviewer Start Here")
+    assert "local Commercial Research Beta foundation" in readme
+    assert "not a hosted or commercially launched product" in readme
+    assert "Authentication, private workspaces, operated data rights, real beta users, and repeatable provider operations remain separate gates" in readme
     assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Not Yet")
     assert readme.index("## Now / Next / Not Yet") < readme.index("## What You Can Analyze")
 
@@ -319,6 +321,12 @@ def test_product_direction_decision_stays_provisional_until_external_evidence_ex
 def test_linkedin_brief_has_now_next_not_yet_share_framing():
     linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
 
+    assert "Stock Research Command Center | Evidence-First Company Research" in linkedin
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in linkedin
+    assert "stable GitHub repository link only after this reviewed feature reaches the default branch" in linkedin
+    assert "Draft engineering preview" in linkedin
+    assert "readiness counts" not in linkedin.lower()
+    assert "Workbench answer-first screenshot" in linkedin
     assert "## Now / Next / Not Yet" in linkedin
     assert "| Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |" in linkedin
     assert "| Next | Source-backed Earnings Nowcast evidence pilot, plus optional hosted preview and controlled review. | Keep synthetic fixtures separate from real evidence; do not imply a hosted URL, private access, predictive validation, or provider-backed automation before verification. |" in linkedin
@@ -430,7 +438,8 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
     assert readme.index("## External Reviewer Start Here") < readme.index("## External Reviewer Handoff")
     assert readme.index("## External Reviewer Handoff") < readme.index("## Data Coverage Strategy")
     assert "Confirm `README.md` starts with `External Reviewer Start Here`" in checklist
-    assert "then `make dashboard` and the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path" in checklist
+    assert "then Research Desk -> Discover -> Company Workbench -> Monitor" in checklist
+    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History as the secondary controlled Public demo" in checklist
     assert "Keep terminal proof commands secondary" in checklist
     assert "Put the best demo commands near the top" not in checklist
 
@@ -601,6 +610,11 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert "make project-status-check       Read current coverage, blockers, and executable next steps" in makefile
     assert "Check current counts:    make status-check TOP_N=5" in makefile
     assert "make linkedin-share-check" in makefile
+    assert "Stock Research Command Center | Evidence-First Company Research" in makefile
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in makefile
+    assert "stable GitHub repository link only after this reviewed feature reaches the default branch" in makefile
+    assert "Draft engineering preview" in makefile
+    assert "count-safe Company Workbench answer visual" in makefile
     assert "GitHub's generated OpenGraph card" in makefile
 
 

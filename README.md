@@ -1,14 +1,18 @@
 # Stock Research Command Center
 A local, CSV-first workspace for repeated company research, valuation review, forward-view evidence, and truthful data-readiness decisions.
 > Data readiness first, analysis second, research decision last.
-![Dashboard preview](docs/assets/public-demo-home-real.jpg)
-
-## Personal Research Start Here
-This repository now contains a **local Commercial Research Beta foundation** built around the existing Personal Research workflow. It is not a hosted or commercially launched product. Authentication, private workspaces, operated data rights, real beta users, and repeatable provider operations remain separate gates.
-The default local path is **Research Desk -> Discover -> Company Workbench -> Monitor**. Run `make dashboard`, then open `http://localhost:8501/`; use `make commercial-beta-check` for source-rights, refresh-safety, and private-beta boundaries, and `make commercial-beta-release-check` for the consolidated read-only local release gate. Public remains the controlled demo; Operator context remains the source/proof workspace. Data Health and Proof History stay under **Advanced Evidence**. A local contract pass does not prove hosting, licensed operation, or external validation. See [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) for workflow states and truth boundaries.
 
 ## External Reviewer Start Here
+
+![Company Workbench answer preview](docs/assets/linkedin-public-dashboard.png)
+
 This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo. It is not currently published as a hosted Streamlit app.
+
+**Primary product workflow:** Research Desk -> Discover -> Company Workbench -> Monitor. Run `make dashboard`, then open `http://localhost:8501/`. The Workbench answers what can be used now, what remains withheld, and where to inspect missing evidence. Data Health and Proof History stay under **Advanced Evidence**. See [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) for workflow states and truth boundaries.
+
+**Secondary controlled demo:** Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. This is the shorter public-review path for visitors who do not need the complete company-research workspace.
+
+This is a **local Commercial Research Beta foundation**, not a hosted or commercially launched product. Operator context remains the source/proof workspace. Authentication, private workspaces, operated data rights, real beta users, and repeatable provider operations remain separate gates. A local contract pass does not prove hosting, licensed operation, or external validation.
 
 | Question | Short answer |
 | --- | --- |
@@ -24,7 +28,8 @@ This repository is ready to review as a controlled GitHub/LinkedIn portfolio dem
 | What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |
 | What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |
 
-First personal-research move: open Research Desk for the deterministic focused cohort and weekly summary, then use Discover to choose a ticker such as `NVDA` and open Company Workbench. The Workbench separates changed evidence, source-backed quarterly Revenue/EPS trend, valuation, forward context, withheld inputs, conclusion, and one next research task. Missing canonical quarterly rows fail closed, Q4 is never derived, and the cohort order is reviewability rather than expected return. Use Monitor for source-backed changes; open Data Health only when a missing input is the question. The selected-profile trust strip follows [Data Profiles](docs/DATA_PROFILES.md) and shows source/readiness dates, identity, freshness, and matching counts. The local Change Monitor queues same-profile evidence changes as research tasks, never recommendations. The append-only Research Thesis Journal preserves reviewer-authored hypotheses, evidence, invalidation conditions, confidence history, and review dates without changing readiness. The session-local Scenario Lab varies bounded DCF assumptions without writing canonical data. The Source Freshness Timeline separates effective, retrieval, market, and report times. The operator-only Research Comparison View compares two or three selected tickers across evidence availability and reviewed journal context without a score or winner. The Peer Read-Through Map keeps candidate and trusted relationships separate and withholds contextual read-through until relationship, result, and fiscal-timing evidence are explicit. The Decision-Process Scorecard reviews documentation discipline without grading the company or measuring returns; see [Methodology](docs/METHODOLOGY.md).
+First personal-research move: open Research Desk for the deterministic focused cohort and weekly summary, use Discover to choose a ticker such as `NVDA`, and open Company Workbench. The Workbench separates changed evidence, source-backed quarterly Revenue/EPS trend, valuation, forward context, withheld inputs, conclusion, and one next research task. Missing canonical quarterly rows fail closed, Q4 is never derived, and the cohort order is reviewability rather than expected return. Use Monitor for source-backed changes; open Data Health only when a missing input is the question. Supporting research tools remain secondary to that answer flow. The selected-profile trust strip follows [Data Profiles](docs/DATA_PROFILES.md). The append-only Research Thesis Journal, session-local Scenario Lab, Source Freshness Timeline, operator-only Research Comparison View, Peer Read-Through Map, and Decision-Process Scorecard preserve their existing evidence and no-ranking boundaries; see [Methodology](docs/METHODOLOGY.md).
+
 First review move: open Stock Selector, choose a ticker such as `NVDA`, read the Single-Stock Report answer, then open Data Health only when an input is blocked.
 ## What It Does
 This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
@@ -171,9 +176,3 @@ The main build creates deterministic research files under `outputs/`, including 
 ## Research-Only Guardrails
 This is investment research software, not investment advice and not a trading system. It does not place orders, connect to brokers, route trades, auto-trade, recommend option trades, provide direct buy/sell instructions, or fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations.
 That constraint is intentional. The product is useful because it says when data is missing instead of pretending every ticker is ready.
-
-## Architecture
-The app is organized around dashboard, readiness, decision, report, provider, local-data, and test modules. It is CSV-first and deterministic by default. Optional network-backed data stays behind provider interfaces and is labeled as research-grade when used.
-
-## Roadmap Snapshot
-The current public workflow is intentionally guided: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. The local fixed-demo performance gate has passed and remains a regression check. The active evidence stage is a narrow, append-only Earnings Nowcast pilot using comparable quarterly actuals and historical point-in-time consensus snapshots; hosting and external review remain separate external stages. Fundamentals/DCF, source-backed peers, optional earnings/estimate context, and real nowcast output stay locked until trusted rows prove readiness.

@@ -6,7 +6,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 
 - Keep the top of `README.md` focused on what the project does, why it matters, and how to run it.
 - Confirm `README.md` starts with `External Reviewer Start Here` so a GitHub or LinkedIn visitor sees the GitHub/local-app boundary, current-readiness source, and stop rules before deeper operator detail.
-- Keep the guided product flow near the top: README preview, `docs/PUBLIC_DEMO_WALKTHROUGH.md`, then `make dashboard` and the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path.
+- Keep the primary product flow near the top: README Workbench preview, `make dashboard`, then Research Desk -> Discover -> Company Workbench -> Monitor. Keep Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History as the secondary controlled Public demo.
 - Keep terminal proof commands secondary: use `make status-check TOP_N=5` and `make stock-report-md TICKER=NVDA` only after the visitor understands the public workflow.
 - Keep `make stock-report TICKER=NVDA` available for optional local report-data inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
@@ -34,10 +34,10 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep the pilot evidence packet visible: baseline readiness, before report, focused blocker check, lane review path, validate/preview gate, apply boundary, rejected-row check, rebuild proof, and still-blocked evidence row.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
-- Use `docs/assets/linkedin-public-dashboard.png` as the LinkedIn Featured thumbnail unless you intentionally want an operator-mode screenshot; treat image counts as illustrative and use `make status-check TOP_N=5` for current local counts.
-- Use GitHub as the LinkedIn link target unless a hosted app has been separately deployed and verified. The current public-share package is GitHub plus curated screenshots plus local run instructions.
+- Use `docs/assets/linkedin-public-dashboard.png` as the LinkedIn Featured thumbnail only when it is the reviewed `1200x627` Company Workbench answer-first capture. Do not publish changing coverage or readiness figures in the social image.
+- Use the stable GitHub repository as the LinkedIn link target only after the reviewed feature reaches the default branch. Until then, keep the existing stable item or label any non-default review link `Draft engineering preview`. Do not substitute a hosted-app link until it is separately deployed and verified.
 - Before replacing the GitHub link with a hosted app link, complete `docs/HOSTED_DEMO_DEPLOYMENT.md` and rerun the public gates.
-- Confirm the LinkedIn Featured description mentions Python + Streamlit, data readiness before analysis, research-only, no broker integration, no auto-trading, and no investment advice.
+- Confirm the LinkedIn Featured description mentions Python + Streamlit, Research Desk -> Discover -> Company Workbench -> Monitor, usable versus withheld evidence, research-only, no broker integration, no auto-trading, and no investment advice.
 - Confirm LinkedIn copy does not imply complete coverage, provider-key activation, public hosted app availability, data freshness proof, or investment recommendations.
 - Run `make browser-qa-evidence` before sharing or replacing public screenshots. It shows the current public-share image recommendation, committed asset checks, current real-app capture status, route expectations, and capture boundaries without refreshing data or writing reports.
 - Run `make linkedin-share-check` for the final LinkedIn Featured-card checklist. It is read-only: it does not open LinkedIn, upload files, edit your profile, refresh data, stage files, commit, or push.

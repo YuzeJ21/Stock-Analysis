@@ -53,20 +53,20 @@ class BrowserQaCaptureTarget:
 
 DEFAULT_BROWSER_QA_EVIDENCE: tuple[BrowserQaEvidence, ...] = (
     BrowserQaEvidence(
-        name="LinkedIn public dashboard thumbnail",
+        name="LinkedIn Company Workbench thumbnail",
         path=Path("docs/assets/linkedin-public-dashboard.png"),
-        route="http://localhost:8501/?mode=public",
+        route="http://localhost:8501/?mode=research&page=company-workbench&ticker=AVGO&open=1",
         expected_markers=(
-            "Saved readiness",
-            "Step 1 of 5",
-            "What is this product and where do I start?",
+            "Company Workbench",
+            "Use now",
+            "Still withheld",
+            "Open Data Health",
+            "Stop if peer mappings or peer valuation inputs lack source-backed rows.",
             "Research-only",
-            "Start with Stock Selector",
-            "No data, no conclusion",
         ),
         min_width=1200,
-        min_height=600,
-        use="LinkedIn Featured and GitHub preview image.",
+        min_height=627,
+        use="LinkedIn Featured answer-first Company Workbench image; product-flow evidence only.",
     ),
     BrowserQaEvidence(
         name="Public visitor home screenshot",
@@ -682,7 +682,7 @@ def browser_qa_share_recommendation_rows(
         {
             "Review Item": "Data readiness claim",
             "State": "blocked_inputs_remain_blocked",
-            "Recommendation": "Use make status-check TOP_N=5 for current counts; do not treat screenshots as data freshness proof.",
+            "Recommendation": "Do not publish readiness counts from screenshots; use the live read-only status check for local operating review.",
             "Boundary": "Screenshots do not unlock fundamentals, peers, earnings, estimates, valuation inputs, or metrics.",
         },
     ]

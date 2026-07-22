@@ -79,6 +79,24 @@ def test_default_public_browser_qa_contract_uses_current_compact_workflow_marker
     assert "research-loop-strip" not in rendered
 
 
+def test_linkedin_asset_contract_is_count_safe_workbench_answer_evidence():
+    asset = DEFAULT_BROWSER_QA_EVIDENCE[0]
+
+    assert asset.name == "LinkedIn Company Workbench thumbnail"
+    assert asset.route.endswith("?mode=research&page=company-workbench&ticker=AVGO&open=1")
+    assert asset.expected_markers == (
+        "Company Workbench",
+        "Use now",
+        "Still withheld",
+        "Open Data Health",
+        "Stop if peer mappings or peer valuation inputs lack source-backed rows.",
+        "Research-only",
+    )
+    assert (asset.min_width, asset.min_height) == (1200, 627)
+    assert "answer-first" in asset.use.lower()
+    assert "readiness" not in " ".join(asset.expected_markers).lower()
+
+
 def test_browser_qa_evidence_rows_keep_routes_assets_and_boundaries_visible(tmp_path):
     asset = tmp_path / "docs" / "assets" / "linkedin-public-dashboard.png"
     asset.parent.mkdir(parents=True)
@@ -379,7 +397,7 @@ def test_browser_qa_share_recommendation_prefers_ready_public_image_and_keeps_bl
     assert rows[2]["State"] == "route_markers_only"
     assert "exact current copy" in rows[2]["Recommendation"].lower()
     assert "data health proof lane screenshot" in rendered
-    assert "use make status-check top_n=5 for current counts" in rendered
+    assert "do not publish readiness counts from screenshots" in rendered
     assert "screenshots do not unlock fundamentals" in rendered
     assert "generated thumbnails" in rendered
     assert "normal local browser" in rendered
@@ -436,7 +454,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "public_share_recommendation" in rendered
     assert "pending_capture_closeout" in rendered
     assert "linkedin-public-dashboard.png" in rendered
-    assert "use make status-check top_n=5 for current counts" in rendered
+    assert "do not publish readiness counts from screenshots" in rendered
     assert "make staged-hygiene-check" in rendered
     assert "reviewed_asset_stage_command" in rendered
     assert "do not use generated thumbnails" in rendered
@@ -609,7 +627,7 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "ready_with_manual_capture_pending" in output
     assert "public share recommendation" in output
     assert "linkedin-public-dashboard.png" in output
-    assert "use make status-check top_n=5 for current counts" in output
+    assert "do not publish readiness counts from screenshots" in output
     assert "manual capture targets" in output
     assert "pending capture closeout" in output
     assert "stage if reviewed" in output

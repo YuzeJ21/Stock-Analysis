@@ -530,10 +530,13 @@ def test_linkedin_share_check_prints_read_only_final_checklist():
     output = result.stdout
     assert "LinkedIn Share Check" in output
     assert "Read-only: this target prints the final LinkedIn visual checklist only." in output
-    assert "Stock Research Command Center | Readiness-First Stock Research Workflow" in output
+    assert "Stock Research Command Center | Evidence-First Company Research" in output
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in output
+    assert "stable GitHub repository link only after this reviewed feature reaches the default branch" in output
+    assert "Draft engineering preview" in output
     assert "docs/assets/linkedin-public-dashboard.png" in output
     assert "GitHub's generated OpenGraph card" in output
-    assert "hosted Streamlit app" in output
+    assert "hosting" in output
     assert "screenshots prove current data freshness" in output
     assert "provider-key activation" in output
     assert "make public-check" in output
@@ -927,8 +930,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     public_demo = Path("docs/PUBLIC_DEMO_WALKTHROUGH.md").read_text(encoding="utf-8")
 
     assert len(readme.splitlines()) < 180
-    assert "![Dashboard preview](docs/assets/public-demo-home-real.jpg)" in readme
-    assert "docs/assets/linkedin-public-dashboard.png" in readme
+    assert "![Company Workbench answer preview](docs/assets/linkedin-public-dashboard.png)" in readme
     assert "make status-check TOP_N=5` remains the source for current local counts" in readme
     for preview_phrase in (
         "plain-language stock analysis modes",
@@ -1079,7 +1081,6 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "what to read first",
         "Copyable Proof Commands",
         "readiness-state output, not an action list",
-        "Roadmap Snapshot",
         "Review them before committing",
             "Before sharing or committing, run `make public-check`, then `make public-release-package`",
             "compact branch status, package status, staging, generated-exclusion, final-check, commit, and push checklist",
@@ -1632,8 +1633,9 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "review-required lanes for fundamentals, peers, earnings, and analyst estimates" in checklist
     assert "not told to manually refresh the full universe every day" in checklist
     assert "lane-specific freshness and generated-data hygiene" in checklist
-    assert "Keep the guided product flow near the top" in checklist
-    assert "then `make dashboard` and the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path" in checklist
+    assert "Keep the primary product flow near the top" in checklist
+    assert "then Research Desk -> Discover -> Company Workbench -> Monitor" in checklist
+    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History as the secondary controlled Public demo" in checklist
     assert "Keep terminal proof commands secondary" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "make trusted-data-pilot-candidates TOP_N=10" in checklist
@@ -1834,39 +1836,23 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
 
     for phrase in (
-        "data readiness first, analysis second, research decision last",
-        "what can be reviewed now",
-        "what is blocked by missing data",
-        "what is excluded because the method does not apply",
-        "which trusted local input would unlock the next layer",
-        "Best first click: open the dashboard preview, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.",
-        "Each public page now opens with one question, one short answer, one primary next action, and one stop rule.",
-        "The public workflow is checked at desktop and mobile widths.",
-        "The current-page shortcut is visible so visitors know where they are.",
+        "Stock Research Command Center | Evidence-First Company Research",
+        "local Python and Streamlit portfolio beta for evidence-first company research",
+        "Research Desk -> Discover -> Company Workbench -> Monitor",
+        "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History",
+        "what evidence can be used now",
+        "keep unsupported conclusions withheld",
+        "Data Health and Proof History remain available",
+        "real Workbench answer-first screenshot",
+        "screenshots are product evidence only",
+        "stable GitHub repository link only after this reviewed feature reaches the default branch",
+        "Draft engineering preview",
         "Operator details stay collapsed until someone intentionally leaves the public path.",
-        "The first story is the public workflow, not operator automation.",
-        "Keep reviewed batch packets, provider setup, and validate / preview / apply mechanics as operator detail after the visitor understands the product.",
-        "Use the refreshed `docs/assets/linkedin-public-dashboard.png` thumbnail for the LinkedIn Featured card.",
-        "Best demos",
-        "`NVDA` for DCF-ready company review",
-        "`META` for valuation still gated by trusted fundamentals",
-        "`QQQ` for ETF/index monitor context",
-        "`MU` for standalone DCF with peer valuation still locked",
-        "`CRDO` for a fundamentals-gated proof workflow",
-        "A Streamlit command center dashboard",
-        "Market-wide readiness checks across a broad ticker universe",
-        "Single-stock Markdown reports",
-        "At A Glance",
-        "Reader Guide",
-        "Evaluation Snapshot",
-        "Proof Checklist",
-        "Best Review Path",
-        "DCF-ready, standalone DCF, price/setup-only, monitor-only, and data-needed-before-analysis report modes",
-        "Source readiness notes and copyable local proof commands",
-        "CSV-first import, validation, preview, rejected-row, and readiness workflows",
-        "ready data can be analyzed, blocked data is explained",
-        "missing rows are treated as the next proof step",
-        "At A Glance status, Evaluation Snapshot, Proof Checklist, Best Review Path, method cue, DCF assumptions",
+        "The first story is company research, not operator automation.",
+        "reviewed batch packets, provider setup, validate / preview / apply mechanics",
+        "Use the reviewed `docs/assets/linkedin-public-dashboard.png` Workbench thumbnail",
+        "no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions",
+        "local portfolio beta, not a hosted product or market-validated service",
         "Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted.",
         "Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.",
         "Keep lane-level operator views, coverage frontier details, reviewed batch packets, and validate / preview / apply guidance as follow-up context after the public workflow is clear.",
@@ -1893,21 +1879,14 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     ):
         assert phrase in brief
 
-    assert "standalone DCF review where peer-relative valuation is still locked" in brief
-    assert "price/setup review where valuation remains gated" in brief
+    assert "readiness counts" not in brief.lower()
     assert "CSV-first staged import workflows" not in brief
     assert "staged import validation" not in brief
     linkedin_demo_talking_points = brief.split("## Demo Talking Points", 1)[1]
     assert "make trusted-data-pilot-candidates TOP_N=10" not in linkedin_demo_talking_points
     assert "make trusted-data-pilot-packet TICKER=CRDO" not in linkedin_demo_talking_points
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" not in linkedin_demo_talking_points
-    assert "refusing to present every ticker as complete" in brief
-    for guardrail_phrase in (
-        "direct buy/sell instructions",
-        "jumping straight to rankings",
-        "no broker integration",
-    ):
-        assert guardrail_phrase in brief
+    assert "investment advice" in brief
 
 
 def test_dashboard_qa_records_latest_public_flow_browser_check():
