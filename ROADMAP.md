@@ -96,6 +96,7 @@ Stage A-G labels are continuation maturity lanes only; they do not replace the n
 51. **Implemented locally:** ticker-level historical support requires the latest supporting proof to explicitly name the ticker in `changed_tickers`; this is `explicit_ticker_change`, while scope membership alone is non-supporting. `proof_applicability` and `current_blocker_code` remain independent two-axis diagnoses: `current_canonical_row_missing` and other current observable blockers describe saved inputs. Current blocker diagnosis does not establish the historical cause. No canonical data, readiness, or proof history was rewritten; rerun the read-only command for current counts.
 52. **Implemented locally — Stage A prospective field proof:** `make prospective-field-proof-status` reports absent, valid, or invalid state without writing; `make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>` reports `technical_write_eligible` and `commercial_evidence_eligible` independently and emits a preview receipt; and `make prospective-field-proof-record INPUT=<same-file> AS_OF=<same-cutoff> PREVIEW_RECEIPT=<exact-receipt> CONFIRM_REVIEWED=1` is the explicit append. The preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. This is prospective-only: an absent ledger is a valid empty state, and legacy narrative proof is not upgraded. No sample field-proof rows are checked in. Cooperative local locking narrows cooperating-writer races, but the primitive is not crash-safe, not a database transaction, and not protection from non-cooperating writers. It does not activate readiness, does not update canonical data, does not update proof-readiness reconciliation, and does not activate Company Workbench. Any future mapping requires a separate design.
 53. **Implemented locally — public packaging reconciliation:** the README now has one external-reviewer entry point with Research Desk -> Discover -> Company Workbench -> Monitor as the primary product story and the five-page Public path as a secondary controlled demo. The LinkedIn package uses the maturity-accurate `Evidence-First Company Research` title, a default-branch versus draft-preview link boundary, and a reviewed real-app `1200x627` AVGO Company Workbench image that shows `Use now`, `Still withheld`, the Data Health handoff, the stop rule, and the research-only boundary without volatile readiness figures. Commercial Research performance timing now treats `Use now` as Workbench first-useful evidence rather than the page title. This is local packaging and runtime-contract evidence only; it changes no data, readiness, source, rights, forecast, conclusion, hosted state, reviewer evidence, demand, or product-market-fit gate.
+54. **Approved design; implementation pending — Research Decision Lab:** compose the existing reviewer-authored Thesis Journal, Decision-Process Scorecard, Scenario Lab, Research Outcome Review, and Change Monitor into one six-lane research-discipline loop for Plan, Evidence, Invalidation, Scenario, Review trigger, and Learning. Version one adds no route, ledger, readiness state, transaction field, position sizing, stop/profit rule, recommendation, or broker action. Company Workbench keeps its existing answer-first handoff and receives one compact process summary after `What Changed`; Monitor keeps Weekly Research Summary first and receives one focused-cohort Research Discipline Review without ranking companies. The approved contract is `docs/superpowers/specs/2026-07-22-research-decision-lab-design.md`; implementation evidence does not exist until focused/full tests, responsive browser review, release gates, exact staging, push, draft-PR update, and exact-head CI pass.
 
 **Maturity assessment:** the quarterly cash-generation slice improves **methodology maturity**, cash-conversion transparency, adapter extensibility, fail-closed reliability, and reviewer trust. The live NVIDIA and AMD previews now prove bounded two-company portability for one official-source real-company adapter path, but it **does not prove broad real-company coverage or market validation**. Company Workbench still withholds these metrics because the preview is not activation. The slice also does not prove hosted reliability, reviewer adoption, commercial demand, calibration quality, or product-market fit. The product therefore remains a local Commercial Research Beta release candidate, not a market-validated platform.
 
@@ -295,6 +296,59 @@ Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`; 
 **Stop rule:** no source-backed rows means withheld output. Catalyst or outcome context cannot change Earnings Nowcast numbers, DCF assumptions, readiness, rankings, recommendations, or actions.
 
 **Stop rule:** do not substitute current analyst estimates for historical point-in-time snapshots, use post-cutoff evidence, infer numeric adjustments from text, claim predictive accuracy from fixtures, or predict post-earnings price movement.
+
+## Next Local Product Stage: Research Decision Lab
+
+**Approved design:** `docs/superpowers/specs/2026-07-22-research-decision-lab-design.md`
+**Design anchor:** `54e06e1c3` or a later verified descendant
+**Current state:** design committed; product implementation not started
+
+**Goal:** make the existing research-process capabilities feel like one repeatable learning loop without turning the Command Center into a trading platform.
+
+### Stage 1 — Read-only composition contract
+
+1. Add one focused `src/research_decision_lab.py` derivation module with immutable Plan, Evidence, Invalidation, Scenario, Review trigger, and Learning lanes.
+2. Consume only existing selected-profile report, journal, scorecard, outcome, change, and scenario results.
+3. Keep lane states independent and choose one deterministic next process step without changing the authoritative company research task.
+4. Reject mismatched profile/ticker inputs, preserve truthful empty and blocked states, and generate no persistence or readiness change.
+5. Prove the contract with failing-first unit tests, including no-trading-language and cross-lane non-promotion cases.
+
+**Exit gate:** focused derivation tests pass and the module writes no journal, outcome, source, readiness, proof, report, screenshot, or timing artifact.
+
+### Stage 2 — Company Workbench composition
+
+1. Render one compact Decision Lab summary after `What Changed` and before detailed company-research sections.
+2. Preserve Selected ticker -> `Use now` -> `Still withheld` -> Data Health as the unchanged first answer.
+3. Keep Research Conclusion and Next Research Task authoritative and separate from the next process step.
+4. Keep identities, timestamps, source rows, and technical diagnostics under existing Advanced disclosures.
+5. Verify desktop and `390x844` phone layouts without overflow, duplicated summaries, or first-answer regression.
+
+**Exit gate:** Workbench shows exactly one six-lane summary, `USE NOW` remains the performance marker, and blocked or empty inputs display no fabricated content.
+
+### Stage 3 — Monitor Research Discipline Review
+
+1. Compose focused-cohort process rows from the same per-ticker contract.
+2. Keep Weekly Research Summary and source-backed change state first.
+3. Group research-process gaps without scoring, ranking, expected-return ordering, allocation, or transaction language.
+4. Use stable focused-cohort order followed by ticker; process severity and market value cannot reorder companies.
+5. Preserve a truthful empty state that makes no claim about market risk or missing external events.
+
+**Exit gate:** Monitor displays the new review after its weekly summary, keeps source-change and process-discipline states separate, and passes desktop/phone workflow review.
+
+### Stage 4 — Documentation and release evidence
+
+1. Update Methodology, Provenance Contract, Personal Research Mode, browser-QA markers, release documentation, ROADMAP, and continuation contracts.
+2. Run focused and full tests, Personal Research renders, dashboard smoke, browser QA, public wording, public and commercial-beta release gates, relevant performance gates, pilot boundary, PR-range hygiene, diff hygiene, whitespace, and staged hygiene.
+3. Stage exact product/code/docs/test paths only; exclude existing generated CSV/JSON/report/sample-report/screenshot/timing churn.
+4. Complete exact staging, coherent commits, controlled branch synchronization, and current-revision hosted CI without merging or public deployment.
+
+**Exit gate:** every design acceptance criterion has direct current evidence. Local tests or screenshots alone do not prove hosted reliability, external reviewer adoption, commercial demand, investment performance, or product-market fit.
+
+### Explicitly later and separately approved
+
+- Add an append-only research pre-commitment record only if usage proves the existing Thesis Journal cannot capture the required plan.
+- Consider an isolated hypothetical paper-position laboratory only after a separate design, private-data policy, wording review, and explicit approval.
+- Keep live holdings, account imports, recommended sizing, price-triggered stop/profit rules, broker integration, order routing, auto-trading, and real transactions out of scope.
 
 ## Next: Focused-Cohort Evidence
 
