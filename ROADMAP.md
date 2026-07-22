@@ -387,13 +387,17 @@ A blocked priority does not become complete, and skipping it does not weaken its
 
 ### Priority 2 — Stage B field-proof audit and operator hardening
 
-**Current lane:** local and executable after Priority 1.
+**Status:** Stage B — completed locally.
+
+**Current lane:** locally implemented and verified; Priority 3 is next.
 
 1. Complete the roadmap-approved read-only audit for prospective field-proof records, preview receipts, current blocker explanations, and append-only history.
 2. Improve operator review ergonomics and deterministic error routing without recording evidence automatically.
 3. Preserve the existing boundary: no mapping into proof-readiness reconciliation, Company Workbench, canonical data, or any readiness lane.
 
 **Exit gate:** focused tests and read-only operator evidence prove clearer review and failure handling with no ledger, readiness, canonical-data, report, screenshot, timing, or generated-artifact write.
+
+**Current evidence:** `make prospective-field-proof-audit` reports append order, scope and revision counts, current/superseded state, reviewer dispositions, active-head blocker categories, and controlled invalid-ledger errors. Preview text now gives per-row technical/commercial answers and states `preview_receipt_persisted=false` and `receipt_revalidation_required=true`. Byte-snapshot tests prove audit and preview do not write scoped files. The audit does not activate readiness, does not update canonical data, and does not activate Company Workbench.
 
 ### Priority 3 — In-app research-record authoring
 

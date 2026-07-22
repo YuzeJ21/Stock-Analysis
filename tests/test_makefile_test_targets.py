@@ -52,6 +52,7 @@ def test_prospective_field_proof_targets_are_phony_and_default_ledger_is_explici
 
     for target in (
         "prospective-field-proof-status",
+        "prospective-field-proof-audit",
         "prospective-field-proof-preview",
         "prospective-field-proof-record",
     ):
@@ -77,6 +78,31 @@ def test_default_status_target_runs_live_without_creating_or_changing_scoped_fil
     assert payload["ledger"] == "data/prospective_field_proofs.csv"
     assert payload["state"] == "absent"
     assert payload["write_performed"] is False
+    assert not ledger.exists()
+    assert after == before
+
+
+def test_default_audit_target_runs_live_without_creating_or_changing_scoped_files():
+    ledger = PROJECT_ROOT / "data" / "prospective_field_proofs.csv"
+    scoped_files = (
+        PROJECT_ROOT / "data" / "earnings_readiness.csv",
+        PROJECT_ROOT / "data" / "universe_master.csv",
+        PROJECT_ROOT / "data" / "reviewed_data_proof.csv",
+        PROJECT_ROOT / "outputs" / "feature_readiness_summary.csv",
+    )
+    assert not ledger.exists()
+    before = {path: path.read_bytes() for path in scoped_files if path.is_file()}
+
+    result = _make("prospective-field-proof-audit", "JSON=1")
+    payload = json.loads(result.stdout)
+    after = {path: path.read_bytes() for path in scoped_files if path.is_file()}
+
+    assert result.returncode == 0
+    assert payload["ledger"] == "data/prospective_field_proofs.csv"
+    assert payload["mode"] == "audit_read_only"
+    assert payload["state"] == "absent"
+    assert payload["write_performed"] is False
+    assert payload["preview_receipt_persisted"] is False
     assert not ledger.exists()
     assert after == before
 

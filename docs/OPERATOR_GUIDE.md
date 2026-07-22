@@ -135,10 +135,13 @@ Inspect status first, then preview one separately supplied reviewed CSV:
 
 ```bash
 make prospective-field-proof-status
+make prospective-field-proof-audit
 make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>
 ```
 
-Both commands are read-only. Preview reports `technical_write_eligible` and `commercial_evidence_eligible` independently, so research-mode technical recording cannot be mistaken for commercial permission. The preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. Review the proposed identities, timestamps, revision chain, source reference, payload digest, reviewer disposition, rights decision, registered field scope, and both blocker lists before recording.
+These inspection commands are read-only. Preview reports `technical_write_eligible` and `commercial_evidence_eligible` independently, so research-mode technical recording cannot be mistaken for commercial permission. The preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. Review the proposed identities, timestamps, revision chain, source reference, payload digest, reviewer disposition, rights decision, registered field scope, and both blocker lists before recording.
+
+The Stage B audit is also read-only. It explains append order, normalized scopes, revision numbers, current versus superseded rows, reviewer dispositions, active-head blocker categories, and latest review time. It reports `preview_receipt_persisted=false` and `receipt_revalidation_required=true`: save the exact stdout receipt with the reviewed input if a later explicit record is intended. Audit does not activate readiness, does not update canonical data, and does not activate Company Workbench. It creates no report or JSON file; `JSON=1` writes structured output to stdout only.
 
 Record only the exact reviewed preview:
 

@@ -191,12 +191,14 @@ Priority 1 — Legacy portfolio, ranking, and action-language quarantine
 - Exit only when route, wording, report, and no-trading tests directly prove the isolation.
 
 Priority 2 — Stage B field-proof audit and operator hardening
-- Priority 2 is the next local executable lane.
+- Priority 2 is complete locally. `make prospective-field-proof-audit` provides read-only append history, active-head state, current blocker explanations, and controlled invalid-ledger routing; preview provides per-row explanations and reports `preview_receipt_persisted=false` and `receipt_revalidation_required=true`.
+- Direct byte-snapshot tests prove audit and preview create no ledger, readiness, canonical-data, report, screenshot, timing, or generated artifact. Audit does not activate readiness, does not update canonical data, and does not activate Company Workbench.
 - Complete the approved read-only audit for prospective field-proof records, preview receipts, append-only history, blocker explanations, and operator review ergonomics.
 - Preserve no readiness mapping, no canonical-data change, no Company Workbench activation, and no automatic evidence recording.
 - Exit only when focused read-only evidence proves clearer deterministic review and errors with no ledger or generated-artifact write.
 
 Priority 3 — In-app research-record authoring
+- Priority 3 is the next local design and implementation lane.
 - Design and implement simple validate -> preview -> confirm authoring for thesis, evidence, catalyst, and outcome records.
 - Keep records append-only, profile/ticker scoped, reviewer-authored, timestamped, source-aware where applicable, and independently valid or blocked. Drafts and candidate context remain untrusted; automated generation cannot become reviewer-authored evidence.
 - Exit only when desktop/phone workflow evidence and persistence, rejection, identity, provenance, empty-state, and no-fabrication tests prove safe command-line-free authoring without changing forecasts, probabilities, recommendations, or readiness.

@@ -1531,6 +1531,88 @@ def test_status_reports_valid_and_invalid_existing_ledgers_in_text_without_writi
     assert _file_snapshot(tmp_path) == before
 
 
+def test_audit_absent_ledger_is_valid_empty_and_read_only(tmp_path: Path):
+    ledger = tmp_path / "missing.csv"
+    before = _file_snapshot(tmp_path)
+
+    audit = field_proof.audit_field_proof_ledger(
+        ledger,
+        rights_registry=_rights_registry(),
+    )
+
+    assert audit.mode == "audit_read_only"
+    assert audit.state == "absent"
+    assert audit.valid is True
+    assert audit.write_performed is False
+    assert audit.record_count == audit.scope_count == audit.active_head_count == 0
+    assert audit.rows == ()
+    assert audit.preview_receipt_persisted is False
+    assert audit.receipt_revalidation_required is True
+    assert _file_snapshot(tmp_path) == before
+
+
+def test_audit_explains_append_history_active_heads_and_current_blockers(tmp_path: Path):
+    ledger = tmp_path / "proofs.csv"
+    root = _record()
+    revision = _revision(
+        root,
+        reviewer_decision="needs_follow_up",
+        source_status="disputed",
+        payload_status="unavailable",
+        payload_sha256="",
+    )
+    _write_csv(ledger, (root, revision))
+    before = _file_snapshot(tmp_path)
+
+    audit = field_proof.audit_field_proof_ledger(
+        ledger,
+        rights_registry=_rights_registry(commercial_use="unverified"),
+    )
+
+    assert audit.state == "valid"
+    assert audit.record_count == 2
+    assert audit.scope_count == audit.active_head_count == 1
+    assert audit.superseded_count == 1
+    assert audit.accepted_count == 1
+    assert audit.needs_follow_up_count == 1
+    assert audit.latest_reviewed_at == revision.reviewed_at
+    assert [row.revision_number for row in audit.rows] == [1, 2]
+    assert [row.history_state for row in audit.rows] == ["superseded", "current"]
+    assert audit.rows[1].supersedes_proof_id == root.proof_id
+    assert any("reviewer_decision:needs_follow_up" in item for item in audit.current_blockers)
+    assert any("source_status:disputed" in item for item in audit.current_blockers)
+    assert _file_snapshot(tmp_path) == before
+
+
+def test_audit_cli_json_is_stable_and_invalid_ledger_fails_closed_without_writing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    valid = tmp_path / "valid.csv"
+    invalid = tmp_path / "invalid.csv"
+    _write_csv(valid, (_record(),))
+    invalid.write_text("not,the,contract\n", encoding="utf-8")
+    before = _file_snapshot(tmp_path)
+
+    first_exit = field_proof.main(["audit", "--ledger", str(valid), "--json"])
+    first = capsys.readouterr().out
+    second_exit = field_proof.main(["audit", "--ledger", str(valid), "--json"])
+    second = capsys.readouterr().out
+    invalid_exit = field_proof.main(["audit", "--ledger", str(invalid)])
+    invalid_output = capsys.readouterr().out.lower()
+
+    payload = json.loads(first)
+    assert first_exit == second_exit == 0
+    assert first == second
+    assert payload["mode"] == "audit_read_only"
+    assert payload["rows"][0]["history_state"] == "current"
+    assert invalid_exit == 2
+    assert "state: invalid" in invalid_output
+    assert "header" in invalid_output
+    assert "traceback" not in invalid_output
+    assert _file_snapshot(tmp_path) == before
+
+
 @pytest.mark.parametrize("oversized", [False, True])
 def test_loader_converts_malformed_or_oversized_csv_errors_to_controlled_value_error(
     tmp_path: Path, oversized: bool
@@ -1676,6 +1758,11 @@ def test_preview_text_states_read_only_boundary_and_receipt(
     assert "technical_write_eligible: true" in output
     assert "commercial_evidence_eligible:" in output
     assert "preview_receipt:" in output
+    assert "receipt binds: ledger, input, review cutoff, commercial mode, and source-rights registry" in output
+    assert "preview receipt persisted: false" in output
+    assert "row 1: reviewable_new" in output
+    assert "technical=true" in output
+    assert "commercial=" in output
     assert not ledger.exists()
 
 

@@ -136,6 +136,45 @@ class BatchFieldProofPreview:
     rows: tuple[FieldProofPreview, ...]
 
 
+@dataclass(frozen=True)
+class FieldProofAuditRow:
+    append_index: int
+    ticker: str
+    field_key: str
+    readiness_contract_version: str
+    revision_number: int
+    history_state: str
+    reviewer_decision: str
+    source_status: str
+    rights_status: str
+    payload_status: str
+    reviewed_at: str
+    proof_id: str
+    supersedes_proof_id: str
+
+
+@dataclass(frozen=True)
+class FieldProofLedgerAudit:
+    mode: str
+    write_performed: bool
+    state: str
+    valid: bool
+    ledger: str
+    record_count: int
+    scope_count: int
+    active_head_count: int
+    superseded_count: int
+    accepted_count: int
+    rejected_count: int
+    needs_follow_up_count: int
+    latest_reviewed_at: str
+    current_blockers: tuple[str, ...]
+    preview_receipt_persisted: bool
+    receipt_revalidation_required: bool
+    rows: tuple[FieldProofAuditRow, ...]
+    error: str = ""
+
+
 def _text(value: object) -> str:
     return str(value or "").strip()
 
@@ -879,6 +918,154 @@ def field_proof_ledger_status(path: Path | str) -> dict[str, object]:
     }
 
 
+def audit_field_proof_ledger(
+    path: Path | str,
+    *,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+) -> FieldProofLedgerAudit:
+    """Explain append history and current active-head blockers without writing."""
+
+    source = Path(path)
+    if not source.exists():
+        return FieldProofLedgerAudit(
+            mode="audit_read_only",
+            write_performed=False,
+            state="absent",
+            valid=True,
+            ledger=str(source),
+            record_count=0,
+            scope_count=0,
+            active_head_count=0,
+            superseded_count=0,
+            accepted_count=0,
+            rejected_count=0,
+            needs_follow_up_count=0,
+            latest_reviewed_at="",
+            current_blockers=(),
+            preview_receipt_persisted=False,
+            receipt_revalidation_required=True,
+            rows=(),
+        )
+
+    try:
+        records = load_field_proofs(source)
+    except (OSError, ValueError) as exc:
+        return FieldProofLedgerAudit(
+            mode="audit_read_only",
+            write_performed=False,
+            state="invalid",
+            valid=False,
+            ledger=str(source),
+            record_count=0,
+            scope_count=0,
+            active_head_count=0,
+            superseded_count=0,
+            accepted_count=0,
+            rejected_count=0,
+            needs_follow_up_count=0,
+            latest_reviewed_at="",
+            current_blockers=(),
+            preview_receipt_persisted=False,
+            receipt_revalidation_required=True,
+            rows=(),
+            error=str(exc),
+        )
+
+    superseded_ids = {
+        record.supersedes_proof_id
+        for record in records
+        if record.supersedes_proof_id
+    }
+    revision_counts: dict[tuple[str, str, str], int] = {}
+    audit_rows: list[FieldProofAuditRow] = []
+    for append_index, record in enumerate(records, start=1):
+        scope = _scope(record)
+        revision_counts[scope] = revision_counts.get(scope, 0) + 1
+        audit_rows.append(
+            FieldProofAuditRow(
+                append_index=append_index,
+                ticker=scope[0],
+                field_key=scope[1],
+                readiness_contract_version=scope[2],
+                revision_number=revision_counts[scope],
+                history_state=(
+                    "superseded" if record.proof_id in superseded_ids else "current"
+                ),
+                reviewer_decision=record.reviewer_decision,
+                source_status=record.source_status,
+                rights_status=record.rights_status,
+                payload_status=record.payload_status,
+                reviewed_at=record.reviewed_at,
+                proof_id=record.proof_id,
+                supersedes_proof_id=record.supersedes_proof_id,
+            )
+        )
+
+    resolved_registry = (
+        load_source_rights_registry() if rights_registry is None else rights_registry
+    )
+    current_blockers: list[str] = []
+    for record in records:
+        if record.proof_id in superseded_ids:
+            continue
+        *_, blockers = _commercial_preview(record, resolved_registry)
+        scope_label = "/".join(_scope(record))
+        current_blockers.extend(f"{scope_label}:{blocker}" for blocker in blockers)
+
+    return FieldProofLedgerAudit(
+        mode="audit_read_only",
+        write_performed=False,
+        state="valid",
+        valid=True,
+        ledger=str(source),
+        record_count=len(records),
+        scope_count=len(revision_counts),
+        active_head_count=len(records) - len(superseded_ids),
+        superseded_count=len(superseded_ids),
+        accepted_count=sum(record.reviewer_decision == "accepted" for record in records),
+        rejected_count=sum(record.reviewer_decision == "rejected" for record in records),
+        needs_follow_up_count=sum(
+            record.reviewer_decision == "needs_follow_up" for record in records
+        ),
+        latest_reviewed_at=max(record.reviewed_at for record in records),
+        current_blockers=tuple(current_blockers),
+        preview_receipt_persisted=False,
+        receipt_revalidation_required=True,
+        rows=tuple(audit_rows),
+    )
+
+
+def render_field_proof_audit(audit: FieldProofLedgerAudit) -> str:
+    """Render a read-only operator answer for ledger history and current heads."""
+
+    lines = [
+        "Prospective Field Proof Ledger Audit",
+        "Read-only: this command does not create, repair, record, or change any file.",
+        f"ledger: {audit.ledger}",
+        f"state: {audit.state}",
+        f"valid: {str(audit.valid).lower()}",
+        f"record_count: {audit.record_count}",
+        f"scope_count: {audit.scope_count}",
+        f"active_head_count: {audit.active_head_count}",
+        f"superseded_count: {audit.superseded_count}",
+        f"latest_reviewed_at: {audit.latest_reviewed_at or 'none'}",
+        "preview_receipt_persisted: false",
+        "receipt_revalidation_required: true",
+        "current_blockers: " + ("; ".join(audit.current_blockers) or "none"),
+        "write_performed: false",
+    ]
+    if audit.error:
+        lines.append(f"error: {audit.error}")
+    for row in audit.rows:
+        lines.append(
+            f"row {row.append_index}: {row.ticker}/{row.field_key}/"
+            f"{row.readiness_contract_version} revision={row.revision_number} "
+            f"state={row.history_state} reviewer={row.reviewer_decision} "
+            f"source={row.source_status} payload={row.payload_status} rights={row.rights_status}"
+        )
+    return "\n".join(lines)
+
+
 def render_field_proof_status(status: Mapping[str, object]) -> str:
     """Render a human-readable status with its read-only boundary."""
 
@@ -911,11 +1098,22 @@ def render_field_proof_preview(preview: BatchFieldProofPreview) -> str:
         f"commercial_evidence_eligible: {str(preview.commercial_evidence_eligible).lower()}",
         f"review_cutoff: {preview.review_cutoff}",
         f"preview_receipt: {preview.preview_receipt}",
+        "receipt binds: ledger, input, review cutoff, commercial mode, and source-rights registry",
+        "preview receipt persisted: false",
         "technical_blockers: "
         + ("; ".join(preview.technical_blockers) or "none"),
         "commercial_blockers: "
         + ("; ".join(preview.commercial_blockers) or "none"),
     ]
+    for index, row in enumerate(preview.rows, start=1):
+        lines.append(
+            f"row {index}: {row.state}; technical={str(row.technical_write_eligible).lower()}; "
+            f"commercial={str(row.commercial_evidence_eligible).lower()}; reason={row.reason}; "
+            "technical_blockers="
+            + ("|".join(row.technical_blockers) or "none")
+            + "; commercial_blockers="
+            + ("|".join(row.commercial_blockers) or "none")
+        )
     return "\n".join(lines)
 
 
@@ -974,6 +1172,12 @@ def main(argv: list[str] | None = None) -> int:
     status_parser.add_argument("--ledger", default=DEFAULT_LEDGER_PATH)
     status_parser.add_argument("--json", action="store_true")
 
+    audit_parser = subparsers.add_parser(
+        "audit", help="Explain append history and current blockers without writing."
+    )
+    audit_parser.add_argument("--ledger", default=DEFAULT_LEDGER_PATH)
+    audit_parser.add_argument("--json", action="store_true")
+
     preview_parser = subparsers.add_parser(
         "preview", help="Validate an exact batch and emit a receipt without writing."
     )
@@ -1001,6 +1205,15 @@ def main(argv: list[str] | None = None) -> int:
             text=render_field_proof_status(status),
         )
         return 0 if status["valid"] else 2
+
+    if args.command == "audit":
+        audit = audit_field_proof_ledger(args.ledger)
+        _print_payload(
+            asdict(audit),
+            json_output=args.json,
+            text=render_field_proof_audit(audit),
+        )
+        return 0 if audit.valid else 2
 
     if args.command == "record" and not args.confirm_reviewed:
         return _cli_error(

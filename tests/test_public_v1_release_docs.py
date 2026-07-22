@@ -1277,10 +1277,34 @@ def test_legacy_research_utility_quarantine_is_consistent_across_product_docs():
     assert "Priority 1 — completed locally" in roadmap
     assert "Priority 2 — Stage B field-proof audit and operator hardening" in roadmap
     assert "Priority 1 is complete locally" in prompt
-    assert "Priority 2 is the next local executable lane" in prompt
+    assert "Priority 2 is complete locally" in prompt
 
     for text in (readme, product_spec, readiness):
         lowered = text.lower()
         assert "cannot feed research decision lab" in lowered
         assert "cannot change readiness" in lowered
         assert "cannot produce recommendations, sizing, or transaction behavior" in lowered
+
+
+def test_stage_b_field_proof_audit_is_documented_as_read_only_and_no_mapping():
+    readme = _read("README.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-field-proof-stage-b-audit-design.md")
+
+    for text in (readme, operator, roadmap, prompt, design):
+        assert "make prospective-field-proof-audit" in text
+        assert "preview_receipt_persisted=false" in text
+        assert "receipt_revalidation_required=true" in text
+
+    assert "Stage B — completed locally" in roadmap
+    assert "Priority 3 — In-app research-record authoring" in roadmap
+    assert "Priority 2 is complete locally" in prompt
+    assert "Priority 3 is the next local design and implementation lane" in prompt
+
+    for text in (operator, roadmap, prompt):
+        lowered = text.lower()
+        assert "does not activate readiness" in lowered
+        assert "does not update canonical data" in lowered
+        assert "does not activate company workbench" in lowered
