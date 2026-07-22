@@ -2,7 +2,7 @@ from pathlib import Path
 
 from src import dashboard
 from src import dashboard_navigation as nav
-from src.focused_research_cohort import build_focused_cohort
+from src.focused_research_cohort import FocusedCohort, FocusedCohortMember, build_focused_cohort
 
 
 def test_dashboard_defaults_local_use_to_research_desk_and_preserves_explicit_modes():
@@ -511,7 +511,8 @@ def test_monitor_renders_change_answer_before_advanced_readiness():
     monitor = source[monitor_start:monitor_end]
 
     weekly = monitor.index("weekly_summary_cards(weekly_summary)")
-    answer = monitor.index('st.markdown("### Research change monitor")', weekly)
+    discipline = monitor.index('st.markdown("### Research Discipline Review")', weekly)
+    answer = monitor.index('st.markdown("### Research change monitor")', discipline)
     frame = monitor.index("research_monitor_frame(state.get", answer)
     empty = monitor.index("if frame.empty:", frame)
     note = monitor.index("render_context_note(", empty)
@@ -525,9 +526,92 @@ def test_monitor_renders_change_answer_before_advanced_readiness():
     readiness_cards = monitor.index("cohort_readiness_cards(nowcast_cohort)", readiness_heading)
     readiness_frame = monitor.index("pd.DataFrame([asdict(row) for row in nowcast_cohort])", readiness_cards)
 
-    assert weekly < answer < frame < empty < note < discover < cohort < advanced
+    assert weekly < discipline < answer < frame < empty < note < discover < cohort < advanced
     assert advanced < readiness_heading < readiness_cards < readiness_frame
     assert 'tone="success"' not in monitor[empty:discover]
+
+
+def test_monitor_discipline_rows_preserve_focused_cohort_order_without_rank(tmp_path, monkeypatch):
+    members = tuple(
+        FocusedCohortMember(
+            ticker=ticker,
+            company_name=f"{ticker} Company",
+            sector="Technology",
+            industry="Semiconductors",
+            cohort_rationale="Saved readiness-backed review scope.",
+            usable_lanes=("price",),
+            blocked_lanes=("dcf",),
+            freshness_state="current",
+            last_review_date="",
+            next_review_reason="Review saved evidence.",
+        )
+        for ticker in ("BBB", "AAA")
+    )
+    cohort = FocusedCohort(
+        status="ready",
+        requested_size=2,
+        minimum_size=2,
+        eligible_count=2,
+        members=members,
+        message="Two saved companies.",
+    )
+    context = dashboard.build_profile_context(project_root=tmp_path)
+    monkeypatch.setattr(dashboard, "load_journal_entries", lambda path: ())
+    monkeypatch.setattr(dashboard, "load_outcomes", lambda path: ())
+
+    rows = dashboard.load_dashboard_research_discipline_rows(context, cohort, ())
+
+    assert [row.ticker for row in rows] == ["BBB", "AAA"]
+    assert "rank" not in str(rows).lower()
+    assert all(row.due_lanes == ("Plan", "Evidence") for row in rows)
+
+
+def test_monitor_discipline_failure_is_isolated_to_one_focused_ticker(tmp_path, monkeypatch):
+    members = tuple(
+        FocusedCohortMember(
+            ticker=ticker,
+            company_name=ticker,
+            sector="Technology",
+            industry="Semiconductors",
+            cohort_rationale="Saved readiness-backed review scope.",
+            usable_lanes=("price",),
+            blocked_lanes=("dcf",),
+            freshness_state="current",
+            last_review_date="",
+            next_review_reason="Review saved evidence.",
+        )
+        for ticker in ("BBB", "AAA")
+    )
+    cohort = FocusedCohort("ready", 2, 2, 2, members, "Two saved companies.")
+    context = dashboard.build_profile_context(project_root=tmp_path)
+    real_derive = dashboard.derive_journal_state
+
+    def derive_with_one_invalid_ticker(entries, *, profile_key, ticker, as_of):
+        if ticker == "BBB":
+            raise ValueError("BBB journal row is invalid")
+        return real_derive(entries, profile_key=profile_key, ticker=ticker, as_of=as_of)
+
+    monkeypatch.setattr(dashboard, "load_journal_entries", lambda path: ())
+    monkeypatch.setattr(dashboard, "load_outcomes", lambda path: ())
+    monkeypatch.setattr(dashboard, "derive_journal_state", derive_with_one_invalid_ticker)
+
+    rows = dashboard.load_dashboard_research_discipline_rows(context, cohort, ())
+
+    assert [(row.ticker, row.status) for row in rows] == [
+        ("BBB", "unavailable"),
+        ("AAA", "process_work_needed"),
+    ]
+    assert rows[1].due_lanes == ("Plan", "Evidence")
+
+
+def test_monitor_discipline_empty_state_is_process_only():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    monitor_start = source.index("def render_research_monitor(")
+    monitor_end = source.index("def render_company_workbench(", monitor_start)
+    monitor = source[monitor_start:monitor_end]
+
+    assert "No process item is currently due from saved reviewer-authored evidence." in monitor
+    assert "This does not claim that no market event, risk, or external research need exists." in monitor
 
 
 def test_research_evidence_detours_offer_return_before_evidence_content():

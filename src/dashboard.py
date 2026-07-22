@@ -307,9 +307,12 @@ from src.decision_process_scorecard import (
     decision_process_rows,
 )
 from src.research_decision_lab import (
+    ResearchDisciplineRow,
+    build_research_discipline_rows,
     build_research_decision_lab_state,
     decision_lab_cards,
     decision_lab_rows,
+    research_discipline_rows,
     unavailable_research_decision_lab_state,
 )
 from src.scenario_lab import (
@@ -5632,6 +5635,84 @@ def load_dashboard_weekly_summary(
         review_items,
         journal_rows=journal_rows,
         as_of=as_of,
+    )
+
+
+def load_dashboard_research_discipline_rows(
+    context: ProfileContext,
+    cohort: FocusedCohort,
+    review_items,
+    *,
+    as_of: str | None = None,
+) -> tuple[ResearchDisciplineRow, ...]:
+    """Compose saved per-ticker process states without fetching or building reports."""
+
+    selected_as_of = as_of or pd.Timestamp.now(tz="UTC").isoformat()
+    ledger_error = ""
+    try:
+        journal_entries = load_journal_entries(DATA_DIR / "research_thesis_journal.csv")
+    except (OSError, UnicodeError, ValueError) as exc:
+        journal_entries = ()
+        ledger_error = f"Research thesis journal could not be verified: {exc}"
+    try:
+        outcomes = load_outcomes(DATA_DIR / "research_outcome_reviews.csv")
+    except (OSError, UnicodeError, ValueError) as exc:
+        outcomes = ()
+        ledger_error = ledger_error or f"Research outcome ledger could not be verified: {exc}"
+
+    saved_review_items = tuple(review_items)
+    states_by_ticker = {}
+    for member in cohort.members:
+        ticker = member.ticker.upper()
+        if ledger_error:
+            states_by_ticker[ticker] = unavailable_research_decision_lab_state(
+                profile_key=context.profile_key,
+                ticker=ticker,
+                reason=ledger_error,
+            )
+            continue
+        try:
+            journal_state = derive_journal_state(
+                journal_entries,
+                profile_key=context.profile_key,
+                ticker=ticker,
+                as_of=selected_as_of,
+            )
+            outcome_status = derive_outcome_status(
+                outcomes,
+                profile_key=context.profile_key,
+                ticker=ticker,
+                commercial_mode=True,
+            )
+            report_context = {
+                "ticker": ticker,
+                "asset_type": "company",
+                "valuation_readiness": {"dcf_ready": "dcf" in member.usable_lanes},
+                "valuation_snapshot": {},
+            }
+            scorecard = build_decision_process_scorecard(
+                report_context,
+                profile_key=context.profile_key,
+                journal_state=journal_state,
+                review_items=saved_review_items,
+            )
+            states_by_ticker[ticker] = build_research_decision_lab_state(
+                profile_key=context.profile_key,
+                journal_state=journal_state,
+                scorecard=scorecard,
+                outcome_status=outcome_status,
+                review_items=saved_review_items,
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            states_by_ticker[ticker] = unavailable_research_decision_lab_state(
+                profile_key=context.profile_key,
+                ticker=ticker,
+                reason=str(exc),
+            )
+
+    return build_research_discipline_rows(
+        states_by_ticker,
+        focused_tickers=(member.ticker for member in cohort.members),
     )
 
 
@@ -34540,6 +34621,7 @@ def render_research_monitor(
     state: dict[str, object],
     context: ProfileContext,
     weekly_summary: WeeklyResearchSummary,
+    cohort: FocusedCohort,
 ) -> None:
     render_research_workspace_header(
         "Monitor",
@@ -34547,6 +34629,42 @@ def render_research_monitor(
         primary_action="Review unresolved evidence changes; otherwise wait for new source evidence",
     )
     render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
+    discipline = load_dashboard_research_discipline_rows(
+        context,
+        cohort,
+        state.get("queue") or (),
+    )
+    st.markdown("### Research Discipline Review")
+    discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
+    if discipline_frame.empty or not any(row.due_lanes for row in discipline):
+        render_context_note(
+            "No process item is currently due from saved reviewer-authored evidence.",
+            "This does not claim that no market event, risk, or external research need exists.",
+        )
+    if not discipline_frame.empty:
+        st.dataframe(discipline_frame, width="stretch", hide_index=True)
+    with st.expander("Advanced: Research Discipline evidence", expanded=False):
+        if discipline:
+            st.dataframe(
+                pd.DataFrame(
+                    [
+                        {
+                            "Cohort order": row.cohort_order,
+                            "Ticker": row.ticker,
+                            "Decision Lab identity": row.identity,
+                        }
+                        for row in discipline
+                    ]
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.caption("No focused-cohort process identity is available from saved evidence.")
+        st.caption(
+            "Rows preserve saved focused-cohort order. Process state does not rank companies, "
+            "estimate returns, or replace source-change review."
+        )
     st.markdown("### Research change monitor")
     frame = research_monitor_frame(state.get("queue") or ())
     if frame.empty:
@@ -34847,7 +34965,12 @@ def main() -> None:
     elif research_mode and selected_page == "Company Workbench":
         render_company_workbench(provider, profile_context, research_change_state, focused_cohort_coverage)
     elif research_mode and selected_page == "Monitor":
-        render_research_monitor(research_change_state, profile_context, weekly_research_summary)
+        render_research_monitor(
+            research_change_state,
+            profile_context,
+            weekly_research_summary,
+            focused_cohort,
+        )
     elif content_page == "Home":
         render_home_page(
             catalog,

@@ -66,6 +66,7 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
     assert RESEARCH_ROUTE_SPECS[3].first_useful_marker == "WEEKLY RESEARCH SUMMARY"
     assert RESEARCH_ROUTE_SPECS[3].full_markers == (
         "WEEKLY RESEARCH SUMMARY",
+        "Research Discipline Review",
         "Research change monitor",
         "No unresolved evidence change is queued.",
         "Open Discover",

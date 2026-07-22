@@ -44,6 +44,31 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     assert all(result.expanded_advanced == () for result in results)
 
 
+def test_monitor_renders_research_discipline_after_weekly_summary_without_ranking():
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="Monitor Research Discipline Review",
+        query_params=(("mode", "research"), ("page", "monitor")),
+        required_markers=(
+            "WEEKLY RESEARCH SUMMARY",
+            "Research Discipline Review",
+            "Research change monitor",
+            "Advanced: Research Discipline evidence",
+            "Research-only",
+        ),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.exceptions == ()
+    assert rendered.index("WEEKLY RESEARCH SUMMARY") < rendered.index("Research Discipline Review")
+    assert rendered.index("Research Discipline Review") < rendered.index("Research change monitor")
+    assert "company rank" not in rendered.lower()
+    assert "expected return" not in rendered.lower()
+
+
 def test_avgo_company_workbench_renders_one_authoritative_peer_task():
     from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
 

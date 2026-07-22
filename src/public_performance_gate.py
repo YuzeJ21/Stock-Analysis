@@ -161,6 +161,7 @@ RESEARCH_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
         "WEEKLY RESEARCH SUMMARY",
         (
             "WEEKLY RESEARCH SUMMARY",
+            "Research Discipline Review",
             "Research change monitor",
             "No unresolved evidence change is queued.",
             "Open Discover",
