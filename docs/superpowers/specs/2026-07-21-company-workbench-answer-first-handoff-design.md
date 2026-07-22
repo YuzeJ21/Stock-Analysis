@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved for design documentation by the active continuous-maturity goal. Product implementation remains pending review of this written specification.
+Approved by the user and implemented on the active feature branch. Focused test-first contracts, the full local release matrix, and desktop/phone browser acceptance pass; exact push, draft-PR update, and exact-head CI evidence remain required before the slice is safe for draft review.
 
 ## Problem
 
@@ -176,3 +176,15 @@ The slice is complete only when:
 8. The 18 pre-existing generated CSV/report changes remain unstaged.
 9. Independent engineering review reports no unresolved Critical or Important findings.
 10. The exact pushed HEAD passes GitHub Actions while PR #113 remains draft.
+
+## Implementation Evidence
+
+The implementation uses a Workbench-only compact header, an anchored Streamlit target, and one target-aware summary renderer shared by the fast and final report paths. Live review also found that the selected answer's tracked multi-column styles were loaded only in Public mode, despite the design assumption that Personal Research mode already inherited them. The implementation therefore adds an explicit `research` summary class with scoped desktop and phone styles; it does not load the Public shell or change other routes.
+
+Current-tree AVGO measurements:
+
+- `1280x720`: one selected answer; CSS grid columns `128px 303.5px 303.508px 242.797px`; Data Health visible; answer precedes Review path; no horizontal overflow.
+- `390x844`: one selected answer from approximately `409px` to `711px`; Data Health ends near `669px`; stop condition ends near `705px`; Review path ends near `746px`; lane coverage ends near `806px`; document and viewport widths are both `390px`.
+- Browser logs contained only the initial connection-health errors recorded more than seven minutes before final measurement; no later product/runtime error was recorded during the final desktop or phone acceptance run.
+
+Screenshots remain ephemeral under `/tmp/stock-research-workflow-audit-2026-07-22/` and must not be staged. These measurements are local runtime evidence only and do not prove hosting, full accessibility conformance, independent review, demand, or market validation.

@@ -135,20 +135,22 @@ def test_research_discover_renders_selector_before_advanced_cohort_context():
     assert heading < selector < advanced < cohort < coverage
 
 
-def test_company_workbench_keeps_lane_coverage_collapsed_before_report_answer():
+def test_company_workbench_anchors_answer_before_collapsed_navigation_and_passes_target_to_report():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     workbench_start = source.index("def render_company_workbench(")
     workbench_end = source.index("\ndef main()", workbench_start)
     workbench = source[workbench_start:workbench_end]
 
-    selected = workbench.index('st.markdown("### Selected Company")')
-    advanced = workbench.index(
-        'with st.expander("Advanced: selected-company lane coverage", expanded=False):'
-    )
-    coverage = workbench.index("focused_ticker_coverage_cards(coverage, ticker)", advanced)
-    report = workbench.index("render_single_stock_report(", coverage)
+    header = workbench.index("render_research_workspace_header(")
+    target = workbench.index("selected_answer_target = st.empty()", header)
+    review = workbench.index('with st.expander("Review path", expanded=False):', target)
+    advanced = workbench.index('with st.expander("Advanced: selected-company lane coverage", expanded=False):', review)
+    report = workbench.index("render_single_stock_report(", advanced)
 
-    assert selected < advanced < coverage < report
+    assert header < target < review < advanced < report
+    assert "compact=True" in workbench[header:target]
+    assert "selected_answer_target=selected_answer_target" in workbench[report:]
+    assert 'st.markdown("### Selected Company")' not in workbench
 
 
 def test_company_workbench_loads_cash_preview_only_for_explicit_flag():
@@ -411,22 +413,32 @@ def test_research_workspace_phone_styles_compact_profile_and_hide_only_duplicate
     assert "grid-template-columns: repeat(3, minmax(0, 1fr));" in styles
     assert ".research-workspace-freshness { display: none; }" in styles
     assert ".research-workspace-action" in styles
+    assert ".research-workspace-header.compact { padding: .35rem .9rem; margin-bottom: .15rem; }" in styles
+    assert ".research-workspace-header.compact h1 { padding: 0; }" in styles
+    assert ".research-workspace-header.compact .research-workspace-heading p" in styles
+    assert "font-size: .9rem; line-height: 1.35;" in styles
+    assert ".research-workspace-header.compact .research-workspace-boundary" in styles
+    assert "font-size: .85rem; line-height: 1.35; margin-top: .25rem;" in styles
+    assert ".public-ticker-summary.research" in styles
+    assert "grid-template-columns: 8rem minmax(0, 1fr) minmax(0, 1fr) minmax(12rem, 0.8fr);" in styles
+    assert ".public-ticker-summary.research .public-ticker-action" in styles
+    assert "display: grid;" in styles
     assert "@media (max-width: 640px)" in styles
 
 
-def test_company_workbench_keeps_selected_company_before_collapsed_review_path_and_details():
+def test_company_workbench_keeps_review_path_and_lane_coverage_after_anchored_answer():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     start = source.index("def render_company_workbench(")
     end = source.index("\ndef main()", start)
     workbench = source[start:end]
 
-    selected = workbench.index('st.markdown("### Selected Company")')
-    review = workbench.index('with st.expander("Review path", expanded=False):', selected)
+    selected_answer = workbench.index("selected_answer_target = st.empty()")
+    review = workbench.index('with st.expander("Review path", expanded=False):', selected_answer)
     path = workbench.index('st.caption(" -> ".join(section_names[:-1]))', review)
     coverage = workbench.index('with st.expander("Advanced: selected-company lane coverage", expanded=False):', path)
     report = workbench.index("render_single_stock_report(", coverage)
 
-    assert selected < review < path < coverage < report
+    assert selected_answer < review < path < coverage < report
     assert 'st.caption("Review path: "' not in workbench
 
 

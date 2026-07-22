@@ -75,6 +75,28 @@ def test_avgo_company_workbench_renders_one_authoritative_peer_task():
     assert "NEXT RESEARCH TASK" not in rendered
 
 
+def test_avgo_company_workbench_renders_one_selected_answer_with_ticker_handoff():
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="AVGO Company Workbench answer handoff",
+        query_params=(
+            ("mode", "research"),
+            ("page", "company-workbench"),
+            ("ticker", "AVGO"),
+            ("open", "1"),
+        ),
+        required_markers=("Company Workbench", "Open Data Health", "Research-only"),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.exceptions == ()
+    assert rendered.count("aria-label='Selected ticker answer'") == 1
+    assert "?mode=research&amp;page=data-health&amp;ticker=AVGO" in rendered
+
+
 def test_research_render_smoke_output_names_the_contract_and_failures():
     from src.dashboard_render_smoke import DashboardRenderResult, render_dashboard_smoke
 

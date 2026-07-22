@@ -636,19 +636,24 @@ def research_workspace_header_html(
     profile_label: str,
     freshness: str,
     primary_action: str,
+    compact: bool = False,
 ) -> str:
     scope = str(ticker or "Focused research scope").strip().upper() if ticker else "Focused research scope"
+    header_class = "research-workspace-header compact" if compact else "research-workspace-header"
+    meta_html = "" if compact else (
+        "<dl class='research-workspace-meta'>"
+        f"<div class='research-workspace-meta-item research-workspace-freshness'><dt>Freshness</dt><dd>{html.escape(str(freshness or 'Check saved readiness'))}</dd></div>"
+        f"<div class='research-workspace-meta-item research-workspace-action'><dt>Next action</dt><dd>{html.escape(str(primary_action or 'Review source-backed evidence'))}</dd></div>"
+        "</dl>"
+    )
     return (
-        "<section class='research-workspace-header' aria-label='Personal research workspace'>"
+        f"<section class='{header_class}' aria-label='Personal research workspace'>"
         "<div class='research-workspace-heading'>"
         "<span>Personal research mode</span>"
         f"<h1>{html.escape(str(page_title or 'Research Desk'))}</h1>"
         f"<p>{html.escape(scope)} · {html.escape(str(profile_label or 'Local research'))}</p>"
         "</div>"
-        "<dl class='research-workspace-meta'>"
-        f"<div class='research-workspace-meta-item research-workspace-freshness'><dt>Freshness</dt><dd>{html.escape(str(freshness or 'Check saved readiness'))}</dd></div>"
-        f"<div class='research-workspace-meta-item research-workspace-action'><dt>Next action</dt><dd>{html.escape(str(primary_action or 'Review source-backed evidence'))}</dd></div>"
-        "</dl>"
+        f"{meta_html}"
         "<p class='research-workspace-boundary'>Research-only. Not investment advice; no trade instruction is produced.</p>"
         "</section>"
     )

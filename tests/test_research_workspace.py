@@ -681,6 +681,27 @@ def test_research_workspace_header_keeps_scope_freshness_action_and_boundary_vis
     assert "investment advice" in rendered
 
 
+def test_compact_research_workspace_header_keeps_identity_scope_and_boundary_without_duplicate_meta():
+    rendered = research_workspace_header_html(
+        "Company Workbench",
+        ticker="NVDA",
+        profile_label="Local Research",
+        freshness="Current through 2026-07-16",
+        primary_action="Review source-backed sections",
+        compact=True,
+    )
+
+    assert "research-workspace-header compact" in rendered
+    assert "<h1>Company Workbench</h1>" in rendered
+    assert "NVDA" in rendered
+    assert "Local Research" in rendered
+    assert "Research-only" in rendered
+    assert "investment advice" in rendered
+    assert "Current through 2026-07-16" not in rendered
+    assert "Review source-backed sections" not in rendered
+    assert "research-workspace-meta" not in rendered
+
+
 def test_research_desk_and_advanced_evidence_html_stay_answer_first_and_command_free():
     cards = research_desk_cards(
         change_status="no_changes",

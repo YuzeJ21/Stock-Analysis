@@ -3,6 +3,7 @@ import json
 import os
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
@@ -3421,7 +3422,7 @@ def test_public_single_stock_defers_secondary_rendering_until_detail_toggle():
     next_function_index = source.index("\ndef render_data_health(", render_index)
     chunk = source[render_index:next_function_index]
 
-    public_answer_index = chunk.index("st.markdown(single_stock_public_summary_html(single_answer_frame)")
+    public_answer_index = chunk.index("render_single_stock_public_summary(", chunk.index("single_answer_frame"))
     detail_gate_index = chunk.index(
         "if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):",
         public_answer_index,
@@ -26642,7 +26643,7 @@ def test_single_stock_public_summary_keeps_the_data_health_handoff_visible():
     assert "Stop if peer proof is missing" in rendered
 
 
-def test_single_stock_research_summary_keeps_selected_ticker_readable_without_css():
+def test_single_stock_research_summary_keeps_selected_ticker_plain_text_fallback():
     frame = pd.DataFrame(
         [
             {
@@ -26661,6 +26662,7 @@ def test_single_stock_research_summary_keeps_selected_ticker_readable_without_cs
 
     assert "Selected ticker AVGO" in unstyled_text
     assert "Selected tickerAVGO" not in unstyled_text
+    assert "public-ticker-summary research" in rendered
     assert "?mode=research&amp;page=data-health&amp;ticker=AVGO" in rendered
 
 
@@ -26739,7 +26741,8 @@ def test_stock_report_provenance_cards_summarize_visible_method_and_source_bound
 
 def test_single_stock_public_report_renders_one_answer_summary_before_advanced_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    public_answer_index = source.index("st.markdown(single_stock_public_summary_html(single_answer_frame)")
+    report_index = source.index("def render_single_stock_report(")
+    public_answer_index = source.index("render_single_stock_public_summary(", source.index("single_answer_frame", report_index))
     advanced_index = source.index('st.expander("Advanced: detailed report sections", expanded=False)', public_answer_index)
 
     assert public_answer_index < advanced_index
@@ -30220,7 +30223,7 @@ def test_direct_public_single_stock_route_renders_fast_summary_before_loading_an
     report_chunk = source[render_index:next_function_index]
     fast_snapshot_index = report_chunk.index("fast_snapshot = single_stock_fast_readiness_snapshot(ticker)")
     fast_frame_index = report_chunk.index("fast_answer_frame = single_stock_one_answer_frame(fast_snapshot)", fast_snapshot_index)
-    fast_summary_index = report_chunk.index("single_stock_public_summary_html(fast_answer_frame", fast_frame_index)
+    fast_summary_index = report_chunk.index("render_single_stock_public_summary(", fast_frame_index)
     loading_placeholder_index = report_chunk.index("single_stock_loading_placeholder = st.empty()", fast_summary_index)
     coverage_lookup_index = report_chunk.index("coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))")
     direct_open_index = report_chunk.index("if query_open_review and not report_payload:", coverage_lookup_index)
@@ -30236,7 +30239,51 @@ def test_direct_public_single_stock_route_renders_fast_summary_before_loading_an
         < open_report_index
     )
     assert "render_signal_cards(single_stock_quick_read_cards(fast_snapshot)" not in report_chunk
-    assert "target_mode=RESEARCH_MODE" in report_chunk[fast_frame_index:loading_placeholder_index]
+    assert "research_mode=research_mode" in report_chunk[fast_frame_index:loading_placeholder_index]
+    assert "selected_answer_target=selected_answer_target" in report_chunk[fast_frame_index:loading_placeholder_index]
+
+
+def test_single_stock_public_summary_uses_selected_target_when_supplied(monkeypatch):
+    calls = []
+    target = SimpleNamespace(markdown=lambda body, **kwargs: calls.append(("target", body, kwargs)))
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda body, **kwargs: calls.append(("global", body, kwargs)),
+    )
+
+    dashboard.render_single_stock_public_summary(
+        dashboard.single_stock_one_answer_frame(
+            {
+                "ticker": "NVDA",
+                "status": "partial",
+                "asset_type": "company",
+                "price_ready": True,
+                "dcf_status": "blocked",
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+            }
+        ),
+        research_mode=True,
+        selected_answer_target=target,
+    )
+
+    assert [kind for kind, _, _ in calls] == ["target"]
+    assert "mode=research&amp;page=data-health&amp;ticker=NVDA" in calls[0][1]
+
+
+def test_single_stock_report_routes_fast_and_final_answers_through_optional_target():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    next_function_index = source.index("\ndef render_data_health(", render_index)
+    report_chunk = source[render_index:next_function_index]
+    signature = report_chunk[: report_chunk.index(") -> None:")]
+
+    assert "selected_answer_target=None" in signature
+    assert report_chunk.count("render_single_stock_public_summary(") == 2
+    assert report_chunk.count("selected_answer_target=selected_answer_target") == 2
+    assert "single_stock_public_summary_html(" not in report_chunk
 
 
 def test_fast_public_single_stock_summary_keeps_answer_order_and_data_health_handoff():
@@ -30636,7 +30683,7 @@ def test_single_stock_public_page_uses_simplified_review_sections():
     readable_now_index = source.index("What can be read now", review_intro_index)
     one_answer_index = source.index("single_stock_one_answer_frame(report_one_answer_snapshot)", readable_now_index)
     first_answer_index = source.index("stock_report_first_answer_frame(report_payload)", one_answer_index)
-    public_cards_index = source.index("single_stock_public_summary_html(single_answer_frame)", first_answer_index)
+    public_cards_index = source.index("render_single_stock_public_summary(", first_answer_index)
     quick_read_index = source.index('with st.expander("Advanced quick-read context", expanded=False)', public_cards_index)
     public_quick_read_cards_index = source.index(
         "if public_mode:\n            render_signal_cards(at_a_glance_cards, show_commands=False)",

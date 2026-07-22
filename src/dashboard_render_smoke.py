@@ -104,7 +104,6 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         ),
         required_markers=(
             "Company Workbench",
-            "Selected Company",
             "What Changed",
             "Business Trend",
             "Valuation",

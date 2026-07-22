@@ -7374,9 +7374,10 @@ def single_stock_public_summary_html(frame: pd.DataFrame, *, target_mode: str = 
     next_action = public_safe_next_action_text(row.get("Next Safe Action"))
     boundary = format_missing(row.get("Review Boundary"), "Keep the review research-only.")
     safe_mode = RESEARCH_MODE if target_mode == RESEARCH_MODE else PUBLIC_DEMO_MODE
+    summary_class = "public-ticker-summary research" if safe_mode == RESEARCH_MODE else "public-ticker-summary"
     href = html.escape(f"?mode={safe_mode}&page=data-health&ticker={ticker}", quote=True)
     return (
-        "<section class='public-ticker-summary' aria-label='Selected ticker answer'>"
+        f"<section class='{summary_class}' aria-label='Selected ticker answer'>"
         "<div class='public-ticker-name'>"
         "<span>Selected ticker</span> "
         f"<strong>{html.escape(ticker)}</strong>"
@@ -7397,6 +7398,22 @@ def single_stock_public_summary_html(frame: pd.DataFrame, *, target_mode: str = 
         "</div>"
         "</section>"
     )
+
+
+def render_single_stock_public_summary(
+    frame: pd.DataFrame,
+    *,
+    research_mode: bool,
+    selected_answer_target=None,
+) -> None:
+    """Render one selected-ticker answer at its route-selected target."""
+
+    rendered = single_stock_public_summary_html(
+        frame,
+        target_mode=RESEARCH_MODE if research_mode else "public",
+    )
+    target = selected_answer_target if selected_answer_target is not None else st
+    target.markdown(rendered, unsafe_allow_html=True)
 
 
 def stock_report_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
@@ -30185,6 +30202,7 @@ def render_single_stock_report(
     research_review_items=(),
     quarterly_trend_packet: QuarterlyTrendPacket | None = None,
     cash_generation_preview: CompanyWorkbenchCashGenerationPreview | None = None,
+    selected_answer_target=None,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -30257,13 +30275,11 @@ def render_single_stock_report(
     if public_mode and compact_public_open_report and not report_payload:
         fast_snapshot = single_stock_fast_readiness_snapshot(ticker)
         fast_answer_frame = single_stock_one_answer_frame(fast_snapshot)
-        if research_mode:
-            st.markdown(
-                single_stock_public_summary_html(fast_answer_frame, target_mode=RESEARCH_MODE),
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(single_stock_public_summary_html(fast_answer_frame), unsafe_allow_html=True)
+        render_single_stock_public_summary(
+            fast_answer_frame,
+            research_mode=research_mode,
+            selected_answer_target=selected_answer_target,
+        )
         single_stock_loading_placeholder = st.empty()
         with single_stock_loading_placeholder.container():
             render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")
@@ -30406,13 +30422,11 @@ def render_single_stock_report(
             freshness_state=(profile_context or build_profile_context(project_root=BASE_DIR)).freshness_state,
         )
         if public_mode:
-            if research_mode:
-                st.markdown(
-                    single_stock_public_summary_html(single_answer_frame, target_mode=RESEARCH_MODE),
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
+            render_single_stock_public_summary(
+                single_answer_frame,
+                research_mode=research_mode,
+                selected_answer_target=selected_answer_target,
+            )
             if research_mode:
                 change_answer = company_change_answer(ticker, research_review_items)
                 change_context_badge = {
@@ -34203,6 +34217,14 @@ def render_research_workspace_styles() -> None:
             margin: 0 0 1rem;
             background: #ffffff;
         }
+        .research-workspace-header.compact { padding: .35rem .9rem; margin-bottom: .15rem; }
+        .research-workspace-header.compact h1 { padding: 0; }
+        .research-workspace-header.compact .research-workspace-heading p {
+            font-size: .9rem; line-height: 1.35;
+        }
+        .research-workspace-header.compact .research-workspace-boundary {
+            font-size: .85rem; line-height: 1.35; margin-top: .25rem;
+        }
         .profile-trust-strip {
             display: grid;
             grid-template-columns: minmax(9rem, 1.2fr) repeat(4, minmax(7rem, 1fr));
@@ -34277,6 +34299,75 @@ def render_research_workspace_styles() -> None:
             text-decoration: none;
         }
         .research-evidence-link span { color: #52615c; font-size: .86rem; }
+        .public-ticker-summary.research {
+            display: grid;
+            grid-template-columns: 8rem minmax(0, 1fr) minmax(0, 1fr) minmax(12rem, 0.8fr);
+            gap: 1rem;
+            align-items: start;
+            margin-top: .45rem;
+            padding: .75rem 0;
+            border-top: 1px solid #d9e0dc;
+            border-bottom: 1px solid #d9e0dc;
+        }
+        .public-ticker-summary.research .public-ticker-name {
+            display: grid;
+            gap: .28rem;
+        }
+        .public-ticker-summary.research .public-ticker-name span,
+        .public-ticker-summary.research .public-ticker-answer span {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+        .public-ticker-summary.research .public-ticker-name strong {
+            color: #102a43;
+            font-size: 1.35rem;
+            line-height: 1;
+        }
+        .public-ticker-summary.research .public-ticker-answer { min-width: 0; }
+        .public-ticker-summary.research .public-ticker-answer.use-now {
+            border-left: 3px solid #0f766e;
+            padding-left: .75rem;
+        }
+        .public-ticker-summary.research .public-ticker-answer.blocked {
+            border-left: 3px solid #c27c1b;
+            padding-left: .75rem;
+        }
+        .public-ticker-summary.research .public-ticker-answer p,
+        .public-ticker-summary.research .public-ticker-action p {
+            margin: .3rem 0 0;
+            color: #253746;
+            font-size: .86rem;
+            line-height: 1.4;
+        }
+        .public-ticker-summary.research .public-ticker-answer small,
+        .public-ticker-summary.research .public-ticker-action small {
+            display: block;
+            margin-top: .3rem;
+            color: #667085;
+            font-size: .74rem;
+            line-height: 1.35;
+        }
+        .public-ticker-summary.research .public-ticker-action {
+            display: grid;
+            justify-items: start;
+            gap: .45rem;
+        }
+        .public-ticker-summary.research .public-ticker-action p { margin: 0; }
+        .public-ticker-summary.research .public-primary-action {
+            display: inline-flex;
+            align-items: center;
+            min-height: 2.5rem;
+            padding: .45rem .7rem;
+            border-radius: 6px;
+            background: #0f766e;
+            color: #fff !important;
+            font-size: .82rem;
+            font-weight: 760;
+            text-decoration: none !important;
+        }
         @media (max-width: 640px) {
             .research-desk-grid { grid-template-columns: 1fr; }
             .research-workspace-header {
@@ -34305,6 +34396,35 @@ def render_research_workspace_styles() -> None:
                 padding: 0 .35rem;
             }
             .profile-trust-strip.compact > :nth-child(3n + 1) { border-left: 0; }
+            .public-ticker-summary.research {
+                grid-template-columns: 1fr;
+                gap: .2rem;
+                margin-top: .15rem;
+                padding: 0 0 .3rem;
+            }
+            .public-ticker-summary.research .public-ticker-name {
+                display: flex;
+                align-items: baseline;
+                gap: .3rem;
+            }
+            .public-ticker-summary.research .public-ticker-name strong { font-size: 1rem; }
+            .public-ticker-summary.research .public-ticker-answer.use-now,
+            .public-ticker-summary.research .public-ticker-answer.blocked {
+                border-left: 0;
+                padding-left: 0;
+            }
+            .public-ticker-summary.research .public-ticker-answer p,
+            .public-ticker-summary.research .public-ticker-action p { margin-top: .12rem; }
+            .public-ticker-summary.research .public-ticker-answer small,
+            .public-ticker-summary.research .public-ticker-action small { margin-top: .12rem; }
+            .public-ticker-summary.research .public-ticker-action { gap: .15rem; }
+            .public-ticker-summary.research .public-primary-action {
+                min-height: auto;
+                padding: 0;
+                background: transparent;
+                color: #0f766e !important;
+                text-decoration: underline !important;
+            }
         }
         </style>
         """,
@@ -34318,6 +34438,7 @@ def render_research_workspace_header(
     *,
     ticker: str = "",
     primary_action: str,
+    compact: bool = False,
 ) -> None:
     st.markdown(
         research_workspace_header_html(
@@ -34326,6 +34447,7 @@ def render_research_workspace_header(
             profile_label=context.profile_label,
             freshness=context.freshness_state.replace("_", " ").title(),
             primary_action=primary_action,
+            compact=compact,
         ),
         unsafe_allow_html=True,
     )
@@ -34416,8 +34538,9 @@ def render_company_workbench(
         context,
         ticker=ticker,
         primary_action="Review usable evidence, then record what remains uncertain",
+        compact=True,
     )
-    st.markdown("### Selected Company")
+    selected_answer_target = st.empty()
     section_names = [section["title"] for section in company_workbench_section_contract()]
     with st.expander("Review path", expanded=False):
         st.caption(" -> ".join(section_names[:-1]))
@@ -34439,6 +34562,7 @@ def render_company_workbench(
         research_review_items=state.get("queue") or (),
         quarterly_trend_packet=load_dashboard_quarterly_trend(ticker),
         cash_generation_preview=cash_generation_preview,
+        selected_answer_target=selected_answer_target,
     )
     st.markdown("### Advanced Evidence")
     with st.expander("Advanced Evidence", expanded=False):

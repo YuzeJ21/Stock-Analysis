@@ -139,9 +139,9 @@ RESEARCH_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
     PublicRouteSpec(
         "Company Workbench",
         "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
-        "Selected Company",
+        "Company Workbench",
         (
-            "Selected Company",
+            "Company Workbench",
             "Advanced: selected-company lane coverage",
             "What Changed",
             "Business Trend",
