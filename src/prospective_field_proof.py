@@ -12,6 +12,7 @@ import os
 import re
 import sys
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import BinaryIO, Mapping, Sequence
 
@@ -137,6 +138,16 @@ class BatchFieldProofPreview:
 
 def _text(value: object) -> str:
     return str(value or "").strip()
+
+
+def _parse_record_utc_timestamp(value: object, *, label: str) -> datetime:
+    parsed = parse_utc_timestamp(value, label=label)
+    cleaned = _text(value)
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    if datetime.fromisoformat(cleaned).utcoffset() != timedelta(0):
+        raise ValueError(f"{label} must use UTC (Z or +00:00)")
+    return parsed
 
 
 def _normalized_ticker(value: object) -> str:
@@ -266,9 +277,9 @@ def _validate_record(record: ProspectiveFieldProofRecord) -> None:
     if _text(record.payload_sha256) and not _SHA256.fullmatch(record.payload_sha256):
         raise ValueError("payload_sha256 must be a lowercase SHA-256 digest")
 
-    observed_at = parse_utc_timestamp(record.observed_at, label="observed_at")
-    retrieved_at = parse_utc_timestamp(record.retrieved_at, label="retrieved_at")
-    reviewed_at = parse_utc_timestamp(record.reviewed_at, label="reviewed_at")
+    observed_at = _parse_record_utc_timestamp(record.observed_at, label="observed_at")
+    retrieved_at = _parse_record_utc_timestamp(record.retrieved_at, label="retrieved_at")
+    reviewed_at = _parse_record_utc_timestamp(record.reviewed_at, label="reviewed_at")
     if observed_at > retrieved_at:
         raise ValueError("observed_at cannot be after retrieved_at")
     if retrieved_at > reviewed_at:

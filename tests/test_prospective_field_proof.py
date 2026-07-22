@@ -293,6 +293,73 @@ def test_timestamps_must_be_utc_aware_and_ordered_without_a_cutoff(
         load_field_proofs(ledger)
 
 
+@pytest.mark.parametrize(
+    ("loader", "row_label"),
+    [
+        (load_field_proofs, "ledger row 2"),
+        (load_proposed_field_proofs, "input row 2"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("observed_at", "2026-07-18T06:00:00+01:00"),
+        ("retrieved_at", "2026-07-18T01:00:01-04:00"),
+        ("reviewed_at", "2026-07-18T10:30:02+05:30"),
+    ],
+)
+def test_ledger_and_input_rows_reject_nonzero_timezone_offsets(
+    tmp_path: Path, loader, row_label: str, field: str, value: str
+):
+    path = tmp_path / "proofs.csv"
+    _write_csv(path, (_reidentified(_record(), **{field: value}),))
+
+    with pytest.raises(ValueError, match=rf"{row_label}: {field} must use UTC"):
+        loader(path)
+
+
+@pytest.mark.parametrize("suffix", ["Z", "+00:00"])
+def test_timestamp_utc_zero_offset_forms_remain_valid(suffix: str):
+    record = _reidentified(
+        _record(),
+        observed_at=f"2026-07-18T05:00:00{suffix}",
+        retrieved_at=f"2026-07-18T05:00:01{suffix}",
+        reviewed_at=f"2026-07-18T05:00:02{suffix}",
+    )
+
+    assert validate_field_proof_ledger((record,)) is None
+
+
+def test_preview_rejects_nonzero_offset_before_any_ledger_write(tmp_path: Path):
+    ledger = tmp_path / "proofs.csv"
+    proposed = _reidentified(
+        _record(),
+        reviewed_at="2026-07-18T06:00:02+01:00",
+    )
+
+    preview = preview_field_proof_batch(
+        (),
+        (proposed,),
+        as_of="2026-07-20T00:00:00Z",
+        commercial_mode=False,
+        rights_registry=_rights_registry(),
+    )
+
+    assert preview.technical_write_eligible is False
+    assert "reviewed_at must use UTC" in " ".join(preview.technical_blockers)
+    with pytest.raises(ValueError, match="rejected_batch: .*reviewed_at must use UTC"):
+        append_reviewed_field_proof_batch(
+            ledger,
+            (proposed,),
+            confirm_reviewed=True,
+            commercial_mode=False,
+            rights_registry=_rights_registry(),
+            review_cutoff=preview.review_cutoff,
+            preview_receipt=preview.preview_receipt,
+        )
+    assert not ledger.exists()
+
+
 def test_input_errors_are_row_numbered_and_loads_validate_proposed_rows(tmp_path: Path):
     input_path = tmp_path / "input.csv"
     _write_csv(input_path, (_record(), _reidentified(_record(), reviewer_decision="pending")))
