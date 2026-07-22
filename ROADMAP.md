@@ -303,7 +303,7 @@ Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`; 
 **Design anchor:** `54e06e1c3` or a later verified descendant
 **Current state:** design committed; product implementation not started
 
-**Goal:** make the existing research-process capabilities feel like one repeatable learning loop without turning the Command Center into a trading platform.
+**Goal:** unify the existing research-process capabilities into one repeatable learning loop without turning the Command Center into a trading platform.
 
 ### Stage 1 — Read-only composition contract
 
