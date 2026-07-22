@@ -166,21 +166,25 @@ phone viewports. Every page passed its current review with its first answer and
 primary handoff visible, Advanced/raw detail collapsed, no horizontal overflow,
 and no traceback.
 
-Only the Single-Stock Report needed a correction: its phone-only evidence
-handoff was too dense, leaving `Open Data Health` below the initial `844px`
-viewport. The accepted phone correction keeps `gap: 0.25rem` and uses
-`padding: 0.125rem 0 0.5rem`; the final handoff ends at `836.53125px`, leaving
-`7.46875px` of viewport clearance while preserving the reading order: Selected
-ticker -> `Use now` -> `Still withheld` -> `Open Data Health`. Desktop layout
-is unchanged.
+Only the Single-Stock Report needed a later regression correction. Its
+direct-open loading state placed three large quick-read cards before the
+evidence handoff even though the completed report used the compact answer.
+The loading state now renders the same compact selected-ticker answer before
+provider and report work, preserving Selected ticker -> `Use now` -> `Still
+withheld` -> `Open Data Health`. Browser measurement at `390x844` verified the
+44px handoff fully inside the viewport with at least 50px of bottom clearance,
+no horizontal overflow, and no traceback. Desktop remains a four-column layout
+with the same handoff visible.
 
 Data Health and Proof History remain answer/evidence destinations. This review
 adds no invented calls to action, does not turn either route into a readiness
 unlock, and does not change readiness, source, research, or generated-artifact
-state. The fresh screenshots and audit notes remain under
-`/tmp/stock-command-center-public-ux-review` and are intentionally unstaged.
-They are local product-layout evidence only, not proof of data freshness,
-source rights, hosted behavior, accessibility compliance, or predictive
+state. The earlier screenshots predate this regression fix and remain
+historical presentation evidence only; their old measurements do not prove the
+corrected loading state. The later result was verified through live browser
+layout measurement, and no new screenshot artifact was created. Neither form
+of local presentation evidence proves data freshness, source rights, hosted
+behavior, accessibility compliance, external reviewer behavior, or predictive
 validity.
 
 The review-note gate preserves the corrective history without understating the

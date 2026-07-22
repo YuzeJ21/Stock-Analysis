@@ -1023,6 +1023,37 @@ def test_release_docs_distinguish_tracked_and_excluded_readiness_snapshots():
     assert not volatile_observation.search(roadmap)
 
 
+def test_public_mobile_handoff_docs_cover_direct_open_loading_and_remove_stale_measurement():
+    roadmap = _read("ROADMAP.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, dashboard_qa, prompt):
+        normalized = " ".join(text.split())
+        assert "direct-open loading state" in normalized
+        assert "Selected ticker -> `Use now` -> `Still withheld` -> `Open Data Health`" in normalized
+        assert "44px" in normalized
+        assert "at least 50px" in normalized
+        assert "no horizontal overflow" in normalized
+        assert "no traceback" in normalized
+        assert "four-column layout" in normalized
+        assert "836.53125px" not in text
+        assert "7.46875px" not in text
+
+    normalized_roadmap = " ".join(roadmap.split())
+    normalized_qa = " ".join(dashboard_qa.split())
+    normalized_prompt = " ".join(prompt.split())
+    assert "does not change readiness, source, research, or generated-artifact state" in normalized_roadmap
+    assert "does not prove hosted behavior, accessibility conformance" in normalized_roadmap
+    assert "does not change readiness, source, research, or generated-artifact state" in normalized_qa
+    assert "Neither form of local presentation evidence proves data freshness, source rights, hosted behavior, accessibility compliance, external reviewer behavior, or predictive validity" in normalized_qa
+    assert "not hosted, accessibility-conformance, external-reviewer, freshness, demand, or market evidence" in normalized_prompt
+    assert "changes no readiness, source, research, or generated-artifact state" in normalized_prompt
+    assert "fresh screenshots and audit notes remain" not in dashboard_qa
+    assert "earlier screenshots predate this regression fix" in dashboard_qa
+    assert "no new screenshot artifact was created" in dashboard_qa
+
+
 def test_continuation_docs_keep_maturity_lanes_and_external_unblocks_truthful():
     roadmap = _read("ROADMAP.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
