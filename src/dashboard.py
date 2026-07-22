@@ -306,6 +306,12 @@ from src.decision_process_scorecard import (
     build_decision_process_scorecard,
     decision_process_rows,
 )
+from src.research_decision_lab import (
+    build_research_decision_lab_state,
+    decision_lab_cards,
+    decision_lab_rows,
+    unavailable_research_decision_lab_state,
+)
 from src.scenario_lab import (
     ScenarioLabResult,
     ScenarioParameters,
@@ -30413,6 +30419,36 @@ def render_single_stock_report(
         valuation_regime = load_dashboard_valuation_regime(ticker)
         outcome_status = load_dashboard_outcome_status(selected_context, ticker=ticker)
         catalyst_timeline = load_dashboard_catalyst_timeline(selected_context, ticker=ticker)
+        decision_process_scorecard = None
+        decision_process_error = journal_error
+        if journal_state is not None:
+            try:
+                decision_process_scorecard = build_decision_process_scorecard(
+                    report_payload,
+                    profile_key=selected_context.profile_key,
+                    journal_state=journal_state,
+                    review_items=tuple(research_review_items),
+                )
+                decision_lab_state = build_research_decision_lab_state(
+                    profile_key=selected_context.profile_key,
+                    journal_state=journal_state,
+                    scorecard=decision_process_scorecard,
+                    outcome_status=outcome_status,
+                    review_items=tuple(research_review_items),
+                )
+            except ValueError as exc:
+                decision_process_error = str(exc)
+                decision_lab_state = unavailable_research_decision_lab_state(
+                    profile_key=selected_context.profile_key,
+                    ticker=ticker,
+                    reason=decision_process_error,
+                )
+        else:
+            decision_lab_state = unavailable_research_decision_lab_state(
+                profile_key=selected_context.profile_key,
+                ticker=ticker,
+                reason=journal_error or "No reviewed journal evidence is available.",
+            )
         forward_view_packet = build_forward_view(
             report_payload,
             trend_packet,
@@ -30451,6 +30487,16 @@ def render_single_stock_report(
                     show_commands=False,
                     variant="queue",
                 )
+                st.markdown("### Research Decision Lab")
+                render_signal_cards(decision_lab_cards(decision_lab_state), show_commands=False, variant="queue")
+                with st.expander("Advanced: Decision Lab evidence", expanded=False):
+                    st.dataframe(
+                        pd.DataFrame(decision_lab_rows(decision_lab_state)),
+                        width="stretch",
+                        hide_index=True,
+                    )
+                    st.caption(f"Decision Lab identity: {decision_lab_state.identity}")
+                    st.caption(decision_lab_state.boundary)
                 st.markdown("### Business Trend")
                 render_signal_cards(quarterly_trend_cards(trend_packet), show_commands=False, variant="queue")
                 if cash_generation_preview is not None:
@@ -30597,23 +30643,22 @@ def render_single_stock_report(
                     hide_index=True,
                 )
         with st.expander("Decision-process scorecard", expanded=False):
-            if journal_state is None:
-                st.caption("The decision-process checks remain unavailable until the selected-profile journal can be verified.")
+            if decision_process_scorecard is None:
+                st.caption(
+                    "The decision-process checks remain unavailable until the selected-profile journal can be verified."
+                )
+                if decision_process_error:
+                    st.caption(f"Decision-process checks unavailable: {decision_process_error}")
             else:
-                try:
-                    scorecard = build_decision_process_scorecard(
-                        report_payload,
-                        profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
-                        journal_state=journal_state,
-                        review_items=tuple(ACTIVE_RESEARCH_CHANGE_STATE.get("queue") or ()),
-                    )
-                    render_signal_cards(decision_process_scorecard_cards(scorecard), show_commands=False)
-                    st.dataframe(decision_process_scorecard_frame(scorecard), width="stretch", hide_index=True)
-                    with st.expander("Advanced: process identity", expanded=False):
-                        st.caption(f"Process identity: {scorecard.scorecard_identity}")
-                        st.caption(scorecard.boundary)
-                except ValueError as exc:
-                    st.caption(f"Decision-process checks unavailable: {exc}")
+                render_signal_cards(decision_process_scorecard_cards(decision_process_scorecard), show_commands=False)
+                st.dataframe(
+                    decision_process_scorecard_frame(decision_process_scorecard),
+                    width="stretch",
+                    hide_index=True,
+                )
+                with st.expander("Advanced: process identity", expanded=False):
+                    st.caption(f"Process identity: {decision_process_scorecard.scorecard_identity}")
+                    st.caption(decision_process_scorecard.boundary)
         if research_mode:
             st.markdown("### Research Conclusion")
             conclusion_cards = stock_report_next_step_cards(

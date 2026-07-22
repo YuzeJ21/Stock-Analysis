@@ -54,6 +54,7 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Company Workbench",
         "Advanced: selected-company lane coverage",
         "What Changed",
+        "Research Decision Lab",
         "Business Trend",
         "Valuation",
         "Forward View",

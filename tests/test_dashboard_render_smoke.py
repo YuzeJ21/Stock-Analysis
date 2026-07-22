@@ -97,6 +97,45 @@ def test_avgo_company_workbench_renders_one_selected_answer_with_ticker_handoff(
     assert "?mode=research&amp;page=data-health&amp;ticker=AVGO" in rendered
 
 
+def test_avgo_company_workbench_renders_one_six_lane_decision_lab_after_selected_answer():
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="AVGO Company Workbench Decision Lab",
+        query_params=(
+            ("mode", "research"),
+            ("page", "company-workbench"),
+            ("ticker", "AVGO"),
+            ("open", "1"),
+        ),
+        required_markers=(
+            "Use now",
+            "What Changed",
+            "Research Decision Lab",
+            "PLAN",
+            "EVIDENCE",
+            "INVALIDATION",
+            "SCENARIO",
+            "REVIEW TRIGGER",
+            "LEARNING",
+            "NEXT PROCESS STEP",
+            "Research Conclusion",
+            "Next Research Task",
+        ),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.exceptions == ()
+    assert result.missing_markers == ()
+    assert result.expanded_advanced == ()
+    assert rendered.count("Research Decision Lab") == 1
+    assert rendered.count("NEXT PROCESS STEP") == 1
+    assert rendered.index("Use now") < rendered.index("Research Decision Lab")
+    assert rendered.index("Research Decision Lab") < rendered.index("Research Conclusion")
+
+
 def test_research_render_smoke_output_names_the_contract_and_failures():
     from src.dashboard_render_smoke import DashboardRenderResult, render_dashboard_smoke
 

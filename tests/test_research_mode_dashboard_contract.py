@@ -618,3 +618,22 @@ def test_company_workbench_change_badge_uses_explicit_change_context_kind():
     assert '"snapshot evidence only"' in composition
     assert '"no queued change"' in composition
     assert '"source-backed only"' not in composition
+
+
+def test_company_workbench_places_one_decision_lab_after_what_changed_before_business_trend():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    report_start = source.index("def render_single_stock_report(")
+    report_end = source.index("\ndef render_data_health(", report_start)
+    report = source[report_start:report_end]
+
+    selected_answer = report.index("render_single_stock_public_summary(")
+    what_changed = report.index('st.markdown("### What Changed")', selected_answer)
+    decision_lab = report.index('st.markdown("### Research Decision Lab")', what_changed)
+    business_trend = report.index('st.markdown("### Business Trend")', decision_lab)
+    conclusion = report.index('st.markdown("### Research Conclusion")', business_trend)
+    next_task = report.index('st.markdown("### Next Research Task")', conclusion)
+
+    assert selected_answer < what_changed < decision_lab < business_trend < conclusion < next_task
+    assert report.count('st.markdown("### Research Decision Lab")') == 1
+    assert 'st.expander("Advanced: Decision Lab evidence", expanded=False)' in report
+    assert "decision_lab_state.identity" in report

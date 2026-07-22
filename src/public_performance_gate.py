@@ -144,6 +144,7 @@ RESEARCH_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
             "Company Workbench",
             "Advanced: selected-company lane coverage",
             "What Changed",
+            "Research Decision Lab",
             "Business Trend",
             "Valuation",
             "Forward View",
