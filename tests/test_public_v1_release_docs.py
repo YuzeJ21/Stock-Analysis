@@ -723,7 +723,7 @@ def test_quarterly_adapter_acceptance_docs_keep_review_and_activation_separate()
     assert "readiness_promotions=()" in provenance
     assert "no adapter file is loaded or written" in personal_mode
     assert "one-company adapter acceptance harness" in roadmap
-    assert "now prove one real-company source payload" in roadmap
+    assert "bounded exact-source review" in roadmap
     assert "They do **not** prove production activation" in roadmap
     assert "Quarterly adapter acceptance" in prompt
     assert "accepted_for_review" in prompt
@@ -1014,6 +1014,13 @@ def test_release_docs_distinguish_tracked_and_excluded_readiness_snapshots():
         "read-only current snapshot reports 21,246",
     ):
         assert stale_count not in roadmap
+    volatile_observation = re.compile(
+        r"\b(?:current|last observed|last verified|remains)[^.\n]*"
+        r"(?:\d{1,3}(?:,\d{3})+|\d+/\d+|\d+\s+"
+        r"(?:\w+\s+){0,2}(?:snapshots|rows|promotions|conflicts|outcomes|tickers))",
+        re.IGNORECASE,
+    )
+    assert not volatile_observation.search(roadmap)
 
 
 def test_continuation_docs_keep_maturity_lanes_and_external_unblocks_truthful():
@@ -1026,6 +1033,13 @@ def test_continuation_docs_keep_maturity_lanes_and_external_unblocks_truthful():
         assert "Stage B — local field-proof audit and operator hardening" in text
         assert "no readiness mapping" in text.lower()
         assert "separate design" in text.lower()
+
+    assert (
+        "The next executable maturity choice is a separately designed Company Workbench activation preview"
+        not in roadmap
+    )
+    assert roadmap.count("is the next safe local lane") == 1
+    assert "Activation remains non-active and separately designed" in roadmap
 
     classifications = (
         "permitted_point_in_time_consensus_and_rights_required",
@@ -1043,3 +1057,63 @@ def test_continuation_docs_keep_maturity_lanes_and_external_unblocks_truthful():
     assert "one bounded reviewed peer relationship" in prompt
     assert "at least 100 leakage-safe out-of-sample events" in prompt
     assert "a named owner and directly rehearsed incident and rollback capacity" in prompt
+
+
+def test_external_dependency_entries_own_distinct_conditions_and_last_observed_evidence():
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    labels = (
+        "Point-in-time consensus and rights",
+        "Hosted account and controls",
+        "Independent reviewers",
+        "Trusted peer/source review",
+        "Calibration cohort",
+        "Operated owner/incident/rollback capacity",
+    )
+    bullets = {
+        label: next(
+            line for line in prompt.splitlines() if line.startswith(f"- {label}:")
+        )
+        for label in labels
+    }
+    for bullet in bullets.values():
+        assert "Last observed:" in bullet
+        assert "Exact unblock condition:" in bullet
+        observed = bullet.split("Last observed:", 1)[1].split(
+            "Exact unblock condition:", 1
+        )[0]
+        assert not re.search(r"\d", observed)
+
+    hosted = bullets["Hosted account and controls"].lower()
+    for required in ("host account", "verified url", "access controls", "isolation"):
+        assert required in hosted
+    for operated_only in (
+        "health",
+        "incident",
+        "rollback",
+        "audit",
+        "retention",
+        "entitlements",
+        "monitoring",
+    ):
+        assert operated_only not in hosted
+
+    operated = bullets["Operated owner/incident/rollback capacity"].lower()
+    for required in (
+        "named owner",
+        "rehearsed incident",
+        "rollback",
+        "audit",
+        "retention",
+        "entitlements",
+        "monitoring",
+        "health-check",
+    ):
+        assert required in operated
+    for hosted_only in ("host account", "verified url", "access controls", "isolation"):
+        assert hosted_only not in operated
+
+    reviewers = bullets["Independent reviewers"]
+    assert "independent human GitHub review of PR #113" in reviewers
+    assert "when a human submits review evidence" not in reviewers
+    assert "generic human review evidence" not in reviewers.lower()

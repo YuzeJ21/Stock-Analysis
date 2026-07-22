@@ -32,19 +32,7 @@ This project turns a broad stock universe into a readiness-first research dashbo
 ### Earnings Nowcast Pilot
 The repository includes a readiness-gated, deterministic synthetic-fixture workflow for quarterly Revenue/EPS ranges and consensus-relative classification. It records fiscal period, forecast cutoff, expected report date, forecast horizon, provenance, model version, input hash, freshness, metric definitions, and withheld states; peer/news signals are directional evidence only and cannot change forecast numbers. Duplicate fiscal periods cannot inflate history, unresolved revisions fail closed per metric, and Revenue/EPS definitions must match on currency, unit scale, accounting basis, share basis, operations basis, and split treatment. Run `make earnings-nowcast-walkthrough` for six clearly synthetic reviewer scenarios, or `FIXTURE=1 make earnings-nowcast-pilot TICKER=SYN1 AS_OF=2026-01-31T23:59:59Z` to inspect one offline packet. Read-only templates, validation, preview, readiness, and prospective collection planning are documented in [Earnings Nowcast Pilot](docs/EARNINGS_NOWCAST_PILOT.md); there is no automatic apply path.
 
-This infrastructure does not establish real-company coverage or predictive accuracy. Real semiconductor output remains blocked until append-only point-in-time consensus and quarterly actual histories are source-backed. Numerical Beat/Miss probability is withheld until at least 100 leakage-safe out-of-sample events pass calibration and benchmark gates. The pilot does not predict post-earnings price movement and remains research-only, not investment advice. The activation layer adds a five-company readiness board, prospective consensus collection, point-in-time valuation context, outcome learning, and catalyst evidence inside the existing research workflow; see the pilot and methodology docs for their fail-closed contracts.
-
-### Prospective Field-Proof Operations
-
-Stage A adds a prospective-only, append-only per-ticker/per-field evidence primitive. It does not activate readiness, and legacy narrative proof is not upgraded. No sample field-proof rows are checked in. An absent ledger is a valid empty state; status and preview do not create it.
-
-```bash
-make prospective-field-proof-status
-make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>
-make prospective-field-proof-record INPUT=<reviewed_field_proof.csv> AS_OF=<same-utc-cutoff> PREVIEW_RECEIPT=<exact-receipt> CONFIRM_REVIEWED=1
-```
-
-Preview reports `technical_write_eligible` and `commercial_evidence_eligible` independently. Its preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. Record is the only explicit write command and revalidates that exact receipt; a recorded identity does not prove payload truth, rights, commercial use, or readiness.
+This infrastructure does not establish real-company coverage or predictive accuracy. Real semiconductor output remains blocked until append-only point-in-time consensus and quarterly actual histories are source-backed. Numerical Beat/Miss probability is withheld until at least 100 leakage-safe out-of-sample events pass calibration and benchmark gates. The pilot does not predict post-earnings price movement and remains research-only, not investment advice. The activation layer adds a five-company readiness board, prospective consensus collection, point-in-time valuation context, outcome learning, and catalyst evidence inside the existing research workflow; see the pilot and methodology docs for their fail-closed contracts. Stage A is prospective-only: `make prospective-field-proof-status`, `make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>`, and explicit `make prospective-field-proof-record INPUT=<same-file> AS_OF=<same-cutoff> PREVIEW_RECEIPT=<exact-receipt> CONFIRM_REVIEWED=1` preserve `technical_write_eligible` and `commercial_evidence_eligible` independently. An absent ledger is a valid empty state, and legacy narrative proof is not upgraded. No sample field-proof rows are checked in. The preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry; recording does not activate readiness or prove payload truth, rights, or commercial use. Detailed operation and locking limits are in [Local Workflow Guide](docs/OPERATOR_GUIDE.md).
 ```mermaid
 flowchart LR
     Desk["Research Desk: changed evidence"] --> Discover["Discover: readiness-backed company"]
@@ -128,7 +116,7 @@ make demo       # print the safe visitor path without changing local data
 make demo-dashboard  # open the compact tracked profile at http://localhost:8501/?mode=public
 ```
 
-Optional proof after the app flow is clear: `make status-check TOP_N=5` and `make pilot-readiness-check TOP_N=10` are read-only; `make pilot-readiness-packet` and `make stock-report-md TICKER=NVDA` intentionally write their documented Markdown outputs.
+Optional read-only proof after the app flow is clear starts with `make status-check TOP_N=5` and `make pilot-readiness-check TOP_N=10`; `make pilot-readiness-packet` and `make stock-report-md TICKER=NVDA` intentionally write their documented Markdown outputs.
 
 For the mutable default operator workspace, use `make dashboard`; it is intentionally separate from the public demo profile and can reflect local refresh/import work.
 
