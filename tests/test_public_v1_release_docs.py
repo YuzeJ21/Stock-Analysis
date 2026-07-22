@@ -1088,7 +1088,7 @@ def test_continuation_docs_keep_maturity_lanes_and_external_unblocks_truthful():
         "The next executable maturity choice is a separately designed Company Workbench activation preview"
         not in roadmap
     )
-    assert roadmap.count("is the next safe local lane") == 1
+    assert "is the second approved local priority after legacy surface quarantine" in roadmap
     assert "Activation remains non-active and separately designed" in roadmap
 
     classifications = (
@@ -1098,6 +1098,9 @@ def test_continuation_docs_keep_maturity_lanes_and_external_unblocks_truthful():
         "trustworthy_peer_source_and_review_required",
         "calibration_cohort_required",
         "operated_owner_incident_rollback_capacity_required",
+        "point_in_time_benchmark_universe_and_rights_required",
+        "accessibility_manual_review_environment_required",
+        "paper_position_lab_design_approval_required",
     )
     for classification in classifications:
         assert prompt.count(classification) == 1
@@ -1107,6 +1110,47 @@ def test_continuation_docs_keep_maturity_lanes_and_external_unblocks_truthful():
     assert "one bounded reviewed peer relationship" in prompt
     assert "at least 100 leakage-safe out-of-sample events" in prompt
     assert "a named owner and directly rehearsed incident and rollback capacity" in prompt
+
+
+def test_approved_next_stage_program_is_ordered_non_blocking_and_evidence_bound():
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    ordered_priorities = (
+        "Priority 1 — Legacy portfolio, ranking, and action-language quarantine",
+        "Priority 2 — Stage B field-proof audit and operator hardening",
+        "Priority 3 — In-app research-record authoring",
+        "Priority 4 — Point-in-time benchmark and universe foundation",
+        "Priority 5 — One permitted consensus source and one reviewed peer relationship",
+        "Priority 6 — Controlled hosted operating boundary",
+        "Priority 7 — Accessibility evidence beyond screenshots",
+        "Priority 8 — Independent workflow validation",
+        "Priority 9 — Out-of-sample calibration cohort",
+        "Priority 10 — Separately approved hypothetical paper-position laboratory",
+    )
+
+    for text in (roadmap, prompt):
+        assert "Approved Next-Stage Maturity Program" in text
+        positions = [text.index(priority) for priority in ordered_priorities]
+        assert positions == sorted(positions)
+        assert all(text.count(priority) == 1 for priority in ordered_priorities)
+        assert "A blocked priority does not become complete" in text
+        assert "move to the next safe executable priority" in text
+        assert "at least 100 valid leakage-safe out-of-sample events" in text
+        assert "Live brokerage remains out of scope" in text
+        assert "earnings-consensus-collection-record" in text
+        assert "append-only evidence record" in text
+        assert "does not activate readiness or numerical probability" in text
+
+    assert "automated generation cannot become reviewer-authored evidence" in roadmap
+    assert "corporate actions, delistings, survivorship, and leakage" in roadmap
+    assert "10-20 independent workflow sessions" in roadmap
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in roadmap
+    assert "governed by the Approved Next-Stage Maturity Program" in roadmap
+    assert "after the single reviewed relationship in Priority 5" in roadmap
+    assert "provider-neutral control contracts" in prompt
+    assert "provider-specific implementation" in prompt.lower()
+    assert "separate approved design" in prompt
 
 
 def test_external_dependency_entries_own_distinct_conditions_and_last_observed_evidence():
@@ -1119,6 +1163,9 @@ def test_external_dependency_entries_own_distinct_conditions_and_last_observed_e
         "Trusted peer/source review",
         "Calibration cohort",
         "Operated owner/incident/rollback capacity",
+        "Point-in-time benchmark/universe data and rights",
+        "Accessibility manual-review environment",
+        "Paper-position laboratory design approval",
     )
     bullets = {
         label: next(

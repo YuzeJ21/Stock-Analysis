@@ -34,7 +34,7 @@ Company Workbench now arbitrates one overall next task. Its change answer carrie
 
 Public visitor flow remains: **Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History**. Operator mode remains the source/proof workflow. Data Health and Proof History are Advanced Evidence in Personal Research mode, not equal primary destinations.
 
-Stage A-G labels are continuation maturity lanes only; they do not replace the numbered Stage 0-6 exit gates in the continuation contract. Stage A is the isolated prospective field-proof evidence primitive. Stage B — local field-proof audit and operator hardening is the next safe local lane: it may improve read-only audit, error explanation, and operator review ergonomics, but it has no readiness mapping. Any mapping into proof-readiness reconciliation, Company Workbench, canonical data, or a readiness lane requires a separate design and approval.
+Stage A-G labels are continuation maturity lanes only; they do not replace the numbered Stage 0-6 exit gates in the continuation contract. Stage A is the isolated prospective field-proof evidence primitive. Stage B — local field-proof audit and operator hardening is the second approved local priority after legacy surface quarantine: it may improve read-only audit, error explanation, and operator review ergonomics, but it has no readiness mapping. Any mapping into proof-readiness reconciliation, Company Workbench, canonical data, or a readiness lane requires a separate design and approval.
 
 ## Now: Commercial Research Beta Foundation
 
@@ -187,18 +187,20 @@ Use `make commercial-beta-release-check` for the consolidated local release-cand
 
 **Stop rule:** a missing browser dependency is `environment_limited`, not a pass. Keep timing JSON and screenshots generated and unstaged unless one concise artifact is intentionally reviewed.
 
-## Later External Stages
+## Supporting External Release Gates
+
+These supporting gates are governed by the Approved Next-Stage Maturity Program above. They do not override its priority order, authorize deployment, or replace the primary four-route research workflow.
 
 ### P1: Controlled Hosted Preview Verification
 
 **Goal:** turn the deterministic `demo` profile into a verified, controlled hosted demo without exposing local refresh data or credentials.
 
-Repository-side preparation is complete. The remaining deployment work requires an external host/account and a verified public URL.
+Repository-side preparation is complete. Provider-specific implementation and deployment require an explicitly approved host/account, identity and storage boundary, and verified URL.
 
-1. Choose a Streamlit-compatible host and deploy `main` with `dashboard.py` as the entrypoint.
+1. Choose a Streamlit-compatible host only after explicit approval; do not deploy from this roadmap entry alone.
 2. Set `STOCK_RESEARCH_DATA_PROFILE=demo` in the host environment.
 3. Keep provider keys, account IDs, tokens, and broker/session files out of the repo and public app.
-4. Verify the five-page workflow on the hosted URL at desktop and mobile widths.
+4. Verify Research Desk -> Discover -> Company Workbench -> Monitor on the hosted URL at desktop and mobile widths; test the secondary Public flow separately without substituting it for the primary workflow.
 5. Set `HOSTED_DEMO_URL` locally only after the URL opens successfully, then rerun the public gates before changing GitHub or LinkedIn copy.
 
 **Dependencies:** the local performance release gate, an external hosting account, a public or access-controlled preview URL, and a human browser review of the deployed route.
@@ -210,7 +212,7 @@ Repository-side preparation is complete. The remaining deployment work requires 
 **Goal:** validate whether an external reviewer can understand the product in under three minutes.
 
 1. Share the controlled beta package with 10-20 reviewers after the delivery boundary is verified.
-2. Ask reviewers to follow the public visitor flow without operator instructions.
+2. Ask reviewers to follow Research Desk -> Discover -> Company Workbench -> Monitor without operator instructions; the secondary Public visitor flow cannot substitute for this task.
 3. Record only concrete issues: where they started, what they thought was usable, what looked blocked, and what they expected to do next.
 4. Prioritize reproducible first-viewport, wording, routing, or accessibility defects. Do not use pilot feedback to weaken readiness gates.
 
@@ -362,7 +364,119 @@ The next continuation must not reimplement the Decision Lab when these contracts
 - Consider an isolated hypothetical paper-position laboratory only after a separate design, private-data policy, wording review, and explicit approval.
 - Keep live holdings, account imports, recommended sizing, price-triggered stop/profit rules, broker integration, order routing, auto-trading, and real transactions out of scope.
 
-## Next: Focused-Cohort Evidence
+## Next: Approved Next-Stage Maturity Program
+
+This program is the authoritative execution order after the completed Research Decision Lab. Start with the first incomplete priority that can be advanced safely. If a priority currently requires an unavailable source, dataset, account, reviewer cohort, elapsed event history, or new approval, record its last evidence and exact unblock condition once, then move to the next safe executable priority. Recheck it only after relevant external state changes.
+
+A blocked priority does not become complete, and skipping it does not weaken its exit gate. Local contracts, fixtures, screenshots, subagent reviews, and passing tests cannot substitute for real source, hosted, accessibility, independent-user, or calibration evidence. Continue until no safe executable priority remains; declare the overall program complete only when every applicable priority has direct current evidence.
+
+### Priority 1 — Legacy portfolio, ranking, and action-language quarantine
+
+**Current lane:** local and executable.
+
+1. Inventory every Personal Research, Public, Advanced, operator, report, test, and documentation surface that exposes legacy portfolio, ranking, or transaction-like language.
+2. Remove those concepts from primary research navigation and public product claims, or place them behind an explicit `Legacy research utility — not part of Personal Research Mode` boundary.
+3. Quarantine legacy picks, disposition, entry-zone, add-candidate, position-percentage, cost-basis, and ranked-company labels so they cannot be mistaken for current investing capability.
+4. Preserve any retained legacy calculation only when required for compatibility and prove it cannot feed Research Decision Lab, company conclusions, readiness, recommendations, sizing, or transaction behavior.
+
+**Exit gate:** route, wording, report, and no-trading tests directly prove that the supported Personal Research workflow remains research-only and that any retained legacy surface is unmistakably isolated.
+
+### Priority 2 — Stage B field-proof audit and operator hardening
+
+**Current lane:** local and executable after Priority 1.
+
+1. Complete the roadmap-approved read-only audit for prospective field-proof records, preview receipts, current blocker explanations, and append-only history.
+2. Improve operator review ergonomics and deterministic error routing without recording evidence automatically.
+3. Preserve the existing boundary: no mapping into proof-readiness reconciliation, Company Workbench, canonical data, or any readiness lane.
+
+**Exit gate:** focused tests and read-only operator evidence prove clearer review and failure handling with no ledger, readiness, canonical-data, report, screenshot, timing, or generated-artifact write.
+
+### Priority 3 — In-app research-record authoring
+
+**Current lane:** local design and implementation are executable after the first two priorities.
+
+1. Add simple in-app authoring for thesis, evidence, catalyst, and outcome records using explicit validate -> preview -> confirm flows.
+2. Keep records append-only, ticker/profile scoped, reviewer-authored, timestamped, source-aware where applicable, and independently valid or blocked.
+3. Show the saved result and correction path without allowing one record type to promote another readiness or evidence lane.
+4. Empty ledgers remain empty; draft text and candidate context remain untrusted; automated generation cannot become reviewer-authored evidence.
+
+**Exit gate:** desktop and phone workflow evidence plus persistence, rejection, identity, provenance, and no-fabrication tests prove that a researcher can create and revisit records without using the command line or changing deterministic forecasts, probabilities, recommendations, or readiness.
+
+### Priority 4 — Point-in-time benchmark and universe foundation
+
+**Current lane:** local contract work is executable; direct completion requires permitted point-in-time data.
+
+1. Establish timestamped benchmark membership, research-universe membership, security identity, and observation cutoffs with suitable source rights and immutable manifests.
+2. Handle corporate actions, delistings, survivorship, and leakage explicitly; never substitute today's constituents, identifiers, prices, or fundamentals for historical state.
+3. Separate raw, normalized, excluded, and analysis-eligible rows; preserve revision lineage and reproducible rejection reasons.
+4. Add leakage-safe train/validation/test or walk-forward boundaries and benchmark diagnostics before treating any result as out-of-sample evidence.
+
+**Exit gate:** at least one bounded real dataset reproduces the same membership and benchmark result from an immutable manifest and passes corporate-action, delisting, survivorship, cutoff, rights, and leakage checks. Schemas and synthetic fixtures alone do not complete this priority.
+
+### Priority 5 — One permitted consensus source and one reviewed peer relationship
+
+**Current lane:** externally dependent; its two evidence gates remain independent.
+
+1. Review exactly one permitted point-in-time consensus source for one ticker and exact fiscal period through the existing read-only source-review contract.
+2. After separate human evidence-preserving mapping into the prospective schema, run collection preview. Only if the exact input, ledger, cutoff, mode, and receipt remain unchanged may the operator run `CONFIRM_REVIEWED=1 make earnings-consensus-collection-record INPUT=$COLLECTION_INPUT AS_OF=<same-timestamp> PREVIEW_RECEIPT=<exact-receipt>`.
+3. Treat the result as an append-only evidence record; it does not activate readiness or numerical probability, and it cannot bypass actuals, Revenue/EPS comparability, backtesting, or calibration gates.
+4. Establish exactly one genuinely reviewed peer relationship with role, rationale, comparability basis, source/as-of evidence, and an explicit independent valuation-anchor decision.
+5. Do not broaden coverage, infer a provider, infer peer trust, or let either gate promote the other.
+
+**Exit gate:** one real consensus snapshot and one real peer relationship independently pass technical, temporal, provenance, rights, field-scope, reviewer, and append-only evidence checks. Neither unlocks numerical probability or broad coverage.
+
+### Priority 6 — Controlled hosted operating boundary
+
+**Current lane:** provider-neutral local control contracts can proceed; provider-specific implementation and hosted verification require an explicitly approved identity, storage, host, and operating environment.
+
+1. Before an environment is approved, define only provider-neutral control contracts, threat boundaries, interfaces, and denial-test harnesses; do not silently choose an identity, storage, logging, or hosting architecture.
+2. After explicit environment approval, implement authentication, private-workspace isolation, least-privilege authorization, secret handling, append-only audit logs, retention/deletion controls, monitoring, health checks, backup, rollback, and incident ownership against that exact environment.
+3. Test cross-user and cross-workspace denial, audit completeness, retention execution, failure alerts, recovery, and rollback without exposing local research data.
+4. Keep hosting, account creation, purchases, credential use, and public deployment behind explicit approval.
+
+**Exit gate:** the actual hosted environment directly proves every claimed control, including an observed rollback rehearsal and named owner. Local code, configuration, or a URL alone is insufficient.
+
+### Priority 7 — Accessibility evidence beyond screenshots
+
+**Current lane:** local testing is executable; assisted-technology evidence may require a reviewer or environment.
+
+1. Add automated semantic checks plus keyboard-only navigation, visible focus, focus order, form labels, error association, text resizing, zoom/reflow, color/contrast, reduced-motion, and screen-reader task review.
+2. Exercise the complete Research Desk -> Discover -> Company Workbench -> Monitor workflow at desktop and phone widths.
+3. Record reproducible defects, environment, assistive technology, severity, remediation, and retest evidence. Do not claim conformance from screenshots or automation alone.
+
+**Exit gate:** automated and manual task evidence covers the complete workflow, all material defects are resolved or explicitly bounded, and any conformance claim matches the tested scope.
+
+### Priority 8 — Independent workflow validation
+
+**Current lane:** externally dependent on non-owner participants.
+
+1. Run 10-20 independent workflow sessions with the target researcher persona; maintain a session protocol that prevents coaching and avoids collecting investment recommendations or unnecessary personal data.
+2. Measure task completion, time to first answer, readiness comprehension, trust, misuse risk, perceived performance, and repeat-use intent.
+3. Separate usability findings from financial evidence, predictive validity, demand, and product-market fit.
+
+**Exit gate:** 10-20 independent workflow sessions have complete anonymized evidence, reproducible findings, severity decisions, and retest outcomes for material defects. Automated, subagent, owner, or screenshot review does not count.
+
+### Priority 9 — Out-of-sample calibration cohort
+
+**Current lane:** time- and source-dependent; local tooling may advance while events accumulate.
+
+1. Accumulate at least 100 valid leakage-safe out-of-sample events from permitted point-in-time inputs with immutable cutoffs, comparable actuals, revision lineage, exclusions, and reproducible cohort membership.
+2. Evaluate declared Brier-score, calibration-bin, benchmark-improvement, missingness, and stability gates without selecting thresholds after seeing results.
+3. Keep Revenue and EPS, backtesting and calibration, and technical validity and commercial rights independent.
+
+**Exit gate:** the full cohort passes every predeclared gate on direct current evidence. Numerical Beat/Miss probability remains withheld before that point and remains withheld if the gate fails.
+
+### Priority 10 — Separately approved hypothetical paper-position laboratory
+
+**Current lane:** conditional design only; implementation is not authorized by this roadmap entry.
+
+1. Consider a research-only laboratory for user-authored hypothetical paper positions only through a separate approved design, private-data policy, language review, misuse analysis, and acceptance plan.
+2. The design must prohibit recommendations, model-generated sizing, allocation instructions, live holdings, account imports, broker connections, order routing, auto-trading, price-triggered stop/profit instructions, and claims of investment performance.
+3. Keep any hypothetical state isolated from evidence truth, company ranking, deterministic forecasts, readiness, and calibration.
+
+**Exit gate:** this priority advances only after separate explicit design approval and direct acceptance evidence. Live brokerage remains out of scope permanently.
+
+## Supporting Backlog: Focused-Cohort Evidence
 
 ### P2: FMP One-Ticker Source Smoke
 
@@ -397,6 +511,8 @@ Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optio
 ### P3: 25-50 Company Trusted-Peer Pilot
 
 **Goal:** address the largest analytical-depth gap without inferring trusted peers across the full universe.
+
+This expansion is deferred until after the single reviewed relationship in Priority 5 has direct evidence and the review method and capacity are shown to be repeatable. It remains supporting backlog governed by the Approved Next-Stage Maturity Program, not permission to broaden coverage now.
 
 1. Select 25-50 operating companies from a few clearly comparable industries.
 2. Generate candidate peer context from SIC, industry, and product context; label it `candidate_context_only`.

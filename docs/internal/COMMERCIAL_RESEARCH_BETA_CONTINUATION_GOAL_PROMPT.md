@@ -172,6 +172,73 @@ Current external dependency classifications to verify once, then avoid looping:
 - Trusted peer/source review: `trustworthy_peer_source_and_review_required`. Last observed: no trustworthy reviewed peer relationship evidence is on record for the bounded pilot. Exact unblock condition: supply a trustworthy relationship source and review capacity sufficient to preserve one bounded reviewed peer relationship, including role, rationale, comparability, source/as-of evidence, and explicit valuation-anchor eligibility.
 - Calibration cohort: `calibration_cohort_required`. Last observed: calibration evidence remains insufficient and numerical probability is withheld. Exact unblock condition: accumulate at least 100 leakage-safe out-of-sample events and pass the declared Brier-score, calibration-bin, and benchmark-improvement gates.
 - Operated owner/incident/rollback capacity: `operated_owner_incident_rollback_capacity_required`. Last observed: no named operated owner or directly rehearsed incident and rollback capacity is on record. Exact unblock condition: provide a named owner and directly rehearsed incident and rollback capacity, then directly verify audit, retention, entitlements, monitoring, and health-check operation. A local runbook or hosted URL is insufficient.
+- Point-in-time benchmark/universe data and rights: `point_in_time_benchmark_universe_and_rights_required`. Last observed: no permitted point-in-time benchmark and universe dataset with approved exact-source rights is on record. Exact unblock condition: supply or configure one bounded permitted dataset with timestamped membership, security identity, corporate-action and delisting evidence, immutable cutoff provenance, and approved exact-source field scope.
+- Accessibility manual-review environment: `accessibility_manual_review_environment_required`. Last observed: no complete direct keyboard and assisted-technology review of the primary research workflow is on record. Exact unblock condition: verify a suitable local or supervised review environment, execute the declared keyboard, zoom, reflow, contrast, reduced-motion, and screen-reader tasks, and record reproducible findings and retests.
+- Paper-position laboratory design approval: `paper_position_lab_design_approval_required`. Last observed: no separately approved hypothetical paper-position laboratory design is on record. Exact unblock condition: complete the research-only design, private-data policy, language review, misuse analysis, and acceptance plan, then obtain separate explicit approval before implementation.
+
+Approved Next-Stage Maturity Program:
+
+This is the authoritative priority order after the completed Research Decision Lab. At the beginning of each loop, select the first incomplete priority with a safe executable task. When the next requirement is unavailable, classify its last evidence and exact unblock condition once, leave it incomplete, and move to the next safe executable priority. Re-enter a blocked priority only after relevant external state changes.
+
+A blocked priority does not become complete, and moving past it does not weaken its exit gate. Local contracts, fixtures, screenshots, subagent reviews, and green tests cannot substitute for direct source, hosted, accessibility, independent-user, or calibration evidence. Continue cycling through the ordered program while safe executable work exists; overall completion requires direct current evidence for every applicable priority.
+
+Priority 1 — Legacy portfolio, ranking, and action-language quarantine
+- Inventory every Personal Research, Public, Advanced, operator, report, test, and documentation surface that exposes legacy portfolio, ranking, position, cost-basis, or transaction-like language.
+- Remove those concepts from supported primary flows and public claims, or isolate them behind an unmistakable `Legacy research utility — not part of Personal Research Mode` boundary.
+- Quarantine legacy picks, disposition, entry-zone, add-candidate, position-percentage, cost-basis, and ranked-company labels. Prove retained compatibility code cannot feed the Decision Lab, conclusions, readiness, recommendations, sizing, or transaction behavior.
+- Exit only when route, wording, report, and no-trading tests directly prove the isolation.
+
+Priority 2 — Stage B field-proof audit and operator hardening
+- Complete the approved read-only audit for prospective field-proof records, preview receipts, append-only history, blocker explanations, and operator review ergonomics.
+- Preserve no readiness mapping, no canonical-data change, no Company Workbench activation, and no automatic evidence recording.
+- Exit only when focused read-only evidence proves clearer deterministic review and errors with no ledger or generated-artifact write.
+
+Priority 3 — In-app research-record authoring
+- Design and implement simple validate -> preview -> confirm authoring for thesis, evidence, catalyst, and outcome records.
+- Keep records append-only, profile/ticker scoped, reviewer-authored, timestamped, source-aware where applicable, and independently valid or blocked. Drafts and candidate context remain untrusted; automated generation cannot become reviewer-authored evidence.
+- Exit only when desktop/phone workflow evidence and persistence, rejection, identity, provenance, empty-state, and no-fabrication tests prove safe command-line-free authoring without changing forecasts, probabilities, recommendations, or readiness.
+
+Priority 4 — Point-in-time benchmark and universe foundation
+- Implement and verify timestamped benchmark membership, research-universe membership, security identity, observation cutoffs, revision lineage, source rights, and immutable manifests.
+- Explicitly control corporate actions, delistings, survivorship, and leakage; never substitute current constituents, identifiers, prices, or fundamentals for historical state.
+- Add leakage-safe train/validation/test or walk-forward boundaries and reproducible benchmark diagnostics.
+- Exit only when at least one bounded permitted real dataset reproduces from an immutable manifest and passes every declared temporal, rights, corporate-action, delisting, survivorship, and leakage check. Schemas and fixtures alone are insufficient.
+
+Priority 5 — One permitted consensus source and one reviewed peer relationship
+- Review one permitted point-in-time consensus source for one ticker and exact fiscal period, then perform separate human evidence-preserving mapping into the prospective schema and run the collection preview.
+- Only if the exact input, ledger, cutoff, mode, and receipt remain unchanged may the operator run `CONFIRM_REVIEWED=1 make earnings-consensus-collection-record INPUT=$COLLECTION_INPUT AS_OF=<same-timestamp> PREVIEW_RECEIPT=<exact-receipt>`.
+- Treat the result as an append-only evidence record; it does not activate readiness or numerical probability, and it cannot bypass actuals, Revenue/EPS comparability, backtesting, or calibration gates.
+- Establish one genuinely reviewed peer relationship with role, rationale, comparability basis, source/as-of evidence, and an explicit independent valuation-anchor decision.
+- Keep the two gates independent; do not broaden coverage or infer source, rights, peer trust, or valuation eligibility.
+- Exit only when one real consensus snapshot and one real peer relationship independently pass technical, temporal, provenance, rights, scope, reviewer, and append-only evidence checks. This does not unlock probability.
+
+Priority 6 — Controlled hosted operating boundary
+- Before an environment is approved, implement only provider-neutral control contracts, threat boundaries, interfaces, and denial-test harnesses; do not silently choose an identity, storage, logging, or hosting architecture.
+- Provider-specific implementation begins only after explicit approval of the exact identity, storage, host, and operating environment. Then implement authentication, private-workspace isolation, least privilege, secret handling, append-only audit logs, retention/deletion, monitoring, health checks, backup, rollback, and incident ownership against it.
+- Test cross-user and cross-workspace denial, audit completeness, retention execution, alerts, recovery, and rollback.
+- Do not create or change hosted accounts, purchase services, use credentials, deploy, or publish without explicit approval.
+- Exit only when the actual approved environment directly proves every claimed control, including a named owner and observed rollback rehearsal. Local code or a URL alone is insufficient.
+
+Priority 7 — Accessibility evidence beyond screenshots
+- Add automated semantic checks and direct keyboard, focus, label/error, resize, zoom/reflow, color/contrast, reduced-motion, and screen-reader task testing across Research Desk -> Discover -> Company Workbench -> Monitor on desktop and phone.
+- Record environment, assistive technology, defect, severity, remediation, and retest evidence; never infer conformance from screenshots or automation alone.
+- Exit only when automated and manual task evidence covers the complete workflow and all material defects are fixed or explicitly bounded.
+
+Priority 8 — Independent workflow validation
+- Run 10-20 independent workflow sessions with the target researcher persona under a non-coaching protocol.
+- Measure task completion, time to first answer, readiness comprehension, trust, misuse risk, perceived performance, and repeat-use intent without collecting investment recommendations or unnecessary personal data.
+- Exit only when all sessions have anonymized evidence, reproducible findings, severity decisions, and material-defect retests. Automated, subagent, owner, or screenshot review does not count.
+
+Priority 9 — Out-of-sample calibration cohort
+- Accumulate at least 100 valid leakage-safe out-of-sample events from permitted point-in-time inputs with immutable cutoffs, comparable actuals, revision lineage, exclusions, and reproducible cohort membership.
+- Evaluate predeclared Brier-score, calibration-bin, benchmark-improvement, missingness, and stability gates without post-hoc threshold selection.
+- Exit only when every declared gate passes on direct current evidence. Numerical Beat/Miss probability remains withheld before that point and remains withheld after a failed gate.
+
+Priority 10 — Separately approved hypothetical paper-position laboratory
+- Produce or refine only a separate research-only design, private-data policy, language review, misuse analysis, and acceptance plan for user-authored hypothetical paper positions.
+- Do not implement until that design receives separate explicit approval. It must prohibit recommendations, model-generated sizing, allocation instructions, live holdings, account imports, broker connections, order routing, auto-trading, price-triggered stop/profit instructions, and investment-performance claims.
+- Keep hypothetical state isolated from evidence truth, ranking, deterministic forecasts, readiness, and calibration. Live brokerage remains out of scope permanently.
+- Exit only after separate approved design and direct acceptance evidence; this continuation prompt does not itself grant that approval.
 
 Execution order for each continuation:
 
@@ -180,8 +247,8 @@ Execution order for each continuation:
 3. Before reusing a supporting proof outcome, run `make proof-readiness-reconciliation TOP_N=20`; keep `historical_supported_currently_blocked` lanes blocked, keep scope-only outcomes non-supporting at ticker level, route each current blocker to its named safe review, and move to fresh evidence or another executable lane. Never infer historical source, rights, scope, or cause from narrative proof; the implemented structured per-ticker/per-field record is prospective-only and does not retroactively upgrade narrative history.
 4. Audit the complete user workflow: Research Desk -> Discover -> Company Workbench -> Monitor.
    Also verify that README, LinkedIn copy, the curated Workbench image, and share checks describe that primary workflow consistently and keep the Public five-page path secondary.
-5. Reverify every Research Decision Lab acceptance criterion at the current HEAD. If current evidence remains green, record the local milestone once and do not repeat its implementation. Continue with Stage B local field-proof audit/operator hardening or the next highest-impact approved usability, methodology, evidence, reliability, or operating-readiness gap. If a regression is directly reproduced, fix one coherent slice test-first before continuing.
-6. Implement one coherent slice with failing tests first where behavior changes.
+5. Reverify every Research Decision Lab acceptance criterion at the current HEAD. If current evidence remains green, record the local milestone once and do not repeat its implementation. Select the first incomplete safe executable item in the Approved Next-Stage Maturity Program; begin with Priority 1, then Priority 2. If a regression is directly reproduced, fix one coherent slice test-first before continuing.
+6. Implement one coherent slice with failing tests first where behavior changes. After it is verified and synchronized, rescan Priorities 1-10 from the top; resume the earliest incomplete executable item and move to the next safe executable priority whenever its next gate is externally blocked.
 7. Preserve independent readiness for actuals, consensus, Revenue, EPS, operating margin, free cash flow, FCF margin, valuation, trusted relationships, peer comparability, peer valuation anchors, catalysts, outcomes, backtesting, and calibration.
 8. Keep technical evidence under Advanced unless it is required to explain the primary research answer.
 9. Classify unavailable external dependencies once and move to the next executable local roadmap item.
@@ -191,7 +258,7 @@ Execution order for each continuation:
 
 Continuation maturity lanes:
 
-Stage A-G labels are continuation maturity lanes only; they do not replace the numbered Stage 0-6 exit gates below. Stage A is the implemented isolated prospective field-proof primitive, and the Research Decision Lab local milestone is complete when current evidence reconfirms it. Stage B — local field-proof audit and operator hardening remains a separate safe operator lane: improve read-only audit, error explanation, and operator review ergonomics only, with no readiness mapping. Mapping field proof into proof-readiness reconciliation, Company Workbench, canonical data, or any readiness lane requires a separate design and approval. Later lettered lanes remain planning labels until separately designed; they grant no release-stage exit.
+Stage A-G labels are continuation maturity lanes only; they do not replace the numbered Stage 0-6 exit gates below. Stage A is the implemented isolated prospective field-proof primitive, and the Research Decision Lab local milestone is complete when current evidence reconfirms it. Stage B — local field-proof audit and operator hardening is the second approved local priority after legacy surface quarantine: improve read-only audit, error explanation, and operator review ergonomics only, with no readiness mapping. Mapping field proof into proof-readiness reconciliation, Company Workbench, canonical data, or any readiness lane requires a separate design and approval. Later lettered lanes remain planning labels until separately designed; they grant no release-stage exit.
 
 Numbered release stage gates:
 
@@ -215,6 +282,7 @@ Stage 2 — Permitted source activation
 - Require an explicit validation cutoff and exact history scope before source review; reject reversed or post-cutoff timestamps for candidate and historical rows alike.
 - Require collection preview and upstream validation to retain parity through the shared exact-source field-scope decision; keep their technical acceptance, blocker wording, and write controls independently testable.
 - Enforce the source-review-before-preview sequence across distinct input contracts: first set `SOURCE_INPUT=<reviewed_source_export.csv>` and run `make earnings-consensus-source-review INPUT=$SOURCE_INPUT PROVIDER=<source_id> AS_OF=<timestamp>`; separately review the payload and evidence; explicitly map accepted evidence into the existing prospective schema without inference; then set `COLLECTION_INPUT=<prospective_consensus.csv>` and run `make earnings-consensus-collection-preview INPUT=$COLLECTION_INPUT AS_OF=<timestamp>`. No local command performs or writes this mapping. Neither gate records a snapshot or rebuilds readiness.
+- After the exact collection preview is separately reviewed, an explicitly authorized operator may run `CONFIRM_REVIEWED=1 make earnings-consensus-collection-record INPUT=$COLLECTION_INPUT AS_OF=<same-timestamp> PREVIEW_RECEIPT=<exact-receipt>`. This creates an append-only evidence record only; it does not activate readiness or numerical probability, build a forecast, prove comparability, or satisfy backtesting or calibration.
 - Exit only when one repeatable source path demonstrates deterministic provenance, rights, freshness, failure handling, and append-only collection.
 
 Stage 3 — Controlled hosted preview
@@ -229,7 +297,7 @@ Stage 4 — Controlled beta validation
 - Exit only when reviewers complete the workflow without mistaking readiness, context, scenarios, or evidence gaps for advice or live-market certainty.
 
 Stage 5 — Evidence-depth expansion
-- Run a 25-50 company trusted-peer pilot only after trustworthy relationship sourcing and review capacity exist.
+- Run a 25-50 company trusted-peer pilot only after the single reviewed relationship in Priority 5 has direct evidence and trustworthy relationship sourcing and review capacity are demonstrably repeatable.
 - Preserve peer role, rationale, comparability, source/as-of evidence, and explicit valuation-anchor decisions.
 - Add optional earnings and estimates only from trusted, period-defined, source-backed rows.
 - Expand valuation, catalyst, and outcome ledgers only from reviewed evidence.
