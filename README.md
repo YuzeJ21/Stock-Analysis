@@ -8,7 +8,7 @@ A local, CSV-first workspace for repeated company research, valuation review, fo
 
 This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo. It is not currently published as a hosted Streamlit app.
 
-**Primary product workflow:** Research Desk -> Discover -> Company Workbench -> Monitor. Run `make dashboard`, then open `http://localhost:8501/`. The Workbench answers what can be used now, what remains withheld, and where to inspect missing evidence. Data Health and Proof History stay under **Advanced Evidence**. See [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) for workflow states and truth boundaries.
+**Primary product workflow:** Research Desk -> Discover -> Company Workbench -> Monitor. Run `make dashboard`, then open `http://localhost:8501/`. The Workbench answers what can be used now and keeps a six-lane Research Decision Lab below `What Changed`; Monitor adds a no-ranking Research Discipline Review while source-change state remains independent. Data Health and Proof History stay under **Advanced Evidence**. See [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) for workflow states and truth boundaries.
 
 **Secondary controlled demo:** Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. This is the shorter public-review path for visitors who do not need the complete company-research workspace.
 

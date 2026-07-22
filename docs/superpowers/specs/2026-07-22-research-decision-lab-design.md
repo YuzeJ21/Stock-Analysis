@@ -1,7 +1,7 @@
 # Research Decision Lab Design
 
 **Date:** 2026-07-22
-**Status:** Approved product direction; ready for implementation planning
+**Status:** Implemented locally; external maturity gates remain separate
 **Scope:** Personal Research Mode only
 
 ## Purpose

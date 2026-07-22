@@ -161,6 +161,14 @@ GitHub pull-request hygiene evidence is bound to the event's explicit base and h
 
 Source publication and effective timestamps cannot be later than the recorded timestamp. Evidence, catalyst, risk, and invalidation rows require source provenance. Thesis revisions must remain within the same profile, ticker, and thesis chain and must preserve the prior row. Generated report text, detected changes, queue outcomes, and synthetic fixtures cannot create a reviewed journal entry automatically.
 
+## Research Decision Lab Contract
+
+`src/research_decision_lab.py` composes immutable selected-profile results; it is not a source, ledger, readiness system, or report generator. It writes no journal, outcome, source, readiness, proof, report, screenshot, or timing artifact. Company Workbench uses the selected report, journal, scorecard, outcome status, and change items. Monitor loads the saved journal and outcome ledgers once, derives each focused ticker independently, and converts an invalid ticker input into one unavailable state without promoting or suppressing another ticker.
+
+Plan, Evidence, Invalidation, Scenario, Review trigger, and Learning retain separate evidence identities and fail-closed states. A valid lane cannot promote, repair, or clear another lane. Missing journal or outcome rows create `not_started` states; invalid evidence creates `unavailable`; blocked or excluded DCF remains blocked or excluded; commercial outcome-rights failures remain `commercial_evidence_blocked`. Candidate context, generated narrative, technical price history, and synthetic fixtures cannot populate reviewer-authored lanes.
+
+The deterministic Decision Lab identity binds the selected profile, ticker, lane states, evidence summaries, and next process step. The Monitor table preserves the saved focused-cohort order; identity detail stays under Advanced. These identities prove deterministic local composition only. They do not prove source truth, predictive accuracy, investment performance, reviewer adoption, hosted reliability, demand, or product-market fit.
+
 ## Scenario Lab Contract
 
 The Scenario Lab never writes canonical data, readiness, reports, or proof records. It derives an immutable input identity from the selected profile, source-backed valuation input, provenance, and bounded session parameters. Only DCF-ready operating companies with source references, revenue, FCF margin, and shares can display numerical scenario math. If the selected row is blocked or excluded, the product shows the reason and withholds baseline, adjusted, sensitivity, and terminal-value figures.

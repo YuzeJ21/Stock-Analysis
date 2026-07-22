@@ -6,8 +6,8 @@ Personal Research is the default local workspace for repeated company review. It
 
 1. **Research Desk** starts with a traceable weekly summary, what changed, what is blocked or stale, what to review next, and the Discover action. Deterministic cohort scope, concise lane coverage, and full matrices remain under collapsed Advanced Evidence.
 2. **Discover** starts with the readiness-backed Stock Selector, limits it to the focused cohort, and opens one company directly in Company Workbench. Cohort scope and lane-coverage context remain available under a collapsed Advanced section after the selection task.
-3. **Company Workbench** starts with the selected company's compact usable/withheld answer, then keeps changed evidence, quarterly business trend, valuation boundaries, forward context, withheld inputs, conclusion, and one next research task in one review path. Technical lane-coverage cards remain available under a collapsed Advanced section.
-4. **Monitor** starts with the weekly summary and the deduplicated unresolved source-backed change answer. An empty queue is a neutral wait state with one Discover action, not proof that nothing changed. Five-company Earnings Nowcast readiness remains available under collapsed Advanced evidence without ranking companies or combining blockers.
+3. **Company Workbench** starts with the selected company's compact usable/withheld answer, then follows `What Changed -> Research Decision Lab -> Business Trend` before valuation, forward context, withheld inputs, conclusion, and one authoritative next research task. The Decision Lab's next process step remains separate. Technical lane-coverage and Decision Lab evidence remain under collapsed Advanced sections.
+4. **Monitor** follows `Weekly Research Summary -> Research Discipline Review -> Research change monitor`. The discipline table preserves focused-cohort order and shows process state, due lanes, and one next process step without grading or ranking companies. An empty source-change queue remains a neutral wait state with one Discover action, not proof that nothing changed. Five-company Earnings Nowcast readiness remains under collapsed Advanced evidence.
 
 Company Workbench arbitrates one overall next task. Its change context is explicitly `none`, `snapshot_only`, or `source_backed`, so an empty queue receives a neutral no-queued-change badge and is never mislabeled as snapshot evidence. Only a change carrying separate explicit source-backed eligibility can win: open review keeps the event's suggested task, `still_blocked` keeps its `wait_for_evidence` condition, and `intentionally_deferred` keeps its `monitor` condition. Snapshot-only context receives no source-backed badge and cannot outrank the existing ordered Research Conclusion priority. Forward View guidance stays lane-specific and does not compete for the overall task. This presentation leaves readiness and evidence states independent and unchanged.
 
@@ -25,6 +25,12 @@ Personal Research may route work only as:
 - `excluded`: the analysis is not applicable.
 
 These are workflow states. They are not rankings, expected-return claims, investment recommendations, or transaction instructions.
+
+## Research Decision Lab
+
+Company Workbench shows exactly one compact six-lane research-process summary for Plan, Evidence, Invalidation, Scenario, Review trigger, and Learning after `What Changed`. It composes saved evidence only and cannot replace `Use now`, `Still withheld`, the Data Health handoff, Research Conclusion, or Next Research Task. Identities, evidence summaries, and technical details remain under `Advanced: Decision Lab evidence`.
+
+Monitor derives the same contract independently for each saved focused-cohort ticker. One invalid ticker becomes unavailable without changing another ticker, and display order remains the existing cohort order rather than process severity, market value, or expected return. If nothing is due, the truthful answer is: **No process item is currently due from saved reviewer-authored evidence.** This does not claim that no market event, risk, or external research need exists. Source-change state stays separate in the later Research change monitor.
 
 ## Truth Boundaries
 

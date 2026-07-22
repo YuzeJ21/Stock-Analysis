@@ -115,6 +115,18 @@ Preview validates one prospective entry without writing. Recording requires expl
 
 Confidence describes the reviewer's confidence in the documented hypothesis at that timestamp. It does not measure expected return, allocation size, or transaction direction. An empty journal is `not_started`; a thesis without a source-backed invalidation condition is `incomplete`; and a passed review date is `overdue`.
 
+## Research Decision Lab Method
+
+The Research Decision Lab is a read-only composition of the selected-profile report, Thesis Journal, Decision-Process Scorecard, Research Outcome Review, and unresolved source-backed change items. Its review loop is:
+
+```text
+Research plan -> evidence -> invalidation -> scenario -> review trigger -> learning
+```
+
+The six lanes are derived independently: `Plan` reflects only reviewer-authored thesis state; `Evidence` reflects only reviewed supporting or conflicting evidence; `Invalidation` requires an explicit source-backed invalidation condition; `Scenario` follows existing DCF readiness and visible-assumption gates; `Review trigger` follows unresolved evidence changes or reviewer-authored review dates; and `Learning` follows reviewed outcome evidence and its exact-source commercial-rights decision. Decision Lab lanes remain independent: a documented thesis cannot unlock Scenario, reviewed Learning cannot clear an Evidence conflict, and current readiness cannot create journal history.
+
+The next process step follows a deterministic documentation order: unresolved conflicting evidence, overdue review, missing thesis, missing invalidation, missing evidence, unscheduled review, DCF-ready but invisible assumptions, then continued monitoring. This order is not company attractiveness, expected return, portfolio priority, or a transaction signal. Monitor preserves the existing focused-cohort order and never reorders companies by process severity or market value.
+
 ## Public Workflow Boundary
 
 The public page order is a reading workflow, not an analysis shortcut.

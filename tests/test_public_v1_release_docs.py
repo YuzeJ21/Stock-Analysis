@@ -1167,3 +1167,46 @@ def test_external_dependency_entries_own_distinct_conditions_and_last_observed_e
     assert "independent human GitHub review of PR #113" in reviewers
     assert "when a human submits review evidence" not in reviewers
     assert "generic human review evidence" not in reviewers.lower()
+
+
+def test_research_decision_lab_release_docs_bind_local_completion_to_current_evidence():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    decision_prompt = _read("docs/internal/RESEARCH_DECISION_LAB_CONTINUATION_GOAL_PROMPT.md")
+    commercial_prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-research-decision-lab-design.md")
+    browser_contract = _read("src/browser_qa_evidence.py")
+    readme = _read("README.md")
+
+    assert "Research plan -> evidence -> invalidation -> scenario -> review trigger -> learning" in methodology
+    for lane in ("Plan", "Evidence", "Invalidation", "Scenario", "Review trigger", "Learning"):
+        assert f"`{lane}`" in methodology
+    assert "Decision Lab lanes remain independent" in methodology
+
+    assert "Research Decision Lab Contract" in provenance
+    assert "writes no journal, outcome, source, readiness, proof, report, screenshot, or timing artifact" in provenance
+    assert "A valid lane cannot promote, repair, or clear another lane" in provenance
+
+    assert "What Changed -> Research Decision Lab -> Business Trend" in personal
+    assert "Weekly Research Summary -> Research Discipline Review -> Research change monitor" in personal
+    assert "No process item is currently due from saved reviewer-authored evidence" in personal
+
+    assert "Implemented locally — Research Decision Lab" in roadmap
+    assert "Stage 4 — Documentation and release evidence: completed locally" in roadmap
+    assert "Local Decision Lab implementation is complete" in decision_prompt
+    assert "Local Decision Lab implementation is complete" in commercial_prompt
+    assert "Status:** Implemented locally; external maturity gates remain separate" in design
+
+    assert '"Research Decision Lab"' in browser_contract
+    assert '"Research Discipline Review"' in browser_contract
+    assert "Research Decision Lab" in readme
+    assert "Research Discipline Review" in readme
+
+    external_boundary = (
+        "does not prove source coverage, predictive accuracy, investment performance, independent adoption, "
+        "hosted reliability, commercial demand, competitive superiority, or product-market fit"
+    )
+    for text in (roadmap, decision_prompt, commercial_prompt):
+        assert external_boundary in text
