@@ -1357,3 +1357,12 @@ def test_priority_three_release_docs_record_controller_runtime_evidence_without_
     assert "No successful production save was attempted; persistence evidence remains temporary-ledger AppTest and direct persistence tests only." in design
     assert "`6b7cdbd3b`, `996d86610`, `10c2c155c`, and `e67b16d04`" in design
     assert "Commit identifier will be added only after the corresponding commit exists." not in design
+
+    hardening = (
+        "Hardening commit `07758114c` closes the confirmation race: all three append engines "
+        "share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, "
+        "every new preview resets confirmation, and uncertain post-append teardown requires "
+        "one-shot read-side reload before success."
+    )
+    for text in (roadmap, prompt, design):
+        assert hardening in text

@@ -412,6 +412,8 @@ A blocked priority does not become complete, and skipping it does not weaken its
 
 **Approved design boundary:** one collapsed Company Workbench composer reuses the existing thesis-journal, catalyst, and outcome persistence engines. A session-only receipt binds the exact draft, selected profile/ticker, destination ledger, and current ledger fingerprint; any edit or concurrent append requires a fresh preview. Validation and preview write nothing, confirmation appends to exactly one established ledger, and automated tests use temporary ledgers only.
 
+Hardening commit `07758114c` closes the confirmation race: all three append engines share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, every new preview resets confirmation, and uncertain post-append teardown requires one-shot read-side reload before success.
+
 Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.
 A valid record requires an exact preview and explicit confirmation before save.
 Drafts are untrusted and preview receipts are session-only.
