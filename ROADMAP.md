@@ -401,7 +401,7 @@ A blocked priority does not become complete, and skipping it does not weaken its
 
 ### Priority 3 — In-app research-record authoring
 
-**Current lane:** the unified Company Workbench composer design was approved on 2026-07-22 and is recorded in `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md`. The written specification is awaiting the required pre-implementation review; no production implementation has started.
+**Current lane:** the unified Company Workbench composer design and written specification were approved on 2026-07-22. The test-first implementation plan is recorded in `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`; no production implementation has started.
 
 1. Add simple in-app authoring for thesis, evidence, catalyst, and outcome records using explicit validate -> preview -> confirm flows.
 2. Keep records append-only, ticker/profile scoped, reviewer-authored, timestamped, source-aware where applicable, and independently valid or blocked.

@@ -198,7 +198,7 @@ Priority 2 — Stage B field-proof audit and operator hardening
 - Exit only when focused read-only evidence proves clearer deterministic review and errors with no ledger or generated-artifact write.
 
 Priority 3 — In-app research-record authoring
-- Priority 3 is the next local implementation lane after required review of the approved written specification at `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md`.
+- Priority 3 is the next local implementation lane. The approved specification is at `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md` and its test-first implementation plan is at `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`; no production implementation has started.
 - The approved design uses one collapsed Company Workbench composer over the existing thesis-journal, catalyst, and outcome engines. A session-only receipt binds the exact draft, selected profile/ticker, destination ledger, and current ledger fingerprint; edits or concurrent appends require a fresh preview. Tests must use temporary ledgers and must not append production research data.
 - Design and implement simple validate -> preview -> confirm authoring for thesis, evidence, catalyst, and outcome records.
 - Keep records append-only, profile/ticker scoped, reviewer-authored, timestamped, source-aware where applicable, and independently valid or blocked. Drafts and candidate context remain untrusted; automated generation cannot become reviewer-authored evidence.
