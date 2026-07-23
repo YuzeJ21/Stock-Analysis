@@ -1,0 +1,69 @@
+# Accessibility Evidence
+
+This document records direct local accessibility evidence for the supported
+Personal Research workflow. It is an evidence log, not a WCAG conformance
+claim.
+
+## 2026-07-23 partial workflow audit
+
+Scope:
+
+- Local Streamlit dashboard in Personal Research mode.
+- Research Desk -> Discover -> Company Workbench -> Monitor.
+- Desktop viewport: `1280x720`.
+- Phone viewport: `390x844`.
+- Browser: local Chromium-based browser.
+- Company Workbench review ticker: `AVGO`.
+- No readiness rebuild, data refresh, evidence recording, or repository
+  screenshot generation was performed.
+
+Directly observed:
+
+- All four routes rendered at desktop and phone widths without document-level
+  horizontal overflow.
+- The document language was `en`.
+- Visible form controls exposed labels or accessible names in the inspected
+  DOM.
+- No duplicate element IDs were found in the inspected routes.
+- A focused Data Health link showed a visible three-pixel teal outline.
+- Research-only and no-account-action boundaries remained visible.
+- The Monitor `Open Discover` action initially rendered white normal-size text
+  on Streamlit red, measured at approximately `3.3:1`.
+- The local theme now gives primary link buttons a `#0b3b36` background and
+  border with white text. Runtime retest measured the Monitor action at
+  `12.4:1`.
+
+Open findings:
+
+- The inspected routes expose no `main` landmark and no visible skip link.
+- Page sections generally move from the route `h1` directly to `h3`; Monitor
+  also exposes one empty `h3` in the inspected DOM.
+- Framework help controls measured approximately `16x16` CSS pixels and
+  dataframe toolbar controls approximately `22x22`. Hidden native radio inputs
+  also measured small, but their visible labels are larger and require separate
+  hit-target review rather than treating the input box alone as the target.
+- The inspected routes exposed no explicit live region. Dynamic update and
+  validation announcements still require task-level assistive-technology
+  testing.
+- Browser automation did not prove the complete keyboard traversal order.
+- Direct screen-reader tasks, 200% and 400% zoom, forced-colors behavior,
+  reduced-motion environment verification, and error-association tasks remain
+  untested.
+
+Classification:
+
+- `partial_local_accessibility_evidence`
+- The contrast defect above is fixed and directly retested.
+- Priority 7 remains incomplete. Screenshots, DOM inspection, and one focused
+  contrast retest do not prove keyboard accessibility, assisted-technology
+  support, or WCAG conformance.
+
+Next safe local step:
+
+1. Add an automated semantic contract for the primary workflow.
+2. Repair route-level landmark and heading hierarchy where Streamlit permits a
+   stable implementation.
+3. Add a keyboard-only task protocol and record direct traversal, focus,
+   disclosure, search, navigation, and error-recovery evidence.
+4. Complete zoom/reflow, forced-colors, and screen-reader tasks in a suitable
+   review environment.

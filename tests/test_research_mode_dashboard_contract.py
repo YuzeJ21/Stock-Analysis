@@ -690,12 +690,18 @@ def test_research_evidence_detours_offer_return_before_evidence_content():
         assert header < return_link < button < purpose < content
 
 
-def test_dashboard_theme_keeps_primary_link_button_text_white():
+def test_dashboard_theme_keeps_primary_link_button_contrast_accessible():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
 
-    assert '[data-testid="stLinkButton"] a[kind="primary"],' in source
+    assert '[data-testid="stLinkButton"] a[kind="primary"] {' in source
     assert '[data-testid="stLinkButton"] a[kind="primary"] * {' in source
-    assert "color: #ffffff !important;" in source[source.index('[data-testid="stLinkButton"] a[kind="primary"],'):]
+    primary_link_start = source.index('[data-testid="stLinkButton"] a[kind="primary"] {')
+    primary_link_theme = source[
+        primary_link_start : source.index("}", primary_link_start) + 1
+    ]
+    assert "background: #0b3b36 !important;" in primary_link_theme
+    assert "border-color: #0b3b36 !important;" in primary_link_theme
+    assert "color: #ffffff !important;" in primary_link_theme
 
 
 def test_new_evidence_loaders_fail_closed_on_invalid_local_ledgers(tmp_path, monkeypatch):

@@ -2980,7 +2980,11 @@ def apply_dashboard_theme() -> None:
         [data-testid="stMarkdownContainer"] p {
           color: var(--research-muted);
         }
-        [data-testid="stLinkButton"] a[kind="primary"],
+        [data-testid="stLinkButton"] a[kind="primary"] {
+          background: #0b3b36 !important;
+          border-color: #0b3b36 !important;
+          color: #ffffff !important;
+        }
         [data-testid="stLinkButton"] a[kind="primary"] * {
           color: #ffffff !important;
         }
