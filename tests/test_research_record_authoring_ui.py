@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from src.research_record_authoring import AuthoringPaths
@@ -112,6 +113,42 @@ def test_preview_then_confirm_saves_only_the_temporary_journal(tmp_path, monkeyp
     assert [entry.thesis_id for entry in load_journal_entries(paths.journal)] == ["thesis-new"]
     assert not paths.catalysts.exists()
     assert not paths.outcomes.exists()
+
+
+def test_confirmed_record_receipt_is_shown_once_after_the_correct_temporary_ledger_reloads(tmp_path, monkeypatch):
+    paths = _paths(tmp_path)
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
+
+    assert not app.exception
+    saved_id = load_journal_entries(paths.journal)[0].entry_id
+    assert f"Saved {saved_id}." in "\n".join(item.value for item in app.success)
+
+    app.run()
+
+    assert not app.exception
+    assert not app.success
+
+
+def test_deleted_confirmed_record_warns_after_temporary_ledger_reload(tmp_path, monkeypatch):
+    paths = _paths(tmp_path)
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    monkeypatch.setattr(st, "rerun", lambda: None)
+    app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
+
+    assert [entry.thesis_id for entry in load_journal_entries(paths.journal)] == ["thesis-new"]
+    paths.journal.unlink()
+    app.run()
+
+    assert not app.exception
+    assert not app.success
+    assert "Saved record could not be reloaded; review the ledger" in "\n".join(
+        item.value for item in app.warning
+    )
 
 
 def test_edit_after_preview_hides_save_until_a_fresh_preview(tmp_path, monkeypatch):

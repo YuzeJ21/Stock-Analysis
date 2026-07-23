@@ -1,6 +1,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
+from streamlit.testing.v1 import AppTest
+
 from src.company_workbench_cash_generation_preview import (
     CashGenerationPreviewMetric,
     CompanyWorkbenchCashGenerationPreview,
@@ -42,6 +44,42 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     assert all(result.missing_markers == () for result in results)
     assert all(result.forbidden_markers == () for result in results)
     assert all(result.expanded_advanced == () for result in results)
+
+
+def test_authoring_composer_renders_once_only_in_closed_research_company_workbench():
+    workbench = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    workbench.query_params.update(
+        {"mode": "research", "page": "company-workbench", "ticker": "NVDA", "open": "1"}
+    )
+    workbench.run(timeout=120)
+
+    assert not workbench.exception
+    composer_expanders = [
+        item for item in workbench.expander if item.label == "Add a reviewed research record"
+    ]
+    assert len(composer_expanders) == 1
+    assert not composer_expanders[0].proto.expanded
+    assert not any(
+        item.proto.expanded for item in workbench.expander if item.label.startswith("Advanced:")
+    )
+
+    public_report = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    public_report.query_params.update(
+        {"mode": "public", "page": "single-stock-report", "ticker": "NVDA", "open": "1"}
+    )
+    public_report.run(timeout=120)
+
+    assert not public_report.exception
+    assert not any(item.label == "Add a reviewed research record" for item in public_report.expander)
+
+    operator_report = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    operator_report.query_params.update(
+        {"mode": "operator", "page": "single-stock-report", "ticker": "NVDA", "open": "1"}
+    )
+    operator_report.run(timeout=120)
+
+    assert not operator_report.exception
+    assert not any(item.label == "Add a reviewed research record" for item in operator_report.expander)
 
 
 def test_monitor_renders_research_discipline_after_weekly_summary_without_ranking():

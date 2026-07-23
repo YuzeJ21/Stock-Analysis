@@ -3416,6 +3416,23 @@ def test_loaded_single_stock_detail_tables_are_collapsed_after_workflow_fit():
     assert 'st.dataframe(\n            clean_display_frame(stock_report_key_value_frame(financials, financial_fields))' not in source
 
 
+def test_company_workbench_research_record_authoring_is_research_only_and_below_the_journal_answer():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_start = source.index("def render_single_stock_report(")
+    render_end = source.index("def render_data_health(", render_start + 4)
+    render_source = source[render_start:render_end]
+
+    assert "render_research_record_authoring" in render_source
+    assert render_source.index("research_thesis_journal_html") < render_source.index(
+        "render_research_record_authoring"
+    )
+    assert render_source.index("render_research_record_authoring") < render_source.index(
+        "Advanced: thesis and evidence history"
+    )
+    assert "if research_mode:" in render_source
+    assert "AuthoringPaths(" in render_source
+
+
 def test_public_single_stock_defers_secondary_rendering_until_detail_toggle():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")

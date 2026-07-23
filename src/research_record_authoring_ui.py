@@ -14,6 +14,8 @@ from src.research_record_authoring import (
     confirm_authoring_preview,
     preview_authoring_record,
 )
+from src.catalyst_evidence_timeline import load_catalyst_events
+from src.research_outcome_review import load_outcomes
 from src.research_thesis_journal import load_journal_entries
 
 
@@ -180,12 +182,68 @@ def _render_preview(st_api: Any, preview: AuthoringPreview) -> None:
     )
 
 
+def _show_reloaded_save_receipt(
+    st_api: Any, *, profile_key: str, ticker: str, paths: AuthoringPaths
+) -> None:
+    """Show one save receipt only after its persisted record is read back."""
+
+    symbol = ticker.upper()
+    receipt_key = authoring_session_key(profile_key, symbol, "pending-reload-receipt")
+    receipt = st_api.session_state.get(receipt_key)
+    if receipt is None:
+        return
+    del st_api.session_state[receipt_key]
+    if not isinstance(receipt, dict):
+        st_api.warning("Saved record could not be reloaded; review the ledger")
+        return
+    record_kind = str(receipt.get("record_kind") or "").strip().lower()
+    record_id = str(receipt.get("record_id") or "").strip()
+    try:
+        if record_kind in {"thesis", "evidence"}:
+            record_reloaded = any(
+                entry.entry_id == record_id
+                and entry.profile_key == profile_key
+                and entry.ticker.upper() == symbol
+                for entry in load_journal_entries(paths.journal)
+            )
+        elif record_kind == "catalyst":
+            record_reloaded = any(
+                event.event_id == record_id
+                and event.profile_key == profile_key
+                and event.ticker.upper() == symbol
+                for event in load_catalyst_events(paths.catalysts)
+            )
+        elif record_kind == "outcome":
+            record_reloaded = any(
+                outcome.outcome_id == record_id
+                and outcome.profile_key == profile_key
+                and outcome.ticker.upper() == symbol
+                for outcome in load_outcomes(paths.outcomes)
+            )
+        else:
+            record_reloaded = False
+    except (OSError, UnicodeError, ValueError):
+        record_reloaded = False
+    if record_reloaded:
+        st_api.success(
+            f"Saved {record_id}. Corrections require a new append-only record; history is never edited or deleted."
+        )
+    else:
+        st_api.warning("Saved record could not be reloaded; review the ledger")
+
+
 def render_research_record_authoring(
     *, st_api: Any, profile_key: str, ticker: str, paths: AuthoringPaths
 ) -> None:
     """Render a locked-scope, preview-first authoring composer without direct writes."""
 
     symbol = ticker.upper()
+    _show_reloaded_save_receipt(
+        st_api,
+        profile_key=profile_key,
+        ticker=symbol,
+        paths=paths,
+    )
     with st_api.expander("Add a reviewed research record", expanded=False):
         st_api.markdown(
             f"Profile: {profile_key} | Ticker: {symbol} — locked to this Company Workbench."
@@ -272,9 +330,9 @@ def render_research_record_authoring(
             )
             if result.state == "saved":
                 del st_api.session_state[preview_key]
-                st_api.success(
-                    f"Saved {result.record_id}. Corrections require a new append-only record; "
-                    "history is never edited or deleted."
-                )
+                st_api.session_state[
+                    authoring_session_key(profile_key, symbol, "pending-reload-receipt")
+                ] = {"record_kind": result.record_kind, "record_id": result.record_id}
+                st_api.rerun()
             else:
                 st_api.error(result.reason)

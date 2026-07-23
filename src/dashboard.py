@@ -209,6 +209,8 @@ from src.earnings_nowcast_ui import nowcast_data_health_card, nowcast_summary_ca
 from src.earnings_nowcast_report import build_nowcast_packet
 from src.earnings_nowcast_cohort import build_cohort_readiness, cohort_readiness_cards
 from src.research_outcome_review import derive_outcome_status, load_outcomes, outcome_status_cards
+from src.research_record_authoring import AuthoringPaths
+from src.research_record_authoring_ui import render_research_record_authoring
 from src.catalyst_evidence_timeline import (
     build_catalyst_timeline,
     catalyst_timeline_cards,
@@ -30747,6 +30749,16 @@ def render_single_stock_report(
         st.markdown(research_thesis_journal_html(journal_summary), unsafe_allow_html=True)
         if research_mode:
             render_signal_cards(outcome_status_cards(outcome_status), show_commands=False, variant="queue")
+            render_research_record_authoring(
+                st_api=st,
+                profile_key=selected_context.profile_key,
+                ticker=ticker,
+                paths=AuthoringPaths(
+                    journal=DATA_DIR / "research_thesis_journal.csv",
+                    catalysts=DATA_DIR / "catalyst_evidence.csv",
+                    outcomes=DATA_DIR / "research_outcome_reviews.csv",
+                ),
+            )
         with st.expander("Advanced: thesis and evidence history", expanded=False):
             if journal_state is not None and journal_state.entries:
                 st.dataframe(
