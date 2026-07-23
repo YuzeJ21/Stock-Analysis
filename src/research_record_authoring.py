@@ -244,6 +244,8 @@ def preview_authoring_record(
             "draft": draft_digest,
             "ledger": ledger_fingerprint,
             "record": persisted,
+            "previewed_at": previewed_at,
+            "destination_label": destination.name,
             "destination": str(resolve_ledger_path(destination)),
         }
     )
@@ -310,7 +312,12 @@ def confirm_authoring_preview(
                     previewed_at=preview.previewed_at,
                     generated_id=_record_id(preview.record),
                 )
-                if refreshed.state != "reviewable" or not hmac.compare_digest(refreshed.receipt, preview.receipt):
+                if (
+                    refreshed.state != "reviewable"
+                    or not hmac.compare_digest(refreshed.receipt, preview.receipt)
+                    or refreshed.persisted_fields != preview.persisted_fields
+                    or refreshed.destination_label != preview.destination_label
+                ):
                     result = rejected("preview_stale", "Record no longer matches the validated preview; preview again.")
                 elif not hmac.compare_digest(_ledger_fingerprint(destination), refreshed.ledger_fingerprint):
                     result = rejected("preview_stale", "Ledger changed during preview revalidation; preview again.")
@@ -334,11 +341,30 @@ def confirm_authoring_preview(
                                     paths.outcomes, refreshed_record, confirm_reviewed=True
                                 )
                         except (OSError, UnicodeError, csv.Error, ValueError) as exc:
-                            result = rejected("save_failed", f"Record was not saved: {exc}")
+                            try:
+                                ledger_changed = not hmac.compare_digest(
+                                    _ledger_fingerprint(destination),
+                                    refreshed.ledger_fingerprint,
+                                )
+                            except (OSError, UnicodeError, csv.Error):
+                                ledger_changed = True
+                            if ledger_changed:
+                                result = AuthoringSaveResult(
+                                    "save_pending_reload",
+                                    "Save completion could not be verified; reloading the ledger once before retry.",
+                                    preview.record_kind,
+                                    _record_id(refreshed_record),
+                                    destination.name,
+                                    False,
+                                )
+                            else:
+                                result = rejected("save_failed", f"Record was not saved: {exc}")
                         else:
                             persisted_record = refreshed_record
                             append_completed = True
     except OSError as exc:
+        if result is not None and result.state == "save_pending_reload":
+            return result
         if append_completed:
             return AuthoringSaveResult(
                 "save_pending_reload",

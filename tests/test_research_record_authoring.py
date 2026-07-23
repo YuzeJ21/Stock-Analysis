@@ -14,8 +14,8 @@ from src.research_record_authoring import (
     preview_authoring_record,
 )
 from src.research_thesis_journal import JournalEntry, append_journal_entry, load_journal_entries
-from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event
-from src.research_outcome_review import ResearchOutcome, append_reviewed_outcome
+from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event, load_catalyst_events
+from src.research_outcome_review import ResearchOutcome, append_reviewed_outcome, load_outcomes
 
 
 def _paths(tmp_path: Path) -> AuthoringPaths:
@@ -521,6 +521,123 @@ def test_confirmation_rejects_tampered_receipt_without_writing(tmp_path):
     assert not any(path.exists() for path in paths.all())
 
 
+@pytest.mark.parametrize(
+    "tamper",
+    (
+        lambda preview: replace(
+            preview,
+            persisted_fields=(
+                *preview.persisted_fields[:-1],
+                ("supersedes_entry_id", "unpreviewed-entry"),
+            ),
+        ),
+        lambda preview: replace(preview, destination_label="unpreviewed-ledger.csv"),
+    ),
+)
+def test_confirmation_rejects_tampered_displayed_preview_metadata_without_writing(
+    tmp_path, tamper
+):
+    paths = _paths(tmp_path)
+    draft = build_authoring_draft(
+        "thesis",
+        profile_key="demo",
+        ticker="SYN1",
+        fields={
+            "thesis_id": "thesis-new",
+            "summary": "Exact reviewed hypothesis.",
+            "effective_at": "2026-07-22T10:00:00Z",
+            "reviewer": "owner",
+            "confidence": "0.60",
+            "review_due_date": "2026-08-22",
+        },
+    )
+    preview = preview_authoring_record(
+        draft,
+        paths=paths,
+        previewed_at="2026-07-22T12:30:00Z",
+        generated_id="thesis-generated",
+    )
+
+    result = confirm_authoring_preview(
+        tamper(preview),
+        current_draft=draft,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind="thesis",
+        confirm_reviewed=True,
+    )
+
+    assert result.state == "preview_stale"
+    assert not any(path.exists() for path in paths.all())
+
+
+@pytest.mark.parametrize(
+    ("kind", "fields"),
+    (
+        (
+            "catalyst",
+            {
+                "event_type": "earnings",
+                "title": "Scheduled results",
+                "summary": "Reviewed event context.",
+                "effective_at": "2026-08-20T21:00:00Z",
+                "published_at": "2026-07-22T09:00:00Z",
+                "retrieved_at": "2026-07-22T10:00:00Z",
+                "source": "company_ir",
+                "source_ref": "https://example.invalid/event",
+                "evidence_state": "candidate_context_only",
+                "reviewer": "owner",
+            },
+        ),
+        (
+            "outcome",
+            {
+                "thesis_id": "thesis-syn1",
+                "original_thesis_entry_id": "entry-existing",
+                "reviewed_at": "2026-07-22T12:00:00Z",
+                "observation_start": "2026-07-20T12:00:00Z",
+                "observation_end": "2026-07-22T11:00:00Z",
+                "reviewer": "owner",
+                "outcome_state": "mixed",
+                "summary": "Reviewed outcome.",
+                "source": "reviewed_research_record",
+                "source_ref": "journal://entry-existing",
+                "source_published_at": "2026-07-22T11:00:00Z",
+                "learning": "Separate the evidence lanes.",
+            },
+        ),
+    ),
+)
+def test_confirmation_rejects_tampered_displayed_preview_time_without_writing(
+    tmp_path, kind, fields
+):
+    paths = _paths(tmp_path)
+    if kind == "outcome":
+        append_journal_entry(paths.journal, _thesis_entry())
+    draft = build_authoring_draft(kind, profile_key="demo", ticker="SYN1", fields=fields)
+    preview = preview_authoring_record(
+        draft,
+        paths=paths,
+        previewed_at="2026-07-22T12:30:00Z",
+        generated_id=f"{kind}-generated",
+    )
+    before = {path: path.read_bytes() if path.exists() else None for path in paths.all()}
+
+    result = confirm_authoring_preview(
+        replace(preview, previewed_at="2026-07-22T12:31:00Z"),
+        current_draft=draft,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind=kind,
+        confirm_reviewed=True,
+    )
+
+    assert result.state == "preview_stale"
+    assert {path: path.read_bytes() if path.exists() else None for path in paths.all()} == before
+
+
 def test_confirmation_propagates_programmer_errors(tmp_path, monkeypatch):
     paths = _paths(tmp_path)
     draft = build_authoring_draft("thesis", profile_key="demo", ticker="SYN1", fields={"thesis_id": "thesis-new", "summary": "Reviewed hypothesis.", "effective_at": "2026-07-22T10:00:00Z", "reviewer": "owner", "confidence": "0.60", "review_due_date": "2026-08-22"})
@@ -646,6 +763,102 @@ def test_confirmation_reports_save_failed_when_the_append_engine_fails(tmp_path,
 
 
 @pytest.mark.parametrize(
+    ("kind", "fields", "append_name", "expected_id"),
+    (
+        (
+            "thesis",
+            {
+                "thesis_id": "thesis-new",
+                "summary": "Reviewed hypothesis.",
+                "effective_at": "2026-07-22T10:00:00Z",
+                "reviewer": "owner",
+                "confidence": "0.60",
+                "review_due_date": "2026-08-22",
+            },
+            "append_journal_entry",
+            "thesis-generated",
+        ),
+        (
+            "catalyst",
+            {
+                "event_type": "earnings",
+                "title": "Scheduled results",
+                "summary": "Reviewed event context.",
+                "effective_at": "2026-08-20T21:00:00Z",
+                "published_at": "2026-07-22T09:00:00Z",
+                "retrieved_at": "2026-07-22T10:00:00Z",
+                "source": "company_ir",
+                "source_ref": "https://example.invalid/event",
+                "evidence_state": "candidate_context_only",
+                "reviewer": "owner",
+            },
+            "append_reviewed_event",
+            "catalyst-generated",
+        ),
+        (
+            "outcome",
+            {
+                "thesis_id": "thesis-syn1",
+                "original_thesis_entry_id": "entry-existing",
+                "reviewed_at": "2026-07-22T12:00:00Z",
+                "observation_start": "2026-07-20T12:00:00Z",
+                "observation_end": "2026-07-22T11:00:00Z",
+                "reviewer": "owner",
+                "outcome_state": "mixed",
+                "summary": "Reviewed outcome.",
+                "source": "reviewed_research_record",
+                "source_ref": "journal://entry-existing",
+                "source_published_at": "2026-07-22T11:00:00Z",
+                "learning": "Separate the evidence lanes.",
+            },
+            "append_reviewed_outcome",
+            "outcome-generated",
+        ),
+    ),
+)
+def test_confirmation_requires_reload_when_append_writes_then_raises(
+    tmp_path, monkeypatch, kind, fields, append_name, expected_id
+):
+    paths = _paths(tmp_path)
+    if kind == "outcome":
+        append_journal_entry(paths.journal, _thesis_entry())
+    draft = build_authoring_draft(kind, profile_key="demo", ticker="SYN1", fields=fields)
+    preview = preview_authoring_record(
+        draft,
+        paths=paths,
+        previewed_at="2026-07-22T12:30:00Z",
+        generated_id=expected_id,
+    )
+    original_append = getattr(research_record_authoring, append_name)
+
+    def write_then_raise(*args, **kwargs):
+        original_append(*args, **kwargs)
+        raise OSError("completion acknowledgement unavailable")
+
+    monkeypatch.setattr(research_record_authoring, append_name, write_then_raise)
+
+    result = confirm_authoring_preview(
+        preview,
+        current_draft=draft,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind=kind,
+        confirm_reviewed=True,
+    )
+
+    assert result.state == "save_pending_reload"
+    assert result.record_id == expected_id
+    assert result.write_performed is False
+    if kind == "thesis":
+        assert [row.entry_id for row in load_journal_entries(paths.journal)] == [expected_id]
+    elif kind == "catalyst":
+        assert [row.event_id for row in load_catalyst_events(paths.catalysts)] == [expected_id]
+    else:
+        assert [row.outcome_id for row in load_outcomes(paths.outcomes)] == [expected_id]
+
+
+@pytest.mark.parametrize(
     ("module", "append", "path_name", "row"),
     (
         (
@@ -749,3 +962,58 @@ def test_confirmation_requires_read_side_reload_when_lock_teardown_fails_after_a
     assert result.record_id == "thesis-generated"
     assert result.write_performed is False
     assert [entry.entry_id for entry in load_journal_entries(paths.journal)] == ["thesis-generated"]
+
+
+def test_confirmation_preserves_ambiguous_append_result_when_lock_teardown_also_fails(
+    tmp_path, monkeypatch
+):
+    paths = _paths(tmp_path)
+    draft = build_authoring_draft(
+        "thesis",
+        profile_key="demo",
+        ticker="SYN1",
+        fields={
+            "thesis_id": "thesis-new",
+            "summary": "Reviewed hypothesis.",
+            "effective_at": "2026-07-22T10:00:00Z",
+            "reviewer": "owner",
+            "confidence": "0.60",
+            "review_due_date": "2026-08-22",
+        },
+    )
+    preview = preview_authoring_record(
+        draft,
+        paths=paths,
+        previewed_at="2026-07-22T12:30:00Z",
+        generated_id="thesis-generated",
+    )
+    original_append = research_record_authoring.append_journal_entry
+
+    def write_then_raise(*args, **kwargs):
+        original_append(*args, **kwargs)
+        raise OSError("completion acknowledgement unavailable")
+
+    @contextmanager
+    def teardown_failure(path):
+        yield Path(path)
+        raise OSError("unlock unavailable")
+
+    monkeypatch.setattr(research_record_authoring, "append_journal_entry", write_then_raise)
+    monkeypatch.setattr(research_record_authoring, "ledger_write_lock", teardown_failure)
+
+    result = confirm_authoring_preview(
+        preview,
+        current_draft=draft,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind="thesis",
+        confirm_reviewed=True,
+    )
+
+    assert result.state == "save_pending_reload"
+    assert result.record_id == "thesis-generated"
+    assert result.write_performed is False
+    assert [entry.entry_id for entry in load_journal_entries(paths.journal)] == [
+        "thesis-generated"
+    ]
