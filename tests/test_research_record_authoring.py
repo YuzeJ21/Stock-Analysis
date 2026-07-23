@@ -1,4 +1,5 @@
 import csv
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -7,9 +8,10 @@ from src import research_record_authoring
 from src.research_record_authoring import (
     AuthoringPaths,
     build_authoring_draft,
+    confirm_authoring_preview,
     preview_authoring_record,
 )
-from src.research_thesis_journal import JournalEntry, append_journal_entry
+from src.research_thesis_journal import JournalEntry, append_journal_entry, load_journal_entries
 
 
 def _paths(tmp_path: Path) -> AuthoringPaths:
@@ -257,3 +259,220 @@ def test_preview_propagates_programmer_errors(tmp_path, monkeypatch):
             previewed_at="2026-07-22T12:30:00Z",
             generated_id="thesis-generated",
         )
+
+
+def test_confirmation_requires_review_and_appends_exactly_one_ledger(tmp_path):
+    paths = _paths(tmp_path)
+    draft = build_authoring_draft(
+        "thesis",
+        profile_key="demo",
+        ticker="SYN1",
+        fields={
+            "thesis_id": "thesis-new",
+            "summary": "Reviewed hypothesis.",
+            "effective_at": "2026-07-22T10:00:00Z",
+            "reviewer": "owner",
+            "confidence": "0.60",
+            "review_due_date": "2026-08-22",
+            "supersedes_entry_id": "",
+        },
+    )
+    preview = preview_authoring_record(
+        draft,
+        paths=paths,
+        previewed_at="2026-07-22T12:30:00Z",
+        generated_id="thesis-generated",
+    )
+
+    denied = confirm_authoring_preview(
+        preview,
+        current_draft=draft,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind="thesis",
+        confirm_reviewed=False,
+    )
+
+    assert denied.state == "confirmation_required"
+    assert not any(path.exists() for path in paths.all())
+
+    saved = confirm_authoring_preview(
+        preview,
+        current_draft=draft,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind="thesis",
+        confirm_reviewed=True,
+    )
+
+    assert saved.state == "saved"
+    assert saved.record_id == "thesis-generated"
+    assert saved.write_performed is True
+    assert [row.entry_id for row in load_journal_entries(paths.journal)] == ["thesis-generated"]
+    assert not paths.catalysts.exists()
+    assert not paths.outcomes.exists()
+
+
+def test_changed_draft_or_ledger_invalidates_preview_without_writing(tmp_path):
+    paths = _paths(tmp_path)
+    append_journal_entry(paths.journal, _thesis_entry())
+    fields = {
+        "thesis_id": "thesis-syn1",
+        "summary": "Evidence.",
+        "effective_at": "2026-07-22T10:00:00Z",
+        "reviewer": "owner",
+        "evidence_direction": "supporting",
+        "source": "company_ir",
+        "source_ref": "ref",
+        "source_published_at": "2026-07-22T09:00:00Z",
+    }
+    draft = build_authoring_draft("evidence", profile_key="demo", ticker="SYN1", fields=fields)
+    preview = preview_authoring_record(
+        draft,
+        paths=paths,
+        previewed_at="2026-07-22T12:30:00Z",
+        generated_id="evidence-generated",
+    )
+    baseline = paths.journal.read_bytes()
+
+    edited = build_authoring_draft(
+        "evidence",
+        profile_key="demo",
+        ticker="SYN1",
+        fields={**fields, "summary": "Edited after preview."},
+    )
+    stale_draft = confirm_authoring_preview(
+        preview,
+        current_draft=edited,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind="evidence",
+        confirm_reviewed=True,
+    )
+
+    assert stale_draft.state == "preview_stale"
+    assert paths.journal.read_bytes() == baseline
+
+    append_journal_entry(
+        paths.journal,
+        replace(_thesis_entry(), entry_id="entry-concurrent", thesis_id="thesis-other"),
+    )
+    concurrent = paths.journal.read_bytes()
+    stale_ledger = confirm_authoring_preview(
+        preview,
+        current_draft=draft,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind="evidence",
+        confirm_reviewed=True,
+    )
+
+    assert stale_ledger.state == "preview_stale"
+    assert paths.journal.read_bytes() == concurrent
+
+
+@pytest.mark.parametrize(
+    ("kind", "fields", "ledger_name"),
+    (
+        (
+            "catalyst",
+            {
+                "event_type": "earnings",
+                "title": "Scheduled results",
+                "summary": "Reviewed event context.",
+                "effective_at": "2026-08-20T21:00:00Z",
+                "published_at": "2026-07-22T09:00:00Z",
+                "retrieved_at": "2026-07-22T10:00:00Z",
+                "source": "company_ir",
+                "source_ref": "https://example.invalid/event",
+                "evidence_state": "candidate_context_only",
+                "reviewer": "owner",
+            },
+            "catalysts",
+        ),
+        (
+            "outcome",
+            {
+                "thesis_id": "thesis-syn1",
+                "original_thesis_entry_id": "entry-existing",
+                "reviewed_at": "2026-07-22T12:00:00Z",
+                "observation_start": "2026-07-20T12:00:00Z",
+                "observation_end": "2026-07-22T11:00:00Z",
+                "reviewer": "owner",
+                "outcome_state": "mixed",
+                "summary": "Reviewed outcome.",
+                "source": "reviewed_research_record",
+                "source_ref": "journal://entry-existing",
+                "source_published_at": "2026-07-22T11:00:00Z",
+                "learning": "Separate the evidence lanes.",
+            },
+            "outcomes",
+        ),
+    ),
+)
+def test_confirmation_dispatches_selected_nonjournal_ledger_only(tmp_path, kind, fields, ledger_name):
+    paths = _paths(tmp_path)
+    append_journal_entry(paths.journal, _thesis_entry())
+    draft = build_authoring_draft(kind, profile_key="demo", ticker="SYN1", fields=fields)
+    preview = preview_authoring_record(
+        draft,
+        paths=paths,
+        previewed_at="2026-07-22T12:30:00Z",
+        generated_id=f"{kind}-generated",
+    )
+
+    saved = confirm_authoring_preview(
+        preview,
+        current_draft=draft,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind=kind,
+        confirm_reviewed=True,
+    )
+
+    assert saved.state == "saved"
+    assert getattr(paths, ledger_name).exists()
+    assert paths.journal.exists()
+    assert (paths.outcomes if ledger_name != "outcomes" else paths.catalysts).exists() is False
+
+
+@pytest.mark.parametrize("active_profile_key, active_ticker, active_kind", (("other", "SYN1", "thesis"), ("demo", "OTHER", "thesis"), ("demo", "SYN1", "evidence")))
+def test_confirmation_rejects_changed_context_without_writing(tmp_path, active_profile_key, active_ticker, active_kind):
+    paths = _paths(tmp_path)
+    draft = build_authoring_draft("thesis", profile_key="demo", ticker="SYN1", fields={"thesis_id": "thesis-new", "summary": "Reviewed hypothesis.", "effective_at": "2026-07-22T10:00:00Z", "reviewer": "owner", "confidence": "0.60", "review_due_date": "2026-08-22"})
+    preview = preview_authoring_record(draft, paths=paths, previewed_at="2026-07-22T12:30:00Z", generated_id="thesis-generated")
+
+    stale = confirm_authoring_preview(preview, current_draft=draft, paths=paths, active_profile_key=active_profile_key, active_ticker=active_ticker, active_kind=active_kind, confirm_reviewed=True)
+
+    assert stale.state == "preview_stale"
+    assert not any(path.exists() for path in paths.all())
+
+
+def test_confirmation_rejects_tampered_receipt_without_writing(tmp_path):
+    paths = _paths(tmp_path)
+    draft = build_authoring_draft("thesis", profile_key="demo", ticker="SYN1", fields={"thesis_id": "thesis-new", "summary": "Reviewed hypothesis.", "effective_at": "2026-07-22T10:00:00Z", "reviewer": "owner", "confidence": "0.60", "review_due_date": "2026-08-22"})
+    preview = preview_authoring_record(draft, paths=paths, previewed_at="2026-07-22T12:30:00Z", generated_id="thesis-generated")
+
+    stale = confirm_authoring_preview(replace(preview, receipt="tampered"), current_draft=draft, paths=paths, active_profile_key="demo", active_ticker="SYN1", active_kind="thesis", confirm_reviewed=True)
+
+    assert stale.state == "preview_stale"
+    assert not any(path.exists() for path in paths.all())
+
+
+def test_confirmation_propagates_programmer_errors(tmp_path, monkeypatch):
+    paths = _paths(tmp_path)
+    draft = build_authoring_draft("thesis", profile_key="demo", ticker="SYN1", fields={"thesis_id": "thesis-new", "summary": "Reviewed hypothesis.", "effective_at": "2026-07-22T10:00:00Z", "reviewer": "owner", "confidence": "0.60", "review_due_date": "2026-08-22"})
+    preview = preview_authoring_record(draft, paths=paths, previewed_at="2026-07-22T12:30:00Z", generated_id="thesis-generated")
+
+    def raise_programmer_error(*_args, **_kwargs):
+        raise TypeError("unexpected append contract")
+
+    monkeypatch.setattr(research_record_authoring, "append_journal_entry", raise_programmer_error)
+
+    with pytest.raises(TypeError, match="unexpected append contract"):
+        confirm_authoring_preview(preview, current_draft=draft, paths=paths, active_profile_key="demo", active_ticker="SYN1", active_kind="thesis", confirm_reviewed=True)

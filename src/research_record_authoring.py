@@ -4,17 +4,29 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import hmac
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping
 
-from src.catalyst_evidence_timeline import CatalystEvent, load_catalyst_events, preview_event
-from src.research_outcome_review import ResearchOutcome, load_outcomes, preview_outcome
+from src.catalyst_evidence_timeline import (
+    CatalystEvent,
+    append_reviewed_event,
+    load_catalyst_events,
+    preview_event,
+)
+from src.research_outcome_review import (
+    ResearchOutcome,
+    append_reviewed_outcome,
+    load_outcomes,
+    preview_outcome,
+)
 from src.research_thesis_journal import (
     JOURNAL_SCHEMA_VERSION,
     JournalEntry,
+    append_journal_entry,
     load_journal_entries,
     validate_journal_entry,
 )
@@ -61,6 +73,16 @@ class AuthoringPreview:
     write_performed: bool = False
 
 
+@dataclass(frozen=True)
+class AuthoringSaveResult:
+    state: str
+    reason: str
+    record_kind: str
+    record_id: str
+    destination_label: str
+    write_performed: bool
+
+
 def build_authoring_draft(
     record_kind: str,
     *,
@@ -101,6 +123,14 @@ def _destination(draft: AuthoringDraft, paths: AuthoringPaths) -> Path:
     if draft.record_kind == "catalyst":
         return paths.catalysts
     return paths.outcomes
+
+
+def _record_id(record: JournalEntry | CatalystEvent | ResearchOutcome) -> str:
+    if isinstance(record, JournalEntry):
+        return record.entry_id
+    if isinstance(record, CatalystEvent):
+        return record.event_id
+    return record.outcome_id
 
 
 def _scoped_theses(paths: AuthoringPaths, draft: AuthoringDraft) -> tuple[JournalEntry, ...]:
@@ -229,4 +259,65 @@ def preview_authoring_record(
         draft_digest,
         ledger_fingerprint,
         record,
+    )
+
+
+def confirm_authoring_preview(
+    preview: AuthoringPreview,
+    *,
+    current_draft: AuthoringDraft,
+    paths: AuthoringPaths,
+    active_profile_key: str,
+    active_ticker: str,
+    active_kind: str,
+    confirm_reviewed: bool,
+) -> AuthoringSaveResult:
+    rejected = lambda state, reason: AuthoringSaveResult(
+        state,
+        reason,
+        preview.record_kind,
+        "",
+        preview.destination_label,
+        False,
+    )
+    if not confirm_reviewed:
+        return rejected("confirmation_required", "Review and confirm the exact preview before saving.")
+    if preview.state != "reviewable" or preview.record is None or not preview.receipt:
+        return rejected("rejected", "Only a valid preview can be confirmed.")
+    active = (
+        str(active_profile_key or "").strip(),
+        str(active_ticker or "").strip().upper(),
+        str(active_kind or "").strip().lower(),
+    )
+    if active != (preview.profile_key, preview.ticker, preview.record_kind):
+        return rejected("preview_stale", "Selected profile, ticker, or record type changed; preview again.")
+    if not hmac.compare_digest(_stable_digest(asdict(current_draft)), preview.draft_digest):
+        return rejected("preview_stale", "Draft changed after preview; preview again.")
+    destination = _destination(current_draft, paths)
+    if not hmac.compare_digest(_ledger_fingerprint(destination), preview.ledger_fingerprint):
+        return rejected("preview_stale", "Ledger changed after preview; reload and preview again.")
+    refreshed = preview_authoring_record(
+        current_draft,
+        paths=paths,
+        previewed_at=preview.previewed_at,
+        generated_id=_record_id(preview.record),
+    )
+    if refreshed.state != "reviewable" or not hmac.compare_digest(refreshed.receipt, preview.receipt):
+        return rejected("preview_stale", "Record no longer matches the validated preview; preview again.")
+    try:
+        if isinstance(preview.record, JournalEntry):
+            append_journal_entry(paths.journal, preview.record)
+        elif isinstance(preview.record, CatalystEvent):
+            append_reviewed_event(paths.catalysts, preview.record, confirm_reviewed=True)
+        else:
+            append_reviewed_outcome(paths.outcomes, preview.record, confirm_reviewed=True)
+    except (OSError, ValueError) as exc:
+        return rejected("save_failed", f"Record was not saved: {exc}")
+    return AuthoringSaveResult(
+        "saved",
+        "Saved append-only reviewed record.",
+        preview.record_kind,
+        _record_id(preview.record),
+        destination.name,
+        True,
     )
