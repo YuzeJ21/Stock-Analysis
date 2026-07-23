@@ -15,6 +15,7 @@ from src.commercial_source_rights import (
     review_commercial_field_scope,
 )
 from src.earnings_nowcast_contract import parse_utc_timestamp
+from src.research_ledger_lock import ledger_write_lock
 
 
 SCHEMA_VERSION = "catalyst-evidence-v1"
@@ -126,17 +127,18 @@ def append_reviewed_event(path: Path | str, row: CatalystEvent, *, confirm_revie
     if not confirm_reviewed:
         raise ValueError("confirm_reviewed is required before recording a catalyst event")
     destination = Path(path)
-    existing = load_catalyst_events(destination)
-    reason = _validation_error(row, existing)
-    if reason:
-        raise ValueError(reason)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    exists = destination.exists() and destination.stat().st_size > 0
-    with destination.open("a", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDS)
-        if not exists:
-            writer.writeheader()
-        writer.writerow(asdict(row))
+    with ledger_write_lock(destination):
+        existing = load_catalyst_events(destination)
+        reason = _validation_error(row, existing)
+        if reason:
+            raise ValueError(reason)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        exists = destination.exists() and destination.stat().st_size > 0
+        with destination.open("a", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=FIELDS)
+            if not exists:
+                writer.writeheader()
+            writer.writerow(asdict(row))
     return destination
 
 

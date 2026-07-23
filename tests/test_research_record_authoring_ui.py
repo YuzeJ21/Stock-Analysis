@@ -1,10 +1,17 @@
+import csv
+from contextlib import contextmanager
 from pathlib import Path
 
+import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from src.research_record_authoring import AuthoringPaths
+from src import research_record_authoring
+from src import research_record_authoring_ui
 from src.research_record_authoring_ui import authoring_field_contract, authoring_session_key
+from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event
+from src.research_outcome_review import ResearchOutcome, append_reviewed_outcome
 from src.research_thesis_journal import JournalEntry, append_journal_entry, load_journal_entries
 
 
@@ -151,6 +158,56 @@ def test_deleted_confirmed_record_warns_after_temporary_ledger_reload(tmp_path, 
     )
 
 
+def test_teardown_uncertainty_reloads_once_and_never_retries_the_append(tmp_path, monkeypatch):
+    paths = _paths(tmp_path)
+
+    @contextmanager
+    def teardown_failure(path):
+        yield Path(path)
+        raise OSError("unlock unavailable")
+
+    monkeypatch.setattr(research_record_authoring, "ledger_write_lock", teardown_failure)
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
+
+    assert [entry.entry_id for entry in load_journal_entries(paths.journal)]
+    assert len(load_journal_entries(paths.journal)) == 1
+    assert len(app.success) == 1
+
+    app.run()
+
+    assert len(load_journal_entries(paths.journal)) == 1
+    assert not app.success
+
+
+def test_teardown_uncertainty_warns_once_when_the_follow_up_reload_is_missing(tmp_path, monkeypatch):
+    paths = _paths(tmp_path)
+
+    @contextmanager
+    def teardown_failure(path):
+        yield Path(path)
+        raise OSError("unlock unavailable")
+
+    monkeypatch.setattr(research_record_authoring, "ledger_write_lock", teardown_failure)
+    monkeypatch.setattr(st, "rerun", lambda: None)
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
+    paths.journal.unlink()
+
+    app.run()
+
+    assert "Saved record could not be reloaded; review the ledger" in "\n".join(
+        item.value for item in app.warning
+    )
+    assert len(load_journal_entries(paths.journal)) == 0
+    app.run()
+    assert not app.warning
+
+
 def test_edit_after_preview_hides_save_until_a_fresh_preview(tmp_path, monkeypatch):
     app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
     app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
@@ -161,3 +218,127 @@ def test_edit_after_preview_hides_save_until_a_fresh_preview(tmp_path, monkeypat
     assert "Draft changed after preview" in "\n".join(item.value for item in app.warning)
     assert not any(item.label == "Confirm and save" for item in app.button)
     assert not any(tmp_path.iterdir())
+
+
+def test_repreview_of_the_same_draft_resets_confirmation(tmp_path, monkeypatch):
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+
+    assert app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).value is False
+
+
+def test_preview_of_a_changed_draft_resets_confirmation(tmp_path, monkeypatch):
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    app.text_area(key=_field_key("thesis", "summary")).set_value("Changed before re-preview.").run()
+
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+
+    assert app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).value is False
+
+
+def test_preview_of_a_different_kind_resets_confirmation(tmp_path, monkeypatch):
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    app.selectbox(key=authoring_session_key("demo", "SYN1", "kind")).set_value("catalyst").run()
+    app.selectbox(key=_field_key("catalyst", "event_type")).set_value("earnings")
+    for name, value in {
+        "title": "Scheduled results", "summary": "Reviewed context.",
+        "effective_at": "2026-08-20T21:00:00Z", "published_at": "2026-07-22T09:00:00Z",
+        "retrieved_at": "2026-07-22T10:00:00Z", "source": "company_ir",
+        "source_ref": "https://example.invalid/event", "reviewer": "owner",
+    }.items():
+        widget = app.text_area if name == "summary" else app.text_input
+        widget(key=_field_key("catalyst", name)).set_value(value)
+    app.selectbox(key=_field_key("catalyst", "evidence_state")).set_value("candidate_context_only").run()
+
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+
+    assert app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).value is False
+
+
+def test_post_save_repreview_resets_confirmation(tmp_path, monkeypatch):
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
+
+    app = _enter_valid_thesis(app)
+    app.text_input(key=_field_key("thesis", "thesis_id")).set_value("thesis-after-save").run()
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+
+    assert app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).value is False
+
+
+class _ReceiptUI:
+    def __init__(self, receipt):
+        self.session_state = {authoring_session_key("demo", "SYN1", "pending-reload-receipt"): receipt}
+        self.successes: list[str] = []
+        self.warnings: list[str] = []
+
+    def success(self, message: str) -> None:
+        self.successes.append(message)
+
+    def warning(self, message: str) -> None:
+        self.warnings.append(message)
+
+
+def _receipt_record(kind: str):
+    if kind == "thesis":
+        return _thesis_entry(), "journal"
+    if kind == "evidence":
+        return JournalEntry(
+            "research-thesis-journal-v1", "evidence-receipt", "demo", "SYN1", "thesis-syn1", "evidence",
+            "2026-07-22T12:00:00Z", "2026-07-22T11:00:00Z", "owner", "Evidence.", "supporting",
+            "company_ir", "https://example.invalid/evidence", "2026-07-22T10:00:00Z", "", "", "",
+        ), "journal"
+    if kind == "catalyst":
+        return CatalystEvent(
+            "catalyst-evidence-v1", "catalyst-receipt", "demo", "SYN1", "earnings", "Results",
+            "2026-08-20T21:00:00Z", "2026-07-22T09:00:00Z", "2026-07-22T10:00:00Z", "company_ir",
+            "https://example.invalid/event", "candidate_context_only", "owner", "Context.",
+        ), "catalysts"
+    return ResearchOutcome(
+        "research-outcome-review-v1", "outcome-receipt", "demo", "SYN1", "thesis-syn1", "entry-existing",
+        "2026-07-22T12:00:00Z", "2026-07-20T12:00:00Z", "2026-07-22T11:00:00Z", "owner", "mixed",
+        "Outcome.", "reviewed_research_record", "journal://entry-existing", "2026-07-22T11:00:00Z", "Learning.",
+    ), "outcomes"
+
+
+@pytest.mark.parametrize("kind", ("thesis", "evidence", "catalyst", "outcome"))
+@pytest.mark.parametrize("reload_state", ("success", "missing", "invalid_utf8", "malformed_csv", "unreadable"))
+def test_pending_receipt_is_consumed_once_and_fails_closed_for_every_temporary_ledger(
+    tmp_path, monkeypatch, kind, reload_state
+):
+    paths = _paths(tmp_path)
+    record, path_name = _receipt_record(kind)
+    destination = getattr(paths, path_name)
+    loader_names = {"journal": "load_journal_entries", "catalysts": "load_catalyst_events", "outcomes": "load_outcomes"}
+    if reload_state == "success":
+        if kind in {"thesis", "evidence"}:
+            append_journal_entry(destination, record)
+        elif kind == "catalyst":
+            append_reviewed_event(destination, record, confirm_reviewed=True)
+        else:
+            append_reviewed_outcome(destination, record, confirm_reviewed=True)
+    elif reload_state == "invalid_utf8":
+        destination.write_bytes(b"\xff\xfe")
+    elif reload_state in {"malformed_csv", "unreadable"}:
+        destination.write_text("not,the,expected,header\n", encoding="utf-8")
+        error = csv.Error("malformed csv") if reload_state == "malformed_csv" else OSError("unreadable")
+        monkeypatch.setattr(research_record_authoring_ui, loader_names[path_name], lambda _path: (_ for _ in ()).throw(error))
+    receipt = _ReceiptUI({"record_kind": kind, "record_id": getattr(record, "entry_id", getattr(record, "event_id", getattr(record, "outcome_id", "")))})
+
+    research_record_authoring_ui._show_reloaded_save_receipt(
+        receipt, profile_key="demo", ticker="SYN1", paths=paths
+    )
+
+    receipt_key = authoring_session_key("demo", "SYN1", "pending-reload-receipt")
+    assert receipt_key not in receipt.session_state
+    assert bool(receipt.successes) is (reload_state == "success")
+    assert bool(receipt.warnings) is (reload_state != "success")

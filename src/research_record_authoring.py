@@ -30,6 +30,7 @@ from src.research_thesis_journal import (
     load_journal_entries,
     validate_journal_entry,
 )
+from src.research_ledger_lock import ledger_write_lock, resolve_ledger_path
 
 
 RECORD_KINDS = ("thesis", "evidence", "catalyst", "outcome")
@@ -243,7 +244,7 @@ def preview_authoring_record(
             "draft": draft_digest,
             "ledger": ledger_fingerprint,
             "record": persisted,
-            "destination": destination.name,
+            "destination": str(resolve_ledger_path(destination)),
         }
     )
     return AuthoringPreview(
@@ -272,14 +273,15 @@ def confirm_authoring_preview(
     active_kind: str,
     confirm_reviewed: bool,
 ) -> AuthoringSaveResult:
-    rejected = lambda state, reason: AuthoringSaveResult(
-        state,
-        reason,
-        preview.record_kind,
-        "",
-        preview.destination_label,
-        False,
-    )
+    def rejected(state: str, reason: str) -> AuthoringSaveResult:
+        return AuthoringSaveResult(
+            state,
+            reason,
+            preview.record_kind,
+            "",
+            preview.destination_label,
+            False,
+        )
     if not confirm_reviewed:
         return rejected("confirmation_required", "Review and confirm the exact preview before saving.")
     if preview.state != "reviewable" or preview.record is None or not preview.receipt:
@@ -294,25 +296,50 @@ def confirm_authoring_preview(
     if not hmac.compare_digest(_stable_digest(asdict(current_draft)), preview.draft_digest):
         return rejected("preview_stale", "Draft changed after preview; preview again.")
     destination = _destination(current_draft, paths)
-    if not hmac.compare_digest(_ledger_fingerprint(destination), preview.ledger_fingerprint):
-        return rejected("preview_stale", "Ledger changed after preview; reload and preview again.")
-    refreshed = preview_authoring_record(
-        current_draft,
-        paths=paths,
-        previewed_at=preview.previewed_at,
-        generated_id=_record_id(preview.record),
-    )
-    if refreshed.state != "reviewable" or not hmac.compare_digest(refreshed.receipt, preview.receipt):
-        return rejected("preview_stale", "Record no longer matches the validated preview; preview again.")
+    result: AuthoringSaveResult | None = None
+    append_completed = False
     try:
-        if isinstance(preview.record, JournalEntry):
-            append_journal_entry(paths.journal, preview.record)
-        elif isinstance(preview.record, CatalystEvent):
-            append_reviewed_event(paths.catalysts, preview.record, confirm_reviewed=True)
-        else:
-            append_reviewed_outcome(paths.outcomes, preview.record, confirm_reviewed=True)
-    except (OSError, ValueError) as exc:
+        with ledger_write_lock(destination):
+            if not hmac.compare_digest(_ledger_fingerprint(destination), preview.ledger_fingerprint):
+                result = rejected("preview_stale", "Ledger changed after preview; reload and preview again.")
+            else:
+                refreshed = preview_authoring_record(
+                    current_draft,
+                    paths=paths,
+                    previewed_at=preview.previewed_at,
+                    generated_id=_record_id(preview.record),
+                )
+                if refreshed.state != "reviewable" or not hmac.compare_digest(refreshed.receipt, preview.receipt):
+                    result = rejected("preview_stale", "Record no longer matches the validated preview; preview again.")
+                elif not hmac.compare_digest(_ledger_fingerprint(destination), refreshed.ledger_fingerprint):
+                    result = rejected("preview_stale", "Ledger changed during preview revalidation; preview again.")
+                else:
+                    try:
+                        if isinstance(preview.record, JournalEntry):
+                            append_journal_entry(paths.journal, preview.record)
+                        elif isinstance(preview.record, CatalystEvent):
+                            append_reviewed_event(paths.catalysts, preview.record, confirm_reviewed=True)
+                        else:
+                            append_reviewed_outcome(paths.outcomes, preview.record, confirm_reviewed=True)
+                    except (OSError, UnicodeError, csv.Error, ValueError) as exc:
+                        result = rejected("save_failed", f"Record was not saved: {exc}")
+                    else:
+                        append_completed = True
+    except OSError as exc:
+        if append_completed:
+            return AuthoringSaveResult(
+                "save_pending_reload",
+                "Save completion could not be verified; reloading the ledger once before retry.",
+                preview.record_kind,
+                _record_id(preview.record),
+                destination.name,
+                False,
+            )
         return rejected("save_failed", f"Record was not saved: {exc}")
+    if result is not None:
+        return result
+    if not append_completed:
+        return rejected("save_failed", "Record was not saved before confirmation completed.")
     return AuthoringSaveResult(
         "saved",
         "Saved append-only reviewed record.",

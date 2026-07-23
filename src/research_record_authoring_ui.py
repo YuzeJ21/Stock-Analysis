@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -222,7 +223,7 @@ def _show_reloaded_save_receipt(
             )
         else:
             record_reloaded = False
-    except (OSError, UnicodeError, ValueError):
+    except (OSError, UnicodeError, csv.Error, ValueError):
         record_reloaded = False
     if record_reloaded:
         st_api.success(
@@ -283,11 +284,18 @@ def render_research_record_authoring(
             kind, profile_key=profile_key, ticker=symbol, fields=fields
         )
         preview_key = authoring_session_key(profile_key, symbol, "preview")
+        confirmation_key = authoring_session_key(profile_key, symbol, "confirmed")
+        reset_key = authoring_session_key(profile_key, symbol, "reset-confirmation")
+        if st_api.session_state.pop(reset_key, False):
+            st_api.session_state.pop(confirmation_key, None)
         if st_api.button(
             "Validate and preview",
             key=authoring_session_key(profile_key, symbol, "validate"),
             use_container_width=True,
         ):
+            st_api.session_state.pop(
+                confirmation_key, None
+            )
             st_api.session_state[preview_key] = preview_authoring_record(
                 draft,
                 paths=paths,
@@ -312,7 +320,7 @@ def render_research_record_authoring(
         _render_preview(st_api, preview)
         confirmed = st_api.checkbox(
             "I reviewed this exact record and its source evidence",
-            key=authoring_session_key(profile_key, symbol, "confirmed"),
+            key=confirmation_key,
         )
         if st_api.button(
             "Confirm and save",
@@ -328,8 +336,9 @@ def render_research_record_authoring(
                 active_kind=kind,
                 confirm_reviewed=confirmed,
             )
-            if result.state == "saved":
+            if result.state in {"saved", "save_pending_reload"}:
                 del st_api.session_state[preview_key]
+                st_api.session_state[reset_key] = True
                 st_api.session_state[
                     authoring_session_key(profile_key, symbol, "pending-reload-receipt")
                 ] = {"record_kind": result.record_kind, "record_id": result.record_id}

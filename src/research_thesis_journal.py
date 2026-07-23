@@ -9,6 +9,8 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Iterable
 
+from src.research_ledger_lock import ledger_write_lock
+
 
 JOURNAL_SCHEMA_VERSION = "research-thesis-journal-v1"
 JOURNAL_COLUMNS = (
@@ -197,15 +199,16 @@ def append_journal_entry(path: Path | str, entry: JournalEntry) -> Path:
     """Append one reviewed entry without modifying source or readiness data."""
 
     destination = Path(path)
-    existing = load_journal_entries(destination)
-    validate_journal_entry(entry, existing_entries=existing)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    exists = destination.exists() and destination.stat().st_size > 0
-    with destination.open("a", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=JOURNAL_COLUMNS)
-        if not exists:
-            writer.writeheader()
-        writer.writerow(asdict(entry))
+    with ledger_write_lock(destination):
+        existing = load_journal_entries(destination)
+        validate_journal_entry(entry, existing_entries=existing)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        exists = destination.exists() and destination.stat().st_size > 0
+        with destination.open("a", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=JOURNAL_COLUMNS)
+            if not exists:
+                writer.writeheader()
+            writer.writerow(asdict(entry))
     return destination
 
 
