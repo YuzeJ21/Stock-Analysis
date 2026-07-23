@@ -153,24 +153,47 @@ def validate_journal_entry(entry: JournalEntry, *, existing_entries: Iterable[Jo
     existing = tuple(existing_entries)
     if any(row.entry_id == entry.entry_id for row in existing):
         raise ValueError(f"entry_id already exists: {entry.entry_id}")
+    scoped_theses = tuple(
+        row
+        for row in existing
+        if row.entry_type == "thesis"
+        and row.profile_key == entry.profile_key
+        and row.ticker.strip().upper() == entry.ticker.strip().upper()
+    )
+    superseded_ids = {
+        row.supersedes_entry_id for row in scoped_theses if row.supersedes_entry_id
+    }
+    active_theses = tuple(
+        row for row in scoped_theses if row.entry_id not in superseded_ids
+    )
+    if len(active_theses) > 1:
+        raise ValueError(
+            "Journal contains more than one active thesis for the selected profile and ticker."
+        )
     target = next((row for row in existing if row.entry_id == entry.supersedes_entry_id), None)
     if entry.supersedes_entry_id:
         if target is None:
             raise ValueError("supersedes_entry_id must reference an existing thesis entry")
         if entry.entry_type != "thesis" or target.entry_type != "thesis":
             raise ValueError("only thesis entries may supersede prior thesis entries")
-        if (target.profile_key, target.ticker, target.thesis_id) != (
-            entry.profile_key,
-            entry.ticker,
-            entry.thesis_id,
+        if target.profile_key != entry.profile_key or (
+            target.ticker.strip().upper() != entry.ticker.strip().upper()
         ):
             raise ValueError("a thesis revision must supersede an entry for the same profile, ticker, and thesis")
-    elif entry.entry_type == "thesis" and any(
-        row.entry_type == "thesis"
-        and (row.profile_key, row.ticker, row.thesis_id) == (entry.profile_key, entry.ticker, entry.thesis_id)
-        for row in existing
-    ):
-        raise ValueError("a later thesis entry must name supersedes_entry_id")
+    if entry.entry_type == "thesis" and active_theses:
+        active = active_theses[0]
+        if entry.supersedes_entry_id != active.entry_id:
+            raise ValueError(
+                f"a new thesis must supersede the active thesis entry: {active.entry_id}"
+            )
+        if entry.thesis_id != active.thesis_id:
+            raise ValueError(
+                f"a thesis revision must preserve the active thesis_id: {active.thesis_id}"
+            )
+    if entry.supersedes_entry_id and target is not None and target.thesis_id != entry.thesis_id:
+        raise ValueError(
+            "a thesis revision must supersede an entry for the same profile, ticker, and thesis"
+        )
 
 
 def load_journal_entries(path: Path | str) -> tuple[JournalEntry, ...]:

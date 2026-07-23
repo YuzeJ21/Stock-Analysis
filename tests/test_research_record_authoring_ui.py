@@ -12,7 +12,12 @@ from src import research_record_authoring_ui
 from src.research_record_authoring_ui import authoring_field_contract, authoring_session_key
 from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event
 from src.research_outcome_review import ResearchOutcome, append_reviewed_outcome
-from src.research_thesis_journal import JournalEntry, append_journal_entry, load_journal_entries
+from src.research_thesis_journal import (
+    JournalEntry,
+    append_journal_entry,
+    derive_journal_state,
+    load_journal_entries,
+)
 
 
 def _paths(tmp_path: Path) -> AuthoringPaths:
@@ -81,6 +86,23 @@ def test_fixture_uses_controlled_choices_and_scoped_thesis_references(tmp_path, 
 
     assert app.selectbox(key=_field_key("evidence", "thesis_id")).options == ["thesis-syn1"]
     assert app.selectbox(key=_field_key("evidence", "evidence_direction")).options == ["supporting", "conflicting", "context"]
+
+
+def test_existing_active_thesis_is_presented_as_a_locked_revision_lineage(tmp_path, monkeypatch):
+    paths = _paths(tmp_path)
+    active = _thesis_entry()
+    append_journal_entry(paths.journal, active)
+
+    app = _app(tmp_path, monkeypatch)
+
+    assert not app.exception
+    thesis_id = app.text_input(key=_field_key("thesis", "thesis_id"))
+    supersedes = app.selectbox(key=_field_key("thesis", "supersedes_entry_id"))
+    assert thesis_id.value == active.thesis_id
+    assert thesis_id.disabled is True
+    assert supersedes.options == [active.entry_id]
+    assert supersedes.value == active.entry_id
+    assert "revision of the active thesis" in "\n".join(item.value for item in app.caption)
 
 
 def test_empty_scoped_thesis_options_fail_closed_with_a_readable_message(tmp_path, monkeypatch):
@@ -269,10 +291,44 @@ def test_post_save_repreview_resets_confirmation(tmp_path, monkeypatch):
     app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
 
     app = _enter_valid_thesis(app)
-    app.text_input(key=_field_key("thesis", "thesis_id")).set_value("thesis-after-save").run()
+    app.text_area(key=_field_key("thesis", "summary")).set_value(
+        "Reviewed synthetic thesis revision."
+    ).run()
     app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
 
     assert app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).value is False
+
+
+def test_initial_thesis_then_ui_revision_reloads_as_one_active_lineage(tmp_path, monkeypatch):
+    paths = _paths(tmp_path)
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
+
+    original = load_journal_entries(paths.journal)[0]
+    assert app.text_input(key=_field_key("thesis", "thesis_id")).value == original.thesis_id
+    assert app.text_input(key=_field_key("thesis", "thesis_id")).disabled is True
+    assert app.selectbox(key=_field_key("thesis", "supersedes_entry_id")).value == original.entry_id
+
+    app.text_area(key=_field_key("thesis", "summary")).set_value(
+        "Reviewed synthetic thesis revision."
+    ).run()
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
+
+    reloaded = load_journal_entries(paths.journal)
+    state = derive_journal_state(
+        reloaded,
+        profile_key="demo",
+        ticker="SYN1",
+        as_of="2026-07-23T00:00:00Z",
+    )
+    assert len(reloaded) == 2
+    assert state.current_thesis == reloaded[-1]
+    assert state.current_thesis.thesis_id == original.thesis_id
+    assert state.current_thesis.supersedes_entry_id == original.entry_id
 
 
 class _ReceiptUI:

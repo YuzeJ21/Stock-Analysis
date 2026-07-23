@@ -134,6 +134,55 @@ def test_thesis_revision_requires_same_profile_ticker_and_thesis(tmp_path):
     assert state.confidence_history == ((original.recorded_at, 0.55), (revision.recorded_at, 0.60))
 
 
+def test_second_active_thesis_must_revise_the_exact_active_lineage(tmp_path):
+    ledger = tmp_path / "research_thesis_journal.csv"
+    original = _entry()
+    append_journal_entry(ledger, original)
+
+    unrelated = _entry(
+        entry_id="entry-unrelated",
+        thesis_id="thesis-unrelated",
+        recorded_at="2026-07-16T20:00:00Z",
+        effective_at="2026-07-16T19:00:00Z",
+        source_published_at="2026-07-16T19:00:00Z",
+        supersedes_entry_id="",
+    )
+    with pytest.raises(ValueError, match="must supersede the active thesis entry"):
+        append_journal_entry(ledger, unrelated)
+
+    wrong_lineage = _entry(
+        entry_id="entry-wrong-lineage",
+        thesis_id="thesis-unrelated",
+        recorded_at="2026-07-16T20:00:00Z",
+        effective_at="2026-07-16T19:00:00Z",
+        source_published_at="2026-07-16T19:00:00Z",
+        supersedes_entry_id=original.entry_id,
+    )
+    with pytest.raises(ValueError, match="must preserve the active thesis_id"):
+        append_journal_entry(ledger, wrong_lineage)
+
+    revision = _entry(
+        entry_id="entry-revision",
+        recorded_at="2026-07-16T20:00:00Z",
+        effective_at="2026-07-16T19:00:00Z",
+        source_published_at="2026-07-16T19:00:00Z",
+        summary="Reviewed revision on the preserved thesis lineage.",
+        supersedes_entry_id=original.entry_id,
+    )
+    append_journal_entry(ledger, revision)
+
+    reloaded = load_journal_entries(ledger)
+    state = derive_journal_state(
+        reloaded,
+        profile_key="demo",
+        ticker="SYN1",
+        as_of="2026-07-17T00:00:00Z",
+    )
+    assert state.current_thesis == revision
+    assert state.current_thesis.thesis_id == original.thesis_id
+    assert state.thesis_revision_count == 1
+
+
 def test_derived_state_is_strictly_profile_and_ticker_scoped():
     entries = (
         _entry(entry_id="demo-syn1"),

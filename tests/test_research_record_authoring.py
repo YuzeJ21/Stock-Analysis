@@ -51,7 +51,7 @@ def _thesis_entry() -> JournalEntry:
 @pytest.mark.parametrize(
     ("kind", "fields", "destination"),
     (
-        ("thesis", {"thesis_id": "thesis-new", "summary": "Reviewed hypothesis.", "effective_at": "2026-07-22T10:00:00Z", "reviewer": "owner", "confidence": "0.60", "review_due_date": "2026-08-22", "supersedes_entry_id": ""}, "research_thesis_journal.csv"),
+        ("thesis", {"thesis_id": "thesis-syn1", "summary": "Reviewed hypothesis revision.", "effective_at": "2026-07-22T10:00:00Z", "reviewer": "owner", "confidence": "0.60", "review_due_date": "2026-08-22", "supersedes_entry_id": "entry-existing"}, "research_thesis_journal.csv"),
         ("evidence", {"thesis_id": "thesis-syn1", "summary": "Source-backed evidence.", "effective_at": "2026-07-22T10:00:00Z", "reviewer": "owner", "evidence_direction": "supporting", "source": "company_ir", "source_ref": "https://example.invalid/source", "source_published_at": "2026-07-22T09:00:00Z"}, "research_thesis_journal.csv"),
         ("catalyst", {"event_type": "earnings", "title": "Scheduled results", "summary": "Reviewed event context.", "effective_at": "2026-08-20T21:00:00Z", "published_at": "2026-07-22T09:00:00Z", "retrieved_at": "2026-07-22T10:00:00Z", "source": "company_ir", "source_ref": "https://example.invalid/event", "evidence_state": "candidate_context_only", "reviewer": "owner"}, "catalyst_evidence.csv"),
         ("outcome", {"thesis_id": "thesis-syn1", "original_thesis_entry_id": "entry-existing", "reviewed_at": "2026-07-22T12:00:00Z", "observation_start": "2026-07-20T12:00:00Z", "observation_end": "2026-07-22T11:00:00Z", "reviewer": "owner", "outcome_state": "mixed", "summary": "Reviewed outcome.", "source": "reviewed_research_record", "source_ref": "journal://entry-existing", "source_published_at": "2026-07-22T11:00:00Z", "learning": "Separate the evidence lanes."}, "research_outcome_reviews.csv"),
@@ -319,6 +319,48 @@ def test_confirmation_requires_review_and_appends_exactly_one_ledger(tmp_path):
     assert not paths.outcomes.exists()
 
 
+def test_confirmation_dispatches_the_freshly_recomputed_record_not_mutable_preview_payload(tmp_path):
+    paths = _paths(tmp_path)
+    draft = build_authoring_draft(
+        "thesis",
+        profile_key="demo",
+        ticker="SYN1",
+        fields={
+            "thesis_id": "thesis-new",
+            "summary": "Exact reviewed hypothesis.",
+            "effective_at": "2026-07-22T10:00:00Z",
+            "reviewer": "owner",
+            "confidence": "0.60",
+            "review_due_date": "2026-08-22",
+            "supersedes_entry_id": "",
+        },
+    )
+    preview = preview_authoring_record(
+        draft,
+        paths=paths,
+        previewed_at="2026-07-22T12:30:00Z",
+        generated_id="thesis-generated",
+    )
+    tampered = replace(
+        preview,
+        record=replace(preview.record, summary="Unpreviewed mutable payload."),
+    )
+
+    saved = confirm_authoring_preview(
+        tampered,
+        current_draft=draft,
+        paths=paths,
+        active_profile_key="demo",
+        active_ticker="SYN1",
+        active_kind="thesis",
+        confirm_reviewed=True,
+    )
+
+    assert saved.state == "saved"
+    assert saved.record_id == "thesis-generated"
+    assert load_journal_entries(paths.journal)[0].summary == "Exact reviewed hypothesis."
+
+
 def test_changed_draft_or_ledger_invalidates_preview_without_writing(tmp_path):
     paths = _paths(tmp_path)
     append_journal_entry(paths.journal, _thesis_entry())
@@ -362,7 +404,18 @@ def test_changed_draft_or_ledger_invalidates_preview_without_writing(tmp_path):
 
     append_journal_entry(
         paths.journal,
-        replace(_thesis_entry(), entry_id="entry-concurrent", thesis_id="thesis-other"),
+        replace(
+            _thesis_entry(),
+            entry_id="entry-concurrent",
+            entry_type="evidence",
+            summary="Concurrent evidence.",
+            evidence_direction="context",
+            source="company_ir",
+            source_ref="concurrent-ref",
+            source_published_at="2026-07-20T11:00:00Z",
+            confidence="",
+            review_due_date="",
+        ),
     )
     concurrent = paths.journal.read_bytes()
     stale_ledger = confirm_authoring_preview(
@@ -525,7 +578,18 @@ def test_confirmation_rejects_a_write_injected_after_preview_recomputation(tmp_p
         refreshed = preview_original(*args, **kwargs)
         append_journal_entry(
             paths.journal,
-            replace(_thesis_entry(), entry_id="entry-injected", thesis_id="thesis-injected"),
+            replace(
+                _thesis_entry(),
+                entry_id="entry-injected",
+                entry_type="evidence",
+                summary="Injected concurrent evidence.",
+                evidence_direction="context",
+                source="company_ir",
+                source_ref="injected-ref",
+                source_published_at="2026-07-20T11:00:00Z",
+                confidence="",
+                review_due_date="",
+            ),
         )
         return refreshed
 

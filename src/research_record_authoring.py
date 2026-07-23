@@ -298,6 +298,7 @@ def confirm_authoring_preview(
     destination = _destination(current_draft, paths)
     result: AuthoringSaveResult | None = None
     append_completed = False
+    persisted_record: JournalEntry | CatalystEvent | ResearchOutcome | None = None
     try:
         with ledger_write_lock(destination):
             if not hmac.compare_digest(_ledger_fingerprint(destination), preview.ledger_fingerprint):
@@ -314,24 +315,36 @@ def confirm_authoring_preview(
                 elif not hmac.compare_digest(_ledger_fingerprint(destination), refreshed.ledger_fingerprint):
                     result = rejected("preview_stale", "Ledger changed during preview revalidation; preview again.")
                 else:
-                    try:
-                        if isinstance(preview.record, JournalEntry):
-                            append_journal_entry(paths.journal, preview.record)
-                        elif isinstance(preview.record, CatalystEvent):
-                            append_reviewed_event(paths.catalysts, preview.record, confirm_reviewed=True)
-                        else:
-                            append_reviewed_outcome(paths.outcomes, preview.record, confirm_reviewed=True)
-                    except (OSError, UnicodeError, csv.Error, ValueError) as exc:
-                        result = rejected("save_failed", f"Record was not saved: {exc}")
+                    refreshed_record = refreshed.record
+                    if refreshed_record is None:
+                        result = rejected(
+                            "preview_stale",
+                            "Record no longer matches the validated preview; preview again.",
+                        )
                     else:
-                        append_completed = True
+                        try:
+                            if isinstance(refreshed_record, JournalEntry):
+                                append_journal_entry(paths.journal, refreshed_record)
+                            elif isinstance(refreshed_record, CatalystEvent):
+                                append_reviewed_event(
+                                    paths.catalysts, refreshed_record, confirm_reviewed=True
+                                )
+                            else:
+                                append_reviewed_outcome(
+                                    paths.outcomes, refreshed_record, confirm_reviewed=True
+                                )
+                        except (OSError, UnicodeError, csv.Error, ValueError) as exc:
+                            result = rejected("save_failed", f"Record was not saved: {exc}")
+                        else:
+                            persisted_record = refreshed_record
+                            append_completed = True
     except OSError as exc:
         if append_completed:
             return AuthoringSaveResult(
                 "save_pending_reload",
                 "Save completion could not be verified; reloading the ledger once before retry.",
                 preview.record_kind,
-                _record_id(preview.record),
+                _record_id(persisted_record) if persisted_record is not None else "",
                 destination.name,
                 False,
             )
@@ -344,7 +357,7 @@ def confirm_authoring_preview(
         "saved",
         "Saved append-only reviewed record.",
         preview.record_kind,
-        _record_id(preview.record),
+        _record_id(persisted_record) if persisted_record is not None else "",
         destination.name,
         True,
     )

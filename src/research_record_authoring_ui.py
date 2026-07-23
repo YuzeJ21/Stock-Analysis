@@ -17,7 +17,7 @@ from src.research_record_authoring import (
 )
 from src.catalyst_evidence_timeline import load_catalyst_events
 from src.research_outcome_review import load_outcomes
-from src.research_thesis_journal import load_journal_entries
+from src.research_thesis_journal import JournalEntry, load_journal_entries
 
 
 FIELD_CONTRACTS = {
@@ -114,16 +114,24 @@ def _utc_now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
-def _scoped_thesis_options(
+def _scoped_theses(
     paths: AuthoringPaths, profile_key: str, ticker: str
-) -> tuple[tuple[str, str], ...]:
+) -> tuple[JournalEntry, ...]:
     return tuple(
-        (row.thesis_id, row.entry_id)
+        row
         for row in load_journal_entries(paths.journal)
         if row.entry_type == "thesis"
         and row.profile_key == profile_key
         and row.ticker.upper() == ticker.upper()
     )
+
+
+def _active_thesis(theses: tuple[JournalEntry, ...]) -> JournalEntry | None:
+    superseded_ids = {row.supersedes_entry_id for row in theses if row.supersedes_entry_id}
+    active = tuple(row for row in theses if row.entry_id not in superseded_ids)
+    if len(active) > 1:
+        raise ValueError("Journal contains more than one active thesis for this locked scope.")
+    return active[0] if active else None
 
 
 def _field_label(name: str) -> str:
@@ -138,10 +146,18 @@ def _render_field(
     profile_key: str,
     ticker: str,
     thesis_options: tuple[tuple[str, str], ...],
+    active_thesis: JournalEntry | None,
     current_fields: dict[str, str],
 ) -> str:
     key = authoring_session_key(profile_key, ticker, f"field:{kind}:{name}")
     label = _field_label(name)
+    if name == "thesis_id" and kind == "thesis" and active_thesis is not None:
+        return st_api.text_input(
+            label,
+            value=active_thesis.thesis_id,
+            disabled=True,
+            key=key,
+        )
     if name == "thesis_id" and kind in {"evidence", "outcome"}:
         return st_api.selectbox(
             label,
@@ -158,7 +174,7 @@ def _render_field(
     if name == "supersedes_entry_id":
         return st_api.selectbox(
             label,
-            ("", *(entry_id for _, entry_id in thesis_options)),
+            (active_thesis.entry_id,) if active_thesis is not None else ("",),
             key=key,
         )
     if name in SELECT_OPTIONS:
@@ -256,9 +272,14 @@ def render_research_record_authoring(
             key=authoring_session_key(profile_key, symbol, "kind"),
         )
         thesis_options: tuple[tuple[str, str], ...] = ()
+        active_thesis: JournalEntry | None = None
         if kind in {"thesis", "evidence", "outcome"}:
             try:
-                thesis_options = _scoped_thesis_options(paths, profile_key, symbol)
+                scoped_theses = _scoped_theses(paths, profile_key, symbol)
+                thesis_options = tuple(
+                    (row.thesis_id, row.entry_id) for row in scoped_theses
+                )
+                active_thesis = _active_thesis(scoped_theses)
             except (OSError, ValueError) as exc:
                 st_api.error(f"Thesis references could not be loaded; no record can be saved: {exc}")
                 return
@@ -268,6 +289,12 @@ def render_research_record_authoring(
                 "Add and confirm a thesis first."
             )
             return
+        if kind == "thesis" and active_thesis is not None:
+            st_api.caption(
+                "This record will be a revision of the active thesis. "
+                f"Lineage {active_thesis.thesis_id} and active entry "
+                f"{active_thesis.entry_id} are locked."
+            )
 
         fields: dict[str, str] = {}
         for name in authoring_field_contract(kind):
@@ -278,6 +305,7 @@ def render_research_record_authoring(
                 profile_key=profile_key,
                 ticker=symbol,
                 thesis_options=thesis_options,
+                active_thesis=active_thesis,
                 current_fields=fields,
             )
         draft = build_authoring_draft(
