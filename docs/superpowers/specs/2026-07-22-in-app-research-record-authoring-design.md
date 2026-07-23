@@ -2,11 +2,29 @@
 
 ## Status
 
-The user approved the unified Company Workbench composer design and this written specification on 2026-07-22. The test-first implementation plan is recorded in `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`. No production implementation has started.
+The user approved the unified Company Workbench composer design and this written specification on 2026-07-22. Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. The test-first implementation plan is recorded in `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`.
 
 ## Purpose
 
 Company Workbench can read the selected profile's thesis journal, catalyst timeline, and research-outcome ledger, but recording those reviewed entries still requires command-line preparation. Priority 3 adds a command-line-free path for a researcher to create and revisit thesis, evidence, catalyst, and outcome records without changing any analytical result or treating a draft as evidence.
+
+## Release Contract
+
+Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.
+A valid record requires an exact preview and explicit confirmation before save.
+Drafts are untrusted and preview receipts are session-only.
+Production tests never append repository ledgers; persistence tests use temporary ledgers.
+A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.
+
+Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.
+Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.
+
+## Implementation Evidence
+
+- Desktop `1280x720`: `clientWidth=scrollWidth=1280`. The composer was collapsed by default at `3274.97px` with width `1034.81px`, followed by collapsed Advanced thesis history at `3334.80px`; Research Conclusion (`3453.45px`) and Next Research Task (`3690.29px`) remained below the journal/outcome workflow. The locked scope was visible as `Profile: default | Ticker: NVDA — locked to this Company Workbench.` and the menu contained exactly Thesis, Evidence, Catalyst, and Outcome.
+- Phone `390x844`: `clientWidth=scrollWidth=390`. The collapsed composer was at `5814.70px` between `22.59px` and `367.41px`; Advanced thesis history (`5874.52px`), Research Conclusion (`5993.18px`), and Next Research Task (`6520.84px`) remained below it. With the composer open, `scrollWidth` remained `390`; all 11 controls fit between `39.59px` and `350.41px`.
+- Production no-write rehearsal: journal SHA-256 remained `0c427c359c1bdb6d8c8410aece9b3a46831ffb9ccd91d401aeb7930b5f401717`; catalyst and outcome paths remained absent. Invalid `effective_at=not-a-timestamp` showed the field-level ISO-8601 error and no confirmation. A valid session-only preview showed the append-only preview and confirmation; editing the summary removed confirmation and required re-preview. No successful production save was attempted; persistence evidence remains temporary-ledger AppTest and direct persistence tests only.
+- Applicable Tasks 1-4 implementation chain: `6b7cdbd3b`, `996d86610`, `10c2c155c`, and `e67b16d04`. This design intentionally does not self-reference the Task 5 commit.
 
 ## Scope
 

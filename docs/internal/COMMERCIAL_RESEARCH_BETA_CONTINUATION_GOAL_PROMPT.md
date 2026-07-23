@@ -198,11 +198,20 @@ Priority 2 — Stage B field-proof audit and operator hardening
 - Exit only when focused read-only evidence proves clearer deterministic review and errors with no ledger or generated-artifact write.
 
 Priority 3 — In-app research-record authoring
-- Priority 3 is the next local implementation lane. The approved specification is at `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md` and its test-first implementation plan is at `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`; no production implementation has started.
+- Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. The approved specification is at `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md` and its test-first implementation plan is at `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`. Priority 4 is the next incomplete lane.
 - The approved design uses one collapsed Company Workbench composer over the existing thesis-journal, catalyst, and outcome engines. A session-only receipt binds the exact draft, selected profile/ticker, destination ledger, and current ledger fingerprint; edits or concurrent appends require a fresh preview. Tests must use temporary ledgers and must not append production research data.
 - Design and implement simple validate -> preview -> confirm authoring for thesis, evidence, catalyst, and outcome records.
 - Keep records append-only, profile/ticker scoped, reviewer-authored, timestamped, source-aware where applicable, and independently valid or blocked. Drafts and candidate context remain untrusted; automated generation cannot become reviewer-authored evidence.
 - Exit only when desktop/phone workflow evidence and persistence, rejection, identity, provenance, empty-state, and no-fabrication tests prove safe command-line-free authoring without changing forecasts, probabilities, recommendations, or readiness.
+
+Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.
+A valid record requires an exact preview and explicit confirmation before save.
+Drafts are untrusted and preview receipts are session-only.
+Production tests never append repository ledgers; persistence tests use temporary ledgers.
+A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.
+
+Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.
+Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.
 
 Priority 4 — Point-in-time benchmark and universe foundation
 - Implement and verify timestamped benchmark membership, research-universe membership, security identity, observation cutoffs, revision lineage, source rights, and immutable manifests.

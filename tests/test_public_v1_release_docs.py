@@ -1301,7 +1301,7 @@ def test_stage_b_field_proof_audit_is_documented_as_read_only_and_no_mapping():
     assert "Stage B — completed locally" in roadmap
     assert "Priority 3 — In-app research-record authoring" in roadmap
     assert "Priority 2 is complete locally" in prompt
-    assert "Priority 3 is the next local implementation lane" in prompt
+    assert "Priority 3 — completed locally after direct desktop/phone runtime review" in prompt
 
     for text in (operator, roadmap, prompt):
         lowered = text.lower()
@@ -1310,25 +1310,50 @@ def test_stage_b_field_proof_audit_is_documented_as_read_only_and_no_mapping():
         assert "does not activate company workbench" in lowered
 
 
-def test_priority_three_authoring_design_and_plan_are_approved_but_not_implemented():
+def test_priority_three_authoring_release_docs_require_current_runtime_evidence_before_local_completion():
     roadmap = _read("ROADMAP.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
     design = _read("docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md")
     plan = _read("docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md")
+    readme = _read("README.md")
+    product_spec = _read("PRODUCT_SPEC.md")
 
-    assert "no production implementation has started" in roadmap
-    assert "Priority 3 is the next local implementation lane" in prompt
-    assert "No production implementation has started" in design
     assert "# In-App Research-Record Authoring Implementation Plan" in plan
     assert "REQUIRED SUB-SKILL" in plan
     assert "Validate -> Preview -> Confirm and save" in plan
 
-    for text in (roadmap, prompt, design, plan):
-        lowered = text.lower()
-        assert "session-only receipt" in lowered
-        assert "temporary ledger" in lowered
+    release_contract = (
+        "Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.",
+        "A valid record requires an exact preview and explicit confirmation before save.",
+        "Drafts are untrusted and preview receipts are session-only.",
+        "Production tests never append repository ledgers; persistence tests use temporary ledgers.",
+        "A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.",
+    )
+    priority_contract = (
+        "Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.",
+        "Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.",
+    )
 
-    for text in (roadmap, prompt):
-        assert "selected profile/ticker" in text.lower()
+    for text in (readme, product_spec, roadmap, prompt, design):
+        for statement in (*release_contract, *priority_contract):
+            assert statement in text
+
     assert "selected `profile_key` and normalized ticker" in design
     assert "current ledger fingerprint" in plan.lower()
+
+
+def test_priority_three_release_docs_record_controller_runtime_evidence_without_claiming_production_persistence():
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md")
+
+    completion = "Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix."
+    assert completion in roadmap
+    assert completion in prompt
+    assert completion in design
+
+    assert "Desktop `1280x720`: `clientWidth=scrollWidth=1280`." in design
+    assert "Phone `390x844`: `clientWidth=scrollWidth=390`." in design
+    assert "No successful production save was attempted; persistence evidence remains temporary-ledger AppTest and direct persistence tests only." in design
+    assert "`6b7cdbd3b`, `996d86610`, `10c2c155c`, and `e67b16d04`" in design
+    assert "Commit identifier will be added only after the corresponding commit exists." not in design

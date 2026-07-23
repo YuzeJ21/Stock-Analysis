@@ -21,7 +21,11 @@ from src.browser_qa_evidence import (
     image_size,
     main,
 )
-from src.browser_qa_evidence import DEFAULT_BROWSER_QA_EVIDENCE, DEFAULT_BROWSER_QA_ROUTE_CHECKS
+from src.browser_qa_evidence import (
+    DEFAULT_BROWSER_QA_EVIDENCE,
+    DEFAULT_BROWSER_QA_RESPONSIVE_ROUTE_CHECKS,
+    DEFAULT_BROWSER_QA_ROUTE_CHECKS,
+)
 
 
 def _write_png(path: Path, width: int = 1200, height: int = 627) -> None:
@@ -709,3 +713,37 @@ def test_browser_qa_capture_plan_cli_prints_only_capture_sequence(capsys):
     assert "route qa checklist" not in output
     assert "buy" not in output
     assert "sell" not in output
+
+
+def test_company_workbench_browser_qa_requires_preview_before_confirmation_and_keeps_authoring_below_answer():
+    route = next(
+        item
+        for item in DEFAULT_BROWSER_QA_ROUTE_CHECKS
+        if item.name == "Research Company Workbench"
+    )
+    responsive = next(
+        item
+        for item in DEFAULT_BROWSER_QA_RESPONSIVE_ROUTE_CHECKS
+        if item.page == "Company Workbench"
+    )
+
+    assert "Add a reviewed research record" not in route.first_view_markers
+    assert (
+        "The `Add a reviewed research record` composer stays below the selected-company and journal/outcome answers; Advanced evidence remains collapsed."
+        == route.details_boundary
+    )
+    assert (
+        "Stop if the workbench shows traceback text, synthetic evidence as real, an unavailable forecast, an Arrow-incompatible evidence table, a visible confirmation appears before an exact preview, or a route-marker screenshot is presented as validation, confirmation, or persistence evidence."
+        == route.stop_rule
+    )
+    assert (
+        "Route-marker screenshots do not prove validation, confirmation, or persistence; the temporary-ledger AppTest and direct persistence tests provide that evidence."
+        in route.qa_focus
+    )
+    assert "Add a reviewed research record" not in responsive.first_view_must_keep
+    assert "collapsed composer" not in responsive.first_view_must_keep
+    assert "below-answer composer" in responsive.mobile_risk
+    assert (
+        "Stop if the phone view overflows, shows traceback text, renders technical evidence before the selected-company answer, or shows a visible confirmation before an exact preview."
+        == responsive.stop_rule
+    )

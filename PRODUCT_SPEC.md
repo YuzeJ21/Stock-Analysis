@@ -8,6 +8,17 @@ The product is not a trading bot. It does not place orders, connect to brokers, 
 
 The supported workflow is `Research Desk -> Discover -> Company Workbench -> Monitor`. Operator-only legacy compatibility utilities are retained for deterministic regression and historical file contracts, not as current investing capability.
 
+## In-App Reviewed Research Records
+
+Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.
+A valid record requires an exact preview and explicit confirmation before save.
+Drafts are untrusted and preview receipts are session-only.
+Production tests never append repository ledgers; persistence tests use temporary ledgers.
+A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.
+
+Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.
+Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.
+
 ## Target User
 
 The target user is an individual investor or research reviewer who wants a deterministic local workflow for:
