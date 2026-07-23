@@ -217,6 +217,9 @@ Priority 3 is complete locally only after all automated acceptance tests and dir
 Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.
 
 Priority 4 — Point-in-time benchmark and universe foundation
+- The provider-neutral, read-only foundation design is approved at `docs/superpowers/specs/2026-07-23-point-in-time-universe-foundation-design.md`. Complete written-spec review, then create and execute its test-first implementation plan; do not silently change its schemas, independent states, no-write boundary, or completion gate.
+- Keep the new foundation isolated from the current ticker-centric universe merge path. It uses stable security identity, timestamped membership, corporate-action/listing-status events, evaluation cutoffs, immutable manifests, exact-source rights, revision lineage, deterministic membership digests, and independent fail-closed technical, temporal, identity, membership, action, delisting, rights, reproduction, and leakage states.
+- The first slice provides read-only status and preview only. It must not fetch, write normalized artifacts, apply rows, rebuild readiness, or activate analysis. Synthetic fixtures remain test-only and cannot complete this priority.
 - Implement and verify timestamped benchmark membership, research-universe membership, security identity, observation cutoffs, revision lineage, source rights, and immutable manifests.
 - Explicitly control corporate actions, delistings, survivorship, and leakage; never substitute current constituents, identifiers, prices, or fundamentals for historical state.
 - Add leakage-safe train/validation/test or walk-forward boundaries and reproducible benchmark diagnostics.

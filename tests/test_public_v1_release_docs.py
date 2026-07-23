@@ -1416,3 +1416,36 @@ def test_accessibility_task_protocol_is_reproducible_and_cannot_claim_conformanc
     for text in (roadmap, prompt):
         assert "docs/ACCESSIBILITY_TASK_PROTOCOL.md" in text
         assert "the protocol is not completion evidence" in text
+
+
+def test_priority_four_approved_design_preserves_point_in_time_and_no_write_boundaries():
+    design_path = (
+        "docs/superpowers/specs/"
+        "2026-07-23-point-in-time-universe-foundation-design.md"
+    )
+    design = _read(design_path)
+    roadmap = _read("ROADMAP.md")
+    prompt = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    normalized_design = " ".join(design.split())
+
+    required_design = (
+        "Stable security identifier; never derived from ticker",
+        "`complete_snapshot` or `event_history`",
+        "`raw`, `normalized`, `excluded`, and `analysis_eligible`",
+        "`source_rights_eligibility`",
+        "`reproduction_ready`",
+        "`leakage_safe`",
+        "membership_count_and_sha256_at_cutoff_v1",
+        "create no directory or artifact",
+        "Synthetic fixtures prove software behavior only",
+        "does not satisfy that exit gate by itself",
+    )
+    for phrase in required_design:
+        assert phrase in normalized_design
+
+    for text in (roadmap, prompt):
+        assert design_path in text
+        assert "current ticker-centric universe" in text
+        assert "Synthetic fixtures remain test-only" in text

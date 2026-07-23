@@ -429,7 +429,21 @@ Priority 4 exit requires one bounded permitted point-in-time dataset with rights
 
 ### Priority 4 — Point-in-time benchmark and universe foundation
 
-**Current lane:** local contract work is executable; direct completion requires permitted point-in-time data.
+**Current lane:** the provider-neutral, read-only foundation design is approved
+and recorded in
+`docs/superpowers/specs/2026-07-23-point-in-time-universe-foundation-design.md`.
+Implementation remains behind written-spec review and a test-first plan.
+Direct completion requires permitted point-in-time data.
+
+The approved first slice is isolated from the current ticker-centric universe
+merge path. It defines stable security identity, timestamped benchmark and
+research-universe membership, corporate-action and listing-status events,
+evaluation cutoffs, immutable file manifests, exact-source rights, revision
+lineage, deterministic membership digests, and independent fail-closed
+technical, temporal, identity, membership, action, delisting, rights,
+reproduction, and leakage states. Status and preview are read-only; they do
+not fetch, normalize to disk, apply, rebuild readiness, or activate analysis.
+Synthetic fixtures remain test-only and cannot complete this priority.
 
 1. Establish timestamped benchmark membership, research-universe membership, security identity, and observation cutoffs with suitable source rights and immutable manifests.
 2. Handle corporate actions, delistings, survivorship, and leakage explicitly; never substitute today's constituents, identifiers, prices, or fundamentals for historical state.
