@@ -276,7 +276,17 @@ def test_missing_or_surplus_cells_block_the_csv_contract(tmp_path, extra):
     parsed = parse_universe_evidence(load_universe_package(manifest, registry))
 
     assert "schema_columns_invalid" in _reason_codes(parsed)
-    assert all(raw.contract != "security_identity" for raw in parsed.raw)
+    malformed_raw = next(raw for raw in parsed.raw if raw.contract == "security_identity")
+    assert parsed.raw[0] is malformed_raw
+    assert malformed_raw.source_row == 2
+    assert not parsed.identities
+    assert all(isinstance(key, str) and isinstance(value, str) for key, value in malformed_raw.values.items())
+    assert malformed_raw.values["identity_row_id"] == "id-1"
+    assert malformed_raw.values["security_id"] == "sec-1"
+    if extra:
+        assert malformed_raw.values["__surplus_cell_0__"] == "surplus"
+    else:
+        assert malformed_raw.values["supersedes_identity_row_id"] == "__missing_csv_cell__"
 
 
 def test_raw_evidence_preserves_manifest_relative_source_file(tmp_path):

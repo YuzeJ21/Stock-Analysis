@@ -18,6 +18,8 @@ EVENT_TYPES = frozenset({
 LISTING_STATES = frozenset({"", "active", "delisted", "suspended"})
 PARTITIONS = frozenset({"train", "validation", "test", "walk_forward"})
 RFC3339_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
+RAW_MISSING_CELL = "__missing_csv_cell__"
+RAW_SURPLUS_CELL_PREFIX = "__surplus_cell_"
 
 
 @dataclass(frozen=True)
@@ -195,6 +197,21 @@ def _has_exact_row_shape(values: Mapping[object, object], columns: tuple[str, ..
     )
 
 
+def _raw_values(values: Mapping[object, object], columns: tuple[str, ...]) -> Mapping[str, str]:
+    raw = {
+        column: values[column] if isinstance(values.get(column), str) else RAW_MISSING_CELL
+        for column in columns
+    }
+    surplus = values.get(None, ())
+    if isinstance(surplus, list):
+        for index, value in enumerate(surplus):
+            key = f"{RAW_SURPLUS_CELL_PREFIX}{index}__"
+            while key in raw:
+                key = f"_{key}"
+            raw[key] = value if isinstance(value, str) else RAW_MISSING_CELL
+    return MappingProxyType(raw)
+
+
 def _parse_identity(row: Mapping[str, str]) -> IdentityObservation:
     required = _required(
         row, "identity_row_id", "security_id", "issuer_id", "ticker", "exchange",
@@ -296,16 +313,16 @@ def parse_universe_evidence(package: LoadedUniversePackage) -> ParsedUniverseEvi
                 findings.append(ContractFinding(contract, 1, "", ("schema_columns_invalid",)))
                 continue
             for source_row, values in enumerate(reader, start=2):
-                if not _has_exact_row_shape(values, COLUMNS[contract]):
-                    findings.append(ContractFinding(contract, source_row, "", ("schema_columns_invalid",)))
-                    continue
-                clean = MappingProxyType({key: values[key] for key in COLUMNS[contract]})
+                clean = _raw_values(values, COLUMNS[contract])
                 raw_rows.append(RawEvidenceRow(
                     contract,
                     path.relative_to(package.manifest_path.parent).as_posix(),
                     source_row,
                     clean,
                 ))
+                if not _has_exact_row_shape(values, COLUMNS[contract]):
+                    findings.append(ContractFinding(contract, source_row, "", ("schema_columns_invalid",)))
+                    continue
                 row_id = clean.get(ROW_ID_FIELDS[contract], "")
                 try:
                     parsed[contract].append(PARSERS[contract](clean))
