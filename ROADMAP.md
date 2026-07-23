@@ -467,6 +467,14 @@ Priority 4 exit requires one bounded permitted point-in-time dataset with rights
 
 The 2026-07-23 audit exercised Research Desk -> Discover -> Company Workbench -> Monitor at `1280x720` and `390x844`. All four routes reflowed without document-level horizontal overflow, visible controls retained accessible names, and no duplicate IDs were observed. It reproduced a `3.3:1` contrast defect on the Monitor `Open Discover` action; the primary link-button theme now uses white on `#0b3b36`, and runtime retest measured `12.4:1`. A second test-first slice added a route-preserving `Skip to page answer` link to every Personal Research route and changed primary route sections from `h3` to `h2`. Direct desktop/phone retest verified the correct skip destination and Company Workbench ticker/open parameters, a focusable answer target, continuous `h1` -> `h2` hierarchy, the non-empty nested Monitor `h3`, and no horizontal overflow. This is partial local evidence only. A stable `main` landmark, direct skip-link keyboard behavior, small framework help/dataframe controls, dynamic-announcement coverage, complete keyboard order, zoom, forced-colors, and screen-reader tasks remain open.
 
+`docs/ACCESSIBILITY_TASK_PROTOCOL.md` now defines exact run metadata, result
+states, keyboard-only route tasks, write-free authoring validation, 200%/400%
+zoom, forced-colors, reduced-motion, screen-reader, target-size, finding, and
+completion contracts; the protocol is not completion evidence. Every task
+still requires direct current execution in the recorded environment. The
+current Streamlit container API has no stable semantic-role parameter, so an
+unsafe DOM-mutation workaround is not accepted as `main` landmark evidence.
+
 1. Add automated semantic checks plus keyboard-only navigation, visible focus, focus order, form labels, error association, text resizing, zoom/reflow, color/contrast, reduced-motion, and screen-reader task review.
 2. Exercise the complete Research Desk -> Discover -> Company Workbench -> Monitor workflow at desktop and phone widths.
 3. Record reproducible defects, environment, assistive technology, severity, remediation, and retest evidence. Do not claim conformance from screenshots or automation alone.

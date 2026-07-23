@@ -1388,3 +1388,31 @@ def test_priority_three_release_docs_record_controller_runtime_evidence_without_
     )
     for text in (readme, product_spec, roadmap, prompt, design):
         assert confirmation_integrity in text
+
+
+def test_accessibility_task_protocol_is_reproducible_and_cannot_claim_conformance_from_incomplete_runs():
+    protocol = _read("docs/ACCESSIBILITY_TASK_PROTOCOL.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    required_protocol = (
+        "commit SHA",
+        "Research Desk -> Discover -> Company Workbench -> Monitor",
+        "keyboard_only",
+        "zoom_200",
+        "zoom_400",
+        "forced_colors",
+        "reduced_motion",
+        "screen_reader",
+        "passed_direct",
+        "blocked_environment",
+        "No result may be inferred from a screenshot",
+        "Do not save a research record",
+        "No WCAG conformance claim",
+    )
+    for phrase in required_protocol:
+        assert phrase in protocol
+
+    for text in (roadmap, prompt):
+        assert "docs/ACCESSIBILITY_TASK_PROTOCOL.md" in text
+        assert "the protocol is not completion evidence" in text

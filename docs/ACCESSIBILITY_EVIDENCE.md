@@ -48,6 +48,11 @@ Directly observed:
 Open findings:
 
 - The inspected routes still expose no `main` landmark.
+- Current local Streamlit `1.59.2` containers expose layout and key parameters
+  but no semantic role or element parameter. A client-side workaround would
+  require unsafe JavaScript tied to framework-owned DOM selectors. That
+  approach is not accepted as a stable landmark implementation without a
+  separately reviewed design and direct runtime evidence.
 - The skip link is structurally present and uses the existing visible-on-focus
   CSS contract, but a complete keyboard traversal has not yet directly proved
   first-focus placement, focus transfer, or return-path behavior.
@@ -74,10 +79,13 @@ Classification:
 
 Next safe local step:
 
-1. Determine whether Streamlit permits a stable route-level `main` landmark
-   without invalid nesting or duplicate landmarks, then add a contract and
-   direct retest only if the implementation is sound.
-2. Add a keyboard-only task protocol and record direct traversal, focus,
-   disclosure, search, navigation, and error-recovery evidence.
-3. Complete zoom/reflow, forced-colors, and screen-reader tasks in a suitable
-   review environment.
+1. Execute `docs/ACCESSIBILITY_TASK_PROTOCOL.md` in a suitable review
+   environment and record direct keyboard traversal, focus, disclosure,
+   search, navigation, validation, and error-recovery evidence.
+2. Complete zoom/reflow, forced-colors, and screen-reader tasks from the same
+   protocol.
+3. Revisit the `main` landmark only through a stable Streamlit capability or a
+   separately reviewed design; do not inject an unverified DOM-mutation patch.
+
+The protocol is not completion evidence and no task result is inferred merely
+because the protocol now exists.
