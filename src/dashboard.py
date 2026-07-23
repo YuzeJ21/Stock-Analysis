@@ -6985,7 +6985,12 @@ def public_workflow_skip_href(
     *,
     mode: str = PUBLIC_DEMO_MODE,
 ) -> str:
-    skip_mode = OPERATOR_DEMO_MODE if mode == OPERATOR_DEMO_MODE else PUBLIC_DEMO_MODE
+    if mode == OPERATOR_DEMO_MODE:
+        skip_mode = OPERATOR_DEMO_MODE
+    elif mode == RESEARCH_MODE:
+        skip_mode = RESEARCH_MODE
+    else:
+        skip_mode = PUBLIC_DEMO_MODE
     params: list[tuple[str, str]] = [("mode", skip_mode)]
     if page_title != "Home":
         params.append(("page", dashboard_page_slug(page_title)))
@@ -30596,7 +30601,7 @@ def render_single_stock_report(
                     "snapshot_only": "snapshot evidence only",
                     "source_backed": "source-backed change",
                 }.get(str(change_answer["change_context_kind"]), "no queued change")
-                st.markdown("### What Changed")
+                st.markdown("## What Changed")
                 render_signal_cards(
                     [
                         {
@@ -30613,7 +30618,7 @@ def render_single_stock_report(
                     show_commands=False,
                     variant="queue",
                 )
-                st.markdown("### Research Decision Lab")
+                st.markdown("## Research Decision Lab")
                 render_signal_cards(decision_lab_cards(decision_lab_state), show_commands=False, variant="queue")
                 with st.expander("Advanced: Decision Lab evidence", expanded=False):
                     st.dataframe(
@@ -30623,7 +30628,7 @@ def render_single_stock_report(
                     )
                     st.caption(f"Decision Lab identity: {decision_lab_state.identity}")
                     st.caption(decision_lab_state.boundary)
-                st.markdown("### Business Trend")
+                st.markdown("## Business Trend")
                 render_signal_cards(quarterly_trend_cards(trend_packet), show_commands=False, variant="queue")
                 if cash_generation_preview is not None:
                     render_signal_cards(
@@ -30663,7 +30668,7 @@ def render_single_stock_report(
                             hide_index=True,
                         )
                     st.caption("Q4 is never derived. Only explicit versioned quarterly source rows can unlock a comparison.")
-                st.markdown("### Valuation")
+                st.markdown("## Valuation")
                 render_signal_cards(
                     stock_report_valuation_boundary_cards(report_payload),
                     show_commands=False,
@@ -30684,7 +30689,7 @@ def render_single_stock_report(
                             hide_index=True,
                         )
                     st.caption(valuation_regime.boundary)
-                st.markdown("### Forward View")
+                st.markdown("## Forward View")
                 render_signal_cards(forward_view_cards(forward_view_packet), show_commands=False, variant="queue")
                 render_signal_cards(catalyst_timeline_cards(catalyst_timeline), show_commands=False, variant="queue")
                 with st.expander("Advanced: Forward View evidence", expanded=False):
@@ -30708,7 +30713,7 @@ def render_single_stock_report(
             else:
                 render_signal_cards(nowcast_summary_cards(None, ticker=ticker), show_commands=False, variant="queue")
             if research_mode:
-                st.markdown("### What Remains Withheld")
+                st.markdown("## What Remains Withheld")
                 withheld = [
                     lane.replace("_", " ")
                     for lane, ready in (
@@ -30796,7 +30801,7 @@ def render_single_stock_report(
                     st.caption(f"Process identity: {decision_process_scorecard.scorecard_identity}")
                     st.caption(decision_process_scorecard.boundary)
         if research_mode:
-            st.markdown("### Research Conclusion")
+            st.markdown("## Research Conclusion")
             conclusion_cards = stock_report_next_step_cards(
                 report_payload,
                 coverage if provider is not None and ticker else None,
@@ -30809,7 +30814,7 @@ def render_single_stock_report(
             )
             change_answer = company_change_answer(ticker, research_review_items)
             authoritative_task = company_next_research_task(change_answer, conclusion_cards)
-            st.markdown("### Next Research Task")
+            st.markdown("## Next Research Task")
             render_signal_cards(
                 [
                     {
@@ -34646,7 +34651,7 @@ def render_research_desk(
         context,
         primary_action="Open Discover and choose one readiness-backed company",
     )
-    st.markdown("### Weekly research summary")
+    st.markdown("## Weekly research summary")
     render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
     cards = research_desk_cards(
         change_status=str(state.get("status") or "unavailable"),
@@ -34689,7 +34694,7 @@ def render_research_monitor(
         cohort,
         state.get("queue") or (),
     )
-    st.markdown("### Research Discipline Review")
+    st.markdown("## Research Discipline Review")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
     if discipline_frame.empty or not any(row.due_lanes for row in discipline):
         render_context_note(
@@ -34720,7 +34725,7 @@ def render_research_monitor(
             "Rows preserve saved focused-cohort order. Process state does not rank companies, "
             "estimate returns, or replace source-change review."
         )
-    st.markdown("### Research change monitor")
+    st.markdown("## Research change monitor")
     frame = research_monitor_frame(state.get("queue") or ())
     if frame.empty:
         render_context_note(
@@ -34782,7 +34787,7 @@ def render_company_workbench(
         cash_generation_preview=cash_generation_preview,
         selected_answer_target=selected_answer_target,
     )
-    st.markdown("### Advanced Evidence")
+    st.markdown("## Advanced Evidence")
     with st.expander("Advanced Evidence", expanded=False):
         st.markdown(advanced_evidence_links_html(ticker), unsafe_allow_html=True)
         st.caption("Detailed ticker-change evidence remains in the separate evidence drawer below.")
@@ -34960,6 +34965,12 @@ def main() -> None:
         render_profile_trust_strip(profile_context, compact=True, include_advanced=False)
         render_public_workflow_skip_target()
     else:
+        if research_mode:
+            render_public_workflow_skip_link(
+                selected_page,
+                st.query_params,
+                mode=RESEARCH_MODE,
+            )
         render_app_header(
             catalog,
             output_frames,
@@ -34999,7 +35010,7 @@ def main() -> None:
             profile_context,
             primary_action="Choose one readiness-backed company and open its workbench",
         )
-        st.markdown("### Which stock can I review?")
+        st.markdown("## Which stock can I review?")
         render_stock_selector(
             output_frames,
             public_mode=True,

@@ -32,12 +32,25 @@ Directly observed:
 - The local theme now gives primary link buttons a `#0b3b36` background and
   border with white text. Runtime retest measured the Monitor action at
   `12.4:1`.
+- A route-preserving `Skip to page answer` link is now present in the
+  accessibility tree on all four Personal Research routes. Direct desktop and
+  phone retest verified the correct route, ticker, and open-state parameters
+  for the Company Workbench link and a focusable `tabindex="-1"` answer target.
+- Primary route sections now follow each route `h1` with `h2` headings.
+  Direct desktop and phone DOM retest verified the complete Workbench sequence
+  from `What Changed` through `Advanced Evidence`; Monitor retains the nested,
+  non-empty `h3` for `Earnings evidence readiness`.
+- The semantic correction was retested at `1280x720` and `390x844` with no
+  document-level horizontal overflow. New screenshots remain ephemeral under
+  `/tmp/stock-research-accessibility-audit-2026-07-23/` and are not repository
+  or release artifacts.
 
 Open findings:
 
-- The inspected routes expose no `main` landmark and no visible skip link.
-- Page sections generally move from the route `h1` directly to `h3`; Monitor
-  also exposes one empty `h3` in the inspected DOM.
+- The inspected routes still expose no `main` landmark.
+- The skip link is structurally present and uses the existing visible-on-focus
+  CSS contract, but a complete keyboard traversal has not yet directly proved
+  first-focus placement, focus transfer, or return-path behavior.
 - Framework help controls measured approximately `16x16` CSS pixels and
   dataframe toolbar controls approximately `22x22`. Hidden native radio inputs
   also measured small, but their visible labels are larger and require separate
@@ -53,17 +66,18 @@ Open findings:
 Classification:
 
 - `partial_local_accessibility_evidence`
-- The contrast defect above is fixed and directly retested.
+- The contrast, route heading hierarchy, and route-preserving skip-link defects
+  above are fixed and directly retested within the stated scope.
 - Priority 7 remains incomplete. Screenshots, DOM inspection, and one focused
-  contrast retest do not prove keyboard accessibility, assisted-technology
-  support, or WCAG conformance.
+  contrast/semantic retest do not prove keyboard accessibility,
+  assisted-technology support, or WCAG conformance.
 
 Next safe local step:
 
-1. Add an automated semantic contract for the primary workflow.
-2. Repair route-level landmark and heading hierarchy where Streamlit permits a
-   stable implementation.
-3. Add a keyboard-only task protocol and record direct traversal, focus,
+1. Determine whether Streamlit permits a stable route-level `main` landmark
+   without invalid nesting or duplicate landmarks, then add a contract and
+   direct retest only if the implementation is sound.
+2. Add a keyboard-only task protocol and record direct traversal, focus,
    disclosure, search, navigation, and error-recovery evidence.
-4. Complete zoom/reflow, forced-colors, and screen-reader tasks in a suitable
+3. Complete zoom/reflow, forced-colors, and screen-reader tasks in a suitable
    review environment.

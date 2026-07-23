@@ -33983,7 +33983,7 @@ def test_company_workbench_cash_generation_uses_no_supplemental_file_and_keeps_e
     render_end = source.index("\ndef render_data_health(", render_index)
     render_source = source[render_index:render_end]
 
-    business_trend_index = render_source.index('st.markdown("### Business Trend")')
+    business_trend_index = render_source.index('st.markdown("## Business Trend")')
     primary_cards_index = render_source.index("quarterly_trend_cards(trend_packet)", business_trend_index)
     evidence_drawer_index = render_source.index(
         'st.expander("Advanced: quarterly trend evidence", expanded=False)',

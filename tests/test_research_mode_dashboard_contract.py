@@ -179,7 +179,7 @@ def test_research_discover_renders_selector_before_advanced_cohort_context():
     )
     discover = source[discover_start:discover_end]
 
-    heading = discover.index('st.markdown("### Which stock can I review?")')
+    heading = discover.index('st.markdown("## Which stock can I review?")')
     selector = discover.index("render_stock_selector(", heading)
     advanced = discover.index(
         'with st.expander("Advanced: cohort readiness context", expanded=False):'
@@ -240,7 +240,7 @@ def test_cash_preview_renders_after_business_trend_answer_and_before_advanced_li
     report_end = source.index("\ndef render_data_health(", report_start)
     report = source[report_start:report_end]
 
-    business = report.index('st.markdown("### Business Trend")')
+    business = report.index('st.markdown("## Business Trend")')
     canonical = report.index("quarterly_trend_cards(trend_packet)", business)
     preview = report.index(
         "cash_generation_preview_cards(cash_generation_preview)",
@@ -446,7 +446,7 @@ def test_research_desk_renders_answers_before_advanced_cohort_context():
     desk_end = source.index("def render_research_monitor(", desk_start)
     desk = source[desk_start:desk_end]
 
-    weekly = desk.index('st.markdown("### Weekly research summary")')
+    weekly = desk.index('st.markdown("## Weekly research summary")')
     weekly_cards = desk.index("weekly_summary_cards(weekly_summary)", weekly)
     answers = desk.index("cards = research_desk_cards(", weekly_cards)
     answers_html = desk.index("research_desk_cards_html(cards)", answers)
@@ -569,8 +569,8 @@ def test_monitor_renders_change_answer_before_advanced_readiness():
     monitor = source[monitor_start:monitor_end]
 
     weekly = monitor.index("weekly_summary_cards(weekly_summary)")
-    discipline = monitor.index('st.markdown("### Research Discipline Review")', weekly)
-    answer = monitor.index('st.markdown("### Research change monitor")', discipline)
+    discipline = monitor.index('st.markdown("## Research Discipline Review")', weekly)
+    answer = monitor.index('st.markdown("## Research change monitor")', discipline)
     frame = monitor.index("research_monitor_frame(state.get", answer)
     empty = monitor.index("if frame.empty:", frame)
     note = monitor.index("render_context_note(", empty)
@@ -742,12 +742,12 @@ def test_optional_dashboard_evidence_loaders_enable_commercial_composition():
 
 def test_company_workbench_uses_one_authoritative_task_arbitration():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    workbench_start = source.index('st.markdown("### Research Conclusion")')
+    workbench_start = source.index('st.markdown("## Research Conclusion")')
     workbench_end = source.index("\n    if public_mode and report_payload", workbench_start)
     composition = source[workbench_start:workbench_end]
 
     assert "company_next_research_task(" in composition
-    assert 'st.markdown("### Next Research Task")' in composition
+    assert 'st.markdown("## Next Research Task")' in composition
     assert '"title": str(authoritative_task["title"])' in composition
     assert '"body": str(authoritative_task["body"])' in composition
     assert '"badges": list(authoritative_task["badges"])' in composition
@@ -758,7 +758,7 @@ def test_company_workbench_uses_one_authoritative_task_arbitration():
 def test_company_workbench_change_badge_uses_explicit_change_context_kind():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     change_start = source.index('change_answer = company_change_answer(ticker, research_review_items)')
-    change_end = source.index('st.markdown("### Business Trend")', change_start)
+    change_end = source.index('st.markdown("## Business Trend")', change_start)
     composition = source[change_start:change_end]
 
     assert 'change_answer["change_context_kind"]' in composition
@@ -775,13 +775,73 @@ def test_company_workbench_places_one_decision_lab_after_what_changed_before_bus
     report = source[report_start:report_end]
 
     selected_answer = report.index("render_single_stock_public_summary(")
-    what_changed = report.index('st.markdown("### What Changed")', selected_answer)
-    decision_lab = report.index('st.markdown("### Research Decision Lab")', what_changed)
-    business_trend = report.index('st.markdown("### Business Trend")', decision_lab)
-    conclusion = report.index('st.markdown("### Research Conclusion")', business_trend)
-    next_task = report.index('st.markdown("### Next Research Task")', conclusion)
+    what_changed = report.index('st.markdown("## What Changed")', selected_answer)
+    decision_lab = report.index('st.markdown("## Research Decision Lab")', what_changed)
+    business_trend = report.index('st.markdown("## Business Trend")', decision_lab)
+    conclusion = report.index('st.markdown("## Research Conclusion")', business_trend)
+    next_task = report.index('st.markdown("## Next Research Task")', conclusion)
 
     assert selected_answer < what_changed < decision_lab < business_trend < conclusion < next_task
-    assert report.count('st.markdown("### Research Decision Lab")') == 1
+    assert report.count('st.markdown("## Research Decision Lab")') == 1
     assert 'st.expander("Advanced: Decision Lab evidence", expanded=False)' in report
     assert "decision_lab_state.identity" in report
+
+
+def test_research_workflow_skip_link_preserves_route_and_precedes_page_answer():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+
+    href = dashboard.public_workflow_skip_href(
+        "Company Workbench",
+        {
+            "mode": "research",
+            "page": "company-workbench",
+            "ticker": "AVGO",
+            "open": "1",
+        },
+        mode=nav.RESEARCH_MODE,
+    )
+    assert href == "?mode=research&page=company-workbench&ticker=AVGO&open=1#public-page-answer"
+
+    main_start = source.index("def main()")
+    output_frames = source.index(
+        "output_frames = dashboard_output_frames_for_page(content_page)",
+        main_start,
+    )
+    research_skip = source.index(
+        "render_public_workflow_skip_link(\n"
+        "                selected_page,\n"
+        "                st.query_params,\n"
+        "                mode=RESEARCH_MODE,\n"
+        "            )",
+        output_frames,
+    )
+    answer_target = source.index("render_public_workflow_skip_target()", research_skip)
+    dispatch = source.index(
+        'if research_mode and selected_page == "Research Desk":',
+        answer_target,
+    )
+
+    assert research_skip < answer_target < dispatch
+
+
+def test_research_primary_sections_follow_route_h1_with_level_two_headings():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    expected_level_two = (
+        "Weekly research summary",
+        "Research Discipline Review",
+        "Research change monitor",
+        "Which stock can I review?",
+        "What Changed",
+        "Research Decision Lab",
+        "Business Trend",
+        "Valuation",
+        "Forward View",
+        "What Remains Withheld",
+        "Research Conclusion",
+        "Next Research Task",
+        "Advanced Evidence",
+    )
+
+    for heading in expected_level_two:
+        assert f'st.markdown("## {heading}")' in source
+        assert f'st.markdown("### {heading}")' not in source
