@@ -414,6 +414,8 @@ A blocked priority does not become complete, and skipping it does not weaken its
 
 Hardening commit `07758114c` closes the confirmation race: all three append engines share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, every new preview resets confirmation, and uncertain post-append teardown requires one-shot read-side reload before success.
 
+Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
+
 Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.
 A valid record requires an exact preview and explicit confirmation before save.
 Drafts are untrusted and preview receipts are session-only.

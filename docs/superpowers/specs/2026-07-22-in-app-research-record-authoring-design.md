@@ -26,6 +26,7 @@ Priority 4 exit requires one bounded permitted point-in-time dataset with rights
 - Production no-write rehearsal: journal SHA-256 remained `0c427c359c1bdb6d8c8410aece9b3a46831ffb9ccd91d401aeb7930b5f401717`; catalyst and outcome paths remained absent. Invalid `effective_at=not-a-timestamp` showed the field-level ISO-8601 error and no confirmation. A valid session-only preview showed the append-only preview and confirmation; editing the summary removed confirmation and required re-preview. No successful production save was attempted; persistence evidence remains temporary-ledger AppTest and direct persistence tests only.
 - Applicable Tasks 1-4 implementation chain: `6b7cdbd3b`, `996d86610`, `10c2c155c`, and `e67b16d04`. This design intentionally does not self-reference the Task 5 commit.
 - Hardening commit `07758114c` closes the confirmation race: all three append engines share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, every new preview resets confirmation, and uncertain post-append teardown requires one-shot read-side reload before success.
+- Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
 
 ## Scope
 

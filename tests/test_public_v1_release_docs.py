@@ -1343,6 +1343,8 @@ def test_priority_three_authoring_release_docs_require_current_runtime_evidence_
 
 
 def test_priority_three_release_docs_record_controller_runtime_evidence_without_claiming_production_persistence():
+    readme = _read("README.md")
+    product_spec = _read("PRODUCT_SPEC.md")
     roadmap = _read("ROADMAP.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
     design = _read("docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md")
@@ -1366,3 +1368,13 @@ def test_priority_three_release_docs_record_controller_runtime_evidence_without_
     )
     for text in (roadmap, prompt, design):
         assert hardening in text
+
+    integrity = (
+        "Final integrity commit `e3a090dba` ensures confirmation appends only the "
+        "receipt-matched recomputed record and enforces one readable active thesis lineage: "
+        "revisions must supersede the exact active entry and preserve its thesis ID. The Company "
+        "Workbench locks and explains that relationship, with temporary-ledger create -> revise "
+        "-> reload coverage."
+    )
+    for text in (readme, product_spec, roadmap, prompt, design):
+        assert integrity in text
