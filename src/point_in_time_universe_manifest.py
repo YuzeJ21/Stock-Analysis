@@ -83,12 +83,15 @@ def _nonempty_string(value: Any) -> bool:
 
 
 def _utc_timestamp(value: Any) -> datetime | None:
-    if not _nonempty_string(value) or not value.endswith("Z"):
+    if not _nonempty_string(value) or "T" not in value or not value.endswith("Z"):
         return None
     try:
-        return datetime.fromisoformat(value.removesuffix("Z") + "+00:00")
+        timestamp = datetime.fromisoformat(value.removesuffix("Z") + "+00:00")
     except ValueError:
         return None
+    if timestamp.tzinfo is None or timestamp.utcoffset() is None or timestamp.utcoffset().total_seconds() != 0:
+        return None
+    return timestamp
 
 
 def _valid_evaluation_policy(policy: Any) -> bool:

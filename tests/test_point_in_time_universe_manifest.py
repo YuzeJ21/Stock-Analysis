@@ -151,8 +151,10 @@ def test_manifest_rejects_invalid_immutable_policy_semantics(tmp_path, mutation,
     ("manifest_id", "manifest_id_invalid"),
     ("created_at", "manifest_created_at_invalid"),
     ("created_at_without_timezone", "manifest_created_at_invalid"),
+    ("created_at_date_only_z", "manifest_created_at_invalid"),
     ("cutoff_at", "manifest_observation_cutoff_at_invalid"),
     ("cutoff_at_without_timezone", "manifest_observation_cutoff_at_invalid"),
+    ("cutoff_at_date_only_z", "manifest_observation_cutoff_at_invalid"),
 ])
 def test_manifest_rejects_invalid_identity_and_cutoff_metadata(tmp_path, mutation, match):
     from src.point_in_time_universe_manifest import load_universe_package
@@ -167,8 +169,12 @@ def test_manifest_rejects_invalid_identity_and_cutoff_metadata(tmp_path, mutatio
         raw["manifest_created_at"] = "not-a-timestamp"
     elif mutation == "created_at_without_timezone":
         raw["manifest_created_at"] = "2021-01-02T00:00:00"
+    elif mutation == "created_at_date_only_z":
+        raw["manifest_created_at"] = "2021-01-02Z"
     elif mutation == "cutoff_at":
         raw["observation_cutoff_at"] = ""
+    elif mutation == "cutoff_at_date_only_z":
+        raw["observation_cutoff_at"] = "2021-01-01Z"
     else:
         raw["observation_cutoff_at"] = "2021-01-01T00:00:00"
     manifest.write_text(json.dumps(raw), encoding="utf-8")
