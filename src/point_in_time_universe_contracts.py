@@ -1,0 +1,285 @@
+from __future__ import annotations
+
+import csv
+import math
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from types import MappingProxyType
+from typing import Mapping
+
+from src.point_in_time_universe_manifest import LoadedUniversePackage
+
+
+EVENT_TYPES = frozenset({
+    "listing", "ticker_change", "exchange_change", "split", "reverse_split", "merger",
+    "acquisition", "spinoff", "delisting", "suspension", "reactivation",
+})
+LISTING_STATES = frozenset({"", "active", "delisted", "suspended"})
+PARTITIONS = frozenset({"train", "validation", "test", "walk_forward"})
+
+
+@dataclass(frozen=True)
+class RawEvidenceRow:
+    contract: str
+    source_file: str
+    source_row: int
+    values: Mapping[str, str]
+
+
+@dataclass(frozen=True)
+class ContractFinding:
+    contract: str
+    source_row: int
+    row_id: str
+    reason_codes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class IdentityObservation:
+    identity_row_id: str
+    security_id: str
+    issuer_id: str
+    ticker: str
+    exchange: str
+    security_type: str
+    currency: str
+    valid_from: datetime
+    valid_to: datetime | None
+    source_id: str
+    source_ref: str
+    source_published_at: datetime
+    retrieved_at: datetime
+    supersedes_identity_row_id: str
+
+
+@dataclass(frozen=True)
+class MembershipObservation:
+    membership_row_id: str
+    universe_id: str
+    universe_kind: str
+    security_id: str
+    membership_state: str
+    effective_from: datetime
+    effective_to: datetime | None
+    observation_at: datetime
+    source_id: str
+    source_ref: str
+    source_published_at: datetime
+    retrieved_at: datetime
+    supersedes_membership_row_id: str
+
+
+@dataclass(frozen=True)
+class UniverseEvent:
+    event_row_id: str
+    security_id: str
+    event_type: str
+    effective_at: datetime
+    successor_security_id: str
+    ratio_numerator: float | None
+    ratio_denominator: float | None
+    listing_state_after: str
+    source_id: str
+    source_ref: str
+    source_published_at: datetime
+    retrieved_at: datetime
+    supersedes_event_row_id: str
+
+
+@dataclass(frozen=True)
+class EvaluationObservation:
+    evaluation_row_id: str
+    universe_id: str
+    evaluation_at: datetime
+    available_at: datetime
+    partition: str
+    source_ref: str
+
+
+@dataclass(frozen=True)
+class ParsedUniverseEvidence:
+    raw: tuple[RawEvidenceRow, ...]
+    identities: tuple[IdentityObservation, ...]
+    memberships: tuple[MembershipObservation, ...]
+    events: tuple[UniverseEvent, ...]
+    evaluations: tuple[EvaluationObservation, ...]
+    findings: tuple[ContractFinding, ...]
+
+
+def parse_utc(value: str) -> datetime:
+    text = str(value or "").strip()
+    if not text.endswith("Z"):
+        raise ValueError("schema_timestamp_invalid")
+    parsed = datetime.fromisoformat(text[:-1] + "+00:00")
+    if parsed.tzinfo != timezone.utc:
+        raise ValueError("schema_timestamp_invalid")
+    return parsed
+
+
+def optional_utc(value: str) -> datetime | None:
+    return None if not str(value or "").strip() else parse_utc(value)
+
+
+def optional_positive_float(value: str) -> float | None:
+    if not str(value or "").strip():
+        return None
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise ValueError("schema_ratio_invalid")
+    return parsed
+
+
+IDENTITY_COLUMNS = (
+    "identity_row_id", "security_id", "issuer_id", "ticker", "exchange",
+    "security_type", "currency", "valid_from", "valid_to", "source_id",
+    "source_ref", "source_published_at", "retrieved_at", "supersedes_identity_row_id",
+)
+MEMBERSHIP_COLUMNS = (
+    "membership_row_id", "universe_id", "universe_kind", "security_id",
+    "membership_state", "effective_from", "effective_to", "observation_at",
+    "source_id", "source_ref", "source_published_at", "retrieved_at",
+    "supersedes_membership_row_id",
+)
+EVENT_COLUMNS = (
+    "event_row_id", "security_id", "event_type", "effective_at", "successor_security_id",
+    "ratio_numerator", "ratio_denominator", "listing_state_after", "source_id",
+    "source_ref", "source_published_at", "retrieved_at", "supersedes_event_row_id",
+)
+EVALUATION_COLUMNS = (
+    "evaluation_row_id", "universe_id", "evaluation_at", "available_at", "partition",
+    "source_ref",
+)
+COLUMNS = {
+    "security_identity": IDENTITY_COLUMNS,
+    "membership": MEMBERSHIP_COLUMNS,
+    "events": EVENT_COLUMNS,
+    "evaluations": EVALUATION_COLUMNS,
+}
+ROW_ID_FIELDS = {
+    "security_identity": "identity_row_id",
+    "membership": "membership_row_id",
+    "events": "event_row_id",
+    "evaluations": "evaluation_row_id",
+}
+
+
+def _required(row: Mapping[str, str], *names: str) -> tuple[str, ...]:
+    values = tuple(str(row.get(name, "") or "").strip() for name in names)
+    if any(not value for value in values):
+        raise ValueError("schema_required_field_missing")
+    return values
+
+
+def _parse_identity(row: Mapping[str, str]) -> IdentityObservation:
+    required = _required(
+        row, "identity_row_id", "security_id", "issuer_id", "ticker", "exchange",
+        "security_type", "currency", "valid_from", "source_id", "source_ref",
+        "source_published_at", "retrieved_at",
+    )
+    return IdentityObservation(
+        identity_row_id=required[0], security_id=required[1], issuer_id=required[2],
+        ticker=required[3].upper(), exchange=required[4], security_type=required[5],
+        currency=required[6], valid_from=parse_utc(required[7]),
+        valid_to=optional_utc(row["valid_to"]), source_id=required[8], source_ref=required[9],
+        source_published_at=parse_utc(required[10]), retrieved_at=parse_utc(required[11]),
+        supersedes_identity_row_id=row["supersedes_identity_row_id"].strip(),
+    )
+
+
+def _parse_membership(row: Mapping[str, str]) -> MembershipObservation:
+    required = _required(
+        row, "membership_row_id", "universe_id", "universe_kind", "security_id",
+        "membership_state", "effective_from", "observation_at", "source_id", "source_ref",
+        "source_published_at", "retrieved_at",
+    )
+    if required[2] not in {"benchmark", "research_universe"}:
+        raise ValueError("schema_enum_invalid")
+    if required[4] not in {"included", "excluded"}:
+        raise ValueError("schema_enum_invalid")
+    return MembershipObservation(
+        membership_row_id=required[0], universe_id=required[1], universe_kind=required[2],
+        security_id=required[3], membership_state=required[4],
+        effective_from=parse_utc(required[5]), effective_to=optional_utc(row["effective_to"]),
+        observation_at=parse_utc(required[6]), source_id=required[7], source_ref=required[8],
+        source_published_at=parse_utc(required[9]), retrieved_at=parse_utc(required[10]),
+        supersedes_membership_row_id=row["supersedes_membership_row_id"].strip(),
+    )
+
+
+def _parse_event(row: Mapping[str, str]) -> UniverseEvent:
+    required = _required(
+        row, "event_row_id", "security_id", "event_type", "effective_at", "source_id",
+        "source_ref", "source_published_at", "retrieved_at",
+    )
+    if required[2] not in EVENT_TYPES or row["listing_state_after"].strip() not in LISTING_STATES:
+        raise ValueError("schema_enum_invalid")
+    try:
+        numerator = optional_positive_float(row["ratio_numerator"])
+        denominator = optional_positive_float(row["ratio_denominator"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("schema_ratio_invalid") from exc
+    if (numerator is None) != (denominator is None):
+        raise ValueError("schema_ratio_pair_required")
+    return UniverseEvent(
+        event_row_id=required[0], security_id=required[1], event_type=required[2],
+        effective_at=parse_utc(required[3]),
+        successor_security_id=row["successor_security_id"].strip(), ratio_numerator=numerator,
+        ratio_denominator=denominator, listing_state_after=row["listing_state_after"].strip(),
+        source_id=required[4], source_ref=required[5],
+        source_published_at=parse_utc(required[6]), retrieved_at=parse_utc(required[7]),
+        supersedes_event_row_id=row["supersedes_event_row_id"].strip(),
+    )
+
+
+def _parse_evaluation(row: Mapping[str, str]) -> EvaluationObservation:
+    required = _required(
+        row, "evaluation_row_id", "universe_id", "evaluation_at", "available_at", "partition",
+        "source_ref",
+    )
+    if required[4] not in PARTITIONS:
+        raise ValueError("schema_enum_invalid")
+    return EvaluationObservation(
+        evaluation_row_id=required[0], universe_id=required[1],
+        evaluation_at=parse_utc(required[2]), available_at=parse_utc(required[3]),
+        partition=required[4], source_ref=required[5],
+    )
+
+
+PARSERS = {
+    "security_identity": _parse_identity,
+    "membership": _parse_membership,
+    "events": _parse_event,
+    "evaluations": _parse_evaluation,
+}
+
+
+def parse_universe_evidence(package: LoadedUniversePackage) -> ParsedUniverseEvidence:
+    raw_rows: list[RawEvidenceRow] = []
+    parsed: dict[str, list] = {name: [] for name in COLUMNS}
+    findings: list[ContractFinding] = []
+    for contract in ("security_identity", "membership", "events", "evaluations"):
+        path = package.files[contract]
+        with path.open(encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            if tuple(reader.fieldnames or ()) != COLUMNS[contract]:
+                findings.append(ContractFinding(contract, 1, "", ("schema_columns_invalid",)))
+                continue
+            for source_row, values in enumerate(reader, start=2):
+                clean = MappingProxyType({key: str(value or "") for key, value in values.items()})
+                raw_rows.append(RawEvidenceRow(contract, path.name, source_row, clean))
+                row_id = clean.get(ROW_ID_FIELDS[contract], "").strip()
+                try:
+                    parsed[contract].append(PARSERS[contract](clean))
+                except (KeyError, TypeError, ValueError) as exc:
+                    reason = str(exc)
+                    if not reason.startswith("schema_"):
+                        reason = "schema_value_invalid"
+                    findings.append(ContractFinding(contract, source_row, row_id, (reason,)))
+    return ParsedUniverseEvidence(
+        raw=tuple(raw_rows),
+        identities=tuple(parsed["security_identity"]),
+        memberships=tuple(parsed["membership"]),
+        events=tuple(parsed["events"]),
+        evaluations=tuple(parsed["evaluations"]),
+        findings=tuple(findings),
+    )
