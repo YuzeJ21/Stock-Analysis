@@ -144,3 +144,57 @@ def test_manifest_rejects_invalid_immutable_policy_semantics(tmp_path, mutation,
     manifest.write_text(json.dumps(raw), encoding="utf-8")
     with pytest.raises(ValueError, match=match):
         load_universe_package(manifest, registry)
+
+
+@pytest.mark.parametrize("mutation,match", [
+    ("dataset_id", "manifest_dataset_id_invalid"),
+    ("manifest_id", "manifest_id_invalid"),
+    ("created_at", "manifest_created_at_invalid"),
+    ("created_at_without_timezone", "manifest_created_at_invalid"),
+    ("cutoff_at", "manifest_observation_cutoff_at_invalid"),
+    ("cutoff_at_without_timezone", "manifest_observation_cutoff_at_invalid"),
+])
+def test_manifest_rejects_invalid_identity_and_cutoff_metadata(tmp_path, mutation, match):
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    raw = json.loads(manifest.read_text())
+    if mutation == "dataset_id":
+        raw["dataset_id"] = ""
+    elif mutation == "manifest_id":
+        raw["manifest_id"] = None
+    elif mutation == "created_at":
+        raw["manifest_created_at"] = "not-a-timestamp"
+    elif mutation == "created_at_without_timezone":
+        raw["manifest_created_at"] = "2021-01-02T00:00:00"
+    elif mutation == "cutoff_at":
+        raw["observation_cutoff_at"] = ""
+    else:
+        raw["observation_cutoff_at"] = "2021-01-01T00:00:00"
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(ValueError, match=match):
+        load_universe_package(manifest, registry)
+
+
+@pytest.mark.parametrize("mutation", ["path", "contract", "uppercase_sha256", "short_sha256", "negative_row_count", "bool_row_count"])
+def test_manifest_rejects_invalid_file_record_before_construction(tmp_path, mutation):
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    raw = json.loads(manifest.read_text())
+    file_record = raw["files"][0]
+    if mutation == "path":
+        file_record["path"] = ""
+    elif mutation == "contract":
+        file_record["contract"] = ""
+    elif mutation == "uppercase_sha256":
+        file_record["sha256"] = file_record["sha256"].upper()
+    elif mutation == "short_sha256":
+        file_record["sha256"] = "a" * 63
+    elif mutation == "negative_row_count":
+        file_record["row_count"] = -1
+    else:
+        file_record["row_count"] = True
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(ValueError, match="manifest_file_record_invalid"):
+        load_universe_package(manifest, registry)

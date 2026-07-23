@@ -109,6 +109,14 @@ def _valid_evaluation_policy(policy: Any) -> bool:
 
 
 def _validate_manifest_semantics(raw: Mapping[str, Any]) -> None:
+    if not _nonempty_string(raw.get("dataset_id")):
+        raise ValueError("manifest_dataset_id_invalid")
+    if not _nonempty_string(raw.get("manifest_id")):
+        raise ValueError("manifest_id_invalid")
+    if _utc_timestamp(raw.get("manifest_created_at")) is None:
+        raise ValueError("manifest_created_at_invalid")
+    if _utc_timestamp(raw.get("observation_cutoff_at")) is None:
+        raise ValueError("manifest_observation_cutoff_at_invalid")
     if raw.get("coverage_semantics") not in ALLOWED_COVERAGE_SEMANTICS:
         raise ValueError("manifest_coverage_semantics_invalid")
     declared_universes = raw.get("declared_universes")
@@ -158,11 +166,32 @@ def _validate_manifest_semantics(raw: Mapping[str, Any]) -> None:
         raise ValueError("manifest_reproduction_contract_invalid")
 
 
+def _valid_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _valid_row_count(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
 def _manifest_files(raw: Mapping[str, Any]) -> tuple[ManifestFile, ...]:
     try:
         files = raw["files"]
         if not isinstance(files, list):
             raise TypeError
+        for item in files:
+            if (
+                not isinstance(item, dict)
+                or not _nonempty_string(item.get("path"))
+                or not _nonempty_string(item.get("contract"))
+                or not _valid_sha256(item.get("sha256"))
+                or not _valid_row_count(item.get("row_count"))
+            ):
+                raise ValueError("manifest_file_record_invalid")
         records = tuple(ManifestFile(**item) for item in files)
     except (KeyError, TypeError) as exc:
         raise ValueError("manifest_files_invalid") from exc
